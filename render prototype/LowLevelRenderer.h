@@ -24,10 +24,11 @@ See "DGLE2.h" for more details.
 dedicated classes: CB, SB
 dedicated DS class (whole update, 1D or 2D only, can't be used as rendertarget)
 dedicated IB/VB class (dynamic draw)
+dedicated SB SRV/UAV
 draw from sysmem using dynamic IB/VB
 other dynamic resources (textures, buffers, CBs)
 dynamic textures can only have 1 mip level and 1 array element
-multisampled textures
+multisampled textures (no update, no cubemaps, no mip levels)
 Map() waiting handling via callback
 specifying dynamically constructed data to dynamic resources via callbacks (maybe for static resources too)
 multithreaded resource access (problem with callbacks)
@@ -710,6 +711,40 @@ namespace DGLE2
 #pragma endregion
 #pragma endregion
 
+#pragma region("High level textures")
+		namespace HighLevelTextures
+		{
+			// usefull for LUT
+			class ITexture1D
+			{
+			};
+
+			class ITexture2D
+			{
+			};
+
+			class ITexture3D
+			{
+			};
+
+			class ITextureCube
+			{
+			};
+
+			class IMatrialTexture
+			{
+			};
+
+			class IMatrialTexture2D: public IMatrialTexture
+			{
+			};
+
+			class IMatrialTexture3D: public IMatrialTexture
+			{
+			};
+		}
+#pragma endregion
+
 		enum E_PRIMITIVE_TOPOLOGY
 		{
 			PRIMITIVE_TOPOLOGY_UNDEFINED					= 0,
@@ -795,7 +830,7 @@ namespace DGLE2
 			virtual void SetVertexBuffers(uint size, _In_count_(size) const void *VB) = 0;
 
 			// legacy FFP
-			virtual void BindTexture(ITexture2D *texture) = 0;
+			virtual void BindTexture(ITexture2D *texture, uint layer = 0) = 0;
 		};
 
 		class IDevice
