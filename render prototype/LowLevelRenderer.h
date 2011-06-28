@@ -161,6 +161,50 @@ namespace DGLE2
 #pragma region("InputLayout")
 		enum E_VERTEX_FORMAT
 		{
+			VERTEX_FORMAT_R32G32B32A32_FLOAT	= 2,
+			VERTEX_FORMAT_R32G32B32A32_UINT		= 3,
+			VERTEX_FORMAT_R32G32B32A32_SINT		= 4,
+			VERTEX_FORMAT_R32G32B32_FLOAT		= 6,
+			VERTEX_FORMAT_R32G32B32_UINT		= 7,
+			VERTEX_FORMAT_R32G32B32_SINT		= 8,
+			VERTEX_FORMAT_R16G16B16A16_FLOAT	= 10,
+			VERTEX_FORMAT_R16G16B16A16_UNORM	= 11,
+			VERTEX_FORMAT_R16G16B16A16_UINT		= 12,
+			VERTEX_FORMAT_R16G16B16A16_SNORM	= 13,
+			VERTEX_FORMAT_R16G16B16A16_SINT		= 14,
+			VERTEX_FORMAT_R32G32_FLOAT			= 16,
+			VERTEX_FORMAT_R32G32_UINT			= 17,
+			VERTEX_FORMAT_R32G32_SINT			= 18,
+			VERTEX_FORMAT_R10G10B10A2_UNORM		= 24,
+			VERTEX_FORMAT_R10G10B10A2_UINT		= 25,
+			VERTEX_FORMAT_R11G11B10_FLOAT		= 26,
+			VERTEX_FORMAT_R8G8B8A8_UNORM		= 28,
+			VERTEX_FORMAT_R8G8B8A8_UINT			= 29,
+			VERTEX_FORMAT_R8G8B8A8_SNORM		= 30,
+			VERTEX_FORMAT_R8G8B8A8_SINT			= 31,
+			VERTEX_FORMAT_R16G16_FLOAT			= 34,
+			VERTEX_FORMAT_R16G16_UNORM			= 35,
+			VERTEX_FORMAT_R16G16_UINT			= 36,
+			VERTEX_FORMAT_R16G16_SNORM			= 37,
+			VERTEX_FORMAT_R16G16_SINT			= 38,
+			VERTEX_FORMAT_R32_FLOAT				= 41,
+			VERTEX_FORMAT_R32_UINT				= 42,
+			VERTEX_FORMAT_R32_SINT				= 43,
+			VERTEX_FORMAT_R8G8_UNORM			= 49,
+			VERTEX_FORMAT_R8G8_UINT				= 50,
+			VERTEX_FORMAT_R8G8_SNORM			= 51,
+			VERTEX_FORMAT_R8G8_SINT				= 52,
+			VERTEX_FORMAT_R16_FLOAT				= 54,
+			VERTEX_FORMAT_R16_UNORM				= 56,
+			VERTEX_FORMAT_R16_UINT				= 57,
+			VERTEX_FORMAT_R16_SNORM				= 58,
+			VERTEX_FORMAT_R16_SINT				= 59,
+			VERTEX_FORMAT_R8_UNORM				= 61,
+			VERTEX_FORMAT_R8_UINT				= 62,
+			VERTEX_FORMAT_R8_SNORM				= 63,
+			VERTEX_FORMAT_R8_SINT				= 64,
+			VERTEX_FORMAT_B8G8R8A8_UNORM		= 87,
+			VERTEX_FORMAT_B8G8R8X8_UNORM		= 88
 		};
 
 		enum E_INPUT_CLASSIFICATION
@@ -806,31 +850,31 @@ namespace DGLE2
 			virtual void DrawCircle(float x, float y, float r, uint32 color) = 0;
 			virtual void DrawEllipse(float x, float y, float rx, float ry, uint32 color, float angle = 0) = 0;
 
-			// low level immediate draw commands
-			virtual void Draw(uint vertexCount, uint startVertexLocation) = 0;
-			virtual void DrawAuto() = 0;
-			virtual void DrawIndexed(uint indexCount, uint startIndexLocation, int baseVertexLocation) = 0;
-			virtual void DrawIndexedInstancedIndirtect(IBuffer &args, uint offset) = 0;
-			virtual void DrawInstanced(uint vertexCount, uint instanceCount, uint startVertexLocation, uint startInstanceLocation) = 0;
-			virtual void DrawInstancedIndirect(IBuffer &args, uint offset) = 0;
+			//// low level IA
+			//virtual E_PRIMITIVE_TOPOLOGY GetPrimitiveTopology() const = 0;
+			//virtual IInputLayout *GetInputLayout() const = 0;
+			//virtual void GetIndexBuffer(IBuffer *&IB, E_IB_FORMAT &format, uint &offset) const = 0;
+			//virtual void GetVertexBuffers(uint startSlot, uint VBCount, _In_count_(VBCount) IBuffer *VBs[], _In_count_(VBCount) uint strides[], _In_count_(VBCount) uint offsets[]) const = 0;
+			//virtual void SetPrimitiveTopology(E_PRIMITIVE_TOPOLOGY topology) = 0;
+			//virtual void SetInputLayout(IInputLayout *layout) = 0;
+			//virtual void SetIndexBuffer(IBuffer *IB, E_IB_FORMAT format, uint offset) = 0;
+			//virtual void SetVertexBuffers(uint startSlot, uint VBCount, _In_count_(VBCount) IBuffer *const VBs[], _In_count_(VBCount) const uint strides[], _In_count_(VBCount) const uint offsets[]) = 0;
 
-			// low level IA
-			virtual E_PRIMITIVE_TOPOLOGY GetPrimitiveTopology() const = 0;
-			virtual IInputLayout *GetInputLayout() const = 0;
-			virtual void GetIndexBuffer(IBuffer *&IB, E_IB_FORMAT &format, uint &offset) const = 0;
-			virtual void GetVertexBuffers(uint startSlot, uint VBCount, _In_count_(VBCount) IBuffer *VBs[], _In_count_(VBCount) uint strides[], _In_count_(VBCount) uint offsets[]) const = 0;
-			virtual void SetPrimitiveTopology(E_PRIMITIVE_TOPOLOGY topology) = 0;
-			virtual void SetInputLayout(IInputLayout *layout) = 0;
-			virtual void SetIndexBuffer(IBuffer *IB, E_IB_FORMAT format, uint offset) = 0;
-			virtual void SetVertexBuffers(uint startSlot, uint VBCount, _In_count_(VBCount) IBuffer *const VBs[], _In_count_(VBCount) const uint strides[], _In_count_(VBCount) const uint offsets[]) = 0;
+			//// low level immediate draw commands
+			//virtual void Draw(uint vertexCount, uint startVertexLocation) = 0;
+			//virtual void DrawIndexed(uint indexCount, uint startIndexLocation, int baseVertexLocation) = 0;
+			//virtual void DrawInstanced(uint vertexCount, uint instanceCount, uint startVertexLocation, uint startInstanceLocation) = 0;
+			//virtual void DrawInstancedIndirect(IBuffer &args, uint offset) = 0;
+			//virtual void DrawAuto() = 0;
+			//virtual void DrawIndexedInstancedIndirtect(IBuffer &args, uint offset) = 0;
 
-			// specify geometry from sysmem
-			virtual void SetIndexBuffer(uint size, _In_count_(size / sizeof(uint16)) const uint16 IB[]) = 0;
-			virtual void SetIndexBuffer(uint size, _In_count_(size / sizeof(uint32)) const uint32 IB[]) = 0;
-			virtual void SetVertexBuffers(uint size, _In_count_(size) const void *VB) = 0;
+			//// specify geometry from sysmem
+			//virtual void SetIndexBuffer(uint size, _In_count_(size / sizeof(uint16)) const uint16 IB[]) = 0;
+			//virtual void SetIndexBuffer(uint size, _In_count_(size / sizeof(uint32)) const uint32 IB[]) = 0;
+			//virtual void SetVertexBuffers(uint size, _In_count_(size) const void *VB) = 0;
 
-			// legacy FFP
-			virtual void BindTexture(ITexture2D *texture, uint layer = 0) = 0;
+			//// legacy FFP
+			//virtual void BindTexture(ITexture2D *texture, uint layer = 0) = 0;
 		};
 
 		class IDevice
@@ -843,30 +887,30 @@ namespace DGLE2
 			virtual void ToggleFullscreen(bool fullscreen) = 0;
 			virtual void test() = 0;
 
-			// Create state objects
-			virtual IBlendState *CreateBlendState(const TBlendStateDesc &desc) = 0;
-			virtual IDepthStencilState *CreateDepthStencilState(const TDepthStencilDesc &desc) = 0;
-			virtual IInputLayout *CreateInputLayout(uint descCount, _In_count_(numElements) const TInputElementDesc descs[]) = 0;
-			virtual IRasterizerState *CreateRasterizerState(const TRasterizerStateDesc &desc) = 0;
-			virtual ISamplerState *CreateSamplerState(const TSamplerStateDesc &desc) = 0;
+			//// Create state objects
+			//virtual IBlendState *CreateBlendState(const TBlendStateDesc &desc) = 0;
+			//virtual IDepthStencilState *CreateDepthStencilState(const TDepthStencilDesc &desc) = 0;
+			//virtual IInputLayout *CreateInputLayout(uint descCount, _In_count_(numElements) const TInputElementDesc descs[]) = 0;
+			//virtual IRasterizerState *CreateRasterizerState(const TRasterizerStateDesc &desc) = 0;
+			//virtual ISamplerState *CreateSamplerState(const TSamplerStateDesc &desc) = 0;
 
-			// Create resources
-			virtual ICBuffer *CreateCBuffer(uint size, const void *initData = NULL) = 0;
-			virtual IBuffer *CreateBuffer(uint size, bool IB, bool VB, bool SO, bool SR, bool RT, bool UA, const void *initData = NULL) = 0;
-			virtual IStructuredBuffer *CreateStructuredBuffer(uint structSize, uint structCount, const void *initData = NULL) = 0;
-			virtual ITexture1D *CreateTexture1D(uint width, uint mipLevels, uint arraySize, E_FORMAT format, bool SR, bool DS, bool RT, bool UA, const void *initData = NULL) = 0;
-			virtual ITexture2D *CreateTexture2D(uint width, uint height, uint mipLevels, uint arraySize, E_FORMAT format, bool cubeMap, bool SR, bool DS, bool RT, bool UA, const TInitData2D *initData = NULL) = 0;
-			virtual ITexture3D *CreateTexture3D(uint width, uint height, uint depth, uint mipLevels, E_FORMAT format, bool SR, bool RT, bool UA, const TInitData3D *initData = NULL) = 0;
+			//// Create resources
+			//virtual ICBuffer *CreateCBuffer(uint size, const void *initData = NULL) = 0;
+			//virtual IBuffer *CreateBuffer(uint size, bool IB, bool VB, bool SO, bool SR, bool RT, bool UA, const void *initData = NULL) = 0;
+			//virtual IStructuredBuffer *CreateStructuredBuffer(uint structSize, uint structCount, const void *initData = NULL) = 0;
+			//virtual ITexture1D *CreateTexture1D(uint width, uint mipLevels, uint arraySize, E_FORMAT format, bool SR, bool DS, bool RT, bool UA, const void *initData = NULL) = 0;
+			//virtual ITexture2D *CreateTexture2D(uint width, uint height, uint mipLevels, uint arraySize, E_FORMAT format, bool cubeMap, bool SR, bool DS, bool RT, bool UA, const TInitData2D *initData = NULL) = 0;
+			//virtual ITexture3D *CreateTexture3D(uint width, uint height, uint depth, uint mipLevels, E_FORMAT format, bool SR, bool RT, bool UA, const TInitData3D *initData = NULL) = 0;
 
-			// Create resource views
-			virtual void TestDepthStencilViewDesc(IResource &resource, const TDepthStencilViewDesc *desc = NULL) = 0;
-			virtual void TestRenderTargetViewDesc(IResource &resource, const TRenderTargetViewDesc *desc = NULL) = 0;
-			virtual void TestShaderResourceViewDesc(IResource &resource, const TShaderResourceViewDesc *desc = NULL) = 0;
-			virtual void TestUnordererAccessViewDesc(IResource &resource, const TUnorderedAccessView *desc = NULL) = 0;
-			virtual IDepthStencilView *CreateDepthStencilView(IResource &resource, const TDepthStencilViewDesc *desc = NULL) = 0;
-			virtual IRenderTargetView *CreateRenderTargetView(IResource &resource, const TRenderTargetViewDesc *desc = NULL) = 0;
-			virtual IShaderResourceView *CreateShaderResourceView(IResource &resource, const TShaderResourceViewDesc *desc = NULL) = 0;
-			virtual IUnorderedAccessView *CreateUnorderedResourceView(IResource &resource, const TUnorderedAccessView *desc = NULL) = 0;
+			//// Create resource views
+			//virtual void TestDepthStencilViewDesc(IResource &resource, const TDepthStencilViewDesc *desc = NULL) = 0;
+			//virtual void TestRenderTargetViewDesc(IResource &resource, const TRenderTargetViewDesc *desc = NULL) = 0;
+			//virtual void TestShaderResourceViewDesc(IResource &resource, const TShaderResourceViewDesc *desc = NULL) = 0;
+			//virtual void TestUnordererAccessViewDesc(IResource &resource, const TUnorderedAccessView *desc = NULL) = 0;
+			//virtual IDepthStencilView *CreateDepthStencilView(IResource &resource, const TDepthStencilViewDesc *desc = NULL) = 0;
+			//virtual IRenderTargetView *CreateRenderTargetView(IResource &resource, const TRenderTargetViewDesc *desc = NULL) = 0;
+			//virtual IShaderResourceView *CreateShaderResourceView(IResource &resource, const TShaderResourceViewDesc *desc = NULL) = 0;
+			//virtual IUnorderedAccessView *CreateUnorderedResourceView(IResource &resource, const TUnorderedAccessView *desc = NULL) = 0;
 		};
 
 		struct TOutput

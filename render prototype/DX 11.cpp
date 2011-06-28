@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include <vector>
 #include <Unknwn.h>
-#include "..\\..\\DGLE2\\Include\\CPP\\DGLE2.h"
+#include "..\\..\\Include\\CPP\\DGLE2.h"
 #include "LowLevelRenderer.h"
 #include <D3D11.h>
 #include <D3DX11async.h>
