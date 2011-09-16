@@ -22,11 +22,42 @@ INT_PTR CALLBACK	About(HWND, UINT, WPARAM, LPARAM);
 
 using namespace DGLE2::LowLevelRenderer;
 
+HWND hWnd;
+
 IDevice *device;
+IDeviceContext *context;
+
+std::vector<_2D::IEllipse *> ellipses;
+
+const unsigned count = 512;
 
 void Proc()
 {
+	static float angle;
+	//context->DrawRect(200, 200, 100, 100, ~0, angle);
+	//for (unsigned i = 0; i < 1024; i++)
+	//	context->DrawEllipse(320, 240, 300, 200, ~0, true, angle);
+	//for (unsigned y = 0; y < count; y++)
+	//	for (unsigned x = 0; x < count; x++)
+	//		//context->DrawEllipse(800 * x / count + 800 / (count * 2), 600 * y / count + 600 / (count * 2), 800 / (count * 2), 600 / (count * 2), ~0, false, 0);
+	//		context->DrawRect(800 * x / count + 800 / (count * 2), 600 * y / count + 600 / (count * 2), 800 / (count * 2), 600 / (count * 2), ~0, 0);
+	angle += 1e-2f;
 	device->test();
+	context->test();
+	static unsigned fps;
+	fps++;
+	DWORD cur_tick = GetTickCount();
+	static DWORD start_tick = cur_tick;
+	if (cur_tick - start_tick >= 1000)
+	{
+		start_tick = cur_tick;
+#define STR " fps"
+		char str[std::numeric_limits<decltype(fps)>::digits10 + sizeof STR];
+		sprintf_s(str, "%u"STR, fps);
+#undef STR
+		SetWindowTextA(hWnd, str);
+		fps = 0;
+	}
 }
 
 int APIENTRY _tWinMain(HINSTANCE hInstance,
@@ -61,6 +92,8 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 			{
 			case WM_QUIT:
 				delete device;
+				delete context;
+				std::for_each(ellipses.begin(), ellipses.end(), [](const _2D::IEllipse *ellipse){delete ellipse;});
 				return (int) msg.wParam;
 			default:
 				if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
@@ -131,12 +164,10 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 //
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
-   HWND hWnd;
-
    hInst = hInstance; // Store instance handle in our global variable
 
    hWnd = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
-      CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, NULL, NULL, hInstance, NULL);
+      CW_USEDEFAULT, CW_USEDEFAULT, 800, 600, NULL, NULL, hInstance, NULL);
 
    if (!hWnd)
    {
@@ -148,7 +179,13 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
    const IDisplayModes &modes = GetDisplayModes();
    modes[0];
-   device = CreateDevice(hWnd, 640, 480);
+   device = CreateDevice(hWnd, 800, 600);
+   context = device->GetDeviceContext();
+   ellipses.reserve(count * count);
+	for (unsigned y = 0; y < count; y++)
+		for (unsigned x = 0; x < count; x++)
+			//ellipses.push_back(device->AddEllipse(false, 0, 800 * x / count + 800 / (count * 2), 600 * y / count + 600 / (count * 2), 800 / (count * 2), 600 / (count * 2), ~0, false));
+			(device->AddRect(true, 0, 800 * x / count + 800 / (count * 2), 600 * y / count + 600 / (count * 2), 800 / (count * 2), 600 / (count * 2), ~0));
 
    return TRUE;
 }

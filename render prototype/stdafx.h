@@ -19,3 +19,11 @@
 
 
 // TODO: reference additional headers your program requires here
+#define _SECURE_SCL 0
+#include <limits>
+#include <vector>
+#include <algorithm>
+#include <functional>
+#include <memory>		// for allocator
+#include <new>			// for bad_alloc
+#include <malloc.h>		// for _get_heap_handle

@@ -848,7 +848,7 @@ namespace DGLE2
 			virtual void DrawRect(float x, float y, float width, float height, uint32 (&colors)[4], float angle = 0) = 0;
 			virtual void DrawPolygon(uint vcount, _In_count_(vcount) const float coords[][2], uint32 color, float angle = 0) = 0;
 			virtual void DrawCircle(float x, float y, float r, uint32 color) = 0;
-			virtual void DrawEllipse(float x, float y, float rx, float ry, uint32 color, float angle = 0) = 0;
+			virtual void DrawEllipse(float x, float y, float rx, float ry, uint32 color, bool AA, float angle = 0) = 0;
 
 			//// low level IA
 			//virtual E_PRIMITIVE_TOPOLOGY GetPrimitiveTopology() const = 0;
@@ -875,7 +875,32 @@ namespace DGLE2
 
 			//// legacy FFP
 			//virtual void BindTexture(ITexture2D *texture, uint layer = 0) = 0;
+
+			virtual void test() = 0;
 		};
+
+		namespace _2D
+		{
+			class IRect
+			{
+			public:
+				virtual ~IRect() {}
+				virtual void SetPos(float x, float y) = 0;
+				virtual void SetExtents(float x, float y) = 0;
+				virtual void SetColor(uint32 color) = 0;
+				virtual void SetAngle(float angle) = 0;
+			};
+
+			class IEllipse
+			{
+			public:
+				virtual ~IEllipse() {}
+				virtual void SetPos(float x, float y) = 0;
+				virtual void SetRadii(float rx, float ry) = 0;
+				virtual void SetColor(uint32 color) = 0;
+				virtual void SetAngle(float angle) = 0;
+			};
+		}
 
 		class IDevice
 		{
@@ -886,6 +911,10 @@ namespace DGLE2
 			virtual void SetMode(uint idx) = 0;
 			virtual void ToggleFullscreen(bool fullscreen) = 0;
 			virtual void test() = 0;
+
+			// 2D scene
+			virtual _2D::IRect *AddRect(bool dynamic, uint16 layer, float x, float y, float width, float height, uint32 color, float angle = 0) = 0;
+			virtual _2D::IEllipse *AddEllipse(bool dynamic, uint16 layer, float x, float y, float rx, float ry, uint32 color, bool AA, float angle = 0) = 0;
 
 			//// Create state objects
 			//virtual IBlendState *CreateBlendState(const TBlendStateDesc &desc) = 0;
