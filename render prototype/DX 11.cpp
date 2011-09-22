@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <Unknwn.h>
 #include "..\\..\\Include\\CPP\\DGLE2.h"
-#include "LowLevelRenderer.h"
+#include "Renderer.h"
 #include <D3D11.h>
 #include <D3DX11.h>
 #include <D3DX10Math.h>
@@ -215,14 +215,14 @@ namespace DX11
 		{
 			return layer < quad.layer;
 		}
-		D3DXVECTOR2_16F pos, extents;
-		uint16 layer;
-		D3DXFLOAT16 angle;
-		uint32 color;
-		//D3DXVECTOR2 pos, extents;
+		//D3DXVECTOR2_16F pos, extents;
 		//uint16 layer;
-		//float angle;
+		//D3DXFLOAT16 angle;
 		//uint32 color;
+		D3DXVECTOR2 pos, extents;
+		uint16 layer;
+		float angle;
+		uint32 color;
 	};
 #pragma pack(pop)
 	class CDeviceContext: public IDeviceContext
@@ -242,15 +242,20 @@ namespace DX11
 			TQuad _quad;
 		};
 	public:
-		CDeviceContext(ID3D11DevicePtr device, ID3D11InputLayoutPtr quadLayout, ID3DX11EffectPtr effect2D, ID3DX11EffectPass *rectPass, ID3DX11EffectPass *ellipsePass, ID3DX11EffectPass *ellipseAAPass, IDevice &dev):
+		CDeviceContext(ID3D11DevicePtr device, ID3D11InputLayoutPtr quadLayout, ID3DX11EffectPtr effect2D, ID3DX11EffectPass *rectPass, ID3DX11EffectPass *ellipsePass, ID3DX11EffectPass *ellipseAAPass):
 			_2DVB(device, sizeof(TQuad) * 64), _device(device), _quadLayout(quadLayout),
-			_effect2D(effect2D), _rectPass(rectPass), _ellipsePass(ellipsePass), _ellipseAAPass(ellipseAAPass), _dev(dev), _curLayer(~0)
+			_effect2D(effect2D), _rectPass(rectPass), _ellipsePass(ellipsePass), _ellipseAAPass(ellipseAAPass),
+			_VBSie(64), _VBStart(0), _VCount(0), _count(0), _curLayer(~0)
 		{
 			device->GetImmediateContext(&_deviceContext);
+			D3D11_BUFFER_DESC desc = {sizeof(TQuad) * _VBSie, D3D11_USAGE_DYNAMIC, D3D11_BIND_VERTEX_BUFFER, D3D11_CPU_ACCESS_WRITE, 0, 0};
+			ASSERT_HR(_device->CreateBuffer(&desc, NULL, &_VB))
+			D3D11_MAPPED_SUBRESOURCE mapped;
+			_deviceContext->Map(_VB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+			_mappedVB = reinterpret_cast<TQuad *>(mapped.pData);
 		}
 		virtual ~CDeviceContext()
 		{
-			std::for_each(_rects.begin(), _rects.end(), [](TRects::value_type rect){delete rect;});
 		}
 		virtual void DrawPoint(float x, float y, uint32 color, float size) override;
 		virtual void DrawLine(uint vcount, _In_count_(vcount) const float coords[][2], _In_count_(vcount) const uint32 colors[], bool closed, float width) override;
@@ -261,8 +266,27 @@ namespace DX11
 		virtual void DrawEllipse(float x, float y, float rx, float ry, uint32 color, bool AA, float angle) override;
 		virtual void test() override
 		{
-			std::for_each(_rects.begin(), _rects.end(), [](TRects::value_type rect){delete rect;});
-			_rects.clear();
+			if (_VCount)
+			{
+				_deviceContext->Unmap(_VB, 0);
+				_deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
+				_deviceContext->IASetInputLayout(_quadLayout);
+				ASSERT_HR(_rectPass->Apply(0, _deviceContext))
+				const UINT stride = sizeof(TQuad), offset = 0;
+				_deviceContext->IASetVertexBuffers(0, 1, &_VB.GetInterfacePtr(), &stride, &offset);
+				_deviceContext->Draw(_VCount, _VBStart);
+				_VBStart = _VCount = 0;
+			}
+			if (_VBSie < _count)
+			{
+				D3D11_BUFFER_DESC desc = {sizeof(TQuad) * (_VBSie = _count), D3D11_USAGE_DYNAMIC, D3D11_BIND_VERTEX_BUFFER, D3D11_CPU_ACCESS_WRITE, 0, 0};
+				ASSERT_HR(_device->CreateBuffer(&desc, NULL, &_VB))
+				D3D11_MAPPED_SUBRESOURCE mapped;
+			}
+			D3D11_MAPPED_SUBRESOURCE mapped;
+			_deviceContext->Map(_VB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+			_mappedVB = reinterpret_cast<TQuad *>(mapped.pData);
+			_count = 0;
 			_curLayer = ~0;
 		}
 	private:
@@ -270,11 +294,12 @@ namespace DX11
 		ID3D11DeviceContextPtr _deviceContext;
 		ID3D11DevicePtr _device;
 		ID3D11InputLayoutPtr _quadLayout;
+		ID3D11BufferPtr _VB;
 		ID3DX11EffectPtr _effect2D;	// hold ref for effect passes
 		ID3DX11EffectPass *const _rectPass, *const _ellipsePass, *const _ellipseAAPass;
-		IDevice &_dev;
-		typedef std::vector<_2D::IRect *> TRects;
-		TRects _rects;
+		TQuad *_mappedVB;
+		UINT _VBSie, _VBStart, _VCount;
+		unsigned _count;
 		unsigned short _curLayer;
 	};
 
@@ -425,7 +450,7 @@ namespace DX11
 		}
 		virtual IDeviceContext *GetDeviceContext() override
 		{
-			return new CDeviceContext(_device, _quadLayout, _effect2D, _rectPass, _ellipsePass, _ellipseAAPass, *this);
+			return new CDeviceContext(_device, _quadLayout, _effect2D, _rectPass, _ellipsePass, _ellipseAAPass);
 		}
 		virtual void SetMode(uint width, uint height) override
 		{
@@ -450,6 +475,7 @@ namespace DX11
 			rt_view_desc.Texture2D.MipSlice = 0;
 			ASSERT_HR(_device->CreateRenderTargetView(rt, &rt_view_desc, &rt_view))
 			immediate_comtext->ClearRenderTargetView(rt_view, color);
+			immediate_comtext->ClearDepthStencilView(_zbufferView, D3D11_CLEAR_DEPTH, 1, 0);
 			immediate_comtext->OMSetRenderTargets(1, &rt_view.GetInterfacePtr(), _zbufferView);
 		}
 		virtual _2D::IRect *AddRect(bool dynamic, uint16 layer, float x, float y, float width, float height, uint32 color, float angle) override;
@@ -527,20 +553,20 @@ namespace DX11
 			ASSERT_HR(_effect2D->GetVariableByName("targetRes")->AsVector()->SetFloatVector(res))
 
 			// create 2D IA state objects
-			const D3D11_INPUT_ELEMENT_DESC quadDesc[] =
-			{
-				"POSITION_EXTENTS",	0,	DXGI_FORMAT_R16G16B16A16_FLOAT,	0,	D3D11_APPEND_ALIGNED_ELEMENT,	D3D11_INPUT_PER_VERTEX_DATA,	0,
-				"ORDER",			0,	DXGI_FORMAT_R16_UNORM,			0,	D3D11_APPEND_ALIGNED_ELEMENT,	D3D11_INPUT_PER_VERTEX_DATA,	0,
-				"ANGLE",			0,	DXGI_FORMAT_R16_FLOAT,			0,	D3D11_APPEND_ALIGNED_ELEMENT,	D3D11_INPUT_PER_VERTEX_DATA,	0,
-				"QUAD_COLOR",		0,	DXGI_FORMAT_R8G8B8A8_UNORM,		0,	D3D11_APPEND_ALIGNED_ELEMENT,	D3D11_INPUT_PER_VERTEX_DATA,	0
-			};
 			//const D3D11_INPUT_ELEMENT_DESC quadDesc[] =
 			//{
-			//	"POSITION_EXTENTS",	0,	DXGI_FORMAT_R32G32B32A32_FLOAT,	0,	D3D11_APPEND_ALIGNED_ELEMENT,	D3D11_INPUT_PER_VERTEX_DATA,	0,
+			//	"POSITION_EXTENTS",	0,	DXGI_FORMAT_R16G16B16A16_FLOAT,	0,	D3D11_APPEND_ALIGNED_ELEMENT,	D3D11_INPUT_PER_VERTEX_DATA,	0,
 			//	"ORDER",			0,	DXGI_FORMAT_R16_UNORM,			0,	D3D11_APPEND_ALIGNED_ELEMENT,	D3D11_INPUT_PER_VERTEX_DATA,	0,
-			//	"ANGLE",			0,	DXGI_FORMAT_R32_FLOAT,			0,	D3D11_APPEND_ALIGNED_ELEMENT,	D3D11_INPUT_PER_VERTEX_DATA,	0,
+			//	"ANGLE",			0,	DXGI_FORMAT_R16_FLOAT,			0,	D3D11_APPEND_ALIGNED_ELEMENT,	D3D11_INPUT_PER_VERTEX_DATA,	0,
 			//	"QUAD_COLOR",		0,	DXGI_FORMAT_R8G8B8A8_UNORM,		0,	D3D11_APPEND_ALIGNED_ELEMENT,	D3D11_INPUT_PER_VERTEX_DATA,	0
 			//};
+			const D3D11_INPUT_ELEMENT_DESC quadDesc[] =
+			{
+				"POSITION_EXTENTS",	0,	DXGI_FORMAT_R32G32B32A32_FLOAT,	0,	D3D11_APPEND_ALIGNED_ELEMENT,	D3D11_INPUT_PER_VERTEX_DATA,	0,
+				"ORDER",			0,	DXGI_FORMAT_R16_UNORM,			0,	D3D11_APPEND_ALIGNED_ELEMENT,	D3D11_INPUT_PER_VERTEX_DATA,	0,
+				"ANGLE",			0,	DXGI_FORMAT_R32_FLOAT,			0,	D3D11_APPEND_ALIGNED_ELEMENT,	D3D11_INPUT_PER_VERTEX_DATA,	0,
+				"QUAD_COLOR",		0,	DXGI_FORMAT_R8G8B8A8_UNORM,		0,	D3D11_APPEND_ALIGNED_ELEMENT,	D3D11_INPUT_PER_VERTEX_DATA,	0
+			};
 			D3DX11_PASS_DESC pass_desc;
 			ASSERT_HR(_effect2D->GetTechniqueByName("Rect")->GetPassByIndex(0)->GetDesc(&pass_desc))
 			ASSERT_HR(_device->CreateInputLayout(quadDesc, _countof(quadDesc), pass_desc.pIAInputSignature, pass_desc.IAInputSignatureSize, &_quadLayout))
@@ -846,7 +872,25 @@ namespace DX11
 
 	void CDeviceContext::DrawRect(float x, float y, float width, float height, uint32 color, float angle)
 	{
-		_rects.push_back(_dev.AddRect(true, _curLayer--, x, y, width, height, color, angle));
+		if (_VCount == _VBSie)
+		{
+			_deviceContext->Unmap(_VB, 0);
+			_deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
+			_deviceContext->IASetInputLayout(_quadLayout);
+			ASSERT_HR(_rectPass->Apply(0, _deviceContext))
+			const UINT stride = sizeof(TQuad), offset = 0;
+			_deviceContext->IASetVertexBuffers(0, 1, &_VB.GetInterfacePtr(), &stride, &offset);
+			_deviceContext->Draw(_VCount, _VBStart);
+			_VBStart = _VCount = 0;
+			D3D11_MAPPED_SUBRESOURCE mapped;
+			_deviceContext->Map(_VB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+			_mappedVB = reinterpret_cast<TQuad *>(mapped.pData);
+		}
+		*_mappedVB++ = TQuad(x, y, width, height, _curLayer, angle, color);
+		//new(_mappedVB++) TQuad(x, y, width, height, _curLayer, angle, color);
+		_VCount++;
+		_count++;
+		//_rects.push_back(_dev.AddRect(true, _curLayer--, x, y, width, height, color, angle));
 		//ASSERT_HR(_rectPass->Apply(0, _deviceContext))
 		//_deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
 		//_deviceContext->IASetInputLayout(_quadLayout);

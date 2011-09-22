@@ -28,6 +28,17 @@ IDevice *device;
 IDeviceContext *context;
 
 std::vector<_2D::IEllipse *> ellipses;
+struct TRectDesc
+{
+	TRectDesc(float x, float y, float width, float height, unsigned long color, float angle):
+		x(x), y(y), width(width), height(height), color(color), angle(angle)
+	{
+	}
+	float x, y, width, height;
+	unsigned long color;
+	float angle;
+};
+std::vector<TRectDesc> rects;
 
 const unsigned count = 512;
 
@@ -41,9 +52,10 @@ void Proc()
 	//	for (unsigned x = 0; x < count; x++)
 	//		//context->DrawEllipse(800 * x / count + 800 / (count * 2), 600 * y / count + 600 / (count * 2), 800 / (count * 2), 600 / (count * 2), ~0, false, 0);
 	//		context->DrawRect(800 * x / count + 800 / (count * 2), 600 * y / count + 600 / (count * 2), 800 / (count * 2), 600 / (count * 2), ~0, 0);
+	std::for_each(rects.begin(), rects.end(), [=](const TRectDesc &rect){context->DrawRect(rect.x, rect.y, rect.width, rect.height, rect.color, rect.angle);});
 	angle += 1e-2f;
-	device->test();
 	context->test();
+	device->test();
 	static unsigned fps;
 	fps++;
 	DWORD cur_tick = GetTickCount();
@@ -164,6 +176,9 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 //
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
+	for (unsigned y = 0; y < count; y++)
+		for (unsigned x = 0; x < count; x++)
+			rects.push_back(TRectDesc(800 * x / count + 800 / (count * 2), 600 * y / count + 600 / (count * 2), 800 / (count * 2), 600 / (count * 2), ~0, 0));
    hInst = hInstance; // Store instance handle in our global variable
 
    hWnd = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
@@ -182,10 +197,11 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    device = CreateDevice(hWnd, 800, 600);
    context = device->GetDeviceContext();
    ellipses.reserve(count * count);
-	for (unsigned y = 0; y < count; y++)
-		for (unsigned x = 0; x < count; x++)
-			//ellipses.push_back(device->AddEllipse(false, 0, 800 * x / count + 800 / (count * 2), 600 * y / count + 600 / (count * 2), 800 / (count * 2), 600 / (count * 2), ~0, false));
-			(device->AddRect(true, 0, 800 * x / count + 800 / (count * 2), 600 * y / count + 600 / (count * 2), 800 / (count * 2), 600 / (count * 2), ~0));
+	//for (unsigned y = 0; y < count; y++)
+	//	for (unsigned x = 0; x < count; x++)
+	//		//ellipses.push_back(device->AddEllipse(false, 0, 800 * x / count + 800 / (count * 2), 600 * y / count + 600 / (count * 2), 800 / (count * 2), 600 / (count * 2), ~0, false));
+	//		(device->AddRect(true, 0, 800 * x / count + 800 / (count * 2), 600 * y / count + 600 / (count * 2), 800 / (count * 2), 600 / (count * 2), ~0));
+	//(device->AddRect(true, ~0, 300, 200, 200, 100, ~0));
 
    return TRUE;
 }
