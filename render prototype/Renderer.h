@@ -964,16 +964,16 @@ namespace DGLE2
 
 				// resource creation
 				// TODO: fill in function args
-				virtual Textures::ITexture1D *CreateTexture1D() = 0;
-				virtual Textures::ITexture2D *CreateTexture2D() = 0;
-				virtual Textures::ITexture3D *CreateTexture3D() = 0;
-				virtual Textures::ITextureCube *CreateTextureCube() = 0;
+				//virtual Textures::ITexture1D *CreateTexture1D() = 0;
+				//virtual Textures::ITexture2D *CreateTexture2D() = 0;
+				//virtual Textures::ITexture3D *CreateTexture3D() = 0;
+				//virtual Textures::ITextureCube *CreateTextureCube() = 0;
 
 				// immediate 2D
 				// consider packing coords and color into single struct (array of structs instead of struct of arrays)(it may results in better memory access pattern)
 				virtual void DrawPoint(float x, float y, uint32 color, float size = 1) = 0;
 				virtual void DrawLine(uint vcount, _In_count_(vcount) const float coords[][2], _In_count_(vcount) const uint32 colors[], bool closed, float width = 1) = 0;
-				virtual void DrawTriangles(uint vcount, _In_count_(vcount) const float coords[][2], _In_count_(vcount) const uint32 colors[]) = 0;
+				//virtual void DrawTriangles(uint vcount, _In_count_(vcount) const float coords[][2], _In_count_(vcount) const uint32 colors[]) = 0;
 				virtual void DrawRect(float x, float y, float width, float height, uint32 color, Textures::ITexture2D *texture, float angle = 0) = 0;
 				virtual void DrawRect(float x, float y, float width, float height, uint32 (&colors)[4], Textures::ITexture2D *texture, float angle = 0) = 0;
 				virtual void DrawEllipse(float x, float y, float rx, float ry, uint32 color, bool AA, float angle = 0) = 0;

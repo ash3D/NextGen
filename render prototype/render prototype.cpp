@@ -5,7 +5,7 @@
 #include "render prototype.h"
 #include <Unknwn.h>
 #include "..\\..\\Include\\CPP\\DGLE2.h"
-#include "LowLevelRenderer.h"
+#include "Renderer.h"
 
 #define MAX_LOADSTRING 100
 
@@ -20,12 +20,11 @@ BOOL				InitInstance(HINSTANCE, int);
 LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK	About(HWND, UINT, WPARAM, LPARAM);
 
-using namespace DGLE2::LowLevelRenderer;
+using namespace DGLE2::Renderer::HighLevel;
 
 HWND hWnd;
 
-IDevice *device;
-IDeviceContext *context;
+IRenderer *renderer;
 
 std::vector<_2D::IEllipse *> ellipses;
 struct TRectDesc
@@ -45,17 +44,16 @@ const unsigned count = 512;
 void Proc()
 {
 	static float angle;
-	//context->DrawRect(200, 200, 100, 100, ~0, angle);
-	//for (unsigned i = 0; i < 1024; i++)
-	//	context->DrawEllipse(320, 240, 300, 200, ~0, true, angle);
+	//renderer->DrawRect(200, 200, 100, 100, ~0, NULL, angle);
+	for (unsigned i = 0; i < 1024; i++)
+		renderer->DrawEllipse(320, 240, 300, 200, ~0, true, angle);
 	//for (unsigned y = 0; y < count; y++)
 	//	for (unsigned x = 0; x < count; x++)
 	//		//context->DrawEllipse(800 * x / count + 800 / (count * 2), 600 * y / count + 600 / (count * 2), 800 / (count * 2), 600 / (count * 2), ~0, false, 0);
 	//		context->DrawRect(800 * x / count + 800 / (count * 2), 600 * y / count + 600 / (count * 2), 800 / (count * 2), 600 / (count * 2), ~0, 0);
-	std::for_each(rects.begin(), rects.end(), [=](const TRectDesc &rect){context->DrawRect(rect.x, rect.y, rect.width, rect.height, rect.color, rect.angle);});
+	//std::for_each(rects.begin(), rects.end(), [=](const TRectDesc &rect){renderer->DrawRect(rect.x, rect.y, rect.width, rect.height, rect.color, NULL, rect.angle);});
 	angle += 1e-2f;
-	context->test();
-	device->test();
+	renderer->NextFrame();
 	static unsigned fps;
 	fps++;
 	DWORD cur_tick = GetTickCount();
@@ -103,8 +101,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 			switch (msg.message)
 			{
 			case WM_QUIT:
-				delete device;
-				delete context;
+				delete renderer;
 				std::for_each(ellipses.begin(), ellipses.end(), [](const _2D::IEllipse *ellipse){delete ellipse;});
 				return (int) msg.wParam;
 			default:
@@ -194,8 +191,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
    const IDisplayModes &modes = GetDisplayModes();
    modes[0];
-   device = CreateDevice(hWnd, 800, 600);
-   context = device->GetDeviceContext();
+   renderer = CreateRenderer(hWnd, 800, 600);
    ellipses.reserve(count * count);
 	//for (unsigned y = 0; y < count; y++)
 	//	for (unsigned x = 0; x < count; x++)

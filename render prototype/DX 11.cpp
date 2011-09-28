@@ -14,7 +14,7 @@
 #define ASSERT_HR(...) {HRESULT hr = __VA_ARGS__;_ASSERT(SUCCEEDED(hr));}
 
 using namespace DGLE2;
-using namespace DGLE2::LowLevelRenderer;
+using namespace DGLE2::Renderer::HighLevel;
 
 #if APPEND_ALIGNED_ELEMENT != D3D11_APPEND_ALIGNED_ELEMENT
 #error APPEND_ALIGNED_ELEMENT != D3D11_APPEND_ALIGNED_ELEMENT
@@ -173,6 +173,7 @@ namespace DX11
 	class CDynamicVB
 	{
 	public:
+		CDynamicVB() {}
 		CDynamicVB(ID3D11DevicePtr device, UINT minSize): _device(device), _size(minSize), _offset(0)
 		{
 			D3D11_BUFFER_DESC desc = {_size, D3D11_USAGE_DYNAMIC, D3D11_BIND_VERTEX_BUFFER, D3D11_CPU_ACCESS_WRITE, 0, 0};
@@ -225,83 +226,6 @@ namespace DX11
 		uint32 color;
 	};
 #pragma pack(pop)
-	class CDeviceContext: public IDeviceContext
-	{
-		class CQuadFiller
-		{
-		public:
-			CQuadFiller(float x, float y, float width, float height, uint16 layer, float angle, uint32 color):
-				_quad(x, y, width, height, layer, angle, color)
-			{
-			}
-			void operator ()(void *dst)
-			{
-				*reinterpret_cast<TQuad *>(dst) = _quad;
-			}
-		private:
-			TQuad _quad;
-		};
-	public:
-		CDeviceContext(ID3D11DevicePtr device, ID3D11InputLayoutPtr quadLayout, ID3DX11EffectPtr effect2D, ID3DX11EffectPass *rectPass, ID3DX11EffectPass *ellipsePass, ID3DX11EffectPass *ellipseAAPass):
-			_2DVB(device, sizeof(TQuad) * 64), _device(device), _quadLayout(quadLayout),
-			_effect2D(effect2D), _rectPass(rectPass), _ellipsePass(ellipsePass), _ellipseAAPass(ellipseAAPass),
-			_VBSie(64), _VBStart(0), _VCount(0), _count(0), _curLayer(~0)
-		{
-			device->GetImmediateContext(&_deviceContext);
-			D3D11_BUFFER_DESC desc = {sizeof(TQuad) * _VBSie, D3D11_USAGE_DYNAMIC, D3D11_BIND_VERTEX_BUFFER, D3D11_CPU_ACCESS_WRITE, 0, 0};
-			ASSERT_HR(_device->CreateBuffer(&desc, NULL, &_VB))
-			D3D11_MAPPED_SUBRESOURCE mapped;
-			_deviceContext->Map(_VB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-			_mappedVB = reinterpret_cast<TQuad *>(mapped.pData);
-		}
-		virtual ~CDeviceContext()
-		{
-		}
-		virtual void DrawPoint(float x, float y, uint32 color, float size) override;
-		virtual void DrawLine(uint vcount, _In_count_(vcount) const float coords[][2], _In_count_(vcount) const uint32 colors[], bool closed, float width) override;
-		virtual void DrawRect(float x, float y, float width, float height, uint32 color, float angle) override;
-		virtual void DrawRect(float x, float y, float width, float height, uint32 (&colors)[4], float angle) override;
-		virtual void DrawPolygon(uint vcount, _In_count_(vcount) const float coords[][2], uint32 color, float angle) override;
-		virtual void DrawCircle(float x, float y, float r, uint32 color) override;
-		virtual void DrawEllipse(float x, float y, float rx, float ry, uint32 color, bool AA, float angle) override;
-		virtual void test() override
-		{
-			if (_VCount)
-			{
-				_deviceContext->Unmap(_VB, 0);
-				_deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
-				_deviceContext->IASetInputLayout(_quadLayout);
-				ASSERT_HR(_rectPass->Apply(0, _deviceContext))
-				const UINT stride = sizeof(TQuad), offset = 0;
-				_deviceContext->IASetVertexBuffers(0, 1, &_VB.GetInterfacePtr(), &stride, &offset);
-				_deviceContext->Draw(_VCount, _VBStart);
-				_VBStart = _VCount = 0;
-			}
-			if (_VBSie < _count)
-			{
-				D3D11_BUFFER_DESC desc = {sizeof(TQuad) * (_VBSie = _count), D3D11_USAGE_DYNAMIC, D3D11_BIND_VERTEX_BUFFER, D3D11_CPU_ACCESS_WRITE, 0, 0};
-				ASSERT_HR(_device->CreateBuffer(&desc, NULL, &_VB))
-				D3D11_MAPPED_SUBRESOURCE mapped;
-			}
-			D3D11_MAPPED_SUBRESOURCE mapped;
-			_deviceContext->Map(_VB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-			_mappedVB = reinterpret_cast<TQuad *>(mapped.pData);
-			_count = 0;
-			_curLayer = ~0;
-		}
-	private:
-		CDynamicVB _2DVB;
-		ID3D11DeviceContextPtr _deviceContext;
-		ID3D11DevicePtr _device;
-		ID3D11InputLayoutPtr _quadLayout;
-		ID3D11BufferPtr _VB;
-		ID3DX11EffectPtr _effect2D;	// hold ref for effect passes
-		ID3DX11EffectPass *const _rectPass, *const _ellipsePass, *const _ellipseAAPass;
-		TQuad *_mappedVB;
-		UINT _VBSie, _VBStart, _VCount;
-		unsigned _count;
-		unsigned short _curLayer;
-	};
 
 	const class CDisplayModes: public IDisplayModes
 	{
@@ -406,12 +330,26 @@ namespace DX11
 		};
 	}
 
-	class CDevice: public IDevice
+	class CRenderer: public IRenderer
 	{
+		class CQuadFiller
+		{
+		public:
+			CQuadFiller(float x, float y, float width, float height, uint16 layer, float angle, uint32 color):
+				_quad(x, y, width, height, layer, angle, color)
+			{
+			}
+			void operator ()(void *dst)
+			{
+				*reinterpret_cast<TQuad *>(dst) = _quad;
+			}
+		private:
+			TQuad _quad;
+		};
 	public:
 		// C++ 0X
 		// use delegating ctors
-		CDevice(HWND hwnd, uint modeIdx, bool fullscreen, bool multithreaded):
+		CRenderer(HWND hwnd, uint modeIdx, bool fullscreen, bool multithreaded):
 			_dynamicRectsAllocator(_dedicatedHeap),
 			//_staticRectsAllocator(0), _dynamicRectsAllocator(0),
 			//_staticEllipsesAllocator(0), _dynamicEllipsesAllocator(0),
@@ -419,11 +357,12 @@ namespace DX11
 			_staticRects(_staticRectsAllocator), _dynamicRects(_dynamicRectsAllocator),
 			_staticEllipses(_staticEllipsesAllocator), _dynamicEllipses(_dynamicEllipsesAllocator),
 			_staticEllipsesAA(_staticEllipsesAAAllocator), _dynamicEllipsesAA(_dynamicEllipsesAAAllocator),
-			_dynamic2DVBSize(0), _static2DDirty(false)
+			_dynamic2DVBSize(0), _static2DDirty(false),
+			_VBSie(64), _VBStart(0), _VCount(0), _count(0), _curLayer(~0)
 		{
 			Init(hwnd, displayModes.GetDX11Mode(modeIdx), fullscreen, multithreaded);
 		}
-		CDevice(HWND hwnd, uint width, uint height, bool fullscreen, uint refreshRate, bool multithreaded/*, format*/):
+		CRenderer(HWND hwnd, uint width, uint height, bool fullscreen, uint refreshRate, bool multithreaded/*, format*/):
 			_dynamicRectsAllocator(_dedicatedHeap),
 			//_staticRectsAllocator(0), _dynamicRectsAllocator(0),
 			//_staticEllipsesAllocator(0), _dynamicEllipsesAllocator(0),
@@ -431,7 +370,8 @@ namespace DX11
 			_staticRects(_staticRectsAllocator), _dynamicRects(_dynamicRectsAllocator),
 			_staticEllipses(_staticEllipsesAllocator), _dynamicEllipses(_dynamicEllipsesAllocator),
 			_staticEllipsesAA(_staticEllipsesAAAllocator), _dynamicEllipsesAA(_dynamicEllipsesAAAllocator),
-			_dynamic2DVBSize(0), _static2DDirty(false)
+			_dynamic2DVBSize(0), _static2DDirty(false),
+			_VBSie(64), _VBStart(0), _VCount(0), _count(0), _curLayer(~0)
 		{
 			const DXGI_MODE_DESC mode_desc =
 			{
@@ -442,15 +382,11 @@ namespace DX11
 			};
 			Init(hwnd, mode_desc, fullscreen, multithreaded);
 		}
-		virtual ~CDevice()
+		virtual ~CRenderer()
 		{
 			ASSERT_HR(_swapChain->SetFullscreenState(FALSE, NULL))
 			std::for_each(_rectHandles.begin(), _rectHandles.end(), parentNuller);
 			std::for_each(_ellipseHandles.begin(), _ellipseHandles.end(), parentNuller);
-		}
-		virtual IDeviceContext *GetDeviceContext() override
-		{
-			return new CDeviceContext(_device, _quadLayout, _effect2D, _rectPass, _ellipsePass, _ellipseAAPass);
 		}
 		virtual void SetMode(uint width, uint height) override
 		{
@@ -461,12 +397,37 @@ namespace DX11
 		virtual void ToggleFullscreen(bool fullscreen) override
 		{
 		}
-		virtual void test() override
+		virtual void NextFrame() override
 		{
+			// immediate 2D
+			if (_VCount)
+			{
+				_immediateContext->Unmap(_VB, 0);
+				_immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
+				_immediateContext->IASetInputLayout(_quadLayout);
+				ASSERT_HR(_rectPass->Apply(0, _immediateContext))
+				const UINT stride = sizeof(TQuad), offset = 0;
+				_immediateContext->IASetVertexBuffers(0, 1, &_VB.GetInterfacePtr(), &stride, &offset);
+				_immediateContext->Draw(_VCount, _VBStart);
+				_VBStart = _VCount = 0;
+			}
+			if (_VBSie < _count)
+			{
+				D3D11_BUFFER_DESC desc = {sizeof(TQuad) * (_VBSie = _count), D3D11_USAGE_DYNAMIC, D3D11_BIND_VERTEX_BUFFER, D3D11_CPU_ACCESS_WRITE, 0, 0};
+				ASSERT_HR(_device->CreateBuffer(&desc, NULL, &_VB))
+				D3D11_MAPPED_SUBRESOURCE mapped;
+			}
+			_immediateContext->Unmap(_VB, 0);
+			D3D11_MAPPED_SUBRESOURCE mapped;
+			ASSERT_HR(_immediateContext->Map(_VB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))
+			_mappedVB = reinterpret_cast<TQuad *>(mapped.pData);
+			_count = 0;
+			_curLayer = ~0;
+
 			Draw2DScene();
+
 			ASSERT_HR(_swapChain->Present(0, 0))
 			ID3D11DeviceContextPtr immediate_comtext;
-			_device->GetImmediateContext(&immediate_comtext);
 			const FLOAT color[] = {0, 0, 0, 0};
 			ID3D11Texture2DPtr rt;
 			ASSERT_HR(_swapChain->GetBuffer(0, __uuidof(rt), reinterpret_cast<void **>(&rt)))
@@ -474,10 +435,19 @@ namespace DX11
 			D3D11_RENDER_TARGET_VIEW_DESC rt_view_desc = {DXGI_FORMAT_UNKNOWN, D3D11_RTV_DIMENSION_TEXTURE2DMS};
 			rt_view_desc.Texture2D.MipSlice = 0;
 			ASSERT_HR(_device->CreateRenderTargetView(rt, &rt_view_desc, &rt_view))
-			immediate_comtext->ClearRenderTargetView(rt_view, color);
-			immediate_comtext->ClearDepthStencilView(_zbufferView, D3D11_CLEAR_DEPTH, 1, 0);
-			immediate_comtext->OMSetRenderTargets(1, &rt_view.GetInterfacePtr(), _zbufferView);
+			_immediateContext->ClearRenderTargetView(rt_view, color);
+			_immediateContext->ClearDepthStencilView(_zbufferView, D3D11_CLEAR_DEPTH, 1, 0);
+			_immediateContext->OMSetRenderTargets(1, &rt_view.GetInterfacePtr(), _zbufferView);
 		}
+
+		virtual void DrawPoint(float x, float y, uint32 color, float size) override;
+		virtual void DrawLine(uint vcount, _In_count_(vcount) const float coords[][2], _In_count_(vcount) const uint32 colors[], bool closed, float width) override;
+		virtual void DrawRect(float x, float y, float width, float height, uint32 color, Textures::ITexture2D *texture, float angle) override;
+		virtual void DrawRect(float x, float y, float width, float height, uint32 (&colors)[4], Textures::ITexture2D *texture, float angle) override;
+		virtual void DrawPolygon(uint vcount, _In_count_(vcount) const float coords[][2], uint32 color) override;
+		virtual void DrawCircle(float x, float y, float r, uint32 color) override;
+		virtual void DrawEllipse(float x, float y, float rx, float ry, uint32 color, bool AA, float angle) override;
+
 		virtual _2D::IRect *AddRect(bool dynamic, uint16 layer, float x, float y, float width, float height, uint32 color, float angle) override;
 		virtual _2D::IEllipse *AddEllipse(bool dynamic, uint16 layer, float x, float y, float rx, float ry, uint32 color, bool AA, float angle) override;
 	private:
@@ -499,10 +469,9 @@ namespace DX11
 			;
 			if (!multithreaded) flags |= D3D11_CREATE_DEVICE_SINGLETHREADED;
 
-			ID3D11DeviceContextPtr immediate_context;
 			ASSERT_HR(D3D11CreateDeviceAndSwapChain(
 				NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, flags, NULL, 0, D3D11_SDK_VERSION, &swap_chain_desc,
-				&_swapChain, &_device, NULL, &immediate_context))
+				&_swapChain, &_device, NULL, &_immediateContext))
 
 			// create Zbuffer
 			const D3D11_TEXTURE2D_DESC zbuffer_desc =
@@ -523,7 +492,7 @@ namespace DX11
 
 			// setup viewport
 			const D3D11_VIEWPORT viewport = {0, 0, modeDesc.Width, modeDesc.Height, 0, 1};
-			immediate_context->RSSetViewports(1, &viewport);
+			_immediateContext->RSSetViewports(1, &viewport);
 
 			// create 2D effect
 			UINT shader_flags = 0, effect_flags = 0;
@@ -571,6 +540,14 @@ namespace DX11
 			ASSERT_HR(_effect2D->GetTechniqueByName("Rect")->GetPassByIndex(0)->GetDesc(&pass_desc))
 			ASSERT_HR(_device->CreateInputLayout(quadDesc, _countof(quadDesc), pass_desc.pIAInputSignature, pass_desc.IAInputSignatureSize, &_quadLayout))
 			//ASSERT_HR(_device->CreateInputLayout(quadDesc, _countof(quadDesc), _effect2D->GetVariableByName("Quad_VS")->AsShader()->))
+
+			// immediate 2D
+			new(&_2DVB) CDynamicVB(_device, sizeof(TQuad) * 64);
+			D3D11_BUFFER_DESC desc = {sizeof(TQuad) * _VBSie, D3D11_USAGE_DYNAMIC, D3D11_BIND_VERTEX_BUFFER, D3D11_CPU_ACCESS_WRITE, 0, 0};
+			ASSERT_HR(_device->CreateBuffer(&desc, NULL, &_VB))
+			D3D11_MAPPED_SUBRESOURCE mapped;
+			_immediateContext->Map(_VB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+			_mappedVB = reinterpret_cast<TQuad *>(mapped.pData);
 		}
 		CWin32Heap _dedicatedHeap;
 		CWin32HeapAllocator<TQuad> _staticRectsAllocator, _dynamicRectsAllocator;
@@ -578,16 +555,29 @@ namespace DX11
 		CWin32HeapAllocator<TQuad> _staticEllipsesAAAllocator, _dynamicEllipsesAAAllocator;
 		void Draw2DScene();
 		ID3D11DevicePtr _device;
-		//ID3D11DeviceContextPtr _immediateContext;
+		ID3D11DeviceContextPtr _immediateContext;
 		IDXGISwapChainPtr _swapChain;
 		ID3D11Texture2DPtr _zbuffer;
 		ID3D11DepthStencilViewPtr _zbufferView;
-		ID3DX11EffectPtr _effect2D;
-		ID3D11InputLayoutPtr _quadLayout;
 		//class CRect;
 		//class CEllipse;
 		//typedef std::list<CRect> TRects;
 		//typedef std::list<CEllipse> TEllipses;
+
+		// 2D state objects
+		ID3DX11EffectPtr _effect2D;
+		ID3D11InputLayoutPtr _quadLayout;
+		ID3DX11EffectPass *_rectPass, *_ellipsePass, *_ellipseAAPass;
+
+		// immediate 2D
+		CDynamicVB _2DVB;
+		ID3D11BufferPtr _VB;
+		TQuad *_mappedVB;
+		UINT _VBSie, _VBStart, _VCount;
+		unsigned _count;
+		unsigned short _curLayer;
+
+		// 2D scene
 		typedef std::list<TQuad, CWin32HeapAllocator<TQuad>> TQuads;
 		class CRectHandle;
 		class CEllipseHandle;
@@ -599,7 +589,6 @@ namespace DX11
 		TRectHandles _rectHandles;
 		TEllipseHandles _ellipseHandles;
 		ID3D11BufferPtr _static2DVB, _dynamic2DVB;
-		ID3DX11EffectPass *_rectPass, *_ellipsePass, *_ellipseAAPass;
 		UINT _dynamic2DVBSize;
 		bool _static2DDirty;
 	};
@@ -669,7 +658,7 @@ namespace DX11
 //		const TEllipses::const_iterator _thisIter;
 //	};
 
-	class CDevice::CRectHandle: public _2D::IRect
+	class CRenderer::CRectHandle: public _2D::IRect
 	{
 		// C++ 0X
 		//CRect(const CRect &) = deleted;
@@ -701,23 +690,23 @@ namespace DX11
 			}
 		}
 	public:
-		CRectHandle(CDevice *parent, bool dynamic, uint16 layer, float x, float y, float width, float height, uint32 color, float angle):
+		CRectHandle(CRenderer *parent, bool dynamic, uint16 layer, float x, float y, float width, float height, uint32 color, float angle):
 			parent(parent),
-			_container(dynamic ? &CDevice::_dynamicRects : &CDevice::_staticRects),
+			_container(dynamic ? &CRenderer::_dynamicRects : &CRenderer::_staticRects),
 			_rect(((parent->*_container).push_front(TQuad(x, y, width, height, layer, angle, color)), (parent->*_container).begin())),
 			_thisIter((parent->_rectHandles.push_front(this), parent->_rectHandles.begin()))
 		{
 			if (!dynamic)
 				parent->_static2DDirty = true;
 		}
-		CDevice *parent;
+		CRenderer *parent;
 	private:
-		TQuads CDevice::*const _container;
+		TQuads CRenderer::*const _container;
 		const TQuads::iterator _rect;
 		const TRectHandles::const_iterator _thisIter;
 	};
 
-	class CDevice::CEllipseHandle: public _2D::IEllipse
+	class CRenderer::CEllipseHandle: public _2D::IEllipse
 	{
 		// C++ 0X
 		//CRect(const CRect &) = deleted;
@@ -749,18 +738,18 @@ namespace DX11
 			}
 		}
 	public:
-		CEllipseHandle(CDevice *parent, bool dynamic, uint16 layer, float x, float y, float rx, float ry, uint32 color, bool AA, float angle):
+		CEllipseHandle(CRenderer *parent, bool dynamic, uint16 layer, float x, float y, float rx, float ry, uint32 color, bool AA, float angle):
 			parent(parent),
-			_container(dynamic ? &CDevice::_dynamicRects : &CDevice::_staticRects),
+			_container(dynamic ? &CRenderer::_dynamicRects : &CRenderer::_staticRects),
 			_ellipse(((parent->*_container).push_front(TQuad(x, y, rx, ry, layer, angle, color)), (parent->*_container).begin())),
 			_thisIter((parent->_ellipseHandles.push_front(this), parent->_ellipseHandles.begin()))
 		{
 			if (!dynamic)
 				parent->_static2DDirty = true;
 		}
-		CDevice *parent;
+		CRenderer *parent;
 	private:
-		TQuads CDevice::*const _container;
+		TQuads CRenderer::*const _container;
 		const TQuads::iterator _ellipse;
 		const TEllipseHandles::const_iterator _thisIter;
 	};
@@ -768,20 +757,18 @@ namespace DX11
 
 namespace DX11
 {
-	_2D::IRect *CDevice::AddRect(bool dynamic, uint16 layer, float x, float y, float width, float height, uint32 color, float angle)
+	_2D::IRect *CRenderer::AddRect(bool dynamic, uint16 layer, float x, float y, float width, float height, uint32 color, float angle)
 	{
 		return new CRectHandle(this, dynamic, layer, x, y, width, height, color, angle);
 	}
 
-	_2D::IEllipse *CDevice::AddEllipse(bool dynamic, uint16 layer, float x, float y, float rx, float ry, uint32 color, bool AA, float angle)
+	_2D::IEllipse *CRenderer::AddEllipse(bool dynamic, uint16 layer, float x, float y, float rx, float ry, uint32 color, bool AA, float angle)
 	{
 		return new CEllipseHandle(this, dynamic, layer, x, y, rx, ry, color, AA, angle);
 	}
 
-	void CDevice::Draw2DScene()
+	void CRenderer::Draw2DScene()
 	{
-		ID3D11DeviceContextPtr immediate_comtext;
-		_device->GetImmediateContext(&immediate_comtext);
 #pragma region("static")
 		// (re)create VB if nesessary
 		if (_static2DDirty)
@@ -812,14 +799,14 @@ namespace DX11
 		// draw
 		if (_static2DVB)
 		{
-			immediate_comtext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
-			immediate_comtext->IASetInputLayout(_quadLayout);
+			_immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
+			_immediateContext->IASetInputLayout(_quadLayout);
 			UINT stride = sizeof(TQuad), offset = 0;
 			auto draw = [&](ID3DX11EffectPass *pass, UINT vcount)
 			{
-				ASSERT_HR(pass->Apply(0, immediate_comtext))
-				immediate_comtext->IASetVertexBuffers(0, 1, &_static2DVB.GetInterfacePtr(), &stride, &offset);
-				immediate_comtext->Draw(vcount, 0);
+				ASSERT_HR(pass->Apply(0, _immediateContext))
+				_immediateContext->IASetVertexBuffers(0, 1, &_static2DVB.GetInterfacePtr(), &stride, &offset);
+				_immediateContext->Draw(vcount, 0);
 				offset += vcount * sizeof(TQuad);
 			};
 			if (!_staticRects.empty()) draw(_rectPass, _staticRects.size());
@@ -828,8 +815,8 @@ namespace DX11
 		}
 #pragma endregion
 #pragma region("dynamic")
-		immediate_comtext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
-		immediate_comtext->IASetInputLayout(_quadLayout);
+		_immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
+		_immediateContext->IASetInputLayout(_quadLayout);
 		if (!_dynamicRects.empty())
 		{
 			static std::list<TQuad> vb_shadow;
@@ -849,41 +836,41 @@ namespace DX11
 				vb_shadow.assign(_dynamicRects.begin(), _dynamicRects.end());
 			}
 			D3D11_MAPPED_SUBRESOURCE mapped;
-			ASSERT_HR(immediate_comtext->Map(_dynamic2DVB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))
+			ASSERT_HR(_immediateContext->Map(_dynamic2DVB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))
 			std::copy(_dynamicRects.begin(), _dynamicRects.end(), reinterpret_cast<TQuad *>(mapped.pData));
 			//std::copy(vb_shadow.begin(), vb_shadow.end(), reinterpret_cast<TQuad *>(mapped.pData));
 			//memcpy(mapped.pData, vb_shadow.data(), _dynamic2DVBSize);
-			immediate_comtext->Unmap(_dynamic2DVB, 0);
+			_immediateContext->Unmap(_dynamic2DVB, 0);
 			UINT stride = sizeof(TQuad), offset = 0;
-			ASSERT_HR(_rectPass->Apply(0, immediate_comtext))
-			immediate_comtext->IASetVertexBuffers(0, 1, &_dynamic2DVB.GetInterfacePtr(), &stride, &offset);
-			immediate_comtext->Draw(_dynamicRects.size(), 0);
+			ASSERT_HR(_rectPass->Apply(0, _immediateContext))
+			_immediateContext->IASetVertexBuffers(0, 1, &_dynamic2DVB.GetInterfacePtr(), &stride, &offset);
+			_immediateContext->Draw(_dynamicRects.size(), 0);
 		}
 #pragma endregion
 	}
 
-	void CDeviceContext::DrawPoint(float x, float y, uint32 color, float size)
+	void CRenderer::DrawPoint(float x, float y, uint32 color, float size)
 	{
 	}
 
-	void CDeviceContext::DrawLine(uint vcount, _In_count_(vcount) const float coords[][2], _In_count_(vcount) const uint32 colors[], bool closed, float width)
+	void CRenderer::DrawLine(uint vcount, _In_count_(vcount) const float coords[][2], _In_count_(vcount) const uint32 colors[], bool closed, float width)
 	{
 	}
 
-	void CDeviceContext::DrawRect(float x, float y, float width, float height, uint32 color, float angle)
+	void CRenderer::DrawRect(float x, float y, float width, float height, uint32 color, Textures::ITexture2D *texture, float angle)
 	{
 		if (_VCount == _VBSie)
 		{
-			_deviceContext->Unmap(_VB, 0);
-			_deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
-			_deviceContext->IASetInputLayout(_quadLayout);
-			ASSERT_HR(_rectPass->Apply(0, _deviceContext))
+			_immediateContext->Unmap(_VB, 0);
+			_immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
+			_immediateContext->IASetInputLayout(_quadLayout);
+			ASSERT_HR(_rectPass->Apply(0, _immediateContext))
 			const UINT stride = sizeof(TQuad), offset = 0;
-			_deviceContext->IASetVertexBuffers(0, 1, &_VB.GetInterfacePtr(), &stride, &offset);
-			_deviceContext->Draw(_VCount, _VBStart);
+			_immediateContext->IASetVertexBuffers(0, 1, &_VB.GetInterfacePtr(), &stride, &offset);
+			_immediateContext->Draw(_VCount, _VBStart);
 			_VBStart = _VCount = 0;
 			D3D11_MAPPED_SUBRESOURCE mapped;
-			_deviceContext->Map(_VB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+			_immediateContext->Map(_VB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
 			_mappedVB = reinterpret_cast<TQuad *>(mapped.pData);
 		}
 		*_mappedVB++ = TQuad(x, y, width, height, _curLayer, angle, color);
@@ -897,33 +884,33 @@ namespace DX11
 		//_2DVB.Draw(_deviceContext, sizeof(TQuad), 1, CQuadFiller(x, y, width, height, 0, angle, color));
 	}
 
-	void CDeviceContext::DrawRect(float x, float y, float width, float height, uint32 (&colors)[4], float angle)
+	void CRenderer::DrawRect(float x, float y, float width, float height, uint32 (&colors)[4], Textures::ITexture2D *texture, float angle)
 	{
 	}
 
-	void CDeviceContext::DrawPolygon(uint vcount, _In_count_(vcount) const float coords[][2], uint32 color, float angle)
+	void CRenderer::DrawPolygon(uint vcount, _In_count_(vcount) const float coords[][2], uint32 color)
 	{
 	}
 
-	void CDeviceContext::DrawCircle(float x, float y, float r, uint32 color)
+	void CRenderer::DrawCircle(float x, float y, float r, uint32 color)
 	{
 	}
 
-	void CDeviceContext::DrawEllipse(float x, float y, float rx, float ry, uint32 color, bool AA, float angle)
+	void CRenderer::DrawEllipse(float x, float y, float rx, float ry, uint32 color, bool AA, float angle)
 	{
-		ASSERT_HR((AA ? _ellipseAAPass : _ellipsePass)->Apply(0, _deviceContext))
-		_deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
-		_deviceContext->IASetInputLayout(_quadLayout);
-		_2DVB.Draw(_deviceContext, sizeof(TQuad), 1, CQuadFiller(x, y, rx, ry, 0, angle, color));
+		ASSERT_HR((AA ? _ellipseAAPass : _ellipsePass)->Apply(0, _immediateContext))
+		_immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
+		_immediateContext->IASetInputLayout(_quadLayout);
+		_2DVB.Draw(_immediateContext, sizeof(TQuad), 1, CQuadFiller(x, y, rx, ry, 0, angle, color));
 	}
 }
 
-const IDisplayModes &DGLE2::LowLevelRenderer::GetDisplayModes()
+const IDisplayModes &DGLE2::Renderer::HighLevel::GetDisplayModes()
 {
 	return DX11::displayModes;
 }
 
-IDevice *DGLE2::LowLevelRenderer::CreateDevice(HWND hwnd, uint width, uint height, bool fullscreen, uint refreshRate, bool multithreaded)
+IRenderer *DGLE2::Renderer::HighLevel::CreateRenderer(HWND hwnd, uint width, uint height, bool fullscreen, uint refreshRate, bool multithreaded)
 {
-	return new DX11::CDevice(hwnd, width, height, fullscreen, refreshRate, multithreaded);
+	return new DX11::CRenderer(hwnd, width, height, fullscreen, refreshRate, multithreaded);
 }
