@@ -400,9 +400,9 @@ namespace DX11
 		virtual void NextFrame() override
 		{
 			// immediate 2D
+			_immediateContext->Unmap(_VB, 0);
 			if (_VCount)
 			{
-				_immediateContext->Unmap(_VB, 0);
 				_immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
 				_immediateContext->IASetInputLayout(_quadLayout);
 				ASSERT_HR(_rectPass->Apply(0, _immediateContext))
@@ -417,7 +417,6 @@ namespace DX11
 				ASSERT_HR(_device->CreateBuffer(&desc, NULL, &_VB))
 				D3D11_MAPPED_SUBRESOURCE mapped;
 			}
-			_immediateContext->Unmap(_VB, 0);
 			D3D11_MAPPED_SUBRESOURCE mapped;
 			ASSERT_HR(_immediateContext->Map(_VB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))
 			_mappedVB = reinterpret_cast<TQuad *>(mapped.pData);

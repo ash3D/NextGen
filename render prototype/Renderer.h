@@ -48,6 +48,9 @@ namespace DGLE2
 	{
 		namespace LowLevel
 		{
+			struct TCaps
+			{
+			};
 #pragma region("State objects")
 #pragma region("Common")
 			enum E_COMPARISON_FUNC
@@ -846,6 +849,8 @@ namespace DGLE2
 			public:
 				virtual ~IDevice() {}
 				virtual IDeviceContext *GetDeviceContext() = 0;
+
+				virtual TCaps GetCaps() = 0;
 
 				// create state objects
 				virtual IBlendState *CreateBlendState(const TBlendStateDesc &desc) = 0;
