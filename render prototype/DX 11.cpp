@@ -1,7 +1,4 @@
 #include "stdafx.h"
-#include <vector>
-#include <list>
-#include <algorithm>
 #include <Unknwn.h>
 #include "..\\..\\Include\\CPP\\DGLE2.h"
 #include "Renderer.h"
@@ -13,20 +10,52 @@
 
 #define ASSERT_HR(...) {HRESULT hr = __VA_ARGS__;_ASSERT(SUCCEEDED(hr));}
 
-using namespace DGLE2;
-using namespace DGLE2::Renderer::HighLevel;
+//#define _2D_FLOAT32_TO_FLOAT16
 
 #if APPEND_ALIGNED_ELEMENT != D3D11_APPEND_ALIGNED_ELEMENT
 #error APPEND_ALIGNED_ELEMENT != D3D11_APPEND_ALIGNED_ELEMENT
 #endif
 
-#pragma warning(disable: 4290)
+using namespace std;
+using namespace DGLE2;
+using namespace DGLE2::Renderer::HighLevel;
+using namespace DGLE2::Renderer::HighLevel::Geometry;
+using namespace DGLE2::Renderer::HighLevel::DisplayModes;
+
+class CDtor: virtual DGLE2::Renderer::IDtor
+{
+	virtual void operator ~() const override
+	{
+		delete this;
+	}
+protected:
+//	CDtor() = default;
+	virtual ~CDtor() {}
+};
+
+template<class Child>
+class CChild: public list<Child *>
+{
+public:
+	~CChild()
+	{
+		for_each(begin(), end(), [](Child *child){child->parent = nullptr;});
+	}
+};
+
+template<class Parent>
+class CParent
+{
+	friend class CChild<Parent>;
+protected:
+	Parent *parent;
+};
 
 namespace DX11
 {
 	using namespace ComPtrs;
 
-	inline const char *Format2String(DXGI_FORMAT format)
+	inline const char *Format2String(DXGI_FORMAT format) noexcept
 	{
 		switch (format)
 		{
@@ -136,7 +165,7 @@ namespace DX11
 		}
 	}
 
-	inline const char *ScanlineOrdering2string(DXGI_MODE_SCANLINE_ORDER scanlineOrder)
+	inline const char *ScanlineOrdering2string(DXGI_MODE_SCANLINE_ORDER scanlineOrder) noexcept
 	{
 		switch (scanlineOrder)
 		{
@@ -150,7 +179,7 @@ namespace DX11
 		}
 	}
 
-	inline const char *Scaling2String(DXGI_MODE_SCALING scaling)
+	inline const char *Scaling2String(DXGI_MODE_SCALING scaling) noexcept
 	{
 		switch (scaling)
 		{
@@ -163,17 +192,36 @@ namespace DX11
 		}
 	}
 
-	std::string ModeDesc2String(const DXGI_MODE_DESC &desc)
+	string ModeDesc2String(const DXGI_MODE_DESC &desc)
 	{
-		return std::string("Format:\t") + Format2String(desc.Format) +
+		return string("Format:\t") + Format2String(desc.Format) +
 			"\nScanlineOrdering:\t" + ScanlineOrdering2string(desc.ScanlineOrdering) +
 			"\nScaling:\t" + Scaling2String(desc.Scaling);
+	}
+
+	class CMesh: CDtor, public Geometry::IMesh
+	{
+		virtual AABB<3> GetAABB() const override;
+	public:
+		CMesh();
+	private:
+		ID3D11BufferPtr	_geometry;
+		AABB<3>			_aabb;
+	};
+
+	inline AABB<3> CMesh::GetAABB() const
+	{
+		return _aabb;
+	}
+
+	CMesh::CMesh()
+	{
 	}
 
 	class CDynamicVB
 	{
 	public:
-		CDynamicVB() {}
+		CDynamicVB() noexcept {}
 		CDynamicVB(ID3D11DevicePtr device, UINT minSize): _device(device), _size(minSize), _offset(0)
 		{
 			D3D11_BUFFER_DESC desc = {_size, D3D11_USAGE_DYNAMIC, D3D11_BIND_VERTEX_BUFFER, D3D11_CPU_ACCESS_WRITE, 0, 0};
@@ -207,28 +255,43 @@ namespace DX11
 #pragma pack(push, 4)
 	struct TQuad
 	{
-		TQuad() {}
+		TQuad() noexcept {}
 		TQuad(float x, float y, float width, float height, uint16 layer, float angle, uint32 color):
 			pos(x, y), extents(width, height), layer(layer), angle(angle), color(color)
 		{
 		}
-		bool operator <(const TQuad &quad) const
+		bool operator <(const TQuad &quad) const noexcept
 		{
 			return layer < quad.layer;
 		}
-		//D3DXVECTOR2_16F pos, extents;
-		//uint16 layer;
-		//D3DXFLOAT16 angle;
-		//uint32 color;
+#ifdef _2D_FLOAT32_TO_FLOAT16
+		D3DXVECTOR2_16F pos, extents;
+		uint16 layer;
+		D3DXFLOAT16 angle;
+		uint32 color;
+#else
 		D3DXVECTOR2 pos, extents;
 		uint16 layer;
 		float angle;
 		uint32 color;
+#endif
 	};
 #pragma pack(pop)
 
 	const class CDisplayModes: public IDisplayModes
 	{
+		class CDesc: CDtor, public IDesc
+		{
+		public:
+			CDesc(const string &&desc): _desc(desc) {}
+			virtual operator const char *() const override
+			{
+				return _desc.c_str();
+			}
+		private:
+			const string _desc;
+			//virtual ~CDesc() = default;
+		};
 	public:
 		CDisplayModes()
 		{
@@ -243,27 +306,26 @@ namespace DX11
 			_modes.resize(modes_count);
 			ASSERT_HR(output->GetDisplayModeList(DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_ENUM_MODES_SCALING, &modes_count, _modes.data()))
 		}
-		virtual uint Count() const
+		virtual uint Count() const override
 		{
 			return _modes.size();
 		}
-		virtual TDispMode operator [](uint idx) const
+		virtual TDispModeDesc Get(uint idx) const override
 		{
 			TDispMode mode =
 			{
 				_modes[idx].Width,
 				_modes[idx].Height,
-				float(_modes[idx].RefreshRate.Numerator) / _modes[idx].RefreshRate.Denominator,
-				ModeDesc2String(_modes[idx])
+				float(_modes[idx].RefreshRate.Numerator) / _modes[idx].RefreshRate.Denominator
 			};
-			return mode;
+			return TDispModeDesc(mode, new CDesc(ModeDesc2String(_modes[idx])));
 		}
 		const DXGI_MODE_DESC &GetDX11Mode(uint idx) const
 		{
 			return _modes[idx];
 		}
 	private:
-		std::vector<DXGI_MODE_DESC> _modes;
+		vector<DXGI_MODE_DESC> _modes;
 	} displayModes;
 
 	namespace
@@ -280,15 +342,15 @@ namespace DX11
 		class CWin32Heap
 		{
 		public:
-			CWin32Heap() throw(const char *): _handle(HeapCreate(HEAP_GENERATE_EXCEPTIONS | HEAP_NO_SERIALIZE, 0, 0))
+			CWin32Heap(): _handle(HeapCreate(HEAP_GENERATE_EXCEPTIONS | HEAP_NO_SERIALIZE, 0, 0))
 			{
 				if (!_handle) throw "fail to create heap";
 			}
-			~CWin32Heap() throw(const char *)
+			~CWin32Heap()
 			{
 				if (!HeapDestroy(_handle)) throw "fail to destroy heap";
 			}
-			operator HANDLE() const throw()
+			operator HANDLE() const noexcept
 			{
 				return _handle;
 			}
@@ -297,7 +359,7 @@ namespace DX11
 		};
 
 		template<typename T>
-		class CWin32HeapAllocator: public std::allocator<T>
+		class CWin32HeapAllocator: public allocator<T>
 		{
 			template<typename T>
 			friend class CWin32HeapAllocator;
@@ -307,10 +369,10 @@ namespace DX11
 			{
 				typedef CWin32HeapAllocator<Other> other;
 			};
-			CWin32HeapAllocator(HANDLE heap = HANDLE(_get_heap_handle())) throw(): _heap(heap) {}
+			CWin32HeapAllocator(HANDLE heap = HANDLE(_get_heap_handle())) noexcept: _heap(heap) {}
 			template<typename Other>
-			CWin32HeapAllocator(const CWin32HeapAllocator<Other> &src) throw(): _heap(src._heap) {}
-			pointer allocate(size_type count, const void * = NULL) throw(std::bad_alloc)
+			CWin32HeapAllocator(const CWin32HeapAllocator<Other> &src) noexcept: _heap(src._heap) {}
+			pointer allocate(size_type count, const void * = NULL)
 			{
 				try
 				{
@@ -318,10 +380,10 @@ namespace DX11
 				}
 				catch(...)
 				{
-					throw std::bad_alloc();
+					throw bad_alloc();
 				}
 			}
-			void deallocate(pointer ptr, size_type) throw(const char *)
+			void deallocate(pointer ptr, size_type)
 			{
 				if (!HeapFree(_heap, 0, ptr)) throw "fail to free heap block";
 			}
@@ -330,7 +392,7 @@ namespace DX11
 		};
 	}
 
-	class CRenderer: public IRenderer
+	class CRenderer: CDtor, public IRenderer
 	{
 		class CQuadFiller
 		{
@@ -347,7 +409,7 @@ namespace DX11
 			TQuad _quad;
 		};
 	public:
-		// C++ 0X
+		// C++11
 		// use delegating ctors
 		CRenderer(HWND hwnd, uint modeIdx, bool fullscreen, bool multithreaded):
 			_dynamicRectsAllocator(_dedicatedHeap),
@@ -382,12 +444,6 @@ namespace DX11
 			};
 			Init(hwnd, mode_desc, fullscreen, multithreaded);
 		}
-		virtual ~CRenderer()
-		{
-			ASSERT_HR(_swapChain->SetFullscreenState(FALSE, NULL))
-			std::for_each(_rectHandles.begin(), _rectHandles.end(), parentNuller);
-			std::for_each(_ellipseHandles.begin(), _ellipseHandles.end(), parentNuller);
-		}
 		virtual void SetMode(uint width, uint height) override
 		{
 		}
@@ -415,7 +471,6 @@ namespace DX11
 			{
 				D3D11_BUFFER_DESC desc = {sizeof(TQuad) * (_VBSie = _count), D3D11_USAGE_DYNAMIC, D3D11_BIND_VERTEX_BUFFER, D3D11_CPU_ACCESS_WRITE, 0, 0};
 				ASSERT_HR(_device->CreateBuffer(&desc, NULL, &_VB))
-				D3D11_MAPPED_SUBRESOURCE mapped;
 			}
 			D3D11_MAPPED_SUBRESOURCE mapped;
 			ASSERT_HR(_immediateContext->Map(_VB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))
@@ -447,8 +502,8 @@ namespace DX11
 		virtual void DrawCircle(float x, float y, float r, uint32 color) override;
 		virtual void DrawEllipse(float x, float y, float rx, float ry, uint32 color, bool AA, float angle) override;
 
-		virtual _2D::IRect *AddRect(bool dynamic, uint16 layer, float x, float y, float width, float height, uint32 color, float angle) override;
-		virtual _2D::IEllipse *AddEllipse(bool dynamic, uint16 layer, float x, float y, float rx, float ry, uint32 color, bool AA, float angle) override;
+		virtual Instances::_2D::IRect *AddRect(bool dynamic, uint16 layer, float x, float y, float width, float height, uint32 color, float angle) override;
+		virtual Instances::_2D::IEllipse *AddEllipse(bool dynamic, uint16 layer, float x, float y, float rx, float ry, uint32 color, bool AA, float angle) override;
 	private:
 		void Init(HWND hwnd, const DXGI_MODE_DESC &modeDesc, bool fullscreen, bool multithreaded)
 		{
@@ -521,13 +576,15 @@ namespace DX11
 			ASSERT_HR(_effect2D->GetVariableByName("targetRes")->AsVector()->SetFloatVector(res))
 
 			// create 2D IA state objects
-			//const D3D11_INPUT_ELEMENT_DESC quadDesc[] =
-			//{
-			//	"POSITION_EXTENTS",	0,	DXGI_FORMAT_R16G16B16A16_FLOAT,	0,	D3D11_APPEND_ALIGNED_ELEMENT,	D3D11_INPUT_PER_VERTEX_DATA,	0,
-			//	"ORDER",			0,	DXGI_FORMAT_R16_UNORM,			0,	D3D11_APPEND_ALIGNED_ELEMENT,	D3D11_INPUT_PER_VERTEX_DATA,	0,
-			//	"ANGLE",			0,	DXGI_FORMAT_R16_FLOAT,			0,	D3D11_APPEND_ALIGNED_ELEMENT,	D3D11_INPUT_PER_VERTEX_DATA,	0,
-			//	"QUAD_COLOR",		0,	DXGI_FORMAT_R8G8B8A8_UNORM,		0,	D3D11_APPEND_ALIGNED_ELEMENT,	D3D11_INPUT_PER_VERTEX_DATA,	0
-			//};
+#ifdef _2D_FLOAT32_TO_FLOAT16
+			const D3D11_INPUT_ELEMENT_DESC quadDesc[] =
+			{
+				"POSITION_EXTENTS",	0,	DXGI_FORMAT_R16G16B16A16_FLOAT,	0,	D3D11_APPEND_ALIGNED_ELEMENT,	D3D11_INPUT_PER_VERTEX_DATA,	0,
+				"ORDER",			0,	DXGI_FORMAT_R16_UNORM,			0,	D3D11_APPEND_ALIGNED_ELEMENT,	D3D11_INPUT_PER_VERTEX_DATA,	0,
+				"ANGLE",			0,	DXGI_FORMAT_R16_FLOAT,			0,	D3D11_APPEND_ALIGNED_ELEMENT,	D3D11_INPUT_PER_VERTEX_DATA,	0,
+				"QUAD_COLOR",		0,	DXGI_FORMAT_R8G8B8A8_UNORM,		0,	D3D11_APPEND_ALIGNED_ELEMENT,	D3D11_INPUT_PER_VERTEX_DATA,	0
+			};
+#else
 			const D3D11_INPUT_ELEMENT_DESC quadDesc[] =
 			{
 				"POSITION_EXTENTS",	0,	DXGI_FORMAT_R32G32B32A32_FLOAT,	0,	D3D11_APPEND_ALIGNED_ELEMENT,	D3D11_INPUT_PER_VERTEX_DATA,	0,
@@ -535,6 +592,7 @@ namespace DX11
 				"ANGLE",			0,	DXGI_FORMAT_R32_FLOAT,			0,	D3D11_APPEND_ALIGNED_ELEMENT,	D3D11_INPUT_PER_VERTEX_DATA,	0,
 				"QUAD_COLOR",		0,	DXGI_FORMAT_R8G8B8A8_UNORM,		0,	D3D11_APPEND_ALIGNED_ELEMENT,	D3D11_INPUT_PER_VERTEX_DATA,	0
 			};
+#endif
 			D3DX11_PASS_DESC pass_desc;
 			ASSERT_HR(_effect2D->GetTechniqueByName("Rect")->GetPassByIndex(0)->GetDesc(&pass_desc))
 			ASSERT_HR(_device->CreateInputLayout(quadDesc, _countof(quadDesc), pass_desc.pIAInputSignature, pass_desc.IAInputSignatureSize, &_quadLayout))
@@ -548,11 +606,20 @@ namespace DX11
 			_immediateContext->Map(_VB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
 			_mappedVB = reinterpret_cast<TQuad *>(mapped.pData);
 		}
+
+		virtual ~CRenderer()
+		{
+			ASSERT_HR(_swapChain->SetFullscreenState(FALSE, NULL))
+			for_each(_rectHandles.begin(), _rectHandles.end(), parentNuller);
+			for_each(_ellipseHandles.begin(), _ellipseHandles.end(), parentNuller);
+		}
+
+		void Draw2DScene();
+	private:
 		CWin32Heap _dedicatedHeap;
 		CWin32HeapAllocator<TQuad> _staticRectsAllocator, _dynamicRectsAllocator;
 		CWin32HeapAllocator<TQuad> _staticEllipsesAllocator, _dynamicEllipsesAllocator;
 		CWin32HeapAllocator<TQuad> _staticEllipsesAAAllocator, _dynamicEllipsesAAAllocator;
-		void Draw2DScene();
 		ID3D11DevicePtr _device;
 		ID3D11DeviceContextPtr _immediateContext;
 		IDXGISwapChainPtr _swapChain;
@@ -560,8 +627,8 @@ namespace DX11
 		ID3D11DepthStencilViewPtr _zbufferView;
 		//class CRect;
 		//class CEllipse;
-		//typedef std::list<CRect> TRects;
-		//typedef std::list<CEllipse> TEllipses;
+		//typedef list<CRect> TRects;
+		//typedef list<CEllipse> TEllipses;
 
 		// 2D state objects
 		ID3DX11EffectPtr _effect2D;
@@ -577,11 +644,11 @@ namespace DX11
 		unsigned short _curLayer;
 
 		// 2D scene
-		typedef std::list<TQuad, CWin32HeapAllocator<TQuad>> TQuads;
+		typedef list<TQuad, CWin32HeapAllocator<TQuad>> TQuads;
 		class CRectHandle;
 		class CEllipseHandle;
-		typedef std::list<CRectHandle *> TRectHandles;
-		typedef std::list<CEllipseHandle *> TEllipseHandles;
+		typedef list<CRectHandle *> TRectHandles;
+		typedef list<CEllipseHandle *> TEllipseHandles;
 		TQuads _staticRects, _dynamicRects;
 		TQuads _staticEllipses, _dynamicEllipses;
 		TQuads _staticEllipsesAA, _dynamicEllipsesAA;
@@ -604,7 +671,7 @@ namespace DX11
 //			parent(parent), TQuad(x, y, width, height, layer, angle, color),
 //			_container(dynamic ? &CDevice::_dynamicRects : &CDevice::_staticRects),
 //			_thisIter(((parent->*_container).push_front(this), (parent->*_container).begin()))
-////			_thisIter((parent->*_container).insert(std::lower_bound((parent->*_container).begin(), (parent->*_container).end(), this, CreateDereference(std::less<CRect>())), this))
+////			_thisIter((parent->*_container).insert(lower_bound((parent->*_container).begin(), (parent->*_container).end(), this, CreateDereference(less<CRect>())), this))
 //		{
 //			if (!dynamic)
 //				parent->_static2DDirty = true;
@@ -625,7 +692,7 @@ namespace DX11
 //
 //	class CDevice::CEllipse: public _2D::IEllipse, private TQuad
 //	{
-//		// C++ 0X
+//		// C++11
 //		//CEllipse(const CEllipse &) = deleted;
 //		//CEllipse &operator =(const CEllipse &) = deleted;
 //		virtual ~CEllipse()
@@ -638,7 +705,7 @@ namespace DX11
 //			parent(parent), TQuad(x, y, rx, ry, layer, angle, color),
 //			_container(dynamic ? AA ? &CDevice::_dynamicEllipsesAA : &CDevice::_dynamicEllipses : AA ? &CDevice::_staticEllipsesAA : &CDevice::_staticEllipses),
 //			_thisIter(((parent->*_container).push_front(this), (parent->*_container).begin()))
-////			_thisIter((parent->*_container).insert(std::lower_bound((parent->*_container).begin(), (parent->*_container).end(), this, CreateDereference(std::less<CEllipse>())), this))
+////			_thisIter((parent->*_container).insert(lower_bound((parent->*_container).begin(), (parent->*_container).end(), this, CreateDereference(less<CEllipse>())), this))
 //		{
 //			if (!dynamic)
 //				parent->_static2DDirty = true;
@@ -657,11 +724,11 @@ namespace DX11
 //		const TEllipses::const_iterator _thisIter;
 //	};
 
-	class CRenderer::CRectHandle: public _2D::IRect
+	class CRenderer::CRectHandle: CDtor, public Instances::_2D::IRect
 	{
-		// C++ 0X
-		//CRect(const CRect &) = deleted;
-		//CRect &operator =(const CRect &) = deleted;
+		// C++11
+		//CRectHandle(const CRectHandle &) = deleted;
+		//CRectHandle &operator =(const CRectHandle &) = deleted;
 		virtual void SetPos(float x, float y) override
 		{
 			_rect->pos.x = x;
@@ -705,11 +772,11 @@ namespace DX11
 		const TRectHandles::const_iterator _thisIter;
 	};
 
-	class CRenderer::CEllipseHandle: public _2D::IEllipse
+	class CRenderer::CEllipseHandle: CDtor, public Instances::_2D::IEllipse
 	{
-		// C++ 0X
-		//CRect(const CRect &) = deleted;
-		//CRect &operator =(const CRect &) = deleted;
+		// C++11
+		//CEllipseHandle(const CEllipseHandle &) = deleted;
+		//CEllipseHandle &operator =(const CEllipseHandle &) = deleted;
 		virtual void SetPos(float x, float y) override
 		{
 			_ellipse->pos.x = x;
@@ -756,12 +823,12 @@ namespace DX11
 
 namespace DX11
 {
-	_2D::IRect *CRenderer::AddRect(bool dynamic, uint16 layer, float x, float y, float width, float height, uint32 color, float angle)
+	Instances::_2D::IRect *CRenderer::AddRect(bool dynamic, uint16 layer, float x, float y, float width, float height, uint32 color, float angle)
 	{
 		return new CRectHandle(this, dynamic, layer, x, y, width, height, color, angle);
 	}
 
-	_2D::IEllipse *CRenderer::AddEllipse(bool dynamic, uint16 layer, float x, float y, float rx, float ry, uint32 color, bool AA, float angle)
+	Instances::_2D::IEllipse *CRenderer::AddEllipse(bool dynamic, uint16 layer, float x, float y, float rx, float ry, uint32 color, bool AA, float angle)
 	{
 		return new CEllipseHandle(this, dynamic, layer, x, y, rx, ry, color, AA, angle);
 	}
@@ -776,10 +843,10 @@ namespace DX11
 			_staticEllipses.sort();
 			_staticEllipsesAA.sort();
 
-			std::vector<TQuad> vb_shadow(_staticRects.size() + _staticEllipses.size() + _staticEllipsesAA.size());
-			std::copy(_staticRects.begin(), _staticRects.end(), vb_shadow.begin());
-			std::copy(_staticEllipses.begin(), _staticEllipses.end(), vb_shadow.begin() + _staticRects.size());
-			std::copy(_staticEllipsesAA.begin(), _staticEllipsesAA.end(), vb_shadow.begin() + _staticRects.size() + _staticEllipses.size());
+			vector<TQuad> vb_shadow(_staticRects.size() + _staticEllipses.size() + _staticEllipsesAA.size());
+			copy(_staticRects.begin(), _staticRects.end(), vb_shadow.begin());
+			copy(_staticEllipses.begin(), _staticEllipses.end(), vb_shadow.begin() + _staticRects.size());
+			copy(_staticEllipsesAA.begin(), _staticEllipsesAA.end(), vb_shadow.begin() + _staticRects.size() + _staticEllipses.size());
 			
 			const D3D11_BUFFER_DESC VB_desc =
 			{
@@ -818,7 +885,7 @@ namespace DX11
 		_immediateContext->IASetInputLayout(_quadLayout);
 		if (!_dynamicRects.empty())
 		{
-			static std::list<TQuad> vb_shadow;
+			static list<TQuad> vb_shadow;
 			// (re)create VB if nesessary
 			if (!_dynamic2DVB || _dynamic2DVBSize < _dynamicRects.size() * sizeof(TQuad))
 			{
@@ -836,8 +903,8 @@ namespace DX11
 			}
 			D3D11_MAPPED_SUBRESOURCE mapped;
 			ASSERT_HR(_immediateContext->Map(_dynamic2DVB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))
-			std::copy(_dynamicRects.begin(), _dynamicRects.end(), reinterpret_cast<TQuad *>(mapped.pData));
-			//std::copy(vb_shadow.begin(), vb_shadow.end(), reinterpret_cast<TQuad *>(mapped.pData));
+			copy(_dynamicRects.begin(), _dynamicRects.end(), reinterpret_cast<TQuad *>(mapped.pData));
+			//copy(vb_shadow.begin(), vb_shadow.end(), reinterpret_cast<TQuad *>(mapped.pData));
 			//memcpy(mapped.pData, vb_shadow.data(), _dynamic2DVBSize);
 			_immediateContext->Unmap(_dynamic2DVB, 0);
 			UINT stride = sizeof(TQuad), offset = 0;
@@ -904,12 +971,12 @@ namespace DX11
 	}
 }
 
-const IDisplayModes &DGLE2::Renderer::HighLevel::GetDisplayModes()
+extern const IDisplayModes &Renderer::HighLevel::DisplayModes::GetDisplayModes()
 {
 	return DX11::displayModes;
 }
 
-IRenderer *DGLE2::Renderer::HighLevel::CreateRenderer(HWND hwnd, uint width, uint height, bool fullscreen, uint refreshRate, bool multithreaded)
+extern IRenderer *Renderer::HighLevel::CreateRenderer(HWND hwnd, uint width, uint height, bool fullscreen, uint refreshRate, bool multithreaded)
 {
 	return new DX11::CRenderer(hwnd, width, height, fullscreen, refreshRate, multithreaded);
 }

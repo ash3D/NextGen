@@ -19,6 +19,18 @@ See "DGLE2.h" for more details.
 #define _In_count_(size)
 #endif
 
+#ifdef _MSC_VER
+#	define NOVTABLE __declspec(novtable)
+#else
+#	define NOVTABLE
+#endif
+
+// define dummies for unsupported C++11 features
+#if _MSC_VER <= 16000
+#	define noexcept
+#	define final
+#endif
+
 #pragma region("considerations")
 /*
 dedicated classes: CB, SB
@@ -39,13 +51,64 @@ template for format (especially for structured buffer)
 */
 #pragma endregion
 
-#include <string>
+#include <memory>		// for shared_ptr
+#include <type_traits>
+#include <iterator>
+#include <crtdbg.h>
+//#include <utility>	// for declval
+//
+//#if _MSC_VER <= 16000
+//	/*
+//		declval is not included in VS2010
+//	*/
+//	namespace std
+//	{
+//		template<class T>
+//		typename std::add_rvalue_reference<T>::type declval();
+//	}
+//#endif
 
 namespace DGLE2
 {
-	//class I
 	namespace Renderer
 	{
+		/*
+		delete frees memory from current mudule's CRT heap
+		Renderer implementation can use it's own CRT => delete can work incorrectly
+		IDtor base class resolves this problem
+		*/
+		//class IDtor
+		//{
+		//public:
+		//	void operator ~() const
+		//	{
+		//		this->~IDtor();
+		//		operator delete(_parent, _deleter);
+		//	}
+		//private:
+		//	void (&_deleter)(void *);
+		//	void *const _parent;
+		//	void operator delete(void *object, decltype(_deleter) deleter)
+		//	{
+		//		deleter(object);
+		//	}
+		//protected:
+		//	IDtor(decltype(_deleter) deleter, decltype(_parent) parent): _deleter(deleter), _parent(parent) {}
+		//	virtual ~IDtor() = default;
+		//};
+		class NOVTABLE IDtor
+		{
+		public:
+			virtual void operator ~() const = 0;
+		protected:
+			//~IDtor() = default;
+		};
+
+		inline void dtor(const IDtor *const object)
+		{
+			~*object;
+		};
+
 		namespace LowLevel
 		{
 			struct TCaps
@@ -113,7 +176,7 @@ namespace DGLE2
 				} renderTarget[8];
 			};
 
-			class IBlendState
+			class NOVTABLE IBlendState
 			{
 			public:
 				virtual operator TBlendStateDesc() const = 0;
@@ -156,7 +219,7 @@ namespace DGLE2
 				}					frontFace, backFace;
 			};
 
-			class IDepthStencilState
+			class NOVTABLE IDepthStencilState
 			{
 			public:
 				virtual operator TDepthStencilDesc() const = 0;
@@ -231,7 +294,7 @@ namespace DGLE2
 				uint					instanceDataStepRate;
 			};
 
-			class IInputLayout
+			class NOVTABLE IInputLayout
 			{
 			public:
 			};
@@ -265,7 +328,7 @@ namespace DGLE2
 				bool		antialiasedLineEnable;
 			};
 
-			class IRasterizerState
+			class NOVTABLE IRasterizerState
 			{
 			public:
 				virtual operator TRasterizerStateDesc() const = 0;
@@ -315,7 +378,7 @@ namespace DGLE2
 				float					minLOD, maxLOD;
 			};
 
-			class ISamplerState
+			class NOVTABLE ISamplerState
 			{
 			public:
 				virtual operator TSamplerStateDesc() const = 0;
@@ -339,24 +402,24 @@ namespace DGLE2
 				IBF_32
 			};
 
-			class IResource
+			class NOVTABLE IResource
 			{
 			public:
 			protected:
 				//virtual Map(IDeviceContext &context) = 0;
 			};
 
-			class ICBuffer
+			class NOVTABLE ICBuffer
 			{
 			public:
 			};
 
-			class IBuffer: public IResource
+			class NOVTABLE IBuffer: public IResource
 			{
 			public:
 			};
 
-			class IStructuredBuffer: public IBuffer
+			class NOVTABLE IStructuredBuffer: public IBuffer
 			{
 			public:
 			};
@@ -381,14 +444,14 @@ namespace DGLE2
 			};
 
 			template<class Format>
-			class IRow
+			class NOVTABLE IRow
 			{
 			public:
 				CResData<Format> operator [](uint x);
 			};
 
 			template<class Format>
-			class ISlice
+			class NOVTABLE ISlice
 			{
 			public:
 				IRow<Format> operator [](uint y);
@@ -397,26 +460,26 @@ namespace DGLE2
 			class ITexture1D;
 
 			template<class Format>
-			class IMapped<ITexture1D, Format>: public IRow<Format>
+			class NOVTABLE IMapped<ITexture1D, Format>: public IRow<Format>
 			{
 			public:
 			};
 
-			class IResource1D: public IResource
+			class NOVTABLE IResource1D: public IResource
 			{
 			public:
 				template<class Format>
 				IMapped<ITexture1D, Format> Map(IDeviceContext &context, uint mipSlice, uint arraySlice);
 			};
 
-			class ITexture1D: public IResource1D
+			class NOVTABLE ITexture1D: public IResource1D
 			{
 			public:
 				template<class Format>
 				IMapped<ITexture1D, Format> Map(IDeviceContext &context, uint mipSlice, uint arraySlice, uint left, uint right);
 			};
 
-			class IDepthStencilTexture1D: public IResource1D
+			class NOVTABLE IDepthStencilTexture1D: public IResource1D
 			{
 			public:
 			};
@@ -431,12 +494,12 @@ namespace DGLE2
 			class ITexture2D;
 
 			template<class Format>
-			class IMapped<ITexture2D, Format>: public ISlice<Format>
+			class NOVTABLE IMapped<ITexture2D, Format>: public ISlice<Format>
 			{
 			public:
 			};
 
-			class ITexture2D: public IResource
+			class NOVTABLE ITexture2D: public IResource
 			{
 			public:
 				template<class Format>
@@ -453,13 +516,13 @@ namespace DGLE2
 			class ITexture3D;
 
 			template<class Format>
-			class IMapped<ITexture3D, Format>
+			class NOVTABLE IMapped<ITexture3D, Format>
 			{
 			public:
 				ISlice<Format> operator [](uint z);
 			};
 
-			class ITexture3D: public IResource
+			class NOVTABLE ITexture3D: public IResource
 			{
 			public:
 				template<class Format>
@@ -520,7 +583,7 @@ namespace DGLE2
 					} texture2DMSArray;
 				};
 			};
-			class IDepthStencilView
+			class NOVTABLE IDepthStencilView
 			{
 			public:
 				virtual operator TDepthStencilViewDesc() const = 0;
@@ -593,7 +656,7 @@ namespace DGLE2
 				};
 			};
 
-			class IRenderTargetView
+			class NOVTABLE IRenderTargetView
 			{
 			public:
 				virtual operator TRenderTargetViewDesc() const = 0;
@@ -689,7 +752,7 @@ namespace DGLE2
 				};
 			};
 
-			class IShaderResourceView
+			class NOVTABLE IShaderResourceView
 			{
 			public:
 				virtual operator TShaderResourceViewDesc() const = 0;
@@ -752,7 +815,7 @@ namespace DGLE2
 				};
 			};
 
-			class IUnorderedAccessView
+			class NOVTABLE IUnorderedAccessView
 			{
 			public:
 				virtual operator TUnorderedAccessView() const  = 0;
@@ -806,10 +869,10 @@ namespace DGLE2
 				PRIMITIVE_TOPOLOGY_32_CONTROL_POINT_PATCHLIST   = 64
 			};
 
-			class IDeviceContext
+			class NOVTABLE IDeviceContext
 			{
 			public:
-				virtual ~IDeviceContext() {}
+				//~IDeviceContext() = default;
 
 				// low level IA
 				virtual E_PRIMITIVE_TOPOLOGY GetPrimitiveTopology() const = 0;
@@ -844,10 +907,10 @@ namespace DGLE2
 				virtual void test() = 0;
 			};
 
-			class IDevice
+			class NOVTABLE IDevice
 			{
 			public:
-				virtual ~IDevice() {}
+				//~IDevice() = default;
 				virtual IDeviceContext *GetDeviceContext() = 0;
 
 				virtual TCaps GetCaps() = 0;
@@ -878,7 +941,7 @@ namespace DGLE2
 				virtual IUnorderedAccessView *CreateUnorderedResourceView(IResource &resource, const TUnorderedAccessView *desc = NULL) = 0;
 			};
 
-			class ICommandList
+			class NOVTABLE ICommandList
 			{
 			public:
 			};
@@ -888,80 +951,349 @@ namespace DGLE2
 		{
 			namespace Textures
 			{
-				// usefull for LUT
-				class ITexture1D
+				class NOVTABLE ITexture1D: virtual public IDtor
 				{
+				public:
+				protected:
+					//~ITexture1D() = default;
 				};
 
-				class ITexture2D
+				class NOVTABLE ITexture2D: virtual public IDtor
 				{
+				public:
+				protected:
+					//~ITexture2D() = default;
 				};
 
-				class ITexture3D
+				class NOVTABLE ITexture3D: virtual public IDtor
 				{
+				public:
+				protected:
+					//~ITexture3D() = default;
 				};
 
-				class ITextureCube
+				class NOVTABLE ITextureCube: virtual public IDtor
 				{
+				public:
+				protected:
+					//~ITextureCube() = default;
 				};
 
-				class IMatrialTexture
+				class NOVTABLE IMatrialTexture: virtual public IDtor
 				{
+				protected:
+				protected:
+					//~IMatrialTexture() = default;
 				};
 
-				class IMatrialTexture2D: public IMatrialTexture
+				class NOVTABLE IMatrialTexture2D: public IMatrialTexture
 				{
+				public:
+				protected:
+					//~IMatrialTexture2D() = default;
 				};
 
-				class IMatrialTexture3D: public IMatrialTexture
+				class NOVTABLE IMatrialTexture3D: public IMatrialTexture
 				{
+				public:
+				protected:
+					//~IMatrialTexture3D() = default;
 				};
 			}
 
-			namespace _2D
+			namespace Materials
 			{
-				class IRect
+				enum /*class*/ E_TEX_MAPPING
 				{
-				public:
-					virtual ~IRect() {}
-					virtual void SetPos(float x, float y) = 0;
-					virtual void SetExtents(float x, float y) = 0;
-					virtual void SetColor(uint32 color) = 0;
-					virtual void SetAngle(float angle) = 0;
+					UV,	// standard 2D tex coords
+					XYZ	// object space
 				};
 
-				class IEllipse
+				enum /*class*/ E_NORMAL_TECHNIQUE
+				{
+					UNPERTURBED			= 0,
+					NORMAL_MAP_XY		= 1,
+					HEIGHT_MAP_HW_DIFF	= 2
+				};
+
+				enum /*class*/ E_PARALLAX_TECHNIQUE
+				{
+					NONE	= 0,
+					SPHERE	= 1,
+					PLANE	= 2
+				};
+
+				class NOVTABLE IMaterial: virtual public IDtor
 				{
 				public:
-					virtual ~IEllipse() {}
-					virtual void SetPos(float x, float y) = 0;
-					virtual void SetRadii(float rx, float ry) = 0;
-					virtual void SetColor(uint32 color) = 0;
-					virtual void SetAngle(float angle) = 0;
+					virtual void SetAmbientColor(const float color[3]) = 0;
+					virtual void SetDiffuseColor(const float color[3]) = 0;
+					virtual void SetSpecularColor(const float color[3]) = 0;
+					virtual void SetHeightScale(float scale) = 0;
+					virtual void SetEnvAmount(float amount) = 0;
+					virtual void SetShininess(float shininess) = 0;
+					virtual void SetTexMappingMode(E_TEX_MAPPING texMapping) = 0;
+					virtual void SetDiffuseTexture(Textures::IMatrialTexture *texture) = 0;
+					virtual void SetSpecularTexture(Textures::IMatrialTexture *texture) = 0;
+					virtual void SetNormalTexture(Textures::IMatrialTexture *texture) = 0;
+					virtual void SetHeightTexture(Textures::IMatrialTexture *texture) = 0;
+					virtual void SetEnvTexture(Textures::IMatrialTexture *texture) = 0;
+					virtual void SetEnvMask(Textures::IMatrialTexture *texture) = 0;
+					virtual void SetNormalTechnique(E_NORMAL_TECHNIQUE technique) = 0;
+					virtual void SetParallaxTechnique(E_PARALLAX_TECHNIQUE technique) = 0;
+				protected:
+					//~IMaterial() = default;
 				};
 			}
 
-			struct TDispMode
+			namespace Geometry
 			{
-				uint width, height;
-				float refreshRate;
-				std::string desc;
-			};
+				template<unsigned int dimension>
+				struct AABB
+				{
+					static_assert(dimension == 2 || dimension == 3, "AABB dimension can be either 2 or 3");
+					float center[dimension], extents[dimension];
+				};
 
-			class IDisplayModes
+				class NOVTABLE IMesh: virtual public IDtor
+				{
+				public:
+					virtual AABB<3> GetAABB() const = 0;
+				protected:
+					//~IMesh() = default;
+				};
+			}
+
+			namespace Instances
+			{
+				namespace _2D
+				{
+					class NOVTABLE IRect: virtual public IDtor
+					{
+					public:
+						virtual void SetPos(float x, float y) = 0;
+						virtual void SetExtents(float x, float y) = 0;
+						virtual void SetColor(uint32 color) = 0;
+						virtual void SetAngle(float angle) = 0;
+					protected:
+						//~IRect() = default;
+					};
+
+					class NOVTABLE IEllipse: virtual public IDtor
+					{
+					public:
+						virtual void SetPos(float x, float y) = 0;
+						virtual void SetRadii(float rx, float ry) = 0;
+						virtual void SetColor(uint32 color) = 0;
+						virtual void SetAngle(float angle) = 0;
+					protected:
+						//~IEllipse() = default;
+					};
+				}
+
+				class NOVTABLE IInstance: virtual public IDtor
+				{
+				public:
+				protected:
+					//~IInstance() = default;
+				};
+			}
+
+			namespace DisplayModes
+			{
+				class NOVTABLE IDesc: virtual public IDtor
+				{
+				public:
+					virtual operator const char *() const = 0;
+				protected:
+					//~IDesc() = default;
+				};
+
+				struct TDispMode
+				{
+					const uint width, height;
+					const float refreshRate;
+				};
+
+				class NOVTABLE IDisplayModes
+				{
+					friend struct TDispModeDesc;
+				public:
+					class CIterator;
+					virtual uint Count() const = 0;
+					inline TDispModeDesc operator [](uint idx) const;//TDispModeDesc here references to DisplayModes::TDispModeDesc
+					inline CIterator begin() const;
+					inline CIterator end() const;
+				protected:
+					struct TDispModeDesc: TDispMode
+					{
+						TDispModeDesc(const TDispMode &mode, const IDesc *const desc): TDispMode(mode), desc(desc) {}
+						const IDesc *const desc;
+					};
+				private:
+					virtual TDispModeDesc Get(uint idx) const = 0;
+				protected:
+					//~IDisplayModes() = default;
+				};
+
+				struct TDispModeDesc: TDispMode
+				{
+					const struct TDesc
+					{
+						operator const char *() const
+						{
+							return *_desc;
+						}
+					private:
+						friend struct TDispModeDesc;
+						TDesc(const IDesc *desc): _desc(desc, dtor) {}
+						TDesc(const TDesc &&src): 
+						// remove const from _desc in order to call (&&) ctor instead of (const &) one
+						_desc(std::move(const_cast<std::remove_const<decltype(src._desc)>::type &>(src._desc)))
+						{
+						}
+						const std::shared_ptr<const IDesc> _desc;
+					} desc;
+					TDispModeDesc(const TDispModeDesc &&src):
+						TDispMode(src),
+						desc(std::forward<decltype(src.desc)>(src.desc))
+					{
+					}
+				private:
+					friend TDispModeDesc IDisplayModes::operator[](uint) const;
+					TDispModeDesc(const IDisplayModes::TDispModeDesc &modeDesc): TDispMode(modeDesc), desc(modeDesc.desc) {}
+				};
+
+				TDispModeDesc IDisplayModes::operator [](uint idx) const
+				{
+					return Get(idx);
+				}
+
+				class IDisplayModes::CIterator: public std::iterator<std::random_access_iterator_tag, const DisplayModes::TDispModeDesc, uint>
+				{
+					friend class IDisplayModes;
+				public:
+					inline DisplayModes::TDispModeDesc operator *() const;
+					inline bool operator ==(CIterator cmp) const;
+					inline bool operator !=(CIterator cmp) const;
+					inline bool operator <(CIterator cmp) const;
+					inline CIterator &operator +=(difference_type offset);
+					inline CIterator &operator -=(difference_type offset);
+					inline CIterator &operator ++();
+					inline CIterator &operator --();
+					inline CIterator operator ++(int);
+					inline CIterator operator --(int);
+					inline CIterator operator +(difference_type offset) const;
+					inline difference_type operator -(CIterator subtrahend) const;
+				private:
+					inline CIterator(const IDisplayModes &modes, uint idx);
+					inline void _CheckRange() const;
+					inline static void _CheckContainer(CIterator iter1, CIterator iter2);
+					const IDisplayModes &_modes;
+					uint _idx;
+				};
+
+#pragma region("IDisplayModes::CIterator impl")
+				void IDisplayModes::CIterator::_CheckRange() const
+				{
+					_ASSERTE(_idx >= 0);
+					_ASSERTE(_idx < _modes.Count());
+				}
+
+				void IDisplayModes::CIterator::_CheckContainer(CIterator iter1, CIterator iter2)
+				{
+					_ASSERTE(&iter1._modes == &iter2._modes);
+				}
+
+				TDispModeDesc IDisplayModes::CIterator::operator *() const
+				{
+					_CheckRange();
+					return _modes[_idx];
+				}
+
+				bool IDisplayModes::CIterator::operator ==(CIterator cmp) const
+				{
+					_CheckContainer(*this, cmp);
+					return _idx == cmp._idx;
+				}
+
+				bool IDisplayModes::CIterator::operator !=(CIterator cmp) const
+				{
+					return !operator ==(cmp);
+				}
+
+				bool IDisplayModes::CIterator::operator <(CIterator cmp) const
+				{
+					_CheckContainer(*this, cmp);
+					return _idx < cmp._idx;
+				}
+
+				IDisplayModes::CIterator &IDisplayModes::CIterator::operator +=(difference_type offset)
+				{
+					_idx += offset;
+					return *this;
+				}
+
+				IDisplayModes::CIterator &IDisplayModes::CIterator::operator -=(difference_type offset)
+				{
+					_idx -= offset;
+					return *this;
+				}
+
+				IDisplayModes::CIterator &IDisplayModes::CIterator::operator ++()
+				{
+					return operator +=(1);
+				}
+
+				IDisplayModes::CIterator &IDisplayModes::CIterator::operator --()
+				{
+					return operator -=(1);
+				}
+
+				IDisplayModes::CIterator IDisplayModes::CIterator::operator ++(int)
+				{
+					CIterator old(*this);
+					operator ++();
+					return old;
+				}
+
+				IDisplayModes::CIterator IDisplayModes::CIterator::operator --(int)
+				{
+					CIterator old(*this);
+					operator --();
+					return old;
+				}
+
+				IDisplayModes::CIterator IDisplayModes::CIterator::operator +(difference_type offset) const
+				{
+					return CIterator(*this) += offset;
+				}
+
+				IDisplayModes::CIterator::difference_type IDisplayModes::CIterator::operator -(CIterator subtrahend) const
+				{
+					_CheckContainer(*this, subtrahend);
+					return _idx - subtrahend._idx;
+				}
+
+				IDisplayModes::CIterator::CIterator(const IDisplayModes &modes, uint idx): _modes(modes), _idx(idx) {}
+#pragma endregion
+
+				IDisplayModes::CIterator IDisplayModes::begin() const
+				{
+					return CIterator(*this, 0);
+				}
+
+				IDisplayModes::CIterator IDisplayModes::end() const
+				{
+					return CIterator(*this, Count());
+				}
+
+				extern const IDisplayModes &GetDisplayModes();
+			}
+
+			class NOVTABLE IRenderer: virtual public IDtor
 			{
 			public:
-				virtual ~IDisplayModes() {}
-				virtual uint Count() const = 0;
-				virtual TDispMode operator [](uint idx) const = 0;
-			};
-
-			const IDisplayModes &GetDisplayModes();
-
-			class IRenderer
-			{
-			public:
-				virtual ~IRenderer() {}
 				virtual void SetMode(uint width, uint height) = 0;
 				virtual void SetMode(uint idx) = 0;
 				virtual void ToggleFullscreen(bool fullscreen) = 0;
@@ -973,6 +1305,9 @@ namespace DGLE2
 				//virtual Textures::ITexture2D *CreateTexture2D() = 0;
 				//virtual Textures::ITexture3D *CreateTexture3D() = 0;
 				//virtual Textures::ITextureCube *CreateTextureCube() = 0;
+				//virtual Materials::IMaterial *CreateMaterial() = 0;
+				//virtual Geometry::IMesh *CreateMesh() = 0;
+				//virtual Instances::IInstance *CreateInstance(const Geometry::IMesh &mesh, const Materials::IMaterial &material) = 0;
 
 				// immediate 2D
 				// consider packing coords and color into single struct (array of structs instead of struct of arrays)(it may results in better memory access pattern)
@@ -988,12 +1323,14 @@ namespace DGLE2
 				virtual void DrawCircle(float x, float y, float r, uint32 color) = 0;
 
 				// 2D scene
-				virtual _2D::IRect *AddRect(bool dynamic, uint16 layer, float x, float y, float width, float height, uint32 color, float angle = 0) = 0;
-				virtual _2D::IEllipse *AddEllipse(bool dynamic, uint16 layer, float x, float y, float rx, float ry, uint32 color, bool AA, float angle = 0) = 0;
+				virtual Instances::_2D::IRect *AddRect(bool dynamic, uint16 layer, float x, float y, float width, float height, uint32 color, float angle = 0) = 0;
+				virtual Instances::_2D::IEllipse *AddEllipse(bool dynamic, uint16 layer, float x, float y, float rx, float ry, uint32 color, bool AA, float angle = 0) = 0;
+			protected:
+				//~IRenderer() = default;
 			};
 
 			// TODO: replace HWND with engine cross-platform handle
-			IRenderer *CreateRenderer(HWND hwnd, uint width, uint height, bool fullscreen = false, uint refreshRate = 0, bool multithreaded = true);
+			extern IRenderer *CreateRenderer(HWND hwnd, uint width, uint height, bool fullscreen = false, uint refreshRate = 0, bool multithreaded = true);
 		}
 	}
 }

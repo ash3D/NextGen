@@ -26,7 +26,7 @@ HWND hWnd;
 
 IRenderer *renderer;
 
-std::vector<_2D::IEllipse *> ellipses;
+std::vector<Instances::_2D::IEllipse *> ellipses;
 struct TRectDesc
 {
 	TRectDesc(float x, float y, float width, float height, unsigned long color, float angle):
@@ -75,6 +75,9 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
                      LPTSTR    lpCmdLine,
                      int       nCmdShow)
 {
+#ifdef _DEBUG
+	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+#endif
 	UNREFERENCED_PARAMETER(hPrevInstance);
 	UNREFERENCED_PARAMETER(lpCmdLine);
 
@@ -101,8 +104,8 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 			switch (msg.message)
 			{
 			case WM_QUIT:
-				delete renderer;
-				std::for_each(ellipses.begin(), ellipses.end(), [](const _2D::IEllipse *ellipse){delete ellipse;});
+				~*renderer;
+				std::for_each(ellipses.begin(), ellipses.end(), [](const Instances::_2D::IEllipse *ellipse){~*ellipse;});
 				return (int) msg.wParam;
 			default:
 				if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
@@ -189,8 +192,8 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    ShowWindow(hWnd, nCmdShow);
    UpdateWindow(hWnd);
 
-   const IDisplayModes &modes = GetDisplayModes();
-   modes[0];
+   const auto &modes = DisplayModes::GetDisplayModes();
+   std::for_each(modes.begin(), modes.end(), [](DisplayModes::IDisplayModes::CIterator::reference mode){OutputDebugStringA(mode.desc);});
    renderer = CreateRenderer(hWnd, 800, 600);
    ellipses.reserve(count * count);
 	//for (unsigned y = 0; y < count; y++)

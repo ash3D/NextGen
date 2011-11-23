@@ -22,6 +22,7 @@
 #define _SECURE_SCL 0
 #include <limits>
 #include <vector>
+#include <list>
 #include <algorithm>
 #include <functional>
 #include <memory>		// for allocator
