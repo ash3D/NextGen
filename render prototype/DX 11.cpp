@@ -24,13 +24,24 @@ using namespace DGLE2::Renderer::HighLevel::DisplayModes;
 
 class CDtor: virtual DGLE2::Renderer::IDtor
 {
+	// need const qualifier to allow const object destruction (like conventional dtor)
 	virtual void operator ~() const override
 	{
-		delete this;
+		_externRef.reset();
 	}
 protected:
-//	CDtor() = default;
+	/*
+	default shared_ptr's deleter can not access protected dtor
+	dtor called from internal implementation-dependent class => 'friend shared_ptr<CDtor>;' does not help
+	*/
+	CDtor(): _externRef(this, [](const CDtor *dtor){delete dtor;}) {}
 	virtual ~CDtor() {}
+	const shared_ptr<CDtor> &GetRef() const
+	{
+		return _externRef;
+	}
+private:
+	mutable shared_ptr<CDtor> _externRef;	// reference from lib user
 };
 
 template<class Child>
@@ -330,15 +341,6 @@ namespace DX11
 
 	namespace
 	{
-		struct
-		{
-			template<class Class>
-			void operator ()(Class *object) const
-			{
-				object->parent = NULL;
-			}
-		} parentNuller;
-
 		class CWin32Heap
 		{
 		public:
@@ -610,8 +612,6 @@ namespace DX11
 		virtual ~CRenderer()
 		{
 			ASSERT_HR(_swapChain->SetFullscreenState(FALSE, NULL))
-			for_each(_rectHandles.begin(), _rectHandles.end(), parentNuller);
-			for_each(_ellipseHandles.begin(), _ellipseHandles.end(), parentNuller);
 		}
 
 		void Draw2DScene();
@@ -647,13 +647,9 @@ namespace DX11
 		typedef list<TQuad, CWin32HeapAllocator<TQuad>> TQuads;
 		class CRectHandle;
 		class CEllipseHandle;
-		typedef list<CRectHandle *> TRectHandles;
-		typedef list<CEllipseHandle *> TEllipseHandles;
 		TQuads _staticRects, _dynamicRects;
 		TQuads _staticEllipses, _dynamicEllipses;
 		TQuads _staticEllipsesAA, _dynamicEllipsesAA;
-		TRectHandles _rectHandles;
-		TEllipseHandles _ellipseHandles;
 		ID3D11BufferPtr _static2DVB, _dynamic2DVB;
 		UINT _dynamic2DVBSize;
 		bool _static2DDirty;
@@ -693,8 +689,8 @@ namespace DX11
 //	class CDevice::CEllipse: public _2D::IEllipse, private TQuad
 //	{
 //		// C++11
-//		//CEllipse(const CEllipse &) = deleted;
-//		//CEllipse &operator =(const CEllipse &) = deleted;
+//		//CEllipse(const CEllipse &) = delete;
+//		//CEllipse &operator =(const CEllipse &) = delete;
 //		virtual ~CEllipse()
 //		{
 //			if (parent)
@@ -727,8 +723,8 @@ namespace DX11
 	class CRenderer::CRectHandle: CDtor, public Instances::_2D::IRect
 	{
 		// C++11
-		//CRectHandle(const CRectHandle &) = deleted;
-		//CRectHandle &operator =(const CRectHandle &) = deleted;
+		//CRectHandle(const CRectHandle &) = delete;
+		//CRectHandle &operator =(const CRectHandle &) = delete;
 		virtual void SetPos(float x, float y) override
 		{
 			_rect->pos.x = x;
@@ -749,34 +745,29 @@ namespace DX11
 		}
 		virtual ~CRectHandle()
 		{
-			if (parent)
-			{
-				(parent->*_container).erase(_rect);
-				parent->_rectHandles.erase(_thisIter);
-			}
+			(*_renderer.*_container).erase(_rect);
 		}
 	public:
-		CRectHandle(CRenderer *parent, bool dynamic, uint16 layer, float x, float y, float width, float height, uint32 color, float angle):
-			parent(parent),
+		template<class RendererPtr>
+		CRectHandle(const RendererPtr &&renderer, bool dynamic, uint16 layer, float x, float y, float width, float height, uint32 color, float angle):
+			_renderer(forward<const RendererPtr>(renderer)),
 			_container(dynamic ? &CRenderer::_dynamicRects : &CRenderer::_staticRects),
-			_rect(((parent->*_container).push_front(TQuad(x, y, width, height, layer, angle, color)), (parent->*_container).begin())),
-			_thisIter((parent->_rectHandles.push_front(this), parent->_rectHandles.begin()))
+			_rect(((*_renderer.*_container).push_front(TQuad(x, y, width, height, layer, angle, color)), (*_renderer.*_container).begin()))
 		{
 			if (!dynamic)
-				parent->_static2DDirty = true;
+				_renderer->_static2DDirty = true;
 		}
-		CRenderer *parent;
 	private:
+		const shared_ptr<CRenderer> _renderer;
 		TQuads CRenderer::*const _container;
 		const TQuads::iterator _rect;
-		const TRectHandles::const_iterator _thisIter;
 	};
 
 	class CRenderer::CEllipseHandle: CDtor, public Instances::_2D::IEllipse
 	{
 		// C++11
-		//CEllipseHandle(const CEllipseHandle &) = deleted;
-		//CEllipseHandle &operator =(const CEllipseHandle &) = deleted;
+		//CEllipseHandle(const CEllipseHandle &) = delete;
+		//CEllipseHandle &operator =(const CEllipseHandle &) = delete;
 		virtual void SetPos(float x, float y) override
 		{
 			_ellipse->pos.x = x;
@@ -797,27 +788,22 @@ namespace DX11
 		}
 		virtual ~CEllipseHandle()
 		{
-			if (parent)
-			{
-				(parent->*_container).erase(_ellipse);
-				parent->_ellipseHandles.erase(_thisIter);
-			}
+			(*_renderer.*_container).erase(_ellipse);
 		}
 	public:
-		CEllipseHandle(CRenderer *parent, bool dynamic, uint16 layer, float x, float y, float rx, float ry, uint32 color, bool AA, float angle):
-			parent(parent),
+		template<class RendererPtr>
+		CEllipseHandle(const RendererPtr &&renderer, bool dynamic, uint16 layer, float x, float y, float rx, float ry, uint32 color, bool AA, float angle):
+			_renderer(forward<const RendererPtr>(renderer)),
 			_container(dynamic ? &CRenderer::_dynamicRects : &CRenderer::_staticRects),
-			_ellipse(((parent->*_container).push_front(TQuad(x, y, rx, ry, layer, angle, color)), (parent->*_container).begin())),
-			_thisIter((parent->_ellipseHandles.push_front(this), parent->_ellipseHandles.begin()))
+			_ellipse(((*_renderer.*_container).push_front(TQuad(x, y, rx, ry, layer, angle, color)), (*_renderer.*_container).begin()))
 		{
 			if (!dynamic)
-				parent->_static2DDirty = true;
+				_renderer->_static2DDirty = true;
 		}
-		CRenderer *parent;
 	private:
+		const shared_ptr<CRenderer> _renderer;
 		TQuads CRenderer::*const _container;
 		const TQuads::iterator _ellipse;
-		const TEllipseHandles::const_iterator _thisIter;
 	};
 }
 
@@ -825,12 +811,12 @@ namespace DX11
 {
 	Instances::_2D::IRect *CRenderer::AddRect(bool dynamic, uint16 layer, float x, float y, float width, float height, uint32 color, float angle)
 	{
-		return new CRectHandle(this, dynamic, layer, x, y, width, height, color, angle);
+		return new CRectHandle(static_pointer_cast<CRenderer>(GetRef()), dynamic, layer, x, y, width, height, color, angle);
 	}
 
 	Instances::_2D::IEllipse *CRenderer::AddEllipse(bool dynamic, uint16 layer, float x, float y, float rx, float ry, uint32 color, bool AA, float angle)
 	{
-		return new CEllipseHandle(this, dynamic, layer, x, y, rx, ry, color, AA, angle);
+		return new CEllipseHandle(static_pointer_cast<CRenderer>(GetRef()), dynamic, layer, x, y, rx, ry, color, AA, angle);
 	}
 
 	void CRenderer::Draw2DScene()
