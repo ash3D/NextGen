@@ -21,12 +21,14 @@ LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK	About(HWND, UINT, WPARAM, LPARAM);
 
 using namespace DGLE2::Renderer::HighLevel;
+using DGLE2::Renderer::dtor;
 
 HWND hWnd;
 
-IRenderer *renderer;
+std::shared_ptr<IRenderer> renderer;
 
-std::vector<Instances::_2D::IEllipse *> ellipses;
+std::vector<std::shared_ptr<Instances::_2D::IRect>> rects;
+std::vector<std::shared_ptr<Instances::_2D::IEllipse>> ellipses;
 struct TRectDesc
 {
 	TRectDesc(float x, float y, float width, float height, unsigned long color, float angle):
@@ -37,7 +39,7 @@ struct TRectDesc
 	unsigned long color;
 	float angle;
 };
-std::vector<TRectDesc> rects;
+std::vector<TRectDesc> immediateRects;
 
 const unsigned count = 512;
 
@@ -51,7 +53,7 @@ void Proc()
 		for (unsigned x = 0; x < count; x++)
 			//renderer->DrawEllipse(800 * x / count + 800 / (count * 2), 600 * y / count + 600 / (count * 2), 800 / (count * 2), 600 / (count * 2), ~0, false, 0);
 			renderer->DrawRect(800 * x / count + 800 / (count * 2), 600 * y / count + 600 / (count * 2), 800 / (count * 2), 600 / (count * 2), ~0, 0);
-	//std::for_each(rects.begin(), rects.end(), [=](const TRectDesc &rect){renderer->DrawRect(rect.x, rect.y, rect.width, rect.height, rect.color, NULL, rect.angle);});
+	//std::for_each(immediateRects.begin(), immediateRects.end(), [=](const TRectDesc &rect){renderer->DrawRect(rect.x, rect.y, rect.width, rect.height, rect.color, NULL, rect.angle);});
 	angle += 1e-2f;
 	renderer->NextFrame();
 	static unsigned fps;
@@ -104,8 +106,6 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 			switch (msg.message)
 			{
 			case WM_QUIT:
-				~*renderer;
-				std::for_each(ellipses.begin(), ellipses.end(), [](const Instances::_2D::IEllipse *ellipse){~*ellipse;});
 				return (int) msg.wParam;
 			default:
 				if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
@@ -178,7 +178,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
 	for (unsigned y = 0; y < count; y++)
 		for (unsigned x = 0; x < count; x++)
-			rects.push_back(TRectDesc(800 * x / count + 800 / (count * 2), 600 * y / count + 600 / (count * 2), 800 / (count * 2), 600 / (count * 2), ~0, 0));
+			immediateRects.push_back(TRectDesc(800 * x / count + 800 / (count * 2), 600 * y / count + 600 / (count * 2), 800 / (count * 2), 600 / (count * 2), ~0, 0));
    hInst = hInstance; // Store instance handle in our global variable
 
    hWnd = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
@@ -194,13 +194,16 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
    const auto &modes = DisplayModes::GetDisplayModes();
    std::for_each(modes.begin(), modes.end(), [](DisplayModes::IDisplayModes::CIterator::reference mode){OutputDebugStringA(mode.desc);});
-   renderer = CreateRenderer(hWnd, 800, 600);
+   renderer.reset(CreateRenderer(hWnd, 800, 600), dtor);
    ellipses.reserve(count * count);
+	//typedef decltype(rects) TRects;
 	//for (unsigned y = 0; y < count; y++)
 	//	for (unsigned x = 0; x < count; x++)
+	//	{
 	//		//ellipses.push_back(device->AddEllipse(false, 0, 800 * x / count + 800 / (count * 2), 600 * y / count + 600 / (count * 2), 800 / (count * 2), 600 / (count * 2), ~0, false));
-	//		(device->AddRect(true, 0, 800 * x / count + 800 / (count * 2), 600 * y / count + 600 / (count * 2), 800 / (count * 2), 600 / (count * 2), ~0));
-	//(device->AddRect(true, ~0, 300, 200, 200, 100, ~0));
+	//		rects.push_back(TRects::value_type(renderer->AddRect(true, 0, 800 * x / count + 800 / (count * 2), 600 * y / count + 600 / (count * 2), 800 / (count * 2), 600 / (count * 2), ~0), dtor));
+	//	}
+	//rects.push_back(TRects::value_type(renderer->AddRect(true, ~0, 300, 200, 200, 100, ~0), dtor));
 
    return TRUE;
 }

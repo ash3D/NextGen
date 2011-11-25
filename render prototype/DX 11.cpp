@@ -44,23 +44,42 @@ private:
 	mutable shared_ptr<CDtor> _externRef;	// reference from lib user
 };
 
-template<class Child>
-class CChild: public list<Child *>
+template<class Container>
+class CIterDtor
 {
 public:
-	~CChild()
+	CIterDtor(Container &container, typename Container::iterator iter): _container(container), _iter(iter) {}
+	~CIterDtor()
 	{
-		for_each(begin(), end(), [](Child *child){child->parent = nullptr;});
+		_container.erase(_iter);
 	}
+	operator typename Container::reference()
+	{
+		return *_iter;
+	}
+	operator typename Container::const_reference()
+	{
+		return *_iter;
+	}
+private:
+	Container &_container;
+	const typename Container::iterator _iter;
 };
 
-template<class Parent>
-class CParent
+template<class Container>
+class CIterHandle: public CIterDtor<Container>
 {
-	friend class CChild<Parent>;
-protected:
-	Parent *parent;
+public:
+	template<typename Item>
+	inline CIterHandle(Container &container, Item &&item);
 };
+
+template<class Container>
+template<typename Item>
+CIterHandle<Container>::CIterHandle(Container &container, Item &&item):
+	CIterDtor(container)
+{
+}
 
 namespace DX11
 {
@@ -645,6 +664,7 @@ namespace DX11
 
 		// 2D scene
 		typedef list<TQuad, CWin32HeapAllocator<TQuad>> TQuads;
+		class CQuadHandle;
 		class CRectHandle;
 		class CEllipseHandle;
 		TQuads _staticRects, _dynamicRects;
@@ -720,90 +740,104 @@ namespace DX11
 //		const TEllipses::const_iterator _thisIter;
 //	};
 
-	class CRenderer::CRectHandle: CDtor, public Instances::_2D::IRect
+	class CRenderer::CQuadHandle: CDtor
+	{
+		// C++11
+		//CQuadHandle(const CQuadHandle &) = delete;
+		//CQuadHandle &operator =(const CQuadHandle &) = delete;
+	protected:
+		CQuadHandle(shared_ptr<CRenderer> &&renderer, TQuads CRenderer::*const container, TQuad &&quad, bool dynamic):
+			_renderer(move(renderer)),
+			_container(container),
+			_quad(((*_renderer.*_container).push_front(move(quad)), (*_renderer.*_container).begin()))
+		{
+			if (!dynamic)
+				_renderer->_static2DDirty = true;
+		}
+		virtual ~CQuadHandle()
+		{
+			(*_renderer.*_container).erase(_quad);
+		}
+	protected:
+		const shared_ptr<CRenderer> _renderer;
+	private:
+		TQuads CRenderer::*const _container;
+	protected:
+		const TQuads::iterator _quad;
+	};
+
+	class CRenderer::CRectHandle: private CQuadHandle, public Instances::_2D::IRect
 	{
 		// C++11
 		//CRectHandle(const CRectHandle &) = delete;
 		//CRectHandle &operator =(const CRectHandle &) = delete;
 		virtual void SetPos(float x, float y) override
 		{
-			_rect->pos.x = x;
-			_rect->pos.y = y;
+			_quad->pos.x = x;
+			_quad->pos.y = y;
 		}
 		virtual void SetExtents(float x, float y) override
 		{
-			_rect->extents.x = x;
-			_rect->extents.y = y;
+			_quad->extents.x = x;
+			_quad->extents.y = y;
 		}
 		virtual void SetColor(uint32 color) override
 		{
-			_rect->color = color;
+			_quad->color = color;
 		}
 		virtual void SetAngle(float angle) override
 		{
-			_rect->angle = angle;
-		}
-		virtual ~CRectHandle()
-		{
-			(*_renderer.*_container).erase(_rect);
+			_quad->angle = angle;
 		}
 	public:
 		template<class RendererPtr>
-		CRectHandle(const RendererPtr &&renderer, bool dynamic, uint16 layer, float x, float y, float width, float height, uint32 color, float angle):
-			_renderer(forward<const RendererPtr>(renderer)),
-			_container(dynamic ? &CRenderer::_dynamicRects : &CRenderer::_staticRects),
-			_rect(((*_renderer.*_container).push_front(TQuad(x, y, width, height, layer, angle, color)), (*_renderer.*_container).begin()))
+		CRectHandle(RendererPtr &&renderer, bool dynamic, uint16 layer, float x, float y, float width, float height, uint32 color, float angle):
+			CQuadHandle(
+				forward<RendererPtr>(renderer),
+				dynamic ? &CRenderer::_dynamicRects : &CRenderer::_staticRects,
+				TQuad(x, y, width, height, layer, angle, color),
+				dynamic)
 		{
-			if (!dynamic)
-				_renderer->_static2DDirty = true;
 		}
 	private:
-		const shared_ptr<CRenderer> _renderer;
-		TQuads CRenderer::*const _container;
-		const TQuads::iterator _rect;
+		//virtual ~CRectHandle() = default;
 	};
 
-	class CRenderer::CEllipseHandle: CDtor, public Instances::_2D::IEllipse
+	class CRenderer::CEllipseHandle: private CQuadHandle, public Instances::_2D::IEllipse
 	{
 		// C++11
 		//CEllipseHandle(const CEllipseHandle &) = delete;
 		//CEllipseHandle &operator =(const CEllipseHandle &) = delete;
 		virtual void SetPos(float x, float y) override
 		{
-			_ellipse->pos.x = x;
-			_ellipse->pos.y = y;
+			_quad->pos.x = x;
+			_quad->pos.y = y;
 		}
 		virtual void SetRadii(float rx, float ry) override
 		{
-			_ellipse->extents.x = rx;
-			_ellipse->extents.y = ry;
+			_quad->extents.x = rx;
+			_quad->extents.y = ry;
 		}
 		virtual void SetColor(uint32 color) override
 		{
-			_ellipse->color = color;
+			_quad->color = color;
 		}
 		virtual void SetAngle(float angle) override
 		{
-			_ellipse->angle = angle;
-		}
-		virtual ~CEllipseHandle()
-		{
-			(*_renderer.*_container).erase(_ellipse);
+			_quad->angle = angle;
 		}
 	public:
 		template<class RendererPtr>
-		CEllipseHandle(const RendererPtr &&renderer, bool dynamic, uint16 layer, float x, float y, float rx, float ry, uint32 color, bool AA, float angle):
-			_renderer(forward<const RendererPtr>(renderer)),
-			_container(dynamic ? &CRenderer::_dynamicRects : &CRenderer::_staticRects),
-			_ellipse(((*_renderer.*_container).push_front(TQuad(x, y, rx, ry, layer, angle, color)), (*_renderer.*_container).begin()))
+		CEllipseHandle(RendererPtr &&renderer, bool dynamic, uint16 layer, float x, float y, float rx, float ry, uint32 color, bool AA, float angle):
+			CQuadHandle(
+				forward<RendererPtr>(renderer),
+				dynamic ? AA ? &CRenderer::_dynamicEllipsesAA : &CRenderer::_dynamicEllipses : AA? &CRenderer::_staticEllipsesAA : &CRenderer::_staticEllipses,
+				TQuad(x, y, rx, ry, layer, angle, color),
+				dynamic)
 		{
-			if (!dynamic)
-				_renderer->_static2DDirty = true;
 		}
 	private:
-		const shared_ptr<CRenderer> _renderer;
-		TQuads CRenderer::*const _container;
-		const TQuads::iterator _ellipse;
+		//virtual ~CEllipseHandle() = default;
 	};
 }
 
