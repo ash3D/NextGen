@@ -55,18 +55,20 @@ template for format (especially for structured buffer)
 #include <type_traits>
 #include <iterator>
 #include <crtdbg.h>
-//#include <utility>	// for declval
-//
-//#if _MSC_VER <= 16000
-//	/*
-//		declval is not included in VS2010
-//	*/
-//	namespace std
-//	{
-//		template<class T>
-//		typename std::add_rvalue_reference<T>::type declval();
-//	}
-//#endif
+#include <utility>
+#include <limits>
+#include <algorithm>
+
+#if _MSC_VER <= 16000
+	/*
+		declval is not included in VS2010
+	*/
+	namespace std
+	{
+		template<class T>
+		typename add_rvalue_reference<T>::type declval();
+	}
+#endif
 
 namespace DGLE2
 {
@@ -1033,14 +1035,14 @@ namespace DGLE2
 					virtual void SetEnvAmount(float amount) = 0;
 					virtual void SetShininess(float shininess) = 0;
 					virtual void SetTexMappingMode(E_TEX_MAPPING texMapping) = 0;
+					virtual void SetNormalTechnique(E_NORMAL_TECHNIQUE technique) = 0;
+					virtual void SetParallaxTechnique(E_PARALLAX_TECHNIQUE technique) = 0;
 					virtual void SetDiffuseTexture(Textures::IMatrialTexture *texture) = 0;
 					virtual void SetSpecularTexture(Textures::IMatrialTexture *texture) = 0;
 					virtual void SetNormalTexture(Textures::IMatrialTexture *texture) = 0;
 					virtual void SetHeightTexture(Textures::IMatrialTexture *texture) = 0;
 					virtual void SetEnvTexture(Textures::IMatrialTexture *texture) = 0;
 					virtual void SetEnvMask(Textures::IMatrialTexture *texture) = 0;
-					virtual void SetNormalTechnique(E_NORMAL_TECHNIQUE technique) = 0;
-					virtual void SetParallaxTechnique(E_PARALLAX_TECHNIQUE technique) = 0;
 				protected:
 					//~IMaterial() = default;
 				};
@@ -1048,12 +1050,82 @@ namespace DGLE2
 
 			namespace Geometry
 			{
-				template<unsigned int dimension>
-				struct AABB
+				// TODO: use math lib
+				template<uint dimension>
+				class AABB
 				{
 					static_assert(dimension == 2 || dimension == 3, "AABB dimension can be either 2 or 3");
-					float center[dimension], extents[dimension];
+				public:
+					explicit AABB() noexcept
+					{
+						for (uint i = 0; i < dimension; i++)
+						{
+							_min[i] = +std::numeric_limits<float>::infinity();
+							_max[i] = -std::numeric_limits<float>::infinity();
+						}
+					}
+
+					template<class TIterator>
+					inline AABB(TIterator begin, TIterator end);
+
+					inline void Refit(const AABB &aabb);
+
+					const float (&Min() const noexcept)[dimension]
+					{
+						return _min;
+					}
+
+					const float (&Max() const noexcept)[dimension]
+					{
+						return _max;
+					}
+
+					//const vec3 Center() const
+					//{
+					//	return nv_zero_5 * (_max + _min);
+					//}
+
+					//const vec3 Extents() const
+					//{
+					//	return nv_zero_5 * (_max - _min);
+					//}
+				private:
+					inline void Refit(const float (&min)[dimension], const float (&max)[dimension]);
+				private:
+					float _min[dimension], _max[dimension];
 				};
+
+#pragma region("AABB impl")
+				template<uint dimension>
+				void AABB<dimension>::Refit(const float (&min)[dimension], const float (&max)[dimension])
+				{
+					for (uint i = 0; i < dimension; i++)
+					{
+						_min[i] = std::min(_min[i], min[i]);
+						_max[i] = std::max(_max[i], max[i]);
+					}
+				}
+
+				template<uint dimension>
+				template<class TIterator>
+				AABB<dimension>::AABB(TIterator begin, TIterator end)//: AABB()
+				{
+					// C++11: use delegating ctor
+					for (uint i = 0; i < dimension; i++)
+					{
+						_min[i] = +std::numeric_limits<float>::infinity();
+						_max[i] = -std::numeric_limits<float>::infinity();
+					}
+
+					std::for_each(begin, end, [this](const float (&vertex)[dimension]){Refit(vertex, vertex);});
+				}
+
+				template<uint dimension>
+				void AABB<dimension>::Refit(const AABB &aabb)
+				{
+					Refit(aabb._min, aabb._max);
+				}
+#pragma endregion
 
 				class NOVTABLE IMesh: virtual public IDtor
 				{
@@ -1305,9 +1377,9 @@ namespace DGLE2
 				//virtual Textures::ITexture2D *CreateTexture2D() = 0;
 				//virtual Textures::ITexture3D *CreateTexture3D() = 0;
 				//virtual Textures::ITextureCube *CreateTextureCube() = 0;
-				//virtual Materials::IMaterial *CreateMaterial() = 0;
-				//virtual Geometry::IMesh *CreateMesh() = 0;
-				//virtual Instances::IInstance *CreateInstance(const Geometry::IMesh &mesh, const Materials::IMaterial &material) = 0;
+				virtual Materials::IMaterial *CreateMaterial() = 0;
+				virtual Geometry::IMesh *CreateMesh(uint icount, _In_count_(icount) const uint32 *idx, uint vcount, _In_count_(vcount) const float *coords) = 0;
+				virtual Instances::IInstance *CreateInstance(const Geometry::IMesh &mesh, const Materials::IMaterial &material) = 0;
 
 				// immediate 2D
 				// consider packing coords and color into single struct (array of structs instead of struct of arrays)(it may results in better memory access pattern)

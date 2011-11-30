@@ -19,8 +19,12 @@
 using namespace std;
 using namespace DGLE2;
 using namespace DGLE2::Renderer::HighLevel;
-using namespace DGLE2::Renderer::HighLevel::Geometry;
-using namespace DGLE2::Renderer::HighLevel::DisplayModes;
+using namespace Textures;
+using namespace Materials;
+using namespace Geometry;
+using namespace Instances;
+using namespace Instances::_2D;
+using namespace DisplayModes;
 
 class CDtor: virtual DGLE2::Renderer::IDtor
 {
@@ -36,12 +40,30 @@ protected:
 	*/
 	CDtor(): _externRef(this, [](const CDtor *dtor){delete dtor;}) {}
 	virtual ~CDtor() {}
-	const shared_ptr<CDtor> &GetRef() const
+	const shared_ptr<CDtor> &GetRef()
+	{
+		return _externRef;
+	}
+	const shared_ptr<const CDtor> &GetRef() const
 	{
 		return _externRef;
 	}
 private:
 	mutable shared_ptr<CDtor> _externRef;	// reference from lib user
+};
+
+template<class Parent>
+class CRef: private CDtor
+{
+public:
+	shared_ptr<Parent> GetRef()
+	{
+		return static_pointer_cast<Parent>(GetRef());
+	}
+	shared_ptr<const Parent> GetRef() const
+	{
+		return static_pointer_cast<const Parent>(GetRef());
+	}
 };
 
 template<class Container>
@@ -229,25 +251,6 @@ namespace DX11
 			"\nScaling:\t" + Scaling2String(desc.Scaling);
 	}
 
-	class CMesh: CDtor, public Geometry::IMesh
-	{
-		virtual AABB<3> GetAABB() const override;
-	public:
-		CMesh();
-	private:
-		ID3D11BufferPtr	_geometry;
-		AABB<3>			_aabb;
-	};
-
-	inline AABB<3> CMesh::GetAABB() const
-	{
-		return _aabb;
-	}
-
-	CMesh::CMesh()
-	{
-	}
-
 	class CDynamicVB
 	{
 	public:
@@ -413,7 +416,7 @@ namespace DX11
 		};
 	}
 
-	class CRenderer: CDtor, public IRenderer
+	class CRenderer: private CRef<CRenderer>, public IRenderer
 	{
 		class CQuadFiller
 		{
@@ -515,6 +518,10 @@ namespace DX11
 			_immediateContext->OMSetRenderTargets(1, &rt_view.GetInterfacePtr(), _zbufferView);
 		}
 
+		virtual Materials::IMaterial *CreateMaterial() override;
+		virtual Geometry::IMesh *CreateMesh(uint icount, _In_count_(icount) const uint32 *idx, uint vcount, _In_count_(vcount) const float *coords) override;
+		virtual IInstance *CreateInstance(const Geometry::IMesh &mesh, const Materials::IMaterial &material) override;
+
 		virtual void DrawPoint(float x, float y, uint32 color, float size) override;
 		virtual void DrawLine(uint vcount, _In_count_(vcount) const float coords[][2], _In_count_(vcount) const uint32 colors[], bool closed, float width) override;
 		virtual void DrawRect(float x, float y, float width, float height, uint32 color, Textures::ITexture2D *texture, float angle) override;
@@ -523,8 +530,8 @@ namespace DX11
 		virtual void DrawCircle(float x, float y, float r, uint32 color) override;
 		virtual void DrawEllipse(float x, float y, float rx, float ry, uint32 color, bool AA, float angle) override;
 
-		virtual Instances::_2D::IRect *AddRect(bool dynamic, uint16 layer, float x, float y, float width, float height, uint32 color, float angle) override;
-		virtual Instances::_2D::IEllipse *AddEllipse(bool dynamic, uint16 layer, float x, float y, float rx, float ry, uint32 color, bool AA, float angle) override;
+		virtual IRect *AddRect(bool dynamic, uint16 layer, float x, float y, float width, float height, uint32 color, float angle) override;
+		virtual IEllipse *AddEllipse(bool dynamic, uint16 layer, float x, float y, float rx, float ry, uint32 color, bool AA, float angle) override;
 	private:
 		void Init(HWND hwnd, const DXGI_MODE_DESC &modeDesc, bool fullscreen, bool multithreaded)
 		{
@@ -740,7 +747,7 @@ namespace DX11
 //		const TEllipses::const_iterator _thisIter;
 //	};
 
-	class CRenderer::CQuadHandle: CDtor
+	class CRenderer::CQuadHandle: ::CDtor
 	{
 		// C++11
 		//CQuadHandle(const CQuadHandle &) = delete;
@@ -766,7 +773,7 @@ namespace DX11
 		const TQuads::iterator _quad;
 	};
 
-	class CRenderer::CRectHandle: private CQuadHandle, public Instances::_2D::IRect
+	class CRenderer::CRectHandle: private CQuadHandle, public IRect
 	{
 		// C++11
 		//CRectHandle(const CRectHandle &) = delete;
@@ -790,10 +797,9 @@ namespace DX11
 			_quad->angle = angle;
 		}
 	public:
-		template<class RendererPtr>
-		CRectHandle(RendererPtr &&renderer, bool dynamic, uint16 layer, float x, float y, float width, float height, uint32 color, float angle):
+		CRectHandle(shared_ptr<CRenderer> &&renderer, bool dynamic, uint16 layer, float x, float y, float width, float height, uint32 color, float angle):
 			CQuadHandle(
-				forward<RendererPtr>(renderer),
+				move(renderer),
 				dynamic ? &CRenderer::_dynamicRects : &CRenderer::_staticRects,
 				TQuad(x, y, width, height, layer, angle, color),
 				dynamic)
@@ -803,7 +809,7 @@ namespace DX11
 		//virtual ~CRectHandle() = default;
 	};
 
-	class CRenderer::CEllipseHandle: private CQuadHandle, public Instances::_2D::IEllipse
+	class CRenderer::CEllipseHandle: private CQuadHandle, public IEllipse
 	{
 		// C++11
 		//CEllipseHandle(const CEllipseHandle &) = delete;
@@ -827,10 +833,9 @@ namespace DX11
 			_quad->angle = angle;
 		}
 	public:
-		template<class RendererPtr>
-		CEllipseHandle(RendererPtr &&renderer, bool dynamic, uint16 layer, float x, float y, float rx, float ry, uint32 color, bool AA, float angle):
+		CEllipseHandle(shared_ptr<CRenderer> &&renderer, bool dynamic, uint16 layer, float x, float y, float rx, float ry, uint32 color, bool AA, float angle):
 			CQuadHandle(
-				forward<RendererPtr>(renderer),
+				move(renderer),
 				dynamic ? AA ? &CRenderer::_dynamicEllipsesAA : &CRenderer::_dynamicEllipses : AA? &CRenderer::_staticEllipsesAA : &CRenderer::_staticEllipses,
 				TQuad(x, y, rx, ry, layer, angle, color),
 				dynamic)
@@ -839,18 +844,233 @@ namespace DX11
 	private:
 		//virtual ~CEllipseHandle() = default;
 	};
+
+	class CMesh: public CRef<CMesh>, public Geometry::IMesh
+	{
+		friend IMesh *CRenderer::CreateMesh(uint icount, _In_count_(icount) const uint32 *idx, uint vcount, _In_count_(vcount) const float *coords);
+		virtual AABB<3> GetAABB() const override;
+	private:
+		CMesh(ID3D11Device *device, uint icount, _In_count_(icount) const uint32 *idx, uint vcount, _In_count_(vcount) const float *coords);
+		//virtual ~CMesh() = default;
+	private:
+		ID3D11BufferPtr	_geometry;
+		UINT			_ibOffset, _vbOffsets[1];
+		AABB<3>			_aabb;
+		DXGI_FORMAT		_IBFormat;
+	};
+
+	inline AABB<3> CMesh::GetAABB() const
+	{
+		return _aabb;
+	}
+
+	// 1 call site => inline
+	// TODO: clarify 'vcount <= D3D11_16BIT_INDEX_STRIP_CUT_VALUE + 1'
+	inline CMesh::CMesh(ID3D11Device *device, uint icount, _In_count_(icount) const uint32 *idx, uint vcount, _In_count_(vcount) const float *coords):
+		_aabb(reinterpret_cast<const float (*)[3]>(coords), reinterpret_cast<const float (*)[3]>(coords) + vcount),
+		_IBFormat(vcount <= D3D11_16BIT_INDEX_STRIP_CUT_VALUE + 1 ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT)
+	{
+		decltype(declval<D3D11_BUFFER_DESC>().ByteWidth)
+			idxSize = (_IBFormat == DXGI_FORMAT_R16_UINT ? sizeof(uint16) : sizeof(uint32)) * icount,
+			coordsSize = sizeof *coords * 3 * vcount;
+		const D3D11_BUFFER_DESC desc =
+		{
+			idxSize + coordsSize,								//ByteWidth
+			D3D11_USAGE_IMMUTABLE,								//Usage
+			D3D11_BIND_INDEX_BUFFER | D3D11_BIND_VERTEX_BUFFER,	//BindFlags
+			0,													//CPUAccessFlags
+			0,													//MiscFlags
+			0													//StructureByteStride
+		};
+
+		unique_ptr<ubyte []> buf(new ubyte[desc.ByteWidth]);
+
+		_vbOffsets[0] = 0;
+		memcpy(buf.get() + _vbOffsets[0], coords, coordsSize);
+
+		_ibOffset = _vbOffsets[0] + coordsSize;
+		const auto bufIdx = buf.get() + _ibOffset;
+		if (_IBFormat == DXGI_FORMAT_R32_UINT)
+			memcpy(bufIdx, idx, idxSize);
+		else
+			copy(idx, idx + icount, reinterpret_cast<uint16 *>(bufIdx));
+
+		const D3D11_SUBRESOURCE_DATA data =
+		{
+			buf.get(),	//pSysMem
+			0,			//SysMemPitch
+			0			//SysMemSlicePitch
+		};
+
+		ASSERT_HR(device->CreateBuffer(&desc, &data, &_geometry));
+	}
+
+	class CMaterial: public CRef<CMaterial>, public Materials::IMaterial
+	{
+		friend IMaterial *CRenderer::CreateMaterial();
+		virtual void SetAmbientColor(const float color[3]) override;
+		virtual void SetDiffuseColor(const float color[3]) override;
+		virtual void SetSpecularColor(const float color[3]) override;
+		virtual void SetHeightScale(float scale) override;
+		virtual void SetEnvAmount(float amount) override;
+		virtual void SetShininess(float shininess) override;
+		virtual void SetTexMappingMode(Materials::E_TEX_MAPPING texMapping) override;
+		virtual void SetNormalTechnique(Materials::E_NORMAL_TECHNIQUE technique) override;
+		virtual void SetParallaxTechnique(Materials::E_PARALLAX_TECHNIQUE technique) override;
+		virtual void SetDiffuseTexture(IMatrialTexture *texture) override;
+		virtual void SetSpecularTexture(IMatrialTexture *texture) override;
+		virtual void SetNormalTexture(IMatrialTexture *texture) override;
+		virtual void SetHeightTexture(IMatrialTexture *texture) override;
+		virtual void SetEnvTexture(IMatrialTexture *texture) override;
+		virtual void SetEnvMask(IMatrialTexture *texture) override;
+	private:
+		CMaterial();
+		//virtual ~CMaterial() = default;
+	private:
+		float
+										_ambientColor[3],
+										_diffuseColor[3],
+										_specularColor[3],
+
+										_heightScale,
+										_envAmount,
+										_shininess;
+
+		Materials::E_TEX_MAPPING		_texMapping;
+		Materials::E_NORMAL_TECHNIQUE	_normalTechnique;
+		Materials::E_PARALLAX_TECHNIQUE	_parallaxTechnique;
+
+		//shared_ptr<>
+		//								_diffuseTexture,
+		//								_specularTexture,
+		//								_normalTexture,
+		//								_heightTexture,
+		//								_envTexture,
+		//								_envMask;
+	};
+
+	inline void CMaterial::SetAmbientColor(const float color[3])
+	{
+		memcpy(_ambientColor, color, sizeof _ambientColor);
+	}
+
+	inline void CMaterial::SetDiffuseColor(const float color[3])
+	{
+		memcpy(_diffuseColor, color, sizeof _diffuseColor);
+	}
+
+	inline void CMaterial::SetSpecularColor(const float color[3])
+	{
+		memcpy(_specularColor, color, sizeof _specularColor);
+	}
+
+	inline void CMaterial::SetHeightScale(float scale)
+	{
+		_heightScale = scale;
+	};
+
+	inline void CMaterial::SetEnvAmount(float amount)
+	{
+		_envAmount = amount;
+	};
+
+	inline void CMaterial::SetShininess(float shininess)
+	{
+		_shininess = shininess;
+	};
+
+	inline void CMaterial::SetTexMappingMode(Materials::E_TEX_MAPPING texMapping)
+	{
+		_texMapping = texMapping;
+	};
+
+	inline void CMaterial::SetNormalTechnique(Materials::E_NORMAL_TECHNIQUE technique)
+	{
+		_normalTechnique = technique;
+	};
+
+	inline void CMaterial::SetParallaxTechnique(Materials::E_PARALLAX_TECHNIQUE technique)
+	{
+		_parallaxTechnique = technique;
+	};
+
+	inline void CMaterial::SetDiffuseTexture(IMatrialTexture *texture)
+	{
+	};
+
+	inline void CMaterial::SetSpecularTexture(IMatrialTexture *texture)
+	{
+	};
+
+	inline void CMaterial::SetNormalTexture(IMatrialTexture *texture)
+	{
+	};
+
+	inline void CMaterial::SetHeightTexture(IMatrialTexture *texture)
+	{
+	};
+
+	inline void CMaterial::SetEnvTexture(IMatrialTexture *texture)
+	{
+	};
+
+	inline void CMaterial::SetEnvMask(IMatrialTexture *texture)
+	{
+	};
+
+	// 1 call site => inline
+	inline CMaterial::CMaterial():
+		_heightScale(1), _envAmount(0), _shininess(128),
+		_texMapping(Materials::E_TEX_MAPPING::UV), _normalTechnique(Materials::E_NORMAL_TECHNIQUE::UNPERTURBED), _parallaxTechnique(Materials::E_PARALLAX_TECHNIQUE::NONE)
+	{
+		fill(_ambientColor, _ambientColor + _countof(_ambientColor), 1);
+		fill(_diffuseColor, _diffuseColor + _countof(_diffuseColor), 1);
+		fill(_specularColor, _specularColor + _countof(_specularColor), 1);
+	}
+
+	class CInstance: CDtor, public IInstance
+	{
+		friend IInstance *CRenderer::CreateInstance(const Geometry::IMesh &mesh, const Materials::IMaterial &material);
+	private:
+		CInstance(shared_ptr<const CMesh> &&mesh, shared_ptr<const CMaterial> &&material);
+		//virtual ~CInstance() = default;
+	private:
+		const shared_ptr<const CMesh>		_mesh;
+		const shared_ptr<const CMaterial>	_material;
+	};
+
+	// 1 call site => inline
+	inline CInstance::CInstance(shared_ptr<const CMesh> &&mesh, shared_ptr<const CMaterial> &&material):
+		_mesh(mesh), _material(material)
+	{
+	}
 }
 
 namespace DX11
 {
-	Instances::_2D::IRect *CRenderer::AddRect(bool dynamic, uint16 layer, float x, float y, float width, float height, uint32 color, float angle)
+	IRect *CRenderer::AddRect(bool dynamic, uint16 layer, float x, float y, float width, float height, uint32 color, float angle)
 	{
-		return new CRectHandle(static_pointer_cast<CRenderer>(GetRef()), dynamic, layer, x, y, width, height, color, angle);
+		return new CRectHandle(GetRef(), dynamic, layer, x, y, width, height, color, angle);
 	}
 
-	Instances::_2D::IEllipse *CRenderer::AddEllipse(bool dynamic, uint16 layer, float x, float y, float rx, float ry, uint32 color, bool AA, float angle)
+	IEllipse *CRenderer::AddEllipse(bool dynamic, uint16 layer, float x, float y, float rx, float ry, uint32 color, bool AA, float angle)
 	{
-		return new CEllipseHandle(static_pointer_cast<CRenderer>(GetRef()), dynamic, layer, x, y, rx, ry, color, AA, angle);
+		return new CEllipseHandle(GetRef(), dynamic, layer, x, y, rx, ry, color, AA, angle);
+	}
+
+	Materials::IMaterial *CRenderer::CreateMaterial()
+	{
+		return new CMaterial;
+	}
+
+	Geometry::IMesh *CRenderer::CreateMesh(uint icount, _In_count_(icount) const uint32 *idx, uint vcount, _In_count_(vcount) const float *coords)
+	{
+		return new CMesh(_device, icount, idx, vcount, coords);
+	}
+
+	IInstance *CRenderer::CreateInstance(const Geometry::IMesh &mesh, const Materials::IMaterial &material)
+	{
+		return new CInstance(static_cast<const CMesh &>(mesh).GetRef(), static_cast<const CMaterial &>(material).GetRef());
 	}
 
 	void CRenderer::Draw2DScene()

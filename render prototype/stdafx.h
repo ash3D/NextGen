@@ -8,6 +8,7 @@
 #include "targetver.h"
 
 #define WIN32_LEAN_AND_MEAN             // Exclude rarely-used stuff from Windows headers
+#define NOMINMAX
 // Windows Header Files:
 #include <windows.h>
 
@@ -25,6 +26,6 @@
 #include <list>
 #include <algorithm>
 #include <functional>
-#include <memory>		// for allocator
+//#include <memory>		// for allocator
 #include <new>			// for bad_alloc
 #include <malloc.h>		// for _get_heap_handle
