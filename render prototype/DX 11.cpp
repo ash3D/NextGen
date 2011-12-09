@@ -28,9 +28,9 @@ using namespace DisplayModes;
 
 class CDtor: virtual DGLE2::Renderer::IDtor
 {
-	// need const qualifier to allow const object destruction (like conventional dtor)
 	virtual void operator ~() const override
 	{
+		_ASSERTE(_externRef);
 		_externRef.reset();
 	}
 protected:
@@ -39,6 +39,10 @@ protected:
 	dtor called from internal implementation-dependent class => 'friend shared_ptr<CDtor>;' does not help
 	*/
 	CDtor(): _externRef(this, [](const CDtor *dtor){delete dtor;}) {}
+	/*
+	C++11
+	virtual ~CDtor() = default;
+	*/
 	virtual ~CDtor() {}
 	const shared_ptr<CDtor> &GetRef()
 	{
@@ -58,50 +62,50 @@ class CRef: private CDtor
 public:
 	shared_ptr<Parent> GetRef()
 	{
-		return static_pointer_cast<Parent>(GetRef());
+		return static_pointer_cast<Parent>(CDtor::GetRef());
 	}
 	shared_ptr<const Parent> GetRef() const
 	{
-		return static_pointer_cast<const Parent>(GetRef());
+		return static_pointer_cast<const Parent>(CDtor::GetRef());
 	}
 };
 
-template<class Container>
-class CIterDtor
-{
-public:
-	CIterDtor(Container &container, typename Container::iterator iter): _container(container), _iter(iter) {}
-	~CIterDtor()
-	{
-		_container.erase(_iter);
-	}
-	operator typename Container::reference()
-	{
-		return *_iter;
-	}
-	operator typename Container::const_reference()
-	{
-		return *_iter;
-	}
-private:
-	Container &_container;
-	const typename Container::iterator _iter;
-};
-
-template<class Container>
-class CIterHandle: public CIterDtor<Container>
-{
-public:
-	template<typename Item>
-	inline CIterHandle(Container &container, Item &&item);
-};
-
-template<class Container>
-template<typename Item>
-CIterHandle<Container>::CIterHandle(Container &container, Item &&item):
-	CIterDtor(container)
-{
-}
+//template<class Container>
+//class CIterDtor
+//{
+//public:
+//	CIterDtor(Container &container, typename Container::iterator iter): _container(container), _iter(iter) {}
+//	~CIterDtor()
+//	{
+//		_container.erase(_iter);
+//	}
+//	operator typename Container::reference()
+//	{
+//		return *_iter;
+//	}
+//	operator typename Container::const_reference()
+//	{
+//		return *_iter;
+//	}
+//private:
+//	Container &_container;
+//	const typename Container::iterator _iter;
+//};
+//
+//template<class Container>
+//class CIterHandle: public CIterDtor<Container>
+//{
+//public:
+//	template<typename Item>
+//	inline CIterHandle(Container &container, Item &&item);
+//};
+//
+//template<class Container>
+//template<typename Item>
+//CIterHandle<Container>::CIterHandle(Container &container, Item &&item):
+//	CIterDtor(container)
+//{
+//}
 
 namespace DX11
 {

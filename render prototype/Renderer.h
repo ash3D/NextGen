@@ -14,6 +14,10 @@ See "DGLE2.h" for more details.
 #ifndef __RENDERER_H__
 #define __RENDERER_H__
 
+#if _MSC_VER < 1600
+#error old compiler version
+#endif
+
 // clarify MSVC version
 #ifndef _MSC_VER
 #define _In_count_(size)
@@ -21,12 +25,14 @@ See "DGLE2.h" for more details.
 
 #ifdef _MSC_VER
 #	define NOVTABLE __declspec(novtable)
+#	define RESTRICT __declspec(restrict)
 #else
 #	define NOVTABLE
+#	define RESTRICT
 #endif
 
 // define dummies for unsupported C++11 features
-#if _MSC_VER <= 16000
+#if _MSC_VER <= 1600
 #	define noexcept
 #	define final
 #endif
@@ -59,7 +65,7 @@ template for format (especially for structured buffer)
 #include <limits>
 #include <algorithm>
 
-#if _MSC_VER <= 16000
+#if _MSC_VER <= 1600
 	/*
 		declval is not included in VS2010
 	*/
@@ -101,6 +107,7 @@ namespace DGLE2
 		class NOVTABLE IDtor
 		{
 		public:
+			// need const qualifier to allow const object destruction (like conventional dtor)
 			virtual void operator ~() const = 0;
 		protected:
 			//~IDtor() = default;
@@ -878,7 +885,7 @@ namespace DGLE2
 
 				// low level IA
 				virtual E_PRIMITIVE_TOPOLOGY GetPrimitiveTopology() const = 0;
-				virtual IInputLayout *GetInputLayout() const = 0;
+				virtual RESTRICT IInputLayout *GetInputLayout() const = 0;
 				virtual void GetIndexBuffer(IBuffer *&IB, E_IB_FORMAT &format, uint &offset) const = 0;
 				virtual void GetVertexBuffers(uint startSlot, uint VBCount, _In_count_(VBCount) IBuffer *VBs[], _In_count_(VBCount) uint strides[], _In_count_(VBCount) uint offsets[]) const = 0;
 				virtual void SetPrimitiveTopology(E_PRIMITIVE_TOPOLOGY topology) = 0;
@@ -913,34 +920,34 @@ namespace DGLE2
 			{
 			public:
 				//~IDevice() = default;
-				virtual IDeviceContext *GetDeviceContext() = 0;
+				virtual RESTRICT IDeviceContext *GetDeviceContext() = 0;
 
 				virtual TCaps GetCaps() = 0;
 
 				// create state objects
-				virtual IBlendState *CreateBlendState(const TBlendStateDesc &desc) = 0;
-				virtual IDepthStencilState *CreateDepthStencilState(const TDepthStencilDesc &desc) = 0;
-				virtual IInputLayout *CreateInputLayout(uint descCount, _In_count_(numElements) const TInputElementDesc descs[]) = 0;
-				virtual IRasterizerState *CreateRasterizerState(const TRasterizerStateDesc &desc) = 0;
-				virtual ISamplerState *CreateSamplerState(const TSamplerStateDesc &desc) = 0;
+				virtual RESTRICT IBlendState *CreateBlendState(const TBlendStateDesc &desc) = 0;
+				virtual RESTRICT IDepthStencilState *CreateDepthStencilState(const TDepthStencilDesc &desc) = 0;
+				virtual RESTRICT IInputLayout *CreateInputLayout(uint descCount, _In_count_(numElements) const TInputElementDesc descs[]) = 0;
+				virtual RESTRICT IRasterizerState *CreateRasterizerState(const TRasterizerStateDesc &desc) = 0;
+				virtual RESTRICT ISamplerState *CreateSamplerState(const TSamplerStateDesc &desc) = 0;
 
 				// create resources
-				virtual ICBuffer *CreateCBuffer(uint size, const void *initData = NULL) = 0;
-				virtual IBuffer *CreateBuffer(uint size, bool IB, bool VB, bool SO, bool SR, bool RT, bool UA, const void *initData = NULL) = 0;
-				virtual IStructuredBuffer *CreateStructuredBuffer(uint structSize, uint structCount, const void *initData = NULL) = 0;
-				virtual ITexture1D *CreateTexture1D(uint width, uint mipLevels, uint arraySize, E_FORMAT format, bool SR, bool DS, bool RT, bool UA, const void *initData = NULL) = 0;
-				virtual ITexture2D *CreateTexture2D(uint width, uint height, uint mipLevels, uint arraySize, E_FORMAT format, bool cubeMap, bool SR, bool DS, bool RT, bool UA, const TInitData2D *initData = NULL) = 0;
-				virtual ITexture3D *CreateTexture3D(uint width, uint height, uint depth, uint mipLevels, E_FORMAT format, bool SR, bool RT, bool UA, const TInitData3D *initData = NULL) = 0;
+				virtual RESTRICT ICBuffer *CreateCBuffer(uint size, const void *initData = NULL) = 0;
+				virtual RESTRICT IBuffer *CreateBuffer(uint size, bool IB, bool VB, bool SO, bool SR, bool RT, bool UA, const void *initData = NULL) = 0;
+				virtual RESTRICT IStructuredBuffer *CreateStructuredBuffer(uint structSize, uint structCount, const void *initData = NULL) = 0;
+				virtual RESTRICT ITexture1D *CreateTexture1D(uint width, uint mipLevels, uint arraySize, E_FORMAT format, bool SR, bool DS, bool RT, bool UA, const void *initData = NULL) = 0;
+				virtual RESTRICT ITexture2D *CreateTexture2D(uint width, uint height, uint mipLevels, uint arraySize, E_FORMAT format, bool cubeMap, bool SR, bool DS, bool RT, bool UA, const TInitData2D *initData = NULL) = 0;
+				virtual RESTRICT ITexture3D *CreateTexture3D(uint width, uint height, uint depth, uint mipLevels, E_FORMAT format, bool SR, bool RT, bool UA, const TInitData3D *initData = NULL) = 0;
 
 				// create resource views
 				virtual void TestDepthStencilViewDesc(IResource &resource, const TDepthStencilViewDesc *desc = NULL) = 0;
 				virtual void TestRenderTargetViewDesc(IResource &resource, const TRenderTargetViewDesc *desc = NULL) = 0;
 				virtual void TestShaderResourceViewDesc(IResource &resource, const TShaderResourceViewDesc *desc = NULL) = 0;
 				virtual void TestUnordererAccessViewDesc(IResource &resource, const TUnorderedAccessView *desc = NULL) = 0;
-				virtual IDepthStencilView *CreateDepthStencilView(IResource &resource, const TDepthStencilViewDesc *desc = NULL) = 0;
-				virtual IRenderTargetView *CreateRenderTargetView(IResource &resource, const TRenderTargetViewDesc *desc = NULL) = 0;
-				virtual IShaderResourceView *CreateShaderResourceView(IResource &resource, const TShaderResourceViewDesc *desc = NULL) = 0;
-				virtual IUnorderedAccessView *CreateUnorderedResourceView(IResource &resource, const TUnorderedAccessView *desc = NULL) = 0;
+				virtual RESTRICT IDepthStencilView *CreateDepthStencilView(IResource &resource, const TDepthStencilViewDesc *desc = NULL) = 0;
+				virtual RESTRICT IRenderTargetView *CreateRenderTargetView(IResource &resource, const TRenderTargetViewDesc *desc = NULL) = 0;
+				virtual RESTRICT IShaderResourceView *CreateShaderResourceView(IResource &resource, const TShaderResourceViewDesc *desc = NULL) = 0;
+				virtual RESTRICT IUnorderedAccessView *CreateUnorderedResourceView(IResource &resource, const TUnorderedAccessView *desc = NULL) = 0;
 			};
 
 			class NOVTABLE ICommandList
@@ -1373,13 +1380,13 @@ namespace DGLE2
 
 				// resource creation
 				// TODO: fill in function args
-				//virtual Textures::ITexture1D *CreateTexture1D() = 0;
-				//virtual Textures::ITexture2D *CreateTexture2D() = 0;
-				//virtual Textures::ITexture3D *CreateTexture3D() = 0;
-				//virtual Textures::ITextureCube *CreateTextureCube() = 0;
-				virtual Materials::IMaterial *CreateMaterial() = 0;
-				virtual Geometry::IMesh *CreateMesh(uint icount, _In_count_(icount) const uint32 *idx, uint vcount, _In_count_(vcount) const float *coords) = 0;
-				virtual Instances::IInstance *CreateInstance(const Geometry::IMesh &mesh, const Materials::IMaterial &material) = 0;
+				//virtual RESTRICT Textures::ITexture1D *CreateTexture1D() = 0;
+				//virtual RESTRICT Textures::ITexture2D *CreateTexture2D() = 0;
+				//virtual RESTRICT Textures::ITexture3D *CreateTexture3D() = 0;
+				//virtual RESTRICT Textures::ITextureCube *CreateTextureCube() = 0;
+				virtual RESTRICT Materials::IMaterial *CreateMaterial() = 0;
+				virtual RESTRICT Geometry::IMesh *CreateMesh(uint icount, _In_count_(icount) const uint32 *idx, uint vcount, _In_count_(vcount) const float *coords) = 0;
+				virtual RESTRICT Instances::IInstance *CreateInstance(const Geometry::IMesh &mesh, const Materials::IMaterial &material) = 0;
 
 				// immediate 2D
 				// consider packing coords and color into single struct (array of structs instead of struct of arrays)(it may results in better memory access pattern)
@@ -1395,14 +1402,14 @@ namespace DGLE2
 				virtual void DrawCircle(float x, float y, float r, uint32 color) = 0;
 
 				// 2D scene
-				virtual Instances::_2D::IRect *AddRect(bool dynamic, uint16 layer, float x, float y, float width, float height, uint32 color, float angle = 0) = 0;
-				virtual Instances::_2D::IEllipse *AddEllipse(bool dynamic, uint16 layer, float x, float y, float rx, float ry, uint32 color, bool AA, float angle = 0) = 0;
+				virtual RESTRICT Instances::_2D::IRect *AddRect(bool dynamic, uint16 layer, float x, float y, float width, float height, uint32 color, float angle = 0) = 0;
+				virtual RESTRICT Instances::_2D::IEllipse *AddEllipse(bool dynamic, uint16 layer, float x, float y, float rx, float ry, uint32 color, bool AA, float angle = 0) = 0;
 			protected:
 				//~IRenderer() = default;
 			};
 
 			// TODO: replace HWND with engine cross-platform handle
-			extern IRenderer *CreateRenderer(HWND hwnd, uint width, uint height, bool fullscreen = false, uint refreshRate = 0, bool multithreaded = true);
+			extern RESTRICT IRenderer *CreateRenderer(HWND hwnd, uint width, uint height, bool fullscreen = false, uint refreshRate = 0, bool multithreaded = true);
 		}
 	}
 }
