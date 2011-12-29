@@ -49,10 +49,10 @@ void Proc()
 	//renderer->DrawRect(200, 200, 100, 100, ~0, NULL, angle);
 	//for (unsigned i = 0; i < 1024; i++)
 	//	renderer->DrawEllipse(320, 240, 300, 200, ~0, true, angle);
-	for (unsigned y = 0; y < count; y++)
-		for (unsigned x = 0; x < count; x++)
-			//renderer->DrawEllipse(800 * x / count + 800 / (count * 2), 600 * y / count + 600 / (count * 2), 800 / (count * 2), 600 / (count * 2), ~0, false, 0);
-			renderer->DrawRect(800 * x / count + 800 / (count * 2), 600 * y / count + 600 / (count * 2), 800 / (count * 2), 600 / (count * 2), ~0, 0);
+	//for (unsigned y = 0; y < count; y++)
+	//	for (unsigned x = 0; x < count; x++)
+	//		//renderer->DrawEllipse(800 * x / count + 800 / (count * 2), 600 * y / count + 600 / (count * 2), 800 / (count * 2), 600 / (count * 2), ~0, false, 0);
+	//		renderer->DrawRect(800 * x / count + 800 / (count * 2), 600 * y / count + 600 / (count * 2), 800 / (count * 2), 600 / (count * 2), ~0, 0);
 	//std::for_each(immediateRects.begin(), immediateRects.end(), [=](const TRectDesc &rect){renderer->DrawRect(rect.x, rect.y, rect.width, rect.height, rect.color, NULL, rect.angle);});
 	angle += 1e-2f;
 	renderer->NextFrame();

@@ -185,6 +185,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="C++11 dummies.h" />
     <ClInclude Include="com ptr defs.h" />
     <ClInclude Include="Effects11\Inc\d3dx11dbg.h" />
     <ClInclude Include="Effects11\Inc\d3dx11effect.h" />
@@ -197,6 +198,7 @@
     <ClInclude Include="Effects11\Binary\SOParser.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="vector math.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="render prototype.ico" />

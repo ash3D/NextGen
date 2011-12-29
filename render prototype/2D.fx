@@ -1,3 +1,12 @@
+/**
+\author		Alexey Shaydurov aka ASH
+\date		21.12.2011 (c)Alexey Shaydurov
+
+This file is a part of DGLE2 project and is distributed
+under the terms of the GNU Lesser General Public License.
+See "DGLE2.h" for more details.
+*/
+
 // uniforms
 
 float2 targetRes;
@@ -231,5 +240,47 @@ technique10 EllipseAA
 		SetDomainShader(NULL);
 		SetPixelShader(EllipseAA_PS);
 		SetRasterizerState(Rasterize2D);
+	}
+}
+
+ByteAddressBuffer buff;
+RWByteAddressBuffer rwbuff, result;
+RWTexture3D<uint4> rwtex;
+
+// test
+
+tbuffer cb
+{
+	uint offset[16];
+	uint4 data[128];
+}
+
+[numthreads(512, 1, 1)]
+void CS(uint3 id: SV_DispatchThreadID)
+{
+	uint adr = 0;id.x << 2;
+	uint4 val = buff.Load4(0);
+	[unroll]
+	for (uint i = 0; i < 128; i++)
+	{
+		//rwbuff.Store4(adr + i*4*4/*offset[i]*/, val);
+		//val += buff.Load(adr + i*4*4/*offset[i]*/);
+		//val += rwtex[(uint3)(adr + i*4*4/*offset[i]*/)];
+		//rwtex[(uint3)(adr + i*4*4/*offset[i]*/)] = val;
+		val += data[i];
+	}
+	result.Store4(0, val);
+	float2x3 test=1;
+	float3x2(test);
+	test._m11_m12_m11_m11;
+	float4x2 m={test, test._12_21};
+	test[id.x];
+}
+
+technique11 test
+{
+	pass
+	{
+		SetComputeShader(CompileShader(cs_5_0, CS()));
 	}
 }

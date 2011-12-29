@@ -508,6 +508,13 @@ namespace DX11
 
 			Draw2DScene();
 
+			// test
+			ASSERT_HR(_effect2D->GetVariableByName("buff")->AsShaderResource()->SetResource(_srv))
+			//ASSERT_HR(_effect2D->GetVariableByName("rwbuff")->AsUnorderedAccessView()->SetUnorderedAccessView(_uav))
+			ASSERT_HR(_effect2D->GetTechniqueByName("test")->GetPassByIndex(0)->Apply(0, _immediateContext))
+			_immediateContext->Dispatch(32768, 1, 1);
+			_immediateContext->Flush();
+
 			ASSERT_HR(_swapChain->Present(0, 0))
 			ID3D11DeviceContextPtr immediate_comtext;
 			const FLOAT color[] = {0, 0, 0, 0};
@@ -637,6 +644,41 @@ namespace DX11
 			D3D11_MAPPED_SUBRESOURCE mapped;
 			_immediateContext->Map(_VB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
 			_mappedVB = reinterpret_cast<TQuad *>(mapped.pData);
+
+			// test
+			desc.ByteWidth = 32768*512*4;
+			desc.Usage = D3D11_USAGE_DEFAULT;
+			desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
+			desc.CPUAccessFlags = 0;
+			desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS;
+			ASSERT_HR(_device->CreateBuffer(&desc, NULL, &_buf))
+			D3D11_SHADER_RESOURCE_VIEW_DESC srv_desc = {DXGI_FORMAT_R32_TYPELESS, D3D11_SRV_DIMENSION_BUFFEREX};
+			srv_desc.BufferEx.FirstElement = 0;
+			srv_desc.BufferEx.NumElements = 32768*512;
+			srv_desc.BufferEx.Flags = D3D11_BUFFEREX_SRV_FLAG_RAW;
+			ASSERT_HR(_device->CreateShaderResourceView(_buf, &srv_desc, &_srv))
+			D3D11_UNORDERED_ACCESS_VIEW_DESC uav_desc = {DXGI_FORMAT_R32_TYPELESS, D3D11_UAV_DIMENSION_BUFFER};
+			uav_desc.Buffer.FirstElement = 0;
+			uav_desc.Buffer.NumElements = 32768*512;
+			uav_desc.Buffer.Flags = D3D11_BUFFER_UAV_FLAG_RAW;
+			ASSERT_HR(_device->CreateUnorderedAccessView(_buf, &uav_desc, &_uav))
+			const D3D11_TEXTURE2D_DESC textureDesc =
+			{
+				4096, 4096, 1, 1,
+				DXGI_FORMAT_R32G32B32_UINT,
+				{1, 0},
+				D3D11_USAGE_DEFAULT,
+				D3D11_BIND_SHADER_RESOURCE,
+				0, 0
+			};
+			ID3D11Texture2DPtr texture;
+			ASSERT_HR(_device->CreateTexture2D(&textureDesc, NULL, &texture))
+			srv_desc.Format = DXGI_FORMAT_UNKNOWN;
+			srv_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+			srv_desc.Texture2D.MostDetailedMip = 0;
+			srv_desc.Texture2D.MipLevels = 1;
+			ASSERT_HR(_device->CreateShaderResourceView(texture, &srv_desc, &_textureView))
+			_immediateContext->CSSetShaderResources(0, 1, &_textureView.GetInterfacePtr());
 		}
 
 		virtual ~CRenderer()
@@ -684,6 +726,11 @@ namespace DX11
 		ID3D11BufferPtr _static2DVB, _dynamic2DVB;
 		UINT _dynamic2DVBSize;
 		bool _static2DDirty;
+
+		// test
+		ID3D11BufferPtr _buf;
+		ID3D11ShaderResourceViewPtr _srv, _textureView;
+		ID3D11UnorderedAccessViewPtr _uav;
 	};
 
 //	class CDevice::CRect: public _2D::IRect, private TQuad

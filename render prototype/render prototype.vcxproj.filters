@@ -62,6 +62,12 @@
     <ClInclude Include="Renderer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="vector math.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C++11 dummies.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="render prototype.ico">

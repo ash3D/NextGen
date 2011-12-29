@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.3.2011 (c)Alexey Shaydurov
+\date		21.12.2011 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -31,12 +31,6 @@ See "DGLE2.h" for more details.
 #	define RESTRICT
 #endif
 
-// define dummies for unsupported C++11 features
-#if _MSC_VER <= 1600
-#	define noexcept
-#	define final
-#endif
-
 #pragma region("considerations")
 /*
 dedicated classes: CB, SB
@@ -56,6 +50,9 @@ multithreading layer for old APIs
 template for format (especially for structured buffer)
 */
 #pragma endregion
+
+#include "vector math.h"
+#include "C++11 dummies.h"
 
 #include <memory>		// for shared_ptr
 #include <type_traits>
