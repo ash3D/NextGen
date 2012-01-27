@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		21.12.2011 (c)Alexey Shaydurov
+\date		27.1.2017 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -61,17 +61,6 @@ template for format (especially for structured buffer)
 #include <utility>
 #include <limits>
 #include <algorithm>
-
-#if _MSC_VER <= 1600
-	/*
-		declval is not included in VS2010
-	*/
-	namespace std
-	{
-		template<class T>
-		typename add_rvalue_reference<T>::type declval();
-	}
-#endif
 
 namespace DGLE2
 {
