@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		27.1.2012 (c)Alexey Shaydurov
+\date		30.1.2012 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -77,32 +77,41 @@ See "DGLE2.h" for more details.
 #	define SWIZZLE_SEQ(state) BOOST_PP_TUPLE_ELEM(4, 1, state)
 #	define SWIZZLE_VECTOR(state) mpl::vector_c<unsigned int, BOOST_PP_TUPLE_REM_CTOR(BOOST_PP_SEQ_SIZE(SWIZZLE_SEQ(state)), BOOST_PP_SEQ_TO_TUPLE(SWIZZLE_SEQ(state)))>
 #
-#	define GET_SWIZZLE_ELEMENT(i, cv) (reinterpret_cast<cv CVectorData<ElementType, DIMENSION> &>(*this)._data[i])
+#	define PACK_SWIZZLE_PRED(d, state) BOOST_PP_SEQ_SIZE(BOOST_PP_TUPLE_ELEM(3, 2, state))
+#	define PACK_SWIZZLE_OP(d, state) (BOOST_PP_TUPLE_ELEM(3, 0, state) + (BOOST_PP_SEQ_HEAD(BOOST_PP_TUPLE_ELEM(3, 2, state)) << BOOST_PP_TUPLE_ELEM(3, 1, state)), BOOST_PP_ADD(BOOST_PP_TUPLE_ELEM(3, 1, state), 2), BOOST_PP_SEQ_TAIL(BOOST_PP_TUPLE_ELEM(3, 2, state)))
+/*																								   result		insert pos
+																									  ^				^
+																									  |____		____|
+																										   |   |	*/
+#	define PACK_SWIZZLE(seq) BOOST_PP_TUPLE_ELEM(3, 0, BOOST_PP_WHILE(PACK_SWIZZLE_PRED, PACK_SWIZZLE_OP, (0u, 0, seq)))
+#
+#	define GET_SWIZZLE_ELEMENT(i, cv) (reinterpret_cast<cv CVectorData<ElementType, DIMENSION> &>(*this)._data[(i)])
 #	define GET_SWIZZLE_ELEMENT_SEQ(seq, i, cv) (GET_SWIZZLE_ELEMENT(BOOST_PP_SEQ_ELEM(i, seq), cv))
-#	define GET_SWIZZLE_ELEMENT_VECTOR(vector, i, cv) (GET_SWIZZLE_ELEMENT((mpl::at<vector, mpl::size_t<i>>::type::value), cv))
+#	define GET_SWIZZLE_ELEMENT_PACKED(packedSwizzle, i, cv) (GET_SWIZZLE_ELEMENT(packedSwizzle >> ((i) << 1) & 3u, cv))
+#	define GET_SWIZZLE_ELEMENT_VECTOR(vector, i, cv) (GET_SWIZZLE_ELEMENT((mpl::at_c<vector, i>::type::value), cv))
 #
 #	define GENERATE_SCALAR_OPERATION_PRED(r, state) BOOST_PP_LESS(BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, state))
 #	define GENERATE_SCALAR_OPERATION_OP(r, state) (BOOST_PP_INC(BOOST_PP_TUPLE_ELEM(4, 0, state)), BOOST_PP_TUPLE_ELEM(4, 1, state), BOOST_PP_TUPLE_ELEM(4, 2, state), BOOST_PP_TUPLE_ELEM(4, 3, state))
-#	define GENERATE_SCALAR_OPERATION_MACRO(r, state) GET_SWIZZLE_ELEMENT_SEQ(BOOST_PP_TUPLE_ELEM(4, 2, state), BOOST_PP_TUPLE_ELEM(4, 0, state), ) += GET_SWIZZLE_ELEMENT_VECTOR(BOOST_PP_TUPLE_ELEM(4, 3, state), BOOST_PP_TUPLE_ELEM(4, 0, state), );
+#	define GENERATE_SCALAR_OPERATION_MACRO(r, state) GET_SWIZZLE_ELEMENT_SEQ(BOOST_PP_TUPLE_ELEM(4, 2, state), BOOST_PP_TUPLE_ELEM(4, 0, state), ) = GET_SWIZZLE_ELEMENT_VECTOR(BOOST_PP_TUPLE_ELEM(4, 3, state), BOOST_PP_TUPLE_ELEM(4, 0, state), const);
 
 	/*
 	gcc does not allow explicit specialisation in class scope => CSwizzle can not be inside CVectorDataContainer
 	ElementType needed in order to compiler can deduce template args for operators
 	*/
-	template<typename ElementType, unsigned int vectorDimension, unsigned int swizzleDimension, class CSwizzleVector>
+	template<typename ElementType, unsigned int vectorDimension, unsigned short packedSwizzle, class CSwizzleVector>
 	class CSwizzle;
 #	define GENERATE_OPERATOR(leftSwizzleSeq) \
-		template<typename RightElementType, unsigned int rightVectorDimension, unsigned int rightSwizzleDimension, class CRightSwizzleVector>\
-		CSwizzle &operator +=(const CSwizzle<RightElementType, rightVectorDimension, rightSwizzleDimension, CRightSwizzleVector> &right)\
+		template<typename RightElementType, unsigned int rightVectorDimension, unsigned short rightPackedSwizzle, class CRightSwizzleVector>\
+		CSwizzle &operator =(const CSwizzle<RightElementType, rightVectorDimension, rightPackedSwizzle, CRightSwizzleVector> &right)\
 		{\
 			/*static_assert(mpl::size<mpl::unique<mpl::sort<SWIZZLE_VECTOR(state)>::type, std::is_same<mpl::_, mpl::_>>::type>::value == mpl::size<SWIZZLE_VECTOR(state)>::value, "!");*/\
-			static_assert(BOOST_PP_SEQ_SIZE(leftSwizzleSeq) <= rightSwizzleDimension, "operator +=: too few components in src");\
+			static_assert(BOOST_PP_SEQ_SIZE(leftSwizzleSeq) <= mpl::size<CRightSwizzleVector>::type::value, "operator =: too few components in src");\
 			BOOST_PP_FOR((0, BOOST_PP_SEQ_SIZE(leftSwizzleSeq), leftSwizzleSeq, CRightSwizzleVector), GENERATE_SCALAR_OPERATION_PRED, GENERATE_SCALAR_OPERATION_OP, GENERATE_SCALAR_OPERATION_MACRO)\
 			return *this;\
 		};
 #	define SWIZZLES_INNER_LOOP_MACRO(r, state) \
 		template<typename ElementType>\
-		class CSwizzle<ElementType, DIMENSION, BOOST_PP_SEQ_SIZE(SWIZZLE_SEQ(state)), SWIZZLE_VECTOR(state)>\
+		class CSwizzle<ElementType, DIMENSION, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_VECTOR(state)>\
 		{\
 		public:\
 			CSwizzle &operator +() noexcept\
@@ -116,6 +125,16 @@ See "DGLE2.h" for more details.
 			vector<ElementType, DIMENSION> &operator -()\
 			{\
 				return vector<ElementType, DIMENSION>();\
+			}\
+			inline const ElementType &operator [](unsigned int idx) const\
+			{\
+				return GET_SWIZZLE_ELEMENT_PACKED(PACK_SWIZZLE(SWIZZLE_SEQ(state)), idx, const);\
+			}\
+			inline ElementType &operator [](unsigned int idx)\
+			{\
+				return GET_SWIZZLE_ELEMENT_PACKED(PACK_SWIZZLE(SWIZZLE_SEQ(state)), idx, );\
+				/* const version returns (const &), not value => it is safe to use const_cast */\
+				/*return const_cast<ElementType &>(static_cast<const decltype(*this) &>(*this)[idx]);*/\
 			}\
 			BOOST_PP_IIF(IS_SEQ_UNIQUE(SWIZZLE_SEQ(state)), GENERATE_OPERATOR, EMPTY1)(SWIZZLE_SEQ(state))\
 		};
@@ -147,7 +166,7 @@ See "DGLE2.h" for more details.
 		{
 			CVectorData<ElementType, DIMENSION> _vectorData;
 			// gcc does not allow class definition inside anonymous union
-#			define SWIZZLES_INNER_LOOP_MACRO(r, state) CSwizzle<ElementType, DIMENSION, BOOST_PP_SEQ_SIZE(SWIZZLE_SEQ(state)), SWIZZLE_VECTOR(state)> TRANSFORM_SWIZZLE(XYZW, SWIZZLE_SEQ(state)), TRANSFORM_SWIZZLE(RGBA, SWIZZLE_SEQ(state));
+#			define SWIZZLES_INNER_LOOP_MACRO(r, state) CSwizzle<ElementType, DIMENSION, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_VECTOR(state)> TRANSFORM_SWIZZLE(XYZW, SWIZZLE_SEQ(state)), TRANSFORM_SWIZZLE(RGBA, SWIZZLE_SEQ(state));
 			GENERATE_SWIZZLES()
 #			undef SWIZZLES_INNER_LOOP_MACRO
 //#			define GENERATE_SWIZZLE_OBJECT(swizzle_seq) CSwizzle<SWIZZLE_VECTOR(swizzle_seq)> TRANSFORM_SWIZZLE(XYZW, swizzle_seq), TRANSFORM_SWIZZLE(RGBA, swizzle_seq);
@@ -189,10 +208,14 @@ See "DGLE2.h" for more details.
 #	undef GENERATE_SWIZZLES
 //#	undef SWIZZLE_CLASSNAME
 #	undef SWIZZLE_SEQ
-#	undef SWIZZLE_VECTOR
+//#	undef SWIZZLE_VECTOR
+#	undef PACK_SWIZZLE_PRED
+#	undef PACK_SWIZZLE_OP
+#	undef PACK_SWIZZLE
 #	undef GET_SWIZZLE_ELEMENT
 #	undef GET_SWIZZLE_ELEMENT_SEQ
-#	undef GET_SWIZZLE_ELEMENT_VECTOR
+#	undef GET_SWIZZLE_ELEMENT_PACKED
+//#	undef GET_SWIZZLE_ELEMENT_VECTOR
 #	undef GENERATE_SCALAR_OPERATION_PRED
 #	undef GENERATE_SCALAR_OPERATION_OP
 #	undef GENERATE_SCALAR_OPERATION_MACRO
@@ -212,7 +235,7 @@ See "DGLE2.h" for more details.
 #		include <utility>
 		using std::declval;
 #	endif
-//#	include <type_traits>
+#	include <type_traits>
 #	include <boost\preprocessor\iteration\iterate.hpp>
 #	include <boost\preprocessor\repetition\repeat_from_to.hpp>
 #	include <boost\preprocessor\repetition\for.hpp>
@@ -220,6 +243,7 @@ See "DGLE2.h" for more details.
 #	include <boost\preprocessor\control\iif.hpp>
 #	include <boost\preprocessor\arithmetic\inc.hpp>
 #	include <boost\preprocessor\arithmetic\dec.hpp>
+#	include <boost\preprocessor\arithmetic\add.hpp>
 #	include <boost\preprocessor\arithmetic\mod.hpp>
 #	include <boost\preprocessor\comparison\equal.hpp>
 #	include <boost\preprocessor\comparison\not_equal.hpp>
@@ -247,14 +271,13 @@ See "DGLE2.h" for more details.
 #	include <boost\preprocessor\seq\transform.hpp>
 #	include <boost\preprocessor\seq\cat.hpp>
 #	include <boost\preprocessor\seq\to_tuple.hpp>
-//#	include <boost\mpl\placeholders.hpp>
+#	include <boost\mpl\placeholders.hpp>
 #	include <boost\mpl\vector_c.hpp>
 #	include <boost\mpl\at.hpp>
-#	include <boost\mpl\size_t.hpp>
 #	include <boost\mpl\min_max.hpp>
-//#	include <boost\mpl\sort.hpp>
-//#	include <boost\mpl\size.hpp>
-//#	include <boost\mpl\unique.hpp>
+#	include <boost\mpl\sort.hpp>
+#	include <boost\mpl\size.hpp>
+#	include <boost\mpl\unique.hpp>
 
 	namespace DGLE2
 	{
@@ -265,14 +288,14 @@ See "DGLE2.h" for more details.
 			template<typename, unsigned int>
 			class vector;
 
-			template<typename ElementType, unsigned int vectorDimension, unsigned int swizzleDimension, class CSwizzleVector>
+			template<typename ElementType, unsigned int vectorDimension, unsigned short packedSwizzle, class CSwizzleVector>
 			class CSwizzle;
 
 			template<typename ElementType, unsigned int dimension>
 			class CVectorData
 			{
 				friend class vector<ElementType, dimension>;
-				template<typename, unsigned int, unsigned int, class>
+				template<typename, unsigned int, unsigned short, class>
 				friend class CSwizzle;
 				//CVectorData(const CVectorData &) = default;
 				//~CVectorData() = default;
@@ -295,10 +318,20 @@ See "DGLE2.h" for more details.
 #			include BOOST_PP_ITERATE()
 
 #			pragma region(generate operators)
-				template<typename LeftElementType, typename RightElementType, unsigned int leftVectorDimension, unsigned int leftSwizzleDimension, class CLeftSwizzleVector, unsigned int rightVectorDimension, unsigned int rightSwizzleDimension, class CRightSwizzleVector>
-				inline vector<decltype(declval<LeftElementType>() + declval<RightElementType>()), mpl::min<mpl::size_t<leftSwizzleDimension>, mpl::size_t<rightSwizzleDimension>>::type::value> operator +(const CSwizzle<LeftElementType, leftVectorDimension, leftSwizzleDimension, CLeftSwizzleVector> &left, const CSwizzle<RightElementType, rightVectorDimension, rightSwizzleDimension, CRightSwizzleVector> &right)
+				template<typename LeftElementType, unsigned int leftVectorDimension, unsigned short leftPackedSwizzle, class CLeftSwizzleVector, typename RightElementType, unsigned int rightVectorDimension, unsigned short rightPackedSwizzle, class CRightSwizzleVector>
+				inline CSwizzle<LeftElementType, leftVectorDimension, leftPackedSwizzle, CLeftSwizzleVector> &operator +=(CSwizzle<LeftElementType, leftVectorDimension, leftPackedSwizzle, CLeftSwizzleVector> &left, const CSwizzle<RightElementType, rightVectorDimension, rightPackedSwizzle, CRightSwizzleVector> &right)
 				{
-					return vector<decltype(declval<LeftElementType>() + declval<RightElementType>()), mpl::min<mpl::size_t<leftSwizzleDimension>, mpl::size_t<rightSwizzleDimension>>::type::value>();
+					static_assert(mpl::size<typename mpl::unique<typename mpl::sort<CLeftSwizzleVector>::type, std::is_same<mpl::_, mpl::_>>::type>::value == mpl::size<CLeftSwizzleVector>::value, "operator +=: invalid write mask");
+					static_assert(mpl::size<CLeftSwizzleVector>::type::value <= mpl::size<CRightSwizzleVector>::type::value, "operator +=: too few components in src");
+					for (unsigned int i = 0; i < mpl::size<CLeftSwizzleVector>::type::value; i++)
+						left[i] += right[i];
+					return left;
+				};
+
+				template<typename LeftElementType, unsigned int leftVectorDimension, unsigned short leftPackedSwizzle, class CLeftSwizzleVector, typename RightElementType, unsigned int rightVectorDimension, unsigned short rightPackedSwizzle, class CRightSwizzleVector>
+				inline vector<decltype(declval<LeftElementType>() + declval<RightElementType>()), mpl::min<mpl::size<CLeftSwizzleVector>, mpl::size<CRightSwizzleVector>>::type::value> operator +(const CSwizzle<LeftElementType, leftVectorDimension, leftPackedSwizzle, CLeftSwizzleVector> &left, const CSwizzle<RightElementType, rightVectorDimension, rightPackedSwizzle, CRightSwizzleVector> &right)
+				{
+					return vector<decltype(declval<LeftElementType>() + declval<RightElementType>()), mpl::min<mpl::size<CLeftSwizzleVector>, mpl::size<CRightSwizzleVector>>::type::value>();// += right;
 				};
 #			pragma endregion
 
