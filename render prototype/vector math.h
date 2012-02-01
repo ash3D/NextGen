@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		31.1.2012 (c)Alexey Shaydurov
+\date		1.2.2012 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -135,7 +135,7 @@ See "DGLE2.h" for more details.
 //#	undef GENERATE_SWIZZLE_CLASS
 
 	template<typename ElementType>
-	class CVectorDataContainer<ElementType, DIMENSION>: public CSwizzle<ElementType, DIMENSION, ~0u, void>
+	class CVectorDataContainer<ElementType, DIMENSION>: public CSwizzle<ElementType, DIMENSION, 0u, void>
 	{
 	public:
 //#	define TEST(r, state) BOOST_PP_TUPLE_ELEM(4, 0, state)(BOOST_PP_TUPLE_ELEM(4, 1, state))
@@ -262,6 +262,9 @@ See "DGLE2.h" for more details.
 #	include <boost\mpl\sort.hpp>
 #	include <boost\mpl\size.hpp>
 #	include <boost\mpl\unique.hpp>
+#	include <boost\mpl\equal_to.hpp>
+#	include <boost\mpl\not.hpp>
+#	include <boost\mpl\identity.hpp>
 
 #	define GET_SWIZZLE_ELEMENT(vectorDimension, idx, cv) (reinterpret_cast<cv CVectorData<ElementType, vectorDimension> &>(*this)._data[(idx)])
 #	define GET_SWIZZLE_ELEMENT_PACKED(vectorDimension, packedSwizzle, idx, cv) (GET_SWIZZLE_ELEMENT(vectorDimension, packedSwizzle >> ((idx) << 1) & 3u, cv))
@@ -309,31 +312,31 @@ See "DGLE2.h" for more details.
 #			define BOOST_PP_FILENAME_1 "vector math.h"
 #			include BOOST_PP_ITERATE()
 
-			// this specialisation used as base class for CVectorDataContainer to eliminate various overloads
+			// this specialisation used as base class for CVectorDataContainer to eliminate need for various overloads
 			template<typename ElementType, unsigned int vectorDimension>
-			class CSwizzle<ElementType, vectorDimension, ~0u, void>
+			class CSwizzle<ElementType, vectorDimension, 0u, void>
 			{
 			public:
 				const ElementType &operator [](unsigned int idx) const
 				{
 					_ASSERTE(idx < vectorDimension);
-					typedef CVectorDataContainer<ElementType, vectorDimension> DerivedType;
+					typedef CVectorDataContainer<ElementType, vectorDimension> TDerived;
 					// VS seems to incorrectly handles two-phase lookup in this case
 #					if defined _MSC_VER & _MSC_VER <= 1600
 #						define TEMPLATE
 #					else
 #						define TEMPLATE template
 #					endif
-					typedef typename DerivedType::TEMPLATE CSwizzle<ElementType, vectorDimension, ~0u, void> BaseType;
+					typedef typename TDerived::TEMPLATE CSwizzle<ElementType, vectorDimension, 0u, void> TBase;
 #					undef TEMPLATE
-					return static_cast<const DerivedType *>(reinterpret_cast<const BaseType *>(this))->_vectorData._data[idx];
-					//return static_cast<const DerivedType *>(reinterpret_cast<const typename CVectorDataContainer<ElementType, vectorDimension>::template CSwizzle<ElementType, vectorDimension, ~0u, void> *>(this))->_vectorData._data[idx];
+					return static_cast<const TDerived *>(reinterpret_cast<const TBase *>(this))->_vectorData._data[idx];
+					//return static_cast<const TDerived *>(reinterpret_cast<const typename CVectorDataContainer<ElementType, vectorDimension>::template CSwizzle<ElementType, vectorDimension, ~0u, void> *>(this))->_vectorData._data[idx];
 				}
 				ElementType &operator [](unsigned int idx)
 				{
 					/* const version returns (const &), not value => it is safe to use const_cast */
-					typedef decltype(*this) ThisType;
-					return const_cast<ElementType &>(static_cast<const ThisType>(*this)[idx]);
+					typedef decltype(*this) TThis;
+					return const_cast<ElementType &>(static_cast<const TThis>(*this)[idx]);
 					//return const_cast<ElementType &>(static_cast<const decltype(*this)>(*this)[idx]);
 					//return const_cast<ElementType &>(static_cast<const CSwizzle<ElementType, vectorDimension, ~0u, void> &>(*this)[idx]);
 				}
@@ -356,12 +359,29 @@ See "DGLE2.h" for more details.
 			};
 
 #			pragma region(generate operators)
+				template<unsigned int leftVectorDimension, class CLeftSwizzleVector, unsigned int rightVectorDimension, class CRightSwizzleVector>
+				struct TSwizzleTraits
+				{
+				private:
+					typedef mpl::not_<std::is_void<CLeftSwizzleVector>> TIsLeftSwizzle;
+					typedef mpl::not_<std::is_void<CRightSwizzleVector>> TIsRightSwizzle;
+				public:
+					typedef typename std::conditional<TIsLeftSwizzle::value, mpl::size<CLeftSwizzleVector>, std::integral_constant<unsigned, leftVectorDimension>>::type TLeftDimension;
+					typedef typename std::conditional<TIsRightSwizzle::value, mpl::size<CRightSwizzleVector>, std::integral_constant<unsigned, rightVectorDimension>>::type TRightDimension;
+				private:
+					typedef typename std::conditional<TIsLeftSwizzle::value, mpl::sort<CLeftSwizzleVector>, mpl::identity<void>>::type::type CSortedLeftSwizzleVector;
+					typedef typename std::conditional<TIsLeftSwizzle::value, mpl::unique<CSortedLeftSwizzleVector, std::is_same<mpl::_, mpl::_>>, mpl::identity<void>>::type::type CUniqueLeftSwizzleVector;
+				public:
+					typedef typename std::conditional<TIsLeftSwizzle::value, mpl::equal_to<mpl::size<CUniqueLeftSwizzleVector>, mpl::size<CLeftSwizzleVector>>, std::true_type>::type TIsWriteMaskValid;
+				};
+
 				template<typename LeftElementType, unsigned int leftVectorDimension, unsigned short leftPackedSwizzle, class CLeftSwizzleVector, typename RightElementType, unsigned int rightVectorDimension, unsigned short rightPackedSwizzle, class CRightSwizzleVector>
 				inline CSwizzle<LeftElementType, leftVectorDimension, leftPackedSwizzle, CLeftSwizzleVector> &operator +=(CSwizzle<LeftElementType, leftVectorDimension, leftPackedSwizzle, CLeftSwizzleVector> &left, const CSwizzle<RightElementType, rightVectorDimension, rightPackedSwizzle, CRightSwizzleVector> &right)
 				{
-					static_assert(mpl::size<typename mpl::unique<typename mpl::sort<CLeftSwizzleVector>::type, std::is_same<mpl::_, mpl::_>>::type>::value == mpl::size<CLeftSwizzleVector>::value, "operator +=: invalid write mask");
-					static_assert(mpl::size<CLeftSwizzleVector>::type::value <= mpl::size<CRightSwizzleVector>::type::value, "operator +=: too few components in src");
-					for (unsigned int i = 0; i < mpl::size<CLeftSwizzleVector>::type::value; i++)
+					typedef TSwizzleTraits<leftVectorDimension, CLeftSwizzleVector, rightVectorDimension, CRightSwizzleVector> TSwizzleTraits;
+					static_assert(TSwizzleTraits::TIsWriteMaskValid::value, "operator +=: invalid write mask");
+					static_assert(TSwizzleTraits::TLeftDimension::value <= TSwizzleTraits::TRightDimension::value, "operator +=: too few components in src");
+					for (typename TSwizzleTraits::TLeftDimension::value_type i = 0; i < TSwizzleTraits::TLeftDimension::value; i++)
 						left[i] += right[i];
 					return left;
 				};
@@ -392,7 +412,7 @@ See "DGLE2.h" for more details.
 			};
 #	pragma region(temp test)
 			template class vector<float, 4>;
-			template class CSwizzle<float, 4, ~0u, void>;
+			template class CSwizzle<float, 4, 0u, void>;
 #	pragma endregion
 		}
 	}

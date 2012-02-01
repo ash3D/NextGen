@@ -50,6 +50,7 @@ void Proc()
 	vec4.xyzw + vec3.rrgg;
 	vec4.zx += vec4.aa;
 	vec4.zx += vec4.aaa;
+	vec3 += vec4;
 	//vec4.zz += vec4.aa;
 	static float angle;
 	//renderer->DrawRect(200, 200, 100, 100, ~0, NULL, angle);
