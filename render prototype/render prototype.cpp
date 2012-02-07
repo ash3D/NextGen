@@ -45,13 +45,19 @@ const unsigned count = 512;
 
 void Proc()
 {
-	DGLE2::VectorMath::vector<int, 4> vec4;
-	DGLE2::VectorMath::vector<float, 3> vec3;
-	vec4.xyzw + vec3.rrgg;
+	DGLE2::VectorMath::vector<int, 4> vec4(1);
+	DGLE2::VectorMath::vector<float, 3> vec3(2.f);
+	vec4.wwww + vec3.rg;
 	vec4.zx += vec4.aa;
 	vec4.zx += vec4.aaa;
 	vec3 += vec4;
+	+vec3;
+	-vec3;
 	//vec4.zz += vec4.aa;
+	//vec4.zz = vec4.bb;
+	//vec4.xx = vec3.xx;
+	DGLE2::VectorMath::vector<short, 5> vec5;
+	-vec5;
 	static float angle;
 	//renderer->DrawRect(200, 200, 100, 100, ~0, NULL, angle);
 	//for (unsigned i = 0; i < 1024; i++)
