@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		7.2.2012 (c)Alexey Shaydurov
+\date		8.2.2012 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -12,27 +12,30 @@ limitations due to lack of C++11 support
 
 VS 2010 does not catch errors like vec.xx = vec.xx and does nothing for things like vec.x = vec.x
 
-different versions of CVectorDataContainer now inherited from specialized CSwizzle
+different versions of CDataContainer now inherited from specialized CSwizzle
 sizeof(vector<float, 3>) in this case is 12 for both gcc and VS2010
-if vector inherited from specialized CSwizzle instead of CVectorDataContainer then sizeof(...) is 12 for gcc and 16 for VS2010
+if vector inherited from specialized CSwizzle instead of CDataContainer then sizeof(...) is 12 for gcc and 16 for VS2010
 TODO: try inherit vector from CSwizzle for future versions of VS
 */
 
 #if BOOST_PP_IS_ITERATING
-#	define DIMENSION BOOST_PP_ITERATION()
-#	define XYZW (x, y, z, w)
-#	define RGBA (r, g, b, a)
-//#	define GENERATE_ZERO_SEQ_PRED(d, state) BOOST_PP_LESS(BOOST_PP_ARRAY_SIZE(BOOST_PP_TUPLE_ELEM(2, 1, state)), BOOST_PP_TUPLE_ELEM(2, 0, state))
-//#	define GENERATE_ZERO_SEQ_OP(d, state) (BOOST_PP_TUPLE_ELEM(2, 0, state), BOOST_PP_ARRAY_PUSH_BACK(BOOST_PP_TUPLE_ELEM(2, 1, state), 0))
-//#	define GENERATE_ZERO_SEQ(size) BOOST_PP_TUPLE_ELEM(2, 1, BOOST_PP_WHILE(GENERATE_ZERO_SEQ_PRED, GENERATE_ZERO_SEQ_OP, (size, (0, ()))))
-//#	define IS_SEQ_ZERO_OP(s, state, elem) BOOST_PP_BITAND(state, BOOST_PP_EQUAL(elem, 0))
-//#	define IS_SEQ_ZERO(array) BOOST_PP_SEQ_FOLD_LEFT(IS_SEQ_ZERO_OP, 1, BOOST_PP_TUPLE_TO_SEQ(BOOST_PP_ARRAY_SIZE(array), BOOST_PP_ARRAY_DATA(array)))
-//#	define INC_SEQ_PRED(d, state) BOOST_PP_BITAND(BOOST_PP_LESS(BOOST_PP_TUPLE_ELEM(3, 2, state), BOOST_PP_ARRAY_SIZE(BOOST_PP_TUPLE_ELEM(3, 0, state))), BOOST_PP_BITOR(BOOST_PP_EQUAL(BOOST_PP_TUPLE_ELEM(3, 2, state), 0), BOOST_PP_EQUAL(BOOST_PP_ARRAY_ELEM(BOOST_PP_DEC(BOOST_PP_TUPLE_ELEM(3, 2, state)), BOOST_PP_TUPLE_ELEM(3, 0, state)), 0)))
-//#	define INC_SEQ_OP(d, state) (BOOST_PP_ARRAY_REPLACE(BOOST_PP_TUPLE_ELEM(3, 0, state), BOOST_PP_TUPLE_ELEM(3, 2, state), BOOST_PP_MOD(BOOST_PP_INC(BOOST_PP_ARRAY_ELEM(BOOST_PP_TUPLE_ELEM(3, 2, state), BOOST_PP_TUPLE_ELEM(3, 0, state))), BOOST_PP_TUPLE_ELEM(3, 1, state))), BOOST_PP_TUPLE_ELEM(3, 1, state), BOOST_PP_INC(BOOST_PP_TUPLE_ELEM(3, 2, state)))
-///*																														cur idx
-//																														   ^
-//																														   |	*/
-//#	define INC_SEQ(array, modulo) BOOST_PP_TUPLE_ELEM(3, 0, BOOST_PP_WHILE(INC_SEQ_PRED, INC_SEQ_OP, (array, modulo, 0)))
+#if BOOST_PP_ITERATION_DEPTH() == 1
+#	define ROWS BOOST_PP_FRAME_ITERATION(1)
+#	define COLUMNS BOOST_PP_FRAME_ITERATION(2)
+#	define XYZW (x)(y)(z)(w)
+#	define RGBA (r)(g)(b)(a)
+//#	define MATRIX_POSITION(z, i, data)
+//#	define MATRIX_ZERO_BASED (BOOST_PP_REPEAT(4, , _m))
+#	define MATRIX_ZERO_BASED \
+	(_m00)(_m01)(_m02)(_m03)\
+	(_m10)(_m11)(_m12)(_m13)\
+	(_m20)(_m21)(_m22)(_m23)\
+	(_m30)(_m31)(_m32)(_m33)
+#	define MATRIX_ONE_BASED \
+	(_11)(_12)(_13)(_14)\
+	(_21)(_22)(_23)(_24)\
+	(_31)(_32)(_33)(_34)\
+	(_41)(_42)(_43)(_44)
 #	define GENERATE_ZERO_SEQ_PRED(d, state) BOOST_PP_LESS(BOOST_PP_SEQ_SIZE(BOOST_PP_TUPLE_ELEM(2, 1, state)), BOOST_PP_TUPLE_ELEM(2, 0, state))
 #	define GENERATE_ZERO_SEQ_OP(d, state) (BOOST_PP_TUPLE_ELEM(2, 0, state), BOOST_PP_SEQ_PUSH_BACK(BOOST_PP_TUPLE_ELEM(2, 1, state), 0))
 #	define GENERATE_ZERO_SEQ(size) BOOST_PP_TUPLE_ELEM(2, 1, BOOST_PP_WHILE(GENERATE_ZERO_SEQ_PRED, GENERATE_ZERO_SEQ_OP, (size, )))
@@ -44,25 +47,24 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 #	define IS_SEQ_ELEM_UNIQUE(s, state, elem) (BOOST_PP_BITAND(BOOST_PP_TUPLE_ELEM(2, 0, state), BOOST_PP_NOT_EQUAL(elem, BOOST_PP_TUPLE_ELEM(2, 1, state))), BOOST_PP_TUPLE_ELEM(2, 1, state))
 #	define IS_SEQ_UNIQUE_OP(d, state) (BOOST_PP_BITAND(BOOST_PP_TUPLE_ELEM(3, 0, state), BOOST_PP_TUPLE_ELEM(2, 0, BOOST_PP_SEQ_FOLD_LEFT(IS_SEQ_ELEM_UNIQUE, (1, BOOST_PP_SEQ_ELEM(BOOST_PP_TUPLE_ELEM(3, 1, state), BOOST_PP_TUPLE_ELEM(3, 2, state))), BOOST_PP_SEQ_FIRST_N(BOOST_PP_TUPLE_ELEM(3, 1, state), BOOST_PP_TUPLE_ELEM(3, 2, state))))), BOOST_PP_INC(BOOST_PP_TUPLE_ELEM(3, 1, state)), BOOST_PP_TUPLE_ELEM(3, 2, state))
 #	define IS_SEQ_UNIQUE(seq) BOOST_PP_TUPLE_ELEM(3, 0, BOOST_PP_WHILE(IS_SEQ_UNIQUE_PRED, IS_SEQ_UNIQUE_OP, (1, 1, seq)))
-//#	define IS_SEQ_UNIQUE_PRED(d, state) BOOST_PP_LESS(BOOST_PP_TUPLE_ELEM(4, 2), BOOST_PP_SEQ_SIZE(BOOST_PP_TUPLE_ELEM(4, 3)))
-//#	define IS_SEQ_UNIQUE_OP(d, state) (BOOST_PP_BITAND(BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_NOT_EQUAL(BOOST_PP_SEQ_ELEM(BOOST_PP_TUPLE_ELEM(4, 2, state), BOOST_PP_TUPLE_ELEM(4, 3)), BOOST_PP_TUPLE_ELEM(4, 1, state))), BOOST_PP_TUPLE_ELEM(4, 1, state), BOOST_PP_INC(BOOST_PP_TUPLE_ELEM(4, 2)), BOOST_PP_TUPLE_ELEM(4, 3))
-//#	define IS_SEQ_UNIQUE(seq) BOOST_PP_TUPLE_ELEM(4, 0, BOOST_PP_SEQ_WHILE(IS_SEQ_UNIQUE_PRED, IS_SEQ_UNIQUE_OP, (1, BOOST_PP_SEQ_ELEM(0, seq), 1, seq)))
 #
-#	define INC_SEQ_PRED(d, state) BOOST_PP_AND(BOOST_PP_LESS(BOOST_PP_TUPLE_ELEM(3, 2, state), BOOST_PP_SEQ_SIZE(BOOST_PP_TUPLE_ELEM(3, 0, state))), BOOST_PP_BITOR(BOOST_PP_EQUAL(BOOST_PP_TUPLE_ELEM(3, 2, state), 0), BOOST_PP_EQUAL(BOOST_PP_SEQ_ELEM(BOOST_PP_DEC(BOOST_PP_TUPLE_ELEM(3, 2, state)), BOOST_PP_TUPLE_ELEM(3, 0, state)), 0)))
-#	define INC_SEQ_OP(d, state) (BOOST_PP_SEQ_REPLACE(BOOST_PP_TUPLE_ELEM(3, 0, state), BOOST_PP_TUPLE_ELEM(3, 2, state), BOOST_PP_MOD(BOOST_PP_INC(BOOST_PP_SEQ_ELEM(BOOST_PP_TUPLE_ELEM(3, 2, state), BOOST_PP_TUPLE_ELEM(3, 0, state))), BOOST_PP_TUPLE_ELEM(3, 1, state))), BOOST_PP_TUPLE_ELEM(3, 1, state), BOOST_PP_INC(BOOST_PP_TUPLE_ELEM(3, 2, state)))
-/*																											  cur idx
-																												 ^
-																												 |	*/
-#	define INC_SEQ(seq, modulo) BOOST_PP_TUPLE_ELEM(3, 0, BOOST_PP_WHILE(INC_SEQ_PRED, INC_SEQ_OP, (seq, modulo, 0)))
+#	define INC_MODULO(elem, modulo1, modulo2) BOOST_PP_MOD(BOOST_PP_IF(BOOST_PP_MOD(BOOST_PP_MOD(BOOST_PP_INC(elem), 4), modulo1), BOOST_PP_INC(elem), BOOST_PP_SUB(BOOST_PP_ADD(elem, 4), BOOST_PP_MOD(BOOST_PP_ADD(elem, 4), 4))), BOOST_PP_MUL(modulo2, 4))
+#	// ?: BOOST_PP_BITAND does not work in VS 2010
+#	define INC_SEQ_PRED(d, state) BOOST_PP_AND(BOOST_PP_LESS(BOOST_PP_TUPLE_ELEM(4, 3, state), BOOST_PP_SEQ_SIZE(BOOST_PP_TUPLE_ELEM(4, 0, state))), BOOST_PP_BITOR(BOOST_PP_EQUAL(BOOST_PP_TUPLE_ELEM(4, 3, state), 0), BOOST_PP_EQUAL(BOOST_PP_SEQ_ELEM(BOOST_PP_DEC(BOOST_PP_TUPLE_ELEM(4, 3, state)), BOOST_PP_TUPLE_ELEM(4, 0, state)), 0)))
+#	define INC_SEQ_OP(d, state) (BOOST_PP_SEQ_REPLACE(BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 3, state), INC_MODULO(BOOST_PP_SEQ_ELEM(BOOST_PP_TUPLE_ELEM(4, 3, state), BOOST_PP_TUPLE_ELEM(4, 0, state)), BOOST_PP_TUPLE_ELEM(4, 1, state), BOOST_PP_TUPLE_ELEM(4, 2, state))), BOOST_PP_TUPLE_ELEM(4, 1, state), BOOST_PP_TUPLE_ELEM(4, 2, state), BOOST_PP_INC(BOOST_PP_TUPLE_ELEM(4, 3, state)))
+#	//																															  cur idx
+#	//																																 ^
+#	//																																 |
+#	define INC_SEQ(seq, modulo1, modulo2) BOOST_PP_TUPLE_ELEM(4, 0, BOOST_PP_WHILE(INC_SEQ_PRED, INC_SEQ_OP, (seq, modulo1, modulo2, 0)))
 #
-#	define IDX_2_SYMBOL(s, NAMING_SET, i) BOOST_PP_TUPLE_ELEM(4, i, NAMING_SET)
+#	define IDX_2_SYMBOL(s, NAMING_SET, i) BOOST_PP_SEQ_ELEM(i, NAMING_SET)
 #
 #	define SWIZZLES_INNER_LOOP_PRED(r, state) BOOST_PP_BITAND(BOOST_PP_NOT(IS_SEQ_ZERO(BOOST_PP_TUPLE_ELEM(4, 1, state))), BOOST_PP_LESS(BOOST_PP_TUPLE_ELEM(4, 2, state), BOOST_PP_TUPLE_ELEM(4, 3, state)))
-#	define SWIZZLES_INNER_LOOP_OP(r, state) (BOOST_PP_TUPLE_ELEM(4, 0, state), INC_SEQ(BOOST_PP_TUPLE_ELEM(4, 1, state), DIMENSION), BOOST_PP_INC(BOOST_PP_TUPLE_ELEM(4, 2, state)), BOOST_PP_TUPLE_ELEM(4, 3, state))
-//#	define SWIZZLES_INNER_LOOP_MACRO(r, state) \
-//		class\
-//		{\
-//		} BOOST_PP_SEQ_CAT(BOOST_PP_SEQ_TRANSFORM(IDX_2_SYMBOL, BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_TO_SEQ(BOOST_PP_ARRAY_SIZE(BOOST_PP_TUPLE_ELEM(4, 1, state)), BOOST_PP_ARRAY_DATA(BOOST_PP_TUPLE_ELEM(4, 1, state)))));
+#	define SWIZZLES_INNER_LOOP_OP(r, state) (BOOST_PP_TUPLE_ELEM(4, 0, state), INC_SEQ(BOOST_PP_TUPLE_ELEM(4, 1, state), COLUMNS, BOOST_PP_MAX(ROWS, 1)), BOOST_PP_INC(BOOST_PP_TUPLE_ELEM(4, 2, state)), BOOST_PP_TUPLE_ELEM(4, 3, state))
+#	/*define SWIZZLES_INNER_LOOP_MACRO(r, state) \
+		class\
+		{\
+		} BOOST_PP_SEQ_CAT(BOOST_PP_SEQ_TRANSFORM(IDX_2_SYMBOL, BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_TO_SEQ(BOOST_PP_ARRAY_SIZE(BOOST_PP_TUPLE_ELEM(4, 1, state)), BOOST_PP_ARRAY_DATA(BOOST_PP_TUPLE_ELEM(4, 1, state)))));*/
 #	define TRANSFORM_SWIZZLE(NAMING_SET, swizzle_seq) BOOST_PP_SEQ_CAT(BOOST_PP_SEQ_TRANSFORM(IDX_2_SYMBOL, NAMING_SET, swizzle_seq))
 //#	define SWIZZLE(state) BOOST_PP_SEQ_CAT(BOOST_PP_SEQ_TRANSFORM(IDX_2_SYMBOL, BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, state)))
 //#	define APPLY_CALLBACK(callback, arg) callback(arg)
@@ -72,17 +74,17 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 //		class BOOST_PP_CAT(C, SWIZZLE(state))\
 //		{\
 //		} SWIZZLE(state);
-//#	define SWIZZLES_INTERMIDIATE_LOOP_OP
-//#	define SWIZZLES_INTERMIDIATE_LOOP_MACRO
-#	define SWIZZLES_OP(r, state) (BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, BOOST_PP_WHILE(SWIZZLES_INNER_LOOP_PRED, SWIZZLES_INNER_LOOP_OP, (BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, state), 0, BOOST_PP_TUPLE_ELEM(4, 3, state)))), BOOST_PP_INC(BOOST_PP_TUPLE_ELEM(4, 2, state)), BOOST_PP_TUPLE_ELEM(4, 3, state))
-#	define SWIZZLES_MACRO(r, state) BOOST_PP_FOR((BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, state), 0, BOOST_PP_TUPLE_ELEM(4, 3, state)), SWIZZLES_INNER_LOOP_PRED, SWIZZLES_INNER_LOOP_OP, SWIZZLES_INNER_LOOP_MACRO)
+#	define SWIZZLES_INTERMIDIATE_LOOP_OP(r, state) (BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, BOOST_PP_WHILE(SWIZZLES_INNER_LOOP_PRED, SWIZZLES_INNER_LOOP_OP, (BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, state), 0, BOOST_PP_TUPLE_ELEM(4, 3, state)))), BOOST_PP_INC(BOOST_PP_TUPLE_ELEM(4, 2, state)), BOOST_PP_TUPLE_ELEM(4, 3, state))
+#	define SWIZZLES_INTERMIDIATE_LOOP_MACRO(r, state) BOOST_PP_FOR((BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, state), 0, BOOST_PP_TUPLE_ELEM(4, 3, state)), SWIZZLES_INNER_LOOP_PRED, SWIZZLES_INNER_LOOP_OP, SWIZZLES_INNER_LOOP_MACRO)
+#	define SWIZZLES_OP(r, state) (BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, BOOST_PP_WHILE(SWIZZLES_INNER_LOOP_PRED, SWIZZLES_INTERMIDIATE_LOOP_OP, (BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, state), 0, BOOST_PP_TUPLE_ELEM(4, 3, state)))), BOOST_PP_INC(BOOST_PP_TUPLE_ELEM(4, 2, state)), BOOST_PP_TUPLE_ELEM(4, 3, state))
+#	define SWIZZLES_MACRO(r, state) BOOST_PP_FOR((BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, state), 0, BOOST_PP_TUPLE_ELEM(4, 3, state)), SWIZZLES_INNER_LOOP_PRED, SWIZZLES_INTERMIDIATE_LOOP_OP, SWIZZLES_INTERMIDIATE_LOOP_MACRO)
 #	define SWIZZLES(z, i, CALLBACK) \
 		SWIZZLES_INNER_LOOP_MACRO(z, (CALLBACK, GENERATE_ZERO_SEQ(i), , ))\
-/*															cur iteration	   max iterations
-																  ^					 ^
-																  |_______	  _______|
-																		  |	 |	*/\
-		BOOST_PP_FOR((CALLBACK, INC_SEQ(GENERATE_ZERO_SEQ(i), DIMENSION), 0, 64), SWIZZLES_INNER_LOOP_PRED, SWIZZLES_OP, SWIZZLES_MACRO)
+		/*																		 cur iteration		max iterations
+																					   ^				  ^
+																					   |_______	   _______|
+																							   |  |	*/\
+		BOOST_PP_FOR((CALLBACK, INC_SEQ(GENERATE_ZERO_SEQ(i), COLUMNS, BOOST_PP_MAX(ROWS, 1)), 0, 64), SWIZZLES_INNER_LOOP_PRED, SWIZZLES_OP, SWIZZLES_MACRO)
 #	define GENERATE_SWIZZLES(CALLBACK) BOOST_PP_REPEAT_FROM_TO(1, 5, SWIZZLES, CALLBACK)
 #
 //#	define SWIZZLE_CLASSNAME(swizzle_seq) BOOST_PP_CAT(C, BOOST_PP_SEQ_CAT(swizzle_seq))
@@ -90,27 +92,31 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 #	define SWIZZLE_SEQ_2_VECTOR(seq) mpl::vector_c<unsigned int, BOOST_PP_TUPLE_REM_CTOR(BOOST_PP_SEQ_SIZE(seq), BOOST_PP_SEQ_TO_TUPLE(seq))>
 #
 #	define PACK_SWIZZLE_PRED(d, state) BOOST_PP_SEQ_SIZE(BOOST_PP_TUPLE_ELEM(3, 2, state))
-#	define PACK_SWIZZLE_OP(d, state) (BOOST_PP_TUPLE_ELEM(3, 0, state) + (BOOST_PP_SEQ_HEAD(BOOST_PP_TUPLE_ELEM(3, 2, state)) << BOOST_PP_TUPLE_ELEM(3, 1, state)), BOOST_PP_ADD(BOOST_PP_TUPLE_ELEM(3, 1, state), 2), BOOST_PP_SEQ_TAIL(BOOST_PP_TUPLE_ELEM(3, 2, state)))
-/*																								   result		insert pos
-																									  ^				^
-																									  |____		____|
-																										   |   |	*/
+#	define PACK_SWIZZLE_OP(d, state) (BOOST_PP_TUPLE_ELEM(3, 0, state) + (BOOST_PP_SEQ_HEAD(BOOST_PP_TUPLE_ELEM(3, 2, state)) << BOOST_PP_TUPLE_ELEM(3, 1, state)), BOOST_PP_ADD(BOOST_PP_TUPLE_ELEM(3, 1, state), 4), BOOST_PP_SEQ_TAIL(BOOST_PP_TUPLE_ELEM(3, 2, state)))
+#	//																							   result		insert pos
+#	//																								  ^				^
+#	//																								  |____		____|
+#	//																									   |   |
 #	define PACK_SWIZZLE(seq) BOOST_PP_TUPLE_ELEM(3, 0, BOOST_PP_WHILE(PACK_SWIZZLE_PRED, PACK_SWIZZLE_OP, (0u, 0, seq)))
 //#
-//#	define GET_SWIZZLE_ELEMENT_SEQ(seq, i, cv) (GET_SWIZZLE_ELEMENT(DIMENSION, BOOST_PP_SEQ_ELEM(i, seq), cv))
-//#	define GET_SWIZZLE_ELEMENT_VECTOR(vector, i, cv) (GET_SWIZZLE_ELEMENT(DIMENSION, (mpl::at_c<vector, i>::type::value), cv))
+//#	define GET_SWIZZLE_ELEMENT_SEQ(seq, i, cv) (GET_SWIZZLE_ELEMENT(COLUMNS, BOOST_PP_SEQ_ELEM(i, seq), cv))
+//#	define GET_SWIZZLE_ELEMENT_VECTOR(vector, i, cv) (GET_SWIZZLE_ELEMENT(COLUMNS, (mpl::at_c<vector, i>::type::value), cv))
 //#
 //#	define GENERATE_SCALAR_OPERATION_PRED(r, state) BOOST_PP_LESS(BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, state))
 //#	define GENERATE_SCALAR_OPERATION_OP(r, state) (BOOST_PP_INC(BOOST_PP_TUPLE_ELEM(4, 0, state)), BOOST_PP_TUPLE_ELEM(4, 1, state), BOOST_PP_TUPLE_ELEM(4, 2, state), BOOST_PP_TUPLE_ELEM(4, 3, state))
 //#	define GENERATE_SCALAR_OPERATION_MACRO(r, state) GET_SWIZZLE_ELEMENT_SEQ(BOOST_PP_TUPLE_ELEM(4, 2, state), BOOST_PP_TUPLE_ELEM(4, 0, state), ) = GET_SWIZZLE_ELEMENT_VECTOR(BOOST_PP_TUPLE_ELEM(4, 3, state), BOOST_PP_TUPLE_ELEM(4, 0, state), const);
 
+#	define BOOST_PP_ITERATION_LIMITS (1, 4)
+#	define BOOST_PP_FILENAME_2 "vector math.h"
+#	include BOOST_PP_ITERATE()
+#else
 	/*
-	gcc does not allow explicit specialisation in class scope => CSwizzle can not be inside CVectorDataContainer
+	gcc does not allow explicit specialization in class scope => CSwizzle can not be inside CDataContainer
 	ElementType needed in order to compiler can deduce template args for operators
 	*/
 #	define GENERATE_TEMPLATED_ASSIGN_OPERATOR(leftSwizzleSeq) \
-		template<typename RightElementType, unsigned int rightVectorDimension, unsigned short rightPackedSwizzle, class CRightSwizzleVector>\
-		CSwizzle &operator =(const CSwizzle<RightElementType, 0, rightVectorDimension, rightPackedSwizzle, CRightSwizzleVector> &right)\
+		template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector>\
+		CSwizzle &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector> &right)\
 		{\
 			/*static_assert(mpl::size<mpl::unique<mpl::sort<SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))>::type, std::is_same<mpl::_, mpl::_>>::type>::value == mpl::size<SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))>::value, "!");*/\
 			static_assert(BOOST_PP_SEQ_SIZE(leftSwizzleSeq) <= mpl::size<CRightSwizzleVector>::type::value, "operator =: too few components in src");\
@@ -124,7 +130,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 #	define GENERATE_ASSIGN_OPERATOR(leftSwizzleSeq) \
 		CSwizzle &operator =(const CSwizzle &right)\
 		{\
-			return operator =<ElementType, 0, DIMENSION, PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>(right);\
+			return operator =<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>(right);\
 		};
 #	ifdef MSVC_LIMITATIONS
 		// VS 2010 does not allow operator = in union members
@@ -138,7 +144,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 #	endif
 #	define SWIZZLES_INNER_LOOP_MACRO(r, state) \
 		template<typename ElementType>\
-		class CSwizzle<ElementType, 0, DIMENSION, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))>: public CGenericSwizzleCommon<ElementType, 0, DIMENSION, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))>\
+		class CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))>: public CGenericSwizzleCommon<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))>\
 		{\
 		public:\
 			BOOST_PP_IIF(IS_SEQ_UNIQUE(SWIZZLE_SEQ(state)), GENERATE_ASSIGN_OPERATORS, DISABLE_ASSIGN_OPERATOR)(SWIZZLE_SEQ(state))\
@@ -156,55 +162,50 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 //#	undef GENERATE_SWIZZLE_CLASS
 
 	template<typename ElementType>
-	class CVectorDataContainer<ElementType, DIMENSION>: public CSwizzle<ElementType, 0, DIMENSION, 0u, void>
+	class CDataContainer<ElementType, ROWS, COLUMNS>: public std::conditional<ROWS == 0, CSwizzle<ElementType, 0, COLUMNS, 0u, void>, CEmpty>::type
 	{
 #ifdef MSVC_LIMITATIONS
 	protected:
-		CVectorDataContainer() {}
+		CDataContainer() {}
 	private:
-		CVectorDataContainer(const CVectorDataContainer &);
+		CDataContainer(const CDataContainer &);
 	protected:
-		~CVectorDataContainer() {}
+		~CDataContainer() {}
 	private:
-		CVectorDataContainer &operator =(const CVectorDataContainer &);
+		CDataContainer &operator =(const CDataContainer &);
 #else
 	protected:
-		CVectorDataContainer() = default;
-		CVectorDataContainer(const CVectorDataContainer &) = delete;
-		~CVectorDataContainer() = default;
-		CVectorDataContainer &operator =(const CVectorDataContainer &) = delete;
+		CDataContainer() = default;
+		CDataContainer(const CDataContainer &) = delete;
+		~CDataContainer() = default;
+		CDataContainer &operator =(const CDataContainer &) = delete;
 #endif
 	public:
-//#	define TEST(r, state) BOOST_PP_TUPLE_ELEM(4, 0, state)(BOOST_PP_TUPLE_ELEM(4, 1, state))
-//#define FUNC(arg) static const int i = arg;
-//#define ARG 420
-//		TEST(0, (FUNC, ARG, , ))
-//		static const int i =
-//#define PRED1(d, state) BOOST_PP_LESS(state, 64)
-//#define OP1(d, state) BOOST_PP_INC(state)
-//#define PRED2(d, state) BOOST_PP_LESS(BOOST_PP_TUPLE_ELEM(2, 0, state), 64)
-//#define OP2(d, state) (BOOST_PP_INC(BOOST_PP_TUPLE_ELEM(2, 0, state)), BOOST_PP_WHILE(PRED1, OP1, 0))
-//			BOOST_PP_TUPLE_ELEM(2, 0, BOOST_PP_WHILE(PRED2, OP2, (0, 0)));
 		union
 		{
-			CVectorData<ElementType, DIMENSION> _vectorData;
+			CData<ElementType, ROWS, COLUMNS> _data;
 			// gcc does not allow class definition inside anonymous union
-#			define SWIZZLES_INNER_LOOP_MACRO(r, state) CSwizzle<ElementType, 0, DIMENSION, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))> TRANSFORM_SWIZZLE(XYZW, SWIZZLE_SEQ(state)), TRANSFORM_SWIZZLE(RGBA, SWIZZLE_SEQ(state));
+#			define NAMING_SET_1 BOOST_PP_IF(ROWS, MATRIX_ZERO_BASED, XYZW)
+#			define NAMING_SET_2 BOOST_PP_IF(ROWS, MATRIX_ONE_BASED, RGBA)
+#			define SWIZZLES_INNER_LOOP_MACRO(r, state) CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))> TRANSFORM_SWIZZLE(NAMING_SET_1, SWIZZLE_SEQ(state)), TRANSFORM_SWIZZLE(NAMING_SET_2, SWIZZLE_SEQ(state));
 			GENERATE_SWIZZLES()
+#			undef NAMING_SET_1
+#			undef NAMING_SET_2
 #			undef SWIZZLES_INNER_LOOP_MACRO
 //#			define GENERATE_SWIZZLE_OBJECT(swizzle_seq) CSwizzle<SWIZZLE_SEQ_2_VECTOR(swizzle_seq)> TRANSFORM_SWIZZLE(XYZW, swizzle_seq), TRANSFORM_SWIZZLE(RGBA, swizzle_seq);
 //			GENERATE_SWIZZLES(GENERATE_SWIZZLE_OBJECT)
 //#			undef GENERATE_SWIZZLE_OBJECT
-//#define MACRO1(z, i, data) data
-//#define MACRO2(z, i, data) BOOST_PP_REPEAT(64, MACRO1, data)
-//#define MACRO3(z, i, data) BOOST_PP_REPEAT(64, MACRO2, data)
-//			BOOST_PP_REPEAT(64, MACRO3, ;)
 		};
 	};
+#endif
 
-#	undef DIMENSION
+#if BOOST_PP_ITERATION_DEPTH() == 1
+#	undef ROWS
+#	undef COLUMNS
 #	undef XYZW
 #	undef RGBA
+#	undef MATRIX_ZERO_BASED
+#	undef MATRIX_ONE_BASED
 #	undef GENERATE_ZERO_SEQ_PRED
 #	undef GENERATE_ZERO_SEQ_OP
 #	undef GENERATE_ZERO_SEQ
@@ -214,6 +215,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 #	undef IS_SEQ_ELEM_UNIQUE
 #	undef IS_SEQ_UNIQUE_OP
 #	undef IS_SEQ_UNIQUE
+#	undef INC_MODULO
 #	undef INC_SEQ_PRED
 #	undef INC_SEQ_OP
 #	undef INC_SEQ
@@ -224,6 +226,8 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 #	undef TRANSFORM_SWIZZLE
 //#	undef APPLY_CALLBACK
 //#	undef SWIZZLES_INNER_LOOP_MACRO
+#	undef SWIZZLES_INTERMIDIATE_LOOP_OP
+#	undef SWIZZLES_INTERMIDIATE_LOOP_MACRO
 #	undef SWIZZLES_OP
 #	undef SWIZZLES_MACRO
 #	undef SWIZZLES
@@ -239,6 +243,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 //#	undef GENERATE_SCALAR_OPERATION_PRED
 //#	undef GENERATE_SCALAR_OPERATION_OP
 //#	undef GENERATE_SCALAR_OPERATION_MACRO
+#endif
 #else
 #	ifndef __VECTOR_MATH_H__
 #	define __VECTOR_MATH_H__
@@ -259,13 +264,17 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 #	include <type_traits>
 #	include <algorithm>
 #	include <boost\preprocessor\iteration\iterate.hpp>
+//#	include <boost\preprocessor\repetition\repeat.hpp>
 #	include <boost\preprocessor\repetition\repeat_from_to.hpp>
 #	include <boost\preprocessor\repetition\for.hpp>
 #	include <boost\preprocessor\control\while.hpp>
+#	include <boost\preprocessor\control\if.hpp>
 #	include <boost\preprocessor\control\iif.hpp>
 #	include <boost\preprocessor\arithmetic\inc.hpp>
 #	include <boost\preprocessor\arithmetic\dec.hpp>
 #	include <boost\preprocessor\arithmetic\add.hpp>
+#	include <boost\preprocessor\arithmetic\sub.hpp>
+#	include <boost\preprocessor\arithmetic\mul.hpp>
 #	include <boost\preprocessor\arithmetic\mod.hpp>
 #	include <boost\preprocessor\comparison\equal.hpp>
 #	include <boost\preprocessor\comparison\not_equal.hpp>
@@ -274,14 +283,10 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 #	include <boost\preprocessor\logical\bitand.hpp>
 #	include <boost\preprocessor\logical\bitor.hpp>
 #	include <boost\preprocessor\logical\not.hpp>
+#	include <boost\preprocessor\selection\max.hpp>
 #	include <boost\preprocessor\tuple\elem.hpp>
 #	include <boost\preprocessor\tuple\to_seq.hpp>
 #	include <boost\preprocessor\tuple\rem.hpp>
-//#	include <boost\preprocessor\array\size.hpp>
-//#	include <boost\preprocessor\array\data.hpp>
-//#	include <boost\preprocessor\array\elem.hpp>
-//#	include <boost\preprocessor\array\replace.hpp>
-//#	include <boost\preprocessor\array\push_back.hpp>
 #	include <boost\preprocessor\seq\seq.hpp>
 #	include <boost\preprocessor\seq\size.hpp>
 #	include <boost\preprocessor\seq\elem.hpp>
@@ -304,7 +309,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 #	include <boost\mpl\not.hpp>
 #	include <boost\mpl\identity.hpp>
 
-//#	define GET_SWIZZLE_ELEMENT(vectorDimension, idx, cv) (reinterpret_cast<cv CVectorData<ElementType, vectorDimension> &>(*this)._data[(idx)])
+//#	define GET_SWIZZLE_ELEMENT(vectorDimension, idx, cv) (reinterpret_cast<cv CData<ElementType, vectorDimension> &>(*this)._data[(idx)])
 //#	define GET_SWIZZLE_ELEMENT_PACKED(vectorDimension, packedSwizzle, idx, cv) (GET_SWIZZLE_ELEMENT(vectorDimension, packedSwizzle >> ((idx) << 1) & 3u, cv))
 
 	namespace DGLE2
@@ -326,99 +331,76 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 			template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector>
 			class CSwizzle;
 
-			template<typename ElementType, unsigned int dimension>
-			class CVectorDataContainer;
+			template<typename ElementType, unsigned int rows, unsigned int columns>
+			class CDataContainer;
 
-			template<typename ElementType, unsigned int dimension>
-			class CVectorData
+			class CDataBase
 			{
-				friend class vector<ElementType, dimension>;
-				template<typename, unsigned int, unsigned int, unsigned short, class>
-				friend class CSwizzle;
-				template<typename, unsigned int, unsigned int, unsigned short, class>
-				friend class CGenericSwizzleCommon;
-				friend class CVectorDataContainer<ElementType, dimension>;
 #		ifdef MSVC_LIMITATIONS
 				// VS 2010 does not allow commented out stuff in union members
-				//CVectorData() {}
-				//CVectorData(const CVectorData &);
-				//~CVectorData() {}
-				//CVectorData &operator =(const CVectorData &);
+				//CDataBase() {}
+				//CDataBase(const CDataBase &);
+				//~CDataBase() {}
+				//CDataBase &operator =(const CDataBase &);
 #		else
-				CVectorData() = default;
-				CVectorData(const CVectorData &) = delete;
-				~CVectorData() = default;
-				CVectorData &operator =(const CVectorData &) = delete;
+			protected:
+				CDataBase() = default;
+				CDataBase(const CDataBase &) = delete;
+				~CDataBase() = default;
+				CDataBase &operator =(const CDataBase &) = delete;
 #		endif
-				ElementType _data[dimension];
 			};
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			class CMatrixData
+			class CData: CDataBase final
 			{
-#		ifdef MSVC_LIMITATIONS
-				// VS 2010 does not allow commented out stuff in union members
-				//CMatrixData() {}
-				//CMatrixData(const CMatrixData &);
-				//~CMatrixData() {}
-				//CMatrixData &operator =(const CMatrixData &);
-#		else
-				CMatrixData() = default;
-				CMatrixData(const CMatrixData &) = delete;
-				~CMatrixData() = default;
-				CMatrixData &operator =(const CMatrixData &) = delete;
-#		endif
+			private:
 				vector<ElementType, columns> _rows[rows];
 			};
 
-			// generic vector
 			template<typename ElementType, unsigned int dimension>
-			class CVectorDataContainer: public CSwizzle<ElementType, 0, dimension, 0u, void>
+			class CData<ElementType, 0, dimension>: CDataBase final
 			{
-			protected:
-				CVectorData<ElementType, dimension> _vectorData;
-#		ifdef MSVC_LIMITATIONS
-				CVectorDataContainer() {}
+				friend class vector<ElementType, dimension>;
+				template<typename, unsigned int, unsigned int, unsigned short, class>
+
+				friend class CSwizzle;
+				template<typename, unsigned int, unsigned int, unsigned short, class>
+
+				friend class CGenericSwizzleCommon;
+
+				friend class CDataContainer<ElementType, 0, dimension>;
 			private:
-				CVectorDataContainer(const CVectorDataContainer &);
-			protected:
-				~CVectorDataContainer() {}
-			private:
-				CVectorDataContainer &operator =(const CVectorDataContainer &);
-			protected:
-#		else
-				CVectorDataContainer() = default;
-				CVectorDataContainer(const CVectorDataContainer &) = delete;
-				~CVectorDataContainer() = default;
-				CVectorDataContainer &operator =(const CVectorDataContainer &) = delete;
-#		endif
+				ElementType _data[dimension];
 			};
 
-			// generic matrix
+			class CEmpty {};
+
+			// generic vector/matrix
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			class CMatrixDataContainer
+			class CDataContainer: public std::conditional<rows == 0, CSwizzle<ElementType, 0, columns, 0u, void>, CEmpty>::type
 			{
 			protected:
-				CMatrixData<ElementType, rows, columns> _matrixData;
+				CData<ElementType, rows, columns> _data;
 #		ifdef MSVC_LIMITATIONS
-				CMatrixDataContainer() {}
+				CDataContainer() {}
 			private:
-				CMatrixDataContainer(const CMatrixDataContainer &);
+				CDataContainer(const CDataContainer &);
 			protected:
-				~CMatrixDataContainer() {}
+				~CDataContainer() {}
 			private:
-				CMatrixDataContainer &operator =(const CMatrixDataContainer &);
+				CDataContainer &operator =(const CDataContainer &);
 			protected:
 #		else
-				CMatrixDataContainer() = default;
-				CMatrixDataContainer(const CMatrixDataContainer &) = delete;
-				~CMatrixDataContainer() = default;
-				CMatrixDataContainer &operator =(const CMatrixDataContainer &) = delete;
+				CDataContainer() = default;
+				CDataContainer(const CDataContainer &) = delete;
+				~CDataContainer() = default;
+				CDataContainer &operator =(const CDataContainer &) = delete;
 #		endif
 			};
 
-			// specialisations for graphics vectors
-#			define BOOST_PP_ITERATION_LIMITS (1, 4)
+			// specializations for graphics vectors
+#			define BOOST_PP_ITERATION_LIMITS (0, 4)
 #			define BOOST_PP_FILENAME_1 "vector math.h"
 #			include BOOST_PP_ITERATE()
 
@@ -459,16 +441,16 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				const ElementType &operator [](unsigned int idx) const noexcept
 				{
 					_ASSERTE(idx < mpl::size<CSwizzleVector>::value);
-					auto row = idx, column = idx;
-					idx = packedSwizzle >> (idx << 1) & 3u;
+					idx = packedSwizzle >> (idx << 2u) & (1u << 4u) - 1u;
+					auto row = idx >> 2 & 3u, column = idx & 3u;
 					/*
 									   static	 reinterpret
 										  ^			  ^
 										  |			  |
 					CGenericSwizzleCommon -> CSwizzle -> CMatrixData
 					*/
-					typedef CMatrixData<ElementType, rows, columns> CMatrixData;
-					return reinterpret_cast<const CMatrixData &>(static_cast<const TSwizzle &>(*this))._data[row][column];
+					typedef CData<ElementType, rows, columns> CData;
+					return reinterpret_cast<const CData &>(static_cast<const TSwizzle &>(*this))._data[row][column];
 				}
 				ElementType &operator [](unsigned int idx) noexcept
 				{
@@ -486,7 +468,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 
 				does not work with gcc:
 				typedef CSwizzle<...> CSwizzle;
-				typedef CVectorDataContainer<...> CVectorDataContainer;
+				typedef CDataContainer<...> CDataContainer;
 
 				does not work with VS and gcc:
 				typedef vector<...> vector;
@@ -502,15 +484,15 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				const ElementType &operator [](unsigned int idx) const noexcept
 				{
 					_ASSERTE(idx < mpl::size<CSwizzleVector>::value);
-					idx = packedSwizzle >> (idx << 1) & 3u;
+					idx = packedSwizzle >> (idx << 2u) & (1u << 4u) - 1u;
 					/*
 									   static	 reinterpret
 										  ^			  ^
 										  |			  |
-					CGenericSwizzleCommon -> CSwizzle -> CVectorData
+					CGenericSwizzleCommon -> CSwizzle -> CData
 					*/
-					typedef CVectorData<ElementType, vectorDimension> CVectorData;
-					return reinterpret_cast<const CVectorData &>(static_cast<const TSwizzle &>(*this))._data[idx];
+					typedef CData<ElementType, 0, vectorDimension> CData;
+					return reinterpret_cast<const CData &>(static_cast<const TSwizzle &>(*this))._data[idx];
 				}
 				ElementType &operator [](unsigned int idx) noexcept
 				{
@@ -519,7 +501,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				}
 			};
 
-			// this specialisation used as base class for CVectorDataContainer to eliminate need for various overloads
+			// this specialization used as base class for CDataContainer to eliminate need for various overloads
 			template<typename ElementType, unsigned int vectorDimension>
 			class CSwizzle<ElementType, 0, vectorDimension, 0u, void>: public CSwizzleBase<ElementType, 0, vectorDimension, 0u, void>
 			{
@@ -620,10 +602,10 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 #			pragma endregion
 
 			template<typename ElementType, unsigned int dimension>
-			class vector: public CVectorDataContainer<ElementType, dimension>
+			class vector: public CDataContainer<ElementType, 0, dimension>
 			{
 				static_assert(dimension > 0, "vector dimension should be positive");
-				//using CVectorDataContainer<ElementType, dimension>::_vectorData;
+				//using CDataContainer<ElementType, dimension>::_data;
 			public:
 #				ifdef MSVC_LIMITATIONS
 				vector() {}
@@ -632,12 +614,12 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 #				endif
 				vector(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar)
 				{
-					std::fill_n(CVectorDataContainer<ElementType, dimension>::_vectorData._data, dimension, scalar);
+					std::fill_n(CDataContainer<ElementType, 0, dimension>::_data._data, dimension, scalar);
 				}
 				template<typename TIterator>
 				vector(TIterator src)
 				{
-					std::copy_n(src, dimension, CVectorDataContainer<ElementType, dimension>::_vectorData._data);
+					std::copy_n(src, dimension, CDataContainer<ElementType, 0, dimension>::_data._data);
 				}
 				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, unsigned short srcPackedSwizzle, class CSrcSwizzleVector>
 				vector(const CSwizzle<SrcElementType, srcRows, srcColumns, srcPackedSwizzle, CSrcSwizzleVector> &src)
@@ -670,29 +652,29 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				const ElementType &operator [](unsigned int idx) const noexcept
 				{
 					_ASSERTE(idx < dimension);
-					return CVectorDataContainer<ElementType, dimension>::_vectorData._data[idx];
+					return CDataContainer<ElementType, 0, dimension>::_data._data[idx];
 				}
 				ElementType &operator [](unsigned int idx) noexcept
 				{
 					_ASSERTE(idx < dimension);
-					return CVectorDataContainer<ElementType, dimension>::_vectorData._data[idx];
+					return CDataContainer<ElementType, 0, dimension>::_data._data[idx];
 				}
 			};
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			class matrix: public CMatrixDataContainer<ElementType, rows, columns>
+			class matrix: public CDataContainer<ElementType, rows, columns>
 			{
 				typedef vector<ElementType, columns> TRow;
 			public:
 				const TRow &operator [](unsigned int idx) const noexcept
 				{
 					_ASSERTE(idx < rows);
-					return CMatrixDataContainer<ElementType, rows, columns>::_matrixData._rows[idx];
+					return CDataContainer<ElementType, rows, columns>::_matrixData._rows[idx];
 				}
 				TRow &operator [](unsigned int idx) noexcept
 				{
 					_ASSERTE(idx < rows);
-					return CMatrixDataContainer<ElementType, rows, columns>::_matrixData._rows[idx];
+					return CDataContainer<ElementType, rows, columns>::_matrixData._rows[idx];
 				}
 			};
 #	pragma region(temp test)
