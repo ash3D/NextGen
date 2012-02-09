@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		8.2.2012 (c)Alexey Shaydurov
+\date		9.2.2012 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -164,22 +164,22 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 	template<typename ElementType>
 	class CDataContainer<ElementType, ROWS, COLUMNS>: public std::conditional<ROWS == 0, CSwizzle<ElementType, 0, COLUMNS, 0u, void>, CEmpty>::type
 	{
-#ifdef MSVC_LIMITATIONS
 	protected:
-		CDataContainer() {}
-	private:
-		CDataContainer(const CDataContainer &);
-	protected:
-		~CDataContainer() {}
-	private:
-		CDataContainer &operator =(const CDataContainer &);
-#else
-	protected:
-		CDataContainer() = default;
-		CDataContainer(const CDataContainer &) = delete;
-		~CDataContainer() = default;
-		CDataContainer &operator =(const CDataContainer &) = delete;
-#endif
+		CDataContainer(): _data()
+		{
+		}
+		CDataContainer(const CDataContainer &src): _data(src._data)
+		{
+		}
+		~CDataContainer()
+		{
+			_data.~CData<ElementType, ROWS, COLUMNS>();
+		}
+		CDataContainer &operator =(const CDataContainer &right)
+		{
+			_data = right.data;
+			return *this;
+		}
 	public:
 		union
 		{
@@ -336,37 +336,44 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 
 			class CDataBase
 			{
-#		ifdef MSVC_LIMITATIONS
-				// VS 2010 does not allow commented out stuff in union members
-				//CDataBase() {}
-				//CDataBase(const CDataBase &);
-				//~CDataBase() {}
-				//CDataBase &operator =(const CDataBase &);
-#		else
+#		ifndef MSVC_LIMITATIONS
 			protected:
 				CDataBase() = default;
-				CDataBase(const CDataBase &) = delete;
+				CDataBase(const CDataBase &) = default;
 				~CDataBase() = default;
-				CDataBase &operator =(const CDataBase &) = delete;
+				CDataBase &operator =(const CDataBase &) = default;
 #		endif
 			};
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			class CData: CDataBase final
 			{
+				friend class matrix<ElementType, rows, columns>;
+
+				//template<typename, unsigned int, unsigned int, unsigned short, class>
+				//friend class CSwizzle;
+
+				//template<typename, unsigned int, unsigned int, unsigned short, class>
+				//friend class CGenericSwizzleCommon;
+
+				//friend class CDataContainer<ElementType, 0, dimension>;
 			private:
+#		ifdef MSVC_LIMITATIONS
+				ElementType _rows[rows][columns];
+#		else
 				vector<ElementType, columns> _rows[rows];
+#		endif
 			};
 
 			template<typename ElementType, unsigned int dimension>
 			class CData<ElementType, 0, dimension>: CDataBase final
 			{
 				friend class vector<ElementType, dimension>;
-				template<typename, unsigned int, unsigned int, unsigned short, class>
 
+				template<typename, unsigned int, unsigned int, unsigned short, class>
 				friend class CSwizzle;
-				template<typename, unsigned int, unsigned int, unsigned short, class>
 
+				template<typename, unsigned int, unsigned int, unsigned short, class>
 				friend class CGenericSwizzleCommon;
 
 				friend class CDataContainer<ElementType, 0, dimension>;
@@ -382,20 +389,11 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 			{
 			protected:
 				CData<ElementType, rows, columns> _data;
-#		ifdef MSVC_LIMITATIONS
-				CDataContainer() {}
-			private:
-				CDataContainer(const CDataContainer &);
-			protected:
-				~CDataContainer() {}
-			private:
-				CDataContainer &operator =(const CDataContainer &);
-			protected:
-#		else
+#		ifndef MSVC_LIMITATIONS
 				CDataContainer() = default;
-				CDataContainer(const CDataContainer &) = delete;
+				CDataContainer(const CDataContainer &) = default;
 				~CDataContainer() = default;
-				CDataContainer &operator =(const CDataContainer &) = delete;
+				CDataContainer &operator =(const CDataContainer &) = default;
 #		endif
 			};
 
@@ -627,27 +625,16 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 					typedef TSwizzleTraits<srcColumns, CSrcSwizzleVector> TSrcSwizzleTraits;
 					static_assert(dimension <= TSrcSwizzleTraits::TDimension::value, "\"copy\" ctor: too few components in src");
 					for (unsigned i = 0; i < dimension; i++)
-						operator [](i) = src[i];
+						new(&operator [](i)) ElementType(src[i]);
 				}
-#				ifdef NO_DELEGATING_CTORS
-				vector(const vector &right)
-				{
-					new(this) vector(static_cast<const CSwizzle<ElementType, 0, dimension, 0u, void> &>(right));
-				}
-#				else
-				vector(const vector &right): vector(static_cast<const CSwizzle<ElementType, 0, dimension, 0u, void> &>(right))
-				{
-				}
-#				endif
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector>
 				vector &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector> &right)
 				{
-					this->~vector();
-					return *new(this) vector(right);
-				}
-				vector &operator =(const vector &right)
-				{
-					return operator =<ElementType, 0, dimension, 0u, void>(right);
+					typedef TSwizzleTraits<rightColumns, CRightSwizzleVector> TRightSwizzleTraits;
+					static_assert(dimension <= TRightSwizzleTraits::TDimension::value, "operator =: too few components in src");
+					for (unsigned i = 0; i < dimension; i++)
+						operator [](i) = right[i];
+					return *this;
 				}
 				const ElementType &operator [](unsigned int idx) const noexcept
 				{
@@ -669,12 +656,20 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				const TRow &operator [](unsigned int idx) const noexcept
 				{
 					_ASSERTE(idx < rows);
-					return CDataContainer<ElementType, rows, columns>::_matrixData._rows[idx];
+#		ifdef MSVC_LIMITATIONS
+					return reinterpret_cast<const TRow &>(CDataContainer<ElementType, rows, columns>::_data._rows[idx]);
+#		else
+					return CDataContainer<ElementType, rows, columns>::_data._rows[idx];
+#		endif
 				}
 				TRow &operator [](unsigned int idx) noexcept
 				{
 					_ASSERTE(idx < rows);
-					return CDataContainer<ElementType, rows, columns>::_matrixData._rows[idx];
+#		ifdef MSVC_LIMITATIONS
+					return reinterpret_cast<TRow &>(CDataContainer<ElementType, rows, columns>::_data._rows[idx]);
+#		else
+					return CDataContainer<ElementType, rows, columns>::_data._rows[idx];
+#		endif
 				}
 			};
 #	pragma region(temp test)
