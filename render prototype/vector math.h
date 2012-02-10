@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		9.2.2012 (c)Alexey Shaydurov
+\date		10.2.2012 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -119,7 +119,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 		CSwizzle &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector> &right)\
 		{\
 			/*static_assert(mpl::size<mpl::unique<mpl::sort<SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))>::type, std::is_same<mpl::_, mpl::_>>::type>::value == mpl::size<SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))>::value, "!");*/\
-			static_assert(BOOST_PP_SEQ_SIZE(leftSwizzleSeq) <= mpl::size<CRightSwizzleVector>::type::value, "operator =: too few components in src");\
+			static_assert(BOOST_PP_SEQ_SIZE(leftSwizzleSeq) <= mpl::size<CRightSwizzleVector>::type::value, "operator =: too few src dimension");\
 			/*BOOST_PP_FOR((0, BOOST_PP_SEQ_SIZE(leftSwizzleSeq), leftSwizzleSeq, CRightSwizzleVector), GENERATE_SCALAR_OPERATION_PRED, GENERATE_SCALAR_OPERATION_OP, GENERATE_SCALAR_OPERATION_MACRO)*/\
 			for (unsigned int idx = 0; idx < BOOST_PP_SEQ_SIZE(leftSwizzleSeq); idx++)\
 			{\
@@ -127,7 +127,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 			}\
 			return *this;\
 		};
-#	define GENERATE_ASSIGN_OPERATOR(leftSwizzleSeq) \
+#	define GENERATE_COPY_ASSIGN_OPERATOR(leftSwizzleSeq) \
 		CSwizzle &operator =(const CSwizzle &right)\
 		{\
 			return operator =<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>(right);\
@@ -139,7 +139,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 #	else
 #		define GENERATE_ASSIGN_OPERATORS(leftSwizzleSeq) \
 			GENERATE_TEMPLATED_ASSIGN_OPERATOR(leftSwizzleSeq)\
-			GENERATE_ASSIGN_OPERATOR(leftSwizzleSeq)
+			GENERATE_COPY_ASSIGN_OPERATOR(leftSwizzleSeq)
 #		define DISABLE_ASSIGN_OPERATOR(leftSwizzleSeq) CSwizzle &operator =(const CSwizzle &) = delete;
 #	endif
 #	define SWIZZLES_INNER_LOOP_MACRO(r, state) \
@@ -152,7 +152,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 	GENERATE_SWIZZLES()
 #	undef SWIZZLES_INNER_LOOP_MACRO
 #	undef GENERATE_TEMPLATED_ASSIGN_OPERATOR
-#	undef GENERATE_ASSIGN_OPERATOR
+#	undef GENERATE_COPY_ASSIGN_OPERATOR
 #	undef GENERATE_ASSIGN_OPERATORS
 //#	define GENERATE_SWIZZLE_CLASS(swizzle_seq) \
 //			class CSwizzle<SWIZZLE_SEQ_2_VECTOR(swizzle_seq)>\
@@ -398,7 +398,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 			};
 
 			// specializations for graphics vectors
-#			define BOOST_PP_ITERATION_LIMITS (0, 4)
+#			define BOOST_PP_ITERATION_LIMITS (0, 0)
 #			define BOOST_PP_FILENAME_1 "vector math.h"
 #			include BOOST_PP_ITERATE()
 
@@ -579,7 +579,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 					typedef TSwizzleTraits<leftColumns, CLeftSwizzleVector> TLeftSwizzleTraits;
 					typedef TSwizzleTraits<rightColumns, CRightSwizzleVector> TRightSwizzleTraits;
 					static_assert(TLeftSwizzleTraits::TIsWriteMaskValid::value, "operator +=: invalid write mask");
-					static_assert(TLeftSwizzleTraits::TDimension::value <= TRightSwizzleTraits::TDimension::value, "operator +=: too few components in src");
+					static_assert(TLeftSwizzleTraits::TDimension::value <= TRightSwizzleTraits::TDimension::value, "operator +=: too few src dimension");
 					for (typename TLeftSwizzleTraits::TDimension::value_type i = 0; i < TLeftSwizzleTraits::TDimension::value; i++)
 						left[i] += right[i];
 					return left;
@@ -606,72 +606,270 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				//using CDataContainer<ElementType, dimension>::_data;
 			public:
 #				ifdef MSVC_LIMITATIONS
-				vector() {}
+				vector(): CDataContainer() {}
 #				else
 				vector() = default;
 #				endif
-				vector(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar)
-				{
-					std::fill_n(CDataContainer<ElementType, 0, dimension>::_data._data, dimension, scalar);
-				}
+
+				vector(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar);
+
 				template<typename TIterator>
-				vector(TIterator src)
-				{
-					std::copy_n(src, dimension, CDataContainer<ElementType, 0, dimension>::_data._data);
-				}
+				vector(TIterator src);
+
 				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, unsigned short srcPackedSwizzle, class CSrcSwizzleVector>
-				vector(const CSwizzle<SrcElementType, srcRows, srcColumns, srcPackedSwizzle, CSrcSwizzleVector> &src)
-				{
-					typedef TSwizzleTraits<srcColumns, CSrcSwizzleVector> TSrcSwizzleTraits;
-					static_assert(dimension <= TSrcSwizzleTraits::TDimension::value, "\"copy\" ctor: too few components in src");
-					for (unsigned i = 0; i < dimension; i++)
-						new(&operator [](i)) ElementType(src[i]);
-				}
+				vector(const CSwizzle<SrcElementType, srcRows, srcColumns, srcPackedSwizzle, CSrcSwizzleVector> &src);
+
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector>
-				vector &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector> &right)
-				{
-					typedef TSwizzleTraits<rightColumns, CRightSwizzleVector> TRightSwizzleTraits;
-					static_assert(dimension <= TRightSwizzleTraits::TDimension::value, "operator =: too few components in src");
-					for (unsigned i = 0; i < dimension; i++)
-						operator [](i) = right[i];
-					return *this;
-				}
-				const ElementType &operator [](unsigned int idx) const noexcept
-				{
-					_ASSERTE(idx < dimension);
-					return CDataContainer<ElementType, 0, dimension>::_data._data[idx];
-				}
-				ElementType &operator [](unsigned int idx) noexcept
-				{
-					_ASSERTE(idx < dimension);
-					return CDataContainer<ElementType, 0, dimension>::_data._data[idx];
-				}
+				vector &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector> &right);
+
+				const ElementType &operator [](unsigned int idx) const noexcept;
+
+				ElementType &operator [](unsigned int idx) noexcept;
 			};
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			class matrix: public CDataContainer<ElementType, rows, columns>
 			{
+				static_assert(rows > 0, "matrix should contain at leat 1 row");
+				static_assert(columns > 0, "matrix should contain at leat 1 column");
 				typedef vector<ElementType, columns> TRow;
 			public:
-				const TRow &operator [](unsigned int idx) const noexcept
+#				ifdef MSVC_LIMITATIONS
+				matrix(): CDataContainer() {}
+#				else
+				matrix() = default;
+#				endif
+
+				matrix(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar);
+
+				template<typename TIterator>
+				matrix(TIterator src);
+
+				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
+				matrix(const matrix<SrcElementType, srcRows, srcColumns> &src);
+
+				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns>
+				matrix &operator =(const matrix<RightElementType, rightRows, rightColumns> &right);
+
+				const matrix &operator +() const noexcept
 				{
-					_ASSERTE(idx < rows);
-#		ifdef MSVC_LIMITATIONS
-					return reinterpret_cast<const TRow &>(CDataContainer<ElementType, rows, columns>::_data._rows[idx]);
-#		else
-					return CDataContainer<ElementType, rows, columns>::_data._rows[idx];
-#		endif
+					return *this;
 				}
-				TRow &operator [](unsigned int idx) noexcept
+
+				matrix &operator +() noexcept
 				{
-					_ASSERTE(idx < rows);
-#		ifdef MSVC_LIMITATIONS
-					return reinterpret_cast<TRow &>(CDataContainer<ElementType, rows, columns>::_data._rows[idx]);
-#		else
-					return CDataContainer<ElementType, rows, columns>::_data._rows[idx];
-#		endif
+					return *this;
 				}
+
+				matrix operator -() const;
+
+				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns>
+				matrix &operator +=(const matrix<RightElementType, rightRows, rightColumns> &right);
+
+				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns>
+				matrix
+				<
+					decltype(declval<ElementType>() + declval<RightElementType>()),
+					mpl::min<std::integral_constant<unsigned, rows>, std::integral_constant<unsigned, rightRows>>::type::value,
+					mpl::min<std::integral_constant<unsigned, columns>, std::integral_constant<unsigned, rightColumns>>::type::value
+				>
+				operator +(const matrix<RightElementType, rightRows, rightColumns> &right) const;
+
+				const TRow &operator [](unsigned int idx) const noexcept;
+
+				TRow &operator [](unsigned int idx) noexcept;
 			};
+
+#			pragma region(vector impl)
+				template<typename ElementType, unsigned int dimension>
+				inline const ElementType &vector<ElementType, dimension>::operator [](unsigned int idx) const noexcept
+				{
+					_ASSERTE(idx < dimension);
+					return CDataContainer<ElementType, 0, dimension>::_data._data[idx];
+				}
+
+				template<typename ElementType, unsigned int dimension>
+				inline ElementType &vector<ElementType, dimension>::operator [](unsigned int idx) noexcept
+				{
+					_ASSERTE(idx < dimension);
+					return CDataContainer<ElementType, 0, dimension>::_data._data[idx];
+				}
+
+				template<typename ElementType, unsigned int dimension>
+				inline vector<ElementType, dimension>::vector(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar)
+				{
+					std::fill_n(CDataContainer<ElementType, 0, dimension>::_data._data, dimension, scalar);
+				}
+
+				template<typename ElementType, unsigned int dimension>
+				template<typename TIterator>
+				inline vector<ElementType, dimension>::vector(TIterator src)
+				{
+					std::copy_n(src, dimension, CDataContainer<ElementType, 0, dimension>::_data._data);
+				}
+
+				template<typename ElementType, unsigned int dimension>
+				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, unsigned short srcPackedSwizzle, class CSrcSwizzleVector>
+				inline vector<ElementType, dimension>::vector(const CSwizzle<SrcElementType, srcRows, srcColumns, srcPackedSwizzle, CSrcSwizzleVector> &src)
+				{
+					typedef TSwizzleTraits<srcColumns, CSrcSwizzleVector> TSrcSwizzleTraits;
+					static_assert(dimension <= TSrcSwizzleTraits::TDimension::value, "\"copy\" ctor: too few src dimension");
+					for (unsigned i = 0; i < dimension; i++)
+						new(&operator [](i)) ElementType(src[i]);
+				}
+
+				template<typename ElementType, unsigned int dimension>
+				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector>
+				inline vector<ElementType, dimension> &vector<ElementType, dimension>::operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector> &right)
+				{
+					typedef TSwizzleTraits<rightColumns, CRightSwizzleVector> TRightSwizzleTraits;
+					static_assert(dimension <= TRightSwizzleTraits::TDimension::value, "operator =: too few src dimension");
+					for (unsigned i = 0; i < dimension; i++)
+						operator [](i) = right[i];
+					return *this;
+				}
+#			pragma endregion
+#			pragma region(matrix impl)
+				template<typename ElementType, unsigned int rows, unsigned int columns>
+				inline auto matrix<ElementType, rows, columns>::operator [](unsigned int idx) const noexcept -> const typename matrix::TRow &
+				{
+					_ASSERTE(idx < rows);
+#				ifdef MSVC_LIMITATIONS
+					return reinterpret_cast<const TRow &>(CDataContainer<ElementType, rows, columns>::_data._rows[idx]);
+#				else
+					return CDataContainer<ElementType, rows, columns>::_data._rows[idx];
+#				endif
+				}
+
+				template<typename ElementType, unsigned int rows, unsigned int columns>
+				inline auto matrix<ElementType, rows, columns>::operator [](unsigned int idx) noexcept -> typename matrix::TRow &
+				{
+					_ASSERTE(idx < rows);
+#				ifdef MSVC_LIMITATIONS
+					return reinterpret_cast<TRow &>(CDataContainer<ElementType, rows, columns>::_data._rows[idx]);
+#				else
+					return CDataContainer<ElementType, rows, columns>::_data._rows[idx];
+#				endif
+				}
+
+				/*
+				note:
+				it is impossible to init array in ctor's init list
+				therefore default ctor for each array element (vector row in our case) called before ctor body
+				it necessitate to call dtor before row ctor
+				*/
+
+				template<typename ElementType, unsigned int rows, unsigned int columns>
+				inline matrix<ElementType, rows, columns>::matrix(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar)
+				{
+					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)
+					{
+						auto curRow = &operator [](rowIdx);
+						curRow->~TRow();
+						new(curRow) TRow(scalar);
+					}
+				}
+
+				template<typename ElementType, unsigned int rows, unsigned int columns>
+				template<typename TIterator>
+				inline matrix<ElementType, rows, columns>::matrix(TIterator src)
+				{
+					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)
+					{
+						auto curRow = &operator [](rowIdx);
+						curRow->~TRow();
+						new(curRow) TRow(*src);
+						src += columns;
+					}
+				}
+
+				template<typename ElementType, unsigned int rows, unsigned int columns>
+				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
+				inline matrix<ElementType, rows, columns>::matrix(const matrix<SrcElementType, srcRows, srcColumns> &src)
+				{
+					static_assert(rows <= srcRows, "\"copy\" ctor: too few rows in src");
+					static_assert(columns <= srcColumns, "\"copy\" ctor: too few columns in src");
+					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)
+					{
+						auto curRow = &operator [](rowIdx);
+						curRow->~TRow();
+						new(curRow) TRow(src[rowIdx]);
+					}
+				}
+
+				template<typename ElementType, unsigned int rows, unsigned int columns>
+				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns>
+				inline auto matrix<ElementType, rows, columns>::operator =(const matrix<RightElementType, rightRows, rightColumns> &right) -> matrix &
+				{
+					static_assert(rows <= rightRows, "operator =: too few rows in src");
+					static_assert(columns <= rightColumns, "operator =: too few columns in src");
+					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)
+						operator [](rowIdx) = right[rowIdx];
+					return *this;
+				}
+
+				template<typename ElementType, unsigned int rows, unsigned int columns>
+				inline auto matrix<ElementType, rows, columns>::operator -() const -> matrix
+				{
+					matrix result;
+					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)
+						result[rowIdx] = -operator [](rowIdx);
+					return result;
+				}
+
+				template<typename ElementType, unsigned int rows, unsigned int columns>
+				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns>
+				inline auto matrix<ElementType, rows, columns>::operator +=(const matrix<RightElementType, rightRows, rightColumns> &right) -> matrix &
+				{
+					static_assert(rows <= rightRows, "operator +=: too few rows in src");
+					static_assert(columns <= rightColumns, "operator +=: too few columns in src");
+					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)
+						operator [](rowIdx) += right[rowIdx];
+					return *this;
+				}
+
+				template<typename ElementType, unsigned int rows, unsigned int columns>
+				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns>
+				inline matrix
+				<
+					decltype(declval<ElementType>() + declval<RightElementType>()),
+					mpl::min<std::integral_constant<unsigned, rows>, std::integral_constant<unsigned, rightRows>>::type::value,
+					mpl::min<std::integral_constant<unsigned, columns>, std::integral_constant<unsigned, rightColumns>>::type::value
+				>
+				matrix<ElementType, rows, columns>::operator +(const matrix<RightElementType, rightRows, rightColumns> &right) const
+				{
+					matrix
+					<
+						decltype(declval<ElementType>() + declval<RightElementType>()),
+						mpl::min<std::integral_constant<unsigned, rows>, std::integral_constant<unsigned, rightRows>>::type::value,
+						mpl::min<std::integral_constant<unsigned, columns>, std::integral_constant<unsigned, rightColumns>>::type::value
+					>
+					result(*this);
+					return result += right;
+				}
+#			pragma endregion
+#			pragma region(vector/matrix functions)
+				template<typename LeftElementType, typename RightElementType, unsigned int resultRows, unsigned int resuleColumns, unsigned int rowXcolumnDimension>
+				matrix
+				<
+					decltype(declval<LeftElementType>() + declval<RightElementType>()),
+					resultRows, resuleColumns
+				>
+				mul(const matrix<LeftElementType, resultRows, rowXcolumnDimension> &left, const matrix<RightElementType, rowXcolumnDimension, resuleColumns> &right)
+				{
+					matrix
+					<
+						decltype(declval<LeftElementType>() + declval<RightElementType>()),
+						resultRows, resuleColumns
+					>
+					result;
+					for (unsigned r = 0; r < resultRows; r++)
+						for (unsigned c = 0; c < resuleColumns; c++)
+							for (unsigned i = 0; i < rowXcolumnDimension; i++)
+								result[r][c] = left[r][i] * right[i][c];
+					return result;
+				}
+#			pragma endregion
 #	pragma region(temp test)
 			template class vector<float, 4>;
 			template class CSwizzle<float, 0, 4, 0u, void>;
