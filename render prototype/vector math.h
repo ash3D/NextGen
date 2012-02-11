@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		10.2.2012 (c)Alexey Shaydurov
+\date		11.2.2012 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -263,6 +263,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 #	endif
 #	include <type_traits>
 #	include <algorithm>
+#	include <initializer_list>
 #	include <boost\preprocessor\iteration\iterate.hpp>
 //#	include <boost\preprocessor\repetition\repeat.hpp>
 #	include <boost\preprocessor\repetition\repeat_from_to.hpp>
@@ -599,6 +600,30 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				};
 #			pragma endregion
 
+			struct IInitListItem
+			{
+				virtual const void *operator [](unsigned idx) const noexcept = 0;
+			};
+
+			class CInitListItem final
+			{
+#ifndef MSVC_LIMITATIONS
+				CInitListItem() = delete;
+				CInitListItem(const CInitListItem &) = delete;
+				CInitListItem &operator =(const CInitListItem &) = delete;
+#endif
+			public:
+				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, unsigned short srcPackedSwizzle, class CSrcSwizzleVector>
+				CInitListItem(const CSwizzle<SrcElementType, srcRows, srcColumns, srcPackedSwizzle, CSrcSwizzleVector> &src) noexcept;
+
+				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
+				CInitListItem(const matrix<SrcElementType, srcRows, srcColumns> &src) noexcept;
+			private:
+				union
+				{
+				};
+			};
+
 			template<typename ElementType, unsigned int dimension>
 			class vector: public CDataContainer<ElementType, 0, dimension>
 			{
@@ -618,6 +643,8 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 
 				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, unsigned short srcPackedSwizzle, class CSrcSwizzleVector>
 				vector(const CSwizzle<SrcElementType, srcRows, srcColumns, srcPackedSwizzle, CSrcSwizzleVector> &src);
+
+				vector(std::initializer_list<CInitListItem> initList);
 
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector>
 				vector &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector> &right);
