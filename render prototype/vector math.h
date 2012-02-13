@@ -36,21 +36,21 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 	(_21)(_22)(_23)(_24)\
 	(_31)(_32)(_33)(_34)\
 	(_41)(_42)(_43)(_44)
-#	define GENERATE_ZERO_SEQ_PRED(d, state) BOOST_PP_LESS(BOOST_PP_SEQ_SIZE(BOOST_PP_TUPLE_ELEM(2, 1, state)), BOOST_PP_TUPLE_ELEM(2, 0, state))
+#	define GENERATE_ZERO_SEQ_PRED(d, state) BOOST_PP_LESS_D(d, BOOST_PP_SEQ_SIZE(BOOST_PP_TUPLE_ELEM(2, 1, state)), BOOST_PP_TUPLE_ELEM(2, 0, state))
 #	define GENERATE_ZERO_SEQ_OP(d, state) (BOOST_PP_TUPLE_ELEM(2, 0, state), BOOST_PP_SEQ_PUSH_BACK(BOOST_PP_TUPLE_ELEM(2, 1, state), 0))
 #	define GENERATE_ZERO_SEQ(size) BOOST_PP_TUPLE_ELEM(2, 1, BOOST_PP_WHILE(GENERATE_ZERO_SEQ_PRED, GENERATE_ZERO_SEQ_OP, (size, )))
 #
 #	define IS_SEQ_ZERO_OP(s, state, elem) BOOST_PP_BITAND(state, BOOST_PP_EQUAL(elem, 0))
 #	define IS_SEQ_ZERO(seq) BOOST_PP_SEQ_FOLD_LEFT(IS_SEQ_ZERO_OP, 1, seq)
 #
-#	define IS_SEQ_UNIQUE_PRED(d, state) BOOST_PP_LESS(BOOST_PP_TUPLE_ELEM(3, 1, state), BOOST_PP_SEQ_SIZE(BOOST_PP_TUPLE_ELEM(3, 2, state)))
+#	define IS_SEQ_UNIQUE_PRED(d, state) BOOST_PP_LESS_D(d, BOOST_PP_TUPLE_ELEM(3, 1, state), BOOST_PP_SEQ_SIZE(BOOST_PP_TUPLE_ELEM(3, 2, state)))
 #	define IS_SEQ_ELEM_UNIQUE(s, state, elem) (BOOST_PP_BITAND(BOOST_PP_TUPLE_ELEM(2, 0, state), BOOST_PP_NOT_EQUAL(elem, BOOST_PP_TUPLE_ELEM(2, 1, state))), BOOST_PP_TUPLE_ELEM(2, 1, state))
 #	define IS_SEQ_UNIQUE_OP(d, state) (BOOST_PP_BITAND(BOOST_PP_TUPLE_ELEM(3, 0, state), BOOST_PP_TUPLE_ELEM(2, 0, BOOST_PP_SEQ_FOLD_LEFT(IS_SEQ_ELEM_UNIQUE, (1, BOOST_PP_SEQ_ELEM(BOOST_PP_TUPLE_ELEM(3, 1, state), BOOST_PP_TUPLE_ELEM(3, 2, state))), BOOST_PP_SEQ_FIRST_N(BOOST_PP_TUPLE_ELEM(3, 1, state), BOOST_PP_TUPLE_ELEM(3, 2, state))))), BOOST_PP_INC(BOOST_PP_TUPLE_ELEM(3, 1, state)), BOOST_PP_TUPLE_ELEM(3, 2, state))
 #	define IS_SEQ_UNIQUE(seq) BOOST_PP_TUPLE_ELEM(3, 0, BOOST_PP_WHILE(IS_SEQ_UNIQUE_PRED, IS_SEQ_UNIQUE_OP, (1, 1, seq)))
 #
 #	define INC_MODULO(elem, modulo1, modulo2) BOOST_PP_MOD(BOOST_PP_IF(BOOST_PP_MOD(BOOST_PP_MOD(BOOST_PP_INC(elem), 4), modulo1), BOOST_PP_INC(elem), BOOST_PP_SUB(BOOST_PP_ADD(elem, 4), BOOST_PP_MOD(BOOST_PP_ADD(elem, 4), 4))), BOOST_PP_MUL(modulo2, 4))
 #	// ?: BOOST_PP_BITAND does not work in VS 2010
-#	define INC_SEQ_PRED(d, state) BOOST_PP_AND(BOOST_PP_LESS(BOOST_PP_TUPLE_ELEM(4, 3, state), BOOST_PP_SEQ_SIZE(BOOST_PP_TUPLE_ELEM(4, 0, state))), BOOST_PP_BITOR(BOOST_PP_EQUAL(BOOST_PP_TUPLE_ELEM(4, 3, state), 0), BOOST_PP_EQUAL(BOOST_PP_SEQ_ELEM(BOOST_PP_DEC(BOOST_PP_TUPLE_ELEM(4, 3, state)), BOOST_PP_TUPLE_ELEM(4, 0, state)), 0)))
+#	define INC_SEQ_PRED(d, state) BOOST_PP_AND(BOOST_PP_LESS_D(d, BOOST_PP_TUPLE_ELEM(4, 3, state), BOOST_PP_SEQ_SIZE(BOOST_PP_TUPLE_ELEM(4, 0, state))), BOOST_PP_BITOR(BOOST_PP_EQUAL(BOOST_PP_TUPLE_ELEM(4, 3, state), 0), BOOST_PP_EQUAL(BOOST_PP_SEQ_ELEM(BOOST_PP_DEC(BOOST_PP_TUPLE_ELEM(4, 3, state)), BOOST_PP_TUPLE_ELEM(4, 0, state)), 0)))
 #	define INC_SEQ_OP(d, state) (BOOST_PP_SEQ_REPLACE(BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 3, state), INC_MODULO(BOOST_PP_SEQ_ELEM(BOOST_PP_TUPLE_ELEM(4, 3, state), BOOST_PP_TUPLE_ELEM(4, 0, state)), BOOST_PP_TUPLE_ELEM(4, 1, state), BOOST_PP_TUPLE_ELEM(4, 2, state))), BOOST_PP_TUPLE_ELEM(4, 1, state), BOOST_PP_TUPLE_ELEM(4, 2, state), BOOST_PP_INC(BOOST_PP_TUPLE_ELEM(4, 3, state)))
 #	//																															  cur idx
 #	//																																 ^
@@ -75,9 +75,9 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 //		{\
 //		} SWIZZLE(state);
 #	define SWIZZLES_INTERMIDIATE_LOOP_OP(r, state) (BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, BOOST_PP_WHILE(SWIZZLES_INNER_LOOP_PRED, SWIZZLES_INNER_LOOP_OP, (BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, state), 0, BOOST_PP_TUPLE_ELEM(4, 3, state)))), BOOST_PP_INC(BOOST_PP_TUPLE_ELEM(4, 2, state)), BOOST_PP_TUPLE_ELEM(4, 3, state))
-#	define SWIZZLES_INTERMIDIATE_LOOP_MACRO(r, state) BOOST_PP_FOR((BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, state), 0, BOOST_PP_TUPLE_ELEM(4, 3, state)), SWIZZLES_INNER_LOOP_PRED, SWIZZLES_INNER_LOOP_OP, SWIZZLES_INNER_LOOP_MACRO)
+#	define SWIZZLES_INTERMIDIATE_LOOP_MACRO(r, state) BOOST_PP_FOR_##r((BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, state), 0, BOOST_PP_TUPLE_ELEM(4, 3, state)), SWIZZLES_INNER_LOOP_PRED, SWIZZLES_INNER_LOOP_OP, SWIZZLES_INNER_LOOP_MACRO)
 #	define SWIZZLES_OP(r, state) (BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, BOOST_PP_WHILE(SWIZZLES_INNER_LOOP_PRED, SWIZZLES_INTERMIDIATE_LOOP_OP, (BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, state), 0, BOOST_PP_TUPLE_ELEM(4, 3, state)))), BOOST_PP_INC(BOOST_PP_TUPLE_ELEM(4, 2, state)), BOOST_PP_TUPLE_ELEM(4, 3, state))
-#	define SWIZZLES_MACRO(r, state) BOOST_PP_FOR((BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, state), 0, BOOST_PP_TUPLE_ELEM(4, 3, state)), SWIZZLES_INNER_LOOP_PRED, SWIZZLES_INTERMIDIATE_LOOP_OP, SWIZZLES_INTERMIDIATE_LOOP_MACRO)
+#	define SWIZZLES_MACRO(r, state) BOOST_PP_FOR_##r((BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, state), 0, BOOST_PP_TUPLE_ELEM(4, 3, state)), SWIZZLES_INNER_LOOP_PRED, SWIZZLES_INTERMIDIATE_LOOP_OP, SWIZZLES_INTERMIDIATE_LOOP_MACRO)
 #	define SWIZZLES(z, i, CALLBACK) \
 		SWIZZLES_INNER_LOOP_MACRO(z, (CALLBACK, GENERATE_ZERO_SEQ(i), , ))\
 		/*																		 cur iteration		max iterations
@@ -92,7 +92,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 #	define SWIZZLE_SEQ_2_VECTOR(seq) mpl::vector_c<unsigned int, BOOST_PP_TUPLE_REM_CTOR(BOOST_PP_SEQ_SIZE(seq), BOOST_PP_SEQ_TO_TUPLE(seq))>
 #
 #	define PACK_SWIZZLE_PRED(d, state) BOOST_PP_SEQ_SIZE(BOOST_PP_TUPLE_ELEM(3, 2, state))
-#	define PACK_SWIZZLE_OP(d, state) (BOOST_PP_TUPLE_ELEM(3, 0, state) + (BOOST_PP_SEQ_HEAD(BOOST_PP_TUPLE_ELEM(3, 2, state)) << BOOST_PP_TUPLE_ELEM(3, 1, state)), BOOST_PP_ADD(BOOST_PP_TUPLE_ELEM(3, 1, state), 4), BOOST_PP_SEQ_TAIL(BOOST_PP_TUPLE_ELEM(3, 2, state)))
+#	define PACK_SWIZZLE_OP(d, state) (BOOST_PP_TUPLE_ELEM(3, 0, state) + (BOOST_PP_SEQ_HEAD(BOOST_PP_TUPLE_ELEM(3, 2, state)) << BOOST_PP_TUPLE_ELEM(3, 1, state)), BOOST_PP_ADD_D(d, BOOST_PP_TUPLE_ELEM(3, 1, state), 4), BOOST_PP_SEQ_TAIL(BOOST_PP_TUPLE_ELEM(3, 2, state)))
 #	//																							   result		insert pos
 #	//																								  ^				^
 #	//																								  |____		____|
@@ -119,7 +119,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 		CSwizzle &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector> &right)\
 		{\
 			/*static_assert(mpl::size<mpl::unique<mpl::sort<SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))>::type, std::is_same<mpl::_, mpl::_>>::type>::value == mpl::size<SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))>::value, "!");*/\
-			static_assert(BOOST_PP_SEQ_SIZE(leftSwizzleSeq) <= mpl::size<CRightSwizzleVector>::type::value, "operator =: too few src dimension");\
+			static_assert(BOOST_PP_SEQ_SIZE(leftSwizzleSeq) <= TSwizzleTraits<rightColumns, CRightSwizzleVector>::TDimension::value, "operator =: too few src dimension");\
 			/*BOOST_PP_FOR((0, BOOST_PP_SEQ_SIZE(leftSwizzleSeq), leftSwizzleSeq, CRightSwizzleVector), GENERATE_SCALAR_OPERATION_PRED, GENERATE_SCALAR_OPERATION_OP, GENERATE_SCALAR_OPERATION_MACRO)*/\
 			for (unsigned int idx = 0; idx < BOOST_PP_SEQ_SIZE(leftSwizzleSeq); idx++)\
 			{\
@@ -335,29 +335,22 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			class CDataContainer;
 
-			class CDataBase
-			{
-#		ifndef MSVC_LIMITATIONS
-			protected:
-				CDataBase() = default;
-				CDataBase(const CDataBase &) = default;
-				~CDataBase() = default;
-				CDataBase &operator =(const CDataBase &) = default;
-#		endif
-			};
-
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			class CData: CDataBase final
+			class CData final
 			{
 				friend class matrix<ElementType, rows, columns>;
 
-				//template<typename, unsigned int, unsigned int, unsigned short, class>
-				//friend class CSwizzle;
+				template<typename, unsigned int, unsigned int, unsigned short, class>
+				friend class CGenericSwizzleCommon;
 
-				//template<typename, unsigned int, unsigned int, unsigned short, class>
-				//friend class CGenericSwizzleCommon;
-
-				//friend class CDataContainer<ElementType, 0, dimension>;
+				friend class CDataContainer<ElementType, rows, columns>;
+#		ifndef MSVC_LIMITATIONS
+			private:
+				CData() = default;
+				CData(const CData &) = default;
+				~CData() = default;
+				CData &operator =(const CData &) = default;
+#		endif
 			private:
 #		ifdef MSVC_LIMITATIONS
 				ElementType _rows[rows][columns];
@@ -367,17 +360,21 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 			};
 
 			template<typename ElementType, unsigned int dimension>
-			class CData<ElementType, 0, dimension>: CDataBase final
+			class CData<ElementType, 0, dimension> final
 			{
 				friend class vector<ElementType, dimension>;
-
-				template<typename, unsigned int, unsigned int, unsigned short, class>
-				friend class CSwizzle;
 
 				template<typename, unsigned int, unsigned int, unsigned short, class>
 				friend class CGenericSwizzleCommon;
 
 				friend class CDataContainer<ElementType, 0, dimension>;
+#		ifndef MSVC_LIMITATIONS
+			private:
+				CData() = default;
+				CData(const CData &) = default;
+				~CData() = default;
+				CData &operator =(const CData &) = default;
+#		endif
 			private:
 				ElementType _data[dimension];
 			};
@@ -396,6 +393,20 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				~CDataContainer() = default;
 				CDataContainer &operator =(const CDataContainer &) = default;
 #		endif
+			};
+
+			template<unsigned int vectorDimension, class CSwizzleVector>
+			struct TSwizzleTraits
+			{
+			private:
+				typedef mpl::not_<std::is_void<CSwizzleVector>> TIsSwizzle;
+			public:
+				typedef typename std::conditional<TIsSwizzle::value, mpl::size<CSwizzleVector>, std::integral_constant<unsigned, vectorDimension>>::type TDimension;
+			private:
+				typedef typename std::conditional<TIsSwizzle::value, mpl::sort<CSwizzleVector>, mpl::identity<void>>::type::type CSortedSwizzleVector;
+				typedef typename std::conditional<TIsSwizzle::value, mpl::unique<CSortedSwizzleVector, std::is_same<mpl::_, mpl::_>>, mpl::identity<void>>::type::type CUniqueSwizzleVector;
+			public:
+				typedef typename std::conditional<TIsSwizzle::value, mpl::equal_to<mpl::size<CUniqueSwizzleVector>, mpl::size<CSwizzleVector>>, std::true_type>::type TIsWriteMaskValid;
 			};
 
 			// specializations for graphics vectors
@@ -446,10 +457,10 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 									   static	 reinterpret
 										  ^			  ^
 										  |			  |
-					CGenericSwizzleCommon -> CSwizzle -> CMatrixData
+					CGenericSwizzleCommon -> CSwizzle -> CData
 					*/
 					typedef CData<ElementType, rows, columns> CData;
-					return reinterpret_cast<const CData &>(static_cast<const TSwizzle &>(*this))._data[row][column];
+					return reinterpret_cast<const CData &>(static_cast<const TSwizzle &>(*this))._rows[row][column];
 				}
 				ElementType &operator [](unsigned int idx) noexcept
 				{
@@ -538,20 +549,6 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 			};
 
 #			pragma region(generate operators)
-				template<unsigned int vectorDimension, class CSwizzleVector>
-				struct TSwizzleTraits
-				{
-				private:
-					typedef mpl::not_<std::is_void<CSwizzleVector>> TIsSwizzle;
-				public:
-					typedef typename std::conditional<TIsSwizzle::value, mpl::size<CSwizzleVector>, std::integral_constant<unsigned, vectorDimension>>::type TDimension;
-				private:
-					typedef typename std::conditional<TIsSwizzle::value, mpl::sort<CSwizzleVector>, mpl::identity<void>>::type::type CSortedSwizzleVector;
-					typedef typename std::conditional<TIsSwizzle::value, mpl::unique<CSortedSwizzleVector, std::is_same<mpl::_, mpl::_>>, mpl::identity<void>>::type::type CUniqueSwizzleVector;
-				public:
-					typedef typename std::conditional<TIsSwizzle::value, mpl::equal_to<mpl::size<CUniqueSwizzleVector>, mpl::size<CSwizzleVector>>, std::true_type>::type TIsWriteMaskValid;
-				};
-
 				template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector>
 				inline const typename CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector>::TOperationResult &operator +(const CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector> &src) noexcept
 				{

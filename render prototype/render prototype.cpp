@@ -59,9 +59,11 @@ void Proc()
 	DGLE2::VectorMath::CInitListItem<short> init_list[] = {vec4, 42};
 	DGLE2::VectorMath::vector<short, 5> vec5 = std::initializer_list<DGLE2::VectorMath::CInitListItem<short>>(init_list, init_list + _countof(init_list));
 	-vec5;
-	DGLE2::VectorMath::matrix<long, 4, 4> m4x4;
-	//m4x4._m33_m33_m33_m33;
-	m4x4[0];
+	DGLE2::VectorMath::matrix<long, 1, 4> m1x4;
+	//DGLE2::VectorMath::CInitListItem<double> lst[] = {0, 1, 2, 3};
+	//m1x4._m03_m02_m01_m00 = DGLE2::VectorMath::vector<double, 4>(std::initializer_list<DGLE2::VectorMath::CInitListItem<double>>(lst, lst + _countof(lst)));
+	m1x4[0];
+	DGLE2::VectorMath::matrix<long, 5, 4> m5x4;
 	static float angle;
 	//renderer->DrawRect(200, 200, 100, 100, ~0, NULL, angle);
 	//for (unsigned i = 0; i < 1024; i++)
