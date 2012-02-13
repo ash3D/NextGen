@@ -56,7 +56,8 @@ void Proc()
 	//vec4.zz += vec4.aa;
 	//vec4.zz = vec4.bb;
 	//vec4.xx = vec3.xx;
-	DGLE2::VectorMath::vector<short, 5> vec5;
+	DGLE2::VectorMath::CInitListItem<short> init_list[] = {vec4, 42};
+	DGLE2::VectorMath::vector<short, 5> vec5 = std::initializer_list<DGLE2::VectorMath::CInitListItem<short>>(init_list, init_list + _countof(init_list));
 	-vec5;
 	DGLE2::VectorMath::matrix<long, 4, 4> m4x4;
 	//m4x4._m33_m33_m33_m33;

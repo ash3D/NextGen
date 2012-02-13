@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		11.2.2012 (c)Alexey Shaydurov
+\date		13.2.2012 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -177,7 +177,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 		}
 		CDataContainer &operator =(const CDataContainer &right)
 		{
-			_data = right.data;
+			_data = right._data;
 			return *this;
 		}
 	public:
@@ -589,40 +589,13 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				template<typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, unsigned short leftPackedSwizzle, class CLeftSwizzleVector, typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector>
 				inline vector<decltype(declval<LeftElementType>() + declval<RightElementType>()), mpl::min<mpl::size<CLeftSwizzleVector>, mpl::size<CRightSwizzleVector>>::type::value> operator +(const CSwizzle<LeftElementType, leftRows, leftColumns, leftPackedSwizzle, CLeftSwizzleVector> &left, const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector> &right)
 				{
-					/*
-					static_cast effect:
-					if left is swizzle: conversion operator in CGenericSwizzleCommon (const CGenericSwizzleCommon & -> vector)
-					if left is vector: upcast
-					*/
-					//auto result(static_cast<const vector<decltype(declval<LeftElementType>() + declval<RightElementType>()), mpl::min<mpl::size<CLeftSwizzleVector>, mpl::size<CRightSwizzleVector>>::type::value> &>(left));
 					vector<decltype(declval<LeftElementType>() + declval<RightElementType>()), mpl::min<mpl::size<CLeftSwizzleVector>, mpl::size<CRightSwizzleVector>>::type::value> result(left);
 					return result += right;
 				};
 #			pragma endregion
 
-			struct IInitListItem
-			{
-				virtual const void *operator [](unsigned idx) const noexcept = 0;
-			};
-
-			class CInitListItem final
-			{
-#ifndef MSVC_LIMITATIONS
-				CInitListItem() = delete;
-				CInitListItem(const CInitListItem &) = delete;
-				CInitListItem &operator =(const CInitListItem &) = delete;
-#endif
-			public:
-				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, unsigned short srcPackedSwizzle, class CSrcSwizzleVector>
-				CInitListItem(const CSwizzle<SrcElementType, srcRows, srcColumns, srcPackedSwizzle, CSrcSwizzleVector> &src) noexcept;
-
-				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
-				CInitListItem(const matrix<SrcElementType, srcRows, srcColumns> &src) noexcept;
-			private:
-				union
-				{
-				};
-			};
+			template<typename ElementType>
+			class CInitListItem;
 
 			template<typename ElementType, unsigned int dimension>
 			class vector: public CDataContainer<ElementType, 0, dimension>
@@ -639,12 +612,12 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				vector(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar);
 
 				template<typename TIterator>
-				vector(TIterator src);
+				explicit vector(TIterator src);
 
 				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, unsigned short srcPackedSwizzle, class CSrcSwizzleVector>
 				vector(const CSwizzle<SrcElementType, srcRows, srcColumns, srcPackedSwizzle, CSrcSwizzleVector> &src);
 
-				vector(std::initializer_list<CInitListItem> initList);
+				vector(std::initializer_list<CInitListItem<ElementType>> initList);
 
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector>
 				vector &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector> &right);
@@ -670,10 +643,12 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				matrix(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar);
 
 				template<typename TIterator>
-				matrix(TIterator src);
+				explicit matrix(TIterator src);
 
 				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
 				matrix(const matrix<SrcElementType, srcRows, srcColumns> &src);
+
+				matrix(std::initializer_list<CInitListItem<ElementType>> initList);
 
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns>
 				matrix &operator =(const matrix<RightElementType, rightRows, rightColumns> &right);
@@ -707,6 +682,74 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				TRow &operator [](unsigned int idx) noexcept;
 			};
 
+#			pragma region(Initializer list)
+				template<typename TargetElementType, typename ItemElementType>
+				TargetElementType GetItemElement(const void *item, unsigned)
+				{
+					return *reinterpret_cast<const ItemElementType *>(item);
+				}
+
+				template<typename TargetElementType, typename ItemElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector>
+				TargetElementType GetItemElement(const void *item, unsigned idx)
+				{
+					const auto &swizzle = *reinterpret_cast<const CSwizzle<ItemElementType, rows, columns, packedSwizzle, CSwizzleVector> *>(item);
+					return swizzle[idx];
+				}
+
+				template<typename TargetElementType, typename ItemElementType, unsigned int rows, unsigned int columns>
+				TargetElementType GetItemElement(const void *item, unsigned idx)
+				{
+					const auto &m = *reinterpret_cast<const matrix<ItemElementType, rows, columns> *>(item);
+					return m[idx / columns][idx % columns];
+				}
+
+				template<typename ElementType>
+				class CInitListItem final
+				{
+#ifndef MSVC_LIMITATIONS
+					CInitListItem() = delete;
+					CInitListItem(const CInitListItem &) = delete;
+					CInitListItem &operator =(const CInitListItem &) = delete;
+#endif
+				public:
+					CInitListItem(const ElementType &item):
+						_getItemElement(GetItemElement<ElementType, ElementType>),
+						_item(&item),
+						_itemSize(1)
+					{
+					}
+
+					template<typename ItemElementType, unsigned int itemRows, unsigned int itemColumns, unsigned short itemPackedSwizzle, class CItemSwizzleVector>
+					CInitListItem(const CSwizzle<ItemElementType, itemRows, itemColumns, itemPackedSwizzle, CItemSwizzleVector> &item) noexcept:
+						_getItemElement(GetItemElement<ElementType, ItemElementType, itemRows, itemColumns, itemPackedSwizzle, CItemSwizzleVector>),
+						_item(&item),
+						_itemSize(TSwizzleTraits<itemColumns, CItemSwizzleVector>::TDimension::value)
+					{
+					}
+
+					template<typename ItemElementType, unsigned int itemRows, unsigned int itemColumns>
+					CInitListItem(const matrix<ItemElementType, itemRows, itemColumns> &item) noexcept:
+						_getItemElement(GetItemElement<ElementType, ItemElementType, itemRows, itemColumns>),
+						_item(&item),
+						_itemSize(itemRows * itemColumns)
+					{
+					}
+
+					ElementType operator [](unsigned idx) const
+					{
+						return _getItemElement(_item, idx);
+					}
+
+					unsigned GetItemSize() const noexcept
+					{
+						return _itemSize;
+					}
+				private:
+					ElementType (&_getItemElement)(const void *, unsigned);
+					const void *const _item;
+					const unsigned _itemSize;
+				};
+#			pragma endregion
 #			pragma region(vector impl)
 				template<typename ElementType, unsigned int dimension>
 				inline const ElementType &vector<ElementType, dimension>::operator [](unsigned int idx) const noexcept
@@ -743,6 +786,22 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 					static_assert(dimension <= TSrcSwizzleTraits::TDimension::value, "\"copy\" ctor: too few src dimension");
 					for (unsigned i = 0; i < dimension; i++)
 						new(&operator [](i)) ElementType(src[i]);
+				}
+
+				template<typename ElementType, unsigned int dimension>
+				inline vector<ElementType, dimension>::vector(std::initializer_list<CInitListItem<ElementType>> initList)
+				{
+					unsigned dst_idx = 0;
+#ifdef MSVC_LIMITATIONS
+					for (auto iter = initList.begin(), end = initList.end(); iter != end; ++iter)
+						for (unsigned item_element_idx = 0; item_element_idx < iter->GetItemSize(); item_element_idx++)
+							operator [](dst_idx++) = iter->operator [](item_element_idx);
+#else
+					for (const auto &item: initList)
+						for (unsigned item_element_idx = 0; item_element_idx < item.GetItemSize(); item_element_idx++)
+							operator [](dst_idx++) = item[item_element_idx];
+#endif
+					_ASSERTE(dst_idx == dimension);
 				}
 
 				template<typename ElementType, unsigned int dimension>
@@ -822,6 +881,22 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 						curRow->~TRow();
 						new(curRow) TRow(src[rowIdx]);
 					}
+				}
+
+				template<typename ElementType, unsigned int rows, unsigned int columns>
+				inline matrix<ElementType, rows, columns>::matrix(std::initializer_list<CInitListItem<ElementType>> initList)
+				{
+					unsigned dst_idx = 0;
+#ifdef MSVC_LIMITATIONS
+					for (auto iter = initList.begin(), end = initList.end(); iter != end; ++iter)
+						for (unsigned item_element_idx = 0; item_element_idx < iter->GetItemSize(); item_element_idx++)
+							operator [](dst_idx++) = iter->operator [](item_element_idx);
+#else
+					for (const auto &item: initList)
+						for (unsigned item_element_idx = 0; item_element_idx < item.GetItemSize(); item_element_idx++)
+							operator [](dst_idx++) = item[item_element_idx];
+#endif
+					_ASSERTE(dst_idx == rows * columns);
 				}
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
