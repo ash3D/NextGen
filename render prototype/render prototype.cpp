@@ -60,8 +60,9 @@ void Proc()
 	DGLE2::VectorMath::vector<short, 5> vec5 = std::initializer_list<DGLE2::VectorMath::CInitListItem<short>>(init_list, init_list + _countof(init_list));
 	-vec5;
 	DGLE2::VectorMath::matrix<long, 1, 4> m1x4;
-	//DGLE2::VectorMath::CInitListItem<double> lst[] = {0, 1, 2, 3};
-	//m1x4._m03_m02_m01_m00 = DGLE2::VectorMath::vector<double, 4>(std::initializer_list<DGLE2::VectorMath::CInitListItem<double>>(lst, lst + _countof(lst)));
+	DGLE2::VectorMath::CInitListItem<long> lst[] = {0, 1, 2, 3};
+	m1x4._m03_m02_m01_m00 = std::initializer_list<DGLE2::VectorMath::CInitListItem<long>>(lst, lst + _countof(lst));
+	m1x4 = std::initializer_list<DGLE2::VectorMath::CInitListItem<long>>(lst, lst + _countof(lst));
 	m1x4[0];
 	DGLE2::VectorMath::matrix<long, 5, 4> m5x4;
 	static float angle;
