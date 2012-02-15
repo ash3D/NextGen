@@ -45,8 +45,8 @@ const unsigned count = 512;
 
 void Proc()
 {
-	DGLE2::VectorMath::vector<int, 4> vec4(1);
-	DGLE2::VectorMath::vector<float, 3> vec3(2.f);
+	DGLE2::VectorMath::hlsl::int4 vec4(1l);
+	DGLE2::VectorMath::glsl::vec3 vec3(2.f);
 	vec4.wwww + vec3.rg;
 	vec4.zx += vec4.aa;
 	vec4.zx += vec4.aaa;
@@ -59,7 +59,7 @@ void Proc()
 	DGLE2::VectorMath::CInitListItem<short> init_list[] = {vec4, 42};
 	DGLE2::VectorMath::vector<short, 5> vec5 = std::initializer_list<DGLE2::VectorMath::CInitListItem<short>>(init_list, init_list + _countof(init_list));
 	-vec5;
-	DGLE2::VectorMath::matrix<long, 1, 4> m1x4;
+	DGLE2::VectorMath::hlsl::int1x4 m1x4;
 	DGLE2::VectorMath::CInitListItem<long> lst[] = {0, 1, 2, 3};
 	m1x4._m03_m02_m01_m00 = std::initializer_list<DGLE2::VectorMath::CInitListItem<long>>(lst, lst + _countof(lst));
 	m1x4 = std::initializer_list<DGLE2::VectorMath::CInitListItem<long>>(lst, lst + _countof(lst));

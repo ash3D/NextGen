@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		14.2.2012 (c)Alexey Shaydurov
+\date		15.2.2012 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -129,29 +129,12 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 		{\
 			return operator =<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>(right);\
 		}
-#ifdef MSVC_LIMITATIONS
 #	define GENERATE_INIT_LIST_ASSIGGN_OPERATOR(leftSwizzleSeq) \
 		CSwizzle &operator =(std::initializer_list<CInitListItem<ElementType>> initList)\
 		{\
-			unsigned dst_idx = 0;\
-			for (auto iter = initList.begin(), end = initList.end(); iter != end; ++iter)\
-				for (unsigned item_element_idx = 0; item_element_idx < iter->GetItemSize(); item_element_idx++)\
-					(*this)[dst_idx++] = iter->operator [](item_element_idx);\
-			_ASSERTE(dst_idx == BOOST_PP_SEQ_SIZE(leftSwizzleSeq));\
+			CSwizzleAssign<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>::operator =(initList);\
 			return *this;\
 		}
-#else
-#	define GENERATE_INIT_LIST_ASSIGGN_OPERATOR(leftSwizzleSeq) \
-		CSwizzle &operator =(std::initializer_list<CInitListItem<ElementType>> initList)\
-		{\
-			unsigned dst_idx = 0;\
-			for (const auto &item: initList)\
-				for (unsigned item_element_idx = 0; item_element_idx < item.GetItemSize(); item_element_idx++)\
-					(*this)[dst_idx++] = item[item_element_idx];\
-			_ASSERTE(dst_idx == BOOST_PP_SEQ_SIZE(leftSwizzleSeq));\
-			return *this;\
-		}
-#endif
 #	ifdef MSVC_LIMITATIONS
 		// VS 2010 does not allow operator = in union members
 #		define GENERATE_ASSIGN_OPERATORS(leftSwizzleSeq) \
@@ -181,6 +164,51 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 			SWIZZLE_TRIVIAL_CTORS_DTOR\
 		};
 	GENERATE_SWIZZLES()
+
+#	pragma region(generate typedefs)
+		// tuple: (C++, hlsl, glsl)
+#		define SCALAR_TYPES_MAPPINGS \
+			((bool, bool, b))\
+			((signed long, int, i))((unsigned long, uint, ui))\
+			((signed long long, long, l))((unsigned long long, ulong, ul))\
+			((float, float, ))((double, double, d))
+
+#		define CPP_SCALAR_TYPE(scalar_types_mapping) BOOST_PP_TUPLE_ELEM(3, 0, scalar_types_mapping)
+#		define HLSL_SCALAR_TYPE(scalar_types_mapping) BOOST_PP_TUPLE_ELEM(3, 1, scalar_types_mapping)
+#		define GLSL_SCALAR_TYPE(scalar_types_mapping) BOOST_PP_TUPLE_ELEM(3, 2, scalar_types_mapping)
+
+#		if ROWS == 0
+#			define CPP_CLASS(scalar_types_mapping) vector<CPP_SCALAR_TYPE(scalar_types_mapping), COLUMNS>
+#			define HLSL_CLASS(scalar_types_mapping) BOOST_PP_CAT(HLSL_SCALAR_TYPE(scalar_types_mapping), COLUMNS)
+#			define GLSL_CLASS(scalar_types_mapping) BOOST_PP_CAT(BOOST_PP_CAT(GLSL_SCALAR_TYPE(scalar_types_mapping), vec), COLUMNS)
+#		else
+#			define CPP_CLASS(scalar_types_mapping) matrix<CPP_SCALAR_TYPE(scalar_types_mapping), ROWS, COLUMNS>
+#			define HLSL_CLASS(scalar_types_mapping) BOOST_PP_CAT(BOOST_PP_CAT(BOOST_PP_CAT(HLSL_SCALAR_TYPE(scalar_types_mapping), ROWS), x), COLUMNS)
+#			define GLSL_CLASS(scalar_types_mapping) BOOST_PP_CAT(BOOST_PP_CAT(BOOST_PP_CAT(GLSL_SCALAR_TYPE(scalar_types_mapping), mat), ROWS), COLUMNS)
+#		endif
+
+#		define GENERATE_TYPEDEF(r, graphics_class, elem) typedef CPP_CLASS(elem) graphics_class(elem);
+
+		namespace hlsl
+		{
+			BOOST_PP_SEQ_FOR_EACH(GENERATE_TYPEDEF, HLSL_CLASS, SCALAR_TYPES_MAPPINGS)
+		}
+
+		namespace glsl
+		{
+			BOOST_PP_SEQ_FOR_EACH(GENERATE_TYPEDEF, GLSL_CLASS, SCALAR_TYPES_MAPPINGS)
+		}
+
+#		undef SCALAR_TYPES_MAPPINGS
+#		undef CPP_SCALAR_TYPE
+#		undef HLSL_SCALAR_TYPE
+#		undef GLSL_SCALAR_TYPE
+#		undef CPP_CLASS
+#		undef HLSL_CLASS
+#		undef GLSL_CLASS
+#		undef GENERATE_TYPEDEF
+#	pragma endregion
+
 #	undef SWIZZLES_INNER_LOOP_MACRO
 #	undef GENERATE_TEMPLATED_ASSIGN_OPERATOR
 #	undef GENERATE_COPY_ASSIGN_OPERATOR
@@ -332,6 +360,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 #	include <boost\preprocessor\seq\replace.hpp>
 #	include <boost\preprocessor\seq\fold_left.hpp>
 #	include <boost\preprocessor\seq\transform.hpp>
+#	include <boost\preprocessor\seq\for_each.hpp>
 #	include <boost\preprocessor\seq\cat.hpp>
 #	include <boost\preprocessor\seq\to_tuple.hpp>
 #	include <boost\mpl\placeholders.hpp>
@@ -465,6 +494,13 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				CSwizzleBase -> CSwizzle
 				*/
 				typedef CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector> TSwizzle;
+			protected:
+#ifndef MSVC_LIMITATIONS
+				CSwizzleBase() = default;
+				CSwizzleBase(const CSwizzleBase &) = default;
+				~CSwizzleBase() = default;
+				CSwizzleBase &operator =(const CSwizzleBase &) = default;
+#endif
 			public:
 				operator const ElementType &() const noexcept
 				{
@@ -486,6 +522,13 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 			{
 				typedef CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector> TSwizzle;
 				typedef matrix<ElementType, rows, columns> Tmatrix;
+			protected:
+#ifndef MSVC_LIMITATIONS
+				CSwizzleCommon() = default;
+				CSwizzleCommon(const CSwizzleCommon &) = delete;
+				~CSwizzleCommon() = default;
+				CSwizzleCommon &operator =(const CSwizzleCommon &) = delete;
+#endif
 			public:
 				typedef TSwizzle TOperationResult;
 			public:
@@ -529,6 +572,13 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				*/
 				typedef CSwizzle<ElementType, 0, vectorDimension, packedSwizzle, CSwizzleVector> TSwizzle;
 				typedef vector<ElementType, vectorDimension> Tvector;
+			protected:
+#ifndef MSVC_LIMITATIONS
+				CSwizzleCommon() = default;
+				CSwizzleCommon(const CSwizzleCommon &) = delete;
+				~CSwizzleCommon() = default;
+				CSwizzleCommon &operator =(const CSwizzleCommon &) = delete;
+#endif
 			public:
 				typedef TSwizzle TOperationResult;
 			public:
@@ -576,20 +626,24 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 					*/
 					return static_cast<const Tvector &>(*this);
 				}
+
 				operator const Tvector &() noexcept
 				{
 					return static_cast<const CSwizzleCommon *>(this)->operator const Tvector &();
 				}
+
 				operator Tvector &() noexcept
 				{
 					/* const version returns (const &), not value; *this object is not const => it is safe to use const_cast */
 					return const_cast<Tvector &>(operator const Tvector &());
 				}
-				const ElementType &operator [](unsigned int idx) const
+
+				const ElementType &operator [](unsigned int idx) const noexcept
 				{
 					return operator const Tvector &()[idx];
 				}
-				ElementType &operator [](unsigned int idx)
+
+				ElementType &operator [](unsigned int idx) noexcept
 				{
 					return operator Tvector &()[idx];
 				}
@@ -719,6 +773,9 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				const ElementType &operator [](unsigned int idx) const noexcept;
 
 				ElementType &operator [](unsigned int idx) noexcept;
+
+				template<typename F>
+				vector apply(F f);
 			};
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
@@ -776,6 +833,9 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				const TRow &operator [](unsigned int idx) const noexcept;
 
 				TRow &operator [](unsigned int idx) noexcept;
+
+				template<typename F>
+				matrix apply(F f);
 			};
 
 #			pragma region(Initializer list)
@@ -902,10 +962,20 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 
 				template<typename ElementType, unsigned int dimension>
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector>
-				inline vector<ElementType, dimension> &vector<ElementType, dimension>::operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector> &right)
+				inline auto vector<ElementType, dimension>::operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector> &right) -> vector &
 				{
 					CSwizzle<ElementType, 0, dimension, 0u, void>::operator =(right);
 					return *this;
+				}
+
+				template<typename ElementType, unsigned int dimension>
+				template<typename F>
+				inline auto vector<ElementType, dimension>::apply(F f) -> vector
+				{
+					vector result;
+					for (unsigned i = 0; i < dimension; i++)
+						result[i] = f(operator [](i));
+					return result;
 				}
 #			pragma endregion
 #			pragma region(matrix impl)
@@ -1049,33 +1119,79 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 					result(*this);
 					return result += right;
 				}
-#			pragma endregion
-#			pragma region(vector/matrix functions)
-				template<typename LeftElementType, typename RightElementType, unsigned int resultRows, unsigned int resuleColumns, unsigned int rowXcolumnDimension>
-				matrix
-				<
-					decltype(declval<LeftElementType>() + declval<RightElementType>()),
-					resultRows, resuleColumns
-				>
-				mul(const matrix<LeftElementType, resultRows, rowXcolumnDimension> &left, const matrix<RightElementType, rowXcolumnDimension, resuleColumns> &right)
+
+				template<typename ElementType, unsigned int rows, unsigned int columns>
+				template<typename F>
+				inline auto matrix<ElementType, rows, columns>::apply(F f) -> matrix
 				{
-					matrix
-					<
-						decltype(declval<LeftElementType>() + declval<RightElementType>()),
-						resultRows, resuleColumns
-					>
-					result;
-					for (unsigned r = 0; r < resultRows; r++)
-						for (unsigned c = 0; c < resuleColumns; c++)
-							for (unsigned i = 0; i < rowXcolumnDimension; i++)
-								result[r][c] = left[r][i] * right[i][c];
+					matrix result;
+					for (unsigned i = 0; i < rows; i++)
+						result[i].apply(f);
 					return result;
 				}
 #			pragma endregion
-#	pragma region(temp test)
-			template class vector<float, 4>;
-			template class CSwizzle<float, 0, 4, 0u, void>;
-#	pragma endregion
+#			pragma region(mul functions)
+				// note: most of these functions are not inline
+
+				template<typename LeftElementType, typename RightElementType, unsigned int rowXcolumnDimension>
+				inline decltype(declval<LeftElementType>() + declval<RightElementType>())
+				mul(const vector<LeftElementType, rowXcolumnDimension> &left, const vector<RightElementType, rowXcolumnDimension> &right)
+				{
+					decltype(declval<LeftElementType>() + declval<RightElementType>()) result(0);
+					for (unsigned i = 0; i < rowXcolumnDimension; i++)
+						result = left[i] * right[i];
+					return result;
+				}
+
+				template<typename LeftElementType, typename RightElementType, unsigned int resultColumns, unsigned int rowXcolumnDimension>
+				vector
+				<
+					decltype(declval<LeftElementType>() + declval<RightElementType>()),
+					resultColumns
+				>
+				mul(const vector<LeftElementType, rowXcolumnDimension> &left, const matrix<RightElementType, rowXcolumnDimension, resultColumns> &right)
+				{
+					typedef decltype(declval<LeftElementType>() + declval<RightElementType>()) ElementType;
+					vector <ElementType, resultColumns> result(ElementType(0));
+					for (unsigned c = 0; c < resultColumns; c++)
+						for (unsigned i = 0; i < rowXcolumnDimension; i++)
+							result[c] += left[i] * right[i][c];
+					return result;
+				}
+
+				template<typename LeftElementType, typename RightElementType, unsigned int resultRows, unsigned int rowXcolumnDimension>
+				vector
+				<
+					decltype(declval<LeftElementType>() + declval<RightElementType>()),
+					resultRows
+				>
+				mul(const matrix<LeftElementType, resultRows, rowXcolumnDimension> &left, const vector<RightElementType, rowXcolumnDimension> &right)
+				{
+					typedef decltype(declval<LeftElementType>() + declval<RightElementType>()) ElementType;
+					vector<ElementType, resultRows> result(ElementType(0));
+					for (unsigned r = 0; r < resultRows; r++)
+						for (unsigned i = 0; i < rowXcolumnDimension; i++)
+							result[r] += left[r][i] * right[i];
+					return result;
+				}
+
+				template<typename LeftElementType, typename RightElementType, unsigned int resultRows, unsigned int resultColumns, unsigned int rowXcolumnDimension>
+				matrix
+				<
+					decltype(declval<LeftElementType>() + declval<RightElementType>()),
+					resultRows, resultColumns
+				>
+				mul(const matrix<LeftElementType, resultRows, rowXcolumnDimension> &left, const matrix<RightElementType, rowXcolumnDimension, resultColumns> &right)
+				{
+					typedef decltype(declval<LeftElementType>() + declval<RightElementType>()) ElementType;
+					matrix<ElementType, resultRows, resultColumns> result(ElementType(0));
+					for (unsigned r = 0; r < resultRows; r++)
+						for (unsigned c = 0; c < resultColumns; c++)
+							for (unsigned i = 0; i < rowXcolumnDimension; i++)
+								result[r][c] += left[r][i] * right[i][c];
+					return result;
+				}
+#			pragma endregion
 		}
 	}
 //#	undef GET_SWIZZLE_ELEMENT
