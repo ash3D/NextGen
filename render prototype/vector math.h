@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		15.2.2012 (c)Alexey Shaydurov
+\date		18.2.2012 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -61,25 +61,25 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 #
 #	define SWIZZLES_INNER_LOOP_PRED(r, state) BOOST_PP_BITAND(BOOST_PP_NOT(IS_SEQ_ZERO(BOOST_PP_TUPLE_ELEM(4, 1, state))), BOOST_PP_LESS(BOOST_PP_TUPLE_ELEM(4, 2, state), BOOST_PP_TUPLE_ELEM(4, 3, state)))
 #	define SWIZZLES_INNER_LOOP_OP(r, state) (BOOST_PP_TUPLE_ELEM(4, 0, state), INC_SEQ(BOOST_PP_TUPLE_ELEM(4, 1, state), COLUMNS, BOOST_PP_MAX(ROWS, 1)), BOOST_PP_INC(BOOST_PP_TUPLE_ELEM(4, 2, state)), BOOST_PP_TUPLE_ELEM(4, 3, state))
-#	/*define SWIZZLES_INNER_LOOP_MACRO(r, state) \
-		class\
-		{\
+#	/*define SWIZZLES_INNER_LOOP_MACRO(r, state)	\
+		class										\
+		{											\
 		} BOOST_PP_SEQ_CAT(BOOST_PP_SEQ_TRANSFORM(IDX_2_SYMBOL, BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_TO_SEQ(BOOST_PP_ARRAY_SIZE(BOOST_PP_TUPLE_ELEM(4, 1, state)), BOOST_PP_ARRAY_DATA(BOOST_PP_TUPLE_ELEM(4, 1, state)))));*/
 #	define TRANSFORM_SWIZZLE(NAMING_SET, swizzle_seq) BOOST_PP_SEQ_CAT(BOOST_PP_SEQ_TRANSFORM(IDX_2_SYMBOL, NAMING_SET, swizzle_seq))
 //#	define SWIZZLE(state) BOOST_PP_SEQ_CAT(BOOST_PP_SEQ_TRANSFORM(IDX_2_SYMBOL, BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, state)))
 //#	define APPLY_CALLBACK(callback, arg) callback(arg)
 //#	define SWIZZLES_INNER_LOOP_MACRO(r, state) APPLY_CALLBACK(BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, state))
 //#	define SWIZZLES_INNER_LOOP_MACRO(r, state) BOOST_PP_TUPLE_ELEM(4, 0, state)(BOOST_PP_TUPLE_ELEM(4, 1, state))
-//#	define SWIZZLES_INNER_LOOP_MACRO(r, state) \
-//		class BOOST_PP_CAT(C, SWIZZLE(state))\
-//		{\
+//#	define SWIZZLES_INNER_LOOP_MACRO(r, state)	\
+//		class BOOST_PP_CAT(C, SWIZZLE(state))	\
+//		{										\
 //		} SWIZZLE(state);
 #	define SWIZZLES_INTERMIDIATE_LOOP_OP(r, state) (BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, BOOST_PP_WHILE(SWIZZLES_INNER_LOOP_PRED, SWIZZLES_INNER_LOOP_OP, (BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, state), 0, BOOST_PP_TUPLE_ELEM(4, 3, state)))), BOOST_PP_INC(BOOST_PP_TUPLE_ELEM(4, 2, state)), BOOST_PP_TUPLE_ELEM(4, 3, state))
 #	define SWIZZLES_INTERMIDIATE_LOOP_MACRO(r, state) BOOST_PP_FOR_##r((BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, state), 0, BOOST_PP_TUPLE_ELEM(4, 3, state)), SWIZZLES_INNER_LOOP_PRED, SWIZZLES_INNER_LOOP_OP, SWIZZLES_INNER_LOOP_MACRO)
 #	define SWIZZLES_OP(r, state) (BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, BOOST_PP_WHILE(SWIZZLES_INNER_LOOP_PRED, SWIZZLES_INTERMIDIATE_LOOP_OP, (BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, state), 0, BOOST_PP_TUPLE_ELEM(4, 3, state)))), BOOST_PP_INC(BOOST_PP_TUPLE_ELEM(4, 2, state)), BOOST_PP_TUPLE_ELEM(4, 3, state))
 #	define SWIZZLES_MACRO(r, state) BOOST_PP_FOR_##r((BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, state), 0, BOOST_PP_TUPLE_ELEM(4, 3, state)), SWIZZLES_INNER_LOOP_PRED, SWIZZLES_INTERMIDIATE_LOOP_OP, SWIZZLES_INTERMIDIATE_LOOP_MACRO)
-#	define SWIZZLES(z, i, CALLBACK) \
-		SWIZZLES_INNER_LOOP_MACRO(z, (CALLBACK, GENERATE_ZERO_SEQ(i), , ))\
+#	define SWIZZLES(z, i, CALLBACK)											\
+		SWIZZLES_INNER_LOOP_MACRO(z, (CALLBACK, GENERATE_ZERO_SEQ(i), , ))	\
 		/*																		 cur iteration		max iterations
 																					   ^				  ^
 																					   |_______	   _______|
@@ -114,63 +114,120 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 	gcc does not allow explicit specialization in class scope => CSwizzle can not be inside CDataContainer
 	ElementType needed in order to compiler can deduce template args for operators
 	*/
-#	define GENERATE_TEMPLATED_ASSIGN_OPERATOR(leftSwizzleSeq) \
-		template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector>\
-		CSwizzle &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector> &right)\
-		{\
+#	define GENERATE_TEMPLATED_ASSIGN_OPERATOR(leftSwizzleSeq)																									\
+		template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector>	\
+		CSwizzle &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector> &right)							\
+		{																																						\
 			/*static_assert(mpl::size<mpl::unique<mpl::sort<SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))>::type, std::is_same<mpl::_, mpl::_>>::type>::value == mpl::size<SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))>::value, "!");*/\
 			/*static_assert(BOOST_PP_SEQ_SIZE(leftSwizzleSeq) <= TSwizzleTraits<rightColumns, CRightSwizzleVector>::TDimension::value, "operator =: too small src dimension");*/\
 			/*BOOST_PP_FOR((0, BOOST_PP_SEQ_SIZE(leftSwizzleSeq), leftSwizzleSeq, CRightSwizzleVector), GENERATE_SCALAR_OPERATION_PRED, GENERATE_SCALAR_OPERATION_OP, GENERATE_SCALAR_OPERATION_MACRO)*/\
-			CSwizzleAssign<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>::operator =(right);\
-			return *this;\
+			CSwizzleAssign<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>::operator =(right);					\
+			return *this;																																		\
 		}
-#	define GENERATE_COPY_ASSIGN_OPERATOR(leftSwizzleSeq) \
-		CSwizzle &operator =(const CSwizzle &right)\
-		{\
-			return operator =<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>(right);\
+#	define GENERATE_COPY_ASSIGN_OPERATOR(leftSwizzleSeq)																						\
+		CSwizzle &operator =(const CSwizzle &right)																								\
+		{																																		\
+			/*return operator =<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>(right);*/		\
+			CSwizzleAssign<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>::operator =(right);	\
+			return *this;																														\
 		}
-#	define GENERATE_INIT_LIST_ASSIGGN_OPERATOR(leftSwizzleSeq) \
-		CSwizzle &operator =(std::initializer_list<CInitListItem<ElementType>> initList)\
-		{\
-			CSwizzleAssign<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>::operator =(initList);\
-			return *this;\
+#	define GENERATE_SCALAR_ASSIGN_OPERATOR(leftSwizzleSeq)																						\
+		CSwizzle &operator =(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar)	\
+		{																																		\
+			CSwizzleAssign<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>::operator =(scalar);	\
+			return *this;																														\
+		}
+#	define GENERATE_INIT_LIST_ASSIGGN_OPERATOR(leftSwizzleSeq)																						\
+		CSwizzle &operator =(std::initializer_list<CInitListItem<ElementType>> initList)															\
+		{																																			\
+			CSwizzleAssign<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>::operator =(initList);	\
+			return *this;																															\
 		}
 #	ifdef MSVC_LIMITATIONS
 		// VS 2010 does not allow operator = in union members
-#		define GENERATE_ASSIGN_OPERATORS(leftSwizzleSeq) \
-			GENERATE_TEMPLATED_ASSIGN_OPERATOR(leftSwizzleSeq)\
+#		define GENERATE_ASSIGN_OPERATORS(leftSwizzleSeq)		\
+			GENERATE_TEMPLATED_ASSIGN_OPERATOR(leftSwizzleSeq)	\
+			GENERATE_SCALAR_ASSIGN_OPERATOR(leftSwizzleSeq)		\
 			GENERATE_INIT_LIST_ASSIGGN_OPERATOR(leftSwizzleSeq)
 #		define DISABLE_ASSIGN_OPERATOR(leftSwizzleSeq) /*private: CSwizzle &operator =(const CSwizzle &);*/
 #		define SWIZZLE_TRIVIAL_CTORS_DTOR
 #	else
-#		define GENERATE_ASSIGN_OPERATORS(leftSwizzleSeq) \
-			GENERATE_TEMPLATED_ASSIGN_OPERATOR(leftSwizzleSeq)\
-			GENERATE_COPY_ASSIGN_OPERATOR(leftSwizzleSeq)\
+#		define GENERATE_ASSIGN_OPERATORS(leftSwizzleSeq)		\
+			GENERATE_TEMPLATED_ASSIGN_OPERATOR(leftSwizzleSeq)	\
+			GENERATE_COPY_ASSIGN_OPERATOR(leftSwizzleSeq)		\
+			GENERATE_SCALAR_ASSIGN_OPERATOR(leftSwizzleSeq)		\
 			GENERATE_INIT_LIST_ASSIGGN_OPERATOR(leftSwizzleSeq)
 #		define DISABLE_ASSIGN_OPERATOR(leftSwizzleSeq) CSwizzle &operator =(const CSwizzle &) = delete;
-#		define SWIZZLE_TRIVIAL_CTORS_DTOR \
-			CSwizzle() = default;\
-			CSwizzle(const CSwizzle &) = delete;\
+#		define SWIZZLE_TRIVIAL_CTORS_DTOR			\
+			CSwizzle() = default;					\
+			CSwizzle(const CSwizzle &) = delete;	\
 			~CSwizzle() = default;
 #	endif
-#	define SWIZZLES_INNER_LOOP_MACRO(r, state) \
-		template<typename ElementType>\
-		class CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))>:\
-			public BOOST_PP_IIF(IS_SEQ_UNIQUE(SWIZZLE_SEQ(state)), CSwizzleAssign, CSwizzleCommon)<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))>\
-		{\
-		public:\
-			BOOST_PP_IIF(IS_SEQ_UNIQUE(SWIZZLE_SEQ(state)), GENERATE_ASSIGN_OPERATORS, DISABLE_ASSIGN_OPERATOR)(SWIZZLE_SEQ(state))\
-		protected:\
-			SWIZZLE_TRIVIAL_CTORS_DTOR\
+#ifdef MSVC_LIMITATIONS
+#	define SWIZZLES_INNER_LOOP_MACRO(r, state)																																							\
+		template<typename ElementType>																																									\
+		class CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state)), false, 1>:																\
+		public BOOST_PP_IIF(IS_SEQ_UNIQUE(SWIZZLE_SEQ(state)), CSwizzleAssign, CSwizzleCommon)<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))>	\
+		{																																																\
+		public:																																															\
+			BOOST_PP_IIF(IS_SEQ_UNIQUE(SWIZZLE_SEQ(state)), GENERATE_ASSIGN_OPERATORS, DISABLE_ASSIGN_OPERATOR)(SWIZZLE_SEQ(state))																		\
+		protected:																																														\
+			SWIZZLE_TRIVIAL_CTORS_DTOR																																									\
 		};
 	GENERATE_SWIZZLES()
+#	define SWIZZLES_INNER_LOOP_MACRO(r, state)																																							\
+		template<typename ElementType>																																									\
+		class CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state)), false, 2>:																\
+		public BOOST_PP_IIF(IS_SEQ_UNIQUE(SWIZZLE_SEQ(state)), CSwizzleAssign, CSwizzleCommon)<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))>	\
+		{																																																\
+		public:																																															\
+			BOOST_PP_IIF(IS_SEQ_UNIQUE(SWIZZLE_SEQ(state)), GENERATE_ASSIGN_OPERATORS, DISABLE_ASSIGN_OPERATOR)(SWIZZLE_SEQ(state))																		\
+		protected:																																														\
+			SWIZZLE_TRIVIAL_CTORS_DTOR																																									\
+		};
+	GENERATE_SWIZZLES()
+#	define SWIZZLES_INNER_LOOP_MACRO(r, state)																																							\
+		template<typename ElementType>																																									\
+		class CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state)), true, 1>:																\
+		public BOOST_PP_IIF(IS_SEQ_UNIQUE(SWIZZLE_SEQ(state)), CSwizzleAssign, CSwizzleCommon)<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))>	\
+		{																																																\
+		public:																																															\
+			BOOST_PP_IIF(IS_SEQ_UNIQUE(SWIZZLE_SEQ(state)), GENERATE_ASSIGN_OPERATORS, DISABLE_ASSIGN_OPERATOR)(SWIZZLE_SEQ(state))																		\
+		protected:																																														\
+			SWIZZLE_TRIVIAL_CTORS_DTOR																																									\
+		};
+	GENERATE_SWIZZLES()
+#	define SWIZZLES_INNER_LOOP_MACRO(r, state)																																							\
+		template<typename ElementType>																																									\
+		class CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state)), true, 2>:																\
+		public BOOST_PP_IIF(IS_SEQ_UNIQUE(SWIZZLE_SEQ(state)), CSwizzleAssign, CSwizzleCommon)<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))>	\
+		{																																																\
+		public:																																															\
+			BOOST_PP_IIF(IS_SEQ_UNIQUE(SWIZZLE_SEQ(state)), GENERATE_ASSIGN_OPERATORS, DISABLE_ASSIGN_OPERATOR)(SWIZZLE_SEQ(state))																		\
+		protected:																																														\
+			SWIZZLE_TRIVIAL_CTORS_DTOR																																									\
+		};
+	GENERATE_SWIZZLES()
+#else
+#	define SWIZZLES_INNER_LOOP_MACRO(r, state)																																							\
+		template<typename ElementType>																																									\
+		class CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))>:																			\
+		public BOOST_PP_IIF(IS_SEQ_UNIQUE(SWIZZLE_SEQ(state)), CSwizzleAssign, CSwizzleCommon)<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))>	\
+		{																																																\
+		public:																																															\
+			BOOST_PP_IIF(IS_SEQ_UNIQUE(SWIZZLE_SEQ(state)), GENERATE_ASSIGN_OPERATORS, DISABLE_ASSIGN_OPERATOR)(SWIZZLE_SEQ(state))																		\
+		protected:																																														\
+			SWIZZLE_TRIVIAL_CTORS_DTOR																																									\
+		};
+	GENERATE_SWIZZLES()
+#endif
 
 #	pragma region(generate typedefs)
 		// tuple: (C++, hlsl, glsl)
-#		define SCALAR_TYPES_MAPPINGS \
-			((bool, bool, b))\
-			((signed long, int, i))((unsigned long, uint, ui))\
-			((signed long long, long, l))((unsigned long long, ulong, ul))\
+#		define SCALAR_TYPES_MAPPINGS										\
+			((bool, bool, b))												\
+			((signed long, int, i))((unsigned long, uint, ui))				\
+			((signed long long, long, l))((unsigned long long, ulong, ul))	\
 			((float, float, ))((double, double, d))
 
 #		define CPP_SCALAR_TYPE(scalar_types_mapping) BOOST_PP_TUPLE_ELEM(3, 0, scalar_types_mapping)
@@ -250,8 +307,30 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 			// gcc does not allow class definition inside anonymous union
 #			define NAMING_SET_1 BOOST_PP_IF(ROWS, MATRIX_ZERO_BASED, XYZW)
 #			define NAMING_SET_2 BOOST_PP_IF(ROWS, MATRIX_ONE_BASED, RGBA)
-#			define SWIZZLES_INNER_LOOP_MACRO(r, state) CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))> TRANSFORM_SWIZZLE(NAMING_SET_1, SWIZZLE_SEQ(state)), TRANSFORM_SWIZZLE(NAMING_SET_2, SWIZZLE_SEQ(state));
+#ifdef MSVC_LIMITATIONS
+#			define SWIZZLES_INNER_LOOP_MACRO(r, state)																						\
+				CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state)), false, 1>	\
+					BOOST_PP_CAT(TRANSFORM_SWIZZLE(NAMING_SET_1, SWIZZLE_SEQ(state)), );
 			GENERATE_SWIZZLES()
+#			define SWIZZLES_INNER_LOOP_MACRO(r, state)																						\
+				CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state)), false, 2>	\
+					BOOST_PP_CAT(TRANSFORM_SWIZZLE(NAMING_SET_2, SWIZZLE_SEQ(state)), );
+			GENERATE_SWIZZLES()
+#			define SWIZZLES_INNER_LOOP_MACRO(r, state)																						\
+				CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state)), true, 1>	\
+					BOOST_PP_CAT(TRANSFORM_SWIZZLE(NAMING_SET_1, SWIZZLE_SEQ(state)), _);
+			GENERATE_SWIZZLES()
+#			define SWIZZLES_INNER_LOOP_MACRO(r, state)																						\
+				CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state)), true, 2>	\
+					BOOST_PP_CAT(TRANSFORM_SWIZZLE(NAMING_SET_2, SWIZZLE_SEQ(state)), _);
+			GENERATE_SWIZZLES()
+#else
+#			define SWIZZLES_INNER_LOOP_MACRO(r, state)																				\
+				CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))>	\
+					TRANSFORM_SWIZZLE(NAMING_SET_1, SWIZZLE_SEQ(state)),															\
+					TRANSFORM_SWIZZLE(NAMING_SET_2, SWIZZLE_SEQ(state));
+			GENERATE_SWIZZLES()
+#endif
 #			undef NAMING_SET_1
 #			undef NAMING_SET_2
 #			undef SWIZZLES_INNER_LOOP_MACRO
@@ -373,6 +452,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 #	include <boost\mpl\equal_to.hpp>
 #	include <boost\mpl\not.hpp>
 #	include <boost\mpl\identity.hpp>
+#	include <boost\mpl\integral_c.hpp>
 
 //#	define GET_SWIZZLE_ELEMENT(vectorDimension, idx, cv) (reinterpret_cast<cv CData<ElementType, vectorDimension> &>(*this)._data[(idx)])
 //#	define GET_SWIZZLE_ELEMENT_PACKED(vectorDimension, packedSwizzle, idx, cv) (GET_SWIZZLE_ELEMENT(vectorDimension, packedSwizzle >> ((idx) << 1) & 3u, cv))
@@ -389,14 +469,14 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			class matrix;
 
-			template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector>
+			template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector, bool odd = false, unsigned namingSet = 1>
 			class CSwizzleCommon;
 
-			template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector>
+			template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector, bool odd = false, unsigned namingSet = 1>
 			class CSwizzleAssign;
 
 			// rows = 0 for vectors
-			template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector>
+			template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector, bool odd = false, unsigned namingSet = 1>
 			class CSwizzle;
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
@@ -410,7 +490,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 			{
 				friend class matrix<ElementType, rows, columns>;
 
-				template<typename, unsigned int, unsigned int, unsigned short, class>
+				template<typename, unsigned int, unsigned int, unsigned short, class, bool, unsigned>
 				friend class CSwizzleCommon;
 
 				friend class CDataContainer<ElementType, rows, columns>;
@@ -434,7 +514,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 			{
 				friend class vector<ElementType, dimension>;
 
-				template<typename, unsigned int, unsigned int, unsigned short, class>
+				template<typename, unsigned int, unsigned int, unsigned short, class, bool, unsigned>
 				friend class CSwizzleCommon;
 
 				friend class CDataContainer<ElementType, 0, dimension>;
@@ -471,7 +551,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 			private:
 				typedef mpl::not_<std::is_void<CSwizzleVector>> TIsSwizzle;
 			public:
-				typedef typename std::conditional<TIsSwizzle::value, mpl::size<CSwizzleVector>, std::integral_constant<unsigned, vectorDimension>>::type TDimension;
+				typedef typename std::conditional<TIsSwizzle::value, mpl::size<CSwizzleVector>, mpl::integral_c<unsigned, vectorDimension>>::type TDimension;
 			private:
 				typedef typename std::conditional<TIsSwizzle::value, mpl::sort<CSwizzleVector>, mpl::identity<void>>::type::type CSortedSwizzleVector;
 				typedef typename std::conditional<TIsSwizzle::value, mpl::unique<CSortedSwizzleVector, std::is_same<mpl::_, mpl::_>>, mpl::identity<void>>::type::type CUniqueSwizzleVector;
@@ -480,11 +560,11 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 			};
 
 			// specializations for graphics vectors/matrices
-#			define BOOST_PP_ITERATION_LIMITS (0, 1)
+#			define BOOST_PP_ITERATION_LIMITS (0, 0)
 #			define BOOST_PP_FILENAME_1 "vector math.h"
 #			include BOOST_PP_ITERATE()
 
-			template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector>
+			template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector, bool odd = false, unsigned namingSet = 1>
 			class CSwizzleBase
 			{
 				/*
@@ -493,7 +573,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 							 |
 				CSwizzleBase -> CSwizzle
 				*/
-				typedef CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector> TSwizzle;
+				typedef CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> TSwizzle;
 			protected:
 #ifndef MSVC_LIMITATIONS
 				CSwizzleBase() = default;
@@ -510,17 +590,17 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				{
 					return static_cast<TSwizzle &>(*this)[0];
 				}
-				operator const ElementType &() noexcept
-				{
-					return operator ElementType &();
-				}
+				//operator const ElementType &() noexcept
+				//{
+				//	return operator ElementType &();
+				//}
 			};
 
 			// CSwizzle inherits from this to reduce preprocessor generated code for faster compiling
-			template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector>
-			class CSwizzleCommon: public CSwizzleBase<ElementType, rows, columns, packedSwizzle, CSwizzleVector>
+			template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector, bool odd, unsigned namingSet>
+			class CSwizzleCommon: public CSwizzleBase<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet>
 			{
-				typedef CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector> TSwizzle;
+				typedef CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> TSwizzle;
 				typedef matrix<ElementType, rows, columns> Tmatrix;
 			protected:
 #ifndef MSVC_LIMITATIONS
@@ -554,8 +634,8 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 			};
 
 			// specialization for vectors
-			template<typename ElementType, unsigned int vectorDimension, unsigned short packedSwizzle, class CSwizzleVector>
-			class CSwizzleCommon<ElementType, 0, vectorDimension, packedSwizzle, CSwizzleVector>: public CSwizzleBase<ElementType, 0, vectorDimension, packedSwizzle, CSwizzleVector>
+			template<typename ElementType, unsigned int vectorDimension, unsigned short packedSwizzle, class CSwizzleVector, bool odd, unsigned namingSet>
+			class CSwizzleCommon<ElementType, 0, vectorDimension, packedSwizzle, CSwizzleVector, odd, namingSet>: public CSwizzleBase<ElementType, 0, vectorDimension, packedSwizzle, CSwizzleVector, odd, namingSet>
 			{
 				/*
 				?
@@ -570,7 +650,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				works with both VS and gcc (differs from cases above in that it is in function scope, not in class one):
 				typedef TSwizzleTraits<...> TSwizzleTraits;
 				*/
-				typedef CSwizzle<ElementType, 0, vectorDimension, packedSwizzle, CSwizzleVector> TSwizzle;
+				typedef CSwizzle<ElementType, 0, vectorDimension, packedSwizzle, CSwizzleVector, odd, namingSet> TSwizzle;
 				typedef vector<ElementType, vectorDimension> Tvector;
 			protected:
 #ifndef MSVC_LIMITATIONS
@@ -649,25 +729,51 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				}
 			};
 
-			template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector>
-			class CSwizzleAssign: public CSwizzleCommon<ElementType, rows, columns, packedSwizzle, CSwizzleVector>
+			template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector, bool odd, unsigned namingSet>
+			class CSwizzleAssign: public CSwizzleCommon<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet>
 			{
 			protected:
 #ifndef MSVC_LIMITATIONS
 				CSwizzleAssign() = default;
 				CSwizzleAssign(const CSwizzleAssign &) = default;
 				~CSwizzleAssign() = default;
-				CSwizzleAssign &operator =(const CSwizzleAssign &) = default;
 #endif
 
-				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector>
+				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet>
 				void operator =(const CSwizzleAssign<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector> &right)
 				{
+					typedef TSwizzleTraits<columns, CSwizzleVector> TLeftSwizzleTraits;
 					typedef TSwizzleTraits<rightColumns, CRightSwizzleVector> TRightSwizzleTraits;
-					static_assert(columns <= TRightSwizzleTraits::TDimension::value, "operator =: too small src dimension");
-					for (unsigned idx = 0; idx < columns; idx++)
+					static_assert(TLeftSwizzleTraits::TDimension::value <= TRightSwizzleTraits::TDimension::value, "operator =: too small src dimension");
+					vector<RightElementType, TRightSwizzleTraits::TDimension::value> right_copy(static_cast<const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &>(right));
+					for (unsigned idx = 0; idx < TLeftSwizzleTraits::TDimension::value; idx++)
+					{
+						(*this)[idx] = right_copy[idx];
+					}
+				}
+
+#ifndef MSVC_LIMITATIONS
+				/*
+				it is not necessary to create copy of 'right' here (because there is no swizzles)
+				forwarding to templated operator = shorter (it is commented out below) but it leads to unnecessary 'right' copy
+				*/
+				void operator =(const CSwizzleAssign &right)
+				{
+					typedef TSwizzleTraits<columns, CSwizzleVector> TLeftSwizzleTraits;
+					for (unsigned idx = 0; idx < TLeftSwizzleTraits::TDimension::value; idx++)
 					{
 						(*this)[idx] = right[idx];
+					}
+					//operator =<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet>(right);
+				}
+#endif
+
+				void operator =(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar)
+				{
+					typedef TSwizzleTraits<columns, CSwizzleVector> TLeftSwizzleTraits;
+					for (unsigned idx = 0; idx < TLeftSwizzleTraits::TDimension::value; idx++)
+					{
+						(*this)[idx] = scalar;
 					}
 				}
 
@@ -701,20 +807,20 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 			};
 
 #			pragma region(generate operators)
-				template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector>
-				inline const typename CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector>::TOperationResult &operator +(const CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector> &src) noexcept
+				template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector, bool odd, unsigned namingSet>
+				inline const typename CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet>::TOperationResult &operator +(const CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> &src) noexcept
 				{
 					return src;
 				}
 
-				template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector>
-				inline typename CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector>::TOperationResult &operator +(CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector> &src) noexcept
+				template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector, bool odd, unsigned namingSet>
+				inline typename CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet>::TOperationResult &operator +(CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> &src) noexcept
 				{
 					return src;
 				}
 
-				template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector>
-				inline vector<ElementType, columns> operator -(const CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector> &src)
+				template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector, bool odd, unsigned namingSet>
+				inline vector<ElementType, columns> operator -(const CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> &src)
 				{
 					typedef TSwizzleTraits<columns, CSwizzleVector> TSwizzleTraits;
 					vector<ElementType, columns> result;
@@ -723,22 +829,51 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 					return result;
 				}
 
-				template<typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, unsigned short leftPackedSwizzle, class CLeftSwizzleVector, typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector>
-				inline typename CSwizzle<LeftElementType, leftRows, leftColumns, leftPackedSwizzle, CLeftSwizzleVector>::TOperationResult &operator +=(CSwizzle<LeftElementType, leftRows, leftColumns, leftPackedSwizzle, CLeftSwizzleVector> &left, const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector> &right)
+				template
+				<
+					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, unsigned short leftPackedSwizzle, class CLeftSwizzleVector, bool leftOdd, unsigned leftNamingSet,
+					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet
+				>
+				inline typename CSwizzle<LeftElementType, leftRows, leftColumns, leftPackedSwizzle, CLeftSwizzleVector, leftOdd, leftNamingSet>::TOperationResult &operator +=(
+				CSwizzle<LeftElementType, leftRows, leftColumns, leftPackedSwizzle, CLeftSwizzleVector, leftOdd, leftNamingSet> &left,
+				const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right)
 				{
 					typedef TSwizzleTraits<leftColumns, CLeftSwizzleVector> TLeftSwizzleTraits;
 					typedef TSwizzleTraits<rightColumns, CRightSwizzleVector> TRightSwizzleTraits;
 					static_assert(TLeftSwizzleTraits::TIsWriteMaskValid::value, "operator +=: invalid write mask");
 					static_assert(TLeftSwizzleTraits::TDimension::value <= TRightSwizzleTraits::TDimension::value, "operator +=: too small src dimension");
+					vector<RightElementType, TRightSwizzleTraits::TDimension::value> right_copy(right);
 					for (typename TLeftSwizzleTraits::TDimension::value_type i = 0; i < TLeftSwizzleTraits::TDimension::value; i++)
-						left[i] += right[i];
+						left[i] += right_copy[i];
 					return left;
 				};
 
-				template<typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, unsigned short leftPackedSwizzle, class CLeftSwizzleVector, typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector>
-				inline vector<decltype(declval<LeftElementType>() + declval<RightElementType>()), mpl::min<mpl::size<CLeftSwizzleVector>, mpl::size<CRightSwizzleVector>>::type::value> operator +(const CSwizzle<LeftElementType, leftRows, leftColumns, leftPackedSwizzle, CLeftSwizzleVector> &left, const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector> &right)
+				template
+				<
+					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, unsigned short leftPackedSwizzle, class CLeftSwizzleVector, bool leftOdd, unsigned leftNamingSet,
+					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet
+				>
+				inline vector
+				<
+					decltype(declval<LeftElementType>() + declval<RightElementType>()),
+					mpl::min
+					<
+						typename TSwizzleTraits<leftColumns, CLeftSwizzleVector>::TDimension,
+						typename TSwizzleTraits<rightColumns, CRightSwizzleVector>::TDimension
+					>::type::value
+				> operator +(
+				const CSwizzle<LeftElementType, leftRows, leftColumns, leftPackedSwizzle, CLeftSwizzleVector, leftOdd, leftNamingSet> &left,
+				const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right)
 				{
-					vector<decltype(declval<LeftElementType>() + declval<RightElementType>()), mpl::min<mpl::size<CLeftSwizzleVector>, mpl::size<CRightSwizzleVector>>::type::value> result(left);
+					vector
+					<
+						decltype(declval<LeftElementType>() + declval<RightElementType>()),
+						mpl::min
+						<
+							typename TSwizzleTraits<leftColumns, CLeftSwizzleVector>::TDimension,
+							typename TSwizzleTraits<rightColumns, CRightSwizzleVector>::TDimension
+						>::type::value
+					> result(left);
 					return result += right;
 				};
 #			pragma endregion
@@ -760,13 +895,13 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				template<typename TIterator>
 				explicit vector(TIterator src);
 
-				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, unsigned short srcPackedSwizzle, class CSrcSwizzleVector>
-				vector(const CSwizzle<SrcElementType, srcRows, srcColumns, srcPackedSwizzle, CSrcSwizzleVector> &src);
+				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, unsigned short srcPackedSwizzle, class CSrcSwizzleVector, bool srcOdd, unsigned srcNamingSet>
+				vector(const CSwizzle<SrcElementType, srcRows, srcColumns, srcPackedSwizzle, CSrcSwizzleVector, srcOdd, srcNamingSet> &src);
 
 				vector(std::initializer_list<CInitListItem<ElementType>> initList);
 
-				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector>
-				vector &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector> &right);
+				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet>
+				vector &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right);
 
 				vector &operator =(std::initializer_list<CInitListItem<ElementType>> initList);
 
@@ -825,10 +960,9 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				matrix
 				<
 					decltype(declval<ElementType>() + declval<RightElementType>()),
-					mpl::min<std::integral_constant<unsigned, rows>, std::integral_constant<unsigned, rightRows>>::type::value,
-					mpl::min<std::integral_constant<unsigned, columns>, std::integral_constant<unsigned, rightColumns>>::type::value
-				>
-				operator +(const matrix<RightElementType, rightRows, rightColumns> &right) const;
+					mpl::min<mpl::integral_c<unsigned, rows>, mpl::integral_c<unsigned, rightRows>>::type::value,
+					mpl::min<mpl::integral_c<unsigned, columns>, mpl::integral_c<unsigned, rightColumns>>::type::value
+				> operator +(const matrix<RightElementType, rightRows, rightColumns> &right) const;
 
 				const TRow &operator [](unsigned int idx) const noexcept;
 
@@ -845,6 +979,10 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 					return *reinterpret_cast<const ItemElementType *>(item);
 				}
 
+				/*
+				no need to track odd, namingSet because for different odd, namingSet CSwizzle differs only by type name; layout is same
+				only operator [] used here
+				*/
 				template<typename TargetElementType, typename ItemElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector>
 				TargetElementType GetItemElement(const void *item, unsigned idx)
 				{
@@ -935,8 +1073,8 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				}
 
 				template<typename ElementType, unsigned int dimension>
-				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, unsigned short srcPackedSwizzle, class CSrcSwizzleVector>
-				inline vector<ElementType, dimension>::vector(const CSwizzle<SrcElementType, srcRows, srcColumns, srcPackedSwizzle, CSrcSwizzleVector> &src)
+				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, unsigned short srcPackedSwizzle, class CSrcSwizzleVector, bool srcOdd, unsigned srcNamingSet>
+				inline vector<ElementType, dimension>::vector(const CSwizzle<SrcElementType, srcRows, srcColumns, srcPackedSwizzle, CSrcSwizzleVector, srcOdd, srcNamingSet> &src)
 				{
 					typedef TSwizzleTraits<srcColumns, CSrcSwizzleVector> TSrcSwizzleTraits;
 					static_assert(dimension <= TSrcSwizzleTraits::TDimension::value, "\"copy\" ctor: too small src dimension");
@@ -961,8 +1099,8 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				}
 
 				template<typename ElementType, unsigned int dimension>
-				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector>
-				inline auto vector<ElementType, dimension>::operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector> &right) -> vector &
+				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet>
+				inline auto vector<ElementType, dimension>::operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right) -> vector &
 				{
 					CSwizzle<ElementType, 0, dimension, 0u, void>::operator =(right);
 					return *this;
@@ -1105,16 +1243,15 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				inline matrix
 				<
 					decltype(declval<ElementType>() + declval<RightElementType>()),
-					mpl::min<std::integral_constant<unsigned, rows>, std::integral_constant<unsigned, rightRows>>::type::value,
-					mpl::min<std::integral_constant<unsigned, columns>, std::integral_constant<unsigned, rightColumns>>::type::value
-				>
-				matrix<ElementType, rows, columns>::operator +(const matrix<RightElementType, rightRows, rightColumns> &right) const
+					mpl::min<mpl::integral_c<unsigned, rows>, mpl::integral_c<unsigned, rightRows>>::type::value,
+					mpl::min<mpl::integral_c<unsigned, columns>, mpl::integral_c<unsigned, rightColumns>>::type::value
+				> matrix<ElementType, rows, columns>::operator +(const matrix<RightElementType, rightRows, rightColumns> &right) const
 				{
 					matrix
 					<
 						decltype(declval<ElementType>() + declval<RightElementType>()),
-						mpl::min<std::integral_constant<unsigned, rows>, std::integral_constant<unsigned, rightRows>>::type::value,
-						mpl::min<std::integral_constant<unsigned, columns>, std::integral_constant<unsigned, rightColumns>>::type::value
+						mpl::min<mpl::integral_c<unsigned, rows>, mpl::integral_c<unsigned, rightRows>>::type::value,
+						mpl::min<mpl::integral_c<unsigned, columns>, mpl::integral_c<unsigned, rightColumns>>::type::value
 					>
 					result(*this);
 					return result += right;
@@ -1133,62 +1270,109 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 #			pragma region(mul functions)
 				// note: most of these functions are not inline
 
-				template<typename LeftElementType, typename RightElementType, unsigned int rowXcolumnDimension>
-				inline decltype(declval<LeftElementType>() + declval<RightElementType>())
-				mul(const vector<LeftElementType, rowXcolumnDimension> &left, const vector<RightElementType, rowXcolumnDimension> &right)
+				template
+				<
+					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, unsigned short leftPackedSwizzle, class CLeftSwizzleVector, bool leftOdd, unsigned leftNamingSet,
+					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet
+				>
+				inline decltype(declval<LeftElementType>() + declval<RightElementType>()) mul(
+				const CSwizzle<LeftElementType, leftRows, leftColumns, leftPackedSwizzle, CLeftSwizzleVector, leftOdd, leftNamingSet> &left,
+				const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right)
 				{
+					constexpr unsigned rowXcolumnDimension = mpl::min
+					<
+						typename TSwizzleTraits<leftColumns, CLeftSwizzleVector>::TDimension,
+						typename TSwizzleTraits<rightColumns, CRightSwizzleVector>::TDimension
+					>::type::value;
+
 					decltype(declval<LeftElementType>() + declval<RightElementType>()) result(0);
+
 					for (unsigned i = 0; i < rowXcolumnDimension; i++)
-						result = left[i] * right[i];
+						result += left[i] * right[i];
+
 					return result;
 				}
 
-				template<typename LeftElementType, typename RightElementType, unsigned int resultColumns, unsigned int rowXcolumnDimension>
-				vector
+				template
 				<
-					decltype(declval<LeftElementType>() + declval<RightElementType>()),
-					resultColumns
+					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, unsigned short leftPackedSwizzle, class CLeftSwizzleVector, bool leftOdd, unsigned leftNamingSet,
+					typename RightElementType, unsigned int rightRows, unsigned int rightColumns
 				>
-				mul(const vector<LeftElementType, rowXcolumnDimension> &left, const matrix<RightElementType, rowXcolumnDimension, resultColumns> &right)
+				vector<decltype(declval<LeftElementType>() + declval<RightElementType>()), rightColumns> mul(
+				const CSwizzle<LeftElementType, leftRows, leftColumns, leftPackedSwizzle, CLeftSwizzleVector, leftOdd, leftNamingSet> &left,
+				const matrix<RightElementType, rightRows, rightColumns> &right)
 				{
+					constexpr unsigned
+						resultColumns = rightColumns,
+						rowXcolumnDimension = mpl::min
+						<
+							typename TSwizzleTraits<leftColumns, CLeftSwizzleVector>::TDimension,
+							mpl::integral_c<unsigned, rightRows>
+						>::type::value;
 					typedef decltype(declval<LeftElementType>() + declval<RightElementType>()) ElementType;
-					vector <ElementType, resultColumns> result(ElementType(0));
+
+					vector<ElementType, resultColumns> result(ElementType(0));
+
 					for (unsigned c = 0; c < resultColumns; c++)
 						for (unsigned i = 0; i < rowXcolumnDimension; i++)
 							result[c] += left[i] * right[i][c];
+
 					return result;
 				}
 
-				template<typename LeftElementType, typename RightElementType, unsigned int resultRows, unsigned int rowXcolumnDimension>
-				vector
+				template
 				<
-					decltype(declval<LeftElementType>() + declval<RightElementType>()),
-					resultRows
+					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,
+					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet
 				>
-				mul(const matrix<LeftElementType, resultRows, rowXcolumnDimension> &left, const vector<RightElementType, rowXcolumnDimension> &right)
+				vector<decltype(declval<LeftElementType>() + declval<RightElementType>()), leftRows> mul(
+				const matrix<LeftElementType, leftRows, leftColumns> &left,
+				const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right)
 				{
+					constexpr unsigned
+						resultRows = leftRows,
+						rowXcolumnDimension = mpl::min
+						<
+							mpl::integral_c<unsigned, leftColumns>,
+							typename TSwizzleTraits<rightColumns, CRightSwizzleVector>::TDimension
+						>::type::value;
 					typedef decltype(declval<LeftElementType>() + declval<RightElementType>()) ElementType;
+
 					vector<ElementType, resultRows> result(ElementType(0));
+
 					for (unsigned r = 0; r < resultRows; r++)
 						for (unsigned i = 0; i < rowXcolumnDimension; i++)
 							result[r] += left[r][i] * right[i];
+
 					return result;
 				}
 
-				template<typename LeftElementType, typename RightElementType, unsigned int resultRows, unsigned int resultColumns, unsigned int rowXcolumnDimension>
-				matrix
+				template
 				<
-					decltype(declval<LeftElementType>() + declval<RightElementType>()),
-					resultRows, resultColumns
+					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,
+					typename RightElementType, unsigned int rightRows, unsigned int rightColumns
 				>
-				mul(const matrix<LeftElementType, resultRows, rowXcolumnDimension> &left, const matrix<RightElementType, rowXcolumnDimension, resultColumns> &right)
+				matrix<decltype(declval<LeftElementType>() + declval<RightElementType>()), leftRows, rightColumns> mul(
+				const matrix<LeftElementType, leftRows, leftColumns> &left,
+				const matrix<RightElementType, rightRows, rightColumns> &right)
 				{
+					constexpr unsigned
+						resultRows = leftRows,
+						resultColumns = rightColumns,
+						rowXcolumnDimension = mpl::min
+						<
+							mpl::integral_c<unsigned, leftColumns>,
+							mpl::integral_c<unsigned, rightRows>
+						>::type::value;
 					typedef decltype(declval<LeftElementType>() + declval<RightElementType>()) ElementType;
+
 					matrix<ElementType, resultRows, resultColumns> result(ElementType(0));
+
 					for (unsigned r = 0; r < resultRows; r++)
 						for (unsigned c = 0; c < resultColumns; c++)
 							for (unsigned i = 0; i < rowXcolumnDimension; i++)
 								result[r][c] += left[r][i] * right[i][c];
+
 					return result;
 				}
 #			pragma endregion

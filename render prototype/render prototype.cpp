@@ -47,10 +47,16 @@ void Proc()
 {
 	DGLE2::VectorMath::hlsl::int4 vec4(1l);
 	DGLE2::VectorMath::glsl::vec3 vec3(2.f);
-	vec4.wwww + vec3.rg;
+	vec4.wwww + vec3;
 	vec4.zx += vec4.aa;
 	vec4.zx += vec4.aaa;
 	vec3 += vec4;
+	vec4.xy = vec4.yx;
+	vec4.xy += vec4.yx;
+	vec4 = 1;
+	vec4.xy = 2;
+	vec4.x = DGLE2::VectorMath::hlsl::int4(3l).x;
+	double d = vec4.x;
 	+vec3;
 	-vec3;
 	//vec4.zz += vec4.aa;
@@ -59,12 +65,15 @@ void Proc()
 	DGLE2::VectorMath::CInitListItem<short> init_list[] = {vec4, 42};
 	DGLE2::VectorMath::vector<short, 5> vec5 = std::initializer_list<DGLE2::VectorMath::CInitListItem<short>>(init_list, init_list + _countof(init_list));
 	-vec5;
-	DGLE2::VectorMath::hlsl::int1x4 m1x4;
-	DGLE2::VectorMath::CInitListItem<long> lst[] = {0, 1, 2, 3};
-	m1x4._m03_m02_m01_m00 = std::initializer_list<DGLE2::VectorMath::CInitListItem<long>>(lst, lst + _countof(lst));
-	m1x4 = std::initializer_list<DGLE2::VectorMath::CInitListItem<long>>(lst, lst + _countof(lst));
-	m1x4[0];
+	mul(vec5, vec3);
+	//DGLE2::VectorMath::hlsl::int1x4 m1x4;
+	//DGLE2::VectorMath::CInitListItem<long> lst[] = {0, 1, 2, 3};
+	//m1x4._m03_m02_m01_m00 = std::initializer_list<DGLE2::VectorMath::CInitListItem<long>>(lst, lst + _countof(lst));
+	//m1x4 = std::initializer_list<DGLE2::VectorMath::CInitListItem<long>>(lst, lst + _countof(lst));
+	//m1x4[0];
 	DGLE2::VectorMath::matrix<long, 5, 4> m5x4;
+	+m5x4 + -m5x4;
+	mul(vec3, m5x4);
 	static float angle;
 	//renderer->DrawRect(200, 200, 100, 100, ~0, NULL, angle);
 	//for (unsigned i = 0; i < 1024; i++)

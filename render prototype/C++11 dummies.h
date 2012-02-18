@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		9.2.2012 (c)Alexey Shaydurov
+\date		18.2.2012 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -20,6 +20,7 @@ See "DGLE2.h" for more details.
 #endif
 #ifdef MSVC_LIMITATIONS
 #	define noexcept
+#	define constexpr const
 #endif
 
 #if defined MSVC_LIMITATIONS | defined __GNUC__ & (__GNUC__ < 4 | (__GNUC__ >= 4 & __GNUC_MINOR__ < 7))
