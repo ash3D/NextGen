@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.2.2012 (c)Alexey Shaydurov
+\date		20.2.2012 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -114,15 +114,15 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 	gcc does not allow explicit specialization in class scope => CSwizzle can not be inside CDataContainer
 	ElementType needed in order to compiler can deduce template args for operators
 	*/
-#	define GENERATE_TEMPLATED_ASSIGN_OPERATOR(leftSwizzleSeq)																									\
-		template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector>	\
-		CSwizzle &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector> &right)							\
-		{																																						\
+#	define GENERATE_TEMPLATED_ASSIGN_OPERATOR(leftSwizzleSeq)																																			\
+		template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet>	\
+		CSwizzle &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right)																	\
+		{																																																\
 			/*static_assert(mpl::size<mpl::unique<mpl::sort<SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))>::type, std::is_same<mpl::_, mpl::_>>::type>::value == mpl::size<SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))>::value, "!");*/\
 			/*static_assert(BOOST_PP_SEQ_SIZE(leftSwizzleSeq) <= TSwizzleTraits<rightColumns, CRightSwizzleVector>::TDimension::value, "operator =: too small src dimension");*/\
 			/*BOOST_PP_FOR((0, BOOST_PP_SEQ_SIZE(leftSwizzleSeq), leftSwizzleSeq, CRightSwizzleVector), GENERATE_SCALAR_OPERATION_PRED, GENERATE_SCALAR_OPERATION_OP, GENERATE_SCALAR_OPERATION_MACRO)*/\
-			CSwizzleAssign<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>::operator =(right);					\
-			return *this;																																		\
+			CSwizzleAssign<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>::operator =(right);															\
+			return *this;																																												\
 		}
 #	define GENERATE_COPY_ASSIGN_OPERATOR(leftSwizzleSeq)																						\
 		CSwizzle &operator =(const CSwizzle &right)																								\
@@ -163,7 +163,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 			CSwizzle(const CSwizzle &) = delete;	\
 			~CSwizzle() = default;
 #	endif
-#ifdef MSVC_LIMITATIONS
+#if defined MSVC_LIMITATIONS & defined MSVC_SWIZZLE_ASSIGN_WORKAROUND
 #	define SWIZZLES_INNER_LOOP_MACRO(r, state)																																							\
 		template<typename ElementType>																																									\
 		class CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state)), false, 1>:																\
@@ -307,7 +307,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 			// gcc does not allow class definition inside anonymous union
 #			define NAMING_SET_1 BOOST_PP_IF(ROWS, MATRIX_ZERO_BASED, XYZW)
 #			define NAMING_SET_2 BOOST_PP_IF(ROWS, MATRIX_ONE_BASED, RGBA)
-#ifdef MSVC_LIMITATIONS
+#if defined MSVC_LIMITATIONS & defined MSVC_SWIZZLE_ASSIGN_WORKAROUND
 #			define SWIZZLES_INNER_LOOP_MACRO(r, state)																						\
 				CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state)), false, 1>	\
 					BOOST_PP_CAT(TRANSFORM_SWIZZLE(NAMING_SET_1, SWIZZLE_SEQ(state)), );
@@ -740,7 +740,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 #endif
 
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet>
-				void operator =(const CSwizzleAssign<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector> &right)
+				void operator =(const CSwizzleAssign<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right)
 				{
 					typedef TSwizzleTraits<columns, CSwizzleVector> TLeftSwizzleTraits;
 					typedef TSwizzleTraits<rightColumns, CRightSwizzleVector> TRightSwizzleTraits;

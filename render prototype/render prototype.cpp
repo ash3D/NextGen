@@ -48,7 +48,7 @@ void Proc()
 	DGLE2::VectorMath::hlsl::int4 vec4(1l);
 	DGLE2::VectorMath::glsl::vec3 vec3(2.f);
 	vec4.wwww + vec3;
-	vec4.zx += vec4.aa;
+	vec4.zx += vec4;
 	vec4.zx += vec4.aaa;
 	vec3 += vec4;
 	vec4.xy = vec4.yx;
