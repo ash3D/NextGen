@@ -53,6 +53,7 @@ void Proc()
 	vec3 += vec4;
 	vec4.xy = vec4.yx;
 	vec4.xy += vec4.yx;
+	vec4 = vec4.xxxx;
 	vec4 = 1;
 	vec4.xy = 2;
 	vec4.x = DGLE2::VectorMath::hlsl::int4(3l).x;

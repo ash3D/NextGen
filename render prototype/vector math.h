@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		20.2.2012 (c)Alexey Shaydurov
+\date		21.2.2012 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -124,13 +124,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 			CSwizzleAssign<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>::operator =(right);															\
 			return *this;																																												\
 		}
-#	define GENERATE_COPY_ASSIGN_OPERATOR(leftSwizzleSeq)																						\
-		CSwizzle &operator =(const CSwizzle &right)																								\
-		{																																		\
-			/*return operator =<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>(right);*/		\
-			CSwizzleAssign<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>::operator =(right);	\
-			return *this;																														\
-		}
+#	define GENERATE_COPY_ASSIGN_OPERATOR CSwizzle &operator =(const CSwizzle &) = default;
 #	define GENERATE_SCALAR_ASSIGN_OPERATOR(leftSwizzleSeq)																						\
 		CSwizzle &operator =(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar)	\
 		{																																		\
@@ -154,7 +148,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 #	else
 #		define GENERATE_ASSIGN_OPERATORS(leftSwizzleSeq)		\
 			GENERATE_TEMPLATED_ASSIGN_OPERATOR(leftSwizzleSeq)	\
-			GENERATE_COPY_ASSIGN_OPERATOR(leftSwizzleSeq)		\
+			GENERATE_COPY_ASSIGN_OPERATOR						\
 			GENERATE_SCALAR_ASSIGN_OPERATOR(leftSwizzleSeq)		\
 			GENERATE_INIT_LIST_ASSIGGN_OPERATOR(leftSwizzleSeq)
 #		define DISABLE_ASSIGN_OPERATOR(leftSwizzleSeq) CSwizzle &operator =(const CSwizzle &) = delete;
@@ -804,6 +798,19 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				~CSwizzle() = default;
 				CSwizzle &operator =(const CSwizzle &) = default;
 #endif
+
+				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet>
+				CSwizzle &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right)
+				{
+					CSwizzleAssign<ElementType, 0, vectorDimension, 0u, void>::operator =(right);
+					return *this;
+				}
+
+				CSwizzle &operator =(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar)
+				{
+					CSwizzleAssign<ElementType, 0, vectorDimension, 0u, void>::operator =(scalar);
+					return *this;
+				}
 			};
 
 #			pragma region(generate operators)
@@ -890,18 +897,20 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				vector() = default;
 #				endif
 
+				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, unsigned short srcPackedSwizzle, class CSrcSwizzleVector, bool srcOdd, unsigned srcNamingSet>
+				vector(const CSwizzle<SrcElementType, srcRows, srcColumns, srcPackedSwizzle, CSrcSwizzleVector, srcOdd, srcNamingSet> &src);
+
 				vector(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar);
+
+				vector(std::initializer_list<CInitListItem<ElementType>> initList);
 
 				template<typename TIterator>
 				explicit vector(TIterator src);
 
-				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, unsigned short srcPackedSwizzle, class CSrcSwizzleVector, bool srcOdd, unsigned srcNamingSet>
-				vector(const CSwizzle<SrcElementType, srcRows, srcColumns, srcPackedSwizzle, CSrcSwizzleVector, srcOdd, srcNamingSet> &src);
-
-				vector(std::initializer_list<CInitListItem<ElementType>> initList);
-
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet>
 				vector &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right);
+
+				vector &operator =(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar);
 
 				vector &operator =(std::initializer_list<CInitListItem<ElementType>> initList);
 
@@ -926,18 +935,20 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				matrix() = default;
 #				endif
 
+				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
+				matrix(const matrix<SrcElementType, srcRows, srcColumns> &src);
+
 				matrix(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar);
+
+				matrix(std::initializer_list<CInitListItem<ElementType>> initList);
 
 				template<typename TIterator>
 				explicit matrix(TIterator src);
 
-				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
-				matrix(const matrix<SrcElementType, srcRows, srcColumns> &src);
-
-				matrix(std::initializer_list<CInitListItem<ElementType>> initList);
-
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns>
 				matrix &operator =(const matrix<RightElementType, rightRows, rightColumns> &right);
+
+				matrix &operator =(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar);
 
 				matrix &operator =(std::initializer_list<CInitListItem<ElementType>> initList);
 
@@ -1060,19 +1071,6 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				}
 
 				template<typename ElementType, unsigned int dimension>
-				inline vector<ElementType, dimension>::vector(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar)
-				{
-					std::fill_n(CDataContainer<ElementType, 0, dimension>::_data._data, dimension, scalar);
-				}
-
-				template<typename ElementType, unsigned int dimension>
-				template<typename TIterator>
-				inline vector<ElementType, dimension>::vector(TIterator src)
-				{
-					std::copy_n(src, dimension, CDataContainer<ElementType, 0, dimension>::_data._data);
-				}
-
-				template<typename ElementType, unsigned int dimension>
 				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, unsigned short srcPackedSwizzle, class CSrcSwizzleVector, bool srcOdd, unsigned srcNamingSet>
 				inline vector<ElementType, dimension>::vector(const CSwizzle<SrcElementType, srcRows, srcColumns, srcPackedSwizzle, CSrcSwizzleVector, srcOdd, srcNamingSet> &src)
 				{
@@ -1083,6 +1081,19 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 						operator [](i).~ElementType();
 						new(&operator [](i)) ElementType(src[i]);
 					}
+				}
+
+				template<typename ElementType, unsigned int dimension>
+				inline vector<ElementType, dimension>::vector(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar)
+				{
+					std::fill_n(CDataContainer<ElementType, 0, dimension>::_data._data, dimension, scalar);
+				}
+
+				template<typename ElementType, unsigned int dimension>
+				template<typename TIterator>
+				inline vector<ElementType, dimension>::vector(TIterator src)
+				{
+					std::copy_n(src, dimension, CDataContainer<ElementType, 0, dimension>::_data._data);
 				}
 
 				template<typename ElementType, unsigned int dimension>
@@ -1103,6 +1114,13 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				inline auto vector<ElementType, dimension>::operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right) -> vector &
 				{
 					CSwizzle<ElementType, 0, dimension, 0u, void>::operator =(right);
+					return *this;
+				}
+
+				template<typename ElementType, unsigned int dimension>
+				inline auto vector<ElementType, dimension>::operator =(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar) -> vector &
+				{
+					CSwizzle<ElementType, 0, dimension, 0u, void>::operator =(scalar);
 					return *this;
 				}
 
@@ -1147,6 +1165,20 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				*/
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
+				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
+				inline matrix<ElementType, rows, columns>::matrix(const matrix<SrcElementType, srcRows, srcColumns> &src)
+				{
+					static_assert(rows <= srcRows, "\"copy\" ctor: too few rows in src");
+					static_assert(columns <= srcColumns, "\"copy\" ctor: too few columns in src");
+					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)
+					{
+						auto curRow = &operator [](rowIdx);
+						curRow->~TRow();
+						new(curRow) TRow(src[rowIdx]);
+					}
+				}
+
+				template<typename ElementType, unsigned int rows, unsigned int columns>
 				inline matrix<ElementType, rows, columns>::matrix(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar)
 				{
 					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)
@@ -1167,20 +1199,6 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 						curRow->~TRow();
 						new(curRow) TRow(*src);
 						src += columns;
-					}
-				}
-
-				template<typename ElementType, unsigned int rows, unsigned int columns>
-				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
-				inline matrix<ElementType, rows, columns>::matrix(const matrix<SrcElementType, srcRows, srcColumns> &src)
-				{
-					static_assert(rows <= srcRows, "\"copy\" ctor: too few rows in src");
-					static_assert(columns <= srcColumns, "\"copy\" ctor: too few columns in src");
-					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)
-					{
-						auto curRow = &operator [](rowIdx);
-						curRow->~TRow();
-						new(curRow) TRow(src[rowIdx]);
 					}
 				}
 
@@ -1213,6 +1231,14 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				{
 					static_assert(rows <= rightRows, "operator =: too few rows in src");
 					static_assert(columns <= rightColumns, "operator =: too few columns in src");
+					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)
+						operator [](rowIdx) = right[rowIdx];
+					return *this;
+				}
+
+				template<typename ElementType, unsigned int rows, unsigned int columns>
+				inline auto matrix<ElementType, rows, columns>::operator =(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar) -> matrix &
+				{
 					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)
 						operator [](rowIdx) = right[rowIdx];
 					return *this;
