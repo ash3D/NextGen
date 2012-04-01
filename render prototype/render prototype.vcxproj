@@ -204,7 +204,6 @@
     <None Include="render prototype.ico" />
     <None Include="small.ico" />
     <None Include="2D.fx" />
-    <None Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="render prototype.rc" />
