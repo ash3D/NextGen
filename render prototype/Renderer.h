@@ -166,7 +166,7 @@ namespace DGLE2
 					E_BLEND_OP	blendOp;
 					E_BLEND		srcBlendAlpha;
 					E_BLEND		destBlendAlpha;
-					E_BLEND		blendOpAlpha;
+					E_BLEND_OP	blendOpAlpha;
 					ubyte		renderTargetWriteMask;
 				} renderTarget[8];
 			};

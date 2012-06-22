@@ -589,6 +589,9 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				//{
 				//	return operator ElementType &();
 				//}
+
+				template<typename F>
+				vector<ElementType, TSwizzleTraits<columns, CSwizzleVector>::TDimension::value> apply(F f) const;
 			};
 
 			// CSwizzle inherits from this to reduce preprocessor generated code for faster compiling
@@ -1058,9 +1061,6 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				const ElementType &operator [](unsigned int idx) const noexcept;
 
 				ElementType &operator [](unsigned int idx) noexcept;
-
-				template<typename F>
-				vector apply(F f);
 			};
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
@@ -1125,7 +1125,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				TRow &operator [](unsigned int idx) noexcept;
 
 				template<typename F>
-				matrix apply(F f);
+				matrix apply(F f) const;
 			};
 
 #			pragma region(Initializer list)
@@ -1200,6 +1200,18 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 					const unsigned _itemSize;
 				};
 #			pragma endregion
+
+			template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector, bool odd, unsigned namingSet>
+			template<typename F>
+			inline vector<ElementType, TSwizzleTraits<columns, CSwizzleVector>::TDimension::value> CSwizzleBase<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet>::apply(F f) const
+			{
+				constexpr unsigned int dimension = TSwizzleTraits<columns, CSwizzleVector>::TDimension::value;
+				vector<ElementType, dimension> result;
+				for (unsigned i = 0; i < dimension; i++)
+					result[i] = f(static_cast<const TSwizzle &>(*this)[i]);
+				return result;
+			}
+
 #			pragma region(vector impl)
 				template<typename ElementType, unsigned int dimension>
 				inline const ElementType &vector<ElementType, dimension>::operator [](unsigned int idx) const noexcept
@@ -1275,17 +1287,8 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 					CSwizzle<ElementType, 0, dimension, 0u, void>::operator =(scalar);
 					return *this;
 				}
-
-				template<typename ElementType, unsigned int dimension>
-				template<typename F>
-				inline auto vector<ElementType, dimension>::apply(F f) -> vector
-				{
-					vector result;
-					for (unsigned i = 0; i < dimension; i++)
-						result[i] = f(operator [](i));
-					return result;
-				}
 #			pragma endregion
+
 #			pragma region(matrix impl)
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				inline auto matrix<ElementType, rows, columns>::operator [](unsigned int idx) const noexcept -> const typename matrix::TRow &
@@ -1403,7 +1406,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				inline auto matrix<ElementType, rows, columns>::operator =(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar) -> matrix &
 				{
 					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)
-						operator [](rowIdx) = right[rowIdx];
+						operator [](rowIdx) = scalar;
 					return *this;
 				}
 
@@ -1521,7 +1524,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				template<typename F>
-				inline auto matrix<ElementType, rows, columns>::apply(F f) -> matrix
+				inline auto matrix<ElementType, rows, columns>::apply(F f) const -> matrix
 				{
 					matrix result;
 					for (unsigned i = 0; i < rows; i++)
@@ -1529,6 +1532,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 					return result;
 				}
 #			pragma endregion
+
 #			pragma region(mul functions)
 				// note: most of these functions are not inline
 
