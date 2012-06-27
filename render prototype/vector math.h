@@ -1564,7 +1564,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 							dimension																																			\
 						> result;																																				\
 						for (unsigned i = 0; i < dimension; i++)																												\
-							result = std::f(left[i], right[i]);																													\
+							result[i] = std::f(left[i], right[i]);																												\
 						return result;																																			\
 					};
 				FUNCTION_DEFINITION(min)
