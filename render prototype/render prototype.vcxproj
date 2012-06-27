@@ -185,7 +185,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="C++11 dummies.h" />
+    <ClInclude Include="C++11 stub.h" />
     <ClInclude Include="com ptr defs.h" />
     <ClInclude Include="Effects11\Inc\d3dx11dbg.h" />
     <ClInclude Include="Effects11\Inc\d3dx11effect.h" />

@@ -52,7 +52,7 @@ template for format (especially for structured buffer)
 #pragma endregion
 
 #include "vector math.h"
-#include "C++11 dummies.h"
+#include "C++11 stub.h"
 
 #include <memory>		// for shared_ptr
 #include <type_traits>

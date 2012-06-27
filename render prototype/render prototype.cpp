@@ -48,6 +48,8 @@ void Proc()
 #pragma region(vector math test)
 	DGLE2::VectorMath::HLSL::int4 vec4(1);
 	DGLE2::VectorMath::GLSL::vec3 vec3(2);
+	min(vec4, vec4);
+	max(vec4, vec4.x);
 	vec4 + vec3;
 	vec4.wwww + vec3;
 	vec4.zx += vec4;
