@@ -854,9 +854,8 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 						typedef TSwizzleTraits<rightColumns, CRightSwizzleVector> TRightSwizzleTraits;																										\
 						static_assert(TLeftSwizzleTraits::TIsWriteMaskValid::value, "operator "#op"=: invalid write mask");																					\
 						static_assert(TLeftSwizzleTraits::TDimension::value <= TRightSwizzleTraits::TDimension::value, "operator "#op"=: too small src dimension");											\
-						vector<RightElementType, TRightSwizzleTraits::TDimension::value> right_copy(right);																									\
 						for (typename TLeftSwizzleTraits::TDimension::value_type i = 0; i < TLeftSwizzleTraits::TDimension::value; i++)																		\
-							left[i] op##= right_copy[i];																																					\
+							left[i] op##= right[i];																																							\
 						return left;																																										\
 					};
 				GENERATE_ARITMETIC_OPERATORS(OPERATOR_DEFINITION)
