@@ -831,7 +831,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				}
 
 				template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector, bool odd, unsigned namingSet>
-				inline vector<ElementType, columns> operator -(const CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> &src)
+				inline vector<ElementType, TSwizzleTraits<columns, CSwizzleVector>::TDimension::value> operator -(const CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> &src)
 				{
 					typedef TSwizzleTraits<columns, CSwizzleVector> TSwizzleTraits;
 					vector<ElementType, columns> result;
