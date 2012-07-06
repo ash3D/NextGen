@@ -834,7 +834,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				inline vector<ElementType, TSwizzleTraits<columns, CSwizzleVector>::TDimension::value> operator -(const CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> &src)
 				{
 					typedef TSwizzleTraits<columns, CSwizzleVector> TSwizzleTraits;
-					vector<ElementType, columns> result;
+					vector<ElementType, TSwizzleTraits::TDimension::value> result;
 					for (typename TSwizzleTraits::TDimension::value_type i = 0; i < TSwizzleTraits::TDimension::value; i++)
 						result[i] = -src[i];
 					return result;
