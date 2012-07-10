@@ -29,3 +29,5 @@
 //#include <memory>		// for allocator
 #include <new>			// for bad_alloc
 #include <malloc.h>		// for _get_heap_handle
+
+#include "vector math.h"

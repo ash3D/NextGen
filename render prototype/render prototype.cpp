@@ -50,6 +50,8 @@ void Proc()
 	DGLE2::VectorMath::GLSL::vec3 vec3(2);
 	min(vec4, vec4);
 	max(vec4, vec4.x);
+	vec4 < vec3;
+	vec4 > 0;
 	vec4 + vec3;
 	vec4.wwww + vec3;
 	vec4.zx += vec4;
@@ -81,7 +83,9 @@ void Proc()
 	//m1x4 = std::initializer_list<DGLE2::VectorMath::CInitListItem<long>>(lst, lst + _countof(lst));
 	//m1x4[0];
 	DGLE2::VectorMath::matrix<long, 5, 4> m5x4;
-	+m5x4 + -m5x4;
+	none(m5x4);
+	m5x4 == 0;
+	m5x4 != +m5x4 + -m5x4;
 	mul(vec3, m5x4);
 	m5x4 += 2;
 	m5x4 + 2;

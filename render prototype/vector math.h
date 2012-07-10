@@ -395,6 +395,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 		using std::declval;
 #	endif
 #	include <type_traits>
+#	include <iterator>
 #	include <algorithm>
 #	include <initializer_list>
 #	include <boost\preprocessor\iteration\iterate.hpp>
@@ -453,8 +454,9 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 		namespace VectorMath
 		{
 #			define ARITHMETIC_OPS (+)(-)(*)(/)
-#			define GENERATE_ARITMETIC_OPERATORS_MACRO(r, callback, op) callback(op)
-#			define GENERATE_ARITMETIC_OPERATORS(callback) BOOST_PP_SEQ_FOR_EACH(GENERATE_ARITMETIC_OPERATORS_MACRO, callback, ARITHMETIC_OPS)
+#			define REL_OPS (==)(!=)(<)(<=)(>)(>=)
+#			define GENERATE_OPERATORS_MACRO(r, callback, op) callback(op)
+#			define GENERATE_OPERATORS(callback, ops) BOOST_PP_SEQ_FOR_EACH(GENERATE_OPERATORS_MACRO, callback, ops)
 
 			namespace mpl = boost::mpl;
 
@@ -480,10 +482,31 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 			template<typename ElementType>
 			class CInitListItem;
 
+			template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector, bool odd, unsigned namingSet>
+			bool all(const CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> &src);
+
+			template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector, bool odd, unsigned namingSet>
+			bool any(const CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> &src);
+
+			template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector, bool odd, unsigned namingSet>
+			bool none(const CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> &src);
+
+			template<typename ElementType, unsigned int rows, unsigned int columns>
+			bool all(const matrix<ElementType, rows, columns> &src);
+
+			template<typename ElementType, unsigned int rows, unsigned int columns>
+			bool any(const matrix<ElementType, rows, columns> &src);
+
+			template<typename ElementType, unsigned int rows, unsigned int columns>
+			bool none(const matrix<ElementType, rows, columns> &src);
+
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			class CData final
 			{
 				friend class matrix<ElementType, rows, columns>;
+				friend bool all<>(const matrix<ElementType, rows, columns> &);
+				friend bool any<>(const matrix<ElementType, rows, columns> &);
+				friend bool none<>(const matrix<ElementType, rows, columns> &);
 
 				template<typename, unsigned int, unsigned int, unsigned short, class, bool, unsigned>
 				friend class CSwizzleCommon;
@@ -802,7 +825,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				~CSwizzle() = default;
 				CSwizzle &operator =(const CSwizzle &) = default;
 #endif
-
+			protected:
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet>
 				CSwizzle &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right)
 				{
@@ -817,7 +840,72 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				}
 			};
 
-#			pragma region(generate arithmetic operators)
+			template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector, bool odd = false, unsigned namingSet = 1>
+			class CSwizzleIteratorImpl: public std::iterator<std::forward_iterator_tag, const ElementType>
+			{
+				const CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> &_swizzle;
+				unsigned _i;
+			protected:
+				CSwizzleIteratorImpl(const CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> &swizzle, unsigned i):
+				_swizzle(swizzle), _i(i) {}
+#ifndef MSVC_LIMITATIONS
+				~CSwizzleIteratorImpl() = default;
+#endif
+				// required by stl => public
+			public:
+				typename std::conditional
+				<
+					sizeof(typename CSwizzleIteratorImpl::value_type) <= sizeof(void *),
+					typename CSwizzleIteratorImpl::value_type,
+					typename CSwizzleIteratorImpl::reference
+				>::type operator *() const
+				{
+					return ElementType();
+				}
+				typename CSwizzleIteratorImpl::pointer operator ->() const
+				{
+					return &ElementType();
+				}
+				bool operator ==(CSwizzleIteratorImpl<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> src) const noexcept
+				{
+					_ASSERTE(&_swizzle == &src._swizzle);
+					return _i == src._i;
+				}
+				bool operator !=(CSwizzleIteratorImpl<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> src) const noexcept
+				{
+					_ASSERTE(&_swizzle == &src._swizzle);
+					return _i != src._i;
+				}
+				CSwizzleIteratorImpl &operator ++()
+				{
+					++_i;
+					return *this;
+				}
+				CSwizzleIteratorImpl operator ++(int)
+				{
+					CSwizzleIteratorImpl old(*this);
+					operator ++();
+					return old;
+				}
+			};
+
+			template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector, bool odd = false, unsigned namingSet = 1>
+			class CSwizzleIterator: public CSwizzleIteratorImpl<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet>
+			{
+				friend bool all<>(const CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> &src);
+				friend bool any<>(const CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> &src);
+				friend bool none<>(const CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> &src);
+
+				// use C++11 inheriting ctor
+				CSwizzleIterator(const CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> &swizzle, unsigned i):
+				CSwizzleIteratorImpl<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet>(swizzle, i) {}
+#ifndef MSVC_LIMITATIONS
+				// copy ctor required by stl => public
+				~CSwizzleIterator() = default;
+#endif
+			};
+
+#			pragma region(generate operators)
 				template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector, bool odd, unsigned namingSet>
 				inline const typename CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet>::TOperationResult &operator +(const CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> &src) noexcept
 				{
@@ -858,7 +946,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 							left[i] op##= right[i];																																							\
 						return left;																																										\
 					};
-				GENERATE_ARITMETIC_OPERATORS(OPERATOR_DEFINITION)
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
 
 #				define OPERATOR_DEFINITION(op)																																							\
@@ -873,7 +961,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 					{																																													\
 						return left op##= static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, void> &>(right);																			\
 					};
-				GENERATE_ARITMETIC_OPERATORS(OPERATOR_DEFINITION)
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
 
 #				define OPERATOR_DEFINITION(op)																																							\
@@ -892,7 +980,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 							left[i] op##= right;																																						\
 						return left;																																									\
 					};
-				GENERATE_ARITMETIC_OPERATORS(OPERATOR_DEFINITION)
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
 
 #				define OPERATOR_DEFINITION(op)																																								\
@@ -924,7 +1012,38 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 						> result(left);																																										\
 						return result op##= right;																																							\
 					};
-				GENERATE_ARITMETIC_OPERATORS(OPERATOR_DEFINITION)
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#				undef OPERATOR_DEFINITION
+
+#				define OPERATOR_DEFINITION(op)																																								\
+					template																																												\
+					<																																														\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, unsigned short leftPackedSwizzle, class CLeftSwizzleVector, bool leftOdd, unsigned leftNamingSet,		\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet	\
+					>																																														\
+					inline vector																																											\
+					<																																														\
+						bool,																																												\
+						mpl::min																																											\
+						<																																													\
+							typename TSwizzleTraits<leftColumns, CLeftSwizzleVector>::TDimension,																											\
+							typename TSwizzleTraits<rightColumns, CRightSwizzleVector>::TDimension																											\
+						>::type::value																																										\
+					> operator op(																																											\
+					const CSwizzle<LeftElementType, leftRows, leftColumns, leftPackedSwizzle, CLeftSwizzleVector, leftOdd, leftNamingSet> &left,															\
+					const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right)													\
+					{																																														\
+						constexpr unsigned int dimension = mpl::min																																			\
+						<																																													\
+							typename TSwizzleTraits<leftColumns, CLeftSwizzleVector>::TDimension,																											\
+							typename TSwizzleTraits<rightColumns, CRightSwizzleVector>::TDimension																											\
+						>::type::value;																																										\
+						vector<bool, dimension> result;																																						\
+						for (unsigned i = 0; i < dimension; i++)																																			\
+							result[i] = left[i] op right[i];																																				\
+						return result;																																										\
+					};
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
 #				undef OPERATOR_DEFINITION
 
 #				define OPERATOR_DEFINITION(op)																																							\
@@ -939,7 +1058,8 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 					{																																													\
 						return left op static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, void> &>(right);																				\
 					};
-				GENERATE_ARITMETIC_OPERATORS(OPERATOR_DEFINITION)
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
 #				undef OPERATOR_DEFINITION
 
 #				define OPERATOR_DEFINITION(op)																																																					\
@@ -954,7 +1074,8 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 					{																																																											\
 						return static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, void> &>(left) op right;																																		\
 					};
-				GENERATE_ARITMETIC_OPERATORS(OPERATOR_DEFINITION)
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
 #				undef OPERATOR_DEFINITION
 
 #				define OPERATOR_DEFINITION(op)																		\
@@ -973,7 +1094,8 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 							static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, void> &>(left) op		\
 							static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, void> &>(right);	\
 					};
-				GENERATE_ARITMETIC_OPERATORS(OPERATOR_DEFINITION)
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
 #				undef OPERATOR_DEFINITION
 
 #				define OPERATOR_DEFINITION(op)																																							\
@@ -997,7 +1119,30 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 						> result(left);																																									\
 						return result op##= right;																																						\
 					};
-				GENERATE_ARITMETIC_OPERATORS(OPERATOR_DEFINITION)
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#				undef OPERATOR_DEFINITION
+
+#				define OPERATOR_DEFINITION(op)																																							\
+					template																																											\
+					<																																													\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, unsigned short leftPackedSwizzle, class CLeftSwizzleVector, bool leftOdd, unsigned leftNamingSet,	\
+						typename RightElementType																																						\
+					>																																													\
+					inline vector																																										\
+					<																																													\
+						bool,																																											\
+						TSwizzleTraits<leftColumns, CLeftSwizzleVector>::TDimension::value																												\
+					> operator op(																																										\
+					const CSwizzle<LeftElementType, leftRows, leftColumns, leftPackedSwizzle, CLeftSwizzleVector, leftOdd, leftNamingSet> &left,														\
+					RightElementType right)																																								\
+					{																																													\
+						constexpr unsigned int dimension = TSwizzleTraits<leftColumns, CLeftSwizzleVector>::TDimension::value;																			\
+						vector<bool, dimension> result;																																					\
+						for (unsigned i = 0; i < dimension; i++)																																		\
+							result[i] = left[i] op right;																																				\
+						return result;																																									\
+					};
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
 #				undef OPERATOR_DEFINITION
 
 #				define OPERATOR_DEFINITION(op)																																								\
@@ -1018,10 +1163,33 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 						<																																													\
 							decltype(declval<LeftElementType>() op declval<RightElementType>()),																											\
 							TSwizzleTraits<rightColumns, CRightSwizzleVector>::TDimension::value																											\
-						> result(left);																																									\
+						> result(left);																																										\
 						return left op##= right;																																							\
 					};
-				GENERATE_ARITMETIC_OPERATORS(OPERATOR_DEFINITION)
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#				undef OPERATOR_DEFINITION
+
+#				define OPERATOR_DEFINITION(op)																																								\
+					template																																												\
+					<																																														\
+						typename LeftElementType,																																							\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet	\
+					>																																														\
+					inline vector																																											\
+					<																																														\
+						bool,																																												\
+						TSwizzleTraits<rightColumns, CRightSwizzleVector>::TDimension::value																												\
+					> operator op(																																											\
+					LeftElementType left,																																									\
+					const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right)													\
+					{																																														\
+						constexpr unsigned int dimension = TSwizzleTraits<rightColumns, CRightSwizzleVector>::TDimension::value;																			\
+						vector<bool, dimension> result;																																						\
+						for (unsigned i = 0; i < dimension; i++)																																			\
+							result[i] = left op right[i];																																					\
+						return result;																																										\
+					};
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
 #				undef OPERATOR_DEFINITION
 #			pragma endregion
 
@@ -1067,6 +1235,9 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 			{
 				static_assert(rows > 0, "matrix should contain at leat 1 row");
 				static_assert(columns > 0, "matrix should contain at leat 1 column");
+				friend bool all<>(const matrix<ElementType, rows, columns> &);
+				friend bool any<>(const matrix<ElementType, rows, columns> &);
+				friend bool none<>(const matrix<ElementType, rows, columns> &);
 				typedef vector<ElementType, columns> TRow;
 			public:
 #				ifdef MSVC_LIMITATIONS
@@ -1107,17 +1278,17 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 
 				matrix operator -() const;
 
-#				define OPERAOR_DECLARATION(op)																\
+#				define OPERATOR_DECLARATION(op)																\
 					template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns>	\
 					matrix &operator op##=(const matrix<RightElementType, rightRows, rightColumns> &right);
-				GENERATE_ARITMETIC_OPERATORS(OPERAOR_DECLARATION)
-#				undef OPERAOR_DECLARATION
+				GENERATE_OPERATORS(OPERATOR_DECLARATION, ARITHMETIC_OPS)
+#				undef OPERATOR_DECLARATION
 
-#				define OPERAOR_DECLARATION(op)						\
+#				define OPERATOR_DECLARATION(op)						\
 					template<typename RightElementType>				\
 					matrix &operator op##=(RightElementType right);
-				GENERATE_ARITMETIC_OPERATORS(OPERAOR_DECLARATION)
-#				undef OPERAOR_DECLARATION
+				GENERATE_OPERATORS(OPERATOR_DECLARATION, ARITHMETIC_OPS)
+#				undef OPERATOR_DECLARATION
 
 				const TRow &operator [](unsigned int idx) const noexcept;
 
@@ -1429,7 +1600,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 							operator [](rowIdx) op##= right[rowIdx];																							\
 						return *this;																															\
 					}
-				GENERATE_ARITMETIC_OPERATORS(OPERATOR_DEFINITION)
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
 
 #				define OPERATOR_DEFINITION(op)																			\
@@ -1441,7 +1612,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 							operator [](rowIdx) op##= right;															\
 						return *this;																					\
 					}
-				GENERATE_ARITMETIC_OPERATORS(OPERATOR_DEFINITION)
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
 
 #				define OPERATOR_DEFINITION(op)																						\
@@ -1468,7 +1639,33 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 						result(left);																								\
 						return result op##= right;																					\
 					}
-				GENERATE_ARITMETIC_OPERATORS(OPERATOR_DEFINITION)
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#				undef OPERATOR_DEFINITION
+
+#				define OPERATOR_DEFINITION(op)																									\
+					template																													\
+					<																															\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,												\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns											\
+					>																															\
+					inline matrix																												\
+					<																															\
+						bool,																													\
+						mpl::min<mpl::integral_c<unsigned, leftRows>, mpl::integral_c<unsigned, rightRows>>::type::value,						\
+						mpl::min<mpl::integral_c<unsigned, leftColumns>, mpl::integral_c<unsigned, rightColumns>>::type::value					\
+					> operator op(																												\
+					const matrix<LeftElementType, leftRows, leftColumns> &left,																	\
+					const matrix<RightElementType, rightRows, rightColumns> &right)																\
+					{																															\
+						constexpr unsigned int																									\
+							rows = mpl::min<mpl::integral_c<unsigned, leftRows>, mpl::integral_c<unsigned, rightRows>>::type::value,			\
+							columns = mpl::min<mpl::integral_c<unsigned, leftColumns>, mpl::integral_c<unsigned, rightColumns>>::type::value;	\
+						matrix<bool, rows, columns> result;																						\
+						for (unsigned i = 0; i < rows; i++)																						\
+							result[i] = left[i] op right[i];																					\
+						return result;																											\
+					}
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
 #				undef OPERATOR_DEFINITION
 
 #				define OPERATOR_DEFINITION(op)														\
@@ -1493,7 +1690,29 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 						result(left);																\
 						return result op##= right;													\
 					}
-				GENERATE_ARITMETIC_OPERATORS(OPERATOR_DEFINITION)
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#				undef OPERATOR_DEFINITION
+
+#				define OPERATOR_DEFINITION(op)														\
+					template																		\
+					<																				\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,	\
+						typename RightElementType													\
+					>																				\
+					inline matrix																	\
+					<																				\
+						bool,																		\
+						leftRows, leftColumns														\
+					> operator op(																	\
+					const matrix<LeftElementType, leftRows, leftColumns> &left,						\
+					RightElementType right)															\
+					{																				\
+						matrix<bool, leftRows, leftColumns> result;									\
+						for (unsigned i = 0; i < leftRows; i++)										\
+							result[i] = left[i] op right;											\
+						return result;																\
+					}
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
 #				undef OPERATOR_DEFINITION
 
 #				define OPERATOR_DEFINITION(op)															\
@@ -1518,7 +1737,29 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 						result(right);																	\
 						return result op##= left;														\
 					}
-				GENERATE_ARITMETIC_OPERATORS(OPERATOR_DEFINITION)
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#				undef OPERATOR_DEFINITION
+
+#				define OPERATOR_DEFINITION(op)															\
+					template																			\
+					<																					\
+						typename LeftElementType,														\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns	\
+					>																					\
+					inline matrix																		\
+					<																					\
+						bool,																			\
+						rightRows, rightColumns															\
+					> operator op(																		\
+					LeftElementType left,																\
+					const matrix<RightElementType, rightRows, rightColumns> &right)						\
+					{																					\
+						matrix<bool, rightRows, rightColumns> result;									\
+						for (unsigned i = 0; i < rightRows; i++)										\
+							result[i] = left op right[i];												\
+						return result;																	\
+					}
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
 #				undef OPERATOR_DEFINITION
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
@@ -1577,7 +1818,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 						unsigned int leftRows, unsigned int leftColumns,																		\
 						unsigned int rightRows, unsigned int rightColumns																		\
 					>																															\
-					inline matrix																												\
+					matrix																												\
 					<																															\
 						ElementType,																											\
 						mpl::min<mpl::integral_c<unsigned, leftRows>, mpl::integral_c<unsigned, rightRows>>::type::value,						\
@@ -1589,19 +1830,53 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 						constexpr unsigned int																									\
 							rows = mpl::min<mpl::integral_c<unsigned, leftRows>, mpl::integral_c<unsigned, rightRows>>::type::value,			\
 							columns = mpl::min<mpl::integral_c<unsigned, leftColumns>, mpl::integral_c<unsigned, rightColumns>>::type::value;	\
-						matrix																													\
-						<																														\
-							ElementType,																										\
-							rows,																												\
-							columns																												\
-						>																														\
-						result;																													\
+						matrix<ElementType, rows, columns> result;																				\
 						for (unsigned i = 0; i < rows; i++)																						\
 							result[i] = f(left[i], right[i]);																					\
 						return result;																											\
 					}
 				FUNCTION_DEFINITION(min)
 				FUNCTION_DEFINITION(max)
+#				undef FUNCTION_DEFINITION
+#			pragma endregion
+
+#			pragma region(all/any/none functions)
+#				define FUNCTION_DEFINITION(f)																																			\
+					template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector, bool odd, unsigned namingSet>			\
+					inline bool f(const CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> &src)														\
+					{																																									\
+						typedef CSwizzleIterator<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> TSwizzleIterator;											\
+						return std::f##_of(TSwizzleIterator(src, 0), TSwizzleIterator(src, TSwizzleTraits<columns, CSwizzleVector>::TDimension::value), [](typename std::conditional	\
+						<																																								\
+							sizeof(typename TSwizzleIterator::value_type) <= sizeof(void *),																							\
+							typename TSwizzleIterator::value_type,																														\
+							typename TSwizzleIterator::reference																														\
+						>::type element) {return element;});																															\
+					};
+				FUNCTION_DEFINITION(all)
+				FUNCTION_DEFINITION(any)
+				FUNCTION_DEFINITION(none)
+#				undef FUNCTION_DEFINITION
+
+#				ifdef MSVC_LIMITATIONS
+#				define FUNCTION_DEFINITION(f)																										\
+					template<typename ElementType, unsigned int rowCount, unsigned int columnCount>													\
+					bool f(const matrix<ElementType, rowCount, columnCount> &src)																	\
+					{																																\
+						const auto &rows = reinterpret_cast<const matrix<ElementType, rowCount, columnCount>::TRow (&)[rowCount]>(src._data._rows);	\
+						return std::f##_of(rows, rows + rowCount, f<ElementType, 0, columnCount, 0u, void, false, 1>);								\
+					};
+#				else
+#				define FUNCTION_DEFINITION(f)																							\
+					template<typename ElementType, unsigned int rows, unsigned int columns>												\
+					bool f(const matrix<ElementType, rows, columns> &src)																\
+					{																													\
+						return std::f##_of(src._data._rows, src._data._rows + rows, f<ElementType, 0, columns, 0u, void, false, 1>);	\
+					};
+#				endif
+				FUNCTION_DEFINITION(all)
+				FUNCTION_DEFINITION(any)
+				FUNCTION_DEFINITION(none)
 #				undef FUNCTION_DEFINITION
 #			pragma endregion
 
@@ -1716,8 +1991,9 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 #			pragma endregion
 
 #			undef ARITHMETIC_OPS
-#			undef GENERATE_ARITMETIC_OPERATORS_MACRO
-#			undef GENERATE_ARITMETIC_OPERATORS
+#			undef REL_OPS
+#			undef GENERATE_OPERATORS_MACRO
+#			undef GENERATE_OPERATORS
 		}
 	}
 //#	undef GET_SWIZZLE_ELEMENT
