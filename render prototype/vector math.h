@@ -860,11 +860,11 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 					typename CSwizzleIteratorImpl::reference
 				>::type operator *() const
 				{
-					return ElementType();
+					return _swizzle[_i];
 				}
 				typename CSwizzleIteratorImpl::pointer operator ->() const
 				{
-					return &ElementType();
+					return &_swizzle[_i];
 				}
 				bool operator ==(CSwizzleIteratorImpl<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> src) const noexcept
 				{
