@@ -1888,7 +1888,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, unsigned short leftPackedSwizzle, class CLeftSwizzleVector, bool leftOdd, unsigned leftNamingSet,
 					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet
 				>
-				inline decltype(declval<LeftElementType>() + declval<RightElementType>()) mul(
+				inline decltype(declval<LeftElementType>() * declval<RightElementType>()) mul(
 				const CSwizzle<LeftElementType, leftRows, leftColumns, leftPackedSwizzle, CLeftSwizzleVector, leftOdd, leftNamingSet> &left,
 				const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right)
 				{
@@ -1911,7 +1911,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, unsigned short leftPackedSwizzle, class CLeftSwizzleVector, bool leftOdd, unsigned leftNamingSet,
 					typename RightElementType, unsigned int rightRows, unsigned int rightColumns
 				>
-				vector<decltype(declval<LeftElementType>() + declval<RightElementType>()), rightColumns> mul(
+				vector<decltype(declval<LeftElementType>() * declval<RightElementType>()), rightColumns> mul(
 				const CSwizzle<LeftElementType, leftRows, leftColumns, leftPackedSwizzle, CLeftSwizzleVector, leftOdd, leftNamingSet> &left,
 				const matrix<RightElementType, rightRows, rightColumns> &right)
 				{
@@ -1938,7 +1938,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,
 					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet
 				>
-				vector<decltype(declval<LeftElementType>() + declval<RightElementType>()), leftRows> mul(
+				vector<decltype(declval<LeftElementType>() * declval<RightElementType>()), leftRows> mul(
 				const matrix<LeftElementType, leftRows, leftColumns> &left,
 				const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right)
 				{
@@ -1965,7 +1965,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,
 					typename RightElementType, unsigned int rightRows, unsigned int rightColumns
 				>
-				matrix<decltype(declval<LeftElementType>() + declval<RightElementType>()), leftRows, rightColumns> mul(
+				matrix<decltype(declval<LeftElementType>() * declval<RightElementType>()), leftRows, rightColumns> mul(
 				const matrix<LeftElementType, leftRows, leftColumns> &left,
 				const matrix<RightElementType, rightRows, rightColumns> &right)
 				{
@@ -1988,6 +1988,73 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 
 					return result;
 				}
+
+				template
+				<
+					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, unsigned short leftPackedSwizzle, class CLeftSwizzleVector, bool leftOdd, unsigned leftNamingSet,
+					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet
+				>
+				inline auto dot(
+				const CSwizzle<LeftElementType, leftRows, leftColumns, leftPackedSwizzle, CLeftSwizzleVector, leftOdd, leftNamingSet> &left,
+				const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right)
+				-> decltype(mul(left, right))
+				{
+					return mul(left, right);
+				}
+
+#				pragma region("series of matrices delimitted by ',' interpreted as series of successive transforms; inspirited by boost's function superposition")
+					template
+					<
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, unsigned short leftPackedSwizzle, class CLeftSwizzleVector, bool leftOdd, unsigned leftNamingSet,
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet
+					>
+					inline auto operator ,(
+					const CSwizzle<LeftElementType, leftRows, leftColumns, leftPackedSwizzle, CLeftSwizzleVector, leftOdd, leftNamingSet> &left,
+					const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right)
+					-> decltype(mul(left, right))
+					{
+						return mul(left, right);
+					}
+
+					template
+					<
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, unsigned short leftPackedSwizzle, class CLeftSwizzleVector, bool leftOdd, unsigned leftNamingSet,
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns
+					>
+					inline auto operator ,(
+					const CSwizzle<LeftElementType, leftRows, leftColumns, leftPackedSwizzle, CLeftSwizzleVector, leftOdd, leftNamingSet> &left,
+					const matrix<RightElementType, rightRows, rightColumns> &right)
+					-> decltype(mul(left, right))
+					{
+						return mul(left, right);
+					}
+
+					template
+					<
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet
+					>
+					inline auto operator ,(
+					const matrix<LeftElementType, leftRows, leftColumns> &left,
+					const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right)
+					-> decltype(mul(left, right))
+					{
+						return mul(left, right);
+					}
+
+					template
+					<
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns
+					>
+					inline auto operator ,(
+					const matrix<LeftElementType, leftRows, leftColumns> &left,
+					const matrix<RightElementType, rightRows, rightColumns> &right)
+					-> decltype(mul(left, right))
+					{
+						return mul(left, right);
+					}
+#				pragma endregion
 #			pragma endregion
 
 #			undef ARITHMETIC_OPS

@@ -76,7 +76,7 @@ void Proc()
 	DGLE2::VectorMath::CInitListItem<short> init_list[] = {vec4, 42};
 	DGLE2::VectorMath::vector<short, 5> vec5 = std::initializer_list<DGLE2::VectorMath::CInitListItem<short>>(init_list, init_list + _countof(init_list));
 	-vec5;
-	mul(vec5, vec3);
+	vec5, vec3;
 	//DGLE2::VectorMath::HLSL::int1x4 m1x4;
 	//DGLE2::VectorMath::CInitListItem<long> lst[] = {0, 1, 2, 3};
 	//m1x4._m03_m02_m01_m00 = std::initializer_list<DGLE2::VectorMath::CInitListItem<long>>(lst, lst + _countof(lst));
@@ -86,7 +86,7 @@ void Proc()
 	none(m5x4);
 	m5x4 == 0;
 	m5x4 != +m5x4 + -m5x4;
-	mul(vec3, m5x4);
+	vec3, m5x4;
 	m5x4 += 2;
 	m5x4 + 2;
 	2 + m5x4;
