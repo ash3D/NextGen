@@ -1164,7 +1164,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 							decltype(declval<LeftElementType>() op declval<RightElementType>()),																											\
 							TSwizzleTraits<rightColumns, CRightSwizzleVector>::TDimension::value																											\
 						> result(left);																																										\
-						return left op##= right;																																							\
+						return result op##= right;																																							\
 					};
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
