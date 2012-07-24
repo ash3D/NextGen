@@ -21,10 +21,6 @@ See "DGLE2.h" for more details.
 #ifdef MSVC_LIMITATIONS
 #	define noexcept
 #	define constexpr const
-#endif
-
-#if defined MSVC_LIMITATIONS | defined __GNUC__ & (__GNUC__ < 4 | (__GNUC__ >= 4 & __GNUC_MINOR__ < 7))
-#	define NO_DELEGATING_CTORS
 #	define final
 #endif
 

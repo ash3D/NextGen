@@ -16,7 +16,13 @@ different versions of CDataContainer now inherited from specialized CSwizzle
 sizeof(vector<float, 3>) in this case is 12 for both gcc and VS2010
 if vector inherited from specialized CSwizzle instead of CDataContainer then sizeof(...) is 12 for gcc and 16 for VS2010
 TODO: try inherit vector from CSwizzle for future versions of VS
+
+it is safe to use const_cast if const version returns (const &), not value, and *this object is not const
 */
+
+#if defined _MSC_VER & _MSC_VER < 1600 | defined __GNUC__ & (__GNUC__ < 4 | (__GNUC__ >= 4 & __GNUC_MINOR__ < 7))
+#error old compiler version
+#endif
 
 #if BOOST_PP_IS_ITERATING
 #if BOOST_PP_ITERATION_DEPTH() == 1
@@ -649,7 +655,6 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				}
 				ElementType &operator [](unsigned int idx) noexcept
 				{
-					/* const version returns (const &), not value; *this object is not const => it is safe to use const_cast */
 					return const_cast<ElementType &>(static_cast<const CSwizzleCommon &>(*this)[idx]);
 				}
 			};
@@ -698,7 +703,6 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				}
 				ElementType &operator [](unsigned int idx) noexcept
 				{
-					/* const version returns (const &), not value; *this object is not const => it is safe to use const_cast */
 					return const_cast<ElementType &>(static_cast<const CSwizzleCommon &>(*this)[idx]);
 				}
 			};
@@ -735,7 +739,6 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 
 				operator Tvector &() noexcept
 				{
-					/* const version returns (const &), not value; *this object is not const => it is safe to use const_cast */
 					return const_cast<Tvector &>(operator const Tvector &());
 				}
 
@@ -766,10 +769,9 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 					typedef TSwizzleTraits<columns, CSwizzleVector> TLeftSwizzleTraits;
 					typedef TSwizzleTraits<rightColumns, CRightSwizzleVector> TRightSwizzleTraits;
 					static_assert(TLeftSwizzleTraits::TDimension::value <= TRightSwizzleTraits::TDimension::value, "operator =: too small src dimension");
-					vector<RightElementType, TRightSwizzleTraits::TDimension::value> right_copy(static_cast<const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &>(right));
 					for (unsigned idx = 0; idx < TLeftSwizzleTraits::TDimension::value; idx++)
 					{
-						(*this)[idx] = right_copy[idx];
+						(*this)[idx] = right[idx];
 					}
 				}
 
@@ -1193,6 +1195,71 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 #				undef OPERATOR_DEFINITION
 #			pragma endregion
 
+#			pragma region(swizzle/vector/matrix tag)
+#			ifdef MSVC_LIMITATIONS
+			template<typename T>
+			struct TSwizzleVectorMatrixTagHelper
+			{
+				typedef CEmpty type;
+				//typedef TSwizzleVectorMatrixTag type;/*does not wirk with VS2010*/
+			};
+
+			template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector, bool odd, unsigned namingSet>
+			struct TSwizzleVectorMatrixTagHelper<CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet>>
+			{
+			};
+
+			template<typename ElementType, unsigned int dimension>
+			struct TSwizzleVectorMatrixTagHelper<vector<ElementType, dimension>>
+			{
+			};
+
+			template<typename ElementType, unsigned int rows, unsigned int columns>
+			struct TSwizzleVectorMatrixTagHelper<matrix<ElementType, rows, columns>>
+			{
+			};
+
+			template<typename T>
+			struct TSwizzleVectorMatrixTag: TSwizzleVectorMatrixTagHelper<typename std::remove_cv<T>::type>
+			{
+			};
+#			else
+			template<typename T>
+			struct TIsSwizzleVectorMatrixHelper
+			{
+			protected:
+				static constexpr bool value = false;
+			};
+
+			template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector, bool odd, unsigned namingSet>
+			struct TIsSwizzleVectorMatrixHelper<CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet>>
+			{
+			protected:
+				static constexpr bool value = true;
+			};
+
+			template<typename ElementType, unsigned int dimension>
+			struct TIsSwizzleVectorMatrixHelper<vector<ElementType, dimension>>
+			{
+			protected:
+				static constexpr bool value = true;
+			};
+
+			template<typename ElementType, unsigned int rows, unsigned int columns>
+			struct TIsSwizzleVectorMatrixHelper<matrix<ElementType, rows, columns>>
+			{
+			protected:
+				static constexpr bool value = true;
+			};
+
+			template<typename T>
+			struct TIsSwizzleVectorMatrix: TIsSwizzleVectorMatrixHelper<typename std::remove_cv<T>::type>
+			{
+				using TIsSwizzleVectorMatrixHelper<typename std::remove_cv<T>::type>::value;
+			};
+#			endif
+#			pragma endregion
+
 			template<typename ElementType, unsigned int dimension>
 			class vector: public CDataContainer<ElementType, 0, dimension>
 			{
@@ -1208,7 +1275,22 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, unsigned short srcPackedSwizzle, class CSrcSwizzleVector, bool srcOdd, unsigned srcNamingSet>
 				vector(const CSwizzle<SrcElementType, srcRows, srcColumns, srcPackedSwizzle, CSrcSwizzleVector, srcOdd, srcNamingSet> &src);
 
-				vector(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar);
+#				ifndef MSVC_LIMITATIONS
+				template<typename SrcElementType, unsigned int srcDimension>
+				vector(const vector<SrcElementType, srcDimension> &src);
+
+				template<typename ...TSrc>
+				vector(const TSrc &...src);
+#				endif
+
+				//SrcElementType template required to eliminate conflict with variadic template ctor
+				template<typename SrcElementType>
+#				ifdef MSVC_LIMITATIONS
+				vector(const SrcElementType &scalar, typename TSwizzleVectorMatrixTag<SrcElementType>::type = CEmpty());
+#				else
+				vector(const SrcElementType &scalar, typename std::enable_if<!TIsSwizzleVectorMatrix<SrcElementType>::value, CEmpty>::type = CEmpty());
+#				endif
+				//vector(const SrcElementType &scalar, typename TSwizzleVectorMatrixTag<SrcElementType>::type = typename TSwizzleVectorMatrixTag<SrcElementType>::type());
 
 				vector(std::initializer_list<CInitListItem<ElementType>> initList);
 
@@ -1228,6 +1310,13 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				const ElementType &operator [](unsigned int idx) const noexcept;
 
 				ElementType &operator [](unsigned int idx) noexcept;
+			private:
+#				ifndef MSVC_LIMITATIONS
+				template<unsigned idx>
+				inline void _Init();
+				template<unsigned startIdx, typename TFirstSrc, typename ...TRestSrc>
+				inline void _Init(const TFirstSrc &firstSrc, const TRestSrc &...restSrc);
+#				endif
 			};
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
@@ -1249,7 +1338,19 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
 				matrix(const matrix<SrcElementType, srcRows, srcColumns> &src);
 
-				matrix(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar);
+#				ifndef MSVC_LIMITATIONS
+				template<typename ...TSrc>
+				matrix(const TSrc &...src);
+#				endif
+
+				//SrcElementType template required to eliminate conflict with variadic template ctor
+				template<typename SrcElementType>
+#				ifdef MSVC_LIMITATIONS
+				matrix(const SrcElementType &scalar, typename TSwizzleVectorMatrixTag<SrcElementType>::type = CEmpty());
+#				else
+				matrix(const SrcElementType &scalar, typename std::enable_if<!TIsSwizzleVectorMatrix<SrcElementType>::value, CEmpty>::type = CEmpty());
+#				endif
+				//matrix(const SrcElementType &scalar, typename TSwizzleVectorMatrixTag<SrcElementType>::type = typename TSwizzleVectorMatrixTag<SrcElementType>::type());
 
 				matrix(std::initializer_list<CInitListItem<ElementType>> initList);
 
@@ -1296,7 +1397,83 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 
 				template<typename F>
 				matrix apply(F f) const;
+			private:
+#				ifndef MSVC_LIMITATIONS
+				template<unsigned idx>
+				inline void _Init();
+				template<unsigned startIdx, typename TFirstSrc, typename ...TRestSrc>
+				inline void _Init(const TFirstSrc &firstSrc, const TRestSrc &...restSrc);
+#				endif
 			};
+
+#			pragma region(Flat idx accessors)
+				template<typename Src>
+				class CFlatIdxAccessor;
+
+				template<typename Scalar>
+				class CFlatIdxAccessor
+				{
+					const Scalar &_scalar;
+				public:
+					CFlatIdxAccessor(const Scalar &scalar) noexcept: _scalar(scalar) {}
+				public:
+					const Scalar &operator [](unsigned idx) const noexcept
+					{
+						_ASSERTE(idx < dimension);
+						return _scalar;
+					}
+				public:
+					static constexpr unsigned dimension = 1;
+				};
+
+				// assert not required for swizzle and matrix because it's 'operator []' already have assert
+
+				template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector, bool odd, unsigned namingSet>
+				class CFlatIdxAccessor<const CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet>>
+				{
+					typedef const CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> TSwizzle;
+					TSwizzle &_swizzle;
+				public:
+					CFlatIdxAccessor(TSwizzle &swizzle) noexcept: _swizzle(swizzle) {}
+				public:
+					const ElementType &operator [](unsigned idx) const noexcept
+					{
+						return _swizzle[idx];
+					}
+				public:
+					static constexpr unsigned dimension = TSwizzleTraits<columns, CSwizzleVector>::TDimension::value;
+				};
+
+				template<typename ElementType, unsigned int dimension>
+				class CFlatIdxAccessor<const vector<ElementType, dimension>>: public CFlatIdxAccessor<const CSwizzle<ElementType, 0, dimension, 0u, void>>
+				{
+				public:
+					CFlatIdxAccessor(const vector<ElementType, dimension> &vector):
+					CFlatIdxAccessor<const CSwizzle<ElementType, 0, dimension, 0u, void>>(vector) {}
+				};
+
+				template<typename ElementType, unsigned int rows, unsigned int columns>
+				class CFlatIdxAccessor<const matrix<ElementType, rows, columns>>
+				{
+					typedef const matrix<ElementType, rows, columns> TMatrix;
+					TMatrix &_matrix;
+				public:
+					CFlatIdxAccessor(TMatrix &matrix) noexcept: _matrix(matrix) {}
+				public:
+					const ElementType &operator [](unsigned idx) const noexcept
+					{
+						return _matrix[idx / columns][idx % columns];
+					}
+				public:
+					static constexpr unsigned dimension = rows * columns;
+				};
+
+				template<typename Src>
+				inline CFlatIdxAccessor<Src> CreateFlatIdxAccessor(Src &src) noexcept
+				{
+					return CFlatIdxAccessor<Src>(src);
+				}
+#			pragma endregion
 
 #			pragma region(Initializer list)
 				template<typename TargetElementType, typename ItemElementType>
@@ -1410,8 +1587,49 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 					}
 				}
 
+#				ifndef MSVC_LIMITATIONS
 				template<typename ElementType, unsigned int dimension>
-				inline vector<ElementType, dimension>::vector(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar)
+				template<typename SrcElementType, unsigned int srcDimension>
+				inline vector<ElementType, dimension>::vector(const vector<SrcElementType, srcDimension> &src):
+				vector(static_cast<const CSwizzle<SrcElementType, 0, srcDimension, 0u, void> &>(src)) {}
+
+				template<typename ElementType, unsigned int dimension>
+				template<unsigned idx>
+				inline void vector<ElementType, dimension>::_Init()
+				{
+					static_assert(idx >= dimension, "too few src elements");
+					static_assert(idx <= dimension, "too many src elements");
+				}
+
+				template<typename ElementType, unsigned int dimension>
+				template<unsigned startIdx, typename TFirstSrc, typename ...TRestSrc>
+				inline void vector<ElementType, dimension>::_Init(const TFirstSrc &firstSrc, const TRestSrc &...restSrc)
+				{
+					const auto flat_idx_accesssor = CreateFlatIdxAccessor(firstSrc);
+					constexpr auto src_dimension = decltype(flat_idx_accesssor)::dimension;
+					for (unsigned i = 0; i < src_dimension; i++)
+					{
+						operator [](i + startIdx).~ElementType();
+						new(&operator [](i + startIdx)) ElementType(flat_idx_accesssor[i]);
+					}
+					_Init<startIdx + src_dimension>(restSrc...);
+				}
+
+				template<typename ElementType, unsigned int dimension>
+				template<typename ...TSrc>
+				vector<ElementType, dimension>::vector(const TSrc &...src)
+				{
+					_Init<0>(src...);
+				}
+#				endif
+
+				template<typename ElementType, unsigned int dimension>
+				template<typename SrcElementType>
+#				ifdef MSVC_LIMITATIONS
+				inline vector<ElementType, dimension>::vector(const SrcElementType &scalar, typename TSwizzleVectorMatrixTag<SrcElementType>::type)
+#				else
+				inline vector<ElementType, dimension>::vector(const SrcElementType &scalar, typename std::enable_if<!TIsSwizzleVectorMatrix<SrcElementType>::value, CEmpty>::type)
+#				endif
 				{
 					std::fill_n(CDataContainer<ElementType, 0, dimension>::_data._data, dimension, scalar);
 				}
@@ -1503,8 +1721,46 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 					}
 				}
 
+#				ifndef MSVC_LIMITATIONS
 				template<typename ElementType, unsigned int rows, unsigned int columns>
-				inline matrix<ElementType, rows, columns>::matrix(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar)
+				template<unsigned idx>
+				inline void matrix<ElementType, rows, columns>::_Init()
+				{
+					constexpr auto dimension = rows * columns;
+					static_assert(idx >= dimension, "too few src elements");
+					static_assert(idx <= dimension, "too many src elements");
+				}
+
+				template<typename ElementType, unsigned int rows, unsigned int columns>
+				template<unsigned startIdx, typename TFirstSrc, typename ...TRestSrc>
+				inline void matrix<ElementType, rows, columns>::_Init(const TFirstSrc &firstSrc, const TRestSrc &...restSrc)
+				{
+					const auto flat_idx_accesssor = CreateFlatIdxAccessor(firstSrc);
+					constexpr auto src_dimension = decltype(flat_idx_accesssor)::dimension;
+					for (unsigned i = 0; i < src_dimension; i++)
+					{
+						const auto r = (i + startIdx) / columns, c = (i + startIdx) % columns;
+						operator [](r).operator [](c).~ElementType();
+						new(&operator [](r).operator [](c)) ElementType(flat_idx_accesssor[i]);
+					}
+					_Init<startIdx + src_dimension>(restSrc...);
+				}
+
+				template<typename ElementType, unsigned int rows, unsigned int columns>
+				template<typename ...TSrc>
+				matrix<ElementType, rows, columns>::matrix(const TSrc &...src)
+				{
+					_Init<0>(src...);
+				}
+#				endif
+
+				template<typename ElementType, unsigned int rows, unsigned int columns>
+				template<typename SrcElementType>
+#				ifdef MSVC_LIMITATIONS
+				inline matrix<ElementType, rows, columns>::matrix(const SrcElementType &scalar, typename TSwizzleVectorMatrixTag<SrcElementType>::type)
+#				else
+				inline matrix<ElementType, rows, columns>::matrix(const SrcElementType &scalar, typename std::enable_if<!TIsSwizzleVectorMatrix<SrcElementType>::value, CEmpty>::type)
+#				endif
 				{
 					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)
 					{

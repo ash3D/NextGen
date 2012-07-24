@@ -275,6 +275,7 @@ void CS(uint3 id: SV_DispatchThreadID)
 	test._m11_m12_m11_m11;
 	float4x2 m={test, test._12_21};
 	test[id.x];
+	determinant(m);
 }
 
 technique11 test
