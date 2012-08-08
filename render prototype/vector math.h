@@ -387,6 +387,9 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 #	ifndef __VECTOR_MATH_H__
 #	define __VECTOR_MATH_H__
 
+#	pragma warning(push)
+#	pragma warning(disable: 4003 4005/*temp for MSVC_SWIZZLE_ASSIGN_WORKAROUND*/)
+
 #	include "C++11 stub.h"
 #	include <crtdbg.h>
 #	include <stddef.h>
@@ -2321,6 +2324,8 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 	}
 //#	undef GET_SWIZZLE_ELEMENT
 //#	undef GET_SWIZZLE_ELEMENT_PACKED
+
+#	pragma warning(pop)
 
 	#endif//__VECTOR_MATH_H__
 #endif
