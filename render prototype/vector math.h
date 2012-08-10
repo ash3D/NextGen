@@ -67,19 +67,8 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 #
 #	define SWIZZLES_INNER_LOOP_PRED(r, state) BOOST_PP_BITAND(BOOST_PP_NOT(IS_SEQ_ZERO(BOOST_PP_TUPLE_ELEM(4, 1, state))), BOOST_PP_LESS(BOOST_PP_TUPLE_ELEM(4, 2, state), BOOST_PP_TUPLE_ELEM(4, 3, state)))
 #	define SWIZZLES_INNER_LOOP_OP(r, state) (BOOST_PP_TUPLE_ELEM(4, 0, state), INC_SEQ(BOOST_PP_TUPLE_ELEM(4, 1, state), COLUMNS, BOOST_PP_MAX(ROWS, 1)), BOOST_PP_INC(BOOST_PP_TUPLE_ELEM(4, 2, state)), BOOST_PP_TUPLE_ELEM(4, 3, state))
-#	/*define SWIZZLES_INNER_LOOP_MACRO(r, state)	\
-		class										\
-		{											\
-		} BOOST_PP_SEQ_CAT(BOOST_PP_SEQ_TRANSFORM(IDX_2_SYMBOL, BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_TO_SEQ(BOOST_PP_ARRAY_SIZE(BOOST_PP_TUPLE_ELEM(4, 1, state)), BOOST_PP_ARRAY_DATA(BOOST_PP_TUPLE_ELEM(4, 1, state)))));*/
 #	define TRANSFORM_SWIZZLE(NAMING_SET, swizzle_seq) BOOST_PP_SEQ_CAT(BOOST_PP_SEQ_TRANSFORM(IDX_2_SYMBOL, NAMING_SET, swizzle_seq))
-//#	define SWIZZLE(state) BOOST_PP_SEQ_CAT(BOOST_PP_SEQ_TRANSFORM(IDX_2_SYMBOL, BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, state)))
-//#	define APPLY_CALLBACK(callback, arg) callback(arg)
-//#	define SWIZZLES_INNER_LOOP_MACRO(r, state) APPLY_CALLBACK(BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, state))
-//#	define SWIZZLES_INNER_LOOP_MACRO(r, state) BOOST_PP_TUPLE_ELEM(4, 0, state)(BOOST_PP_TUPLE_ELEM(4, 1, state))
-//#	define SWIZZLES_INNER_LOOP_MACRO(r, state)	\
-//		class BOOST_PP_CAT(C, SWIZZLE(state))	\
-//		{										\
-//		} SWIZZLE(state);
+#	define SWIZZLES_INNER_LOOP_MACRO(r, state) BOOST_PP_APPLY(BOOST_PP_TUPLE_ELEM(4, 0, state))(BOOST_PP_TUPLE_ELEM(4, 1, state))
 #	define SWIZZLES_INTERMIDIATE_LOOP_OP(r, state) (BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, BOOST_PP_WHILE(SWIZZLES_INNER_LOOP_PRED, SWIZZLES_INNER_LOOP_OP, (BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, state), 0, BOOST_PP_TUPLE_ELEM(4, 3, state)))), BOOST_PP_INC(BOOST_PP_TUPLE_ELEM(4, 2, state)), BOOST_PP_TUPLE_ELEM(4, 3, state))
 #	define SWIZZLES_INTERMIDIATE_LOOP_MACRO(r, state) BOOST_PP_FOR_##r((BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, state), 0, BOOST_PP_TUPLE_ELEM(4, 3, state)), SWIZZLES_INNER_LOOP_PRED, SWIZZLES_INNER_LOOP_OP, SWIZZLES_INNER_LOOP_MACRO)
 #	define SWIZZLES_OP(r, state) (BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, BOOST_PP_WHILE(SWIZZLES_INNER_LOOP_PRED, SWIZZLES_INTERMIDIATE_LOOP_OP, (BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, state), 0, BOOST_PP_TUPLE_ELEM(4, 3, state)))), BOOST_PP_INC(BOOST_PP_TUPLE_ELEM(4, 2, state)), BOOST_PP_TUPLE_ELEM(4, 3, state))
@@ -93,8 +82,6 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 		BOOST_PP_FOR((callback, INC_SEQ(GENERATE_ZERO_SEQ(i), COLUMNS, BOOST_PP_MAX(ROWS, 1)), 0, 64), SWIZZLES_INNER_LOOP_PRED, SWIZZLES_OP, SWIZZLES_MACRO)
 #	define GENERATE_SWIZZLES(callback) BOOST_PP_REPEAT_FROM_TO(1, 5, SWIZZLES, callback)
 #
-//#	define SWIZZLE_CLASSNAME(swizzle_seq) BOOST_PP_CAT(C, BOOST_PP_SEQ_CAT(swizzle_seq))
-#	define SWIZZLE_SEQ(state) BOOST_PP_TUPLE_ELEM(4, 1, state)
 #	define SWIZZLE_SEQ_2_VECTOR(seq) mpl::vector_c<unsigned int, BOOST_PP_TUPLE_REM_CTOR(BOOST_PP_SEQ_SIZE(seq), BOOST_PP_SEQ_TO_TUPLE(seq))>
 #
 #	define PACK_SWIZZLE_PRED(d, state) BOOST_PP_SEQ_SIZE(BOOST_PP_TUPLE_ELEM(3, 2, state))
@@ -104,13 +91,6 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 #	//																								  |____		____|
 #	//																									   |   |
 #	define PACK_SWIZZLE(seq) BOOST_PP_TUPLE_ELEM(3, 0, BOOST_PP_WHILE(PACK_SWIZZLE_PRED, PACK_SWIZZLE_OP, (0u, 0, seq)))
-//#
-//#	define GET_SWIZZLE_ELEMENT_SEQ(seq, i, cv) (GET_SWIZZLE_ELEMENT(COLUMNS, BOOST_PP_SEQ_ELEM(i, seq), cv))
-//#	define GET_SWIZZLE_ELEMENT_VECTOR(vector, i, cv) (GET_SWIZZLE_ELEMENT(COLUMNS, (mpl::at_c<vector, i>::type::value), cv))
-//#
-//#	define GENERATE_SCALAR_OPERATION_PRED(r, state) BOOST_PP_LESS(BOOST_PP_TUPLE_ELEM(4, 0, state), BOOST_PP_TUPLE_ELEM(4, 1, state))
-//#	define GENERATE_SCALAR_OPERATION_OP(r, state) (BOOST_PP_INC(BOOST_PP_TUPLE_ELEM(4, 0, state)), BOOST_PP_TUPLE_ELEM(4, 1, state), BOOST_PP_TUPLE_ELEM(4, 2, state), BOOST_PP_TUPLE_ELEM(4, 3, state))
-//#	define GENERATE_SCALAR_OPERATION_MACRO(r, state) GET_SWIZZLE_ELEMENT_SEQ(BOOST_PP_TUPLE_ELEM(4, 2, state), BOOST_PP_TUPLE_ELEM(4, 0, state), ) = GET_SWIZZLE_ELEMENT_VECTOR(BOOST_PP_TUPLE_ELEM(4, 3, state), BOOST_PP_TUPLE_ELEM(4, 0, state), const);
 
 #	define BOOST_PP_ITERATION_LIMITS (1, 4)
 #	define BOOST_PP_FILENAME_2 "vector math.h"
@@ -124,9 +104,6 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 		template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet>	\
 		CSwizzle &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right)																	\
 		{																																																\
-			/*static_assert(mpl::size<mpl::unique<mpl::sort<SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))>::type, std::is_same<mpl::_, mpl::_>>::type>::value == mpl::size<SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))>::value, "!");*/\
-			/*static_assert(BOOST_PP_SEQ_SIZE(leftSwizzleSeq) <= TSwizzleTraits<rightColumns, CRightSwizzleVector>::TDimension::value, "operator =: too small src dimension");*/\
-			/*BOOST_PP_FOR((0, BOOST_PP_SEQ_SIZE(leftSwizzleSeq), leftSwizzleSeq, CRightSwizzleVector), GENERATE_SCALAR_OPERATION_PRED, GENERATE_SCALAR_OPERATION_OP, GENERATE_SCALAR_OPERATION_MACRO)*/\
 			CSwizzleAssign<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>::operator =(right);															\
 			return *this;																																												\
 		}
@@ -164,63 +141,62 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 			~CSwizzle() = default;
 #	endif
 #if defined MSVC_LIMITATIONS & defined MSVC_SWIZZLE_ASSIGN_WORKAROUND
-#	define SWIZZLES_INNER_LOOP_MACRO(r, state)																																							\
-		template<typename ElementType>																																									\
-		class CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state)), false, 1>:																\
-		public BOOST_PP_IIF(IS_SEQ_UNIQUE(SWIZZLE_SEQ(state)), CSwizzleAssign, CSwizzleCommon)<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))>	\
-		{																																																\
-		public:																																															\
-			BOOST_PP_IIF(IS_SEQ_UNIQUE(SWIZZLE_SEQ(state)), GENERATE_ASSIGN_OPERATORS, DISABLE_ASSIGN_OPERATOR)(SWIZZLE_SEQ(state))																		\
-		protected:																																														\
-			SWIZZLE_TRIVIAL_CTORS_DTOR																																									\
+#	define SWIZZLE_SPECIALIZATION(swizzle_seq)																																		\
+		template<typename ElementType>																																				\
+		class CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(swizzle_seq), SWIZZLE_SEQ_2_VECTOR(swizzle_seq), false, 1>:															\
+		public BOOST_PP_IIF(IS_SEQ_UNIQUE(swizzle_seq), CSwizzleAssign, CSwizzleCommon)<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(swizzle_seq), SWIZZLE_SEQ_2_VECTOR(swizzle_seq)>	\
+		{																																											\
+		public:																																										\
+			BOOST_PP_IIF(IS_SEQ_UNIQUE(swizzle_seq), GENERATE_ASSIGN_OPERATORS, DISABLE_ASSIGN_OPERATOR)(swizzle_seq)																\
+		protected:																																									\
+			SWIZZLE_TRIVIAL_CTORS_DTOR																																				\
 		};
-	GENERATE_SWIZZLES()
-#	define SWIZZLES_INNER_LOOP_MACRO(r, state)																																							\
-		template<typename ElementType>																																									\
-		class CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state)), false, 2>:																\
-		public BOOST_PP_IIF(IS_SEQ_UNIQUE(SWIZZLE_SEQ(state)), CSwizzleAssign, CSwizzleCommon)<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))>	\
-		{																																																\
-		public:																																															\
-			BOOST_PP_IIF(IS_SEQ_UNIQUE(SWIZZLE_SEQ(state)), GENERATE_ASSIGN_OPERATORS, DISABLE_ASSIGN_OPERATOR)(SWIZZLE_SEQ(state))																		\
-		protected:																																														\
-			SWIZZLE_TRIVIAL_CTORS_DTOR																																									\
+	GENERATE_SWIZZLES((SWIZZLE_SPECIALIZATION))
+#	define SWIZZLE_SPECIALIZATION(swizzle_seq)																																		\
+		template<typename ElementType>																																				\
+		class CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(swizzle_seq), SWIZZLE_SEQ_2_VECTOR(swizzle_seq), false, 2>:															\
+		public BOOST_PP_IIF(IS_SEQ_UNIQUE(swizzle_seq), CSwizzleAssign, CSwizzleCommon)<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(swizzle_seq), SWIZZLE_SEQ_2_VECTOR(swizzle_seq)>	\
+		{																																											\
+		public:																																										\
+			BOOST_PP_IIF(IS_SEQ_UNIQUE(swizzle_seq), GENERATE_ASSIGN_OPERATORS, DISABLE_ASSIGN_OPERATOR)(swizzle_seq)																\
+		protected:																																									\
+			SWIZZLE_TRIVIAL_CTORS_DTOR																																				\
 		};
-	GENERATE_SWIZZLES()
-#	define SWIZZLES_INNER_LOOP_MACRO(r, state)																																							\
-		template<typename ElementType>																																									\
-		class CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state)), true, 1>:																\
-		public BOOST_PP_IIF(IS_SEQ_UNIQUE(SWIZZLE_SEQ(state)), CSwizzleAssign, CSwizzleCommon)<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))>	\
-		{																																																\
-		public:																																															\
-			BOOST_PP_IIF(IS_SEQ_UNIQUE(SWIZZLE_SEQ(state)), GENERATE_ASSIGN_OPERATORS, DISABLE_ASSIGN_OPERATOR)(SWIZZLE_SEQ(state))																		\
-		protected:																																														\
-			SWIZZLE_TRIVIAL_CTORS_DTOR																																									\
+	GENERATE_SWIZZLES((SWIZZLE_SPECIALIZATION))
+#	define SWIZZLE_SPECIALIZATION(swizzle_seq)																																		\
+		template<typename ElementType>																																				\
+		class CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(swizzle_seq), SWIZZLE_SEQ_2_VECTOR(swizzle_seq), true, 1>:															\
+		public BOOST_PP_IIF(IS_SEQ_UNIQUE(swizzle_seq), CSwizzleAssign, CSwizzleCommon)<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(swizzle_seq), SWIZZLE_SEQ_2_VECTOR(swizzle_seq)>	\
+		{																																											\
+		public:																																										\
+			BOOST_PP_IIF(IS_SEQ_UNIQUE(swizzle_seq), GENERATE_ASSIGN_OPERATORS, DISABLE_ASSIGN_OPERATOR)(swizzle_seq)																\
+		protected:																																									\
+			SWIZZLE_TRIVIAL_CTORS_DTOR																																				\
 		};
-	GENERATE_SWIZZLES()
-#	define SWIZZLES_INNER_LOOP_MACRO(r, state)																																							\
-		template<typename ElementType>																																									\
-		class CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state)), true, 2>:																\
-		public BOOST_PP_IIF(IS_SEQ_UNIQUE(SWIZZLE_SEQ(state)), CSwizzleAssign, CSwizzleCommon)<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))>	\
-		{																																																\
-		public:																																															\
-			BOOST_PP_IIF(IS_SEQ_UNIQUE(SWIZZLE_SEQ(state)), GENERATE_ASSIGN_OPERATORS, DISABLE_ASSIGN_OPERATOR)(SWIZZLE_SEQ(state))																		\
-		protected:																																														\
-			SWIZZLE_TRIVIAL_CTORS_DTOR																																									\
+	GENERATE_SWIZZLES((SWIZZLE_SPECIALIZATION))
+#	define SWIZZLE_SPECIALIZATION(swizzle_seq)																																		\
+		template<typename ElementType>																																				\
+		class CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(swizzle_seq), SWIZZLE_SEQ_2_VECTOR(swizzle_seq), true, 2>:															\
+		public BOOST_PP_IIF(IS_SEQ_UNIQUE(swizzle_seq), CSwizzleAssign, CSwizzleCommon)<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(swizzle_seq), SWIZZLE_SEQ_2_VECTOR(swizzle_seq)>	\
+		{																																											\
+		public:																																										\
+			BOOST_PP_IIF(IS_SEQ_UNIQUE(swizzle_seq), GENERATE_ASSIGN_OPERATORS, DISABLE_ASSIGN_OPERATOR)(swizzle_seq)																\
+		protected:																																									\
+			SWIZZLE_TRIVIAL_CTORS_DTOR																																				\
 		};
-	GENERATE_SWIZZLES()
+	GENERATE_SWIZZLES((SWIZZLE_SPECIALIZATION))
 #else
-/*#	define SWIZZLE_SPECIALIZATION(swizzle_seq)																																		\*/
-#	define SWIZZLES_INNER_LOOP_MACRO(r, state)																																							\
-		template<typename ElementType>																																									\
-		class CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))>:																			\
-		public BOOST_PP_IIF(IS_SEQ_UNIQUE(SWIZZLE_SEQ(state)), CSwizzleAssign, CSwizzleCommon)<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))>	\
-		{																																																\
-		public:																																															\
-			BOOST_PP_IIF(IS_SEQ_UNIQUE(SWIZZLE_SEQ(state)), GENERATE_ASSIGN_OPERATORS, DISABLE_ASSIGN_OPERATOR)(SWIZZLE_SEQ(state))																		\
-		protected:																																														\
-			SWIZZLE_TRIVIAL_CTORS_DTOR																																									\
+#	define SWIZZLE_SPECIALIZATION(swizzle_seq)																																		\
+		template<typename ElementType>																																				\
+		class CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(swizzle_seq), SWIZZLE_SEQ_2_VECTOR(swizzle_seq)>:																	\
+		public BOOST_PP_IIF(IS_SEQ_UNIQUE(swizzle_seq), CSwizzleAssign, CSwizzleCommon)<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(swizzle_seq), SWIZZLE_SEQ_2_VECTOR(swizzle_seq)>	\
+		{																																											\
+		public:																																										\
+			BOOST_PP_IIF(IS_SEQ_UNIQUE(swizzle_seq), GENERATE_ASSIGN_OPERATORS, DISABLE_ASSIGN_OPERATOR)(swizzle_seq)																\
+		protected:																																									\
+			SWIZZLE_TRIVIAL_CTORS_DTOR																																				\
 		};
-	GENERATE_SWIZZLES(/*SWIZZLE_SPECIALIZATION*/)
+	GENERATE_SWIZZLES((SWIZZLE_SPECIALIZATION))
 #endif
 #	undef GENERATE_TEMPLATED_ASSIGN_OPERATOR
 #	undef GENERATE_COPY_ASSIGN_OPERATOR
@@ -228,8 +204,7 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 #	undef GENERATE_ASSIGN_OPERATORS
 #	undef DISABLE_ASSIGN_OPERATOR
 #	undef SWIZZLE_TRIVIAL_CTORS_DTOR
-//#	undef SWIZZLE_SPECIALIZATION
-#	undef SWIZZLES_INNER_LOOP_MACRO
+#	undef SWIZZLE_SPECIALIZATION
 
 #	pragma region(generate typedefs)
 		// tuple: (C++, HLSL, GLSL)
@@ -303,37 +278,32 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 #			define NAMING_SET_1 BOOST_PP_IF(ROWS, MATRIX_ZERO_BASED, XYZW)
 #			define NAMING_SET_2 BOOST_PP_IF(ROWS, MATRIX_ONE_BASED, RGBA)
 #if defined MSVC_LIMITATIONS & defined MSVC_SWIZZLE_ASSIGN_WORKAROUND
-#			define SWIZZLES_INNER_LOOP_MACRO(r, state)																						\
-				CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state)), false, 1>	\
-					BOOST_PP_CAT(TRANSFORM_SWIZZLE(NAMING_SET_1, SWIZZLE_SEQ(state)), );
-			GENERATE_SWIZZLES()
-#			define SWIZZLES_INNER_LOOP_MACRO(r, state)																						\
-				CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state)), false, 2>	\
-					BOOST_PP_CAT(TRANSFORM_SWIZZLE(NAMING_SET_2, SWIZZLE_SEQ(state)), );
-			GENERATE_SWIZZLES()
-#			define SWIZZLES_INNER_LOOP_MACRO(r, state)																						\
-				CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state)), true, 1>	\
-					BOOST_PP_CAT(TRANSFORM_SWIZZLE(NAMING_SET_1, SWIZZLE_SEQ(state)), _);
-			GENERATE_SWIZZLES()
-#			define SWIZZLES_INNER_LOOP_MACRO(r, state)																						\
-				CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state)), true, 2>	\
-					BOOST_PP_CAT(TRANSFORM_SWIZZLE(NAMING_SET_2, SWIZZLE_SEQ(state)), _);
-			GENERATE_SWIZZLES()
+#			define SWIZZLE_OBJECT(swizzle_seq)																					\
+				CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(swizzle_seq), SWIZZLE_SEQ_2_VECTOR(swizzle_seq), false, 1>	\
+					BOOST_PP_CAT(TRANSFORM_SWIZZLE(NAMING_SET_1, swizzle_seq), );
+			GENERATE_SWIZZLES((SWIZZLE_OBJECT))
+#			define SWIZZLE_OBJECT(swizzle_seq)																					\
+				CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(swizzle_seq), SWIZZLE_SEQ_2_VECTOR(swizzle_seq), false, 2>	\
+					BOOST_PP_CAT(TRANSFORM_SWIZZLE(NAMING_SET_2, swizzle_seq), );
+			GENERATE_SWIZZLES((SWIZZLE_OBJECT))
+#			define SWIZZLE_OBJECT(swizzle_seq)																				\
+				CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(swizzle_seq), SWIZZLE_SEQ_2_VECTOR(swizzle_seq), true, 1>	\
+					BOOST_PP_CAT(TRANSFORM_SWIZZLE(NAMING_SET_1, swizzle_seq), _);
+			GENERATE_SWIZZLES((SWIZZLE_OBJECT))
+#			define SWIZZLE_OBJECT(swizzle_seq)																				\
+				CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(swizzle_seq), SWIZZLE_SEQ_2_VECTOR(swizzle_seq), true, 2>	\
+					BOOST_PP_CAT(TRANSFORM_SWIZZLE(NAMING_SET_2, swizzle_seq), _);
+			GENERATE_SWIZZLES((SWIZZLE_OBJECT))
 #else
-/*#			define SWIZZLE_OBJECT(swizzle_seq)																		\*/
-#			define SWIZZLES_INNER_LOOP_MACRO(r, state)																				\
-				CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(SWIZZLE_SEQ(state)), SWIZZLE_SEQ_2_VECTOR(SWIZZLE_SEQ(state))>	\
-					TRANSFORM_SWIZZLE(NAMING_SET_1, SWIZZLE_SEQ(state)),															\
-					TRANSFORM_SWIZZLE(NAMING_SET_2, SWIZZLE_SEQ(state));
-			GENERATE_SWIZZLES(/*SWIZZLE_OBJECT*/)
+#			define SWIZZLE_OBJECT(swizzle_seq)																		\
+				CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(swizzle_seq), SWIZZLE_SEQ_2_VECTOR(swizzle_seq)>	\
+					TRANSFORM_SWIZZLE(NAMING_SET_1, swizzle_seq),													\
+					TRANSFORM_SWIZZLE(NAMING_SET_2, swizzle_seq);
+			GENERATE_SWIZZLES((SWIZZLE_OBJECT))
 #endif
 #			undef NAMING_SET_1
 #			undef NAMING_SET_2
-//#			undef SWIZZLE_OBJECT
-#			undef SWIZZLES_INNER_LOOP_MACRO
-//#			define GENERATE_SWIZZLE_OBJECT(swizzle_seq) CSwizzle<SWIZZLE_SEQ_2_VECTOR(swizzle_seq)> TRANSFORM_SWIZZLE(XYZW, swizzle_seq), TRANSFORM_SWIZZLE(RGBA, swizzle_seq);
-//			GENERATE_SWIZZLES(GENERATE_SWIZZLE_OBJECT)
-//#			undef GENERATE_SWIZZLE_OBJECT
+#			undef SWIZZLE_OBJECT
 		};
 	};
 #endif
@@ -361,27 +331,18 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 #	undef IDX_2_SYMBOL
 #	undef SWIZZLES_INNER_LOOP_PRED
 #	undef SWIZZLES_INNER_LOOP_OP
-#	undef SWIZZLE
 #	undef TRANSFORM_SWIZZLE
-//#	undef APPLY_CALLBACK
-//#	undef SWIZZLES_INNER_LOOP_MACRO
+#	undef SWIZZLES_INNER_LOOP_MACRO
 #	undef SWIZZLES_INTERMIDIATE_LOOP_OP
 #	undef SWIZZLES_INTERMIDIATE_LOOP_MACRO
 #	undef SWIZZLES_OP
 #	undef SWIZZLES_MACRO
 #	undef SWIZZLES
 #	undef GENERATE_SWIZZLES
-//#	undef SWIZZLE_CLASSNAME
-#	undef SWIZZLE_SEQ
-//#	undef SWIZZLE_SEQ_2_VECTOR
+#	undef SWIZZLE_SEQ_2_VECTOR
 #	undef PACK_SWIZZLE_PRED
 #	undef PACK_SWIZZLE_OP
 #	undef PACK_SWIZZLE
-//#	undef GET_SWIZZLE_ELEMENT_SEQ
-//#	undef GET_SWIZZLE_ELEMENT_VECTOR
-//#	undef GENERATE_SCALAR_OPERATION_PRED
-//#	undef GENERATE_SCALAR_OPERATION_OP
-//#	undef GENERATE_SCALAR_OPERATION_MACRO
 #endif
 #else
 #	ifndef __VECTOR_MATH_H__
@@ -407,6 +368,7 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 #	include <iterator>
 #	include <algorithm>
 #	include <initializer_list>
+#	include <boost\preprocessor\facilities\apply.hpp>
 #	include <boost\preprocessor\iteration\iterate.hpp>
 //#	include <boost\preprocessor\repetition\repeat.hpp>
 #	include <boost\preprocessor\repetition\repeat_from_to.hpp>
@@ -509,6 +471,7 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			bool none(const matrix<ElementType, rows, columns> &src);
 
+			// generic for matrix
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			class CData final
 			{
@@ -536,6 +499,7 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 #		endif
 			};
 
+			// specialization for vector
 			template<typename ElementType, unsigned int dimension>
 			class CData<ElementType, 0, dimension> final
 			{
