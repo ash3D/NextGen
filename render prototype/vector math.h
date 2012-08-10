@@ -250,34 +250,23 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 #		undef GENERATE_TYPEDEF
 #	pragma endregion
 
+#	define NAMING_SET_1 BOOST_PP_IF(ROWS, MATRIX_ZERO_BASED, XYZW)
+#	define NAMING_SET_2 BOOST_PP_IF(ROWS, MATRIX_ONE_BASED, RGBA)
+
+#	define SWIZZLE_OBJECT(swizzle_seq)																		\
+		CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(swizzle_seq), SWIZZLE_SEQ_2_VECTOR(swizzle_seq)>	\
+			TRANSFORM_SWIZZLE(NAMING_SET_1, swizzle_seq),													\
+			TRANSFORM_SWIZZLE(NAMING_SET_2, swizzle_seq);
+
+#ifdef MSVC_LIMITATIONS
 	template<typename ElementType>
 	class CDataContainer<ElementType, ROWS, COLUMNS>: public std::conditional<ROWS == 0, CSwizzle<ElementType, 0, COLUMNS, 0u, void>, CEmpty>::type
 	{
-	protected:
-		// forward ctors/dtor/= to _data
-		CDataContainer(): _data()
-		{
-		}
-		CDataContainer(const CDataContainer &src): _data(src._data)
-		{
-		}
-		~CDataContainer()
-		{
-			_data.~CData<ElementType, ROWS, COLUMNS>();
-		}
-		CDataContainer &operator =(const CDataContainer &right)
-		{
-			_data = right._data;
-			return *this;
-		}
 	public:
 		union
 		{
 			CData<ElementType, ROWS, COLUMNS> _data;
-			// gcc does not allow class definition inside anonymous union
-#			define NAMING_SET_1 BOOST_PP_IF(ROWS, MATRIX_ZERO_BASED, XYZW)
-#			define NAMING_SET_2 BOOST_PP_IF(ROWS, MATRIX_ONE_BASED, RGBA)
-#if defined MSVC_LIMITATIONS & defined MSVC_SWIZZLE_ASSIGN_WORKAROUND
+#ifdef MSVC_SWIZZLE_ASSIGN_WORKAROUND
 #			define SWIZZLE_OBJECT(swizzle_seq)																					\
 				CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(swizzle_seq), SWIZZLE_SEQ_2_VECTOR(swizzle_seq), false, 1>	\
 					BOOST_PP_CAT(TRANSFORM_SWIZZLE(NAMING_SET_1, swizzle_seq), );
@@ -295,17 +284,55 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 					BOOST_PP_CAT(TRANSFORM_SWIZZLE(NAMING_SET_2, swizzle_seq), _);
 			GENERATE_SWIZZLES((SWIZZLE_OBJECT))
 #else
-#			define SWIZZLE_OBJECT(swizzle_seq)																		\
-				CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(swizzle_seq), SWIZZLE_SEQ_2_VECTOR(swizzle_seq)>	\
-					TRANSFORM_SWIZZLE(NAMING_SET_1, swizzle_seq),													\
-					TRANSFORM_SWIZZLE(NAMING_SET_2, swizzle_seq);
 			GENERATE_SWIZZLES((SWIZZLE_OBJECT))
 #endif
-#			undef NAMING_SET_1
-#			undef NAMING_SET_2
-#			undef SWIZZLE_OBJECT
 		};
 	};
+#else
+#	define TRIVIAL_CTOR_FORWARD CDataContainerImpl() = default;
+#	define NONTRIVIAL_CTOR_FORWARD CDataContainerImpl(): _data() {}
+#	define DATA_CONTAINER_IMPL_SPECIALIZATION(trivialCtor)																													\
+		template<typename ElementType>																																		\
+		class CDataContainerImpl<ElementType, ROWS, COLUMNS, trivialCtor>: public std::conditional<ROWS == 0, CSwizzle<ElementType, 0, COLUMNS, 0u, void>, CEmpty>::type	\
+		{																																									\
+		protected:																																							\
+			/*forward ctors/dtor/= to _data*/																																\
+			BOOST_PP_IIF(trivialCtor, TRIVIAL_CTOR_FORWARD, NONTRIVIAL_CTOR_FORWARD)																						\
+			CDataContainerImpl(const CDataContainerImpl &src): _data(src._data)																										\
+			{																																								\
+			}																																								\
+			~CDataContainerImpl()																																				\
+			{																																								\
+				_data.~CData<ElementType, ROWS, COLUMNS>();																													\
+			}																																								\
+			CDataContainerImpl &operator =(const CDataContainerImpl &right)																											\
+			{																																								\
+				_data = right._data;																																		\
+				return *this;																																				\
+			}																																								\
+		public:																																								\
+			union																																							\
+			{																																								\
+				CData<ElementType, ROWS, COLUMNS> _data;																													\
+				/*gcc does not allow class definition inside anonymous union*/																								\
+				GENERATE_SWIZZLES((SWIZZLE_OBJECT))																															\
+			};																																								\
+		};
+	DATA_CONTAINER_IMPL_SPECIALIZATION(0)
+	DATA_CONTAINER_IMPL_SPECIALIZATION(1)
+#	undef TRIVIAL_CTOR_FORWARD
+#	undef NONTRIVIAL_CTOR_FORWARD
+#	undef DATA_CONTAINER_IMPL_SPECIALIZATION
+
+	template<typename ElementType>
+	class CDataContainer<ElementType, ROWS, COLUMNS>: public std::conditional<std::has_trivial_default_constructor<CData<ElementType, ROWS, COLUMNS>>::value, CDataContainerImpl<ElementType, ROWS, COLUMNS, true>, CDataContainerImpl<ElementType, ROWS, COLUMNS, false>>::type
+	{
+	};
+#endif
+
+#	undef NAMING_SET_1
+#	undef NAMING_SET_2
+#	undef SWIZZLE_OBJECT
 #endif
 
 #if BOOST_PP_ITERATION_DEPTH() == 1
@@ -447,6 +474,9 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 			template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector, bool odd = false, unsigned namingSet = 1>
 			class CSwizzle;
 
+			template<typename ElementType, unsigned int rows, unsigned int columns, bool trivialCtor>
+			class CDataContainerImpl;
+
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			class CDataContainer;
 
@@ -484,6 +514,8 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 				friend class CSwizzleCommon;
 
 				friend class CDataContainer<ElementType, rows, columns>;
+				friend class CDataContainerImpl<ElementType, rows, columns, false>;
+				friend class CDataContainerImpl<ElementType, rows, columns, true>;
 #		ifndef MSVC_LIMITATIONS
 			private:
 				CData() = default;
@@ -509,6 +541,8 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 				friend class CSwizzleCommon;
 
 				friend class CDataContainer<ElementType, 0, dimension>;
+				friend class CDataContainerImpl<ElementType, 0, dimension, false>;
+				friend class CDataContainerImpl<ElementType, 0, dimension, true>;
 #		ifndef MSVC_LIMITATIONS
 			private:
 				CData() = default;
