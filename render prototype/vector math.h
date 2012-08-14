@@ -2259,6 +2259,26 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 					return mul(left, right);
 				}
 
+				template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector, bool odd, unsigned namingSet>
+				inline auto length(const CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> &swizzle)
+				-> decltype(sqrt(dot(swizzle, swizzle)))
+				{
+					return sqrt(dot(swizzle, swizzle));
+				}
+
+				template
+				<
+					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, unsigned short leftPackedSwizzle, class CLeftSwizzleVector, bool leftOdd, unsigned leftNamingSet,
+					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet
+				>
+				inline auto distance(
+				const CSwizzle<LeftElementType, leftRows, leftColumns, leftPackedSwizzle, CLeftSwizzleVector, leftOdd, leftNamingSet> &left,
+				const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right)
+				-> decltype(length(right - left))
+				{
+					return length(right - left);
+				}
+
 #				pragma region("series of matrices delimitted by ',' interpreted as series of successive transforms; inspirited by boost's function superposition")
 					template
 					<
