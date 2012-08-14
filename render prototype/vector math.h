@@ -100,6 +100,7 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 	gcc does not allow explicit specialization in class scope => CSwizzle can not be inside CDataContainer
 	ElementType needed in order to compiler can deduce template args for operators
 	*/
+#if !defined DISABLE_MATRIX_SWIZZLES | ROWS == 0
 #	define GENERATE_TEMPLATED_ASSIGN_OPERATOR(leftSwizzleSeq)																																			\
 		template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet>	\
 		CSwizzle &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right)																	\
@@ -206,50 +207,6 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 #	undef SWIZZLE_TRIVIAL_CTORS_DTOR
 #	undef SWIZZLE_SPECIALIZATION
 
-#	pragma region(generate typedefs)
-		// tuple: (C++, HLSL, GLSL)
-#		define SCALAR_TYPES_MAPPINGS										\
-			((bool, bool, b))												\
-			((signed long, int, i))((unsigned long, uint, ui))				\
-			((signed long long, long, l))((unsigned long long, ulong, ul))	\
-			((float, float, ))((double, double, d))
-
-#		define CPP_SCALAR_TYPE(scalar_types_mapping) BOOST_PP_TUPLE_ELEM(3, 0, scalar_types_mapping)
-#		define HLSL_SCALAR_TYPE(scalar_types_mapping) BOOST_PP_TUPLE_ELEM(3, 1, scalar_types_mapping)
-#		define GLSL_SCALAR_TYPE(scalar_types_mapping) BOOST_PP_TUPLE_ELEM(3, 2, scalar_types_mapping)
-
-#		if ROWS == 0
-#			define CPP_CLASS(scalar_types_mapping) vector<CPP_SCALAR_TYPE(scalar_types_mapping), COLUMNS>
-#			define HLSL_CLASS(scalar_types_mapping) BOOST_PP_CAT(HLSL_SCALAR_TYPE(scalar_types_mapping), COLUMNS)
-#			define GLSL_CLASS(scalar_types_mapping) BOOST_PP_CAT(BOOST_PP_CAT(GLSL_SCALAR_TYPE(scalar_types_mapping), vec), COLUMNS)
-#		else
-#			define CPP_CLASS(scalar_types_mapping) matrix<CPP_SCALAR_TYPE(scalar_types_mapping), ROWS, COLUMNS>
-#			define HLSL_CLASS(scalar_types_mapping) BOOST_PP_CAT(BOOST_PP_CAT(BOOST_PP_CAT(HLSL_SCALAR_TYPE(scalar_types_mapping), ROWS), x), COLUMNS)
-#			define GLSL_CLASS(scalar_types_mapping) BOOST_PP_CAT(BOOST_PP_CAT(BOOST_PP_CAT(GLSL_SCALAR_TYPE(scalar_types_mapping), mat), ROWS), COLUMNS)
-#		endif
-
-#		define GENERATE_TYPEDEF(r, graphics_class, elem) typedef CPP_CLASS(elem) graphics_class(elem);
-
-		namespace HLSL
-		{
-			BOOST_PP_SEQ_FOR_EACH(GENERATE_TYPEDEF, HLSL_CLASS, SCALAR_TYPES_MAPPINGS)
-		}
-
-		namespace GLSL
-		{
-			BOOST_PP_SEQ_FOR_EACH(GENERATE_TYPEDEF, GLSL_CLASS, SCALAR_TYPES_MAPPINGS)
-		}
-
-#		undef SCALAR_TYPES_MAPPINGS
-#		undef CPP_SCALAR_TYPE
-#		undef HLSL_SCALAR_TYPE
-#		undef GLSL_SCALAR_TYPE
-#		undef CPP_CLASS
-#		undef HLSL_CLASS
-#		undef GLSL_CLASS
-#		undef GENERATE_TYPEDEF
-#	pragma endregion
-
 #	define NAMING_SET_1 BOOST_PP_IF(ROWS, MATRIX_ZERO_BASED, XYZW)
 #	define NAMING_SET_2 BOOST_PP_IF(ROWS, MATRIX_ONE_BASED, RGBA)
 
@@ -333,6 +290,59 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 #	undef NAMING_SET_1
 #	undef NAMING_SET_2
 #	undef SWIZZLE_OBJECT
+#endif
+
+#	pragma region(generate typedefs)
+		// tuple: (C++, HLSL, GLSL)
+#		define SCALAR_TYPES_MAPPINGS										\
+			((bool, bool, b))												\
+			((signed long, int, i))((unsigned long, uint, ui))				\
+			((signed long long, long, l))((unsigned long long, ulong, ul))	\
+			((float, float, ))((double, double, d))
+
+#		define CPP_SCALAR_TYPE(scalar_types_mapping) BOOST_PP_TUPLE_ELEM(3, 0, scalar_types_mapping)
+#		define HLSL_SCALAR_TYPE(scalar_types_mapping) BOOST_PP_TUPLE_ELEM(3, 1, scalar_types_mapping)
+#		define GLSL_SCALAR_TYPE(scalar_types_mapping) BOOST_PP_TUPLE_ELEM(3, 2, scalar_types_mapping)
+
+#		if ROWS == 0
+#			define CPP_CLASS(scalar_types_mapping) vector<CPP_SCALAR_TYPE(scalar_types_mapping), COLUMNS>
+#			define HLSL_CLASS(scalar_types_mapping) BOOST_PP_CAT(HLSL_SCALAR_TYPE(scalar_types_mapping), COLUMNS)
+#			define GLSL_CLASS(scalar_types_mapping) BOOST_PP_CAT(BOOST_PP_CAT(GLSL_SCALAR_TYPE(scalar_types_mapping), vec), COLUMNS)
+#		else
+#			define CPP_CLASS(scalar_types_mapping) matrix<CPP_SCALAR_TYPE(scalar_types_mapping), ROWS, COLUMNS>
+#			define HLSL_CLASS(scalar_types_mapping) BOOST_PP_CAT(BOOST_PP_CAT(BOOST_PP_CAT(HLSL_SCALAR_TYPE(scalar_types_mapping), ROWS), x), COLUMNS)
+#			define GLSL_CLASS1(scalar_types_mapping) BOOST_PP_CAT(BOOST_PP_CAT(BOOST_PP_CAT(BOOST_PP_CAT(GLSL_SCALAR_TYPE(scalar_types_mapping), mat), ROWS), x), COLUMNS)
+#			if ROWS == COLUMNS
+	#			define GLSL_CLASS2(scalar_types_mapping) BOOST_PP_CAT(BOOST_PP_CAT(GLSL_SCALAR_TYPE(scalar_types_mapping), mat), ROWS)
+#				define GLSL_CLASS(scalar_types_mapping) GLSL_CLASS1(scalar_types_mapping), GLSL_CLASS2(scalar_types_mapping)
+#			else
+#				define GLSL_CLASS(scalar_types_mapping) GLSL_CLASS1(scalar_types_mapping)
+#			endif
+#		endif
+
+#		define GENERATE_TYPEDEF(r, graphics_class, elem) typedef CPP_CLASS(elem) graphics_class(elem);
+
+		namespace HLSL
+		{
+			BOOST_PP_SEQ_FOR_EACH(GENERATE_TYPEDEF, HLSL_CLASS, SCALAR_TYPES_MAPPINGS)
+		}
+
+		namespace GLSL
+		{
+			BOOST_PP_SEQ_FOR_EACH(GENERATE_TYPEDEF, GLSL_CLASS, SCALAR_TYPES_MAPPINGS)
+		}
+
+#		undef SCALAR_TYPES_MAPPINGS
+#		undef CPP_SCALAR_TYPE
+#		undef HLSL_SCALAR_TYPE
+#		undef GLSL_SCALAR_TYPE
+#		undef CPP_CLASS
+#		undef HLSL_CLASS
+#		undef GLSL_CLASS1
+#		undef GLSL_CLASS2
+#		undef GLSL_CLASS
+#		undef GENERATE_TYPEDEF
+#	pragma endregion
 #endif
 
 #if BOOST_PP_ITERATION_DEPTH() == 1
@@ -585,7 +595,7 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 			};
 
 			// specializations for graphics vectors/matrices
-#			define BOOST_PP_ITERATION_LIMITS (0, 0)
+#			define BOOST_PP_ITERATION_LIMITS (0, 4)
 #			define BOOST_PP_FILENAME_1 "vector math.h"
 #			include BOOST_PP_ITERATE()
 
