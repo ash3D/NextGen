@@ -277,7 +277,7 @@ namespace DX11
 			const D3D11_MAP map_type = _offset + size <= _size ? D3D11_MAP_WRITE_NO_OVERWRITE : (_offset = 0, D3D11_MAP_WRITE_DISCARD);
 			D3D11_MAPPED_SUBRESOURCE mapped;
 			ASSERT_HR(context->Map(_VB, 0, map_type, 0, &mapped))
-			callback(reinterpret_cast<ubyte *>(mapped.pData) + _offset);
+			callback(reinterpret_cast<uint8 *>(mapped.pData) + _offset);
 			context->Unmap(_VB, 0);
 			context->IASetVertexBuffers(0, 1, &_VB.GetInterfacePtr(), &stride, &_offset);
 			context->Draw(vcount, 0);
@@ -934,7 +934,7 @@ namespace DX11
 			0													//StructureByteStride
 		};
 
-		unique_ptr<ubyte []> buf(new ubyte[desc.ByteWidth]);
+		unique_ptr<uint8 []> buf(new uint8[desc.ByteWidth]);
 
 		_vbOffsets[0] = 0;
 		memcpy(buf.get() + _vbOffsets[0], coords, coordsSize);

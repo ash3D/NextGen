@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		27.1.2017 (c)Alexey Shaydurov
+\date		3.10.2012 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -51,6 +51,7 @@ template for format (especially for structured buffer)
 */
 #pragma endregion
 
+#define DISABLE_MATRIX_SWIZZLES
 #include "vector math.h"
 #include "C++11 stub.h"
 
@@ -167,7 +168,7 @@ namespace DGLE2
 					E_BLEND		srcBlendAlpha;
 					E_BLEND		destBlendAlpha;
 					E_BLEND_OP	blendOpAlpha;
-					ubyte		renderTargetWriteMask;
+					uint8		renderTargetWriteMask;
 				} renderTarget[8];
 			};
 
@@ -203,8 +204,8 @@ namespace DGLE2
 				DEPTH_WRITE_MASK	depthWriteMask;
 				E_COMPARISON_FUNC	depthFunc;
 				bool				stencilEnable;
-				ubyte				stencilReadMask;
-				ubyte				stencilWriteMask;
+				uint8				stencilReadMask;
+				uint8				stencilWriteMask;
 				struct
 				{
 					E_STENCIL_OP		stencilFailOp;

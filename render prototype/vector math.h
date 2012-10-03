@@ -20,10 +20,6 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 it is safe to use const_cast if const version returns (const &), not value, and *this object is not const
 */
 
-#if defined _MSC_VER & _MSC_VER < 1600 | defined __GNUC__ & (__GNUC__ < 4 | (__GNUC__ >= 4 & __GNUC_MINOR__ < 7))
-#error old compiler version
-#endif
-
 #if BOOST_PP_IS_ITERATING
 #if BOOST_PP_ITERATION_DEPTH() == 1
 #	define ROWS BOOST_PP_FRAME_ITERATION(1)
@@ -385,12 +381,19 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 #	ifndef __VECTOR_MATH_H__
 #	define __VECTOR_MATH_H__
 
+#if defined _MSC_VER & _MSC_VER < 1600 | defined __GNUC__ & (__GNUC__ < 4 | (__GNUC__ >= 4 & __GNUC_MINOR__ < 7))
+#error old compiler version
+#endif
+
 #	pragma warning(push)
 #	pragma warning(disable: 4003 4005/*temp for MSVC_SWIZZLE_ASSIGN_WORKAROUND*/)
 
 #	include "C++11 stub.h"
 #	include <crtdbg.h>
 #	include <stddef.h>
+#	ifdef MSVC_LIMITATIONS
+#	include <stdarg.h>
+#	endif
 #	ifdef MSVC_LIMITATIONS
 		/*
 			declval is not included in VS2010 => use boost
@@ -457,7 +460,7 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 //#	define GET_SWIZZLE_ELEMENT(vectorDimension, idx, cv) (reinterpret_cast<cv CData<ElementType, vectorDimension> &>(*this)._data[(idx)])
 //#	define GET_SWIZZLE_ELEMENT_PACKED(vectorDimension, packedSwizzle, idx, cv) (GET_SWIZZLE_ELEMENT(vectorDimension, packedSwizzle >> ((idx) << 1) & 3u, cv))
 
-	namespace DGLE2
+	namespace Math
 	{
 		namespace VectorMath
 		{
@@ -1286,10 +1289,13 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, unsigned short srcPackedSwizzle, class CSrcSwizzleVector, bool srcOdd, unsigned srcNamingSet>
 				vector(const CSwizzle<SrcElementType, srcRows, srcColumns, srcPackedSwizzle, CSrcSwizzleVector, srcOdd, srcNamingSet> &src);
 
-#				ifndef MSVC_LIMITATIONS
 				template<typename SrcElementType, unsigned int srcDimension>
 				vector(const vector<SrcElementType, srcDimension> &src);
 
+#				ifdef MSVC_LIMITATIONS
+				template<typename SrcElementType>
+				vector(SrcElementType _0, ...);
+#				else
 				template<typename ...TSrc>
 				vector(const TSrc &...src);
 #				endif
@@ -1309,7 +1315,7 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 				//explicit vector(TIterator src);
 
 				template<typename SrcElementType>
-				explicit vector(const SrcElementType src[]);
+				vector(const SrcElementType (&src)[dimension]);
 
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet>
 				vector &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right);
@@ -1325,8 +1331,8 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 #				ifndef MSVC_LIMITATIONS
 				template<unsigned idx>
 				inline void _Init();
-				template<unsigned startIdx, typename TFirstSrc, typename ...TRestSrc>
-				inline void _Init(const TFirstSrc &firstSrc, const TRestSrc &...restSrc);
+				template<unsigned startIdx, typename TCurSrc, typename ...TRestSrc>
+				inline void _Init(const TCurSrc &curSrc, const TRestSrc &...restSrc);
 #				endif
 			};
 
@@ -1349,7 +1355,10 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
 				matrix(const matrix<SrcElementType, srcRows, srcColumns> &src);
 
-#				ifndef MSVC_LIMITATIONS
+#				ifdef MSVC_LIMITATIONS
+				template<typename SrcElementType>
+				matrix(SrcElementType _0, ...);
+#				else
 				template<typename ...TSrc>
 				matrix(const TSrc &...src);
 #				endif
@@ -1369,7 +1378,7 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 				//explicit matrix(TIterator src);
 
 				template<typename SrcElementType>
-				explicit matrix(const SrcElementType src[]);
+				matrix(const SrcElementType (&src)[rows][columns]);
 
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns>
 				matrix &operator =(const matrix<RightElementType, rightRows, rightColumns> &right);
@@ -1412,8 +1421,8 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 #				ifndef MSVC_LIMITATIONS
 				template<unsigned idx>
 				inline void _Init();
-				template<unsigned startIdx, typename TFirstSrc, typename ...TRestSrc>
-				inline void _Init(const TFirstSrc &firstSrc, const TRestSrc &...restSrc);
+				template<unsigned startIdx, typename TCurSrc, typename ...TRestSrc>
+				inline void _Init(const TCurSrc &curSrc, const TRestSrc &...restSrc);
 #				endif
 			};
 
@@ -1598,12 +1607,34 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 					}
 				}
 
-#				ifndef MSVC_LIMITATIONS
+#				ifdef MSVC_LIMITATIONS
+				template<typename ElementType, unsigned int dimension>
+				template<typename SrcElementType, unsigned int srcDimension>
+				inline vector<ElementType, dimension>::vector(const vector<SrcElementType, srcDimension> &src)
+				{
+					this->~vector();
+					new(this) vector(static_cast<const CSwizzle<SrcElementType, 0, srcDimension, 0u, void> &>(src));
+				}
+#				else
 				template<typename ElementType, unsigned int dimension>
 				template<typename SrcElementType, unsigned int srcDimension>
 				inline vector<ElementType, dimension>::vector(const vector<SrcElementType, srcDimension> &src):
 				vector(static_cast<const CSwizzle<SrcElementType, 0, srcDimension, 0u, void> &>(src)) {}
+#				endif
 
+#				ifdef MSVC_LIMITATIONS
+				template<typename ElementType, unsigned int dimension>
+				template<typename SrcElementType>
+				inline vector<ElementType, dimension>::vector(SrcElementType _0, ...)
+				{
+					_data._data[0] = _0;
+					va_list rest;
+					va_start(rest, _0);
+					for (unsigned i = 1; i < dimension; i++)
+						_data._data[i] = va_arg(rest, SrcElementType);
+					va_end(rest);
+				}
+#				else
 				template<typename ElementType, unsigned int dimension>
 				template<unsigned idx>
 				inline void vector<ElementType, dimension>::_Init()
@@ -1613,10 +1644,10 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 				}
 
 				template<typename ElementType, unsigned int dimension>
-				template<unsigned startIdx, typename TFirstSrc, typename ...TRestSrc>
-				inline void vector<ElementType, dimension>::_Init(const TFirstSrc &firstSrc, const TRestSrc &...restSrc)
+				template<unsigned startIdx, typename TCurSrc, typename ...TRestSrc>
+				inline void vector<ElementType, dimension>::_Init(const TCurSrc &curSrc, const TRestSrc &...restSrc)
 				{
-					const auto flat_idx_accesssor = CreateFlatIdxAccessor(firstSrc);
+					const auto flat_idx_accesssor = CreateFlatIdxAccessor(curSrc);
 					constexpr auto src_dimension = decltype(flat_idx_accesssor)::dimension;
 					for (unsigned i = 0; i < src_dimension; i++)
 					{
@@ -1654,7 +1685,7 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 
 				template<typename ElementType, unsigned int dimension>
 				template<typename SrcElementType>
-				inline vector<ElementType, dimension>::vector(const SrcElementType src[])
+				inline vector<ElementType, dimension>::vector(const SrcElementType (&src)[dimension])
 				{
 					std::copy_n(src, dimension, CDataContainer<ElementType, 0, dimension>::_data._data);
 				}
@@ -1732,7 +1763,19 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 					}
 				}
 
-#				ifndef MSVC_LIMITATIONS
+#				ifdef MSVC_LIMITATIONS
+				template<typename ElementType, unsigned int rows, unsigned int columns>
+				template<typename SrcElementType>
+				inline matrix<ElementType, rows, columns>::matrix(SrcElementType _0, ...)
+				{
+					va_list rest;
+					va_start(rest, _0);
+					for (unsigned r = 0; i < rows; i++)
+						for (unsigned c = 1; i < rows; i++)
+							_data._rows[r][c] = r == 0 && c == 0 ? _0 : va_arg(rest, SrcElementType);
+					va_end(rest);
+				}
+#				else
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				template<unsigned idx>
 				inline void matrix<ElementType, rows, columns>::_Init()
@@ -1743,10 +1786,10 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 				}
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
-				template<unsigned startIdx, typename TFirstSrc, typename ...TRestSrc>
-				inline void matrix<ElementType, rows, columns>::_Init(const TFirstSrc &firstSrc, const TRestSrc &...restSrc)
+				template<unsigned startIdx, typename TCurSrc, typename ...TRestSrc>
+				inline void matrix<ElementType, rows, columns>::_Init(const TCurSrc &curSrc, const TRestSrc &...restSrc)
 				{
-					const auto flat_idx_accesssor = CreateFlatIdxAccessor(firstSrc);
+					const auto flat_idx_accesssor = CreateFlatIdxAccessor(curSrc);
 					constexpr auto src_dimension = decltype(flat_idx_accesssor)::dimension;
 					for (unsigned i = 0; i < src_dimension; i++)
 					{
@@ -1795,13 +1838,13 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				template<typename SrcElementType>
-				inline matrix<ElementType, rows, columns>::matrix(const SrcElementType src[])
+				inline matrix<ElementType, rows, columns>::matrix(const SrcElementType (&src)[rows][columns])
 				{
-					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++, src += columns)
+					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)
 					{
 						auto curRow = &operator [](rowIdx);
 						curRow->~TRow();
-						new(curRow) TRow(src);
+						new(curRow) TRow(src[rowIdx]);
 					}
 				}
 

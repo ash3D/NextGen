@@ -22,6 +22,7 @@
 // TODO: reference additional headers your program requires here
 #define _SECURE_SCL 0
 #include <limits>
+#include <string>
 #include <vector>
 #include <list>
 #include <algorithm>
@@ -30,4 +31,5 @@
 #include <new>			// for bad_alloc
 #include <malloc.h>		// for _get_heap_handle
 
+#define DISABLE_MATRIX_SWIZZLES
 #include "vector math.h"
