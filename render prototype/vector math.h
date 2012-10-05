@@ -1274,12 +1274,15 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 #			endif
 #			pragma endregion
 
-			template<typename ElementType, unsigned int dimension>
-			class vector: public CDataContainer<ElementType, 0, dimension>
+			template<typename ElementType_, unsigned int dimension_>
+			class vector: public CDataContainer<ElementType_, 0, dimension_>
 			{
-				static_assert(dimension > 0, "vector dimension should be positive");
-				//using CDataContainer<ElementType, dimension>::_data;
+				static_assert(dimension_ > 0, "vector dimension should be positive");
+				//using CDataContainer<ElementType_, 0, dimension_>::_data;
 			public:
+				typedef ElementType_ ElementType;
+				static constexpr unsigned int dimension = dimension_;
+
 #				ifdef MSVC_LIMITATIONS
 				vector(): CDataContainer() {}
 #				else
@@ -1336,16 +1339,19 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 #				endif
 			};
 
-			template<typename ElementType, unsigned int rows, unsigned int columns>
-			class matrix: public CDataContainer<ElementType, rows, columns>
+			template<typename ElementType_, unsigned int rows_, unsigned int columns_>
+			class matrix: public CDataContainer<ElementType_, rows_, columns_>
 			{
-				static_assert(rows > 0, "matrix should contain at leat 1 row");
-				static_assert(columns > 0, "matrix should contain at leat 1 column");
-				friend bool all<>(const matrix<ElementType, rows, columns> &);
-				friend bool any<>(const matrix<ElementType, rows, columns> &);
-				friend bool none<>(const matrix<ElementType, rows, columns> &);
-				typedef vector<ElementType, columns> TRow;
+				static_assert(rows_ > 0, "matrix should contain at leat 1 row");
+				static_assert(columns_ > 0, "matrix should contain at leat 1 column");
+				friend bool all<>(const matrix<ElementType_, rows_, columns_> &);
+				friend bool any<>(const matrix<ElementType_, rows_, columns_> &);
+				friend bool none<>(const matrix<ElementType_, rows_, columns_> &);
+				typedef vector<ElementType_, columns_> TRow;
 			public:
+				typedef ElementType_ ElementType;
+				static constexpr unsigned int rows = rows_, columns = columns_;
+
 #				ifdef MSVC_LIMITATIONS
 				matrix(): CDataContainer() {}
 #				else
