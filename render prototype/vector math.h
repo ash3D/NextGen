@@ -666,7 +666,7 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 
 				template<typename F>
 #ifdef MSVC_LIMITATIONS
-				vector<typename std::result_of<F (ElementType)>::type, TSwizzleTraits<columns, CSwizzleVector>::TDimension::value> apply(F f) const;
+				vector<typename std::result_of<typename std::remove_pointer<F>::type &(ElementType)>::type, TSwizzleTraits<columns, CSwizzleVector>::TDimension::value> apply(F f) const;
 #else
 				vector<typename std::result_of<F &(ElementType)>::type, TSwizzleTraits<columns, CSwizzleVector>::TDimension::value> apply(F f) const;
 #endif
@@ -1458,7 +1458,7 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 
 				template<typename F>
 #ifdef MSVC_LIMITATIONS
-				matrix<typename std::result_of<F (ElementType)>::type, rows, columns> apply(F f) const;
+				matrix<typename std::result_of<typename std::remove_pointer<F>::type &(ElementType)>::type, rows, columns> apply(F f) const;
 #else
 				matrix<typename std::result_of<F &(ElementType)>::type, rows, columns> apply(F f) const;
 #endif
@@ -1616,7 +1616,7 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 			template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector, bool odd, unsigned namingSet>
 			template<typename F>
 #ifdef MSVC_LIMITATIONS
-			inline vector<typename std::result_of<F (ElementType)>::type, TSwizzleTraits<columns, CSwizzleVector>::TDimension::value>
+			inline vector<typename std::result_of<typename std::remove_pointer<F>::type &(ElementType)>::type, TSwizzleTraits<columns, CSwizzleVector>::TDimension::value>
 #else
 			inline vector<typename std::result_of<F &(ElementType)>::type, TSwizzleTraits<columns, CSwizzleVector>::TDimension::value>
 #endif
@@ -1624,7 +1624,7 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 			{
 				constexpr unsigned int dimension = TSwizzleTraits<columns, CSwizzleVector>::TDimension::value;
 #ifdef MSVC_LIMITATIONS
-				vector<typename std::result_of<F (ElementType)>::type, dimension> result;
+				vector<typename std::result_of<typename std::remove_pointer<F>::type &(ElementType)>::type, dimension> result;
 #else
 				vector<typename std::result_of<F &(ElementType)>::type, dimension> result;
 #endif
@@ -2129,13 +2129,13 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				template<typename F>
 #ifdef MSVC_LIMITATIONS
-				inline auto matrix<ElementType, rows, columns>::apply(F f) const -> matrix<typename std::result_of<F (ElementType)>::type, rows, columns>
+				inline auto matrix<ElementType, rows, columns>::apply(F f) const -> matrix<typename std::result_of<typename std::remove_pointer<F>::type &(ElementType)>::type, rows, columns>
 #else
 				inline auto matrix<ElementType, rows, columns>::apply(F f) const -> matrix<typename std::result_of<F &(ElementType)>::type, rows, columns>
 #endif
 				{
 #ifdef MSVC_LIMITATIONS
-					matrix<typename std::result_of<F (ElementType)>::type, rows, columns> result;
+					matrix<typename std::result_of<typename std::remove_pointer<F>::type &(ElementType)>::type, rows, columns> result;
 #else
 					matrix<typename std::result_of<F &(ElementType)>::type, rows, columns> result;
 #endif
