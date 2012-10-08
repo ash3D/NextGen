@@ -405,6 +405,7 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 		using std::declval;
 #	endif
 #	include <type_traits>
+#	include <functional>
 #	include <iterator>
 #	include <algorithm>
 #	include <initializer_list>
@@ -583,6 +584,36 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 #		endif
 			};
 
+			template<typename T>
+			struct TFloat2Double
+			{
+				typedef T type;
+			};
+
+			template<>
+			struct TFloat2Double<float>
+			{
+				typedef double type;
+			};
+
+			template<>
+			struct TFloat2Double<const float>
+			{
+				typedef const double type;
+			};
+
+			template<>
+			struct TFloat2Double<volatile float>
+			{
+				typedef volatile double type;
+			};
+
+			template<>
+			struct TFloat2Double<const volatile float>
+			{
+				typedef const volatile double type;
+			};
+
 			template<unsigned int vectorDimension, class CSwizzleVector>
 			struct TSwizzleTraits
 			{
@@ -634,7 +665,11 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 				//}
 
 				template<typename F>
-				vector<ElementType, TSwizzleTraits<columns, CSwizzleVector>::TDimension::value> apply(F f) const;
+#ifdef MSVC_LIMITATIONS
+				vector<typename std::result_of<F (ElementType)>::type, TSwizzleTraits<columns, CSwizzleVector>::TDimension::value> apply(F f) const;
+#else
+				vector<typename std::result_of<F &(ElementType)>::type, TSwizzleTraits<columns, CSwizzleVector>::TDimension::value> apply(F f) const;
+#endif
 			};
 
 			// CSwizzle inherits from this to reduce preprocessor generated code for faster compiling
@@ -1422,7 +1457,11 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 				TRow &operator [](unsigned int idx) noexcept;
 
 				template<typename F>
-				matrix apply(F f) const;
+#ifdef MSVC_LIMITATIONS
+				matrix<typename std::result_of<F (ElementType)>::type, rows, columns> apply(F f) const;
+#else
+				matrix<typename std::result_of<F &(ElementType)>::type, rows, columns> apply(F f) const;
+#endif
 			private:
 #				ifndef MSVC_LIMITATIONS
 				template<unsigned idx>
@@ -1576,10 +1615,19 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector, bool odd, unsigned namingSet>
 			template<typename F>
-			inline vector<ElementType, TSwizzleTraits<columns, CSwizzleVector>::TDimension::value> CSwizzleBase<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet>::apply(F f) const
+#ifdef MSVC_LIMITATIONS
+			inline vector<typename std::result_of<F (ElementType)>::type, TSwizzleTraits<columns, CSwizzleVector>::TDimension::value>
+#else
+			inline vector<typename std::result_of<F &(ElementType)>::type, TSwizzleTraits<columns, CSwizzleVector>::TDimension::value>
+#endif
+			CSwizzleBase<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet>::apply(F f) const
 			{
 				constexpr unsigned int dimension = TSwizzleTraits<columns, CSwizzleVector>::TDimension::value;
-				vector<ElementType, dimension> result;
+#ifdef MSVC_LIMITATIONS
+				vector<typename std::result_of<F (ElementType)>::type, dimension> result;
+#else
+				vector<typename std::result_of<F &(ElementType)>::type, dimension> result;
+#endif
 				for (unsigned i = 0; i < dimension; i++)
 					result[i] = f(static_cast<const TSwizzle &>(*this)[i]);
 				return result;
@@ -1637,7 +1685,7 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 					va_list rest;
 					va_start(rest, _0);
 					for (unsigned i = 1; i < dimension; i++)
-						_data._data[i] = va_arg(rest, SrcElementType);
+						_data._data[i] = va_arg(rest, typename TFloat2Double<SrcElementType>::type);
 					va_end(rest);
 				}
 #				else
@@ -1778,7 +1826,7 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 					va_start(rest, _0);
 					for (unsigned r = 0; i < rows; i++)
 						for (unsigned c = 1; i < rows; i++)
-							_data._rows[r][c] = r == 0 && c == 0 ? _0 : va_arg(rest, SrcElementType);
+							_data._rows[r][c] = r == 0 && c == 0 ? _0 : va_arg(rest, typename TFloat2Double<SrcElementType>::type);
 					va_end(rest);
 				}
 #				else
@@ -2080,9 +2128,17 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				template<typename F>
-				inline auto matrix<ElementType, rows, columns>::apply(F f) const -> matrix
+#ifdef MSVC_LIMITATIONS
+				inline auto matrix<ElementType, rows, columns>::apply(F f) const -> matrix<typename std::result_of<F (ElementType)>::type, rows, columns>
+#else
+				inline auto matrix<ElementType, rows, columns>::apply(F f) const -> matrix<typename std::result_of<F &(ElementType)>::type, rows, columns>
+#endif
 				{
-					matrix result;
+#ifdef MSVC_LIMITATIONS
+					matrix<typename std::result_of<F (ElementType)>::type, rows, columns> result;
+#else
+					matrix<typename std::result_of<F &(ElementType)>::type, rows, columns> result;
+#endif
 					for (unsigned i = 0; i < rows; i++)
 						result[i].apply(f);
 					return result;
@@ -2336,6 +2392,13 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 				-> decltype(length(right - left))
 				{
 					return length(right - left);
+				}
+
+				template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector, bool odd, unsigned namingSet>
+				inline auto normalize(const CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> &swizzle)
+				-> decltype(swizzle / length(swizzle))
+				{
+					return swizzle / length(swizzle);
 				}
 
 #				pragma region("series of matrices delimitted by ',' interpreted as series of successive transforms; inspirited by boost's function superposition")
