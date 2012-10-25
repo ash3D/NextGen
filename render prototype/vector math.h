@@ -1,24 +1,33 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.2.2012 (c)Alexey Shaydurov
+\date		25.10.2012 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
 See "DGLE2.h" for more details.
 */
 
+#pragma region(limitations due to lack of C++11 support)
 /*
-limitations due to lack of C++11 support
-
 VS 2010 does not catch errors like vec.xx = vec.xx and does nothing for things like vec.x = vec.x
 
 different versions of CDataContainer now inherited from specialized CSwizzle
 sizeof(vector<float, 3>) in this case is 12 for both gcc and VS2010
 if vector inherited from specialized CSwizzle instead of CDataContainer then sizeof(...) is 12 for gcc and 16 for VS2010
 TODO: try inherit vector from CSwizzle for future versions of VS
-
-it is safe to use const_cast if const version returns (const &), not value, and *this object is not const
 */
+#pragma endregion
+
+#pragma region(design considerations)
+/*
+it is safe to use const_cast if const version returns (const &), not value, and *this object is not const
+
+functions like distance now receives CSwizzle arguments
+function template with same name from other namespace can have hier priority when passing vector arguments
+(because no conversion required in contrast to vector->CSwizzle conversion required for function in VectorMath)
+consider overloads with vector arguments to eliminate this issue
+*/
+#pragma endregion
 
 #if BOOST_PP_IS_ITERATING
 #if BOOST_PP_ITERATION_DEPTH() == 1
@@ -1824,8 +1833,8 @@ it is safe to use const_cast if const version returns (const &), not value, and 
 				{
 					va_list rest;
 					va_start(rest, _0);
-					for (unsigned r = 0; i < rows; i++)
-						for (unsigned c = 1; i < rows; i++)
+					for (unsigned r = 0; r < rows; i++)
+						for (unsigned c = 1; c < rows; i++)
 							_data._rows[r][c] = r == 0 && c == 0 ? _0 : va_arg(rest, typename TFloat2Double<SrcElementType>::type);
 					va_end(rest);
 				}
