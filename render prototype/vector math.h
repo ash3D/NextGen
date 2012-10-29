@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.10.2012 (c)Alexey Shaydurov
+\date		29.10.2012 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -679,6 +679,16 @@ consider overloads with vector arguments to eliminate this issue
 #else
 				vector<typename std::result_of<F &(ElementType)>::type, TSwizzleTraits<columns, CSwizzleVector>::TDimension::value> apply(F f) const;
 #endif
+				template<typename TResult>
+				vector<TResult, TSwizzleTraits<columns, CSwizzleVector>::TDimension::value> apply(TResult f(ElementType)) const
+				{
+					return apply<TResult (ElementType)>(f);
+				}
+				template<typename TResult>
+				vector<TResult, TSwizzleTraits<columns, CSwizzleVector>::TDimension::value> apply(TResult f(const ElementType &)) const
+				{
+					return apply<TResult (const ElementType &)>(f);
+				}
 			};
 
 			// CSwizzle inherits from this to reduce preprocessor generated code for faster compiling
@@ -1471,6 +1481,16 @@ consider overloads with vector arguments to eliminate this issue
 #else
 				matrix<typename std::result_of<F &(ElementType)>::type, rows, columns> apply(F f) const;
 #endif
+				template<typename TResult>
+				matrix<TResult, rows, columns> apply(TResult f(ElementType)) const
+				{
+					return apply<TResult (ElementType)>(f);
+				}
+				template<typename TResult>
+				matrix<TResult, rows, columns> apply(TResult f(const ElementType &)) const
+				{
+					return apply<TResult (const ElementType &)>(f);
+				}
 			private:
 #				ifndef MSVC_LIMITATIONS
 				template<unsigned idx>
