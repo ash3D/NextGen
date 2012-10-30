@@ -1854,7 +1854,7 @@ consider overloads with vector arguments to eliminate this issue
 					va_list rest;
 					va_start(rest, _0);
 					for (unsigned r = 0; r < rows; r++)
-						for (unsigned c = 0; c < rows; c++)
+						for (unsigned c = 0; c < columns; c++)
 							_data._rows[r][c] = r == 0 && c == 0 ? _0 : va_arg(rest, typename TFloat2Double<SrcElementType>::type);
 					va_end(rest);
 				}
