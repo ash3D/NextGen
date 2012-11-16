@@ -1120,58 +1120,6 @@ consider overloads with vector arguments to eliminate this issue
 					template																																											\
 					<																																													\
 						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, unsigned short leftPackedSwizzle, class CLeftSwizzleVector, bool leftOdd, unsigned leftNamingSet,	\
-						typename RightElementType, unsigned int rightDimension																															\
-					>																																													\
-					inline auto operator op(																																							\
-					const CSwizzle<LeftElementType, leftRows, leftColumns, leftPackedSwizzle, CLeftSwizzleVector, leftOdd, leftNamingSet> &left,														\
-					const vector<RightElementType, rightDimension> &right) -> decltype(left op static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, void> &>(right))						\
-					{																																													\
-						return left op static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, void> &>(right);																				\
-					};
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
-#				undef OPERATOR_DEFINITION
-
-#				define OPERATOR_DEFINITION(op)																																																					\
-					template																																																									\
-					<																																																											\
-						typename LeftElementType, unsigned int leftDimension,																																													\
-						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet														\
-					>																																																											\
-					inline auto operator op(																																																					\
-					const vector<LeftElementType, leftDimension> &left,																																															\
-					const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right) -> decltype(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, void> &>(left) op right)	\
-					{																																																											\
-						return static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, void> &>(left) op right;																																		\
-					};
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
-#				undef OPERATOR_DEFINITION
-
-#				define OPERATOR_DEFINITION(op)																		\
-					template																						\
-					<																								\
-						typename LeftElementType, unsigned int leftDimension,										\
-						typename RightElementType, unsigned int rightDimension										\
-					>																								\
-					inline auto operator op(																		\
-					const vector<LeftElementType, leftDimension> &left,												\
-					const vector<RightElementType, rightDimension> &right) -> decltype(								\
-					static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, void> &>(left) op				\
-					static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, void> &>(right))			\
-					{																								\
-						return																						\
-							static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, void> &>(left) op		\
-							static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, void> &>(right);	\
-					};
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
-#				undef OPERATOR_DEFINITION
-
-#				define OPERATOR_DEFINITION(op)																																							\
-					template																																											\
-					<																																													\
-						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, unsigned short leftPackedSwizzle, class CLeftSwizzleVector, bool leftOdd, unsigned leftNamingSet,	\
 						typename RightElementType																																						\
 					>																																													\
 					inline vector																																										\
@@ -1259,6 +1207,58 @@ consider overloads with vector arguments to eliminate this issue
 							result[i] = left op right[i];																																					\
 						return result;																																										\
 					};
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
+#				undef OPERATOR_DEFINITION
+
+#				define OPERATOR_DEFINITION(op)																																							\
+					template																																											\
+					<																																													\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, unsigned short leftPackedSwizzle, class CLeftSwizzleVector, bool leftOdd, unsigned leftNamingSet,	\
+						typename RightElementType, unsigned int rightDimension																															\
+					>																																													\
+					inline auto operator op(																																							\
+					const CSwizzle<LeftElementType, leftRows, leftColumns, leftPackedSwizzle, CLeftSwizzleVector, leftOdd, leftNamingSet> &left,														\
+					const vector<RightElementType, rightDimension> &right) -> decltype(left op static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, void> &>(right))						\
+					{																																													\
+						return left op static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, void> &>(right);																				\
+					};
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
+#				undef OPERATOR_DEFINITION
+
+#				define OPERATOR_DEFINITION(op)																																																					\
+					template																																																									\
+					<																																																											\
+						typename LeftElementType, unsigned int leftDimension,																																													\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet														\
+					>																																																											\
+					inline auto operator op(																																																					\
+					const vector<LeftElementType, leftDimension> &left,																																															\
+					const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right) -> decltype(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, void> &>(left) op right)	\
+					{																																																											\
+						return static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, void> &>(left) op right;																																		\
+					};
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
+#				undef OPERATOR_DEFINITION
+
+#				define OPERATOR_DEFINITION(op)																		\
+					template																						\
+					<																								\
+						typename LeftElementType, unsigned int leftDimension,										\
+						typename RightElementType, unsigned int rightDimension										\
+					>																								\
+					inline auto operator op(																		\
+					const vector<LeftElementType, leftDimension> &left,												\
+					const vector<RightElementType, rightDimension> &right) -> decltype(								\
+					static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, void> &>(left) op				\
+					static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, void> &>(right))			\
+					{																								\
+						return																						\
+							static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, void> &>(left) op		\
+							static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, void> &>(right);	\
+					};
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
 #				undef OPERATOR_DEFINITION
 #			pragma endregion
@@ -2175,66 +2175,223 @@ consider overloads with vector arguments to eliminate this issue
 #			pragma endregion
 
 #			pragma region(min/max functions)
-#				define FUNCTION_DEFINITION(f)																																	\
-					template																																					\
-					<																																							\
-						typename ElementType,																																	\
-						unsigned int leftRows, unsigned int leftColumns, unsigned short leftPackedSwizzle, class CLeftSwizzleVector, bool leftOdd, unsigned leftNamingSet,		\
-						unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet	\
-					>																																							\
-					inline vector																																				\
-					<																																							\
-						ElementType,																																			\
-						mpl::min																																				\
-						<																																						\
-							typename TSwizzleTraits<leftColumns, CLeftSwizzleVector>::TDimension,																				\
-							typename TSwizzleTraits<rightColumns, CRightSwizzleVector>::TDimension																				\
-						>::type::value																																			\
-					> f(																																						\
-					const CSwizzle<ElementType, leftRows, leftColumns, leftPackedSwizzle, CLeftSwizzleVector, leftOdd, leftNamingSet> &left,									\
-					const CSwizzle<ElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right)								\
-					{																																							\
-						constexpr unsigned int dimension = mpl::min																												\
-						<																																						\
-							typename TSwizzleTraits<leftColumns, CLeftSwizzleVector>::TDimension,																				\
-							typename TSwizzleTraits<rightColumns, CRightSwizzleVector>::TDimension																				\
-						>::type::value;																																			\
-						vector																																					\
-						<																																						\
-							ElementType,																																		\
-							dimension																																			\
-						> result;																																				\
-						for (unsigned i = 0; i < dimension; i++)																												\
-							result[i] = std::f(left[i], right[i]);																												\
-						return result;																																			\
+				// std::min/max requires explicit template param if used for different types => provide scalar version
+#				define FUNCTION_DEFINITION(f)																\
+					template<typename LeftElementType, typename RightElementType>							\
+					inline auto f(LeftElementType left, RightElementType right) -> decltype(left - right)	\
+					{																						\
+						return std::f<decltype(left - right)>(left, right);									\
 					};
 				FUNCTION_DEFINITION(min)
 				FUNCTION_DEFINITION(max)
 #				undef FUNCTION_DEFINITION
 
-#				define FUNCTION_DEFINITION(f)																									\
-					template																													\
-					<																															\
-						typename ElementType,																									\
-						unsigned int leftRows, unsigned int leftColumns,																		\
-						unsigned int rightRows, unsigned int rightColumns																		\
-					>																															\
-					matrix																												\
-					<																															\
-						ElementType,																											\
-						mpl::min<mpl::integral_c<unsigned, leftRows>, mpl::integral_c<unsigned, rightRows>>::type::value,						\
-						mpl::min<mpl::integral_c<unsigned, leftColumns>, mpl::integral_c<unsigned, rightColumns>>::type::value					\
-					> f(																														\
-					const matrix<ElementType, leftRows, leftColumns> &left,																		\
-					const matrix<ElementType, rightRows, rightColumns> &right)																	\
-					{																															\
-						constexpr unsigned int																									\
-							rows = mpl::min<mpl::integral_c<unsigned, leftRows>, mpl::integral_c<unsigned, rightRows>>::type::value,			\
-							columns = mpl::min<mpl::integral_c<unsigned, leftColumns>, mpl::integral_c<unsigned, rightColumns>>::type::value;	\
-						matrix<ElementType, rows, columns> result;																				\
-						for (unsigned i = 0; i < rows; i++)																						\
-							result[i] = f(left[i], right[i]);																					\
-						return result;																											\
+#				define FUNCTION_DEFINITION(f)																																								\
+					template																																												\
+					<																																														\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, unsigned short leftPackedSwizzle, class CLeftSwizzleVector, bool leftOdd, unsigned leftNamingSet,		\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet	\
+					>																																														\
+					inline auto f(																																											\
+					const CSwizzle<LeftElementType, leftRows, leftColumns, leftPackedSwizzle, CLeftSwizzleVector, leftOdd, leftNamingSet> &left,															\
+					const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right)													\
+					-> decltype(left - right)																																								\
+					{																																														\
+						typedef decltype(left - right) TResult;																																				\
+						TResult result;																																										\
+						for (unsigned i = 0; i < TResult::dimension; i++)																																	\
+							result[i] = std::f<typename TResult::ElementType>(left[i], right[i]);																											\
+						return result;																																										\
+					};
+				FUNCTION_DEFINITION(min)
+				FUNCTION_DEFINITION(max)
+#				undef FUNCTION_DEFINITION
+
+#				define FUNCTION_DEFINITION(f)																																								\
+					template																																												\
+					<																																														\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, unsigned short leftPackedSwizzle, class CLeftSwizzleVector, bool leftOdd, unsigned leftNamingSet,		\
+						typename RightElementType																																							\
+					>																																														\
+					inline auto f(																																											\
+					const CSwizzle<LeftElementType, leftRows, leftColumns, leftPackedSwizzle, CLeftSwizzleVector, leftOdd, leftNamingSet> &left,															\
+					RightElementType right)																																									\
+					-> decltype(left - right)																																								\
+					{																																														\
+						typedef decltype(left - right) TResult;																																				\
+						TResult result;																																										\
+						for (unsigned i = 0; i < TResult::dimension; i++)																																	\
+							result[i] = std::f<typename TResult::ElementType>(left[i], right);																												\
+						return result;																																										\
+					};
+				FUNCTION_DEFINITION(min)
+				FUNCTION_DEFINITION(max)
+#				undef FUNCTION_DEFINITION
+
+#				define FUNCTION_DEFINITION(f)																																								\
+					template																																												\
+					<																																														\
+						typename LeftElementType,																																							\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet	\
+					>																																														\
+					inline auto f(																																											\
+					LeftElementType left,																																									\
+					const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right)													\
+					-> decltype(left - right)																																								\
+					{																																														\
+						typedef decltype(left - right) TResult;																																				\
+						TResult result;																																										\
+						for (unsigned i = 0; i < TResult::dimension; i++)																																	\
+							result[i] = std::f<typename TResult::ElementType>(left, right[i]);																												\
+						return result;																																										\
+					};
+				FUNCTION_DEFINITION(min)
+				FUNCTION_DEFINITION(max)
+#				undef FUNCTION_DEFINITION
+
+#				define FUNCTION_DEFINITION(f)																																								\
+					template																																												\
+					<																																														\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, unsigned short leftPackedSwizzle, class CLeftSwizzleVector, bool leftOdd, unsigned leftNamingSet,		\
+						typename RightElementType, unsigned int rightDimension																																\
+					>																																														\
+					inline auto f(																																											\
+					const CSwizzle<LeftElementType, leftRows, leftColumns, leftPackedSwizzle, CLeftSwizzleVector, leftOdd, leftNamingSet> &left,															\
+					const vector<RightElementType, rightDimension> &right)																																	\
+					-> decltype(f(left, static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, void> &>(right)))																				\
+					{																																														\
+						return f(left, static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, void> &>(right));																				\
+					};
+				FUNCTION_DEFINITION(min)
+				FUNCTION_DEFINITION(max)
+#				undef FUNCTION_DEFINITION
+
+#				define FUNCTION_DEFINITION(f)																																								\
+					template																																												\
+					<																																														\
+						typename LeftElementType, unsigned int leftDimension,																																\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet	\
+					>																																														\
+					inline auto f(																																											\
+					const vector<LeftElementType, leftDimension> &left,																																		\
+					const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right)													\
+					-> decltype(f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, void> &>(left), right))																					\
+					{																																														\
+						return f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, void> &>(left), right);																					\
+					};
+				FUNCTION_DEFINITION(min)
+				FUNCTION_DEFINITION(max)
+#				undef FUNCTION_DEFINITION
+
+#				define FUNCTION_DEFINITION(f)																																								\
+					template																																												\
+					<																																														\
+						typename LeftElementType, unsigned int leftDimension,																																\
+						typename RightElementType, unsigned int rightDimension																																\
+					>																																														\
+					inline auto f(																																											\
+					const vector<LeftElementType, leftDimension> &left,																																		\
+					const vector<RightElementType, rightDimension> &right)																																	\
+					-> decltype(f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, void> &>(left), static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, void> &>(right)))	\
+					{																																														\
+						return f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, void> &>(left), static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, void> &>(right));	\
+					};
+				FUNCTION_DEFINITION(min)
+				FUNCTION_DEFINITION(max)
+#				undef FUNCTION_DEFINITION
+
+#				define FUNCTION_DEFINITION(f)																					\
+					template																									\
+					<																											\
+						typename LeftElementType, unsigned int leftDimension,													\
+						typename RightElementType																				\
+					>																											\
+					inline auto f(																								\
+					const vector<LeftElementType, leftDimension> &left,															\
+					RightElementType right)																						\
+					-> decltype(f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, void> &>(left), right))		\
+					{																											\
+						return f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, void> &>(left), right);		\
+					};
+				FUNCTION_DEFINITION(min)
+				FUNCTION_DEFINITION(max)
+#				undef FUNCTION_DEFINITION
+
+#				define FUNCTION_DEFINITION(f)																					\
+					template																									\
+					<																											\
+						typename LeftElementType,																				\
+						typename RightElementType, unsigned int rightDimension													\
+					>																											\
+					inline auto f(																								\
+					LeftElementType left,																						\
+					const vector<RightElementType, rightDimension> &right)														\
+					-> decltype(f(left, static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, void> &>(right)))	\
+					{																											\
+						return f(left, static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, void> &>(right));	\
+					};
+				FUNCTION_DEFINITION(min)
+				FUNCTION_DEFINITION(max)
+#				undef FUNCTION_DEFINITION
+
+#				define FUNCTION_DEFINITION(f)															\
+					template																			\
+					<																					\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,		\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns	\
+					>																					\
+					auto f(																				\
+					const matrix<LeftElementType, leftRows, leftColumns> &left,							\
+					const matrix<RightElementType, rightRows, rightColumns> &right)						\
+					-> decltype(left - right)															\
+					{																					\
+						typedef decltype(left - right) TResult;											\
+						TResult result;																	\
+						for (unsigned i = 0; i < TResult::rows; i++)									\
+							result[i] = std::f<typename TResult::ElementType>(left[i], right[i]);		\
+						return result;																	\
+					}
+				FUNCTION_DEFINITION(min)
+				FUNCTION_DEFINITION(max)
+#				undef FUNCTION_DEFINITION
+
+#				define FUNCTION_DEFINITION(f)															\
+					template																			\
+					<																					\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,		\
+						typename RightElementType														\
+					>																					\
+					auto f(																				\
+					const matrix<LeftElementType, leftRows, leftColumns> &left,							\
+					RightElementType right)																\
+					-> decltype(left - right)															\
+					{																					\
+						typedef decltype(left - right) TResult;											\
+						TResult result;																	\
+						for (unsigned i = 0; i < TResult::rows; i++)									\
+							result[i] = std::f<typename TResult::ElementType>(left[i], right);			\
+						return result;																	\
+					}
+				FUNCTION_DEFINITION(min)
+				FUNCTION_DEFINITION(max)
+#				undef FUNCTION_DEFINITION
+
+#				define FUNCTION_DEFINITION(f)															\
+					template																			\
+					<																					\
+						typename LeftElementType,														\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns	\
+					>																					\
+					auto f(																				\
+					LeftElementType left,																\
+					const matrix<RightElementType, rightRows, rightColumns> &right)						\
+					-> decltype(left - right)															\
+					{																					\
+						typedef decltype(left - right) TResult;											\
+						TResult result;																	\
+						for (unsigned i = 0; i < TResult::rows; i++)									\
+							result[i] = std::f<typename TResult::ElementType>(left, right[i]);			\
+						return result;																	\
 					}
 				FUNCTION_DEFINITION(min)
 				FUNCTION_DEFINITION(max)
