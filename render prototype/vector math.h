@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		16.11.2012 (c)Alexey Shaydurov
+\date		28.12.2012 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -120,12 +120,16 @@ consider overloads with vector arguments to eliminate this issue
 			CSwizzleAssign<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>::operator =(scalar);	\
 			return *this;																														\
 		}
+#ifdef NO_INIT_LIST
+#	define GENERATE_INIT_LIST_ASSIGGN_OPERATOR(leftSwizzleSeq)
+#else
 #	define GENERATE_INIT_LIST_ASSIGGN_OPERATOR(leftSwizzleSeq)																						\
 		CSwizzle &operator =(std::initializer_list<CInitListItem<ElementType>> initList)															\
 		{																																			\
 			CSwizzleAssign<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>::operator =(initList);	\
 			return *this;																															\
 		}
+#endif
 #	ifdef MSVC_LIMITATIONS
 		// VS 2010 does not allow operator = in union members
 #		define GENERATE_ASSIGN_OPERATORS(leftSwizzleSeq)		\
@@ -417,7 +421,9 @@ consider overloads with vector arguments to eliminate this issue
 #	include <functional>
 #	include <iterator>
 #	include <algorithm>
+#ifndef NO_INIT_LIST
 #	include <initializer_list>
+#endif
 #	include <boost\preprocessor\facilities\apply.hpp>
 #	include <boost\preprocessor\iteration\iterate.hpp>
 //#	include <boost\preprocessor\repetition\repeat.hpp>
@@ -554,6 +560,10 @@ consider overloads with vector arguments to eliminate this issue
 #		endif
 			};
 
+#if defined _MSC_VER & _MSC_VER == 1700
+#define final
+#endif
+
 			// specialization for vector
 			template<typename ElementType, unsigned int dimension>
 			class CData<ElementType, 0, dimension> final
@@ -576,6 +586,10 @@ consider overloads with vector arguments to eliminate this issue
 			private:
 				ElementType _data[dimension];
 			};
+
+#if defined _MSC_VER & _MSC_VER == 1700
+#undef final
+#endif
 
 			class CEmpty {};
 
@@ -868,6 +882,7 @@ consider overloads with vector arguments to eliminate this issue
 					}
 				}
 
+#ifndef NO_INIT_LIST
 				void operator =(std::initializer_list<CInitListItem<ElementType>> initList)
 				{
 					unsigned dst_idx = 0;
@@ -882,6 +897,7 @@ consider overloads with vector arguments to eliminate this issue
 #endif
 					_ASSERTE(dst_idx == columns);
 				}
+#endif
 			};
 
 			// this specialization used as base class for CDataContainer to eliminate need for various overloads
@@ -1366,7 +1382,9 @@ consider overloads with vector arguments to eliminate this issue
 #				endif
 				//vector(const SrcElementType &scalar, typename TSwizzleVectorMatrixTag<SrcElementType>::type = typename TSwizzleVectorMatrixTag<SrcElementType>::type());
 
+#ifndef NO_INIT_LIST
 				vector(std::initializer_list<CInitListItem<ElementType>> initList);
+#endif
 
 				//template<typename TIterator>
 				//explicit vector(TIterator src);
@@ -1379,7 +1397,9 @@ consider overloads with vector arguments to eliminate this issue
 
 				vector &operator =(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar);
 
+#ifndef NO_INIT_LIST
 				vector &operator =(std::initializer_list<CInitListItem<ElementType>> initList);
+#endif
 
 				const ElementType &operator [](unsigned int idx) const noexcept;
 
@@ -1432,7 +1452,9 @@ consider overloads with vector arguments to eliminate this issue
 #				endif
 				//matrix(const SrcElementType &scalar, typename TSwizzleVectorMatrixTag<SrcElementType>::type = typename TSwizzleVectorMatrixTag<SrcElementType>::type());
 
+#ifndef NO_INIT_LIST
 				matrix(std::initializer_list<CInitListItem<ElementType>> initList);
+#endif
 
 				//template<typename TIterator>
 				//explicit matrix(TIterator src);
@@ -1445,7 +1467,9 @@ consider overloads with vector arguments to eliminate this issue
 
 				matrix &operator =(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar);
 
+#ifndef NO_INIT_LIST
 				matrix &operator =(std::initializer_list<CInitListItem<ElementType>> initList);
+#endif
 
 				const matrix &operator +() const noexcept
 				{
@@ -1773,18 +1797,22 @@ consider overloads with vector arguments to eliminate this issue
 					std::copy_n(src, dimension, CDataContainer<ElementType, 0, dimension>::_data._data);
 				}
 
+#ifndef NO_INIT_LIST
 				template<typename ElementType, unsigned int dimension>
 				inline auto vector<ElementType, dimension>::operator =(std::initializer_list<CInitListItem<ElementType>> initList) -> vector &
 				{
 					CSwizzleAssign<ElementType, 0, dimension, 0u, void>::operator =(initList);
 					return *this;
 				}
+#endif
 
+#ifndef NO_INIT_LIST
 				template<typename ElementType, unsigned int dimension>
 				inline vector<ElementType, dimension>::vector(std::initializer_list<CInitListItem<ElementType>> initList)
 				{
 					operator =(initList);
 				}
+#endif
 
 				template<typename ElementType, unsigned int dimension>
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet>
@@ -1931,6 +1959,7 @@ consider overloads with vector arguments to eliminate this issue
 					}
 				}
 
+#ifndef NO_INIT_LIST
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				inline auto matrix<ElementType, rows, columns>::operator =(std::initializer_list<CInitListItem<ElementType>> initList) -> matrix &
 				{
@@ -1947,12 +1976,15 @@ consider overloads with vector arguments to eliminate this issue
 					_ASSERTE(dst_idx == rows * columns);
 					return *this;
 				}
+#endif
 
+#ifndef NO_INIT_LIST
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				inline matrix<ElementType, rows, columns>::matrix(std::initializer_list<CInitListItem<ElementType>> initList)
 				{
 					operator =(initList);
 				}
+#endif
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns>
