@@ -407,15 +407,15 @@ consider overloads with vector arguments to eliminate this issue
 #	ifdef MSVC_LIMITATIONS
 #	include <stdarg.h>
 #	endif
-#	ifdef MSVC_LIMITATIONS
-		/*
-			declval is not included in VS2010 => use boost
-		*/
-#		include <boost\utility\declval.hpp>
-		using boost::declval;
-#	else
-#		include <utility>
-		using std::declval;
+#if defined _MSC_VER & _MSC_VER <= 1600
+	/*
+		declval is not included in VS2010 => use boost
+	*/
+#	include <boost\utility\declval.hpp>
+	using boost::declval;
+#else
+#	include <utility>
+	using std::declval;
 #	endif
 #	include <type_traits>
 #	include <functional>
