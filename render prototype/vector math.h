@@ -424,7 +424,7 @@ consider overloads with vector arguments to eliminate this issue
 #ifndef NO_INIT_LIST
 #	include <initializer_list>
 #endif
-//#	include <memory>	// temp for unique_ptr
+#	include <memory>	// temp for unique_ptr
 #	include <boost\preprocessor\facilities\apply.hpp>
 #	include <boost\preprocessor\iteration\iterate.hpp>
 //#	include <boost\preprocessor\repetition\repeat.hpp>
@@ -1595,30 +1595,6 @@ consider overloads with vector arguments to eliminate this issue
 #			pragma endregion
 
 #			pragma region(Initializer list)
-				template<typename TargetElementType, typename ItemElementType>
-				TargetElementType GetItemElement(const void *item, unsigned)
-				{
-					return *reinterpret_cast<const ItemElementType *>(item);
-				}
-
-				/*
-				no need to track odd, namingSet because for different odd, namingSet CSwizzle differs only by type name; layout is same
-				only operator [] used here
-				*/
-				template<typename TargetElementType, typename ItemElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector>
-				TargetElementType GetItemElement(const void *item, unsigned idx)
-				{
-					const auto &swizzle = *reinterpret_cast<const CSwizzle<ItemElementType, rows, columns, packedSwizzle, CSwizzleVector> *>(item);
-					return swizzle[idx];
-				}
-
-				template<typename TargetElementType, typename ItemElementType, unsigned int rows, unsigned int columns>
-				TargetElementType GetItemElement(const void *item, unsigned idx)
-				{
-					const auto &m = *reinterpret_cast<const matrix<ItemElementType, rows, columns> *>(item);
-					return m[idx / columns][idx % columns];
-				}
-
 				template<typename ElementType>
 				class CInitListItem final
 				{
@@ -1631,65 +1607,82 @@ consider overloads with vector arguments to eliminate this issue
 					CInitListItem(const CInitListItem &);
 					CInitListItem &operator =(const CInitListItem &);
 #endif
-				//private:
-				//	static void _DeleteScalar(const void *ptr)
-				//	{
-				//		delete (const ElementType *)ptr;
-				//	}
+				private:
+					static ElementType _GetItemElement(const void *item, unsigned)
+					{
+						return *reinterpret_cast<const ElementType *>(item);
+					}
 
-				//	static void _DeleteVector(const void *ptr)
-				//	{
-				//		delete (const vector<ItemElementType, TSwizzleTraits<itemColumns, CItemSwizzleVector>::TDimension::value> *)ptr;
-				//	}
+					template<unsigned int dimension>
+					static ElementType _GetItemElement(const void *item, unsigned idx)
+					{
+						const auto &v = *reinterpret_cast<const vector<ElementType, dimension> *>(item);
+						return v[idx];
+					}
 
-				//	static void _DeleteMatrix(const void *ptr)
-				//	{
-				//		delete (const matrix<ItemElementType, itemRows, itemColumns> *)ptr;
-				//	}
+					template<unsigned int rows, unsigned int columns>
+					static ElementType _GetItemElement(const void *item, unsigned idx)
+					{
+						const auto &m = *reinterpret_cast<const matrix<ElementType, rows, columns> *>(item);
+						return m[idx / columns][idx % columns];
+					}
 
-				//	static const class CDeleter
-				//	{
-				//		typedef void (*TImpl)(const void *ptr);
-				//		TImpl _impl;
-				//	public:
-				//		CDeleter(TImpl impl): _impl(impl) {}
-				//	public:
-				//		void operator ()(const void *ptr) const
-				//		{
-				//			_impl(ptr);
-				//		}
-				//	} _scalarDeleter, _vectorDeleter, _matrixDeleter;
+					static void _Delete(const void *ptr)
+					{
+						delete (const ElementType *)ptr;
+					}
+
+					template<unsigned int dimension>
+					static void _Delete(const void *ptr)
+					{
+						delete (const vector<ElementType, dimension> *)ptr;
+					}
+
+					template<unsigned int rows, unsigned int columns>
+					static void _Delete(const void *ptr)
+					{
+						delete (const matrix<ElementType, rows, columns> *)ptr;
+					}
+
+					class CDeleter
+					{
+						typedef void (*TImpl)(const void *ptr);
+						TImpl _impl;
+					public:
+						CDeleter(TImpl impl): _impl(impl) {}
+					public:
+						void operator ()(const void *ptr) const
+						{
+							_impl(ptr);
+						}
+					};
 				public:
-					template<typename ItemElementType>
-					CInitListItem(const ItemElementType &item):
-						_getItemElement(GetItemElement<ElementType, ItemElementType>),
-						_item(&item),
-						//_item(new ElementType(item), _scalarDeleter),
+					CInitListItem(const ElementType &item):
+						_getItemElement(_GetItemElement),
+						_item(new ElementType(item), CDeleter(_Delete)),
 						_itemSize(1)
 					{
 					}
 
 					template<typename ItemElementType, unsigned int itemRows, unsigned int itemColumns, unsigned short itemPackedSwizzle, class CItemSwizzleVector>
 					CInitListItem(const CSwizzle<ItemElementType, itemRows, itemColumns, itemPackedSwizzle, CItemSwizzleVector> &item) noexcept:
-						_getItemElement(GetItemElement<ElementType, ItemElementType, itemRows, itemColumns, itemPackedSwizzle, CItemSwizzleVector>),
-						_item(&item),
-						//_item(new vector<ItemElementType, TSwizzleTraits<itemColumns, CItemSwizzleVector>::TDimension::value>(item), _vectorDeleter),
+						_getItemElement(_GetItemElement<TSwizzleTraits<itemColumns, CItemSwizzleVector>::TDimension::value>),
+						_item(new vector<ElementType, TSwizzleTraits<itemColumns, CItemSwizzleVector>::TDimension::value>(item), CDeleter(_Delete<TSwizzleTraits<itemColumns, CItemSwizzleVector>::TDimension::value>)),
 						_itemSize(TSwizzleTraits<itemColumns, CItemSwizzleVector>::TDimension::value)
 					{
 					}
 
 					template<typename ItemElementType, unsigned int itemRows, unsigned int itemColumns>
 					CInitListItem(const matrix<ItemElementType, itemRows, itemColumns> &item) noexcept:
-						_getItemElement(GetItemElement<ElementType, ItemElementType, itemRows, itemColumns>),
-						_item(&item),
-						//_item(new matrix<ItemElementType, itemRows, itemColumns>(item), _matrixDeleter),
+						_getItemElement(_GetItemElement<itemRows, itemColumns>),
+						_item(new matrix<ElementType, itemRows, itemColumns>(item), CDeleter(_Delete<itemRows, itemColumns>)),
 						_itemSize(itemRows * itemColumns)
 					{
 					}
 
 					ElementType operator [](unsigned idx) const
 					{
-						return _getItemElement(_item/*.get()*/, idx);
+						return _getItemElement(_item.get(), idx);
 					}
 
 					unsigned GetItemSize() const noexcept
@@ -1698,16 +1691,9 @@ consider overloads with vector arguments to eliminate this issue
 					}
 				private:
 					ElementType (&_getItemElement)(const void *, unsigned);
-					const void *const _item;
-					//const std::unique_ptr<const void, CDeleter> _item;
+					const std::unique_ptr<const void, CDeleter> _item;
 					const unsigned _itemSize;
 				};
-
-				//template<typename ElementType>
-				//const typename CInitListItem<ElementType>::CDeleter
-				//	CInitListItem<ElementType>::_scalarDeleter(CInitListItem<ElementType>::_DeleteScalar),
-				//	CInitListItem<ElementType>::_vectorDeleter(CInitListItem<ElementType>::_DeleteVector),
-				//	CInitListItem<ElementType>::_matrixDeleter(CInitListItem<ElementType>::_DeleteMatrix);
 #			pragma endregion
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector, bool odd, unsigned namingSet>
