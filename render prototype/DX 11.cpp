@@ -406,7 +406,7 @@ namespace DX11
 				{
 					return pointer(HeapAlloc(_heap, 0, count * sizeof(T)));
 				}
-				catch(...)
+				catch (...)
 				{
 					throw bad_alloc();
 				}
@@ -416,7 +416,7 @@ namespace DX11
 				if (!HeapFree(_heap, 0, ptr)) throw "fail to free heap block";
 			}
 		private:
-			const HANDLE _heap;
+			HANDLE _heap;
 		};
 	}
 
