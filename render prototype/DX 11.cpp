@@ -374,16 +374,29 @@ namespace DX11
 			{
 				if (!_handle) throw "fail to create heap";
 			}
+			CWin32Heap(CWin32Heap &&src) noexcept: _handle(src._handle)
+			{
+				src._handle = NULL;
+			}
+			CWin32Heap &operator =(CWin32Heap &&src) noexcept
+			{
+				_ASSERT(this != &src);
+				_handle = src._handle;
+				src._handle = NULL;
+				return *this;
+			}
 			~CWin32Heap()
 			{
-				if (!HeapDestroy(_handle)) throw "fail to destroy heap";
+				if (_handle)
+					if (!HeapDestroy(_handle)) throw "fail to destroy heap";
 			}
+		public:
 			operator HANDLE() const noexcept
 			{
 				return _handle;
 			}
 		private:
-			const HANDLE _handle;
+			HANDLE _handle;
 		};
 
 		template<typename T>
