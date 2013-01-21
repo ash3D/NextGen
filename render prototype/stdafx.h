@@ -27,6 +27,7 @@
 #include <list>
 #include <algorithm>
 #include <functional>
+#include <type_traits>
 //#include <memory>		// for allocator
 #include <new>			// for bad_alloc
 #include <malloc.h>		// for _get_heap_handle

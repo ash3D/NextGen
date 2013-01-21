@@ -1,20 +1,15 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		3.10.2012 (c)Alexey Shaydurov
+\date		21.1.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
 See "DGLE2.h" for more details.
 */
 
-#if _MSC_VER > 1000
 #pragma once
-#endif
 
-#ifndef __RENDERER_H__
-#define __RENDERER_H__
-
-#if _MSC_VER < 1600
+#if defined _MSC_VER & _MSC_VER < 1700
 #error old compiler version
 #endif
 
@@ -1400,5 +1395,3 @@ namespace DGLE2
 		}
 	}
 }
-
-#endif//__RENDERER_H__

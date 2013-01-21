@@ -38,12 +38,6 @@
     <ClInclude Include="Effects11\Inc\d3dxGlobal.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\DGLE2\Include\CPP\DGLE2.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\DGLE2\Include\CPP\DGLE2_types.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="render prototype.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -66,6 +60,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="C++11 stub.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\CPP\DGLE2.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\CPP\DGLE2_types.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -1,3 +1,12 @@
+/**
+\author		Alexey Shaydurov aka ASH
+\date		21.1.2013 (c)Korotkov Andrey
+
+This file is a part of DGLE2 project and is distributed
+under the terms of the GNU Lesser General Public License.
+See "DGLE2.h" for more details.
+*/
+
 #include "stdafx.h"
 #include <Unknwn.h>
 #include "..\\..\\Include\\CPP\\DGLE2.h"
@@ -44,15 +53,7 @@ protected:
 	virtual ~CDtor() = default;
 	*/
 	virtual ~CDtor() {}
-	const shared_ptr<CDtor> &GetRef()
-	{
-		return _externRef;
-	}
-	const shared_ptr<const CDtor> &GetRef() const
-	{
-		return _externRef;
-	}
-private:
+protected:
 	mutable shared_ptr<CDtor> _externRef;	// reference from lib user
 };
 
@@ -62,11 +63,11 @@ class CRef: private CDtor
 public:
 	shared_ptr<Parent> GetRef()
 	{
-		return static_pointer_cast<Parent>(CDtor::GetRef());
+		return static_pointer_cast<Parent>(_externRef);
 	}
 	shared_ptr<const Parent> GetRef() const
 	{
-		return static_pointer_cast<const Parent>(CDtor::GetRef());
+		return static_pointer_cast<const Parent>(_externRef);
 	}
 };
 
@@ -111,209 +112,212 @@ namespace DX11
 {
 	using namespace ComPtrs;
 
-	inline const char *Format2String(DXGI_FORMAT format) noexcept
+	namespace
 	{
-		switch (format)
+		static inline const char *Format2String(DXGI_FORMAT format) noexcept
 		{
-		case DXGI_FORMAT_UNKNOWN:						return "DXGI_FORMAT_UNKNOWN";
-		case DXGI_FORMAT_R32G32B32A32_TYPELESS:			return "DXGI_FORMAT_R32G32B32A32_TYPELESS";
-		case DXGI_FORMAT_R32G32B32A32_FLOAT:			return "DXGI_FORMAT_R32G32B32A32_FLOAT";
-		case DXGI_FORMAT_R32G32B32A32_UINT:				return "DXGI_FORMAT_R32G32B32A32_UINT";
-		case DXGI_FORMAT_R32G32B32A32_SINT:				return "DXGI_FORMAT_R32G32B32A32_SINT";
-		case DXGI_FORMAT_R32G32B32_TYPELESS:			return "DXGI_FORMAT_R32G32B32_TYPELESS";
-		case DXGI_FORMAT_R32G32B32_FLOAT:				return "DXGI_FORMAT_R32G32B32_FLOAT";
-		case DXGI_FORMAT_R32G32B32_UINT:				return "DXGI_FORMAT_R32G32B32_UINT";
-		case DXGI_FORMAT_R32G32B32_SINT:				return "DXGI_FORMAT_R32G32B32_SINT";
-		case DXGI_FORMAT_R16G16B16A16_TYPELESS:			return "DXGI_FORMAT_R16G16B16A16_TYPELESS";
-		case DXGI_FORMAT_R16G16B16A16_FLOAT:			return "DXGI_FORMAT_R16G16B16A16_FLOAT";
-		case DXGI_FORMAT_R16G16B16A16_UNORM:			return "DXGI_FORMAT_R16G16B16A16_UNORM";
-		case DXGI_FORMAT_R16G16B16A16_UINT:				return "DXGI_FORMAT_R16G16B16A16_UINT";
-		case DXGI_FORMAT_R16G16B16A16_SNORM:			return "DXGI_FORMAT_R16G16B16A16_SNORM";
-		case DXGI_FORMAT_R16G16B16A16_SINT:				return "DXGI_FORMAT_R16G16B16A16_SINT";
-		case DXGI_FORMAT_R32G32_TYPELESS:				return "DXGI_FORMAT_R32G32_TYPELESS";
-		case DXGI_FORMAT_R32G32_FLOAT:					return "DXGI_FORMAT_R32G32_FLOAT";
-		case DXGI_FORMAT_R32G32_UINT:					return "DXGI_FORMAT_R32G32_UINT";
-		case DXGI_FORMAT_R32G32_SINT:					return "DXGI_FORMAT_R32G32_SINT";
-		case DXGI_FORMAT_R32G8X24_TYPELESS:				return "DXGI_FORMAT_R32G8X24_TYPELESS";
-		case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:			return "DXGI_FORMAT_D32_FLOAT_S8X24_UINT";
-		case DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS:		return "DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS";
-		case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT:		return "DXGI_FORMAT_X32_TYPELESS_G8X24_UINT";
-		case DXGI_FORMAT_R10G10B10A2_TYPELESS:			return "DXGI_FORMAT_R10G10B10A2_TYPELESS";
-		case DXGI_FORMAT_R10G10B10A2_UNORM:				return "DXGI_FORMAT_R10G10B10A2_UNORM";
-		case DXGI_FORMAT_R10G10B10A2_UINT:				return "DXGI_FORMAT_R10G10B10A2_UINT";
-		case DXGI_FORMAT_R11G11B10_FLOAT:				return "DXGI_FORMAT_R11G11B10_FLOAT";
-		case DXGI_FORMAT_R8G8B8A8_TYPELESS:				return "DXGI_FORMAT_R8G8B8A8_TYPELESS";
-		case DXGI_FORMAT_R8G8B8A8_UNORM:				return "DXGI_FORMAT_R8G8B8A8_UNORM";
-		case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:			return "DXGI_FORMAT_R8G8B8A8_UNORM_SRGB";
-		case DXGI_FORMAT_R8G8B8A8_UINT:					return "DXGI_FORMAT_R8G8B8A8_UINT";
-		case DXGI_FORMAT_R8G8B8A8_SNORM:				return "DXGI_FORMAT_R8G8B8A8_SNORM";
-		case DXGI_FORMAT_R8G8B8A8_SINT:					return "DXGI_FORMAT_R8G8B8A8_SINT";
-		case DXGI_FORMAT_R16G16_TYPELESS:				return "DXGI_FORMAT_R16G16_TYPELESS";
-		case DXGI_FORMAT_R16G16_FLOAT:					return "DXGI_FORMAT_R16G16_FLOAT";
-		case DXGI_FORMAT_R16G16_UNORM:					return "DXGI_FORMAT_R16G16_UNORM";
-		case DXGI_FORMAT_R16G16_UINT:					return "DXGI_FORMAT_R16G16_UINT";
-		case DXGI_FORMAT_R16G16_SNORM:					return "DXGI_FORMAT_R16G16_SNORM";
-		case DXGI_FORMAT_R16G16_SINT:					return "DXGI_FORMAT_R16G16_SINT";
-		case DXGI_FORMAT_R32_TYPELESS:					return "DXGI_FORMAT_R32_TYPELESS";
-		case DXGI_FORMAT_D32_FLOAT:						return "DXGI_FORMAT_D32_FLOAT";
-		case DXGI_FORMAT_R32_FLOAT:						return "DXGI_FORMAT_R32_FLOAT";
-		case DXGI_FORMAT_R32_UINT:						return "DXGI_FORMAT_R32_UINT";
-		case DXGI_FORMAT_R32_SINT:						return "DXGI_FORMAT_R32_SINT";
-		case DXGI_FORMAT_R24G8_TYPELESS:				return "DXGI_FORMAT_R24G8_TYPELESS";
-		case DXGI_FORMAT_D24_UNORM_S8_UINT:				return "DXGI_FORMAT_D24_UNORM_S8_UINT";
-		case DXGI_FORMAT_R24_UNORM_X8_TYPELESS:			return "DXGI_FORMAT_R24_UNORM_X8_TYPELESS";
-		case DXGI_FORMAT_X24_TYPELESS_G8_UINT:			return "DXGI_FORMAT_X24_TYPELESS_G8_UINT";
-		case DXGI_FORMAT_R8G8_TYPELESS:					return "DXGI_FORMAT_R8G8_TYPELESS";
-		case DXGI_FORMAT_R8G8_UNORM:					return "DXGI_FORMAT_R8G8_UNORM";
-		case DXGI_FORMAT_R8G8_UINT:						return "DXGI_FORMAT_R8G8_UINT";
-		case DXGI_FORMAT_R8G8_SNORM:					return "DXGI_FORMAT_R8G8_SNORM";
-		case DXGI_FORMAT_R8G8_SINT:						return "DXGI_FORMAT_R8G8_SINT";
-		case DXGI_FORMAT_R16_TYPELESS:					return "DXGI_FORMAT_R16_TYPELESS";
-		case DXGI_FORMAT_R16_FLOAT:						return "DXGI_FORMAT_R16_FLOAT";
-		case DXGI_FORMAT_D16_UNORM:						return "DXGI_FORMAT_D16_UNORM";
-		case DXGI_FORMAT_R16_UNORM:						return "DXGI_FORMAT_R16_UNORM";
-		case DXGI_FORMAT_R16_UINT:						return "DXGI_FORMAT_R16_UINT";
-		case DXGI_FORMAT_R16_SNORM:						return "DXGI_FORMAT_R16_SNORM";
-		case DXGI_FORMAT_R16_SINT:						return "DXGI_FORMAT_R16_SINT";
-		case DXGI_FORMAT_R8_TYPELESS:					return "DXGI_FORMAT_R8_TYPELESS";
-		case DXGI_FORMAT_R8_UNORM:						return "DXGI_FORMAT_R8_UNORM";
-		case DXGI_FORMAT_R8_UINT:						return "DXGI_FORMAT_R8_UINT";
-		case DXGI_FORMAT_R8_SNORM:						return "DXGI_FORMAT_R8_SNORM";
-		case DXGI_FORMAT_R8_SINT:						return "DXGI_FORMAT_R8_SINT";
-		case DXGI_FORMAT_A8_UNORM:						return "DXGI_FORMAT_A8_UNORM";
-		case DXGI_FORMAT_R1_UNORM:						return "DXGI_FORMAT_R1_UNORM";
-		case DXGI_FORMAT_R9G9B9E5_SHAREDEXP:			return "DXGI_FORMAT_R9G9B9E5_SHAREDEXP";
-		case DXGI_FORMAT_R8G8_B8G8_UNORM:				return "DXGI_FORMAT_R8G8_B8G8_UNORM";
-		case DXGI_FORMAT_G8R8_G8B8_UNORM:				return "DXGI_FORMAT_G8R8_G8B8_UNORM";
-		case DXGI_FORMAT_BC1_TYPELESS:					return "DXGI_FORMAT_BC1_TYPELESS";
-		case DXGI_FORMAT_BC1_UNORM:						return "DXGI_FORMAT_BC1_UNORM";
-		case DXGI_FORMAT_BC1_UNORM_SRGB:				return "DXGI_FORMAT_BC1_UNORM_SRGB";
-		case DXGI_FORMAT_BC2_TYPELESS:					return "DXGI_FORMAT_BC2_TYPELESS";
-		case DXGI_FORMAT_BC2_UNORM:						return "DXGI_FORMAT_BC2_UNORM";
-		case DXGI_FORMAT_BC2_UNORM_SRGB:				return "DXGI_FORMAT_BC2_UNORM_SRGB";
-		case DXGI_FORMAT_BC3_TYPELESS:					return "DXGI_FORMAT_BC3_TYPELESS";
-		case DXGI_FORMAT_BC3_UNORM:						return "DXGI_FORMAT_BC3_UNORM";
-		case DXGI_FORMAT_BC3_UNORM_SRGB:				return "DXGI_FORMAT_BC3_UNORM_SRGB";
-		case DXGI_FORMAT_BC4_TYPELESS:					return "DXGI_FORMAT_BC4_TYPELESS";
-		case DXGI_FORMAT_BC4_UNORM:						return "DXGI_FORMAT_BC4_UNORM";
-		case DXGI_FORMAT_BC4_SNORM:						return "DXGI_FORMAT_BC4_SNORM";
-		case DXGI_FORMAT_BC5_TYPELESS:					return "DXGI_FORMAT_BC5_TYPELESS";
-		case DXGI_FORMAT_BC5_UNORM:						return "DXGI_FORMAT_BC5_UNORM";
-		case DXGI_FORMAT_BC5_SNORM:						return "DXGI_FORMAT_BC5_SNORM";
-		case DXGI_FORMAT_B5G6R5_UNORM:					return "DXGI_FORMAT_B5G6R5_UNORM";
-		case DXGI_FORMAT_B5G5R5A1_UNORM:				return "DXGI_FORMAT_B5G5R5A1_UNORM";
-		case DXGI_FORMAT_B8G8R8A8_UNORM:				return "DXGI_FORMAT_B8G8R8A8_UNORM";
-		case DXGI_FORMAT_B8G8R8X8_UNORM:				return "DXGI_FORMAT_B8G8R8X8_UNORM";
-		case DXGI_FORMAT_R10G10B10_XR_BIAS_A2_UNORM:	return "DXGI_FORMAT_R10G10B10_XR_BIAS_A2_UNORM";
-		case DXGI_FORMAT_B8G8R8A8_TYPELESS:				return "DXGI_FORMAT_B8G8R8A8_TYPELESS";
-		case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:			return "DXGI_FORMAT_B8G8R8A8_UNORM_SRGB";
-		case DXGI_FORMAT_B8G8R8X8_TYPELESS:				return "DXGI_FORMAT_B8G8R8X8_TYPELESS";
-		case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:			return "DXGI_FORMAT_B8G8R8X8_UNORM_SRGB";
-		case DXGI_FORMAT_BC6H_TYPELESS:					return "DXGI_FORMAT_BC6H_TYPELESS";
-		case DXGI_FORMAT_BC6H_UF16:						return "DXGI_FORMAT_BC6H_UF16";
-		case DXGI_FORMAT_BC6H_SF16:						return "DXGI_FORMAT_BC6H_SF16";
-		case DXGI_FORMAT_BC7_TYPELESS:					return "DXGI_FORMAT_BC7_TYPELESS";
-		case DXGI_FORMAT_BC7_UNORM:						return "DXGI_FORMAT_BC7_UNORM";
-		case DXGI_FORMAT_BC7_UNORM_SRGB:				return "DXGI_FORMAT_BC7_UNORM_SRGB";
-		default:
-			_ASSERT(0);
-			return "";
-		}
-	}
-
-	inline const char *ScanlineOrdering2string(DXGI_MODE_SCANLINE_ORDER scanlineOrder) noexcept
-	{
-		switch (scanlineOrder)
-		{
-		case DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED:			return "DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED";
-		case DXGI_MODE_SCANLINE_ORDER_PROGRESSIVE:			return "DXGI_MODE_SCANLINE_ORDER_PROGRESSIVE";
-		case DXGI_MODE_SCANLINE_ORDER_UPPER_FIELD_FIRST:	return "DXGI_MODE_SCANLINE_ORDER_UPPER_FIELD_FIRST";
-		case DXGI_MODE_SCANLINE_ORDER_LOWER_FIELD_FIRST:	return "DXGI_MODE_SCANLINE_ORDER_LOWER_FIELD_FIRST";
-		default:
-			_ASSERT(0);
-			return "";
-		}
-	}
-
-	inline const char *Scaling2String(DXGI_MODE_SCALING scaling) noexcept
-	{
-		switch (scaling)
-		{
-		case DXGI_MODE_SCALING_UNSPECIFIED:	return "DXGI_MODE_SCALING_UNSPECIFIED";
-		case DXGI_MODE_SCALING_CENTERED:	return "DXGI_MODE_SCALING_CENTERED";
-		case DXGI_MODE_SCALING_STRETCHED:	return "DXGI_MODE_SCALING_STRETCHED";
-		default:
-			_ASSERT(0);
-			return "";
-		}
-	}
-
-	string ModeDesc2String(const DXGI_MODE_DESC &desc)
-	{
-		return string("Format:\t") + Format2String(desc.Format) +
-			"\nScanlineOrdering:\t" + ScanlineOrdering2string(desc.ScanlineOrdering) +
-			"\nScaling:\t" + Scaling2String(desc.Scaling);
-	}
-
-	class CDynamicVB
-	{
-	public:
-		CDynamicVB() noexcept {}
-		CDynamicVB(ID3D11DevicePtr device, UINT minSize): _device(device), _size(minSize), _offset(0)
-		{
-			D3D11_BUFFER_DESC desc = {_size, D3D11_USAGE_DYNAMIC, D3D11_BIND_VERTEX_BUFFER, D3D11_CPU_ACCESS_WRITE, 0, 0};
-			ASSERT_HR(_device->CreateBuffer(&desc, NULL, &_VB))
-		}
-		template<typename F>
-		void Draw(ID3D11DeviceContextPtr context, UINT stride, UINT vcount, F callback)
-		{
-			const UINT size = stride * vcount;
-			if (_size < size)
+			switch (format)
 			{
-				D3D11_BUFFER_DESC desc = {_size = size, D3D11_USAGE_DYNAMIC, D3D11_BIND_VERTEX_BUFFER, D3D11_CPU_ACCESS_WRITE, 0, 0};
-				ASSERT_HR(_device->CreateBuffer(&desc, NULL, &_VB))
-				_offset = 0;
+			case DXGI_FORMAT_UNKNOWN:						return "DXGI_FORMAT_UNKNOWN";
+			case DXGI_FORMAT_R32G32B32A32_TYPELESS:			return "DXGI_FORMAT_R32G32B32A32_TYPELESS";
+			case DXGI_FORMAT_R32G32B32A32_FLOAT:			return "DXGI_FORMAT_R32G32B32A32_FLOAT";
+			case DXGI_FORMAT_R32G32B32A32_UINT:				return "DXGI_FORMAT_R32G32B32A32_UINT";
+			case DXGI_FORMAT_R32G32B32A32_SINT:				return "DXGI_FORMAT_R32G32B32A32_SINT";
+			case DXGI_FORMAT_R32G32B32_TYPELESS:			return "DXGI_FORMAT_R32G32B32_TYPELESS";
+			case DXGI_FORMAT_R32G32B32_FLOAT:				return "DXGI_FORMAT_R32G32B32_FLOAT";
+			case DXGI_FORMAT_R32G32B32_UINT:				return "DXGI_FORMAT_R32G32B32_UINT";
+			case DXGI_FORMAT_R32G32B32_SINT:				return "DXGI_FORMAT_R32G32B32_SINT";
+			case DXGI_FORMAT_R16G16B16A16_TYPELESS:			return "DXGI_FORMAT_R16G16B16A16_TYPELESS";
+			case DXGI_FORMAT_R16G16B16A16_FLOAT:			return "DXGI_FORMAT_R16G16B16A16_FLOAT";
+			case DXGI_FORMAT_R16G16B16A16_UNORM:			return "DXGI_FORMAT_R16G16B16A16_UNORM";
+			case DXGI_FORMAT_R16G16B16A16_UINT:				return "DXGI_FORMAT_R16G16B16A16_UINT";
+			case DXGI_FORMAT_R16G16B16A16_SNORM:			return "DXGI_FORMAT_R16G16B16A16_SNORM";
+			case DXGI_FORMAT_R16G16B16A16_SINT:				return "DXGI_FORMAT_R16G16B16A16_SINT";
+			case DXGI_FORMAT_R32G32_TYPELESS:				return "DXGI_FORMAT_R32G32_TYPELESS";
+			case DXGI_FORMAT_R32G32_FLOAT:					return "DXGI_FORMAT_R32G32_FLOAT";
+			case DXGI_FORMAT_R32G32_UINT:					return "DXGI_FORMAT_R32G32_UINT";
+			case DXGI_FORMAT_R32G32_SINT:					return "DXGI_FORMAT_R32G32_SINT";
+			case DXGI_FORMAT_R32G8X24_TYPELESS:				return "DXGI_FORMAT_R32G8X24_TYPELESS";
+			case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:			return "DXGI_FORMAT_D32_FLOAT_S8X24_UINT";
+			case DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS:		return "DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS";
+			case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT:		return "DXGI_FORMAT_X32_TYPELESS_G8X24_UINT";
+			case DXGI_FORMAT_R10G10B10A2_TYPELESS:			return "DXGI_FORMAT_R10G10B10A2_TYPELESS";
+			case DXGI_FORMAT_R10G10B10A2_UNORM:				return "DXGI_FORMAT_R10G10B10A2_UNORM";
+			case DXGI_FORMAT_R10G10B10A2_UINT:				return "DXGI_FORMAT_R10G10B10A2_UINT";
+			case DXGI_FORMAT_R11G11B10_FLOAT:				return "DXGI_FORMAT_R11G11B10_FLOAT";
+			case DXGI_FORMAT_R8G8B8A8_TYPELESS:				return "DXGI_FORMAT_R8G8B8A8_TYPELESS";
+			case DXGI_FORMAT_R8G8B8A8_UNORM:				return "DXGI_FORMAT_R8G8B8A8_UNORM";
+			case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:			return "DXGI_FORMAT_R8G8B8A8_UNORM_SRGB";
+			case DXGI_FORMAT_R8G8B8A8_UINT:					return "DXGI_FORMAT_R8G8B8A8_UINT";
+			case DXGI_FORMAT_R8G8B8A8_SNORM:				return "DXGI_FORMAT_R8G8B8A8_SNORM";
+			case DXGI_FORMAT_R8G8B8A8_SINT:					return "DXGI_FORMAT_R8G8B8A8_SINT";
+			case DXGI_FORMAT_R16G16_TYPELESS:				return "DXGI_FORMAT_R16G16_TYPELESS";
+			case DXGI_FORMAT_R16G16_FLOAT:					return "DXGI_FORMAT_R16G16_FLOAT";
+			case DXGI_FORMAT_R16G16_UNORM:					return "DXGI_FORMAT_R16G16_UNORM";
+			case DXGI_FORMAT_R16G16_UINT:					return "DXGI_FORMAT_R16G16_UINT";
+			case DXGI_FORMAT_R16G16_SNORM:					return "DXGI_FORMAT_R16G16_SNORM";
+			case DXGI_FORMAT_R16G16_SINT:					return "DXGI_FORMAT_R16G16_SINT";
+			case DXGI_FORMAT_R32_TYPELESS:					return "DXGI_FORMAT_R32_TYPELESS";
+			case DXGI_FORMAT_D32_FLOAT:						return "DXGI_FORMAT_D32_FLOAT";
+			case DXGI_FORMAT_R32_FLOAT:						return "DXGI_FORMAT_R32_FLOAT";
+			case DXGI_FORMAT_R32_UINT:						return "DXGI_FORMAT_R32_UINT";
+			case DXGI_FORMAT_R32_SINT:						return "DXGI_FORMAT_R32_SINT";
+			case DXGI_FORMAT_R24G8_TYPELESS:				return "DXGI_FORMAT_R24G8_TYPELESS";
+			case DXGI_FORMAT_D24_UNORM_S8_UINT:				return "DXGI_FORMAT_D24_UNORM_S8_UINT";
+			case DXGI_FORMAT_R24_UNORM_X8_TYPELESS:			return "DXGI_FORMAT_R24_UNORM_X8_TYPELESS";
+			case DXGI_FORMAT_X24_TYPELESS_G8_UINT:			return "DXGI_FORMAT_X24_TYPELESS_G8_UINT";
+			case DXGI_FORMAT_R8G8_TYPELESS:					return "DXGI_FORMAT_R8G8_TYPELESS";
+			case DXGI_FORMAT_R8G8_UNORM:					return "DXGI_FORMAT_R8G8_UNORM";
+			case DXGI_FORMAT_R8G8_UINT:						return "DXGI_FORMAT_R8G8_UINT";
+			case DXGI_FORMAT_R8G8_SNORM:					return "DXGI_FORMAT_R8G8_SNORM";
+			case DXGI_FORMAT_R8G8_SINT:						return "DXGI_FORMAT_R8G8_SINT";
+			case DXGI_FORMAT_R16_TYPELESS:					return "DXGI_FORMAT_R16_TYPELESS";
+			case DXGI_FORMAT_R16_FLOAT:						return "DXGI_FORMAT_R16_FLOAT";
+			case DXGI_FORMAT_D16_UNORM:						return "DXGI_FORMAT_D16_UNORM";
+			case DXGI_FORMAT_R16_UNORM:						return "DXGI_FORMAT_R16_UNORM";
+			case DXGI_FORMAT_R16_UINT:						return "DXGI_FORMAT_R16_UINT";
+			case DXGI_FORMAT_R16_SNORM:						return "DXGI_FORMAT_R16_SNORM";
+			case DXGI_FORMAT_R16_SINT:						return "DXGI_FORMAT_R16_SINT";
+			case DXGI_FORMAT_R8_TYPELESS:					return "DXGI_FORMAT_R8_TYPELESS";
+			case DXGI_FORMAT_R8_UNORM:						return "DXGI_FORMAT_R8_UNORM";
+			case DXGI_FORMAT_R8_UINT:						return "DXGI_FORMAT_R8_UINT";
+			case DXGI_FORMAT_R8_SNORM:						return "DXGI_FORMAT_R8_SNORM";
+			case DXGI_FORMAT_R8_SINT:						return "DXGI_FORMAT_R8_SINT";
+			case DXGI_FORMAT_A8_UNORM:						return "DXGI_FORMAT_A8_UNORM";
+			case DXGI_FORMAT_R1_UNORM:						return "DXGI_FORMAT_R1_UNORM";
+			case DXGI_FORMAT_R9G9B9E5_SHAREDEXP:			return "DXGI_FORMAT_R9G9B9E5_SHAREDEXP";
+			case DXGI_FORMAT_R8G8_B8G8_UNORM:				return "DXGI_FORMAT_R8G8_B8G8_UNORM";
+			case DXGI_FORMAT_G8R8_G8B8_UNORM:				return "DXGI_FORMAT_G8R8_G8B8_UNORM";
+			case DXGI_FORMAT_BC1_TYPELESS:					return "DXGI_FORMAT_BC1_TYPELESS";
+			case DXGI_FORMAT_BC1_UNORM:						return "DXGI_FORMAT_BC1_UNORM";
+			case DXGI_FORMAT_BC1_UNORM_SRGB:				return "DXGI_FORMAT_BC1_UNORM_SRGB";
+			case DXGI_FORMAT_BC2_TYPELESS:					return "DXGI_FORMAT_BC2_TYPELESS";
+			case DXGI_FORMAT_BC2_UNORM:						return "DXGI_FORMAT_BC2_UNORM";
+			case DXGI_FORMAT_BC2_UNORM_SRGB:				return "DXGI_FORMAT_BC2_UNORM_SRGB";
+			case DXGI_FORMAT_BC3_TYPELESS:					return "DXGI_FORMAT_BC3_TYPELESS";
+			case DXGI_FORMAT_BC3_UNORM:						return "DXGI_FORMAT_BC3_UNORM";
+			case DXGI_FORMAT_BC3_UNORM_SRGB:				return "DXGI_FORMAT_BC3_UNORM_SRGB";
+			case DXGI_FORMAT_BC4_TYPELESS:					return "DXGI_FORMAT_BC4_TYPELESS";
+			case DXGI_FORMAT_BC4_UNORM:						return "DXGI_FORMAT_BC4_UNORM";
+			case DXGI_FORMAT_BC4_SNORM:						return "DXGI_FORMAT_BC4_SNORM";
+			case DXGI_FORMAT_BC5_TYPELESS:					return "DXGI_FORMAT_BC5_TYPELESS";
+			case DXGI_FORMAT_BC5_UNORM:						return "DXGI_FORMAT_BC5_UNORM";
+			case DXGI_FORMAT_BC5_SNORM:						return "DXGI_FORMAT_BC5_SNORM";
+			case DXGI_FORMAT_B5G6R5_UNORM:					return "DXGI_FORMAT_B5G6R5_UNORM";
+			case DXGI_FORMAT_B5G5R5A1_UNORM:				return "DXGI_FORMAT_B5G5R5A1_UNORM";
+			case DXGI_FORMAT_B8G8R8A8_UNORM:				return "DXGI_FORMAT_B8G8R8A8_UNORM";
+			case DXGI_FORMAT_B8G8R8X8_UNORM:				return "DXGI_FORMAT_B8G8R8X8_UNORM";
+			case DXGI_FORMAT_R10G10B10_XR_BIAS_A2_UNORM:	return "DXGI_FORMAT_R10G10B10_XR_BIAS_A2_UNORM";
+			case DXGI_FORMAT_B8G8R8A8_TYPELESS:				return "DXGI_FORMAT_B8G8R8A8_TYPELESS";
+			case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:			return "DXGI_FORMAT_B8G8R8A8_UNORM_SRGB";
+			case DXGI_FORMAT_B8G8R8X8_TYPELESS:				return "DXGI_FORMAT_B8G8R8X8_TYPELESS";
+			case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:			return "DXGI_FORMAT_B8G8R8X8_UNORM_SRGB";
+			case DXGI_FORMAT_BC6H_TYPELESS:					return "DXGI_FORMAT_BC6H_TYPELESS";
+			case DXGI_FORMAT_BC6H_UF16:						return "DXGI_FORMAT_BC6H_UF16";
+			case DXGI_FORMAT_BC6H_SF16:						return "DXGI_FORMAT_BC6H_SF16";
+			case DXGI_FORMAT_BC7_TYPELESS:					return "DXGI_FORMAT_BC7_TYPELESS";
+			case DXGI_FORMAT_BC7_UNORM:						return "DXGI_FORMAT_BC7_UNORM";
+			case DXGI_FORMAT_BC7_UNORM_SRGB:				return "DXGI_FORMAT_BC7_UNORM_SRGB";
+			default:
+				_ASSERT(false);
+				__assume(false);
 			}
-			const D3D11_MAP map_type = _offset + size <= _size ? D3D11_MAP_WRITE_NO_OVERWRITE : (_offset = 0, D3D11_MAP_WRITE_DISCARD);
-			D3D11_MAPPED_SUBRESOURCE mapped;
-			ASSERT_HR(context->Map(_VB, 0, map_type, 0, &mapped))
-			callback(reinterpret_cast<uint8 *>(mapped.pData) + _offset);
-			context->Unmap(_VB, 0);
-			context->IASetVertexBuffers(0, 1, &_VB.GetInterfacePtr(), &stride, &_offset);
-			context->Draw(vcount, 0);
-			_offset += size;
 		}
-	private:
-		ID3D11DevicePtr _device;
-		ID3D11BufferPtr _VB;
-		UINT _size, _offset;
-	};
+
+		static inline const char *ScanlineOrdering2string(DXGI_MODE_SCANLINE_ORDER scanlineOrder) noexcept
+		{
+			switch (scanlineOrder)
+			{
+			case DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED:			return "DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED";
+			case DXGI_MODE_SCANLINE_ORDER_PROGRESSIVE:			return "DXGI_MODE_SCANLINE_ORDER_PROGRESSIVE";
+			case DXGI_MODE_SCANLINE_ORDER_UPPER_FIELD_FIRST:	return "DXGI_MODE_SCANLINE_ORDER_UPPER_FIELD_FIRST";
+			case DXGI_MODE_SCANLINE_ORDER_LOWER_FIELD_FIRST:	return "DXGI_MODE_SCANLINE_ORDER_LOWER_FIELD_FIRST";
+			default:
+				_ASSERT(false);
+				__assume(false);
+			}
+		}
+
+		static inline const char *Scaling2String(DXGI_MODE_SCALING scaling) noexcept
+		{
+			switch (scaling)
+			{
+			case DXGI_MODE_SCALING_UNSPECIFIED:	return "DXGI_MODE_SCALING_UNSPECIFIED";
+			case DXGI_MODE_SCALING_CENTERED:	return "DXGI_MODE_SCALING_CENTERED";
+			case DXGI_MODE_SCALING_STRETCHED:	return "DXGI_MODE_SCALING_STRETCHED";
+			default:
+				_ASSERT(false);
+				__assume(false);
+			}
+		}
+
+		static string ModeDesc2String(const DXGI_MODE_DESC &desc)
+		{
+			return string("Format:\t") + Format2String(desc.Format) +
+				"\nScanlineOrdering:\t" + ScanlineOrdering2string(desc.ScanlineOrdering) +
+				"\nScaling:\t" + Scaling2String(desc.Scaling);
+		}
+
+		class CDynamicVB
+		{
+		public:
+			CDynamicVB() noexcept {}
+			CDynamicVB(ID3D11DevicePtr device, UINT minSize): _device(device), _size(minSize), _offset(0)
+			{
+				D3D11_BUFFER_DESC desc = {_size, D3D11_USAGE_DYNAMIC, D3D11_BIND_VERTEX_BUFFER, D3D11_CPU_ACCESS_WRITE, 0, 0};
+				ASSERT_HR(_device->CreateBuffer(&desc, NULL, &_VB))
+			}
+			template<typename F>
+			void Draw(ID3D11DeviceContextPtr context, UINT stride, UINT vcount, F callback)
+			{
+				const UINT size = stride * vcount;
+				if (_size < size)
+				{
+					D3D11_BUFFER_DESC desc = {_size = size, D3D11_USAGE_DYNAMIC, D3D11_BIND_VERTEX_BUFFER, D3D11_CPU_ACCESS_WRITE, 0, 0};
+					ASSERT_HR(_device->CreateBuffer(&desc, NULL, &_VB))
+					_offset = 0;
+				}
+				const D3D11_MAP map_type = _offset + size <= _size ? D3D11_MAP_WRITE_NO_OVERWRITE : (_offset = 0, D3D11_MAP_WRITE_DISCARD);
+				D3D11_MAPPED_SUBRESOURCE mapped;
+				ASSERT_HR(context->Map(_VB, 0, map_type, 0, &mapped))
+				callback(reinterpret_cast<uint8 *>(mapped.pData) + _offset);
+				context->Unmap(_VB, 0);
+				context->IASetVertexBuffers(0, 1, &_VB.GetInterfacePtr(), &stride, &_offset);
+				context->Draw(vcount, 0);
+				_offset += size;
+			}
+		private:
+			ID3D11DevicePtr _device;
+			ID3D11BufferPtr _VB;
+			UINT _size, _offset;
+		};
 
 #pragma pack(push, 4)
-	struct TQuad
-	{
-		TQuad() noexcept {}
-		TQuad(float x, float y, float width, float height, uint16 layer, float angle, uint32 color):
-			pos(x, y), extents(width, height), layer(layer), angle(angle), color(color)
+		struct TQuad
 		{
-		}
-		bool operator <(const TQuad &quad) const noexcept
-		{
-			return layer < quad.layer;
-		}
+			TQuad() noexcept {}
+			TQuad(float x, float y, float width, float height, uint16 layer, float angle, uint32 color):
+				pos(x, y), extents(width, height), layer(layer), angle(angle), color(color)
+			{
+			}
+			bool operator <(const TQuad &quad) const noexcept
+			{
+				return layer < quad.layer;
+			}
 #ifdef _2D_FLOAT32_TO_FLOAT16
-		D3DXVECTOR2_16F pos, extents;
-		uint16 layer;
-		D3DXFLOAT16 angle;
-		uint32 color;
+			D3DXVECTOR2_16F pos, extents;
+			uint16 layer;
+			D3DXFLOAT16 angle;
+			uint32 color;
 #else
-		D3DXVECTOR2 pos, extents;
-		uint16 layer;
-		float angle;
-		uint32 color;
+			D3DXVECTOR2 pos, extents;
+			uint16 layer;
+			float angle;
+			uint32 color;
 #endif
-	};
+		};
 #pragma pack(pop)
+	}
 
 	const class CDisplayModes: public IDisplayModes
 	{
@@ -461,7 +465,7 @@ namespace DX11
 			_staticEllipses(_staticEllipsesAllocator), _dynamicEllipses(_dynamicEllipsesAllocator),
 			_staticEllipsesAA(_staticEllipsesAAAllocator), _dynamicEllipsesAA(_dynamicEllipsesAAAllocator),
 			_dynamic2DVBSize(0), _static2DDirty(false),
-			_VBSie(64), _VBStart(0), _VCount(0), _count(0), _curLayer(~0)
+			_VBSize(64), _VBStart(0), _VCount(0), _count(0), _curLayer(~0)
 		{
 			Init(hwnd, displayModes.GetDX11Mode(modeIdx), fullscreen, multithreaded);
 		}
@@ -474,7 +478,7 @@ namespace DX11
 			_staticEllipses(_staticEllipsesAllocator), _dynamicEllipses(_dynamicEllipsesAllocator),
 			_staticEllipsesAA(_staticEllipsesAAAllocator), _dynamicEllipsesAA(_dynamicEllipsesAAAllocator),
 			_dynamic2DVBSize(0), _static2DDirty(false),
-			_VBSie(64), _VBStart(0), _VCount(0), _count(0), _curLayer(~0)
+			_VBSize(64), _VBStart(0), _VCount(0), _count(0), _curLayer(~0)
 		{
 			const DXGI_MODE_DESC mode_desc =
 			{
@@ -508,9 +512,9 @@ namespace DX11
 				_immediateContext->Draw(_VCount, _VBStart);
 				_VBStart = _VCount = 0;
 			}
-			if (_VBSie < _count)
+			if (_VBSize < _count)
 			{
-				D3D11_BUFFER_DESC desc = {sizeof(TQuad) * (_VBSie = _count), D3D11_USAGE_DYNAMIC, D3D11_BIND_VERTEX_BUFFER, D3D11_CPU_ACCESS_WRITE, 0, 0};
+				D3D11_BUFFER_DESC desc = {sizeof(TQuad) * (_VBSize = _count), D3D11_USAGE_DYNAMIC, D3D11_BIND_VERTEX_BUFFER, D3D11_CPU_ACCESS_WRITE, 0, 0};
 				ASSERT_HR(_device->CreateBuffer(&desc, NULL, &_VB))
 			}
 			D3D11_MAPPED_SUBRESOURCE mapped;
@@ -647,12 +651,12 @@ namespace DX11
 #endif
 			D3DX11_PASS_DESC pass_desc;
 			ASSERT_HR(_effect2D->GetTechniqueByName("Rect")->GetPassByIndex(0)->GetDesc(&pass_desc))
-			ASSERT_HR(_device->CreateInputLayout(quadDesc, _countof(quadDesc), pass_desc.pIAInputSignature, pass_desc.IAInputSignatureSize, &_quadLayout))
-			//ASSERT_HR(_device->CreateInputLayout(quadDesc, _countof(quadDesc), _effect2D->GetVariableByName("Quad_VS")->AsShader()->))
+			ASSERT_HR(_device->CreateInputLayout(quadDesc, extent<decltype(quadDesc)>::value, pass_desc.pIAInputSignature, pass_desc.IAInputSignatureSize, &_quadLayout))
+			//ASSERT_HR(_device->CreateInputLayout(quadDesc, extent<decltype(quadDesc)>::value, _effect2D->GetVariableByName("Quad_VS")->AsShader()->))
 
 			// immediate 2D
 			new(&_2DVB) CDynamicVB(_device, sizeof(TQuad) * 64);
-			D3D11_BUFFER_DESC desc = {sizeof(TQuad) * _VBSie, D3D11_USAGE_DYNAMIC, D3D11_BIND_VERTEX_BUFFER, D3D11_CPU_ACCESS_WRITE, 0, 0};
+			D3D11_BUFFER_DESC desc = {sizeof(TQuad) * _VBSize, D3D11_USAGE_DYNAMIC, D3D11_BIND_VERTEX_BUFFER, D3D11_CPU_ACCESS_WRITE, 0, 0};
 			ASSERT_HR(_device->CreateBuffer(&desc, NULL, &_VB))
 			D3D11_MAPPED_SUBRESOURCE mapped;
 			_immediateContext->Map(_VB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
@@ -724,7 +728,7 @@ namespace DX11
 		CDynamicVB _2DVB;
 		ID3D11BufferPtr _VB;
 		TQuad *_mappedVB;
-		UINT _VBSie, _VBStart, _VCount;
+		UINT _VBSize, _VBStart, _VCount;
 		unsigned _count;
 		unsigned short _curLayer;
 
@@ -1087,9 +1091,9 @@ namespace DX11
 		_heightScale(1), _envAmount(0), _shininess(128),
 		_texMapping(Materials::E_TEX_MAPPING::UV), _normalTechnique(Materials::E_NORMAL_TECHNIQUE::UNPERTURBED), _parallaxTechnique(Materials::E_PARALLAX_TECHNIQUE::NONE)
 	{
-		fill(_ambientColor, _ambientColor + _countof(_ambientColor), 1);
-		fill(_diffuseColor, _diffuseColor + _countof(_diffuseColor), 1);
-		fill(_specularColor, _specularColor + _countof(_specularColor), 1);
+		fill_n(_ambientColor, extent<decltype(_ambientColor)>::value, 1);
+		fill_n(_diffuseColor, extent<decltype(_diffuseColor)>::value, 1);
+		fill_n(_specularColor, extent<decltype(_specularColor)>::value, 1);
 	}
 
 	class CInstance: CDtor, public IInstance
@@ -1184,6 +1188,7 @@ namespace DX11
 			if (!_staticEllipsesAA.empty()) draw(_ellipseAAPass, _staticEllipsesAA.size());
 		}
 #pragma endregion
+
 #pragma region("dynamic")
 		_immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
 		_immediateContext->IASetInputLayout(_quadLayout);
@@ -1229,7 +1234,7 @@ namespace DX11
 
 	void CRenderer::DrawRect(float x, float y, float width, float height, uint32 color, Textures::ITexture2D *texture, float angle)
 	{
-		if (_VCount == _VBSie)
+		if (_VCount == _VBSize)
 		{
 			_immediateContext->Unmap(_VB, 0);
 			_immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);

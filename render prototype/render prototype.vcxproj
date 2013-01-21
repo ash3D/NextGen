@@ -101,6 +101,7 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <ExceptionHandling>Async</ExceptionHandling>
+      <DisableSpecificWarnings>4250;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <AdditionalDependencies>D3D11.lib;DXGI.lib;D3DX11.lib;Effects11.lib;D3DX10.lib;d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -122,6 +123,7 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <ExceptionHandling>Async</ExceptionHandling>
+      <DisableSpecificWarnings>4250;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <AdditionalDependencies>D3D11.lib;DXGI.lib;D3DX11.lib;Effects11.lib;D3DX10.lib;d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -143,6 +145,7 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <ExceptionHandling>Async</ExceptionHandling>
+      <DisableSpecificWarnings>4250;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <AdditionalDependencies>D3D11.lib;DXGI.lib;D3DX11.lib;Effects11.lib;D3DX10.lib;d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -167,6 +170,7 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <ExceptionHandling>Async</ExceptionHandling>
+      <DisableSpecificWarnings>4250;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <AdditionalDependencies>D3D11.lib;DXGI.lib;D3DX11.lib;Effects11.lib;D3DX10.lib;d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -194,8 +198,8 @@
     <ClInclude Include="Effects11\Inc\d3dx11dbg.h" />
     <ClInclude Include="Effects11\Inc\d3dx11effect.h" />
     <ClInclude Include="Effects11\Inc\d3dxGlobal.h" />
-    <ClInclude Include="..\..\DGLE2\Include\CPP\DGLE2.h" />
-    <ClInclude Include="..\..\DGLE2\Include\CPP\DGLE2_types.h" />
+    <ClInclude Include="..\..\Include\CPP\DGLE2.h" />
+    <ClInclude Include="..\..\Include\CPP\DGLE2_types.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="render prototype.h" />
     <ClInclude Include="Resource.h" />
