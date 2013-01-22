@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		10.1.2013 (c)Alexey Shaydurov
+\date		22.1.2013 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -241,12 +241,12 @@ consider overloads with vector arguments to eliminate this issue
 				CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(swizzle_seq), SWIZZLE_SEQ_2_VECTOR(swizzle_seq), false, 2>	\
 					BOOST_PP_CAT(TRANSFORM_SWIZZLE(NAMING_SET_2, swizzle_seq), );
 			GENERATE_SWIZZLES((SWIZZLE_OBJECT))
-#			define SWIZZLE_OBJECT(swizzle_seq)																				\
-				CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(swizzle_seq), SWIZZLE_SEQ_2_VECTOR(swizzle_seq), true, 1>	\
+#			define SWIZZLE_OBJECT(swizzle_seq)																					\
+				CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(swizzle_seq), SWIZZLE_SEQ_2_VECTOR(swizzle_seq), true, 1>		\
 					BOOST_PP_CAT(TRANSFORM_SWIZZLE(NAMING_SET_1, swizzle_seq), _);
 			GENERATE_SWIZZLES((SWIZZLE_OBJECT))
-#			define SWIZZLE_OBJECT(swizzle_seq)																				\
-				CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(swizzle_seq), SWIZZLE_SEQ_2_VECTOR(swizzle_seq), true, 2>	\
+#			define SWIZZLE_OBJECT(swizzle_seq)																					\
+				CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(swizzle_seq), SWIZZLE_SEQ_2_VECTOR(swizzle_seq), true, 2>		\
 					BOOST_PP_CAT(TRANSFORM_SWIZZLE(NAMING_SET_2, swizzle_seq), _);
 			GENERATE_SWIZZLES((SWIZZLE_OBJECT))
 #else
@@ -264,16 +264,24 @@ consider overloads with vector arguments to eliminate this issue
 		protected:																																							\
 			/*forward ctors/dtor/= to _data*/																																\
 			BOOST_PP_IIF(trivialCtor, TRIVIAL_CTOR_FORWARD, NONTRIVIAL_CTOR_FORWARD)																						\
-			CDataContainerImpl(const CDataContainerImpl &src): _data(src._data)																										\
+			CDataContainerImpl(const CDataContainerImpl &src): _data(src._data)																								\
 			{																																								\
 			}																																								\
-			~CDataContainerImpl()																																				\
+			CDataContainerImpl(CDataContainerImpl &&src): _data(std::move(src._data))																						\
+			{																																								\
+			}																																								\
+			~CDataContainerImpl()																																			\
 			{																																								\
 				_data.~CData<ElementType, ROWS, COLUMNS>();																													\
 			}																																								\
-			CDataContainerImpl &operator =(const CDataContainerImpl &right)																											\
+			CDataContainerImpl &operator =(const CDataContainerImpl &right)																									\
 			{																																								\
 				_data = right._data;																																		\
+				return *this;																																				\
+			}																																								\
+			CDataContainerImpl &operator =(CDataContainerImpl &&right)																										\
+			{																																								\
+				_data = std::move(right._data);																																\
 				return *this;																																				\
 			}																																								\
 		public:																																								\
@@ -291,8 +299,15 @@ consider overloads with vector arguments to eliminate this issue
 #	undef DATA_CONTAINER_IMPL_SPECIALIZATION
 
 	template<typename ElementType>
-	class CDataContainer<ElementType, ROWS, COLUMNS>: public std::conditional<std::has_trivial_default_constructor<CData<ElementType, ROWS, COLUMNS>>::value, CDataContainerImpl<ElementType, ROWS, COLUMNS, true>, CDataContainerImpl<ElementType, ROWS, COLUMNS, false>>::type
+	class CDataContainer<ElementType, ROWS, COLUMNS>: public CDataContainerImpl<ElementType, ROWS, COLUMNS, std::has_trivial_default_constructor<CData<ElementType, ROWS, COLUMNS>>::value>
 	{
+	protected:
+		CDataContainer() = default;
+		CDataContainer(const CDataContainer &) = default;
+		CDataContainer(CDataContainer &&) = default;
+		~CDataContainer() = default;
+		CDataContainer &operator =(const CDataContainer &) = default;
+		CDataContainer &operator =(CDataContainer &&) = default;
 	};
 #endif
 
@@ -550,8 +565,10 @@ consider overloads with vector arguments to eliminate this issue
 			private:
 				CData() = default;
 				CData(const CData &) = default;
+				CData(CData &&) = default;
 				~CData() = default;
 				CData &operator =(const CData &) = default;
+				CData &operator =(CData &&) = default;
 #		endif
 			private:
 #		ifdef MSVC_LIMITATIONS
@@ -581,8 +598,10 @@ consider overloads with vector arguments to eliminate this issue
 			private:
 				CData() = default;
 				CData(const CData &) = default;
+				CData(CData &&) = default;
 				~CData() = default;
 				CData &operator =(const CData &) = default;
+				CData &operator =(CData &&) = default;
 #		endif
 			private:
 				ElementType _data[dimension];
@@ -603,8 +622,10 @@ consider overloads with vector arguments to eliminate this issue
 #		ifndef MSVC_LIMITATIONS
 				CDataContainer() = default;
 				CDataContainer(const CDataContainer &) = default;
+				CDataContainer(CDataContainer &&) = default;
 				~CDataContainer() = default;
 				CDataContainer &operator =(const CDataContainer &) = default;
+				CDataContainer &operator =(CDataContainer &&) = default;
 #		endif
 			};
 
