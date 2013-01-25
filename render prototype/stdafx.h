@@ -28,9 +28,18 @@
 #include <algorithm>
 #include <functional>
 #include <type_traits>
-//#include <memory>		// for allocator
+#include <memory>
 #include <new>			// for bad_alloc
 #include <malloc.h>		// for _get_heap_handle
+#include <crtdbg.h>
+
+#include <D3D11.h>
+#include <D3DX11.h>
+#include <D3DX10Math.h>
+#include "D3dx11effect.h"
+#include "com ptr defs.h"
 
 #define DISABLE_MATRIX_SWIZZLES
 #include "vector math.h"
+
+#define ASSERT_HR(...) {const HRESULT hr = __VA_ARGS__; _ASSERT(SUCCEEDED(hr));}

@@ -1,3 +1,12 @@
+/**
+\author		Alexey Shaydurov aka ASH
+\date		25.1.2013 (c)Korotkov Andrey
+
+This file is a part of DGLE2 project and is distributed
+under the terms of the GNU Lesser General Public License.
+See "DGLE2.h" for more details.
+*/
+
 #pragma once
 
 #include <comdef.h>
