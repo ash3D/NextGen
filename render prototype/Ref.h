@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.1.2013 (c)Korotkov Andrey
+\date		30.1.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -42,35 +42,61 @@ namespace DtorImpl
 		virtual ~CRef() = default;
 	#endif
 
-	protected:
-		//template<class Owned, bool virtualBase>
-		//std::shared_ptr<Owned> GetRef();
-
-		//template<class Owned, bool virtualBase>
-		//std::shared_ptr<const Owned> GetRef() const;
-
-		//template<class Owned>
-		//std::shared_ptr<Owned> GetRef<Owned, false>()
-		//{
-		//	return static_pointer_cast<Owned>(_externRef);
-		//}
-
-		//template<class Owned>
-		//std::shared_ptr<const Owned> GetRef<Owned, false>() const
-		//{
-		//	return static_pointer_cast<const Owned>(_externRef);
-		//}
-
-		template<class Owned>
-		std::shared_ptr<Owned> GetRef/*<Owned, true>*/()
+	private:
+		// use SFINAE to redirect to appropriate pointer cast (dynamic for virtual inheritence; static otherwise)
+		template<class Class>
+		struct TIsStaticCastPossible
 		{
-			return dynamic_pointer_cast<Owned>(_externRef);
+		private:
+			template<class Test>
+			static std::true_type test(decltype(static_cast<Test *>(std::declval<CRef *>())) *);
+
+			template<class>
+			static std::false_type test(...);
+
+		public:
+#ifdef MSVC_LIMITATIONS
+			typedef std::false_type type;
+#else
+			typedef decltype(test<Class>(nullptr)) type;
+#endif
+		};
+
+		template<class Class>
+		inline std::shared_ptr<Class> GetRefImpl(std::true_type)
+		{
+			return static_pointer_cast<Class>(_externRef);
 		}
 
-		template<class Owned>
-		std::shared_ptr<const Owned> GetRef/*<Owned, true>*/() const
+		template<class Class>
+		inline std::shared_ptr<const Class> GetRefImpl(std::true_type) const
 		{
-			return dynamic_pointer_cast<const Owned>(_externRef);
+			return static_pointer_cast<const Class>(_externRef);
+		}
+
+		template<class Class>
+		inline std::shared_ptr<Class> GetRefImpl(std::false_type)
+		{
+			return dynamic_pointer_cast<Class>(_externRef);
+		}
+
+		template<class Class>
+		inline std::shared_ptr<const Class> GetRefImpl(std::false_type) const
+		{
+			return dynamic_pointer_cast<const Class>(_externRef);
+		}
+
+	protected:
+		template<class Class>
+		std::shared_ptr<Class> GetRef()
+		{
+			return GetRefImpl<Class>(typename TIsStaticCastPossible<Class>::type());
+		}
+
+		template<class Class>
+		std::shared_ptr<const Class> GetRef() const
+		{
+			return GetRefImpl<Class>(typename TIsStaticCastPossible<Class>::type());
 		}
 	};
 }
