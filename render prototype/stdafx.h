@@ -39,7 +39,9 @@
 #include "D3dx11effect.h"
 #include "com ptr defs.h"
 
-#define DISABLE_MATRIX_SWIZZLES
-#include "vector math.h"
+//#define DISABLE_MATRIX_SWIZZLES
+//#include "vector math.h"
+
+#include "C++11 stub.h"
 
 #define ASSERT_HR(...) {const HRESULT hr = __VA_ARGS__; _ASSERT(SUCCEEDED(hr));}

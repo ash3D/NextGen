@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.1.2013 (c)Korotkov Andrey
+\date		7.2.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -15,7 +15,7 @@ See "DGLE2.h" for more details.
 
 #define COM_PTR(Interface) _COM_SMARTPTR_TYPEDEF(Interface, __uuidof(Interface))
 
-namespace DX11
+namespace DirectX
 {
 	namespace ComPtrs
 	{

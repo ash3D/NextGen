@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.1.2013 (c)Korotkov Andrey
+\date		7.2.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -107,7 +107,7 @@ CRenderer::CRenderer(const DXGI_MODE_DESC &modeDesc):
 		D3D11_BIND_SHADER_RESOURCE,
 		0, 0
 	};
-	DX11::ComPtrs::ID3D11Texture2DPtr texture;
+	DirectX::ComPtrs::ID3D11Texture2DPtr texture;
 	ASSERT_HR(_device->CreateTexture2D(&textureDesc, NULL, &texture))
 	srv_desc.Format = DXGI_FORMAT_UNKNOWN;
 	srv_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
@@ -141,11 +141,11 @@ void CRenderer::NextFrame() const
 	_immediateContext->Flush();
 
 	ASSERT_HR(_swapChain->Present(0, 0))
-	DX11::ComPtrs::ID3D11DeviceContextPtr immediate_comtext;
+	DirectX::ComPtrs::ID3D11DeviceContextPtr immediate_comtext;
 	const FLOAT color[] = {0, 0, 0, 0};
-	DX11::ComPtrs::ID3D11Texture2DPtr rt;
+	DirectX::ComPtrs::ID3D11Texture2DPtr rt;
 	ASSERT_HR(_swapChain->GetBuffer(0, __uuidof(rt), reinterpret_cast<void **>(&rt)))
-	DX11::ComPtrs::ID3D11RenderTargetViewPtr rt_view;
+	DirectX::ComPtrs::ID3D11RenderTargetViewPtr rt_view;
 	D3D11_RENDER_TARGET_VIEW_DESC rt_view_desc = {DXGI_FORMAT_UNKNOWN, D3D11_RTV_DIMENSION_TEXTURE2DMS};
 	rt_view_desc.Texture2D.MipSlice = 0;
 	ASSERT_HR(_device->CreateRenderTargetView(rt, &rt_view_desc, &rt_view))

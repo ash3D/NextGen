@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.1.2013 (c)Korotkov Andrey
+\date		7.2.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -11,7 +11,7 @@ See "DGLE2.h" for more details.
 #include "DisplayModes.h"
 
 using namespace std;
-using namespace DX11::ComPtrs;
+using namespace DirectX::ComPtrs;
 using DisplayModesImpl::CDisplayModes;
 using DisplayModesImpl::Interface::IDisplayModes;
 using DisplayModesImpl::displayModes;

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.1.2013 (c)Korotkov Andrey
+\date		7.2.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -45,8 +45,8 @@ template for format (especially for structured buffer)
 */
 #pragma endregion
 
-#define DISABLE_MATRIX_SWIZZLES
-#include "vector math.h"
+//#define DISABLE_MATRIX_SWIZZLES
+//#include "vector math.h"
 #include "C++11 stub.h"
 
 #include <memory>		// for shared_ptr
