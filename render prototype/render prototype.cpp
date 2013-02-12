@@ -46,7 +46,7 @@ const unsigned count = 512;
 void Proc()
 {
 	static float angle;
-	//renderer->DrawRect(200, 200, 100, 100, ~0, NULL, angle);
+	renderer->DrawRect(200, 200, 100, 100, ~0, NULL, angle);
 	//for (unsigned i = 0; i < 1024; i++)
 	//	renderer->DrawEllipse(320, 240, 300, 200, ~0, true, angle);
 	//for (unsigned y = 0; y < count; y++)

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		7.2.2013 (c)Korotkov Andrey
+\date		12.2.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -23,7 +23,7 @@ namespace RendererImpl
 	namespace Interface = DGLE2::Renderer::HighLevel;
 }
 
-class RendererImpl::CRendererBase: protected DtorImpl::CRef, public Interface::IRenderer
+class RendererImpl::CRendererBase: public DtorImpl::CRef, public Interface::IRenderer
 {
 protected:
 	// default ctor for virtual inheritance

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		7.2.2013 (c)Korotkov Andrey
+\date		12.2.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -166,6 +166,10 @@ namespace
 
 CDisplayModes::CDisplayModes()
 {
+	/*
+	WARNING: DXGI_ERROR_MORE_DATA for GetDisplayModeList() currently does not handled.
+	More info then available in MSDN required for proper handling.
+	*/
 	IDXGIFactory1Ptr factory;
 	ASSERT_HR(CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void **>(&factory)))
 	IDXGIAdapter1Ptr adapter;

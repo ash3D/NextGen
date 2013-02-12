@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		7.2.2013 (c)Korotkov Andrey
+\date		12.2.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -134,11 +134,11 @@ void CRenderer::NextFrame() const
 	C2D::_NextFrame();
 
 	// test
-	ASSERT_HR(_effect2D->GetVariableByName("buff")->AsShaderResource()->SetResource(_srv))
-	//ASSERT_HR(_effect2D->GetVariableByName("rwbuff")->AsUnorderedAccessView()->SetUnorderedAccessView(_uav))
-	ASSERT_HR(_effect2D->GetTechniqueByName("test")->GetPassByIndex(0)->Apply(0, _immediateContext))
-	_immediateContext->Dispatch(32768, 1, 1);
-	_immediateContext->Flush();
+	//ASSERT_HR(_effect2D->GetVariableByName("buff")->AsShaderResource()->SetResource(_srv))
+	////ASSERT_HR(_effect2D->GetVariableByName("rwbuff")->AsUnorderedAccessView()->SetUnorderedAccessView(_uav))
+	//ASSERT_HR(_effect2D->GetTechniqueByName("test")->GetPassByIndex(0)->Apply(0, _immediateContext))
+	//_immediateContext->Dispatch(32768, 1, 1);
+	//_immediateContext->Flush();
 
 	ASSERT_HR(_swapChain->Present(0, 0))
 	DirectX::ComPtrs::ID3D11DeviceContextPtr immediate_comtext;
