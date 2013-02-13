@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		7.2.2013 (c)Korotkov Andrey
+\date		13.2.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -56,6 +56,9 @@ public:
 	virtual void SetMode(DGLE2::uint idx) override;
 	virtual void ToggleFullscreen(bool fullscreen) override;
 	virtual void NextFrame() const override;
+
+private:
+	void _SetupFrame() const;
 
 private:
 	// test

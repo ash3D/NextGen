@@ -34,6 +34,8 @@
 #include <crtdbg.h>
 
 #include <D3D11.h>
+#include <DirectXMath.h>
+#include <DirectXColors.h>
 #include <D3DX11.h>
 #include <D3DX10Math.h>
 #include "D3dx11effect.h"

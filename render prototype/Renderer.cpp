@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		12.2.2013 (c)Korotkov Andrey
+\date		13.2.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -37,6 +37,11 @@ CRendererBase::CRendererBase(HWND hwnd, const DXGI_MODE_DESC &modeDesc, bool ful
 		NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, flags, NULL, 0, D3D11_SDK_VERSION, &swap_chain_desc,
 		&_swapChain, &_device, NULL, &_immediateContext))
 
+	// get back buffer
+	DirectX::ComPtrs::ID3D11Texture2DPtr rt;
+	ASSERT_HR(_swapChain->GetBuffer(0, __uuidof(rt), reinterpret_cast<void **>(&rt)))
+	ASSERT_HR(_device->CreateRenderTargetView(rt, NULL, &_rtView))
+
 	// create Zbuffer
 	const D3D11_TEXTURE2D_DESC zbuffer_desc =
 	{
@@ -44,19 +49,16 @@ CRendererBase::CRendererBase(HWND hwnd, const DXGI_MODE_DESC &modeDesc, bool ful
 		1, 1, DXGI_FORMAT_D16_UNORM,
 		swap_chain_desc.SampleDesc, D3D11_USAGE_DEFAULT, D3D11_BIND_DEPTH_STENCIL, 0, 0
 	};
-	D3D11_DEPTH_STENCIL_VIEW_DESC zbuffer_view_desc =
-	{
-		DXGI_FORMAT_UNKNOWN,
-		D3D11_DSV_DIMENSION_TEXTURE2D,
-		0
-	};
-	zbuffer_view_desc.Texture2D.MipSlice = 0;
-	ASSERT_HR(_device->CreateTexture2D(&zbuffer_desc, NULL, &_zbuffer))
-	ASSERT_HR(_device->CreateDepthStencilView(_zbuffer, &zbuffer_view_desc, &_zbufferView))
+	DirectX::ComPtrs::ID3D11Texture2DPtr zbuffer;
+	ASSERT_HR(_device->CreateTexture2D(&zbuffer_desc, NULL, &zbuffer))
+	ASSERT_HR(_device->CreateDepthStencilView(zbuffer, NULL, &_zbufferView))
 
 	// setup viewport
 	const D3D11_VIEWPORT viewport = {0, 0, modeDesc.Width, modeDesc.Height, 0, 1};
 	_immediateContext->RSSetViewports(1, &viewport);
+
+	// setup rendertargets
+	_immediateContext->OMSetRenderTargets(1, &_rtView.GetInterfacePtr(), _zbufferView);
 }
 
 DXGI_MODE_DESC CRenderer::_CreateModeDesc(UINT width, UINT height, UINT refreshRate)
@@ -79,6 +81,8 @@ CRenderer::CRenderer(const DXGI_MODE_DESC &modeDesc):
 	C2D(modeDesc, multithreaded)
 #endif
 {
+	_SetupFrame();
+
 	// test
 	D3D11_BUFFER_DESC desc;
 	desc.ByteWidth = 32768*512*4;
@@ -141,17 +145,13 @@ void CRenderer::NextFrame() const
 	//_immediateContext->Flush();
 
 	ASSERT_HR(_swapChain->Present(0, 0))
-	DirectX::ComPtrs::ID3D11DeviceContextPtr immediate_comtext;
-	const FLOAT color[] = {0, 0, 0, 0};
-	DirectX::ComPtrs::ID3D11Texture2DPtr rt;
-	ASSERT_HR(_swapChain->GetBuffer(0, __uuidof(rt), reinterpret_cast<void **>(&rt)))
-	DirectX::ComPtrs::ID3D11RenderTargetViewPtr rt_view;
-	D3D11_RENDER_TARGET_VIEW_DESC rt_view_desc = {DXGI_FORMAT_UNKNOWN, D3D11_RTV_DIMENSION_TEXTURE2DMS};
-	rt_view_desc.Texture2D.MipSlice = 0;
-	ASSERT_HR(_device->CreateRenderTargetView(rt, &rt_view_desc, &rt_view))
-	_immediateContext->ClearRenderTargetView(rt_view, color);
+	_SetupFrame();
+}
+
+void CRenderer::_SetupFrame() const
+{
+	_immediateContext->ClearRenderTargetView(_rtView, DirectX::Colors::Black);
 	_immediateContext->ClearDepthStencilView(_zbufferView, D3D11_CLEAR_DEPTH, 1, 0);
-	_immediateContext->OMSetRenderTargets(1, &rt_view.GetInterfacePtr(), _zbufferView);
 }
 
 extern "C" IRenderer *RendererImpl::Interface::CreateRenderer(HWND hwnd, uint width, uint height, bool fullscreen, uint refreshRate, bool multithreaded)
