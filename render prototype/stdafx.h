@@ -35,6 +35,7 @@
 
 #include <D3D11.h>
 #include <DirectXMath.h>
+#include <DirectXPackedVector.h>
 #include <DirectXColors.h>
 #include <D3DX11.h>
 #include <D3DX10Math.h>

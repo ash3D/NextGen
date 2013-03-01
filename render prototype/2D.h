@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		7.2.2013 (c)Korotkov Andrey
+\date		1.3.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -16,6 +16,8 @@ See "DGLE2.h" for more details.
 #include "Win32Heap.h"
 #include "DynamicVB.h"
 
+//#define _2D_FLOAT32_TO_FLOAT16
+
 class RendererImpl::C2D: virtual public CRendererBase
 {
 #pragma pack(push, 4)
@@ -23,7 +25,13 @@ class RendererImpl::C2D: virtual public CRendererBase
 	{
 		TQuad() noexcept {}
 		TQuad(float x, float y, float width, float height, DGLE2::uint16 layer, float angle, DGLE2::uint32 color):
-			pos(x, y), extents(width, height), layer(layer), angle(angle), color(color)
+			pos(x, y), extents(width, height), layer(layer),
+#ifdef _2D_FLOAT32_TO_FLOAT16
+			angle(DirectX::PackedVector::XMConvertFloatToHalf(angle)),
+#else
+			angle(angle),
+#endif
+			color(color)
 		{
 		}
 		bool operator <(const TQuad &quad) const noexcept
@@ -31,12 +39,12 @@ class RendererImpl::C2D: virtual public CRendererBase
 			return layer < quad.layer;
 		}
 #ifdef _2D_FLOAT32_TO_FLOAT16
-		D3DXVECTOR2_16F pos, extents;
+		DirectX::PackedVector::XMHALF2 pos, extents;
 		DGLE2::uint16 layer;
-		D3DXFLOAT16 angle;
+		DirectX::PackedVector::HALF angle;
 		DGLE2::uint32 color;
 #else
-		D3DXVECTOR2 pos, extents;
+		DirectX::XMFLOAT2 pos, extents;
 		DGLE2::uint16 layer;
 		float angle;
 		DGLE2::uint32 color;
@@ -155,14 +163,22 @@ private:
 public:
 	virtual void SetPos(float x, float y) override
 	{
+#ifdef _2D_FLOAT32_TO_FLOAT16
+		_quad->pos = DirectX::PackedVector::XMHALF2(x, y);
+#else
 		_quad->pos.x = x;
 		_quad->pos.y = y;
+#endif
 	}
 
 	virtual void SetExtents(float x, float y) override
 	{
+#ifdef _2D_FLOAT32_TO_FLOAT16
+		_quad->extents = DirectX::PackedVector::XMHALF2(x, y);
+#else
 		_quad->extents.x = x;
 		_quad->extents.y = y;
+#endif
 	}
 
 	virtual void SetColor(DGLE2::uint32 color) override
@@ -172,7 +188,11 @@ public:
 
 	virtual void SetAngle(float angle) override
 	{
+#ifdef _2D_FLOAT32_TO_FLOAT16
+		_quad->angle = DirectX::PackedVector::XMConvertFloatToHalf(angle);
+#else
 		_quad->angle = angle;
+#endif
 	}
 };
 
@@ -192,20 +212,35 @@ private:
 public:
 	virtual void SetPos(float x, float y) override
 	{
+#ifdef _2D_FLOAT32_TO_FLOAT16
+		_quad->pos = DirectX::PackedVector::XMHALF2(x, y);
+#else
 		_quad->pos.x = x;
 		_quad->pos.y = y;
+#endif
 	}
+
 	virtual void SetRadii(float rx, float ry) override
 	{
+#ifdef _2D_FLOAT32_TO_FLOAT16
+		_quad->extents = DirectX::PackedVector::XMHALF2(rx, ry);
+#else
 		_quad->extents.x = rx;
 		_quad->extents.y = ry;
+#endif
 	}
+
 	virtual void SetColor(DGLE2::uint32 color) override
 	{
 		_quad->color = color;
 	}
+
 	virtual void SetAngle(float angle) override
 	{
+#ifdef _2D_FLOAT32_TO_FLOAT16
+		_quad->angle = DirectX::PackedVector::XMConvertFloatToHalf(angle);
+#else
 		_quad->angle = angle;
+#endif
 	}
 };
