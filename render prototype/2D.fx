@@ -200,6 +200,13 @@ RasterizerState Rasterize2D
 	AntialiasedLineEnable = true;
 };
 
+// depthstencil states
+
+DepthStencilState DepthLayer2D
+{
+	DepthFunc = Less_Equal;
+};
+
 technique10
 {
 	pass
@@ -210,6 +217,7 @@ technique10
 		SetDomainShader(NULL);
 		SetPixelShader(CompileShader(ps_4_0, PS()));
 		SetRasterizerState(Rasterize2D);
+		SetDepthStencilState(DepthLayer2D, ~0);
 	}
 }
 
@@ -223,6 +231,7 @@ technique10 Rect
 		SetDomainShader(NULL);
 		SetPixelShader(CompileShader(ps_4_0, PS()));
 		SetRasterizerState(Rasterize2D);
+		SetDepthStencilState(DepthLayer2D, ~0);
 	}
 }
 
@@ -236,6 +245,7 @@ technique10 Ellipse
 		SetDomainShader(NULL);
 		SetPixelShader(Ellipse_PS);
 		SetRasterizerState(Rasterize2D);
+		SetDepthStencilState(DepthLayer2D, ~0);
 	}
 }
 
@@ -249,6 +259,7 @@ technique10 EllipseAA
 		SetDomainShader(NULL);
 		SetPixelShader(EllipseAA_PS);
 		SetRasterizerState(Rasterize2D);
+		SetDepthStencilState(DepthLayer2D, ~0);
 	}
 }
 
