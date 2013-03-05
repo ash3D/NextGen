@@ -38,7 +38,6 @@
 #include <DirectXPackedVector.h>
 #include <DirectXColors.h>
 #include <D3DX11.h>
-#include <D3DX10Math.h>
 #include "D3dx11effect.h"
 #include "com ptr defs.h"
 
