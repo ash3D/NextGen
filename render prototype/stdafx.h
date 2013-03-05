@@ -20,7 +20,6 @@
 
 
 // TODO: reference additional headers your program requires here
-#define _SECURE_SCL 0
 #include <limits>
 #include <string>
 #include <vector>
