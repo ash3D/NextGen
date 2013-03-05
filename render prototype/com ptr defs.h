@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		7.2.2013 (c)Korotkov Andrey
+\date		5.3.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -20,7 +20,7 @@ namespace DirectX
 	namespace ComPtrs
 	{
 		// D3Dcommon
-		COM_PTR(ID3D10Blob);
+		COM_PTR(ID3DBlob);
 
 		// D3D11
 		COM_PTR(ID3D11DeviceChild);

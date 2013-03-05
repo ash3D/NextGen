@@ -289,7 +289,7 @@ void CS(uint3 id: SV_DispatchThreadID)
 		//rwtex[(uint3)(adr + i*4*4/*offset[i]*/)] = val;
 		val += data[i];
 	}
-	result.Store4(0, val);
+	//result.Store4(0, val);
 	float2x3 test=1;
 	float3x2(test);
 	test._m11_m12_m11_m11;

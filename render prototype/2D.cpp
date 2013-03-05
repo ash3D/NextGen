@@ -37,13 +37,12 @@ C2D::C2D(const DXGI_MODE_DESC &modeDesc, bool multithreaded):
 #endif
 	if (!multithreaded)
 		effect_flags |= D3D10_EFFECT_SINGLE_THREADED;
-	ID3D10BlobPtr compiled_effect, effect_errors;
-	ASSERT_HR(D3DX11CompileFromFile(TEXT("..\\2D.fx"), NULL, NULL, NULL, "fx_5_0", shader_flags, effect_flags, NULL, &compiled_effect, &effect_errors, NULL))
+	ID3DBlobPtr effect_errors;
+	ASSERT_HR(D3DX11CompileEffectFromFile(TEXT("..\\2D.fx"), NULL, NULL, shader_flags, effect_flags, _device, &_effect2D, &effect_errors))
 #ifdef _DEBUG
 	if (effect_errors)
 		OutputDebugStringA(LPCSTR(effect_errors->GetBufferPointer()));
 #endif
-	ASSERT_HR(D3DX11CreateEffectFromMemory(compiled_effect->GetBufferPointer(), compiled_effect->GetBufferSize(), 0, _device, &_effect2D))
 
 	// get technique passes
 	_rectPass = _effect2D->GetTechniqueByName("Rect")->GetPassByIndex(0);
