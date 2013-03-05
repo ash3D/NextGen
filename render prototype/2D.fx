@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		21.12.2011 (c)Alexey Shaydurov
+\date		5.3.2013 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -97,7 +97,11 @@ void QuadGS(in point TQuadDesc quadDesc[1], inout TriangleStream<TVertex> quad)
 
 	// expand quad
 
-	TVertex vertex = {quadDesc[0].color, float4(PixelSpace2NDCSpace(quadDesc[0].posExtents.xy - x_axis - y_axis), quadDesc[0].order, 1)};
+	TVertex vertex;
+	vertex.color = quadDesc[0].color;
+	vertex.pos.zw = float2(quadDesc[0].order, 1);
+
+	vertex.pos.xy = PixelSpace2NDCSpace(quadDesc[0].posExtents.xy - x_axis - y_axis);
 	quad.Append(vertex);
 
 	vertex.pos.xy = PixelSpace2NDCSpace(quadDesc[0].posExtents.xy + x_axis - y_axis);
@@ -119,7 +123,12 @@ void EllipseGS(in point TQuadDesc ellipseDesc[1], inout TriangleStream<TEllipseQ
 
 	// expand quad
 
-	TEllipseQuadVertrex vertex = {ellipseDesc[0].color, float2(-1, -1), float4(PixelSpace2NDCSpace(ellipseDesc[0].posExtents.xy - x_axis - y_axis), ellipseDesc[0].order, 1)};
+	TEllipseQuadVertrex vertex;
+	vertex.color = ellipseDesc[0].color;
+	vertex.pos.zw = float2(ellipseDesc[0].order, 1);
+
+	vertex.localPos = float2(-1, -1);
+	vertex.pos.xy = PixelSpace2NDCSpace(ellipseDesc[0].posExtents.xy - x_axis - y_axis);
 	ellipseQuad.Append(vertex);
 
 	vertex.localPos = float2(+1, -1);
@@ -243,11 +252,11 @@ technique10 EllipseAA
 	}
 }
 
+// test
+
 ByteAddressBuffer buff;
 RWByteAddressBuffer rwbuff, result;
 RWTexture3D<uint4> rwtex;
-
-// test
 
 tbuffer cb
 {
