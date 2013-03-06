@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		7.2.2013 (c)Korotkov Andrey
+\date		6.3.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -31,18 +31,7 @@ C2D::C2D(const DXGI_MODE_DESC &modeDesc, bool multithreaded):
 	_VBSize(64), _VBStart(0), _VCount(0), _count(0), _curLayer(~0)
 {
 	// create 2D effect
-	UINT shader_flags = 0, effect_flags = 0;
-#ifdef _DEBUG
-	shader_flags |= D3D10_SHADER_DEBUG;
-#endif
-	if (!multithreaded)
-		effect_flags |= D3D10_EFFECT_SINGLE_THREADED;
-	ID3DBlobPtr effect_errors;
-	ASSERT_HR(D3DX11CompileEffectFromFile(TEXT("..\\2D.fx"), NULL, NULL, shader_flags, effect_flags, _device, &_effect2D, &effect_errors))
-#ifdef _DEBUG
-	if (effect_errors)
-		OutputDebugStringA(LPCSTR(effect_errors->GetBufferPointer()));
-#endif
+	ASSERT_HR(D3DX11CreateEffectFromFile(TEXT("2D.cso"), 0, _device, &_effect2D))
 
 	// get technique passes
 	_rectPass = _effect2D->GetTechniqueByName("Rect")->GetPassByIndex(0);
