@@ -24,7 +24,7 @@ class RendererImpl::C2D: virtual public CRendererBase
 	struct TQuad
 	{
 		TQuad() noexcept {}
-		TQuad(float x, float y, float width, float height, DGLE2::uint16 layer, float angle, DGLE2::uint32 color):
+		TQuad(float x, float y, float width, float height, uint16_t layer, float angle, uint32_t color):
 			pos(x, y), extents(width, height), layer(layer),
 #ifdef _2D_FLOAT32_TO_FLOAT16
 			angle(DirectX::PackedVector::XMConvertFloatToHalf(angle)),
@@ -40,14 +40,14 @@ class RendererImpl::C2D: virtual public CRendererBase
 		}
 #ifdef _2D_FLOAT32_TO_FLOAT16
 		DirectX::PackedVector::XMHALF2 pos, extents;
-		DGLE2::uint16 layer;
+		uint16_t layer;
 		DirectX::PackedVector::HALF angle;
-		DGLE2::uint32 color;
+		uint32_t color;
 #else
 		DirectX::XMFLOAT2 pos, extents;
-		DGLE2::uint16 layer;
+		uint16_t layer;
 		float angle;
-		DGLE2::uint32 color;
+		uint32_t color;
 #endif
 	};
 #pragma pack(pop)
@@ -63,16 +63,16 @@ protected:
 #endif
 
 public:
-	virtual void DrawPoint(float x, float y, DGLE2::uint32 color, float size) const override;
-	virtual void DrawLine(DGLE2::uint vcount, _In_count_(vcount) const float coords[][2], _In_count_(vcount) const DGLE2::uint32 colors[], bool closed, float width) const override;
-	virtual void DrawRect(float x, float y, float width, float height, DGLE2::uint32 color, Interface::Textures::ITexture2D *texture, float angle) const override;
-	virtual void DrawRect(float x, float y, float width, float height, DGLE2::uint32 (&colors)[4], Interface::Textures::ITexture2D *texture, float angle) const override;
-	virtual void DrawPolygon(DGLE2::uint vcount, _In_count_(vcount) const float coords[][2], DGLE2::uint32 color) const override;
-	virtual void DrawCircle(float x, float y, float r, DGLE2::uint32 color) const override;
-	virtual void DrawEllipse(float x, float y, float rx, float ry, DGLE2::uint32 color, bool AA, float angle) const override;
+	virtual void DrawPoint(float x, float y, uint32_t color, float size) const override;
+	virtual void DrawLine(unsigned int vcount, _In_count_(vcount) const float coords[][2], _In_count_(vcount) const uint32_t colors[], bool closed, float width) const override;
+	virtual void DrawRect(float x, float y, float width, float height, uint32_t color, Interface::Textures::ITexture2D *texture, float angle) const override;
+	virtual void DrawRect(float x, float y, float width, float height, uint32_t (&colors)[4], Interface::Textures::ITexture2D *texture, float angle) const override;
+	virtual void DrawPolygon(unsigned int vcount, _In_count_(vcount) const float coords[][2], uint32_t color) const override;
+	virtual void DrawCircle(float x, float y, float r, uint32_t color) const override;
+	virtual void DrawEllipse(float x, float y, float rx, float ry, uint32_t color, bool AA, float angle) const override;
 
-	virtual Interface::Instances::_2D::IRect *AddRect(bool dynamic, DGLE2::uint16 layer, float x, float y, float width, float height, DGLE2::uint32 color, float angle) override;
-	virtual Interface::Instances::_2D::IEllipse *AddEllipse(bool dynamic, DGLE2::uint16 layer, float x, float y, float rx, float ry, DGLE2::uint32 color, bool AA, float angle) override;
+	virtual Interface::Instances::_2D::IRect *AddRect(bool dynamic, uint16_t layer, float x, float y, float width, float height, uint32_t color, float angle) override;
+	virtual Interface::Instances::_2D::IEllipse *AddEllipse(bool dynamic, uint16_t layer, float x, float y, float rx, float ry, uint32_t color, bool AA, float angle) override;
 
 protected:
 	void _NextFrame() const;
@@ -122,7 +122,7 @@ private:
 class RendererImpl::C2D::CQuadFiller
 {
 public:
-	CQuadFiller(float x, float y, float width, float height, DGLE2::uint16 layer, float angle, DGLE2::uint32 color):
+	CQuadFiller(float x, float y, float width, float height, uint16_t layer, float angle, uint32_t color):
 		_quad(x, y, width, height, layer, angle, color)
 	{
 	}
@@ -151,8 +151,8 @@ class RendererImpl::C2D::CRectHandle: private CQuadHandle, public Interface::Ins
 {
 public:
 	CRectHandle(
-		std::shared_ptr<C2D> &&parent, bool dynamic, DGLE2::uint16 layer,
-		float x, float y, float width, float height, DGLE2::uint32 color, float angle);
+		std::shared_ptr<C2D> &&parent, bool dynamic, uint16_t layer,
+		float x, float y, float width, float height, uint32_t color, float angle);
 private:
 #ifdef MSVC_LIMITATIONS
 	virtual ~CRectHandle() {}
@@ -181,7 +181,7 @@ public:
 #endif
 	}
 
-	virtual void SetColor(DGLE2::uint32 color) override
+	virtual void SetColor(uint32_t color) override
 	{
 		_quad->color = color;
 	}
@@ -200,8 +200,8 @@ class RendererImpl::C2D::CEllipseHandle: private CQuadHandle, public Interface::
 {
 public:
 	CEllipseHandle(
-		std::shared_ptr<C2D> &&parent, bool dynamic, DGLE2::uint16 layer,
-		float x, float y, float rx, float ry, DGLE2::uint32 color, bool AA, float angle);
+		std::shared_ptr<C2D> &&parent, bool dynamic, uint16_t layer,
+		float x, float y, float rx, float ry, uint32_t color, bool AA, float angle);
 private:
 #ifdef MSVC_LIMITATIONS
 	virtual ~CEllipseHandle() {}
@@ -230,7 +230,7 @@ public:
 #endif
 	}
 
-	virtual void SetColor(DGLE2::uint32 color) override
+	virtual void SetColor(uint32_t color) override
 	{
 		_quad->color = color;
 	}

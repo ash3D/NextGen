@@ -15,7 +15,6 @@ using Microsoft::WRL::ComPtr;
 using DisplayModesImpl::CDisplayModes;
 using DisplayModesImpl::Interface::IDisplayModes;
 using DisplayModesImpl::displayModes;
-using DGLE2::uint;
 
 namespace
 {
@@ -182,7 +181,7 @@ CDisplayModes::CDisplayModes()
 	ASSERT_HR(output->GetDisplayModeList(DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_ENUM_MODES_SCALING, &modes_count, _modes.data()))
 }
 
-auto CDisplayModes::Get(uint idx) const -> TDispModeDesc
+auto CDisplayModes::Get(unsigned idx) const -> TDispModeDesc
 {
 	Interface::TDispMode mode =
 	{

@@ -208,8 +208,6 @@
     <ClInclude Include="Dtor.h" />
     <ClInclude Include="Effects11\Inc\d3dx11effect.h" />
     <ClInclude Include="Effects11\Inc\d3dxGlobal.h" />
-    <ClInclude Include="..\..\Include\CPP\DGLE2.h" />
-    <ClInclude Include="..\..\Include\CPP\DGLE2_types.h" />
     <ClInclude Include="Ref.h" />
     <ClInclude Include="Interface\Renderer.h" />
     <ClInclude Include="render prototype.h" />

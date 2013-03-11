@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.1.2013 (c)Korotkov Andrey
+\date		11.3.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -35,13 +35,13 @@ class DisplayModesImpl::CDisplayModes: public Interface::IDisplayModes
 	};
 public:
 	CDisplayModes();
-	virtual DGLE2::uint Count() const override
+	virtual unsigned Count() const override
 	{
 		return _modes.size();
 	}
-	virtual TDispModeDesc Get(DGLE2::uint idx) const override;
+	virtual TDispModeDesc Get(unsigned idx) const override;
 public:
-	const DXGI_MODE_DESC &GetDX11Mode(DGLE2::uint idx) const
+	const DXGI_MODE_DESC &GetDX11Mode(unsigned idx) const
 	{
 		return _modes[idx];
 	}

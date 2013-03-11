@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.1.2013 (c)Korotkov Andrey
+\date		11.3.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -9,7 +9,6 @@ See "DGLE2.h" for more details.
 
 #include "stdafx.h"
 #include <Unknwn.h>
-#include "..\\..\\Include\\CPP\\DGLE2.h"
 #include "Interface\Renderer.h"
 
 //#define _2D_FLOAT32_TO_FLOAT16
@@ -181,7 +180,7 @@ namespace DX11
 			0													//StructureByteStride
 		};
 
-		unique_ptr<uint8 []> buf(new uint8[desc.ByteWidth]);
+		unique_ptr<uint8_t []> buf(new uint8_t[desc.ByteWidth]);
 
 		_vbOffsets[0] = 0;
 		memcpy(buf.get() + _vbOffsets[0], coords, coordsSize);

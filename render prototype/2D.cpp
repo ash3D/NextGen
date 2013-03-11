@@ -14,9 +14,6 @@ using namespace std;
 using RendererImpl::C2D;
 namespace Interface = RendererImpl::Interface;
 using namespace Interface::Instances::_2D;
-using DGLE2::uint;
-using DGLE2::uint16;
-using DGLE2::uint32;
 
 C2D::C2D(const DXGI_MODE_DESC &modeDesc, bool multithreaded):
 	_dynamicRectsAllocator(_dedicatedHeap),
@@ -77,15 +74,15 @@ C2D::C2D(const DXGI_MODE_DESC &modeDesc, bool multithreaded):
 }
 
 #pragma region(immediate)
-void C2D::DrawPoint(float x, float y, uint32 color, float size) const
+void C2D::DrawPoint(float x, float y, uint32_t color, float size) const
 {
 }
 
-void C2D::DrawLine(uint vcount, _In_count_(vcount) const float coords[][2], _In_count_(vcount) const uint32 colors[], bool closed, float width) const
+void C2D::DrawLine(unsigned int vcount, _In_count_(vcount) const float coords[][2], _In_count_(vcount) const uint32_t colors[], bool closed, float width) const
 {
 }
 
-void C2D::DrawRect(float x, float y, float width, float height, uint32 color, Interface::Textures::ITexture2D *texture, float angle) const
+void C2D::DrawRect(float x, float y, float width, float height, uint32_t color, Interface::Textures::ITexture2D *texture, float angle) const
 {
 	if (_VCount == _VBSize)
 	{
@@ -112,19 +109,19 @@ void C2D::DrawRect(float x, float y, float width, float height, uint32 color, In
 	//_2DVB.Draw(_deviceContext, sizeof(TQuad), 1, CQuadFiller(x, y, width, height, 0, angle, color));
 }
 
-void C2D::DrawRect(float x, float y, float width, float height, uint32 (&colors)[4], Interface::Textures::ITexture2D *texture, float angle) const
+void C2D::DrawRect(float x, float y, float width, float height, uint32_t (&colors)[4], Interface::Textures::ITexture2D *texture, float angle) const
 {
 }
 
-void C2D::DrawPolygon(uint vcount, _In_count_(vcount) const float coords[][2], uint32 color) const
+void C2D::DrawPolygon(unsigned int vcount, _In_count_(vcount) const float coords[][2], uint32_t color) const
 {
 }
 
-void C2D::DrawCircle(float x, float y, float r, uint32 color) const
+void C2D::DrawCircle(float x, float y, float r, uint32_t color) const
 {
 }
 
-void C2D::DrawEllipse(float x, float y, float rx, float ry, uint32 color, bool AA, float angle) const
+void C2D::DrawEllipse(float x, float y, float rx, float ry, uint32_t color, bool AA, float angle) const
 {
 	ASSERT_HR((AA ? _ellipseAAPass : _ellipsePass)->Apply(0, _immediateContext.Get()))
 	_immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
@@ -149,8 +146,8 @@ C2D::CQuadHandle::~CQuadHandle()
 
 // 1 call site (C2D::AddRect)
 inline C2D::CRectHandle::CRectHandle(
-	shared_ptr<C2D> &&parent, bool dynamic, uint16 layer,
-	float x, float y, float width, float height, uint32 color, float angle):
+	shared_ptr<C2D> &&parent, bool dynamic, uint16_t layer,
+	float x, float y, float width, float height, uint32_t color, float angle):
 	CQuadHandle(
 		move(parent),
 		dynamic ? &C2D::_dynamicRects : &C2D::_staticRects,
@@ -161,8 +158,8 @@ inline C2D::CRectHandle::CRectHandle(
 
 // 1 call site (C2D::AddEllipse)
 inline C2D::CEllipseHandle::CEllipseHandle(
-	shared_ptr<C2D> &&parent, bool dynamic, uint16 layer,
-	float x, float y, float rx, float ry, uint32 color, bool AA, float angle):
+	shared_ptr<C2D> &&parent, bool dynamic, uint16_t layer,
+	float x, float y, float rx, float ry, uint32_t color, bool AA, float angle):
 	CQuadHandle(
 		move(parent),
 		dynamic ? AA ? &C2D::_dynamicEllipsesAA : &C2D::_dynamicEllipses : AA? &C2D::_staticEllipsesAA : &C2D::_staticEllipses,
@@ -171,12 +168,12 @@ inline C2D::CEllipseHandle::CEllipseHandle(
 {
 }
 
-IRect *C2D::AddRect(bool dynamic, uint16 layer, float x, float y, float width, float height, uint32 color, float angle)
+IRect *C2D::AddRect(bool dynamic, uint16_t layer, float x, float y, float width, float height, uint32_t color, float angle)
 {
 	return new CRectHandle(GetRef<C2D>(), dynamic, layer, x, y, width, height, color, angle);
 }
 
-IEllipse *C2D::AddEllipse(bool dynamic, uint16 layer, float x, float y, float rx, float ry, uint32 color, bool AA, float angle)
+IEllipse *C2D::AddEllipse(bool dynamic, uint16_t layer, float x, float y, float rx, float ry, uint32_t color, bool AA, float angle)
 {
 	return new CEllipseHandle(GetRef<C2D>(), dynamic, layer, x, y, rx, ry, color, AA, angle);
 }

@@ -13,7 +13,6 @@ See "DGLE2.h" for more details.
 using RendererImpl::CRendererBase;
 using RendererImpl::CRenderer;
 using RendererImpl::Interface::IRenderer;
-using DGLE2::uint;
 
 CRendererBase::CRendererBase(HWND hwnd, const DXGI_MODE_DESC &modeDesc, bool fullscreen, bool multithreaded)
 {
@@ -121,11 +120,11 @@ CRenderer::CRenderer(const DXGI_MODE_DESC &modeDesc):
 	_immediateContext->CSSetShaderResources(0, 1, _textureView.GetAddressOf());
 }
 
-void CRenderer::SetMode(uint width, uint height)
+void CRenderer::SetMode(unsigned int width, unsigned int height)
 {
 }
 
-void CRenderer::SetMode(uint idx)
+void CRenderer::SetMode(unsigned idx)
 {
 }
 
@@ -154,7 +153,7 @@ void CRenderer::_SetupFrame() const
 	_immediateContext->ClearDepthStencilView(_zbufferView.Get(), D3D11_CLEAR_DEPTH, 1, 0);
 }
 
-extern "C" IRenderer *RendererImpl::Interface::CreateRenderer(HWND hwnd, uint width, uint height, bool fullscreen, uint refreshRate, bool multithreaded)
+extern "C" IRenderer *RendererImpl::Interface::CreateRenderer(HWND hwnd, unsigned int width, unsigned int height, bool fullscreen, unsigned int refreshRate, bool multithreaded)
 {
 	return new CRenderer(hwnd, width, height, fullscreen, refreshRate, multithreaded);
 }

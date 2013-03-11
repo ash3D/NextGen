@@ -63,12 +63,6 @@
     <ClInclude Include="C++11 stub.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Include\CPP\DGLE2.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Include\CPP\DGLE2_types.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="RendererBase.h">
       <Filter>Header Files</Filter>
     </ClInclude>

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		7.2.2013 (c)Korotkov Andrey
+\date		11.3.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -49,6 +49,7 @@ template for format (especially for structured buffer)
 //#include "vector math.h"
 #include "C++11 stub.h"
 
+#include <cstdint>
 #include <memory>		// for shared_ptr
 #include <type_traits>
 #include <iterator>
@@ -56,7 +57,6 @@ template for format (especially for structured buffer)
 #include <limits>
 #include <algorithm>
 #include <crtdbg.h>
-#include "..\\..\\Include\\CPP\\DGLE2.h"
 
 namespace DGLE2
 {
@@ -163,7 +163,7 @@ namespace DGLE2
 					E_BLEND		srcBlendAlpha;
 					E_BLEND		destBlendAlpha;
 					E_BLEND_OP	blendOpAlpha;
-					uint8		renderTargetWriteMask;
+					uint8_t		renderTargetWriteMask;
 				} renderTarget[8];
 			};
 
@@ -199,8 +199,8 @@ namespace DGLE2
 				DEPTH_WRITE_MASK	depthWriteMask;
 				E_COMPARISON_FUNC	depthFunc;
 				bool				stencilEnable;
-				uint8				stencilReadMask;
-				uint8				stencilWriteMask;
+				uint8_t				stencilReadMask;
+				uint8_t				stencilWriteMask;
 				struct
 				{
 					E_STENCIL_OP		stencilFailOp;
@@ -277,12 +277,12 @@ namespace DGLE2
 			struct TInputElementDesc
 			{
 				const char				*semanticName;
-				uint					semanticIndex;
+				unsigned int			semanticIndex;
 				E_VERTEX_FORMAT			format;
-				uint					inputSlot;
-				uint					alignedByteOffset;
+				unsigned int			inputSlot;
+				unsigned int			alignedByteOffset;
 				E_INPUT_CLASSIFICATION	inputSlotClass;
-				uint					instanceDataStepRate;
+				unsigned int			instanceDataStepRate;
 			};
 
 			class NOVTABLE IInputLayout
@@ -363,7 +363,7 @@ namespace DGLE2
 				E_FILTER				filter;
 				E_TEXTURE_ADDRESS_MODE	addressU, addressV, addressW;
 				float					mipLODBias;
-				uint					maxAnisotropy;
+				unsigned int			maxAnisotropy;
 				E_COMPARISON_FUNC		comparisonFunc;
 				float					borderColor[4];
 				float					minLOD, maxLOD;
@@ -438,14 +438,14 @@ namespace DGLE2
 			class NOVTABLE IRow
 			{
 			public:
-				CResData<Format> operator [](uint x);
+				CResData<Format> operator [](unsigned x);
 			};
 
 			template<class Format>
 			class NOVTABLE ISlice
 			{
 			public:
-				IRow<Format> operator [](uint y);
+				IRow<Format> operator [](unsigned y);
 			};
 
 			class ITexture1D;
@@ -460,14 +460,14 @@ namespace DGLE2
 			{
 			public:
 				template<class Format>
-				IMapped<ITexture1D, Format> Map(IDeviceContext &context, uint mipSlice, uint arraySlice);
+				IMapped<ITexture1D, Format> Map(IDeviceContext &context, unsigned int mipSlice, unsigned int arraySlice);
 			};
 
 			class NOVTABLE ITexture1D: public IResource1D
 			{
 			public:
 				template<class Format>
-				IMapped<ITexture1D, Format> Map(IDeviceContext &context, uint mipSlice, uint arraySlice, uint left, uint right);
+				IMapped<ITexture1D, Format> Map(IDeviceContext &context, unsigned int mipSlice, unsigned int arraySlice, unsigned int left, unsigned int right);
 			};
 
 			class NOVTABLE IDepthStencilTexture1D: public IResource1D
@@ -477,8 +477,8 @@ namespace DGLE2
 
 			class TInitData2D
 			{
-				TInitData2D(uint pitch, const void *data): pitch(pitch), data(data) {}
-				uint pitch;
+				TInitData2D(unsigned int pitch, const void *data): pitch(pitch), data(data) {}
+				unsigned int pitch;
 				const void *data;
 			};
 
@@ -499,8 +499,8 @@ namespace DGLE2
 
 			class TInitData3D
 			{
-				TInitData3D(uint pitch, uint slicePitch, const void *data): pitch(pitch), slicePitch(slicePitch), data(data) {}
-				uint pitch, slicePitch;
+				TInitData3D(unsigned int pitch, unsigned int slicePitch, const void *data): pitch(pitch), slicePitch(slicePitch), data(data) {}
+				unsigned int pitch, slicePitch;
 				const void *data;
 			};
 
@@ -510,7 +510,7 @@ namespace DGLE2
 			class NOVTABLE IMapped<ITexture3D, Format>
 			{
 			public:
-				ISlice<Format> operator [](uint z);
+				ISlice<Format> operator [](unsigned z);
 			};
 
 			class NOVTABLE ITexture3D: public IResource
@@ -546,31 +546,31 @@ namespace DGLE2
 				{
 					struct
 					{
-						uint mipSlice;
+						unsigned int mipSlice;
 					} texture1D;
 					struct
 					{
-						uint mipSlice;
-						uint firstArraySlice;
-						uint arraySize;
+						unsigned int mipSlice;
+						unsigned int firstArraySlice;
+						unsigned int arraySize;
 					} texture1DArray;
 					struct
 					{
-						uint mipSlice;
+						unsigned int mipSlice;
 					} texture2D;
 					struct
 					{
-						uint mipSlice;
-						uint firstArraySlice;
-						uint arraySize;
+						unsigned int mipSlice;
+						unsigned int firstArraySlice;
+						unsigned int arraySize;
 					} texture2DArray;
 					struct
 					{
 					} texture2DMS;
 					struct
 					{
-						uint firstArraySlice;
-						uint arraySize;
+						unsigned int firstArraySlice;
+						unsigned int arraySize;
 					} texture2DMSArray;
 				};
 			};
@@ -607,42 +607,42 @@ namespace DGLE2
 				{
 					struct
 					{
-						uint elementOffset;
-						uint elementWidth;
+						unsigned int elementOffset;
+						unsigned int elementWidth;
 					} buffer;
 					struct
 					{
-						uint mipSlice;
+						unsigned int mipSlice;
 					} texture1D;
 					struct
 					{
-						uint mipSlice;
-						uint firstArraySlice;
-						uint arraySize;
+						unsigned int mipSlice;
+						unsigned int firstArraySlice;
+						unsigned int arraySize;
 					} texture1DArray;
 					struct
 					{
-						uint mipSlice;
+						unsigned int mipSlice;
 					} texture2D;
 					struct
 					{
-						uint mipSlice;
-						uint firstArraySlice;
-						uint arraySize;
+						unsigned int mipSlice;
+						unsigned int firstArraySlice;
+						unsigned int arraySize;
 					} texture2DArray;
 					struct
 					{
 					} texture2DMS;
 					struct
 					{
-						uint firstArraySlice;
-						uint arraySize;
+						unsigned int firstArraySlice;
+						unsigned int arraySize;
 					} texture2DMSArray;
 					struct
 					{
-						uint mipSlice;
-						uint firstWSlice;
-						uint wSize;
+						unsigned int mipSlice;
+						unsigned int firstWSlice;
+						unsigned int wSize;
 					} texture3D;
 				};
 			};
@@ -682,62 +682,62 @@ namespace DGLE2
 				{
 					struct
 					{
-						uint elementOffset;
-						uint elementWidth;
+						unsigned int elementOffset;
+						unsigned int elementWidth;
 					} buffer;
 					struct
 					{
-						uint mostDetailedMip;
-						uint mipLevels;
+						unsigned int mostDetailedMip;
+						unsigned int mipLevels;
 					} texture1D;
 					struct
 					{
-						uint mostDetailedMip;
-						uint mipLevels;
-						uint firstArraySlice;
-						uint arraySize;
+						unsigned int mostDetailedMip;
+						unsigned int mipLevels;
+						unsigned int firstArraySlice;
+						unsigned int arraySize;
 					} texture1DArray;
 					struct
 					{
-						uint mostDetailedMip;
-						uint mipLevels;
+						unsigned int mostDetailedMip;
+						unsigned int mipLevels;
 					} texture2D;
 					struct
 					{
-						uint mostDetailedMip;
-						uint mipLevels;
-						uint firstArraySlice;
-						uint arraySize;
+						unsigned int mostDetailedMip;
+						unsigned int mipLevels;
+						unsigned int firstArraySlice;
+						unsigned int arraySize;
 					} texture2DArray;
 					struct
 					{
 					} texture2DMS;
 					struct
 					{
-						uint firstArraySlice;
-						uint arraySize;
+						unsigned int firstArraySlice;
+						unsigned int arraySize;
 					} texture2DMSArray;
 					struct
 					{
-						uint mostDetailedMip;
-						uint mipLevels;
+						unsigned int mostDetailedMip;
+						unsigned int mipLevels;
 					} texture3D;
 					struct
 					{
-						uint mostDetailedMip;
-						uint mipLevels;
+						unsigned int mostDetailedMip;
+						unsigned int mipLevels;
 					} textureCube;
 					struct
 					{
-						uint mostDetailedMip;
-						uint mipLevels;
-						uint first2DArrayFace;
-						uint numCubes;
+						unsigned int mostDetailedMip;
+						unsigned int mipLevels;
+						unsigned int first2DArrayFace;
+						unsigned int numCubes;
 					} textureCubeArray;
 					struct
 					{
-						uint firstElement;
-						uint numElements;
+						unsigned int firstElement;
+						unsigned int numElements;
 						bool raw;
 					} bufferEx;
 				};
@@ -773,35 +773,35 @@ namespace DGLE2
 				{
 					struct
 					{
-						uint firstElement;
-						uint numElements;
+						unsigned int firstElement;
+						unsigned int numElements;
 						bool raw, append, counter;
 					} buffer;
 					struct
 					{
-						uint mipSlice;
+						unsigned int mipSlice;
 					} texture1D;
 					struct
 					{
-						uint mipSlice;
-						uint firstArraySlice;
-						uint arraySize;
+						unsigned int mipSlice;
+						unsigned int firstArraySlice;
+						unsigned int arraySize;
 					} texture1DArray;
 					struct
 					{
-						uint mipSlice;
+						unsigned int mipSlice;
 					} texture2D;
 					struct
 					{
-						uint mipSlice;
-						uint firstArraySlice;
-						uint arraySize;
+						unsigned int mipSlice;
+						unsigned int firstArraySlice;
+						unsigned int arraySize;
 					} texture2DArray;
 					struct
 					{
-						uint mipSlice;
-						uint firstWSlice;
-						uint wSize;
+						unsigned int mipSlice;
+						unsigned int firstWSlice;
+						unsigned int wSize;
 					} texture3D;
 				};
 			};
@@ -868,30 +868,30 @@ namespace DGLE2
 				// low level IA
 				virtual E_PRIMITIVE_TOPOLOGY GetPrimitiveTopology() const = 0;
 				virtual RESTRICT IInputLayout *GetInputLayout() const = 0;
-				virtual void GetIndexBuffer(IBuffer *&IB, E_IB_FORMAT &format, uint &offset) const = 0;
-				virtual void GetVertexBuffers(uint startSlot, uint VBCount, _In_count_(VBCount) IBuffer *VBs[], _In_count_(VBCount) uint strides[], _In_count_(VBCount) uint offsets[]) const = 0;
+				virtual void GetIndexBuffer(IBuffer *&IB, E_IB_FORMAT &format, unsigned int &offset) const = 0;
+				virtual void GetVertexBuffers(unsigned int startSlot, unsigned int VBCount, _In_count_(VBCount) IBuffer *VBs[], _In_count_(VBCount) unsigned int strides[], _In_count_(VBCount) unsigned int offsets[]) const = 0;
 				virtual void SetPrimitiveTopology(E_PRIMITIVE_TOPOLOGY topology) = 0;
 				virtual void SetInputLayout(IInputLayout *layout) = 0;
-				virtual void SetIndexBuffer(IBuffer *IB, E_IB_FORMAT format, uint offset) = 0;
-				virtual void SetVertexBuffers(uint startSlot, uint VBCount, _In_count_(VBCount) IBuffer *const VBs[], _In_count_(VBCount) const uint strides[], _In_count_(VBCount) const uint offsets[]) = 0;
+				virtual void SetIndexBuffer(IBuffer *IB, E_IB_FORMAT format, unsigned int offset) = 0;
+				virtual void SetVertexBuffers(unsigned int startSlot, unsigned int VBCount, _In_count_(VBCount) IBuffer *const VBs[], _In_count_(VBCount) const unsigned int strides[], _In_count_(VBCount) const unsigned int offsets[]) = 0;
 
 				// low level immediate draw commands
-				virtual void Draw(uint vertexCount, uint startVertexLocation) = 0;
-				virtual void DrawIndexed(uint indexCount, uint startIndexLocation, int baseVertexLocation) = 0;
-				virtual void DrawInstanced(uint vertexCount, uint instanceCount, uint startVertexLocation, uint startInstanceLocation) = 0;
-				virtual void DrawInstancedIndirect(IBuffer &args, uint offset) = 0;
-				virtual void DrawIndexedInstancedIndirtect(IBuffer &args, uint offset) = 0;
+				virtual void Draw(unsigned int vertexCount, unsigned int startVertexLocation) = 0;
+				virtual void DrawIndexed(unsigned int indexCount, unsigned int startIndexLocation, int baseVertexLocation) = 0;
+				virtual void DrawInstanced(unsigned int vertexCount, unsigned int instanceCount, unsigned int startVertexLocation, unsigned int startInstanceLocation) = 0;
+				virtual void DrawInstancedIndirect(IBuffer &args, unsigned int offset) = 0;
+				virtual void DrawIndexedInstancedIndirtect(IBuffer &args, unsigned int offset) = 0;
 				virtual void DrawAuto() = 0;
 
 				// specify geometry from sysmem
 				// sysmem buffer may needed or not needed to be preserved until Draw* call depending on implementation
-				virtual void SetIndexBuffer(uint size, _In_count_(size / sizeof(uint16)) const uint16 IB[]) = 0;
-				virtual void SetIndexBuffer(uint size, _In_count_(size / sizeof(uint32)) const uint32 IB[]) = 0;
-				virtual void SetVertexBuffers(uint startSlot, uint VBCount, _In_count_(VBCount) const uint sizes[], _In_count_(VBCount) const uint strides[], _In_count_(VBCount) const void *VBs[]) = 0;
+				virtual void SetIndexBuffer(unsigned int size, _In_count_(size / sizeof(uint16_t)) const uint16_t IB[]) = 0;
+				virtual void SetIndexBuffer(unsigned int size, _In_count_(size / sizeof(uint32_t)) const uint32_t IB[]) = 0;
+				virtual void SetVertexBuffers(unsigned int startSlot, unsigned int VBCount, _In_count_(VBCount) const unsigned int sizes[], _In_count_(VBCount) const unsigned int strides[], _In_count_(VBCount) const void *VBs[]) = 0;
 
 				// legacy FFP
-				virtual void BindTexture(ITexture2D *texture, uint layer = 0) = 0;
-				virtual void SetColor(uint32 color) = 0;
+				virtual void BindTexture(ITexture2D *texture, unsigned int layer = 0) = 0;
+				virtual void SetColor(uint32_t color) = 0;
 				virtual void SetWorldViewTransform(const float matrix[4][3]) = 0;
 				virtual void SetProjTranform(const float matrix[4][4]) = 0;
 
@@ -909,17 +909,17 @@ namespace DGLE2
 				// create state objects
 				virtual RESTRICT IBlendState *CreateBlendState(const TBlendStateDesc &desc) = 0;
 				virtual RESTRICT IDepthStencilState *CreateDepthStencilState(const TDepthStencilDesc &desc) = 0;
-				virtual RESTRICT IInputLayout *CreateInputLayout(uint descCount, _In_count_(numElements) const TInputElementDesc descs[]) = 0;
+				virtual RESTRICT IInputLayout *CreateInputLayout(unsigned int descCount, _In_count_(numElements) const TInputElementDesc descs[]) = 0;
 				virtual RESTRICT IRasterizerState *CreateRasterizerState(const TRasterizerStateDesc &desc) = 0;
 				virtual RESTRICT ISamplerState *CreateSamplerState(const TSamplerStateDesc &desc) = 0;
 
 				// create resources
-				virtual RESTRICT ICBuffer *CreateCBuffer(uint size, const void *initData = NULL) = 0;
-				virtual RESTRICT IBuffer *CreateBuffer(uint size, bool IB, bool VB, bool SO, bool SR, bool RT, bool UA, const void *initData = NULL) = 0;
-				virtual RESTRICT IStructuredBuffer *CreateStructuredBuffer(uint structSize, uint structCount, const void *initData = NULL) = 0;
-				virtual RESTRICT ITexture1D *CreateTexture1D(uint width, uint mipLevels, uint arraySize, E_FORMAT format, bool SR, bool DS, bool RT, bool UA, const void *initData = NULL) = 0;
-				virtual RESTRICT ITexture2D *CreateTexture2D(uint width, uint height, uint mipLevels, uint arraySize, E_FORMAT format, bool cubeMap, bool SR, bool DS, bool RT, bool UA, const TInitData2D *initData = NULL) = 0;
-				virtual RESTRICT ITexture3D *CreateTexture3D(uint width, uint height, uint depth, uint mipLevels, E_FORMAT format, bool SR, bool RT, bool UA, const TInitData3D *initData = NULL) = 0;
+				virtual RESTRICT ICBuffer *CreateCBuffer(unsigned int size, const void *initData = NULL) = 0;
+				virtual RESTRICT IBuffer *CreateBuffer(unsigned int size, bool IB, bool VB, bool SO, bool SR, bool RT, bool UA, const void *initData = NULL) = 0;
+				virtual RESTRICT IStructuredBuffer *CreateStructuredBuffer(unsigned int structSize, unsigned int structCount, const void *initData = NULL) = 0;
+				virtual RESTRICT ITexture1D *CreateTexture1D(unsigned int width, unsigned int mipLevels, unsigned int arraySize, E_FORMAT format, bool SR, bool DS, bool RT, bool UA, const void *initData = NULL) = 0;
+				virtual RESTRICT ITexture2D *CreateTexture2D(unsigned int width, unsigned int height, unsigned int mipLevels, unsigned int arraySize, E_FORMAT format, bool cubeMap, bool SR, bool DS, bool RT, bool UA, const TInitData2D *initData = NULL) = 0;
+				virtual RESTRICT ITexture3D *CreateTexture3D(unsigned int width, unsigned int height, unsigned int depth, unsigned int mipLevels, E_FORMAT format, bool SR, bool RT, bool UA, const TInitData3D *initData = NULL) = 0;
 
 				// create resource views
 				virtual void TestDepthStencilViewDesc(IResource &resource, const TDepthStencilViewDesc *desc = NULL) = 0;
@@ -1040,14 +1040,14 @@ namespace DGLE2
 			namespace Geometry
 			{
 				// TODO: use math lib
-				template<uint dimension>
+				template<unsigned dimension>
 				class AABB
 				{
 					static_assert(dimension == 2 || dimension == 3, "AABB dimension can be either 2 or 3");
 				public:
 					explicit AABB() noexcept
 					{
-						for (uint i = 0; i < dimension; i++)
+						for (unsigned i = 0; i < dimension; i++)
 						{
 							_min[i] = +std::numeric_limits<float>::infinity();
 							_max[i] = -std::numeric_limits<float>::infinity();
@@ -1085,22 +1085,22 @@ namespace DGLE2
 				};
 
 #pragma region("AABB impl")
-				template<uint dimension>
+				template<unsigned dimension>
 				void AABB<dimension>::Refit(const float (&min)[dimension], const float (&max)[dimension])
 				{
-					for (uint i = 0; i < dimension; i++)
+					for (unsigned i = 0; i < dimension; i++)
 					{
 						_min[i] = std::min(_min[i], min[i]);
 						_max[i] = std::max(_max[i], max[i]);
 					}
 				}
 
-				template<uint dimension>
+				template<unsigned dimension>
 				template<class TIterator>
 				AABB<dimension>::AABB(TIterator begin, TIterator end)//: AABB()
 				{
 					// C++11: use delegating ctor
-					for (uint i = 0; i < dimension; i++)
+					for (unsigned i = 0; i < dimension; i++)
 					{
 						_min[i] = +std::numeric_limits<float>::infinity();
 						_max[i] = -std::numeric_limits<float>::infinity();
@@ -1109,7 +1109,7 @@ namespace DGLE2
 					std::for_each(begin, end, [this](const float (&vertex)[dimension]){Refit(vertex, vertex);});
 				}
 
-				template<uint dimension>
+				template<unsigned dimension>
 				void AABB<dimension>::Refit(const AABB &aabb)
 				{
 					Refit(aabb._min, aabb._max);
@@ -1134,7 +1134,7 @@ namespace DGLE2
 					public:
 						virtual void SetPos(float x, float y) = 0;
 						virtual void SetExtents(float x, float y) = 0;
-						virtual void SetColor(uint32 color) = 0;
+						virtual void SetColor(uint32_t color) = 0;
 						virtual void SetAngle(float angle) = 0;
 					protected:
 						//~IRect() = default;
@@ -1145,7 +1145,7 @@ namespace DGLE2
 					public:
 						virtual void SetPos(float x, float y) = 0;
 						virtual void SetRadii(float rx, float ry) = 0;
-						virtual void SetColor(uint32 color) = 0;
+						virtual void SetColor(uint32_t color) = 0;
 						virtual void SetAngle(float angle) = 0;
 					protected:
 						//~IEllipse() = default;
@@ -1172,7 +1172,7 @@ namespace DGLE2
 
 				struct TDispMode
 				{
-					const uint width, height;
+					const unsigned int width, height;
 					const float refreshRate;
 				};
 
@@ -1181,8 +1181,8 @@ namespace DGLE2
 					friend struct TDispModeDesc;
 				public:
 					class CIterator;
-					virtual uint Count() const = 0;
-					inline TDispModeDesc operator [](uint idx) const;//TDispModeDesc here references to DisplayModes::TDispModeDesc
+					virtual unsigned Count() const = 0;
+					inline TDispModeDesc operator [](unsigned idx) const;//TDispModeDesc here references to DisplayModes::TDispModeDesc
 					inline CIterator begin() const;
 					inline CIterator end() const;
 				protected:
@@ -1192,7 +1192,7 @@ namespace DGLE2
 						const IDesc *const desc;
 					};
 				private:
-					virtual TDispModeDesc Get(uint idx) const = 0;
+					virtual TDispModeDesc Get(unsigned idx) const = 0;
 				protected:
 					//~IDisplayModes() = default;
 				};
@@ -1221,16 +1221,16 @@ namespace DGLE2
 					//{
 					//}
 				private:
-					friend TDispModeDesc IDisplayModes::operator[](uint) const;
+					friend TDispModeDesc IDisplayModes::operator[](unsigned) const;
 					TDispModeDesc(const IDisplayModes::TDispModeDesc &modeDesc): TDispMode(modeDesc), desc(modeDesc.desc) {}
 				};
 
-				TDispModeDesc IDisplayModes::operator [](uint idx) const
+				TDispModeDesc IDisplayModes::operator [](unsigned idx) const
 				{
 					return Get(idx);
 				}
 
-				class IDisplayModes::CIterator: public std::iterator<std::random_access_iterator_tag, const DisplayModes::TDispModeDesc, uint>
+				class IDisplayModes::CIterator: public std::iterator<std::random_access_iterator_tag, const DisplayModes::TDispModeDesc, unsigned>
 				{
 					friend class IDisplayModes;
 				public:
@@ -1247,11 +1247,11 @@ namespace DGLE2
 					inline CIterator operator +(difference_type offset) const;
 					inline difference_type operator -(CIterator subtrahend) const;
 				private:
-					inline CIterator(const IDisplayModes &modes, uint idx);
+					inline CIterator(const IDisplayModes &modes, unsigned idx);
 					inline void _CheckRange() const;
 					inline static void _CheckContainer(CIterator iter1, CIterator iter2);
 					const IDisplayModes &_modes;
-					uint _idx;
+					unsigned _idx;
 				};
 
 #pragma region("IDisplayModes::CIterator impl")
@@ -1336,7 +1336,7 @@ namespace DGLE2
 					return _idx - subtrahend._idx;
 				}
 
-				IDisplayModes::CIterator::CIterator(const IDisplayModes &modes, uint idx): _modes(modes), _idx(idx) {}
+				IDisplayModes::CIterator::CIterator(const IDisplayModes &modes, unsigned idx): _modes(modes), _idx(idx) {}
 #pragma endregion
 
 				IDisplayModes::CIterator IDisplayModes::begin() const
@@ -1355,8 +1355,8 @@ namespace DGLE2
 			class NOVTABLE IRenderer: virtual public IDtor
 			{
 			public:
-				virtual void SetMode(uint width, uint height) = 0;
-				virtual void SetMode(uint idx) = 0;
+				virtual void SetMode(unsigned int width, unsigned int height) = 0;
+				virtual void SetMode(unsigned idx) = 0;
 				virtual void ToggleFullscreen(bool fullscreen) = 0;
 				virtual void NextFrame() const = 0;
 
@@ -1367,31 +1367,31 @@ namespace DGLE2
 				//virtual RESTRICT Textures::ITexture3D *CreateTexture3D() = 0;
 				//virtual RESTRICT Textures::ITextureCube *CreateTextureCube() = 0;
 				//virtual RESTRICT Materials::IMaterial *CreateMaterial() = 0;
-				//virtual RESTRICT Geometry::IMesh *CreateMesh(uint icount, _In_count_(icount) const uint32 *idx, uint vcount, _In_count_(vcount) const float *coords) = 0;
+				//virtual RESTRICT Geometry::IMesh *CreateMesh(unsigned int icount, _In_count_(icount) const uint32_t *idx, unsigned int vcount, _In_count_(vcount) const float *coords) = 0;
 				//virtual RESTRICT Instances::IInstance *CreateInstance(const Geometry::IMesh &mesh, const Materials::IMaterial &material) = 0;
 
 				// immediate 2D
 				// consider packing coords and color into single struct (array of structs instead of struct of arrays)(it may results in better memory access pattern)
-				virtual void DrawPoint(float x, float y, uint32 color, float size = 1) const = 0;
-				virtual void DrawLine(uint vcount, _In_count_(vcount) const float coords[][2], _In_count_(vcount) const uint32 colors[], bool closed, float width = 1) const = 0;
-				//virtual void DrawTriangles(uint vcount, _In_count_(vcount) const float coords[][2], _In_count_(vcount) const uint32 colors[]) const = 0;
-				virtual void DrawRect(float x, float y, float width, float height, uint32 color, Textures::ITexture2D *texture, float angle = 0) const = 0;
-				virtual void DrawRect(float x, float y, float width, float height, uint32 (&colors)[4], Textures::ITexture2D *texture, float angle = 0) const = 0;
-				virtual void DrawEllipse(float x, float y, float rx, float ry, uint32 color, bool AA, float angle = 0) const = 0;
+				virtual void DrawPoint(float x, float y, uint32_t color, float size = 1) const = 0;
+				virtual void DrawLine(unsigned int vcount, _In_count_(vcount) const float coords[][2], _In_count_(vcount) const uint32_t colors[], bool closed, float width = 1) const = 0;
+				//virtual void DrawTriangles(unsigned int vcount, _In_count_(vcount) const float coords[][2], _In_count_(vcount) const uint32_t colors[]) const = 0;
+				virtual void DrawRect(float x, float y, float width, float height, uint32_t color, Textures::ITexture2D *texture, float angle = 0) const = 0;
+				virtual void DrawRect(float x, float y, float width, float height, uint32_t (&colors)[4], Textures::ITexture2D *texture, float angle = 0) const = 0;
+				virtual void DrawEllipse(float x, float y, float rx, float ry, uint32_t color, bool AA, float angle = 0) const = 0;
 
 				// TODO: move this to engine's derived interface
-				virtual void DrawPolygon(uint vcount, _In_count_(vcount) const float coords[][2], uint32 color) const = 0;
-				virtual void DrawCircle(float x, float y, float r, uint32 color) const = 0;
+				virtual void DrawPolygon(unsigned int vcount, _In_count_(vcount) const float coords[][2], uint32_t color) const = 0;
+				virtual void DrawCircle(float x, float y, float r, uint32_t color) const = 0;
 
 				// 2D scene
-				virtual RESTRICT Instances::_2D::IRect *AddRect(bool dynamic, uint16 layer, float x, float y, float width, float height, uint32 color, float angle = 0) = 0;
-				virtual RESTRICT Instances::_2D::IEllipse *AddEllipse(bool dynamic, uint16 layer, float x, float y, float rx, float ry, uint32 color, bool AA, float angle = 0) = 0;
+				virtual RESTRICT Instances::_2D::IRect *AddRect(bool dynamic, uint16_t layer, float x, float y, float width, float height, uint32_t color, float angle = 0) = 0;
+				virtual RESTRICT Instances::_2D::IEllipse *AddEllipse(bool dynamic, uint16_t layer, float x, float y, float rx, float ry, uint32_t color, bool AA, float angle = 0) = 0;
 			protected:
 				//~IRenderer() = default;
 			};
 
 			// TODO: replace HWND with engine cross-platform handle
-			extern "C" RESTRICT IRenderer *CreateRenderer(HWND hwnd, uint width, uint height, bool fullscreen = false, uint refreshRate = 0, bool multithreaded = true);
+			extern "C" RESTRICT IRenderer *CreateRenderer(HWND hwnd, unsigned int width, unsigned int height, bool fullscreen = false, unsigned int refreshRate = 0, bool multithreaded = true);
 		}
 	}
 }

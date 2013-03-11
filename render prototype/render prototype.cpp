@@ -4,7 +4,6 @@
 #include "stdafx.h"
 #include "render prototype.h"
 #include <Unknwn.h>
-#include "..\\..\\Include\\CPP\\DGLE2.h"
 #include "Renderer.h"
 
 #define MAX_LOADSTRING 100
