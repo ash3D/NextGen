@@ -203,7 +203,6 @@
   <ItemGroup>
     <ClInclude Include="2D.h" />
     <ClInclude Include="C++11 stub.h" />
-    <ClInclude Include="com ptr defs.h" />
     <ClInclude Include="DynamicVB.h" />
     <ClInclude Include="DisplayModes.h" />
     <ClInclude Include="Dtor.h" />

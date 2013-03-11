@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		13.2.2013 (c)Korotkov Andrey
+\date		11.3.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -38,9 +38,9 @@ protected:
 		ASSERT_HR(_swapChain->SetFullscreenState(FALSE, NULL))
 	}
 protected:
-	DirectX::ComPtrs::ID3D11DevicePtr			_device;
-	DirectX::ComPtrs::ID3D11DeviceContextPtr	_immediateContext;
-	DirectX::ComPtrs::IDXGISwapChainPtr			_swapChain;
-	DirectX::ComPtrs::ID3D11RenderTargetViewPtr	_rtView;
-	DirectX::ComPtrs::ID3D11DepthStencilViewPtr	_zbufferView;
+	Microsoft::WRL::ComPtr<ID3D11Device>			_device;
+	Microsoft::WRL::ComPtr<ID3D11DeviceContext>		_immediateContext;
+	Microsoft::WRL::ComPtr<IDXGISwapChain>			_swapChain;
+	Microsoft::WRL::ComPtr<ID3D11RenderTargetView>	_rtView;
+	Microsoft::WRL::ComPtr<ID3D11DepthStencilView>	_zbufferView;
 };

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		1.3.2013 (c)Korotkov Andrey
+\date		11.3.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -93,14 +93,14 @@ private:
 	// 2D state objects
 	// temp for test
 protected:
-	DirectX::ComPtrs::ID3DX11EffectPtr _effect2D;
+	Microsoft::WRL::ComPtr<ID3DX11Effect> _effect2D;
 private:
-	DirectX::ComPtrs::ID3D11InputLayoutPtr _quadLayout;
+	Microsoft::WRL::ComPtr<ID3D11InputLayout> _quadLayout;
 	ID3DX11EffectPass *_rectPass, *_ellipsePass, *_ellipseAAPass;
 
 	// immediate 2D
 	mutable CDynamicVB _2DVB;
-	mutable DirectX::ComPtrs::ID3D11BufferPtr _VB;
+	mutable Microsoft::WRL::ComPtr<ID3D11Buffer> _VB;
 	mutable TQuad *_mappedVB;
 	mutable UINT _VBSize, _VBStart, _VCount;
 	mutable unsigned int _count;
@@ -114,7 +114,7 @@ private:
 	mutable TQuads _staticRects;TQuads _dynamicRects;
 	mutable TQuads _staticEllipses;TQuads _dynamicEllipses;
 	mutable TQuads _staticEllipsesAA;TQuads _dynamicEllipsesAA;
-	mutable DirectX::ComPtrs::ID3D11BufferPtr _static2DVB, _dynamic2DVB;
+	mutable Microsoft::WRL::ComPtr<ID3D11Buffer> _static2DVB, _dynamic2DVB;
 	mutable UINT _dynamic2DVBSize;
 	mutable bool _static2DDirty;
 };

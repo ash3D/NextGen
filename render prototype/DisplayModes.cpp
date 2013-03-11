@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		12.2.2013 (c)Korotkov Andrey
+\date		11.3.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -11,7 +11,7 @@ See "DGLE2.h" for more details.
 #include "DisplayModes.h"
 
 using namespace std;
-using namespace DirectX::ComPtrs;
+using Microsoft::WRL::ComPtr;
 using DisplayModesImpl::CDisplayModes;
 using DisplayModesImpl::Interface::IDisplayModes;
 using DisplayModesImpl::displayModes;
@@ -170,12 +170,12 @@ CDisplayModes::CDisplayModes()
 	WARNING: DXGI_ERROR_MORE_DATA for GetDisplayModeList() currently does not handled.
 	More info then available in MSDN required for proper handling.
 	*/
-	IDXGIFactory1Ptr factory;
-	ASSERT_HR(CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void **>(&factory)))
-	IDXGIAdapter1Ptr adapter;
+	ComPtr<IDXGIFactory1> factory;
+	ASSERT_HR(CreateDXGIFactory1(__uuidof(IDXGIFactory1), &factory))
+	ComPtr<IDXGIAdapter1> adapter;
 	ASSERT_HR(factory->EnumAdapters1(0, &adapter))
 	UINT modes_count;
-	IDXGIOutputPtr output;
+	ComPtr<IDXGIOutput> output;
 	ASSERT_HR(adapter->EnumOutputs(0, &output))
 	ASSERT_HR(output->GetDisplayModeList(DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_ENUM_MODES_SCALING, &modes_count, NULL))
 	_modes.resize(modes_count);

@@ -17,6 +17,9 @@
       <UniqueIdentifier>{7c0a7dfa-9bf1-4080-885b-45fd1a920ecf}</UniqueIdentifier>
       <Extensions>h</Extensions>
     </Filter>
+    <Filter Include="Effects11">
+      <UniqueIdentifier>{3156fad3-1d0a-4c2d-a627-f8e663f237ea}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DX 11.cpp">
@@ -42,15 +45,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="com ptr defs.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Effects11\Inc\d3dx11effect.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Effects11\Inc\d3dxGlobal.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="render prototype.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -102,6 +96,12 @@
     <ClInclude Include="DynamicVB.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Effects11\Inc\d3dx11effect.h">
+      <Filter>Effects11</Filter>
+    </ClInclude>
+    <ClInclude Include="Effects11\Inc\d3dxGlobal.h">
+      <Filter>Effects11</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="render prototype.ico">
@@ -110,11 +110,13 @@
     <None Include="small.ico">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="2D.fx" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="render prototype.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="2D.fx" />
   </ItemGroup>
 </Project>

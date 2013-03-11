@@ -33,11 +33,11 @@
 #include <crtdbg.h>
 
 #include <D3D11.h>
+#include <wrl.h>
 #include <DirectXMath.h>
 #include <DirectXPackedVector.h>
 #include <DirectXColors.h>
 #include "D3dx11effect.h"
-#include "com ptr defs.h"
 
 //#define DISABLE_MATRIX_SWIZZLES
 //#include "vector math.h"

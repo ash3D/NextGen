@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		13.2.2013 (c)Korotkov Andrey
+\date		11.3.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -38,9 +38,9 @@ CRendererBase::CRendererBase(HWND hwnd, const DXGI_MODE_DESC &modeDesc, bool ful
 		&_swapChain, &_device, NULL, &_immediateContext))
 
 	// get back buffer
-	DirectX::ComPtrs::ID3D11Texture2DPtr rt;
-	ASSERT_HR(_swapChain->GetBuffer(0, __uuidof(rt), reinterpret_cast<void **>(&rt)))
-	ASSERT_HR(_device->CreateRenderTargetView(rt, NULL, &_rtView))
+	Microsoft::WRL::ComPtr<ID3D11Texture2D> rt;
+	ASSERT_HR(_swapChain->GetBuffer(0, __uuidof(rt), &rt))
+	ASSERT_HR(_device->CreateRenderTargetView(rt.Get(), NULL, &_rtView))
 
 	// create Zbuffer
 	const D3D11_TEXTURE2D_DESC zbuffer_desc =
@@ -49,16 +49,16 @@ CRendererBase::CRendererBase(HWND hwnd, const DXGI_MODE_DESC &modeDesc, bool ful
 		1, 1, DXGI_FORMAT_D16_UNORM,
 		swap_chain_desc.SampleDesc, D3D11_USAGE_DEFAULT, D3D11_BIND_DEPTH_STENCIL, 0, 0
 	};
-	DirectX::ComPtrs::ID3D11Texture2DPtr zbuffer;
+	Microsoft::WRL::ComPtr<ID3D11Texture2D> zbuffer;
 	ASSERT_HR(_device->CreateTexture2D(&zbuffer_desc, NULL, &zbuffer))
-	ASSERT_HR(_device->CreateDepthStencilView(zbuffer, NULL, &_zbufferView))
+	ASSERT_HR(_device->CreateDepthStencilView(zbuffer.Get(), NULL, &_zbufferView))
 
 	// setup viewport
 	const D3D11_VIEWPORT viewport = {0, 0, modeDesc.Width, modeDesc.Height, 0, 1};
 	_immediateContext->RSSetViewports(1, &viewport);
 
 	// setup rendertargets
-	_immediateContext->OMSetRenderTargets(1, &_rtView.GetInterfacePtr(), _zbufferView);
+	_immediateContext->OMSetRenderTargets(1, _rtView.GetAddressOf(), _zbufferView.Get());
 }
 
 DXGI_MODE_DESC CRenderer::_CreateModeDesc(UINT width, UINT height, UINT refreshRate)
@@ -96,12 +96,12 @@ CRenderer::CRenderer(const DXGI_MODE_DESC &modeDesc):
 	srv_desc.BufferEx.FirstElement = 0;
 	srv_desc.BufferEx.NumElements = 32768*512;
 	srv_desc.BufferEx.Flags = D3D11_BUFFEREX_SRV_FLAG_RAW;
-	ASSERT_HR(_device->CreateShaderResourceView(_buf, &srv_desc, &_srv))
+	ASSERT_HR(_device->CreateShaderResourceView(_buf.Get(), &srv_desc, &_srv))
 	D3D11_UNORDERED_ACCESS_VIEW_DESC uav_desc = {DXGI_FORMAT_R32_TYPELESS, D3D11_UAV_DIMENSION_BUFFER};
 	uav_desc.Buffer.FirstElement = 0;
 	uav_desc.Buffer.NumElements = 32768*512;
 	uav_desc.Buffer.Flags = D3D11_BUFFER_UAV_FLAG_RAW;
-	ASSERT_HR(_device->CreateUnorderedAccessView(_buf, &uav_desc, &_uav))
+	ASSERT_HR(_device->CreateUnorderedAccessView(_buf.Get(), &uav_desc, &_uav))
 	const D3D11_TEXTURE2D_DESC textureDesc =
 	{
 		4096, 4096, 1, 1,
@@ -111,14 +111,14 @@ CRenderer::CRenderer(const DXGI_MODE_DESC &modeDesc):
 		D3D11_BIND_SHADER_RESOURCE,
 		0, 0
 	};
-	DirectX::ComPtrs::ID3D11Texture2DPtr texture;
+	Microsoft::WRL::ComPtr<ID3D11Texture2D> texture;
 	ASSERT_HR(_device->CreateTexture2D(&textureDesc, NULL, &texture))
 	srv_desc.Format = DXGI_FORMAT_UNKNOWN;
 	srv_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	srv_desc.Texture2D.MostDetailedMip = 0;
 	srv_desc.Texture2D.MipLevels = 1;
-	ASSERT_HR(_device->CreateShaderResourceView(texture, &srv_desc, &_textureView))
-	_immediateContext->CSSetShaderResources(0, 1, &_textureView.GetInterfacePtr());
+	ASSERT_HR(_device->CreateShaderResourceView(texture.Get(), &srv_desc, &_textureView))
+	_immediateContext->CSSetShaderResources(0, 1, _textureView.GetAddressOf());
 }
 
 void CRenderer::SetMode(uint width, uint height)
@@ -150,8 +150,8 @@ void CRenderer::NextFrame() const
 
 void CRenderer::_SetupFrame() const
 {
-	_immediateContext->ClearRenderTargetView(_rtView, DirectX::Colors::Black);
-	_immediateContext->ClearDepthStencilView(_zbufferView, D3D11_CLEAR_DEPTH, 1, 0);
+	_immediateContext->ClearRenderTargetView(_rtView.Get(), DirectX::Colors::Black);
+	_immediateContext->ClearDepthStencilView(_zbufferView.Get(), D3D11_CLEAR_DEPTH, 1, 0);
 }
 
 extern "C" IRenderer *RendererImpl::Interface::CreateRenderer(HWND hwnd, uint width, uint height, bool fullscreen, uint refreshRate, bool multithreaded)

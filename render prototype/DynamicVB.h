@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		7.2.2013 (c)Korotkov Andrey
+\date		11.3.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -15,14 +15,14 @@ namespace RendererImpl
 {
 	class CDynamicVB
 	{
-		DirectX::ComPtrs::ID3D11DevicePtr _device;
-		DirectX::ComPtrs::ID3D11BufferPtr _VB;
+		Microsoft::WRL::ComPtr<ID3D11Device> _device;
+		Microsoft::WRL::ComPtr<ID3D11Buffer> _VB;
 		UINT _size, _offset;
 	public:
 		// TODO: remove default ctor and use C++11 unrestricted union in CDynamicVB users
 		CDynamicVB() noexcept {}
-		CDynamicVB(DirectX::ComPtrs::ID3D11DevicePtr device, UINT minSize);
+		CDynamicVB(Microsoft::WRL::ComPtr<ID3D11Device> device, UINT minSize);
 	public:
-		void Draw(DirectX::ComPtrs::ID3D11DeviceContextPtr context, UINT stride, UINT vcount, std::function<void (void *VB)> fillCallback);
+		void Draw(Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, UINT stride, UINT vcount, std::function<void (void *VB)> fillCallback);
 	};
 }

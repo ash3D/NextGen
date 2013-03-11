@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		13.2.2013 (c)Korotkov Andrey
+\date		11.3.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -62,7 +62,7 @@ private:
 
 private:
 	// test
-	DirectX::ComPtrs::ID3D11BufferPtr _buf;
-	DirectX::ComPtrs::ID3D11ShaderResourceViewPtr _srv, _textureView;
-	DirectX::ComPtrs::ID3D11UnorderedAccessViewPtr _uav;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> _buf;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> _srv, _textureView;
+	Microsoft::WRL::ComPtr<ID3D11UnorderedAccessView> _uav;
 };
