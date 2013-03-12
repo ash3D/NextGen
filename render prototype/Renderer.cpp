@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		11.3.2013 (c)Korotkov Andrey
+\date		12.3.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -65,7 +65,7 @@ DXGI_MODE_DESC CRenderer::_CreateModeDesc(UINT width, UINT height, UINT refreshR
 	const DXGI_MODE_DESC mode_desc =
 	{
 		width, height, {refreshRate, 1},
-		DXGI_FORMAT_R8G8B8A8_UNORM,
+		DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
 		DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED,
 		DXGI_MODE_SCALING_UNSPECIFIED
 	};
