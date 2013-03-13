@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		12.3.2013 (c)Korotkov Andrey
+\date		13.3.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -13,6 +13,7 @@ See "DGLE2.h" for more details.
 using RendererImpl::CRendererBase;
 using RendererImpl::CRenderer;
 using RendererImpl::Interface::IRenderer;
+using Microsoft::WRL::ComPtr;
 
 CRendererBase::CRendererBase(HWND hwnd, const DXGI_MODE_DESC &modeDesc, bool fullscreen, bool multithreaded)
 {
@@ -37,7 +38,7 @@ CRendererBase::CRendererBase(HWND hwnd, const DXGI_MODE_DESC &modeDesc, bool ful
 		&_swapChain, &_device, NULL, &_immediateContext))
 
 	// get back buffer
-	Microsoft::WRL::ComPtr<ID3D11Texture2D> rt;
+	ComPtr<ID3D11Texture2D> rt;
 	ASSERT_HR(_swapChain->GetBuffer(0, __uuidof(rt), &rt))
 	ASSERT_HR(_device->CreateRenderTargetView(rt.Get(), NULL, &_rtView))
 
@@ -48,7 +49,7 @@ CRendererBase::CRendererBase(HWND hwnd, const DXGI_MODE_DESC &modeDesc, bool ful
 		1, 1, DXGI_FORMAT_D16_UNORM,
 		swap_chain_desc.SampleDesc, D3D11_USAGE_DEFAULT, D3D11_BIND_DEPTH_STENCIL, 0, 0
 	};
-	Microsoft::WRL::ComPtr<ID3D11Texture2D> zbuffer;
+	ComPtr<ID3D11Texture2D> zbuffer;
 	ASSERT_HR(_device->CreateTexture2D(&zbuffer_desc, NULL, &zbuffer))
 	ASSERT_HR(_device->CreateDepthStencilView(zbuffer.Get(), NULL, &_zbufferView))
 
@@ -110,7 +111,7 @@ CRenderer::CRenderer(const DXGI_MODE_DESC &modeDesc):
 		D3D11_BIND_SHADER_RESOURCE,
 		0, 0
 	};
-	Microsoft::WRL::ComPtr<ID3D11Texture2D> texture;
+	ComPtr<ID3D11Texture2D> texture;
 	ASSERT_HR(_device->CreateTexture2D(&textureDesc, NULL, &texture))
 	srv_desc.Format = DXGI_FORMAT_UNKNOWN;
 	srv_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
