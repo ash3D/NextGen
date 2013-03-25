@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		30.1.2013 (c)Korotkov Andrey
+\date		25.3.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -62,6 +62,7 @@ namespace DtorImpl
 #endif
 		};
 
+	private:
 		template<class Class>
 		inline std::shared_ptr<Class> GetRefImpl(std::true_type)
 		{
