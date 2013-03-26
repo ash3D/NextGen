@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.1.2013 (c)Alexey Shaydurov
+\date		26.3.2013 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1301,32 +1301,32 @@ consider overloads with vector arguments to eliminate this issue
 #				undef OPERATOR_DEFINITION
 #			pragma endregion
 
-#			pragma region(swizzle/vector/matrix tag)
+#			pragma region(swizzle/vector/matrix trigger)
 #			ifdef MSVC_LIMITATIONS
 			template<typename T>
-			struct TSwizzleVectorMatrixTagHelper
+			struct TSwizzleVectorMatrixTriggerHelper
 			{
 				typedef CEmpty type;
-				//typedef TSwizzleVectorMatrixTag type;/*does not wirk with VS2010*/
+				//typedef TSwizzleVectorMatrixTrigger type;/*does not wirk with VS2010*/
 			};
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector, bool odd, unsigned namingSet>
-			struct TSwizzleVectorMatrixTagHelper<CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet>>
+			struct TSwizzleVectorMatrixTriggerHelper<CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet>>
 			{
 			};
 
 			template<typename ElementType, unsigned int dimension>
-			struct TSwizzleVectorMatrixTagHelper<vector<ElementType, dimension>>
+			struct TSwizzleVectorMatrixTriggerHelper<vector<ElementType, dimension>>
 			{
 			};
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			struct TSwizzleVectorMatrixTagHelper<matrix<ElementType, rows, columns>>
+			struct TSwizzleVectorMatrixTriggerHelper<matrix<ElementType, rows, columns>>
 			{
 			};
 
 			template<typename T>
-			struct TSwizzleVectorMatrixTag: TSwizzleVectorMatrixTagHelper<typename std::remove_cv<T>::type>
+			struct TSwizzleVectorMatrixTrigger: TSwizzleVectorMatrixTriggerHelper<typename std::remove_cv<T>::type>
 			{
 			};
 #			else
@@ -1398,11 +1398,11 @@ consider overloads with vector arguments to eliminate this issue
 				//SrcElementType template required to eliminate conflict with variadic template ctor
 				template<typename SrcElementType>
 #				ifdef MSVC_LIMITATIONS
-				vector(const SrcElementType &scalar, typename TSwizzleVectorMatrixTag<SrcElementType>::type = CEmpty());
+				vector(const SrcElementType &scalar, typename TSwizzleVectorMatrixTrigger<SrcElementType>::type = CEmpty());
 #				else
 				vector(const SrcElementType &scalar, typename std::enable_if<!TIsSwizzleVectorMatrix<SrcElementType>::value, CEmpty>::type = CEmpty());
 #				endif
-				//vector(const SrcElementType &scalar, typename TSwizzleVectorMatrixTag<SrcElementType>::type = typename TSwizzleVectorMatrixTag<SrcElementType>::type());
+				//vector(const SrcElementType &scalar, typename TSwizzleVectorMatrixTrigger<SrcElementType>::type = typename TSwizzleVectorMatrixTrigger<SrcElementType>::type());
 
 #ifndef NO_INIT_LIST
 				vector(std::initializer_list<CInitListItem<ElementType>> initList);
@@ -1468,11 +1468,11 @@ consider overloads with vector arguments to eliminate this issue
 				//SrcElementType template required to eliminate conflict with variadic template ctor
 				template<typename SrcElementType>
 #				ifdef MSVC_LIMITATIONS
-				matrix(const SrcElementType &scalar, typename TSwizzleVectorMatrixTag<SrcElementType>::type = CEmpty());
+				matrix(const SrcElementType &scalar, typename TSwizzleVectorMatrixTrigger<SrcElementType>::type = CEmpty());
 #				else
 				matrix(const SrcElementType &scalar, typename std::enable_if<!TIsSwizzleVectorMatrix<SrcElementType>::value, CEmpty>::type = CEmpty());
 #				endif
-				//matrix(const SrcElementType &scalar, typename TSwizzleVectorMatrixTag<SrcElementType>::type = typename TSwizzleVectorMatrixTag<SrcElementType>::type());
+				//matrix(const SrcElementType &scalar, typename TSwizzleVectorMatrixTrigger<SrcElementType>::type = typename TSwizzleVectorMatrixTrigger<SrcElementType>::type());
 
 #ifndef NO_INIT_LIST
 				matrix(std::initializer_list<CInitListItem<ElementType>> initList);
@@ -1826,7 +1826,7 @@ consider overloads with vector arguments to eliminate this issue
 				template<typename ElementType, unsigned int dimension>
 				template<typename SrcElementType>
 #				ifdef MSVC_LIMITATIONS
-				inline vector<ElementType, dimension>::vector(const SrcElementType &scalar, typename TSwizzleVectorMatrixTag<SrcElementType>::type)
+				inline vector<ElementType, dimension>::vector(const SrcElementType &scalar, typename TSwizzleVectorMatrixTrigger<SrcElementType>::type)
 #				else
 				inline vector<ElementType, dimension>::vector(const SrcElementType &scalar, typename std::enable_if<!TIsSwizzleVectorMatrix<SrcElementType>::value, CEmpty>::type)
 #				endif
@@ -1973,7 +1973,7 @@ consider overloads with vector arguments to eliminate this issue
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				template<typename SrcElementType>
 #				ifdef MSVC_LIMITATIONS
-				inline matrix<ElementType, rows, columns>::matrix(const SrcElementType &scalar, typename TSwizzleVectorMatrixTag<SrcElementType>::type)
+				inline matrix<ElementType, rows, columns>::matrix(const SrcElementType &scalar, typename TSwizzleVectorMatrixTrigger<SrcElementType>::type)
 #				else
 				inline matrix<ElementType, rows, columns>::matrix(const SrcElementType &scalar, typename std::enable_if<!TIsSwizzleVectorMatrix<SrcElementType>::value, CEmpty>::type)
 #				endif
