@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.3.2013 (c)Korotkov Andrey
+\date		26.4.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -54,50 +54,40 @@ namespace DtorImpl
 			template<class>
 			static std::false_type test(...);
 
-		public:
+		private:
 #ifdef MSVC_LIMITATIONS
 			typedef std::false_type type;
 #else
 			typedef decltype(test<Class>(nullptr)) type;
 #endif
+
+		public:
+			static constexpr bool value = type::value;
 		};
-
-	private:
-		template<class Class>
-		inline std::shared_ptr<Class> GetRefImpl(std::true_type)
-		{
-			return static_pointer_cast<Class>(_externRef);
-		}
-
-		template<class Class>
-		inline std::shared_ptr<const Class> GetRefImpl(std::true_type) const
-		{
-			return static_pointer_cast<const Class>(_externRef);
-		}
-
-		template<class Class>
-		inline std::shared_ptr<Class> GetRefImpl(std::false_type)
-		{
-			return dynamic_pointer_cast<Class>(_externRef);
-		}
-
-		template<class Class>
-		inline std::shared_ptr<const Class> GetRefImpl(std::false_type) const
-		{
-			return dynamic_pointer_cast<const Class>(_externRef);
-		}
 
 	protected:
 		template<class Class>
-		std::shared_ptr<Class> GetRef()
+		typename std::enable_if<TIsStaticCastPossible<Class>::value, std::shared_ptr<Class>>::type GetRef()
 		{
-			return GetRefImpl<Class>(typename TIsStaticCastPossible<Class>::type());
+			return std::static_pointer_cast<Class>(_externRef);
 		}
 
 		template<class Class>
-		std::shared_ptr<const Class> GetRef() const
+		typename std::enable_if<!TIsStaticCastPossible<Class>::value, std::shared_ptr<Class>>::type GetRef()
 		{
-			return GetRefImpl<Class>(typename TIsStaticCastPossible<Class>::type());
+			return std::dynamic_pointer_cast<Class>(_externRef);
+		}
+
+		template<class Class>
+		typename std::enable_if<TIsStaticCastPossible<Class>::value, std::shared_ptr<const Class>>::type GetRef() const
+		{
+			return std::static_pointer_cast<const Class>(_externRef);
+		}
+
+		template<class Class>
+		typename std::enable_if<!TIsStaticCastPossible<Class>::value, std::shared_ptr<const Class>>::type GetRef() const
+		{
+			return std::dynamic_pointer_cast<const Class>(_externRef);
 		}
 	};
 }
