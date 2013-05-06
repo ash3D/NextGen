@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		26.3.2013 (c)Alexey Shaydurov
+\date		6.5.2013 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -417,10 +417,9 @@ consider overloads with vector arguments to eliminate this issue
 #	pragma warning(disable: 4003 4005/*temp for MSVC_SWIZZLE_ASSIGN_WORKAROUND*/)
 
 #	include "C++11 stub.h"
-#	include <crtdbg.h>
-#	include <stddef.h>
+#	include <cassert>
 #	ifdef MSVC_LIMITATIONS
-#	include <stdarg.h>
+#	include <cstdarg>
 #	endif
 #if defined _MSC_VER & _MSC_VER <= 1600
 	/*
@@ -745,7 +744,7 @@ consider overloads with vector arguments to eliminate this issue
 			public:
 				const ElementType &operator [](unsigned int idx) const noexcept
 				{
-					_ASSERTE((idx < TSwizzleTraits<columns, CSwizzleVector>::TDimension::value));
+					assert((idx < TSwizzleTraits<columns, CSwizzleVector>::TDimension::value));
 					idx = packedSwizzle >> (idx << 2u) & (1u << 4u) - 1u;
 					auto row = idx >> 2 & 3u, column = idx & 3u;
 					/*
@@ -794,7 +793,7 @@ consider overloads with vector arguments to eliminate this issue
 			public:
 				const ElementType &operator [](unsigned int idx) const noexcept
 				{
-					_ASSERTE((idx < TSwizzleTraits<vectorDimension, CSwizzleVector>::TDimension::value));
+					assert((idx < TSwizzleTraits<vectorDimension, CSwizzleVector>::TDimension::value));
 					idx = packedSwizzle >> (idx << 2u) & (1u << 4u) - 1u;
 					/*
 								static	  reinterpret
@@ -917,7 +916,7 @@ consider overloads with vector arguments to eliminate this issue
 						for (unsigned item_element_idx = 0; item_element_idx < item.GetItemSize(); item_element_idx++)
 							(*this)[dst_idx++] = item[item_element_idx];
 #endif
-					_ASSERTE(dst_idx == columns);
+					assert(dst_idx == columns);
 				}
 #endif
 			};
@@ -976,12 +975,12 @@ consider overloads with vector arguments to eliminate this issue
 				}
 				bool operator ==(CSwizzleIteratorImpl<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> src) const noexcept
 				{
-					_ASSERTE(&_swizzle == &src._swizzle);
+					assert(&_swizzle == &src._swizzle);
 					return _i == src._i;
 				}
 				bool operator !=(CSwizzleIteratorImpl<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> src) const noexcept
 				{
-					_ASSERTE(&_swizzle == &src._swizzle);
+					assert(&_swizzle == &src._swizzle);
 					return _i != src._i;
 				}
 				CSwizzleIteratorImpl &operator ++()
@@ -1559,7 +1558,7 @@ consider overloads with vector arguments to eliminate this issue
 				public:
 					const Scalar &operator [](unsigned idx) const noexcept
 					{
-						_ASSERTE(idx < dimension);
+						assert(idx < dimension);
 						return _scalar;
 					}
 				public:
@@ -1741,14 +1740,14 @@ consider overloads with vector arguments to eliminate this issue
 				template<typename ElementType, unsigned int dimension>
 				inline const ElementType &vector<ElementType, dimension>::operator [](unsigned int idx) const noexcept
 				{
-					_ASSERTE(idx < dimension);
+					assert(idx < dimension);
 					return CDataContainer<ElementType, 0, dimension>::_data._data[idx];
 				}
 
 				template<typename ElementType, unsigned int dimension>
 				inline ElementType &vector<ElementType, dimension>::operator [](unsigned int idx) noexcept
 				{
-					_ASSERTE(idx < dimension);
+					assert(idx < dimension);
 					return CDataContainer<ElementType, 0, dimension>::_data._data[idx];
 				}
 
@@ -1885,7 +1884,7 @@ consider overloads with vector arguments to eliminate this issue
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				inline auto matrix<ElementType, rows, columns>::operator [](unsigned int idx) const noexcept -> const typename matrix::TRow &
 				{
-					_ASSERTE(idx < rows);
+					assert(idx < rows);
 #				ifdef MSVC_LIMITATIONS
 					return reinterpret_cast<const TRow &>(CDataContainer<ElementType, rows, columns>::_data._rows[idx]);
 #				else
@@ -1896,7 +1895,7 @@ consider overloads with vector arguments to eliminate this issue
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				inline auto matrix<ElementType, rows, columns>::operator [](unsigned int idx) noexcept -> typename matrix::TRow &
 				{
-					_ASSERTE(idx < rows);
+					assert(idx < rows);
 #				ifdef MSVC_LIMITATIONS
 					return reinterpret_cast<TRow &>(CDataContainer<ElementType, rows, columns>::_data._rows[idx]);
 #				else
@@ -2024,7 +2023,7 @@ consider overloads with vector arguments to eliminate this issue
 						for (unsigned item_element_idx = 0; item_element_idx < item.GetItemSize(); item_element_idx++, dst_idx++)
 							(*this)[dst_idx / columns][dst_idx % columns] = item[item_element_idx];
 #endif
-					_ASSERTE(dst_idx == rows * columns);
+					assert(dst_idx == rows * columns);
 					return *this;
 				}
 #endif
