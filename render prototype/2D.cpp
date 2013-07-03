@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		11.3.2013 (c)Korotkov Andrey
+\date		3.7.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -33,9 +33,9 @@ C2D::C2D(const DXGI_MODE_DESC &modeDesc, bool multithreaded):
 	_rectPass = _effect2D->GetTechniqueByName("Rect")->GetPassByIndex(0);
 	_ellipsePass = _effect2D->GetTechniqueByName("Ellipse")->GetPassByIndex(0);
 	_ellipseAAPass = _effect2D->GetTechniqueByName("EllipseAA")->GetPassByIndex(0);
-	_ASSERT(_rectPass);
-	_ASSERT(_ellipsePass);
-	_ASSERT(_ellipseAAPass);
+	assert(_rectPass);
+	assert(_ellipsePass);
+	assert(_ellipseAAPass);
 
 	// init uniforms
 	const float res[4] = {modeDesc.Width, modeDesc.Height};

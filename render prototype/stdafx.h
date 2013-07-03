@@ -29,6 +29,7 @@
 #include <type_traits>
 #include <memory>
 #include <new>			// for bad_alloc
+#include <cassert>
 #include <malloc.h>		// for _get_heap_handle
 #include <crtdbg.h>
 
@@ -44,4 +45,4 @@
 
 #include "C++11 stub.h"
 
-#define ASSERT_HR(...) {const HRESULT hr = __VA_ARGS__; _ASSERT(SUCCEEDED(hr));}
+#define ASSERT_HR(...) {const HRESULT hr = __VA_ARGS__; assert(SUCCEEDED(hr));}

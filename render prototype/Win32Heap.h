@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.1.2013 (c)Korotkov Andrey
+\date		3.7.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -24,7 +24,7 @@ namespace Win32Heap
 		}
 		CWin32Heap &operator =(CWin32Heap &&src) noexcept
 		{
-			_ASSERT(this != &src);
+			assert(this != &src);
 			_handle = src._handle;
 			src._handle = NULL;
 			return *this;

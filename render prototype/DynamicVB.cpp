@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		11.3.2013 (c)Korotkov Andrey
+\date		3.7.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -22,7 +22,7 @@ CDynamicVB::CDynamicVB(ComPtr<ID3D11Device> device, UINT minSize): _device(devic
 
 void CDynamicVB::Draw(ComPtr<ID3D11DeviceContext> context, UINT stride, UINT vcount, function<void (void *)> fillCallback)
 {
-	_ASSERT(fillCallback);
+	assert(fillCallback);
 	const UINT size = stride * vcount;
 	if (_size < size)
 	{

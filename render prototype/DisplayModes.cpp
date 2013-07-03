@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		11.3.2013 (c)Korotkov Andrey
+\date		3.7.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -123,7 +123,7 @@ namespace
 		case DXGI_FORMAT_BC7_UNORM:						return "DXGI_FORMAT_BC7_UNORM";
 		case DXGI_FORMAT_BC7_UNORM_SRGB:				return "DXGI_FORMAT_BC7_UNORM_SRGB";
 		default:
-			_ASSERT(false);
+			assert(false);
 			__assume(false);
 		}
 	}
@@ -137,7 +137,7 @@ namespace
 		case DXGI_MODE_SCANLINE_ORDER_UPPER_FIELD_FIRST:	return "DXGI_MODE_SCANLINE_ORDER_UPPER_FIELD_FIRST";
 		case DXGI_MODE_SCANLINE_ORDER_LOWER_FIELD_FIRST:	return "DXGI_MODE_SCANLINE_ORDER_LOWER_FIELD_FIRST";
 		default:
-			_ASSERT(false);
+			assert(false);
 			__assume(false);
 		}
 	}
@@ -150,7 +150,7 @@ namespace
 		case DXGI_MODE_SCALING_CENTERED:	return "DXGI_MODE_SCALING_CENTERED";
 		case DXGI_MODE_SCALING_STRETCHED:	return "DXGI_MODE_SCALING_STRETCHED";
 		default:
-			_ASSERT(false);
+			assert(false);
 			__assume(false);
 		}
 	}
