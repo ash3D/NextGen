@@ -1,13 +1,13 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		6.5.2013 (c)Alexey Shaydurov
+\date		3.7.2013 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
 See "DGLE2.h" for more details.
 */
 
-#pragma region(limitations due to lack of C++11 support)
+#pragma region limitations due to lack of C++11 support
 /*
 VS 2010 does not catch errors like vec.xx = vec.xx and does nothing for things like vec.x = vec.x
 
@@ -18,7 +18,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 */
 #pragma endregion
 
-#pragma region(design considerations)
+#pragma region design considerations
 /*
 it is safe to use const_cast if const version returns (const &), not value, and *this object is not const
 
@@ -316,7 +316,7 @@ consider overloads with vector arguments to eliminate this issue
 #	undef SWIZZLE_OBJECT
 #endif
 
-#	pragma region(generate typedefs)
+#	pragma region generate typedefs
 		// tuple: (C++, HLSL, GLSL)
 #		define SCALAR_TYPES_MAPPINGS										\
 			((bool, bool, b))												\
@@ -1012,7 +1012,7 @@ consider overloads with vector arguments to eliminate this issue
 #endif
 			};
 
-#			pragma region(generate operators)
+#			pragma region generate operators
 				template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector, bool odd, unsigned namingSet>
 				inline const typename CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet>::TOperationResult &operator +(const CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> &src) noexcept
 				{
@@ -1300,7 +1300,7 @@ consider overloads with vector arguments to eliminate this issue
 #				undef OPERATOR_DEFINITION
 #			pragma endregion
 
-#			pragma region(swizzle/vector/matrix trigger)
+#			pragma region swizzle/vector/matrix trigger
 #			ifdef MSVC_LIMITATIONS
 			template<typename T>
 			struct TSwizzleVectorMatrixTriggerHelper
@@ -1545,7 +1545,7 @@ consider overloads with vector arguments to eliminate this issue
 #				endif
 			};
 
-#			pragma region(Flat idx accessors)
+#			pragma region Flat idx accessors
 				template<typename Src>
 				class CFlatIdxAccessor;
 
@@ -1614,7 +1614,7 @@ consider overloads with vector arguments to eliminate this issue
 				}
 #			pragma endregion
 
-#			pragma region(Initializer list)
+#			pragma region Initializer list
 				template<typename ElementType>
 				class CInitListItem final
 				{
@@ -1736,7 +1736,7 @@ consider overloads with vector arguments to eliminate this issue
 				return result;
 			}
 
-#			pragma region(vector impl)
+#			pragma region vector impl
 				template<typename ElementType, unsigned int dimension>
 				inline const ElementType &vector<ElementType, dimension>::operator [](unsigned int idx) const noexcept
 				{
@@ -1880,7 +1880,7 @@ consider overloads with vector arguments to eliminate this issue
 				}
 #			pragma endregion
 
-#			pragma region(matrix impl)
+#			pragma region matrix impl
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				inline auto matrix<ElementType, rows, columns>::operator [](unsigned int idx) const noexcept -> const typename matrix::TRow &
 				{
@@ -2256,7 +2256,7 @@ consider overloads with vector arguments to eliminate this issue
 				}
 #			pragma endregion
 
-#			pragma region(min/max functions)
+#			pragma region min/max functions
 				// std::min/max requires explicit template param if used for different types => provide scalar version
 #				define FUNCTION_DEFINITION(f)																\
 					template<typename LeftElementType, typename RightElementType>							\
@@ -2480,7 +2480,7 @@ consider overloads with vector arguments to eliminate this issue
 #				undef FUNCTION_DEFINITION
 #			pragma endregion
 
-#			pragma region(all/any/none functions)
+#			pragma region all/any/none functions
 #				define FUNCTION_DEFINITION(f)																																			\
 					template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector, bool odd, unsigned namingSet>			\
 					inline bool f(const CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> &src)														\
@@ -2520,7 +2520,7 @@ consider overloads with vector arguments to eliminate this issue
 #				undef FUNCTION_DEFINITION
 #			pragma endregion
 
-#			pragma region(mul functions)
+#			pragma region mul functions
 				// note: most of these functions are not inline
 
 				template
@@ -2669,7 +2669,7 @@ consider overloads with vector arguments to eliminate this issue
 					return swizzle / length(swizzle);
 				}
 
-#				pragma region("series of matrices delimitted by ',' interpreted as series of successive transforms; inspirited by boost's function superposition")
+#				pragma region "series of matrices delimitted by ',' interpreted as series of successive transforms; inspirited by boost's function superposition"
 					template
 					<
 						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, unsigned short leftPackedSwizzle, class CLeftSwizzleVector, bool leftOdd, unsigned leftNamingSet,

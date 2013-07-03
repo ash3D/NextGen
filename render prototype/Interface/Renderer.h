@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		11.3.2013 (c)Korotkov Andrey
+\date		3.7.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -25,7 +25,7 @@ See "DGLE2.h" for more details.
 #	define RESTRICT
 #endif
 
-#pragma region("considerations")
+#pragma region considerations
 /*
 dedicated classes: CB, SB
 dedicated DS class (whole update, 1D or 2D only, can't be used as rendertarget)
@@ -105,8 +105,8 @@ namespace DGLE2
 			struct TCaps
 			{
 			};
-#pragma region("State objects")
-#pragma region("Common")
+#pragma region State objects
+#pragma region Common
 			enum E_COMPARISON_FUNC
 			{
 				COMPARISON_NEVER,
@@ -120,7 +120,7 @@ namespace DGLE2
 			};
 #pragma endregion
 
-#pragma region("Blend")
+#pragma region Blend
 			enum E_BLEND
 			{
 				BLEND_ZERO,
@@ -174,7 +174,7 @@ namespace DGLE2
 			};
 #pragma endregion
 
-#pragma region("DepthStencil")
+#pragma region DepthStencil
 			enum DEPTH_WRITE_MASK
 			{
 				DEPTH_WRITE_MASK_ZERO,
@@ -217,7 +217,7 @@ namespace DGLE2
 			};
 #pragma endregion
 
-#pragma region("InputLayout")
+#pragma region InputLayout
 			enum E_VERTEX_FORMAT
 			{
 				VERTEX_FORMAT_R32G32B32A32_FLOAT	= 2,
@@ -291,7 +291,7 @@ namespace DGLE2
 			};
 #pragma endregion
 
-#pragma region("Rasterizer")
+#pragma region Rasterizer
 			enum E_FILL_MODE
 			{
 				FILL_WIREFRAME,
@@ -326,7 +326,7 @@ namespace DGLE2
 			};
 #pragma endregion
 
-#pragma region("Sampler")
+#pragma region Sampler
 			enum E_FILTER
 			{
 				FILTER_MIN_MAG_MIP_POINT,
@@ -377,7 +377,7 @@ namespace DGLE2
 #pragma endregion
 #pragma endregion
 
-#pragma region("Resources")
+#pragma region Resources
 			class IDeviceContext;
 
 			template<class Resource, class Format>
@@ -521,8 +521,8 @@ namespace DGLE2
 			};
 #pragma endregion
 
-#pragma region("Resource views")
-#pragma region("DepthStencil")
+#pragma region Resource views
+#pragma region DepthStencil
 			enum E_DEPTH_STENCIL_FORMAT
 			{
 			};
@@ -582,7 +582,7 @@ namespace DGLE2
 
 #pragma endregion
 
-#pragma region("RenderTarget")
+#pragma region RenderTarget
 			enum E_RENDER_TARGET_FORMAT
 			{
 			};
@@ -654,7 +654,7 @@ namespace DGLE2
 			};
 #pragma endregion
 
-#pragma region("ShaderResource")
+#pragma region ShaderResource
 			enum E_SHADER_RESOURCE_FORMAT
 			{
 			};
@@ -750,7 +750,7 @@ namespace DGLE2
 			};
 #pragma endregion
 
-#pragma region("UnorderedAccess")
+#pragma region UnorderedAccess
 			enum E_UNORDERED_ACCESS_FORMAT
 			{
 			};
@@ -1084,7 +1084,7 @@ namespace DGLE2
 					float _min[dimension], _max[dimension];
 				};
 
-#pragma region("AABB impl")
+#pragma region AABB impl
 				template<unsigned dimension>
 				void AABB<dimension>::Refit(const float (&min)[dimension], const float (&max)[dimension])
 				{
@@ -1254,7 +1254,7 @@ namespace DGLE2
 					unsigned _idx;
 				};
 
-#pragma region("IDisplayModes::CIterator impl")
+#pragma region IDisplayModes::CIterator impl
 				void IDisplayModes::CIterator::_CheckRange() const
 				{
 					_ASSERTE(_idx >= 0);

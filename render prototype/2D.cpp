@@ -73,7 +73,7 @@ C2D::C2D(const DXGI_MODE_DESC &modeDesc, bool multithreaded):
 	_mappedVB = reinterpret_cast<TQuad *>(mapped.pData);
 }
 
-#pragma region(immediate)
+#pragma region immediate
 void C2D::DrawPoint(float x, float y, uint32_t color, float size) const
 {
 }
@@ -130,7 +130,7 @@ void C2D::DrawEllipse(float x, float y, float rx, float ry, uint32_t color, bool
 }
 #pragma endregion
 
-#pragma region(scene)
+#pragma region scene
 C2D::CQuadHandle::CQuadHandle(shared_ptr<C2D> &&parent, TQuads C2D::*const container, TQuad &&quad, bool dynamic):
 	_parent(move(parent)), _container(container),
 	_quad(((*_parent.*_container).push_front(move(quad)), (*_parent.*_container).begin()))
@@ -180,7 +180,7 @@ IEllipse *C2D::AddEllipse(bool dynamic, uint16_t layer, float x, float y, float 
 
 void C2D::_DrawScene() const
 {
-#pragma region("static")
+#pragma region static
 	// (re)create VB if nesessary
 	if (_static2DDirty)
 	{
@@ -226,7 +226,7 @@ void C2D::_DrawScene() const
 	}
 #pragma endregion
 
-#pragma region("dynamic")
+#pragma region dynamic
 	_immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
 	_immediateContext->IASetInputLayout(_quadLayout.Get());
 	if (!_dynamicRects.empty())
