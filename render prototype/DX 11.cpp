@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		11.3.2013 (c)Korotkov Andrey
+\date		30.7.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -320,9 +320,9 @@ namespace DX11
 		_heightScale(1), _envAmount(0), _shininess(128),
 		_texMapping(Materials::E_TEX_MAPPING::UV), _normalTechnique(Materials::E_NORMAL_TECHNIQUE::UNPERTURBED), _parallaxTechnique(Materials::E_PARALLAX_TECHNIQUE::NONE)
 	{
-		fill_n(_ambientColor, extent<decltype(_ambientColor)>::value, 1);
-		fill_n(_diffuseColor, extent<decltype(_diffuseColor)>::value, 1);
-		fill_n(_specularColor, extent<decltype(_specularColor)>::value, 1);
+		fill(begin(_ambientColor), end(_ambientColor, 1);
+		fill(begin(_diffuseColor), end(_diffuseColor), 1);
+		fill(begin(_specularColor), end(_specularColor), 1);
 	}
 
 	class CInstance: CDtor, public IInstance

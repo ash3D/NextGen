@@ -27,6 +27,7 @@
 #include <algorithm>
 #include <functional>
 #include <type_traits>
+#include <iterator>
 #include <memory>
 #include <new>			// for bad_alloc
 #include <cassert>
