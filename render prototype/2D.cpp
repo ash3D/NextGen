@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		3.7.2013 (c)Korotkov Andrey
+\date		29.8.2013 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -233,11 +233,12 @@ void C2D::_DrawScene() const
 	{
 		static list<TQuad> vb_shadow;
 		// (re)create VB if nesessary
-		if (!_dynamic2DVB || _dynamic2DVBSize < _dynamicRects.size() * sizeof(TQuad))
+		const auto rects_count = _dynamicRects.size();
+		if (!_dynamic2DVB || _dynamic2DVBSize < rects_count * sizeof(TQuad))
 		{
 			const D3D11_BUFFER_DESC VB_desc =
 			{
-				_dynamic2DVBSize = _dynamicRects.size() * sizeof(TQuad),	//ByteWidth
+				_dynamic2DVBSize = rects_count * sizeof(TQuad),	//ByteWidth
 				D3D11_USAGE_DYNAMIC,										//Usage
 				D3D11_BIND_VERTEX_BUFFER,									//BindFlags
 				D3D11_CPU_ACCESS_WRITE,										//CPUAccessFlags
@@ -256,7 +257,7 @@ void C2D::_DrawScene() const
 		UINT stride = sizeof(TQuad), offset = 0;
 		ASSERT_HR(_rectPass->Apply(0, _immediateContext.Get()))
 		_immediateContext->IASetVertexBuffers(0, 1, _dynamic2DVB.GetAddressOf(), &stride, &offset);
-		_immediateContext->Draw(_dynamicRects.size(), 0);
+		_immediateContext->Draw(rects_count, 0);
 	}
 #pragma endregion
 }
