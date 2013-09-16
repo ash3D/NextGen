@@ -279,7 +279,8 @@ HRESULT CEffectHeap::MoveString(char **ppString)
         return S_OK;
 
     hr = AddString(*ppString, &pNewPointer);
-    *ppString = pNewPointer;
+    if ( SUCCEEDED(hr) )
+        *ppString = pNewPointer;
 
     return hr;
 }
@@ -295,11 +296,14 @@ HRESULT CEffectHeap::MoveEmptyDataBlock(void **ppData, uint32_t  size)
 
     hr = AddDataInternal<false>(*ppData, size, &pNewPointer);
 
-    *ppData = pNewPointer;
-    if (size == 0)
+    if (SUCCEEDED(hr))
     {
-        // To help catch bugs, set zero-byte blocks to null. There's no real reason to do this
-        *ppData = nullptr;
+        *ppData = pNewPointer;
+        if (size == 0)
+        {
+            // To help catch bugs, set zero-byte blocks to null. There's no real reason to do this
+            *ppData = nullptr;
+        }
     }
 
     return hr;
@@ -344,12 +348,14 @@ HRESULT CEffectHeap::MoveData(void **ppData, uint32_t  size)
     void *pNewPointer;
 
     hr = AddData(*ppData, size, &pNewPointer);
-    
-    *ppData = pNewPointer;
-    if (size == 0)
+    if ( SUCCEEDED(hr) )
     {
-        // To help catch bugs, set zero-byte blocks to null. There's no real reason to do this
-        *ppData = nullptr;
+        *ppData = pNewPointer;
+        if (size == 0)
+        {
+            // To help catch bugs, set zero-byte blocks to null. There's no real reason to do this
+            *ppData = nullptr;
+        }
     }
 
     return hr;
@@ -1152,7 +1158,6 @@ uint32_t CEffectLoader::UnpackData(uint8_t *pDestData, uint8_t *pSrcData, uint32
             for (size_t j = 0; j < pType->StructType.Members; ++ j)
             {
                 uint32_t  br;
-                assert((UINT_PTR)pType->StructType.pMembers[j].pType == (uint32_t)(UINT_PTR)pType->StructType.pMembers[j].pType);
                 assert(PackedDataSize > bytesRead);                    
 
                 VH( UnpackData(pDestData + pType->StructType.pMembers[j].Data.Offset, 
@@ -1821,7 +1826,7 @@ HRESULT CEffectLoader::LoadAssignments( uint32_t Assignments, SAssignment **ppAs
                 pShaderBlock->pReflectionData->pStreamOutDecls[2] =
                 pShaderBlock->pReflectionData->pStreamOutDecls[3] = nullptr;
                 pShaderBlock->pReflectionData->RasterizedStream = 0;
-                pShaderBlock->pReflectionData->IsNullGS = false;
+                pShaderBlock->pReflectionData->IsNullGS = FALSE;
                 pShaderBlock->pReflectionData->pReflection = nullptr;
                 pShaderBlock->pReflectionData->InterfaceParameterCount = 0;
                 pShaderBlock->pReflectionData->pInterfaceParameters = nullptr;
@@ -2086,7 +2091,7 @@ HRESULT CEffectLoader::LoadObjectVariables()
                     pShaderBlock->pReflectionData->pStreamOutDecls[2] =
                     pShaderBlock->pReflectionData->pStreamOutDecls[3] = nullptr;
                     pShaderBlock->pReflectionData->RasterizedStream = 0;
-                    pShaderBlock->pReflectionData->IsNullGS = false;
+                    pShaderBlock->pReflectionData->IsNullGS = FALSE;
                     pShaderBlock->pReflectionData->pReflection = nullptr;
                     pShaderBlock->pReflectionData->InterfaceParameterCount = 0;
                     pShaderBlock->pReflectionData->pInterfaceParameters = nullptr;
@@ -2526,7 +2531,9 @@ HRESULT CEffectLoader::GrabShaderData(SShaderBlock *pShaderBlock)
     // an "optimized" list of all of the dependencies
 
     D3D11_SHADER_DESC ShaderDesc;
-    pShaderBlock->pReflectionData->pReflection->GetDesc( &ShaderDesc );
+    hr = pShaderBlock->pReflectionData->pReflection->GetDesc( &ShaderDesc );
+    if ( FAILED(hr) ) 
+        return hr;
 
     // Since we have the shader desc, let's find out if this is a nullptr GS
     if( D3D11_SHVER_GET_TYPE( ShaderDesc.Version ) == D3D11_SHVER_VERTEX_SHADER && pShaderBlock->GetShaderType() == EOT_GeometryShader )
@@ -2779,7 +2786,7 @@ HRESULT CEffectLoader::GrabShaderData(SShaderBlock *pShaderBlock)
                 ID3D11ShaderReflectionVariable* pInterfaceVar = pCB->GetVariableByIndex( iVar );
                 VN( pInterfaceVar );
                 D3D11_SHADER_VARIABLE_DESC InterfaceDesc;
-                pInterfaceVar->GetDesc( &InterfaceDesc );
+                VHD( pInterfaceVar->GetDesc(&InterfaceDesc), "Internal load error: cannot get IV desc.");
 
                 LPCSTR pName;
                 uint32_t bindPoint, size;
@@ -3080,7 +3087,9 @@ HRESULT CEffectLoader::BuildShaderBlock(SShaderBlock *pShaderBlock)
     if( EOT_VertexShader == pShaderBlock->GetShaderType() )
     {
         assert( pShaderBlock->pInputSignatureBlob == nullptr );
-        VHD( D3DGetInputSignatureBlob( pShaderBlock->pReflectionData->pBytecode, pShaderBlock->pReflectionData->BytecodeLength, &pShaderBlock->pInputSignatureBlob ),
+        VHD( D3DGetBlobPart( pShaderBlock->pReflectionData->pBytecode, pShaderBlock->pReflectionData->BytecodeLength, 
+                             D3D_BLOB_INPUT_SIGNATURE_BLOB, 0,
+                             &pShaderBlock->pInputSignatureBlob ),
              "Internal loading error: cannot get input signature." );
     }
 
