@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		3.7.2013 (c)Alexey Shaydurov
+\date		23.10.2013 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -26,6 +26,8 @@ functions like distance now receives CSwizzle arguments
 function template with same name from other namespace can have hier priority when passing vector arguments
 (because no conversion required in contrast to vector->CSwizzle conversion required for function in VectorMath)
 consider overloads with vector arguments to eliminate this issue
+
+TODO: consider specialized '=', 'op=', 'op' to eliminate temp copies where it is safe regarding to aliasing
 */
 #pragma endregion
 
@@ -120,18 +122,14 @@ consider overloads with vector arguments to eliminate this issue
 			CSwizzleAssign<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>::operator =(scalar);	\
 			return *this;																														\
 		}
-#ifdef NO_INIT_LIST
-#	define GENERATE_INIT_LIST_ASSIGGN_OPERATOR(leftSwizzleSeq)
-#else
 #	define GENERATE_INIT_LIST_ASSIGGN_OPERATOR(leftSwizzleSeq)																						\
 		CSwizzle &operator =(std::initializer_list<CInitListItem<ElementType>> initList)															\
 		{																																			\
 			CSwizzleAssign<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>::operator =(initList);	\
 			return *this;																															\
 		}
-#endif
 #	ifdef MSVC_LIMITATIONS
-		// VS 2010 does not allow operator = in union members
+		// VS 2013 does not allow copy operator = in union members
 #		define GENERATE_ASSIGN_OPERATORS(leftSwizzleSeq)		\
 			GENERATE_TEMPLATED_ASSIGN_OPERATOR(leftSwizzleSeq)	\
 			GENERATE_SCALAR_ASSIGN_OPERATOR(leftSwizzleSeq)		\
@@ -409,7 +407,7 @@ consider overloads with vector arguments to eliminate this issue
 #	ifndef __VECTOR_MATH_H__
 #	define __VECTOR_MATH_H__
 
-#if defined _MSC_VER & _MSC_VER < 1600 | defined __GNUC__ & (__GNUC__ < 4 | (__GNUC__ >= 4 & __GNUC_MINOR__ < 7))
+#if defined _MSC_VER & _MSC_VER < 1800 | defined __GNUC__ & (__GNUC__ < 4 | (__GNUC__ >= 4 & __GNUC_MINOR__ < 7))
 #error old compiler version
 #endif
 
@@ -418,26 +416,12 @@ consider overloads with vector arguments to eliminate this issue
 
 #	include "C++11 stub.h"
 #	include <cassert>
-#	ifdef MSVC_LIMITATIONS
-#	include <cstdarg>
-#	endif
-#if defined _MSC_VER & _MSC_VER <= 1600
-	/*
-		declval is not included in VS2010 => use boost
-	*/
-#	include <boost\utility\declval.hpp>
-	using boost::declval;
-#else
 #	include <utility>
-	using std::declval;
-#	endif
 #	include <type_traits>
 #	include <functional>
 #	include <iterator>
 #	include <algorithm>
-#ifndef NO_INIT_LIST
 #	include <initializer_list>
-#endif
 #	include <memory>	// temp for unique_ptr
 #	include <boost\preprocessor\facilities\apply.hpp>
 #	include <boost\preprocessor\iteration\iterate.hpp>
@@ -577,10 +561,6 @@ consider overloads with vector arguments to eliminate this issue
 #		endif
 			};
 
-#if defined _MSC_VER & _MSC_VER == 1700
-#define final
-#endif
-
 			// specialization for vector
 			template<typename ElementType, unsigned int dimension>
 			class CData<ElementType, 0, dimension> final
@@ -605,10 +585,6 @@ consider overloads with vector arguments to eliminate this issue
 			private:
 				ElementType _data[dimension];
 			};
-
-#if defined _MSC_VER & _MSC_VER == 1700
-#undef final
-#endif
 
 			class CEmpty {};
 
@@ -872,9 +848,10 @@ consider overloads with vector arguments to eliminate this issue
 					typedef TSwizzleTraits<columns, CSwizzleVector> TLeftSwizzleTraits;
 					typedef TSwizzleTraits<rightColumns, CRightSwizzleVector> TRightSwizzleTraits;
 					static_assert(TLeftSwizzleTraits::TDimension::value <= TRightSwizzleTraits::TDimension::value, "operator =: too small src dimension");
+					const vector<RightElementType, TRightSwizzleTraits::TDimension::value> right_copy(right);
 					for (unsigned idx = 0; idx < TLeftSwizzleTraits::TDimension::value; idx++)
 					{
-						(*this)[idx] = right[idx];
+						(*this)[idx] = right_copy[idx];
 					}
 				}
 
@@ -903,22 +880,14 @@ consider overloads with vector arguments to eliminate this issue
 					}
 				}
 
-#ifndef NO_INIT_LIST
 				void operator =(std::initializer_list<CInitListItem<ElementType>> initList)
 				{
 					unsigned dst_idx = 0;
-#ifdef MSVC_LIMITATIONS
-					for (auto iter = initList.begin(), end = initList.end(); iter != end; ++iter)
-						for (unsigned item_element_idx = 0; item_element_idx < iter->GetItemSize(); item_element_idx++)
-							(*this)[dst_idx++] = iter->operator [](item_element_idx);
-#else
 					for (const auto &item: initList)
 						for (unsigned item_element_idx = 0; item_element_idx < item.GetItemSize(); item_element_idx++)
 							(*this)[dst_idx++] = item[item_element_idx];
-#endif
 					assert(dst_idx == columns);
 				}
-#endif
 			};
 
 			// this specialization used as base class for CDataContainer to eliminate need for various overloads
@@ -955,9 +924,7 @@ consider overloads with vector arguments to eliminate this issue
 			protected:
 				CSwizzleIteratorImpl(const CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> &swizzle, unsigned i):
 				_swizzle(swizzle), _i(i) {}
-#ifndef MSVC_LIMITATIONS
 				~CSwizzleIteratorImpl() = default;
-#endif
 				// required by stl => public
 			public:
 				typename std::conditional
@@ -1006,10 +973,8 @@ consider overloads with vector arguments to eliminate this issue
 				// use C++11 inheriting ctor
 				CSwizzleIterator(const CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> &swizzle, unsigned i):
 				CSwizzleIteratorImpl<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet>(swizzle, i) {}
-#ifndef MSVC_LIMITATIONS
 				// copy ctor required by stl => public
 				~CSwizzleIterator() = default;
-#endif
 			};
 
 #			pragma region generate operators
@@ -1049,8 +1014,9 @@ consider overloads with vector arguments to eliminate this issue
 						typedef TSwizzleTraits<rightColumns, CRightSwizzleVector> TRightSwizzleTraits;																										\
 						static_assert(TLeftSwizzleTraits::TIsWriteMaskValid::value, "operator "#op"=: invalid write mask");																					\
 						static_assert(TLeftSwizzleTraits::TDimension::value <= TRightSwizzleTraits::TDimension::value, "operator "#op"=: too small src dimension");											\
+						const vector<RightElementType, TRightSwizzleTraits::TDimension::value> right_copy(right);																							\
 						for (typename TLeftSwizzleTraits::TDimension::value_type i = 0; i < TLeftSwizzleTraits::TDimension::value; i++)																		\
-							left[i] op##= right[i];																																							\
+							left[i] op## = right_copy[i];																																					\
 						return left;																																										\
 					};
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
@@ -1098,7 +1064,7 @@ consider overloads with vector arguments to eliminate this issue
 					>																																														\
 					inline vector																																											\
 					<																																														\
-						decltype(declval<LeftElementType>() op declval<RightElementType>()),																												\
+						decltype(std::declval<LeftElementType>() op std::declval<RightElementType>()),																												\
 						mpl::min																																											\
 						<																																													\
 							typename TSwizzleTraits<leftColumns, CLeftSwizzleVector>::TDimension,																											\
@@ -1110,7 +1076,7 @@ consider overloads with vector arguments to eliminate this issue
 					{																																														\
 						vector																																												\
 						<																																													\
-							decltype(declval<LeftElementType>() op declval<RightElementType>()),																											\
+							decltype(std::declval<LeftElementType>() op std::declval<RightElementType>()),																											\
 							mpl::min																																										\
 							<																																												\
 								typename TSwizzleTraits<leftColumns, CLeftSwizzleVector>::TDimension,																										\
@@ -1161,7 +1127,7 @@ consider overloads with vector arguments to eliminate this issue
 					>																																													\
 					inline vector																																										\
 					<																																													\
-						decltype(declval<LeftElementType>() op declval<RightElementType>()),																											\
+						decltype(std::declval<LeftElementType>() op std::declval<RightElementType>()),																											\
 						TSwizzleTraits<leftColumns, CLeftSwizzleVector>::TDimension::value																												\
 					> operator op(																																										\
 					const CSwizzle<LeftElementType, leftRows, leftColumns, leftPackedSwizzle, CLeftSwizzleVector, leftOdd, leftNamingSet> &left,														\
@@ -1169,7 +1135,7 @@ consider overloads with vector arguments to eliminate this issue
 					{																																													\
 						vector																																											\
 						<																																												\
-							decltype(declval<LeftElementType>() op declval<RightElementType>()),																										\
+							decltype(std::declval<LeftElementType>() op std::declval<RightElementType>()),																										\
 							TSwizzleTraits<leftColumns, CLeftSwizzleVector>::TDimension::value																											\
 						> result(left);																																									\
 						return result op##= right;																																						\
@@ -1208,7 +1174,7 @@ consider overloads with vector arguments to eliminate this issue
 					>																																														\
 					inline vector																																											\
 					<																																														\
-						decltype(declval<LeftElementType>() op declval<RightElementType>()),																												\
+						decltype(std::declval<LeftElementType>() op std::declval<RightElementType>()),																												\
 						TSwizzleTraits<rightColumns, CRightSwizzleVector>::TDimension::value																												\
 					> operator op(																																											\
 					LeftElementType left,																																									\
@@ -1216,7 +1182,7 @@ consider overloads with vector arguments to eliminate this issue
 					{																																														\
 						vector																																												\
 						<																																													\
-							decltype(declval<LeftElementType>() op declval<RightElementType>()),																											\
+							decltype(std::declval<LeftElementType>() op std::declval<RightElementType>()),																											\
 							TSwizzleTraits<rightColumns, CRightSwizzleVector>::TDimension::value																											\
 						> result(left);																																										\
 						return result op##= right;																																							\
@@ -1386,15 +1352,14 @@ consider overloads with vector arguments to eliminate this issue
 				template<typename SrcElementType, unsigned int srcDimension>
 				vector(const vector<SrcElementType, srcDimension> &src);
 
-#				ifdef MSVC_LIMITATIONS
-				template<typename SrcElementType>
-				vector(SrcElementType _0, ...);
-#				else
 				template<typename ...TSrc>
+#ifdef MSVC_LIMITATIONS
+				vector(const TSrc ...src);
+#else
 				vector(const TSrc &...src);
-#				endif
+#endif
 
-				//SrcElementType template required to eliminate conflict with variadic template ctor
+				// SrcElementType template required to eliminate conflict with variadic template ctor
 				template<typename SrcElementType>
 #				ifdef MSVC_LIMITATIONS
 				vector(const SrcElementType &scalar, typename TSwizzleVectorMatrixTrigger<SrcElementType>::type = CEmpty());
@@ -1403,9 +1368,7 @@ consider overloads with vector arguments to eliminate this issue
 #				endif
 				//vector(const SrcElementType &scalar, typename TSwizzleVectorMatrixTrigger<SrcElementType>::type = typename TSwizzleVectorMatrixTrigger<SrcElementType>::type());
 
-#ifndef NO_INIT_LIST
 				vector(std::initializer_list<CInitListItem<ElementType>> initList);
-#endif
 
 				//template<typename TIterator>
 				//explicit vector(TIterator src);
@@ -1418,20 +1381,16 @@ consider overloads with vector arguments to eliminate this issue
 
 				vector &operator =(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar);
 
-#ifndef NO_INIT_LIST
 				vector &operator =(std::initializer_list<CInitListItem<ElementType>> initList);
-#endif
 
 				const ElementType &operator [](unsigned int idx) const noexcept;
 
 				ElementType &operator [](unsigned int idx) noexcept;
 			private:
-#				ifndef MSVC_LIMITATIONS
 				template<unsigned idx>
 				inline void _Init();
 				template<unsigned startIdx, typename TCurSrc, typename ...TRestSrc>
 				inline void _Init(const TCurSrc &curSrc, const TRestSrc &...restSrc);
-#				endif
 			};
 
 			template<typename ElementType_, unsigned int rows_, unsigned int columns_>
@@ -1456,15 +1415,14 @@ consider overloads with vector arguments to eliminate this issue
 				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
 				matrix(const matrix<SrcElementType, srcRows, srcColumns> &src);
 
-#				ifdef MSVC_LIMITATIONS
-				template<typename SrcElementType>
-				matrix(SrcElementType _0, ...);
-#				else
 				template<typename ...TSrc>
+#ifdef MSVC_LIMITATIONS
+				matrix(const TSrc ...src);
+#else
 				matrix(const TSrc &...src);
-#				endif
+#endif
 
-				//SrcElementType template required to eliminate conflict with variadic template ctor
+				// SrcElementType template required to eliminate conflict with variadic template ctor
 				template<typename SrcElementType>
 #				ifdef MSVC_LIMITATIONS
 				matrix(const SrcElementType &scalar, typename TSwizzleVectorMatrixTrigger<SrcElementType>::type = CEmpty());
@@ -1473,9 +1431,7 @@ consider overloads with vector arguments to eliminate this issue
 #				endif
 				//matrix(const SrcElementType &scalar, typename TSwizzleVectorMatrixTrigger<SrcElementType>::type = typename TSwizzleVectorMatrixTrigger<SrcElementType>::type());
 
-#ifndef NO_INIT_LIST
 				matrix(std::initializer_list<CInitListItem<ElementType>> initList);
-#endif
 
 				//template<typename TIterator>
 				//explicit matrix(TIterator src);
@@ -1488,9 +1444,7 @@ consider overloads with vector arguments to eliminate this issue
 
 				matrix &operator =(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar);
 
-#ifndef NO_INIT_LIST
 				matrix &operator =(std::initializer_list<CInitListItem<ElementType>> initList);
-#endif
 
 				const matrix &operator +() const noexcept
 				{
@@ -1537,12 +1491,10 @@ consider overloads with vector arguments to eliminate this issue
 					return apply<TResult (const ElementType &)>(f);
 				}
 			private:
-#				ifndef MSVC_LIMITATIONS
 				template<unsigned idx>
 				inline void _Init();
 				template<unsigned startIdx, typename TCurSrc, typename ...TRestSrc>
 				inline void _Init(const TCurSrc &curSrc, const TRestSrc &...restSrc);
-#				endif
 			};
 
 #			pragma region Flat idx accessors
@@ -1618,15 +1570,9 @@ consider overloads with vector arguments to eliminate this issue
 				template<typename ElementType>
 				class CInitListItem final
 				{
-#ifndef MSVC_LIMITATIONS
 					CInitListItem() = delete;
 					CInitListItem(const CInitListItem &) = delete;
 					CInitListItem &operator =(const CInitListItem &) = delete;
-#else
-					CInitListItem();
-					CInitListItem(const CInitListItem &);
-					CInitListItem &operator =(const CInitListItem &);
-#endif
 				private:
 					static ElementType _GetItemElement(const void *item, unsigned)
 					{
@@ -1764,34 +1710,11 @@ consider overloads with vector arguments to eliminate this issue
 					}
 				}
 
-#				ifdef MSVC_LIMITATIONS
-				template<typename ElementType, unsigned int dimension>
-				template<typename SrcElementType, unsigned int srcDimension>
-				inline vector<ElementType, dimension>::vector(const vector<SrcElementType, srcDimension> &src)
-				{
-					this->~vector();
-					new(this) vector(static_cast<const CSwizzle<SrcElementType, 0, srcDimension, 0u, void> &>(src));
-				}
-#				else
 				template<typename ElementType, unsigned int dimension>
 				template<typename SrcElementType, unsigned int srcDimension>
 				inline vector<ElementType, dimension>::vector(const vector<SrcElementType, srcDimension> &src):
-				vector(static_cast<const CSwizzle<SrcElementType, 0, srcDimension, 0u, void> &>(src)) {}
-#				endif
+					vector(static_cast<const CSwizzle<SrcElementType, 0, srcDimension, 0u, void> &>(src)) {}
 
-#				ifdef MSVC_LIMITATIONS
-				template<typename ElementType, unsigned int dimension>
-				template<typename SrcElementType>
-				inline vector<ElementType, dimension>::vector(SrcElementType _0, ...)
-				{
-					_data._data[0] = _0;
-					va_list rest;
-					va_start(rest, _0);
-					for (unsigned i = 1; i < dimension; i++)
-						_data._data[i] = va_arg(rest, typename TFloat2Double<SrcElementType>::type);
-					va_end(rest);
-				}
-#				else
 				template<typename ElementType, unsigned int dimension>
 				template<unsigned idx>
 				inline void vector<ElementType, dimension>::_Init()
@@ -1816,11 +1739,14 @@ consider overloads with vector arguments to eliminate this issue
 
 				template<typename ElementType, unsigned int dimension>
 				template<typename ...TSrc>
+#ifdef MSVC_LIMITATIONS
+				vector<ElementType, dimension>::vector(const TSrc ...src)
+#else
 				vector<ElementType, dimension>::vector(const TSrc &...src)
+#endif
 				{
 					_Init<0>(src...);
 				}
-#				endif
 
 				template<typename ElementType, unsigned int dimension>
 				template<typename SrcElementType>
@@ -1847,22 +1773,18 @@ consider overloads with vector arguments to eliminate this issue
 					std::copy_n(src, dimension, CDataContainer<ElementType, 0, dimension>::_data._data);
 				}
 
-#ifndef NO_INIT_LIST
 				template<typename ElementType, unsigned int dimension>
 				inline auto vector<ElementType, dimension>::operator =(std::initializer_list<CInitListItem<ElementType>> initList) -> vector &
 				{
 					CSwizzleAssign<ElementType, 0, dimension, 0u, void>::operator =(initList);
 					return *this;
 				}
-#endif
 
-#ifndef NO_INIT_LIST
 				template<typename ElementType, unsigned int dimension>
 				inline vector<ElementType, dimension>::vector(std::initializer_list<CInitListItem<ElementType>> initList)
 				{
 					operator =(initList);
 				}
-#endif
 
 				template<typename ElementType, unsigned int dimension>
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet>
@@ -1924,19 +1846,6 @@ consider overloads with vector arguments to eliminate this issue
 					}
 				}
 
-#				ifdef MSVC_LIMITATIONS
-				template<typename ElementType, unsigned int rows, unsigned int columns>
-				template<typename SrcElementType>
-				inline matrix<ElementType, rows, columns>::matrix(SrcElementType _0, ...)
-				{
-					va_list rest;
-					va_start(rest, _0);
-					for (unsigned r = 0; r < rows; r++)
-						for (unsigned c = 0; c < columns; c++)
-							_data._rows[r][c] = r == 0 && c == 0 ? _0 : va_arg(rest, typename TFloat2Double<SrcElementType>::type);
-					va_end(rest);
-				}
-#				else
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				template<unsigned idx>
 				inline void matrix<ElementType, rows, columns>::_Init()
@@ -1963,11 +1872,14 @@ consider overloads with vector arguments to eliminate this issue
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				template<typename ...TSrc>
+#ifdef MSVC_LIMITATIONS
+				matrix<ElementType, rows, columns>::matrix(const TSrc ...src)
+#else
 				matrix<ElementType, rows, columns>::matrix(const TSrc &...src)
+#endif
 				{
 					_Init<0>(src...);
 				}
-#				endif
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				template<typename SrcElementType>
@@ -2009,32 +1921,22 @@ consider overloads with vector arguments to eliminate this issue
 					}
 				}
 
-#ifndef NO_INIT_LIST
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				inline auto matrix<ElementType, rows, columns>::operator =(std::initializer_list<CInitListItem<ElementType>> initList) -> matrix &
 				{
 					unsigned dst_idx = 0;
-#ifdef MSVC_LIMITATIONS
-					for (auto iter = initList.begin(), end = initList.end(); iter != end; ++iter)
-						for (unsigned item_element_idx = 0; item_element_idx < iter->GetItemSize(); item_element_idx++, dst_idx++)
-							(*this)[dst_idx / columns][dst_idx % columns] = iter->operator [](item_element_idx);
-#else
 					for (const auto &item: initList)
 						for (unsigned item_element_idx = 0; item_element_idx < item.GetItemSize(); item_element_idx++, dst_idx++)
 							(*this)[dst_idx / columns][dst_idx % columns] = item[item_element_idx];
-#endif
 					assert(dst_idx == rows * columns);
 					return *this;
 				}
-#endif
 
-#ifndef NO_INIT_LIST
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				inline matrix<ElementType, rows, columns>::matrix(std::initializer_list<CInitListItem<ElementType>> initList)
 				{
 					operator =(initList);
 				}
-#endif
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns>
@@ -2098,7 +2000,7 @@ consider overloads with vector arguments to eliminate this issue
 					>																												\
 					inline matrix																									\
 					<																												\
-						decltype(declval<LeftElementType>() op declval<RightElementType>()),										\
+						decltype(std::declval<LeftElementType>() op std::declval<RightElementType>()),										\
 						mpl::min<mpl::integral_c<unsigned, leftRows>, mpl::integral_c<unsigned, rightRows>>::type::value,			\
 						mpl::min<mpl::integral_c<unsigned, leftColumns>, mpl::integral_c<unsigned, rightColumns>>::type::value		\
 					> operator op(																									\
@@ -2107,7 +2009,7 @@ consider overloads with vector arguments to eliminate this issue
 					{																												\
 						matrix																										\
 						<																											\
-							decltype(declval<LeftElementType>() op declval<RightElementType>()),									\
+							decltype(std::declval<LeftElementType>() op std::declval<RightElementType>()),									\
 							mpl::min<mpl::integral_c<unsigned, leftRows>, mpl::integral_c<unsigned, rightRows>>::type::value,		\
 							mpl::min<mpl::integral_c<unsigned, leftColumns>, mpl::integral_c<unsigned, rightColumns>>::type::value	\
 						>																											\
@@ -2151,7 +2053,7 @@ consider overloads with vector arguments to eliminate this issue
 					>																				\
 					inline matrix																	\
 					<																				\
-						decltype(declval<LeftElementType>() op declval<RightElementType>()),		\
+						decltype(std::declval<LeftElementType>() op std::declval<RightElementType>()),		\
 						leftRows, leftColumns														\
 					> operator op(																	\
 					const matrix<LeftElementType, leftRows, leftColumns> &left,						\
@@ -2159,7 +2061,7 @@ consider overloads with vector arguments to eliminate this issue
 					{																				\
 						matrix																		\
 						<																			\
-							decltype(declval<LeftElementType>() op declval<RightElementType>()),	\
+							decltype(std::declval<LeftElementType>() op std::declval<RightElementType>()),	\
 							leftRows, leftColumns													\
 						>																			\
 						result(left);																\
@@ -2198,7 +2100,7 @@ consider overloads with vector arguments to eliminate this issue
 					>																					\
 					inline matrix																		\
 					<																					\
-						decltype(declval<LeftElementType>() op declval<RightElementType>()),			\
+						decltype(std::declval<LeftElementType>() op std::declval<RightElementType>()),			\
 						rightRows, rightColumns															\
 					> operator op(																		\
 					LeftElementType left,																\
@@ -2206,7 +2108,7 @@ consider overloads with vector arguments to eliminate this issue
 					{																					\
 						matrix																			\
 						<																				\
-							decltype(declval<LeftElementType>() op declval<RightElementType>()),		\
+							decltype(std::declval<LeftElementType>() op std::declval<RightElementType>()),		\
 							rightRows, rightColumns														\
 						>																				\
 						result(right);																	\
@@ -2528,7 +2430,7 @@ consider overloads with vector arguments to eliminate this issue
 					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, unsigned short leftPackedSwizzle, class CLeftSwizzleVector, bool leftOdd, unsigned leftNamingSet,
 					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet
 				>
-				inline decltype(declval<LeftElementType>() * declval<RightElementType>()) mul(
+				inline decltype(std::declval<LeftElementType>() * std::declval<RightElementType>()) mul(
 				const CSwizzle<LeftElementType, leftRows, leftColumns, leftPackedSwizzle, CLeftSwizzleVector, leftOdd, leftNamingSet> &left,
 				const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right)
 				{
@@ -2538,7 +2440,7 @@ consider overloads with vector arguments to eliminate this issue
 						typename TSwizzleTraits<rightColumns, CRightSwizzleVector>::TDimension
 					>::type::value;
 
-					decltype(declval<LeftElementType>() + declval<RightElementType>()) result(0);
+					decltype(std::declval<LeftElementType>() + std::declval<RightElementType>()) result(0);
 
 					for (unsigned i = 0; i < rowXcolumnDimension; i++)
 						result += left[i] * right[i];
@@ -2551,7 +2453,7 @@ consider overloads with vector arguments to eliminate this issue
 					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, unsigned short leftPackedSwizzle, class CLeftSwizzleVector, bool leftOdd, unsigned leftNamingSet,
 					typename RightElementType, unsigned int rightRows, unsigned int rightColumns
 				>
-				vector<decltype(declval<LeftElementType>() * declval<RightElementType>()), rightColumns> mul(
+				vector<decltype(std::declval<LeftElementType>() * std::declval<RightElementType>()), rightColumns> mul(
 				const CSwizzle<LeftElementType, leftRows, leftColumns, leftPackedSwizzle, CLeftSwizzleVector, leftOdd, leftNamingSet> &left,
 				const matrix<RightElementType, rightRows, rightColumns> &right)
 				{
@@ -2562,7 +2464,7 @@ consider overloads with vector arguments to eliminate this issue
 							typename TSwizzleTraits<leftColumns, CLeftSwizzleVector>::TDimension,
 							mpl::integral_c<unsigned, rightRows>
 						>::type::value;
-					typedef decltype(declval<LeftElementType>() + declval<RightElementType>()) ElementType;
+					typedef decltype(std::declval<LeftElementType>() + std::declval<RightElementType>()) ElementType;
 
 					vector<ElementType, resultColumns> result(ElementType(0));
 
@@ -2578,7 +2480,7 @@ consider overloads with vector arguments to eliminate this issue
 					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,
 					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet
 				>
-				vector<decltype(declval<LeftElementType>() * declval<RightElementType>()), leftRows> mul(
+				vector<decltype(std::declval<LeftElementType>() * std::declval<RightElementType>()), leftRows> mul(
 				const matrix<LeftElementType, leftRows, leftColumns> &left,
 				const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right)
 				{
@@ -2589,7 +2491,7 @@ consider overloads with vector arguments to eliminate this issue
 							mpl::integral_c<unsigned, leftColumns>,
 							typename TSwizzleTraits<rightColumns, CRightSwizzleVector>::TDimension
 						>::type::value;
-					typedef decltype(declval<LeftElementType>() + declval<RightElementType>()) ElementType;
+					typedef decltype(std::declval<LeftElementType>() + std::declval<RightElementType>()) ElementType;
 
 					vector<ElementType, resultRows> result(ElementType(0));
 
@@ -2605,7 +2507,7 @@ consider overloads with vector arguments to eliminate this issue
 					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,
 					typename RightElementType, unsigned int rightRows, unsigned int rightColumns
 				>
-				matrix<decltype(declval<LeftElementType>() * declval<RightElementType>()), leftRows, rightColumns> mul(
+				matrix<decltype(std::declval<LeftElementType>() * std::declval<RightElementType>()), leftRows, rightColumns> mul(
 				const matrix<LeftElementType, leftRows, leftColumns> &left,
 				const matrix<RightElementType, rightRows, rightColumns> &right)
 				{
@@ -2617,7 +2519,7 @@ consider overloads with vector arguments to eliminate this issue
 							mpl::integral_c<unsigned, leftColumns>,
 							mpl::integral_c<unsigned, rightRows>
 						>::type::value;
-					typedef decltype(declval<LeftElementType>() + declval<RightElementType>()) ElementType;
+					typedef decltype(std::declval<LeftElementType>() + std::declval<RightElementType>()) ElementType;
 
 					matrix<ElementType, resultRows, resultColumns> result(ElementType(0));
 
