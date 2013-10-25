@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		23.10.2013 (c)Alexey Shaydurov
+\date		25.10.2013 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1266,71 +1266,6 @@ TODO: consider specialized '=', 'op=', 'op' to eliminate temp copies where it is
 #				undef OPERATOR_DEFINITION
 #			pragma endregion
 
-#			pragma region swizzle/vector/matrix trigger
-#			ifdef MSVC_LIMITATIONS
-			template<typename T>
-			struct TSwizzleVectorMatrixTriggerHelper
-			{
-				typedef CEmpty type;
-				//typedef TSwizzleVectorMatrixTrigger type;/*does not wirk with VS2010*/
-			};
-
-			template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector, bool odd, unsigned namingSet>
-			struct TSwizzleVectorMatrixTriggerHelper<CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet>>
-			{
-			};
-
-			template<typename ElementType, unsigned int dimension>
-			struct TSwizzleVectorMatrixTriggerHelper<vector<ElementType, dimension>>
-			{
-			};
-
-			template<typename ElementType, unsigned int rows, unsigned int columns>
-			struct TSwizzleVectorMatrixTriggerHelper<matrix<ElementType, rows, columns>>
-			{
-			};
-
-			template<typename T>
-			struct TSwizzleVectorMatrixTrigger: TSwizzleVectorMatrixTriggerHelper<typename std::remove_cv<T>::type>
-			{
-			};
-#			else
-			template<typename T>
-			struct TIsSwizzleVectorMatrixHelper
-			{
-			protected:
-				static constexpr bool value = false;
-			};
-
-			template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector, bool odd, unsigned namingSet>
-			struct TIsSwizzleVectorMatrixHelper<CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet>>
-			{
-			protected:
-				static constexpr bool value = true;
-			};
-
-			template<typename ElementType, unsigned int dimension>
-			struct TIsSwizzleVectorMatrixHelper<vector<ElementType, dimension>>
-			{
-			protected:
-				static constexpr bool value = true;
-			};
-
-			template<typename ElementType, unsigned int rows, unsigned int columns>
-			struct TIsSwizzleVectorMatrixHelper<matrix<ElementType, rows, columns>>
-			{
-			protected:
-				static constexpr bool value = true;
-			};
-
-			template<typename T>
-			struct TIsSwizzleVectorMatrix: TIsSwizzleVectorMatrixHelper<typename std::remove_cv<T>::type>
-			{
-				using TIsSwizzleVectorMatrixHelper<typename std::remove_cv<T>::type>::value;
-			};
-#			endif
-#			pragma endregion
-
 			template<typename ElementType_, unsigned int dimension_>
 			class vector: public CDataContainer<ElementType_, 0, dimension_>
 			{
@@ -1352,21 +1287,19 @@ TODO: consider specialized '=', 'op=', 'op' to eliminate temp copies where it is
 				template<typename SrcElementType, unsigned int srcDimension>
 				vector(const vector<SrcElementType, srcDimension> &src);
 
-				template<typename ...TSrc>
-#ifdef MSVC_LIMITATIONS
-				vector(const TSrc ...src);
-#else
-				vector(const TSrc &...src);
-#endif
+				template<typename First, typename ...Rest>
+				vector(const First &first, const Rest &...rest);
+
+				template<typename FirstElementType, unsigned int firstRows, unsigned int firstColumns, typename ...Rest>
+				vector(const matrix<FirstElementType, firstRows, firstColumns> &first, const Rest &...rest);
 
 				// SrcElementType template required to eliminate conflict with variadic template ctor
 				template<typename SrcElementType>
 #				ifdef MSVC_LIMITATIONS
-				vector(const SrcElementType &scalar, typename TSwizzleVectorMatrixTrigger<SrcElementType>::type = CEmpty());
+				vector(const SrcElementType &scalar);
 #				else
-				vector(const SrcElementType &scalar, typename std::enable_if<!TIsSwizzleVectorMatrix<SrcElementType>::value, CEmpty>::type = CEmpty());
+				vector(const SrcElementType &scalar, typename std::enable_if<std::is_convertible<SrcElementType, ElementType>::value, CEmpty>::type = CEmpty());
 #				endif
-				//vector(const SrcElementType &scalar, typename TSwizzleVectorMatrixTrigger<SrcElementType>::type = typename TSwizzleVectorMatrixTrigger<SrcElementType>::type());
 
 				vector(std::initializer_list<CInitListItem<ElementType>> initList);
 
@@ -1415,21 +1348,25 @@ TODO: consider specialized '=', 'op=', 'op' to eliminate temp copies where it is
 				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
 				matrix(const matrix<SrcElementType, srcRows, srcColumns> &src);
 
-				template<typename ...TSrc>
-#ifdef MSVC_LIMITATIONS
-				matrix(const TSrc ...src);
-#else
-				matrix(const TSrc &...src);
-#endif
+				template<typename First, typename ...Rest>
+				matrix(const First &first, const Rest &...rest);
+
+				template<typename FirstElementType, unsigned int firstRows, unsigned int firstColumns, unsigned short firstPackedSwizzle, class CFirstSwizzleVector, bool firstOdd, unsigned firstNamingSet, typename ...Rest>
+				matrix(const CSwizzle<FirstElementType, firstRows, firstColumns, firstPackedSwizzle, CFirstSwizzleVector, firstOdd, firstNamingSet> &first, const Rest &...rest);
+
+				template<typename FirstElementType, unsigned int firstDimension, typename ...Rest>
+				matrix(const vector<FirstElementType, firstDimension> &first, const Rest &...rest);
+
+				template<typename FirstElementType, unsigned int firstRows, unsigned int firstColumns, typename ...Rest>
+				matrix(const matrix<FirstElementType, firstRows, firstColumns> &first, const Rest &...rest);
 
 				// SrcElementType template required to eliminate conflict with variadic template ctor
 				template<typename SrcElementType>
 #				ifdef MSVC_LIMITATIONS
-				matrix(const SrcElementType &scalar, typename TSwizzleVectorMatrixTrigger<SrcElementType>::type = CEmpty());
+				matrix(const SrcElementType &scalar);
 #				else
-				matrix(const SrcElementType &scalar, typename std::enable_if<!TIsSwizzleVectorMatrix<SrcElementType>::value, CEmpty>::type = CEmpty());
+				matrix(const SrcElementType &scalar, typename std::enable_if<std::is_convertible<SrcElementType, ElementType>::value, CEmpty>::type = CEmpty());
 #				endif
-				//matrix(const SrcElementType &scalar, typename TSwizzleVectorMatrixTrigger<SrcElementType>::type = typename TSwizzleVectorMatrixTrigger<SrcElementType>::type());
 
 				matrix(std::initializer_list<CInitListItem<ElementType>> initList);
 
@@ -1738,22 +1675,25 @@ TODO: consider specialized '=', 'op=', 'op' to eliminate temp copies where it is
 				}
 
 				template<typename ElementType, unsigned int dimension>
-				template<typename ...TSrc>
-#ifdef MSVC_LIMITATIONS
-				vector<ElementType, dimension>::vector(const TSrc ...src)
-#else
-				vector<ElementType, dimension>::vector(const TSrc &...src)
-#endif
+				template<typename First, typename ...Rest>
+				vector<ElementType, dimension>::vector(const First &first, const Rest &...rest)
 				{
-					_Init<0>(src...);
+					_Init<0>(first, rest...);
+				}
+
+				template<typename ElementType, unsigned int dimension>
+				template<typename FirstElementType, unsigned int firstRows, unsigned int firstColumns, typename ...Rest>
+				vector<ElementType, dimension>::vector(const matrix<FirstElementType, firstRows, firstColumns> &first, const Rest &...rest)
+				{
+					_Init<0>(first, rest...);
 				}
 
 				template<typename ElementType, unsigned int dimension>
 				template<typename SrcElementType>
 #				ifdef MSVC_LIMITATIONS
-				inline vector<ElementType, dimension>::vector(const SrcElementType &scalar, typename TSwizzleVectorMatrixTrigger<SrcElementType>::type)
+				inline vector<ElementType, dimension>::vector(const SrcElementType &scalar)
 #				else
-				inline vector<ElementType, dimension>::vector(const SrcElementType &scalar, typename std::enable_if<!TIsSwizzleVectorMatrix<SrcElementType>::value, CEmpty>::type)
+				inline vector<ElementType, dimension>::vector(const SrcElementType &scalar, typename std::enable_if<std::is_convertible<SrcElementType, ElementType>::value, CEmpty>::type)
 #				endif
 				{
 					std::fill_n(CDataContainer<ElementType, 0, dimension>::_data._data, dimension, scalar);
@@ -1871,22 +1811,39 @@ TODO: consider specialized '=', 'op=', 'op' to eliminate temp copies where it is
 				}
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
-				template<typename ...TSrc>
-#ifdef MSVC_LIMITATIONS
-				matrix<ElementType, rows, columns>::matrix(const TSrc ...src)
-#else
-				matrix<ElementType, rows, columns>::matrix(const TSrc &...src)
-#endif
+				template<typename First, typename ...Rest>
+				matrix<ElementType, rows, columns>::matrix(const First &first, const Rest &...rest)
 				{
-					_Init<0>(src...);
+					_Init<0>(first, rest...);
+				}
+
+				template<typename ElementType, unsigned int rows, unsigned int columns>
+				template<typename FirstElementType, unsigned int firstRows, unsigned int firstColumns, unsigned short firstPackedSwizzle, class CFirstSwizzleVector, bool firstOdd, unsigned firstNamingSet, typename ...Rest>
+				matrix<ElementType, rows, columns>::matrix(const CSwizzle<FirstElementType, firstRows, firstColumns, firstPackedSwizzle, CFirstSwizzleVector, firstOdd, firstNamingSet> &first, const Rest &...rest)
+				{
+					_Init<0>(first, rest...);
+				}
+
+				template<typename ElementType, unsigned int rows, unsigned int columns>
+				template<typename FirstElementType, unsigned int firstDimension, typename ...Rest>
+				matrix<ElementType, rows, columns>::matrix(const vector<FirstElementType, firstDimension> &first, const Rest &...rest)
+				{
+					_Init<0>(first, rest...);
+				}
+
+				template<typename ElementType, unsigned int rows, unsigned int columns>
+				template<typename FirstElementType, unsigned int firstRows, unsigned int firstColumns, typename ...Rest>
+				matrix<ElementType, rows, columns>::matrix(const matrix<FirstElementType, firstRows, firstColumns> &first, const Rest &...rest)
+				{
+					_Init<0>(first, rest...);
 				}
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				template<typename SrcElementType>
 #				ifdef MSVC_LIMITATIONS
-				inline matrix<ElementType, rows, columns>::matrix(const SrcElementType &scalar, typename TSwizzleVectorMatrixTrigger<SrcElementType>::type)
+				inline matrix<ElementType, rows, columns>::matrix(const SrcElementType &scalar)
 #				else
-				inline matrix<ElementType, rows, columns>::matrix(const SrcElementType &scalar, typename std::enable_if<!TIsSwizzleVectorMatrix<SrcElementType>::value, CEmpty>::type)
+				inline matrix<ElementType, rows, columns>::matrix(const SrcElementType &scalar, typename std::enable_if<std::is_convertible<SrcElementType, ElementType>::value, CEmpty>::type)
 #				endif
 				{
 					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)
