@@ -1275,11 +1275,7 @@ TODO: consider specialized '=', 'op=', 'op' to eliminate temp copies where it is
 				typedef ElementType_ ElementType;
 				static constexpr unsigned int dimension = dimension_;
 
-#				ifdef MSVC_LIMITATIONS
-				vector(): CDataContainer() {}
-#				else
 				vector() = default;
-#				endif
 
 				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, unsigned short srcPackedSwizzle, class CSrcSwizzleVector, bool srcOdd, unsigned srcNamingSet>
 				vector(const CSwizzle<SrcElementType, srcRows, srcColumns, srcPackedSwizzle, CSrcSwizzleVector, srcOdd, srcNamingSet> &src);
@@ -1339,11 +1335,7 @@ TODO: consider specialized '=', 'op=', 'op' to eliminate temp copies where it is
 				typedef ElementType_ ElementType;
 				static constexpr unsigned int rows = rows_, columns = columns_;
 
-#				ifdef MSVC_LIMITATIONS
-				matrix(): CDataContainer() {}
-#				else
 				matrix() = default;
-#				endif
 
 				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
 				matrix(const matrix<SrcElementType, srcRows, srcColumns> &src);
