@@ -1280,22 +1280,16 @@ TODO: consider specialized '=', 'op=', 'op' to eliminate temp copies where it is
 				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, unsigned short srcPackedSwizzle, class CSrcSwizzleVector, bool srcOdd, unsigned srcNamingSet>
 				vector(const CSwizzle<SrcElementType, srcRows, srcColumns, srcPackedSwizzle, CSrcSwizzleVector, srcOdd, srcNamingSet> &src);
 
-				template<typename SrcElementType, unsigned int srcDimension>
-				vector(const vector<SrcElementType, srcDimension> &src);
+				vector(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar);
 
-				template<typename First, typename ...Rest>
-				vector(const First &first, const Rest &...rest);
+				template<typename FirstElementType, unsigned int firstRows, unsigned int firstColumns, unsigned short firstPackedSwizzle, class CFirstSwizzleVector, bool firstOdd, unsigned firstNamingSet, typename ...Rest>
+				vector(const CSwizzle<FirstElementType, firstRows, firstColumns, firstPackedSwizzle, CFirstSwizzleVector, firstOdd, firstNamingSet> &first, const Rest &...rest);
 
 				template<typename FirstElementType, unsigned int firstRows, unsigned int firstColumns, typename ...Rest>
 				vector(const matrix<FirstElementType, firstRows, firstColumns> &first, const Rest &...rest);
 
-				// SrcElementType template required to eliminate conflict with variadic template ctor
-				template<typename SrcElementType>
-#				ifdef MSVC_LIMITATIONS
-				vector(const SrcElementType &scalar);
-#				else
-				vector(const SrcElementType &scalar, typename std::enable_if<std::is_convertible<SrcElementType, ElementType>::value, CEmpty>::type = CEmpty());
-#				endif
+				template<typename ...Rest>
+				vector(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type first, const Rest &...rest);
 
 				vector(std::initializer_list<CInitListItem<ElementType>> initList);
 
@@ -1340,25 +1334,16 @@ TODO: consider specialized '=', 'op=', 'op' to eliminate temp copies where it is
 				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
 				matrix(const matrix<SrcElementType, srcRows, srcColumns> &src);
 
-				template<typename First, typename ...Rest>
-				matrix(const First &first, const Rest &...rest);
+				matrix(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar);
 
 				template<typename FirstElementType, unsigned int firstRows, unsigned int firstColumns, unsigned short firstPackedSwizzle, class CFirstSwizzleVector, bool firstOdd, unsigned firstNamingSet, typename ...Rest>
 				matrix(const CSwizzle<FirstElementType, firstRows, firstColumns, firstPackedSwizzle, CFirstSwizzleVector, firstOdd, firstNamingSet> &first, const Rest &...rest);
 
-				template<typename FirstElementType, unsigned int firstDimension, typename ...Rest>
-				matrix(const vector<FirstElementType, firstDimension> &first, const Rest &...rest);
-
 				template<typename FirstElementType, unsigned int firstRows, unsigned int firstColumns, typename ...Rest>
 				matrix(const matrix<FirstElementType, firstRows, firstColumns> &first, const Rest &...rest);
 
-				// SrcElementType template required to eliminate conflict with variadic template ctor
-				template<typename SrcElementType>
-#				ifdef MSVC_LIMITATIONS
-				matrix(const SrcElementType &scalar);
-#				else
-				matrix(const SrcElementType &scalar, typename std::enable_if<std::is_convertible<SrcElementType, ElementType>::value, CEmpty>::type = CEmpty());
-#				endif
+				template<typename ...Rest>
+				matrix(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type first, const Rest &...rest);
 
 				matrix(std::initializer_list<CInitListItem<ElementType>> initList);
 
@@ -1464,14 +1449,6 @@ TODO: consider specialized '=', 'op=', 'op' to eliminate temp copies where it is
 					static constexpr unsigned dimension = TSwizzleTraits<columns, CSwizzleVector>::TDimension::value;
 				};
 
-				template<typename ElementType, unsigned int dimension>
-				class CFlatIdxAccessor<const vector<ElementType, dimension>>: public CFlatIdxAccessor<const CSwizzle<ElementType, 0, dimension, 0u, void>>
-				{
-				public:
-					CFlatIdxAccessor(const vector<ElementType, dimension> &vector):
-					CFlatIdxAccessor<const CSwizzle<ElementType, 0, dimension, 0u, void>>(vector) {}
-				};
-
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				class CFlatIdxAccessor<const matrix<ElementType, rows, columns>>
 				{
@@ -1493,7 +1470,7 @@ TODO: consider specialized '=', 'op=', 'op' to eliminate temp copies where it is
 				{
 					return CFlatIdxAccessor<Src>(src);
 				}
-#			pragma endregion
+#			pragma endregion TODO: move to vector/matrix base class in order to hide from user
 
 #			pragma region Initializer list
 				template<typename ElementType>
@@ -1640,9 +1617,10 @@ TODO: consider specialized '=', 'op=', 'op' to eliminate temp copies where it is
 				}
 
 				template<typename ElementType, unsigned int dimension>
-				template<typename SrcElementType, unsigned int srcDimension>
-				inline vector<ElementType, dimension>::vector(const vector<SrcElementType, srcDimension> &src):
-					vector(static_cast<const CSwizzle<SrcElementType, 0, srcDimension, 0u, void> &>(src)) {}
+				inline vector<ElementType, dimension>::vector(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar)
+				{
+					std::fill_n(CDataContainer<ElementType, 0, dimension>::_data._data, dimension, scalar);
+				}
 
 				template<typename ElementType, unsigned int dimension>
 				template<unsigned idx>
@@ -1666,8 +1644,8 @@ TODO: consider specialized '=', 'op=', 'op' to eliminate temp copies where it is
 				}
 
 				template<typename ElementType, unsigned int dimension>
-				template<typename First, typename ...Rest>
-				vector<ElementType, dimension>::vector(const First &first, const Rest &...rest)
+				template<typename FirstElementType, unsigned int firstRows, unsigned int firstColumns, unsigned short firstPackedSwizzle, class CFirstSwizzleVector, bool firstOdd, unsigned firstNamingSet, typename ...Rest>
+				vector<ElementType, dimension>::vector(const CSwizzle<FirstElementType, firstRows, firstColumns, firstPackedSwizzle, CFirstSwizzleVector, firstOdd, firstNamingSet> &first, const Rest &...rest)
 				{
 					_Init<0>(first, rest...);
 				}
@@ -1680,14 +1658,10 @@ TODO: consider specialized '=', 'op=', 'op' to eliminate temp copies where it is
 				}
 
 				template<typename ElementType, unsigned int dimension>
-				template<typename SrcElementType>
-#				ifdef MSVC_LIMITATIONS
-				inline vector<ElementType, dimension>::vector(const SrcElementType &scalar)
-#				else
-				inline vector<ElementType, dimension>::vector(const SrcElementType &scalar, typename std::enable_if<std::is_convertible<SrcElementType, ElementType>::value, CEmpty>::type)
-#				endif
+				template<typename ...Rest>
+				vector<ElementType, dimension>::vector(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type first, const Rest &...rest)
 				{
-					std::fill_n(CDataContainer<ElementType, 0, dimension>::_data._data, dimension, scalar);
+					_Init<0>(first, rest...);
 				}
 
 				//template<typename ElementType, unsigned int dimension>
@@ -1778,6 +1752,17 @@ TODO: consider specialized '=', 'op=', 'op' to eliminate temp copies where it is
 				}
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
+				inline matrix<ElementType, rows, columns>::matrix(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar)
+				{
+					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)
+					{
+						auto curRow = &operator [](rowIdx);
+						curRow->~TRow();
+						new(curRow) TRow(scalar);
+					}
+				}
+
+				template<typename ElementType, unsigned int rows, unsigned int columns>
 				template<unsigned idx>
 				inline void matrix<ElementType, rows, columns>::_Init()
 				{
@@ -1801,22 +1786,8 @@ TODO: consider specialized '=', 'op=', 'op' to eliminate temp copies where it is
 				}
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
-				template<typename First, typename ...Rest>
-				matrix<ElementType, rows, columns>::matrix(const First &first, const Rest &...rest)
-				{
-					_Init<0>(first, rest...);
-				}
-
-				template<typename ElementType, unsigned int rows, unsigned int columns>
 				template<typename FirstElementType, unsigned int firstRows, unsigned int firstColumns, unsigned short firstPackedSwizzle, class CFirstSwizzleVector, bool firstOdd, unsigned firstNamingSet, typename ...Rest>
 				matrix<ElementType, rows, columns>::matrix(const CSwizzle<FirstElementType, firstRows, firstColumns, firstPackedSwizzle, CFirstSwizzleVector, firstOdd, firstNamingSet> &first, const Rest &...rest)
-				{
-					_Init<0>(first, rest...);
-				}
-
-				template<typename ElementType, unsigned int rows, unsigned int columns>
-				template<typename FirstElementType, unsigned int firstDimension, typename ...Rest>
-				matrix<ElementType, rows, columns>::matrix(const vector<FirstElementType, firstDimension> &first, const Rest &...rest)
 				{
 					_Init<0>(first, rest...);
 				}
@@ -1829,19 +1800,10 @@ TODO: consider specialized '=', 'op=', 'op' to eliminate temp copies where it is
 				}
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
-				template<typename SrcElementType>
-#				ifdef MSVC_LIMITATIONS
-				inline matrix<ElementType, rows, columns>::matrix(const SrcElementType &scalar)
-#				else
-				inline matrix<ElementType, rows, columns>::matrix(const SrcElementType &scalar, typename std::enable_if<std::is_convertible<SrcElementType, ElementType>::value, CEmpty>::type)
-#				endif
+				template<typename ...Rest>
+				matrix<ElementType, rows, columns>::matrix(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type first, const Rest &...rest)
 				{
-					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)
-					{
-						auto curRow = &operator [](rowIdx);
-						curRow->~TRow();
-						new(curRow) TRow(scalar);
-					}
+					_Init<0>(first, rest...);
 				}
 
 				//template<typename ElementType, unsigned int rows, unsigned int columns>
