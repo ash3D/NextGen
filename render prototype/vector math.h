@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.10.2013 (c)Alexey Shaydurov
+\date		28.10.2013 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1664,14 +1664,13 @@ TODO: consider specialized '=', 'op=', 'op' to eliminate temp copies where it is
 				template<unsigned startIdx, typename TCurSrc, typename ...TRestSrc>
 				inline void vector<ElementType, dimension>::_Init(const TCurSrc &curSrc, const TRestSrc &...restSrc)
 				{
-					const auto flat_idx_accesssor = CreateFlatIdxAccessor(curSrc);
-					constexpr auto src_dimension = decltype(flat_idx_accesssor)::dimension;
-					for (unsigned i = 0; i < src_dimension; i++)
+					const auto src_accesssor = CreateFlatIdxAccessor(curSrc);
+					for (unsigned i = 0; i < src_accesssor.dimension; i++)
 					{
 						operator [](i + startIdx).~ElementType();
-						new(&operator [](i + startIdx)) ElementType(flat_idx_accesssor[i]);
+						new(&operator [](i + startIdx)) ElementType(src_accesssor[i]);
 					}
-					_Init<startIdx + src_dimension>(restSrc...);
+					_Init<startIdx + src_accesssor.dimension>(restSrc...);
 				}
 
 				template<typename ElementType, unsigned int dimension>
@@ -1799,15 +1798,14 @@ TODO: consider specialized '=', 'op=', 'op' to eliminate temp copies where it is
 				template<unsigned startIdx, typename TCurSrc, typename ...TRestSrc>
 				inline void matrix<ElementType, rows, columns>::_Init(const TCurSrc &curSrc, const TRestSrc &...restSrc)
 				{
-					const auto flat_idx_accesssor = CreateFlatIdxAccessor(curSrc);
-					constexpr auto src_dimension = decltype(flat_idx_accesssor)::dimension;
-					for (unsigned i = 0; i < src_dimension; i++)
+					const auto src_accesssor = CreateFlatIdxAccessor(curSrc);
+					for (unsigned i = 0; i < src_accesssor.dimension; i++)
 					{
 						const auto r = (i + startIdx) / columns, c = (i + startIdx) % columns;
 						operator [](r).operator [](c).~ElementType();
-						new(&operator [](r).operator [](c)) ElementType(flat_idx_accesssor[i]);
+						new(&operator [](r).operator [](c)) ElementType(src_accesssor[i]);
 					}
-					_Init<startIdx + src_dimension>(restSrc...);
+					_Init<startIdx + src_accesssor.dimension>(restSrc...);
 				}
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
