@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		28.10.2013 (c)Alexey Shaydurov
+\date		29.10.2013 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -602,36 +602,6 @@ TODO: consider specialized '=', 'op=', 'op' to eliminate temp copies where it is
 				CDataContainer &operator =(const CDataContainer &) = default;
 				CDataContainer &operator =(CDataContainer &&) = default;
 #		endif
-			};
-
-			template<typename T>
-			struct TFloat2Double
-			{
-				typedef T type;
-			};
-
-			template<>
-			struct TFloat2Double<float>
-			{
-				typedef double type;
-			};
-
-			template<>
-			struct TFloat2Double<const float>
-			{
-				typedef const double type;
-			};
-
-			template<>
-			struct TFloat2Double<volatile float>
-			{
-				typedef volatile double type;
-			};
-
-			template<>
-			struct TFloat2Double<const volatile float>
-			{
-				typedef const volatile double type;
 			};
 
 			template<unsigned int vectorDimension, class CSwizzleVector>
