@@ -653,18 +653,16 @@ TODO: consider specialized '=', 'op=', 'op' to eliminate temp copies where it is
 				//{
 				//	return operator ElementType &();
 				//}
-
+			public:
 				template<typename F>
-#ifdef MSVC_LIMITATIONS
-				vector<typename std::result_of<typename std::remove_pointer<F>::type &(ElementType)>::type, TSwizzleTraits<columns, CSwizzleVector>::TDimension::value> apply(F f) const;
-#else
 				vector<typename std::result_of<F &(ElementType)>::type, TSwizzleTraits<columns, CSwizzleVector>::TDimension::value> apply(F f) const;
-#endif
+
 				template<typename TResult>
 				vector<TResult, TSwizzleTraits<columns, CSwizzleVector>::TDimension::value> apply(TResult f(ElementType)) const
 				{
 					return apply<TResult (ElementType)>(f);
 				}
+
 				template<typename TResult>
 				vector<TResult, TSwizzleTraits<columns, CSwizzleVector>::TDimension::value> apply(TResult f(const ElementType &)) const
 				{
@@ -1357,18 +1355,16 @@ TODO: consider specialized '=', 'op=', 'op' to eliminate temp copies where it is
 				const TRow &operator [](unsigned int idx) const noexcept;
 
 				TRow &operator [](unsigned int idx) noexcept;
-
+			public:
 				template<typename F>
-#ifdef MSVC_LIMITATIONS
-				matrix<typename std::result_of<typename std::remove_pointer<F>::type &(ElementType)>::type, rows, columns> apply(F f) const;
-#else
 				matrix<typename std::result_of<F &(ElementType)>::type, rows, columns> apply(F f) const;
-#endif
+
 				template<typename TResult>
 				matrix<TResult, rows, columns> apply(TResult f(ElementType)) const
 				{
 					return apply<TResult (ElementType)>(f);
 				}
+
 				template<typename TResult>
 				matrix<TResult, rows, columns> apply(TResult f(const ElementType &)) const
 				{
@@ -1540,19 +1536,11 @@ TODO: consider specialized '=', 'op=', 'op' to eliminate temp copies where it is
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector, bool odd, unsigned namingSet>
 			template<typename F>
-#ifdef MSVC_LIMITATIONS
-			inline vector<typename std::result_of<typename std::remove_pointer<F>::type &(ElementType)>::type, TSwizzleTraits<columns, CSwizzleVector>::TDimension::value>
-#else
 			inline vector<typename std::result_of<F &(ElementType)>::type, TSwizzleTraits<columns, CSwizzleVector>::TDimension::value>
-#endif
 			CSwizzleBase<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet>::apply(F f) const
 			{
 				constexpr unsigned int dimension = TSwizzleTraits<columns, CSwizzleVector>::TDimension::value;
-#ifdef MSVC_LIMITATIONS
-				vector<typename std::result_of<typename std::remove_pointer<F>::type &(ElementType)>::type, dimension> result;
-#else
 				vector<typename std::result_of<F &(ElementType)>::type, dimension> result;
-#endif
 				for (unsigned i = 0; i < dimension; i++)
 					result[i] = f(static_cast<const TSwizzle &>(*this)[i]);
 				return result;
@@ -2020,17 +2008,9 @@ TODO: consider specialized '=', 'op=', 'op' to eliminate temp copies where it is
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				template<typename F>
-#ifdef MSVC_LIMITATIONS
-				inline auto matrix<ElementType, rows, columns>::apply(F f) const -> matrix<typename std::result_of<typename std::remove_pointer<F>::type &(ElementType)>::type, rows, columns>
-#else
 				inline auto matrix<ElementType, rows, columns>::apply(F f) const -> matrix<typename std::result_of<F &(ElementType)>::type, rows, columns>
-#endif
 				{
-#ifdef MSVC_LIMITATIONS
-					matrix<typename std::result_of<typename std::remove_pointer<F>::type &(ElementType)>::type, rows, columns> result;
-#else
 					matrix<typename std::result_of<F &(ElementType)>::type, rows, columns> result;
-#endif
 					for (unsigned i = 0; i < rows; i++)
 						result[i].apply(f);
 					return result;
