@@ -111,10 +111,16 @@ consider using preprocessor instead of templates or overloading each target func
 	gcc does not allow explicit specialization in class scope => CSwizzle can not be inside CDataContainer
 	ElementType needed in order to compiler can deduce template args for operators
 	*/
-#if !defined DISABLE_MATRIX_SWIZZLES | ROWS == 0
-#	define GENERATE_TEMPLATED_ASSIGN_OPERATOR(leftSwizzleSeq)																																			\
+#if !defined DISABLE_MATRIX_SWIZZLES || ROWS == 0
+#	define GENERATE_TEMPLATED_ASSIGN_OPERATORS(leftSwizzleSeq)																																			\
 		template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet>	\
-		CSwizzle &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right)																	\
+		CSwizzle &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &&right)										\
+		{																																																\
+			CSwizzleAssign<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>::operator =(std::move(right));												\
+			return *this;																																												\
+		}																																																\
+		template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet>	\
+		CSwizzle &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right)										\
 		{																																																\
 			CSwizzleAssign<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>::operator =(right);															\
 			return *this;																																												\
@@ -135,14 +141,14 @@ consider using preprocessor instead of templates or overloading each target func
 #	ifdef MSVC_LIMITATIONS
 		// VS 2013 does not allow copy operator = in union members
 #		define GENERATE_ASSIGN_OPERATORS(leftSwizzleSeq)		\
-			GENERATE_TEMPLATED_ASSIGN_OPERATOR(leftSwizzleSeq)	\
+			GENERATE_TEMPLATED_ASSIGN_OPERATORS(leftSwizzleSeq)	\
 			GENERATE_SCALAR_ASSIGN_OPERATOR(leftSwizzleSeq)		\
 			GENERATE_INIT_LIST_ASSIGGN_OPERATOR(leftSwizzleSeq)
 #		define DISABLE_ASSIGN_OPERATOR(leftSwizzleSeq) /*private: CSwizzle &operator =(const CSwizzle &);*/
 #		define SWIZZLE_TRIVIAL_CTORS_DTOR
 #	else
 #		define GENERATE_ASSIGN_OPERATORS(leftSwizzleSeq)		\
-			GENERATE_TEMPLATED_ASSIGN_OPERATOR(leftSwizzleSeq)	\
+			GENERATE_TEMPLATED_ASSIGN_OPERATORS(leftSwizzleSeq)	\
 			GENERATE_COPY_ASSIGN_OPERATOR						\
 			GENERATE_SCALAR_ASSIGN_OPERATOR(leftSwizzleSeq)		\
 			GENERATE_INIT_LIST_ASSIGGN_OPERATOR(leftSwizzleSeq)
@@ -210,7 +216,7 @@ consider using preprocessor instead of templates or overloading each target func
 		};
 	GENERATE_SWIZZLES((SWIZZLE_SPECIALIZATION))
 #endif
-#	undef GENERATE_TEMPLATED_ASSIGN_OPERATOR
+#	undef GENERATE_TEMPLATED_ASSIGN_OPERATORS
 #	undef GENERATE_COPY_ASSIGN_OPERATOR
 #	undef GENERATE_INIT_LIST_ASSIGGN_OPERATOR
 #	undef GENERATE_ASSIGN_OPERATORS
@@ -833,31 +839,31 @@ consider using preprocessor instead of templates or overloading each target func
 #endif
 
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet>
-				void operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right)
+				void operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &&right)
 				{
+					// TODO: uncomment assert and perform required casts
+					//assert(this != &right);
 					typedef TSwizzleTraits<columns, CSwizzleVector> TLeftSwizzleTraits;
 					typedef TSwizzleTraits<rightColumns, CRightSwizzleVector> TRightSwizzleTraits;
 					static_assert(TLeftSwizzleTraits::TDimension::value <= TRightSwizzleTraits::TDimension::value, "operator =: too small src dimension");
-					const vector<RightElementType, TRightSwizzleTraits::TDimension::value> right_copy(right);
-					for (unsigned idx = 0; idx < TLeftSwizzleTraits::TDimension::value; idx++)
-					{
-						(*this)[idx] = right_copy[idx];
-					}
-				}
-
-#ifndef MSVC_LIMITATIONS
-				/*
-				it is not necessary to create copy of 'right' here (because there is no swizzles)
-				forwarding to templated operator = shorter (it is commented out below) but it leads to unnecessary 'right' copy
-				*/
-				void operator =(const CSwizzleAssign &right)
-				{
-					typedef TSwizzleTraits<columns, CSwizzleVector> TLeftSwizzleTraits;
 					for (unsigned idx = 0; idx < TLeftSwizzleTraits::TDimension::value; idx++)
 					{
 						(*this)[idx] = right[idx];
 					}
-					//operator =<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet>(right);
+				}
+
+				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet>
+				void operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &right)
+				{
+					// make copy and call '&&' overload
+					operator =(vector<RightElementType, TSwizzleTraits<rightColumns, CRightSwizzleVector>::TDimension::value>(right));
+				}
+
+#ifndef MSVC_LIMITATIONS
+				// it is not necessary to create copy of 'right' here (because there is no swizzles) => forward to '&&' overload
+				void operator =(const CSwizzleAssign &right)
+				{
+					operator =<>(static_cast<const CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> &>(std::move(right)));
 				}
 #endif
 
