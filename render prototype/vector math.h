@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		29.10.2013 (c)Alexey Shaydurov
+\date		30.10.2013 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -28,6 +28,10 @@ function template with same name from other namespace can have hier priority whe
 consider overloads with vector arguments to eliminate this issue
 
 TODO: consider specialized '=', 'op=', 'op' to eliminate temp copies where it is safe regarding to aliasing
+
+apply now have overloads similar to valarray's apply (in order to handle functions having template overloads) and some other overloads in addition
+but it still does not perform as desired (vector<int, ...>.apply(floor) for example)
+consider using preprocessor instead of templates or overloading each target function (floor(const vector<T, ...> &)
 */
 #pragma endregion
 
@@ -667,6 +671,24 @@ TODO: consider specialized '=', 'op=', 'op' to eliminate temp copies where it is
 				vector<TResult, TSwizzleTraits<columns, CSwizzleVector>::TDimension::value> apply(TResult f(const ElementType &)) const
 				{
 					return apply<TResult (const ElementType &)>(f);
+				}
+
+				vector<ElementType, TSwizzleTraits<columns, CSwizzleVector>::TDimension::value> apply(ElementType f(ElementType)) const
+				{
+#ifdef MSVC_LIMITATIONS	// workaround for lack of expression SFINAE in VC
+					return apply<ElementType(ElementType)>(f);
+#else
+					return apply<ElementType>(f);
+#endif
+				}
+
+				vector<ElementType, TSwizzleTraits<columns, CSwizzleVector>::TDimension::value> apply(ElementType f(const ElementType &)) const
+				{
+#ifdef MSVC_LIMITATIONS	// workaround for lack of expression SFINAE in VC
+					return apply<ElementType(const ElementType &)>(f);
+#else
+					return apply<ElementType>(f);
+#endif
 				}
 			};
 
@@ -1369,6 +1391,24 @@ TODO: consider specialized '=', 'op=', 'op' to eliminate temp copies where it is
 				matrix<TResult, rows, columns> apply(TResult f(const ElementType &)) const
 				{
 					return apply<TResult (const ElementType &)>(f);
+				}
+
+				matrix<ElementType, rows, columns> apply(ElementType f(ElementType)) const
+				{
+#ifdef MSVC_LIMITATIONS	// workaround for lack of expression SFINAE in VC
+					return apply<ElementType(ElementType)>(f);
+#else
+					return apply<ElementType>(f);
+#endif
+				}
+
+				matrix<ElementType, rows, columns> apply(ElementType f(const ElementType &)) const
+				{
+#ifdef MSVC_LIMITATIONS	// workaround for lack of expression SFINAE in VC
+					return apply<ElementType(const ElementType &)>(f);
+#else
+					return apply<ElementType>(f);
+#endif
 				}
 			private:
 				template<unsigned idx>
