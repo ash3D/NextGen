@@ -2058,7 +2058,7 @@ consider using preprocessor instead of templates or overloading each target func
 				{
 					matrix<typename std::result_of<F &(ElementType)>::type, rows, columns> result;
 					for (unsigned i = 0; i < rows; i++)
-						result[i].apply(f);
+						result[i] = (*this)[i].apply(f);
 					return result;
 				}
 #			pragma endregion
