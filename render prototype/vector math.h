@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		30.10.2013 (c)Alexey Shaydurov
+\date		31.10.2013 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -2237,7 +2237,7 @@ consider using preprocessor instead of templates or overloading each target func
 						typedef decltype(left - right) TResult;											\
 						TResult result;																	\
 						for (unsigned i = 0; i < TResult::rows; i++)									\
-							result[i] = std::f<typename TResult::ElementType>(left[i], right[i]);		\
+							result[i] = f(left[i], right[i]);											\
 						return result;																	\
 					}
 				FUNCTION_DEFINITION(min)
@@ -2258,7 +2258,7 @@ consider using preprocessor instead of templates or overloading each target func
 						typedef decltype(left - right) TResult;											\
 						TResult result;																	\
 						for (unsigned i = 0; i < TResult::rows; i++)									\
-							result[i] = std::f<typename TResult::ElementType>(left[i], right);			\
+							result[i] = f(left[i], right);												\
 						return result;																	\
 					}
 				FUNCTION_DEFINITION(min)
@@ -2279,7 +2279,7 @@ consider using preprocessor instead of templates or overloading each target func
 						typedef decltype(left - right) TResult;											\
 						TResult result;																	\
 						for (unsigned i = 0; i < TResult::rows; i++)									\
-							result[i] = std::f<typename TResult::ElementType>(left, right[i]);			\
+							result[i] = f(left, right[i]);												\
 						return result;																	\
 					}
 				FUNCTION_DEFINITION(min)
