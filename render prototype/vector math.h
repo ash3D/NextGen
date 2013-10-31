@@ -2298,33 +2298,35 @@ consider using preprocessor instead of templates or overloading each target func
 							sizeof(typename TSwizzleIterator::value_type) <= sizeof(void *),																							\
 							typename TSwizzleIterator::value_type,																														\
 							typename TSwizzleIterator::reference																														\
-						>::type element) {return element;});																															\
+						>::type element) -> bool {return element;});																													\
 					};
 				FUNCTION_DEFINITION(all)
 				FUNCTION_DEFINITION(any)
 				FUNCTION_DEFINITION(none)
 #				undef FUNCTION_DEFINITION
 
+#				define FUNCTION_DEFINITION1(f) FUNCTION_DEFINITION2(f, f)
 #				ifdef MSVC_LIMITATIONS
-#				define FUNCTION_DEFINITION(f)																										\
+#				define FUNCTION_DEFINITION2(f1, f2)																									\
 					template<typename ElementType, unsigned int rowCount, unsigned int columnCount>													\
-					bool f(const matrix<ElementType, rowCount, columnCount> &src)																	\
+					bool f1(const matrix<ElementType, rowCount, columnCount> &src)																	\
 					{																																\
 						const auto &rows = reinterpret_cast<const matrix<ElementType, rowCount, columnCount>::TRow (&)[rowCount]>(src._data._rows);	\
-						return std::f##_of(rows, rows + rowCount, f<ElementType, 0, columnCount, 0u, void, false, 1>);								\
+						return std::f2##_of(rows, rows + rowCount, f1<ElementType, 0, columnCount, 0u, void, false, 1>);							\
 					};
 #				else
-#				define FUNCTION_DEFINITION(f)																							\
+#				define FUNCTION_DEFINITION2(f1, f2)																						\
 					template<typename ElementType, unsigned int rows, unsigned int columns>												\
-					bool f(const matrix<ElementType, rows, columns> &src)																\
+					bool f1(const matrix<ElementType, rows, columns> &src)																\
 					{																													\
-						return std::f##_of(src._data._rows, src._data._rows + rows, f<ElementType, 0, columns, 0u, void, false, 1>);	\
+						return std::f2##_of(src._data._rows, src._data._rows + rows, f1<ElementType, 0, columns, 0u, void, false, 1>);	\
 					};
 #				endif
-				FUNCTION_DEFINITION(all)
-				FUNCTION_DEFINITION(any)
-				FUNCTION_DEFINITION(none)
-#				undef FUNCTION_DEFINITION
+				FUNCTION_DEFINITION1(all)
+				FUNCTION_DEFINITION1(any)
+				FUNCTION_DEFINITION2(none, all)	// none for matrix requires special handling
+#				undef FUNCTION_DEFINITION1
+#				undef FUNCTION_DEFINITION2
 #			pragma endregion
 
 #			pragma region mul functions
