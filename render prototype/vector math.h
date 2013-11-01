@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		31.10.2013 (c)Alexey Shaydurov
+\date		1.11.2013 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -842,8 +842,8 @@ consider using preprocessor instead of templates or overloading each target func
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleVector, bool rightOdd, unsigned rightNamingSet>
 				void operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleVector, rightOdd, rightNamingSet> &&right)
 				{
-					// TODO: uncomment assert and perform required casts
-					//assert(this != &right);
+					// NOTE: assert should not be triggered if called from copy assign below
+					assert(packedSwizzle == rightPackedSwizzle || &this->operator const ElementType &() != (const void *)&right.operator const RightElementType &());
 					typedef TSwizzleTraits<columns, CSwizzleVector> TLeftSwizzleTraits;
 					typedef TSwizzleTraits<rightColumns, CRightSwizzleVector> TRightSwizzleTraits;
 					static_assert(TLeftSwizzleTraits::TDimension::value <= TRightSwizzleTraits::TDimension::value, "operator =: too small src dimension");
@@ -864,7 +864,7 @@ consider using preprocessor instead of templates or overloading each target func
 				// it is not necessary to create copy of 'right' here (because there is no swizzles) => forward to '&&' overload
 				void operator =(const CSwizzleAssign &right)
 				{
-					operator =<>(static_cast<const CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> &>(std::move(right)));
+					operator =<>(static_cast<const CSwizzle<ElementType, rows, columns, packedSwizzle, CSwizzleVector, odd, namingSet> &&>(std::move(right)));
 				}
 #endif
 
