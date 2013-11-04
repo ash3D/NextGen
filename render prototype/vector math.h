@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		1.11.2013 (c)Alexey Shaydurov
+\date		4.11.2013 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -9,7 +9,7 @@ See "DGLE2.h" for more details.
 
 #pragma region limitations due to lack of C++11 support
 /*
-VS 2010 does not catch errors like vec.xx = vec.xx and does nothing for things like vec.x = vec.x
+VS 2013 does not catch errors like vec.xx = vec.xx and does nothing for things like vec.x = vec.x
 
 different versions of CDataContainer now inherited from specialized CSwizzle
 sizeof(vector<float, 3>) in this case is 12 for both gcc and VS2010
@@ -481,6 +481,8 @@ consider using preprocessor instead of templates or overloading each target func
 #	include <boost\mpl\not.hpp>
 #	include <boost\mpl\identity.hpp>
 #	include <boost\mpl\integral_c.hpp>
+#	include <boost\mpl\find.hpp>
+#	include <boost\mpl\distance.hpp>
 
 //#	define GET_SWIZZLE_ELEMENT(vectorDimension, idx, cv) (reinterpret_cast<cv CData<ElementType, vectorDimension> &>(*this)._data[(idx)])
 //#	define GET_SWIZZLE_ELEMENT_PACKED(vectorDimension, packedSwizzle, idx, cv) (GET_SWIZZLE_ELEMENT(vectorDimension, packedSwizzle >> ((idx) << 1) & 3u, cv))
@@ -626,6 +628,11 @@ consider using preprocessor instead of templates or overloading each target func
 				typedef typename std::conditional<TIsSwizzle::value, mpl::unique<CSortedSwizzleVector, std::is_same<mpl::_, mpl::_>>, mpl::identity<void>>::type::type CUniqueSwizzleVector;
 			public:
 				typedef typename std::conditional<TIsSwizzle::value, mpl::equal_to<mpl::size<CUniqueSwizzleVector>, mpl::size<CSwizzleVector>>, std::true_type>::type TIsWriteMaskValid;
+			};
+
+			template<class CLeftSwizzleVector, class CRightSwizzleVector>
+			struct TIsSwizzleWARHazard
+			{
 			};
 
 			// specializations for graphics vectors/matrices
