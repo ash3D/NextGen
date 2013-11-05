@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		4.11.2013 (c)Alexey Shaydurov
+\date		5.11.2013 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -478,8 +478,6 @@ consider using preprocessor instead of templates or overloading each target func
 #	include <boost\mpl\size.hpp>
 #	include <boost\mpl\unique.hpp>
 #	include <boost\mpl\equal_to.hpp>
-#	include <boost\mpl\not.hpp>
-#	include <boost\mpl\identity.hpp>
 #	include <boost\mpl\integral_c.hpp>
 #	include <boost\mpl\find.hpp>
 #	include <boost\mpl\distance.hpp>
@@ -616,18 +614,30 @@ consider using preprocessor instead of templates or overloading each target func
 #		endif
 			};
 
+			template<unsigned int rows, unsigned int columns, unsigned short packedSwizzle, class CSwizzleVector>
+			class CSwizzleDesc
+			{
+				typedef typename mpl::sort<CSwizzleVector>::type CSortedSwizzleVector;
+				typedef typename mpl::unique<CSortedSwizzleVector, std::is_same<mpl::_, mpl::_>>::type CUniqueSwizzleVector;
+			public:
+			};
+
 			template<unsigned int vectorDimension, class CSwizzleVector>
 			struct TSwizzleTraits
 			{
+				typedef typename mpl::size<CSwizzleVector>::type TDimension;
 			private:
-				typedef mpl::not_<std::is_void<CSwizzleVector>> TIsSwizzle;
+				typedef typename mpl::sort<CSwizzleVector>::type CSortedSwizzleVector;
+				typedef typename mpl::unique<CSortedSwizzleVector, std::is_same<mpl::_, mpl::_>>::type CUniqueSwizzleVector;
 			public:
-				typedef typename std::conditional<TIsSwizzle::value, mpl::size<CSwizzleVector>, mpl::integral_c<unsigned, vectorDimension>>::type TDimension;
-			private:
-				typedef typename std::conditional<TIsSwizzle::value, mpl::sort<CSwizzleVector>, mpl::identity<void>>::type::type CSortedSwizzleVector;
-				typedef typename std::conditional<TIsSwizzle::value, mpl::unique<CSortedSwizzleVector, std::is_same<mpl::_, mpl::_>>, mpl::identity<void>>::type::type CUniqueSwizzleVector;
-			public:
-				typedef typename std::conditional<TIsSwizzle::value, mpl::equal_to<mpl::size<CUniqueSwizzleVector>, mpl::size<CSwizzleVector>>, std::true_type>::type TIsWriteMaskValid;
+				typedef typename mpl::equal_to<mpl::size<CUniqueSwizzleVector>, mpl::size<CSwizzleVector>> TIsWriteMaskValid;
+			};
+
+			template<unsigned int vectorDimension>
+			struct TSwizzleTraits<vectorDimension, void>
+			{
+				typedef typename mpl::integral_c<unsigned, vectorDimension> TDimension;
+				typedef typename std::true_type TIsWriteMaskValid;
 			};
 
 			template<class CLeftSwizzleVector, class CRightSwizzleVector>
