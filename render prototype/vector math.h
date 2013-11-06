@@ -2134,9 +2134,9 @@ consider using preprocessor instead of templates or overloading each target func
 					inline auto f(																																											\
 					const CSwizzle<LeftElementType, leftRows, leftColumns, leftPackedSwizzle, CLeftSwizzleDesc, leftOdd, leftNamingSet> &left,																\
 					const vector<RightElementType, rightDimension> &right)																																	\
-					-> decltype(f(left, static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, rightDimension>>> &>(right)))					\
+					-> decltype(VectorMath::f(left, static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, rightDimension>>> &>(right)))		\
 					{																																														\
-						return f(left, static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, rightDimension>>> &>(right));					\
+						return VectorMath::f(left, static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, rightDimension>>> &>(right));		\
 					};
 				FUNCTION_DEFINITION(min)
 				FUNCTION_DEFINITION(max)
@@ -2151,60 +2151,60 @@ consider using preprocessor instead of templates or overloading each target func
 					inline auto f(																																											\
 					const vector<LeftElementType, leftDimension> &left,																																		\
 					const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleDesc, rightOdd, rightNamingSet> &right)														\
-					-> decltype(f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, leftDimension>>> &>(left), right))					\
+					-> decltype(VectorMath::f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, leftDimension>>> &>(left), right))		\
 					{																																														\
-						return f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, leftDimension>>> &>(left), right);						\
+						return VectorMath::f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, leftDimension>>> &>(left), right);			\
 					};
 				FUNCTION_DEFINITION(min)
 				FUNCTION_DEFINITION(max)
 #				undef FUNCTION_DEFINITION
 
-#				define FUNCTION_DEFINITION(f)																																																																							\
-					template																																																																											\
-					<																																																																													\
-						typename LeftElementType, unsigned int leftDimension,																																																															\
-						typename RightElementType, unsigned int rightDimension																																																															\
-					>																																																																													\
-					inline auto f(																																																																										\
-					const vector<LeftElementType, leftDimension> &left,																																																																	\
-					const vector<RightElementType, rightDimension> &right)																																																																\
-					-> decltype(f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, leftDimension>>> &>(left), static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, rightDimension>>> &>(right)))	\
-					{																																																																													\
-						return f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, leftDimension>>> &>(left), static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, rightDimension>>> &>(right));		\
+#				define FUNCTION_DEFINITION(f)																																																																										\
+					template																																																																														\
+					<																																																																																\
+						typename LeftElementType, unsigned int leftDimension,																																																																		\
+						typename RightElementType, unsigned int rightDimension																																																																		\
+					>																																																																																\
+					inline auto f(																																																																													\
+					const vector<LeftElementType, leftDimension> &left,																																																																				\
+					const vector<RightElementType, rightDimension> &right)																																																																			\
+					-> decltype(VectorMath::f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, leftDimension>>> &>(left), static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, rightDimension>>> &>(right)))	\
+					{																																																																																\
+						return VectorMath::f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, leftDimension>>> &>(left), static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, rightDimension>>> &>(right));		\
 					};
 				FUNCTION_DEFINITION(min)
 				FUNCTION_DEFINITION(max)
 #				undef FUNCTION_DEFINITION
 
-#				define FUNCTION_DEFINITION(f)																																				\
-					template																																								\
-					<																																										\
-						typename LeftElementType, unsigned int leftDimension,																												\
-						typename RightElementType																																			\
-					>																																										\
-					inline auto f(																																							\
-					const vector<LeftElementType, leftDimension> &left,																														\
-					RightElementType right)																																					\
-					-> decltype(f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, leftDimension>>> &>(left), right))	\
-					{																																										\
-						return f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, leftDimension>>> &>(left), right);		\
+#				define FUNCTION_DEFINITION(f)																																							\
+					template																																											\
+					<																																													\
+						typename LeftElementType, unsigned int leftDimension,																															\
+						typename RightElementType																																						\
+					>																																													\
+					inline auto f(																																										\
+					const vector<LeftElementType, leftDimension> &left,																																	\
+					RightElementType right)																																								\
+					-> decltype(VectorMath::f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, leftDimension>>> &>(left), right))	\
+					{																																													\
+						return VectorMath::f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, leftDimension>>> &>(left), right);		\
 					};
 				FUNCTION_DEFINITION(min)
 				FUNCTION_DEFINITION(max)
 #				undef FUNCTION_DEFINITION
 
-#				define FUNCTION_DEFINITION(f)																																				\
-					template																																								\
-					<																																										\
-						typename LeftElementType,																																			\
-						typename RightElementType, unsigned int rightDimension																												\
-					>																																										\
-					inline auto f(																																							\
-					LeftElementType left,																																					\
-					const vector<RightElementType, rightDimension> &right)																													\
-					-> decltype(f(left, static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, rightDimension>>> &>(right)))	\
-					{																																										\
-						return f(left, static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, rightDimension>>> &>(right));	\
+#				define FUNCTION_DEFINITION(f)																																							\
+					template																																											\
+					<																																													\
+						typename LeftElementType,																																						\
+						typename RightElementType, unsigned int rightDimension																															\
+					>																																													\
+					inline auto f(																																										\
+					LeftElementType left,																																								\
+					const vector<RightElementType, rightDimension> &right)																																\
+					-> decltype(VectorMath::f(left, static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, rightDimension>>> &>(right)))	\
+					{																																													\
+						return VectorMath::f(left, static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, rightDimension>>> &>(right));	\
 					};
 				FUNCTION_DEFINITION(min)
 				FUNCTION_DEFINITION(max)
@@ -2224,7 +2224,7 @@ consider using preprocessor instead of templates or overloading each target func
 						typedef decltype(left - right) TResult;											\
 						TResult result;																	\
 						for (unsigned i = 0; i < TResult::rows; i++)									\
-							result[i] = f(left[i], right[i]);											\
+							result[i] = VectorMath::f(left[i], right[i]);								\
 						return result;																	\
 					}
 				FUNCTION_DEFINITION(min)
@@ -2245,7 +2245,7 @@ consider using preprocessor instead of templates or overloading each target func
 						typedef decltype(left - right) TResult;											\
 						TResult result;																	\
 						for (unsigned i = 0; i < TResult::rows; i++)									\
-							result[i] = f(left[i], right);												\
+							result[i] = VectorMath::f(left[i], right);									\
 						return result;																	\
 					}
 				FUNCTION_DEFINITION(min)
@@ -2266,7 +2266,7 @@ consider using preprocessor instead of templates or overloading each target func
 						typedef decltype(left - right) TResult;											\
 						TResult result;																	\
 						for (unsigned i = 0; i < TResult::rows; i++)									\
-							result[i] = f(left, right[i]);												\
+							result[i] = VectorMath::f(left, right[i]);									\
 						return result;																	\
 					}
 				FUNCTION_DEFINITION(min)
