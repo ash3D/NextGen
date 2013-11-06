@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		5.11.2013 (c)Alexey Shaydurov
+\date		6.11.2013 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -241,20 +241,20 @@ consider using preprocessor instead of templates or overloading each target func
 		{
 			CData<ElementType, ROWS, COLUMNS> _data;
 #ifdef MSVC_SWIZZLE_ASSIGN_WORKAROUND
-#			define SWIZZLE_OBJECT(swizzle_seq)																					\
-				CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(swizzle_seq), SWIZZLE_SEQ_2_VECTOR(swizzle_seq), false, 1>	\
+#			define SWIZZLE_OBJECT(swizzle_seq)																								\
+				CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(swizzle_seq), CSwizzleDesc<SWIZZLE_SEQ_2_VECTOR(swizzle_seq)>, false, 1>	\
 					BOOST_PP_CAT(TRANSFORM_SWIZZLE(NAMING_SET_1, swizzle_seq), );
 			GENERATE_SWIZZLES((SWIZZLE_OBJECT))
-#			define SWIZZLE_OBJECT(swizzle_seq)																					\
-				CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(swizzle_seq), SWIZZLE_SEQ_2_VECTOR(swizzle_seq), false, 2>	\
+#			define SWIZZLE_OBJECT(swizzle_seq)																								\
+				CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(swizzle_seq), CSwizzleDesc<SWIZZLE_SEQ_2_VECTOR(swizzle_seq)>, false, 2>	\
 					BOOST_PP_CAT(TRANSFORM_SWIZZLE(NAMING_SET_2, swizzle_seq), );
 			GENERATE_SWIZZLES((SWIZZLE_OBJECT))
-#			define SWIZZLE_OBJECT(swizzle_seq)																					\
-				CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(swizzle_seq), SWIZZLE_SEQ_2_VECTOR(swizzle_seq), true, 1>		\
+#			define SWIZZLE_OBJECT(swizzle_seq)																								\
+				CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(swizzle_seq), CSwizzleDesc<SWIZZLE_SEQ_2_VECTOR(swizzle_seq)>, true, 1>	\
 					BOOST_PP_CAT(TRANSFORM_SWIZZLE(NAMING_SET_1, swizzle_seq), _);
 			GENERATE_SWIZZLES((SWIZZLE_OBJECT))
-#			define SWIZZLE_OBJECT(swizzle_seq)																					\
-				CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(swizzle_seq), SWIZZLE_SEQ_2_VECTOR(swizzle_seq), true, 2>		\
+#			define SWIZZLE_OBJECT(swizzle_seq)																								\
+				CSwizzle<ElementType, ROWS, COLUMNS, PACK_SWIZZLE(swizzle_seq), CSwizzleDesc<SWIZZLE_SEQ_2_VECTOR(swizzle_seq)>, true, 2>	\
 					BOOST_PP_CAT(TRANSFORM_SWIZZLE(NAMING_SET_2, swizzle_seq), _);
 			GENERATE_SWIZZLES((SWIZZLE_OBJECT))
 #else
