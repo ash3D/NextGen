@@ -234,7 +234,7 @@ consider using preprocessor instead of templates or overloading each target func
 
 #ifdef MSVC_LIMITATIONS
 	template<typename ElementType>
-	class CDataContainer<ElementType, ROWS, COLUMNS>: public std::conditional<ROWS == 0, CSwizzle<ElementType, 0, COLUMNS, 0u, CSwizzleDesc<std::integral_constant<unsigned int, COLUMNS>>>, CEmpty>::type
+	class CDataContainer<ElementType, ROWS, COLUMNS>: public std::conditional<ROWS == 0, CSwizzle<ElementType, 0, COLUMNS, 0u, CVectorSwizzleDesc<COLUMNS>>, CEmpty>::type
 	{
 	public:
 		union
@@ -265,40 +265,40 @@ consider using preprocessor instead of templates or overloading each target func
 #else
 #	define TRIVIAL_CTOR_FORWARD CDataContainerImpl() = default;
 #	define NONTRIVIAL_CTOR_FORWARD CDataContainerImpl(): _data() {}
-#	define DATA_CONTAINER_IMPL_SPECIALIZATION(trivialCtor)																																									\
-		template<typename ElementType>																																														\
-	class CDataContainerImpl<ElementType, ROWS, COLUMNS, trivialCtor>: public std::conditional<ROWS == 0, CSwizzle<ElementType, 0, COLUMNS, 0u, CSwizzleDesc<std::integral_constant<unsigned int, COLUMNS>>>, CEmpty>::type	\
-		{																																																					\
-		protected:																																																			\
-			/*forward ctors/dtor/= to _data*/																																												\
-			BOOST_PP_IIF(trivialCtor, TRIVIAL_CTOR_FORWARD, NONTRIVIAL_CTOR_FORWARD)																																		\
-			CDataContainerImpl(const CDataContainerImpl &src): _data(src._data)																																				\
-			{																																																				\
-			}																																																				\
-			CDataContainerImpl(CDataContainerImpl &&src): _data(std::move(src._data))																																		\
-			{																																																				\
-			}																																																				\
-			~CDataContainerImpl()																																															\
-			{																																																				\
-				_data.~CData<ElementType, ROWS, COLUMNS>();																																									\
-			}																																																				\
-			CDataContainerImpl &operator =(const CDataContainerImpl &right)																																					\
-			{																																																				\
-				_data = right._data;																																														\
-				return *this;																																																\
-			}																																																				\
-			CDataContainerImpl &operator =(CDataContainerImpl &&right)																																						\
-			{																																																				\
-				_data = std::move(right._data);																																												\
-				return *this;																																																\
-			}																																																				\
-		public:																																																				\
-			union																																																			\
-			{																																																				\
-				CData<ElementType, ROWS, COLUMNS> _data;																																									\
-				/*gcc does not allow class definition inside anonymous union*/																																				\
-				GENERATE_SWIZZLES((SWIZZLE_OBJECT))																																											\
-			};																																																				\
+#	define DATA_CONTAINER_IMPL_SPECIALIZATION(trivialCtor)																																		\
+		template<typename ElementType>																																							\
+		class CDataContainerImpl<ElementType, ROWS, COLUMNS, trivialCtor>: public std::conditional<ROWS == 0, CSwizzle<ElementType, 0, COLUMNS, 0u, CVectorSwizzleDesc<COLUMNS>>, CEmpty>::type	\
+		{																																														\
+		protected:																																												\
+			/*forward ctors/dtor/= to _data*/																																					\
+			BOOST_PP_IIF(trivialCtor, TRIVIAL_CTOR_FORWARD, NONTRIVIAL_CTOR_FORWARD)																											\
+			CDataContainerImpl(const CDataContainerImpl &src): _data(src._data)																													\
+			{																																													\
+			}																																													\
+			CDataContainerImpl(CDataContainerImpl &&src): _data(std::move(src._data))																											\
+			{																																													\
+			}																																													\
+			~CDataContainerImpl()																																								\
+			{																																													\
+				_data.~CData<ElementType, ROWS, COLUMNS>();																																		\
+			}																																													\
+			CDataContainerImpl &operator =(const CDataContainerImpl &right)																														\
+			{																																													\
+				_data = right._data;																																							\
+				return *this;																																									\
+			}																																													\
+			CDataContainerImpl &operator =(CDataContainerImpl &&right)																															\
+			{																																													\
+				_data = std::move(right._data);																																					\
+				return *this;																																									\
+			}																																													\
+		public:																																													\
+			union																																												\
+			{																																													\
+				CData<ElementType, ROWS, COLUMNS> _data;																																		\
+				/*gcc does not allow class definition inside anonymous union*/																													\
+				GENERATE_SWIZZLES((SWIZZLE_OBJECT))																																				\
+			};																																													\
 		};
 	DATA_CONTAINER_IMPL_SPECIALIZATION(0)
 	DATA_CONTAINER_IMPL_SPECIALIZATION(1)
@@ -559,6 +559,9 @@ consider using preprocessor instead of templates or overloading each target func
 				typedef typename std::true_type TIsWriteMaskValid;
 			};
 
+			template<unsigned int vectorDimension>
+			using CVectorSwizzleDesc = CSwizzleDesc<std::integral_constant<unsigned int, vectorDimension>>;
+
 			template<class CLeftSwizzleDesc, class CRightSwizzleDesc>
 			struct TIsSwizzleWARHazard
 			{
@@ -623,7 +626,7 @@ consider using preprocessor instead of templates or overloading each target func
 
 			// generic vector/matrix
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			class CDataContainer : public std::conditional<rows == 0, CSwizzle<ElementType, 0, columns, 0u, CSwizzleDesc<std::integral_constant<unsigned int, columns>>>, CEmpty>::type
+			class CDataContainer : public std::conditional<rows == 0, CSwizzle<ElementType, 0, columns, 0u, CVectorSwizzleDesc<columns>>, CEmpty>::type
 			{
 			protected:
 				CData<ElementType, rows, columns> _data;
@@ -792,7 +795,7 @@ consider using preprocessor instead of templates or overloading each target func
 			};
 
 			template<typename ElementType, unsigned int vectorDimension>
-			class CSwizzleCommon<ElementType, 0, vectorDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, vectorDimension>>>: public CSwizzleBase<ElementType, 0, vectorDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, vectorDimension>>>
+			class CSwizzleCommon<ElementType, 0, vectorDimension, 0u, CVectorSwizzleDesc<vectorDimension>>: public CSwizzleBase<ElementType, 0, vectorDimension, 0u, CVectorSwizzleDesc<vectorDimension>>
 			{
 				typedef vector<ElementType, vectorDimension> Tvector;
 			protected:
@@ -895,7 +898,7 @@ consider using preprocessor instead of templates or overloading each target func
 
 			// this specialization used as base class for CDataContainer to eliminate need for various overloads
 			template<typename ElementType, unsigned int vectorDimension>
-			class CSwizzle<ElementType, 0, vectorDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, vectorDimension>>>: public CSwizzleAssign<ElementType, 0, vectorDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, vectorDimension>>>
+			class CSwizzle<ElementType, 0, vectorDimension, 0u, CVectorSwizzleDesc<vectorDimension>>: public CSwizzleAssign<ElementType, 0, vectorDimension, 0u, CVectorSwizzleDesc<vectorDimension>>
 			{
 			protected:
 				CSwizzle() = default;
@@ -1017,7 +1020,7 @@ consider using preprocessor instead of templates or overloading each target func
 					CSwizzle<LeftElementType, leftRows, leftColumns, leftPackedSwizzle, CLeftSwizzleDesc, leftOdd, leftNamingSet> &left,															\
 					const vector<RightElementType, rightDimension> &right)																															\
 					{																																												\
-						return left op## = static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, rightDimension>>> &>(right);		\
+						return left op## = static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CVectorSwizzleDesc<rightDimension>> &>(right);										\
 					};
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
@@ -1197,33 +1200,33 @@ consider using preprocessor instead of templates or overloading each target func
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
 #				undef OPERATOR_DEFINITION
 
-#				define OPERATOR_DEFINITION(op)																																																		\
-					template																																																						\
-					<																																																								\
-						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, unsigned short leftPackedSwizzle, class CLeftSwizzleDesc, bool leftOdd, unsigned leftNamingSet,													\
-						typename RightElementType, unsigned int rightDimension																																										\
-					>																																																								\
-					inline auto operator op(																																																		\
-					const CSwizzle<LeftElementType, leftRows, leftColumns, leftPackedSwizzle, CLeftSwizzleDesc, leftOdd, leftNamingSet> &left,																										\
-					const vector<RightElementType, rightDimension> &right) -> decltype(left op static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, rightDimension>>> &>(right))	\
-					{																																																								\
-						return left op static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, rightDimension>>> &>(right);															\
+#				define OPERATOR_DEFINITION(op)																																										\
+					template																																														\
+					<																																																\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, unsigned short leftPackedSwizzle, class CLeftSwizzleDesc, bool leftOdd, unsigned leftNamingSet,					\
+						typename RightElementType, unsigned int rightDimension																																		\
+					>																																																\
+					inline auto operator op(																																										\
+					const CSwizzle<LeftElementType, leftRows, leftColumns, leftPackedSwizzle, CLeftSwizzleDesc, leftOdd, leftNamingSet> &left,																		\
+					const vector<RightElementType, rightDimension> &right) -> decltype(left op static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CVectorSwizzleDesc<rightDimension>> &>(right))	\
+					{																																																\
+						return left op static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CVectorSwizzleDesc<rightDimension>> &>(right);															\
 					};
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
 #				undef OPERATOR_DEFINITION
 
-#				define OPERATOR_DEFINITION(op)																																																																				\
-					template																																																																								\
-					<																																																																										\
-						typename LeftElementType, unsigned int leftDimension,																																																												\
-						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleDesc, bool rightOdd, unsigned rightNamingSet																													\
-					>																																																																										\
-					inline auto operator op(																																																																				\
-					const vector<LeftElementType, leftDimension> &left,																																																														\
-					const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleDesc, rightOdd, rightNamingSet> &right) -> decltype(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, leftDimension>>> &>(left)op right)	\
-					{																																																																										\
-						return static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, leftDimension>>> &>(left)op right;																																		\
+#				define OPERATOR_DEFINITION(op)																																																												\
+					template																																																																\
+					<																																																																		\
+						typename LeftElementType, unsigned int leftDimension,																																																				\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleDesc, bool rightOdd, unsigned rightNamingSet																					\
+					>																																																																		\
+					inline auto operator op(																																																												\
+					const vector<LeftElementType, leftDimension> &left,																																																						\
+					const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleDesc, rightOdd, rightNamingSet> &right) -> decltype(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, CVectorSwizzleDesc<leftDimension>> &>(left)op right)	\
+					{																																																																		\
+						return static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, CVectorSwizzleDesc<leftDimension>> &>(left)op right;																																		\
 					};
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
@@ -1238,12 +1241,12 @@ consider using preprocessor instead of templates or overloading each target func
 					inline auto operator op(																																	\
 					const vector<LeftElementType, leftDimension> &left,																											\
 					const vector<RightElementType, rightDimension> &right) -> decltype(																							\
-					static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, leftDimension>>> &>(left)op				\
-					static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, rightDimension>>> &>(right))			\
+					static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, CVectorSwizzleDesc<leftDimension>> &>(left)op				\
+					static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CVectorSwizzleDesc<rightDimension>> &>(right))			\
 					{																																							\
 						return																																					\
-							static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, leftDimension>>> &>(left) op	\
-							static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, rightDimension>>> &>(right);	\
+							static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, CVectorSwizzleDesc<leftDimension>> &>(left) op	\
+							static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CVectorSwizzleDesc<rightDimension>> &>(right);	\
 					};
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
@@ -1672,7 +1675,7 @@ consider using preprocessor instead of templates or overloading each target func
 				template<typename ElementType, unsigned int dimension>
 				inline auto vector<ElementType, dimension>::operator =(std::initializer_list<CInitListItem<ElementType>> initList) -> vector &
 				{
-					CSwizzleAssign<ElementType, 0, dimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, dimension>>>::operator =(initList);
+					CSwizzleAssign<ElementType, 0, dimension, 0u, CVectorSwizzleDesc<dimension>>::operator =(initList);
 					return *this;
 				}
 
@@ -1686,14 +1689,14 @@ consider using preprocessor instead of templates or overloading each target func
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, unsigned short rightPackedSwizzle, class CRightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
 				inline auto vector<ElementType, dimension>::operator =(const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleDesc, rightOdd, rightNamingSet> &right) -> vector &
 				{
-					CSwizzleAssign<ElementType, 0, dimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, dimension>>>::operator =(right);
+					CSwizzleAssign<ElementType, 0, dimension, 0u, CVectorSwizzleDesc<dimension>>::operator =(right);
 					return *this;
 				}
 
 				template<typename ElementType, unsigned int dimension>
 				inline auto vector<ElementType, dimension>::operator =(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar) -> vector &
 				{
-					CSwizzleAssign<ElementType, 0, dimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, dimension>>>::operator =(scalar);
+					CSwizzleAssign<ElementType, 0, dimension, 0u, CVectorSwizzleDesc<dimension>>::operator =(scalar);
 					return *this;
 				}
 #			pragma endregion
@@ -2134,9 +2137,9 @@ consider using preprocessor instead of templates or overloading each target func
 					inline auto f(																																											\
 					const CSwizzle<LeftElementType, leftRows, leftColumns, leftPackedSwizzle, CLeftSwizzleDesc, leftOdd, leftNamingSet> &left,																\
 					const vector<RightElementType, rightDimension> &right)																																	\
-					-> decltype(VectorMath::f(left, static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, rightDimension>>> &>(right)))		\
+					-> decltype(VectorMath::f(left, static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CVectorSwizzleDesc<rightDimension>> &>(right)))										\
 					{																																														\
-						return VectorMath::f(left, static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, rightDimension>>> &>(right));		\
+						return VectorMath::f(left, static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CVectorSwizzleDesc<rightDimension>> &>(right));										\
 					};
 				FUNCTION_DEFINITION(min)
 				FUNCTION_DEFINITION(max)
@@ -2151,60 +2154,60 @@ consider using preprocessor instead of templates or overloading each target func
 					inline auto f(																																											\
 					const vector<LeftElementType, leftDimension> &left,																																		\
 					const CSwizzle<RightElementType, rightRows, rightColumns, rightPackedSwizzle, CRightSwizzleDesc, rightOdd, rightNamingSet> &right)														\
-					-> decltype(VectorMath::f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, leftDimension>>> &>(left), right))		\
+					-> decltype(VectorMath::f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, CVectorSwizzleDesc<leftDimension>> &>(left), right))										\
 					{																																														\
-						return VectorMath::f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, leftDimension>>> &>(left), right);			\
+						return VectorMath::f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, CVectorSwizzleDesc<leftDimension>> &>(left), right);											\
 					};
 				FUNCTION_DEFINITION(min)
 				FUNCTION_DEFINITION(max)
 #				undef FUNCTION_DEFINITION
 
-#				define FUNCTION_DEFINITION(f)																																																																										\
-					template																																																																														\
-					<																																																																																\
-						typename LeftElementType, unsigned int leftDimension,																																																																		\
-						typename RightElementType, unsigned int rightDimension																																																																		\
-					>																																																																																\
-					inline auto f(																																																																													\
-					const vector<LeftElementType, leftDimension> &left,																																																																				\
-					const vector<RightElementType, rightDimension> &right)																																																																			\
-					-> decltype(VectorMath::f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, leftDimension>>> &>(left), static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, rightDimension>>> &>(right)))	\
-					{																																																																																\
-						return VectorMath::f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, leftDimension>>> &>(left), static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, rightDimension>>> &>(right));		\
+#				define FUNCTION_DEFINITION(f)																																																										\
+					template																																																														\
+					<																																																																\
+						typename LeftElementType, unsigned int leftDimension,																																																		\
+						typename RightElementType, unsigned int rightDimension																																																		\
+					>																																																																\
+					inline auto f(																																																													\
+					const vector<LeftElementType, leftDimension> &left,																																																				\
+					const vector<RightElementType, rightDimension> &right)																																																			\
+					-> decltype(VectorMath::f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, CVectorSwizzleDesc<leftDimension>> &>(left), static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CVectorSwizzleDesc<rightDimension>> &>(right)))	\
+					{																																																																\
+						return VectorMath::f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, CVectorSwizzleDesc<leftDimension>> &>(left), static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CVectorSwizzleDesc<rightDimension>> &>(right));		\
 					};
 				FUNCTION_DEFINITION(min)
 				FUNCTION_DEFINITION(max)
 #				undef FUNCTION_DEFINITION
 
-#				define FUNCTION_DEFINITION(f)																																							\
-					template																																											\
-					<																																													\
-						typename LeftElementType, unsigned int leftDimension,																															\
-						typename RightElementType																																						\
-					>																																													\
-					inline auto f(																																										\
-					const vector<LeftElementType, leftDimension> &left,																																	\
-					RightElementType right)																																								\
-					-> decltype(VectorMath::f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, leftDimension>>> &>(left), right))	\
-					{																																													\
-						return VectorMath::f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, leftDimension>>> &>(left), right);		\
+#				define FUNCTION_DEFINITION(f)																															\
+					template																																			\
+					<																																					\
+						typename LeftElementType, unsigned int leftDimension,																							\
+						typename RightElementType																														\
+					>																																					\
+					inline auto f(																																		\
+					const vector<LeftElementType, leftDimension> &left,																									\
+					RightElementType right)																																\
+					-> decltype(VectorMath::f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, CVectorSwizzleDesc<leftDimension>> &>(left), right))	\
+					{																																					\
+						return VectorMath::f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, 0u, CVectorSwizzleDesc<leftDimension>> &>(left), right);		\
 					};
 				FUNCTION_DEFINITION(min)
 				FUNCTION_DEFINITION(max)
 #				undef FUNCTION_DEFINITION
 
-#				define FUNCTION_DEFINITION(f)																																							\
-					template																																											\
-					<																																													\
-						typename LeftElementType,																																						\
-						typename RightElementType, unsigned int rightDimension																															\
-					>																																													\
-					inline auto f(																																										\
-					LeftElementType left,																																								\
-					const vector<RightElementType, rightDimension> &right)																																\
-					-> decltype(VectorMath::f(left, static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, rightDimension>>> &>(right)))	\
-					{																																													\
-						return VectorMath::f(left, static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CSwizzleDesc<std::integral_constant<unsigned int, rightDimension>>> &>(right));	\
+#				define FUNCTION_DEFINITION(f)																															\
+					template																																			\
+					<																																					\
+						typename LeftElementType,																														\
+						typename RightElementType, unsigned int rightDimension																							\
+					>																																					\
+					inline auto f(																																		\
+					LeftElementType left,																																\
+					const vector<RightElementType, rightDimension> &right)																								\
+					-> decltype(VectorMath::f(left, static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CVectorSwizzleDesc<rightDimension>> &>(right)))	\
+					{																																					\
+						return VectorMath::f(left, static_cast<const CSwizzle<RightElementType, 0, rightDimension, 0u, CVectorSwizzleDesc<rightDimension>> &>(right));	\
 					};
 				FUNCTION_DEFINITION(min)
 				FUNCTION_DEFINITION(max)
@@ -2294,19 +2297,19 @@ consider using preprocessor instead of templates or overloading each target func
 
 #				define FUNCTION_DEFINITION1(f) FUNCTION_DEFINITION2(f, f)
 #				ifdef MSVC_LIMITATIONS
-#				define FUNCTION_DEFINITION2(f1, f2)																																				\
-					template<typename ElementType, unsigned int rowCount, unsigned int columnCount>																								\
-					bool f1(const matrix<ElementType, rowCount, columnCount> &src)																												\
-					{																																											\
-						const auto &rows = reinterpret_cast<const matrix<ElementType, rowCount, columnCount>::TRow (&)[rowCount]>(src._data._rows);												\
-						return std::f2##_of(rows, rows + rowCount, f1<ElementType, 0, columnCount, 0u, CSwizzleDesc<std::integral_constant<unsigned int, columnCount>>, false, 1>);				\
+#				define FUNCTION_DEFINITION2(f1, f2)																															\
+					template<typename ElementType, unsigned int rowCount, unsigned int columnCount>																			\
+					bool f1(const matrix<ElementType, rowCount, columnCount> &src)																							\
+					{																																						\
+						const auto &rows = reinterpret_cast<const matrix<ElementType, rowCount, columnCount>::TRow (&)[rowCount]>(src._data._rows);							\
+						return std::f2##_of(rows, rows + rowCount, f1<ElementType, 0, columnCount, 0u, CVectorSwizzleDesc<columnCount>, false, 1>);							\
 					};
 #				else
-#				define FUNCTION_DEFINITION2(f1, f2)																																				\
-					template<typename ElementType, unsigned int rows, unsigned int columns>																										\
-					bool f1(const matrix<ElementType, rows, columns> &src)																														\
-					{																																											\
-						return std::f2##_of(src._data._rows, src._data._rows + rows, f1<ElementType, 0, columns, 0u, CSwizzleDesc<std::integral_constant<unsigned int, columns>>, false, 1>);	\
+#				define FUNCTION_DEFINITION2(f1, f2)																															\
+					template<typename ElementType, unsigned int rows, unsigned int columns>																					\
+					bool f1(const matrix<ElementType, rows, columns> &src)																									\
+					{																																						\
+						return std::f2##_of(src._data._rows, src._data._rows + rows, f1<ElementType, 0, columns, 0u, CVectorSwizzleDesc<columns>, false, 1>);				\
 					};
 #				endif
 				FUNCTION_DEFINITION1(all)
