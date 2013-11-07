@@ -793,8 +793,12 @@ consider using preprocessor instead of templates or overloading each target func
 				}
 			};
 
+			/*
+			CVectorSwizzleDesc<vectorDimension> required for VS 2013
+			TODO: try with newer version
+			*/
 			template<typename ElementType, unsigned int vectorDimension>
-			class CSwizzleCommon<ElementType, 0, vectorDimension>: public CSwizzleBase<ElementType, 0, vectorDimension>
+			class CSwizzleCommon<ElementType, 0, vectorDimension, CVectorSwizzleDesc<vectorDimension>>: public CSwizzleBase<ElementType, 0, vectorDimension>
 			{
 				typedef vector<ElementType, vectorDimension> Tvector;
 			protected:
@@ -896,8 +900,12 @@ consider using preprocessor instead of templates or overloading each target func
 			};
 
 			// this specialization used as base class for CDataContainer to eliminate need for various overloads
+			/*
+			CVectorSwizzleDesc<vectorDimension> required for VS 2013
+			TODO: try with newer version
+			*/
 			template<typename ElementType, unsigned int vectorDimension>
-			class CSwizzle<ElementType, 0, vectorDimension>: public CSwizzleAssign<ElementType, 0, vectorDimension>
+			class CSwizzle<ElementType, 0, vectorDimension, CVectorSwizzleDesc<vectorDimension>>: public CSwizzleAssign<ElementType, 0, vectorDimension>
 			{
 			protected:
 				CSwizzle() = default;
