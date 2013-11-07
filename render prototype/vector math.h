@@ -2056,11 +2056,11 @@ consider using preprocessor instead of templates or overloading each target func
 
 #			pragma region min/max functions
 				// std::min/max requires explicit template param if used for different types => provide scalar version
-#				define FUNCTION_DEFINITION(f)																\
-					template<typename LeftElementType, typename RightElementType>							\
-					inline auto f(LeftElementType left, RightElementType right) -> decltype(left - right)	\
-					{																						\
-						return std::f<decltype(left - right)>(left, right);									\
+#				define FUNCTION_DEFINITION(f)																			\
+					template<typename LeftElementType, typename RightElementType>										\
+					inline auto f(const LeftElementType &left, const RightElementType &right) -> decltype(left - right)	\
+					{																									\
+						return std::f<decltype(left - right)>(left, right);												\
 					};
 				FUNCTION_DEFINITION(min)
 				FUNCTION_DEFINITION(max)
@@ -2095,7 +2095,7 @@ consider using preprocessor instead of templates or overloading each target func
 					>																																					\
 					inline auto f(																																		\
 					const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet> &left,												\
-					RightElementType right)																																\
+					const RightElementType &right)																														\
 					-> decltype(left - right)																															\
 					{																																					\
 						typedef decltype(left - right) TResult;																											\
@@ -2115,7 +2115,7 @@ consider using preprocessor instead of templates or overloading each target func
 						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet	\
 					>																																					\
 					inline auto f(																																		\
-					LeftElementType left,																																\
+					const LeftElementType &left,																														\
 					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right)										\
 					-> decltype(left - right)																															\
 					{																																					\
@@ -2191,7 +2191,7 @@ consider using preprocessor instead of templates or overloading each target func
 					>																																					\
 					inline auto f(																																		\
 					const vector<LeftElementType, leftDimension> &left,																									\
-					RightElementType right)																																\
+					const RightElementType &right)																														\
 					-> decltype(VectorMath::f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, CVectorSwizzleDesc<leftDimension>> &>(left), right))		\
 					{																																					\
 						return VectorMath::f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension, CVectorSwizzleDesc<leftDimension>> &>(left), right);			\
@@ -2207,7 +2207,7 @@ consider using preprocessor instead of templates or overloading each target func
 						typename RightElementType, unsigned int rightDimension																							\
 					>																																					\
 					inline auto f(																																		\
-					LeftElementType left,																																\
+					const LeftElementType &left,																														\
 					const vector<RightElementType, rightDimension> &right)																								\
 					-> decltype(VectorMath::f(left, static_cast<const CSwizzle<RightElementType, 0, rightDimension, CVectorSwizzleDesc<rightDimension>> &>(right)))		\
 					{																																					\
@@ -2246,7 +2246,7 @@ consider using preprocessor instead of templates or overloading each target func
 					>																					\
 					auto f(																				\
 					const matrix<LeftElementType, leftRows, leftColumns> &left,							\
-					RightElementType right)																\
+					const RightElementType &right)														\
 					-> decltype(left - right)															\
 					{																					\
 						typedef decltype(left - right) TResult;											\
@@ -2266,7 +2266,7 @@ consider using preprocessor instead of templates or overloading each target func
 						typename RightElementType, unsigned int rightRows, unsigned int rightColumns	\
 					>																					\
 					auto f(																				\
-					LeftElementType left,																\
+					const LeftElementType &left,														\
 					const matrix<RightElementType, rightRows, rightColumns> &right)						\
 					-> decltype(left - right)															\
 					{																					\
