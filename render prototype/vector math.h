@@ -503,6 +503,7 @@ consider using preprocessor instead of templates or overloading each target func
 			{
 				typedef typename mpl::sort<CSwizzleVector_>::type CSortedSwizzleVector;
 				typedef typename mpl::unique<CSortedSwizzleVector, std::is_same<mpl::_, mpl::_>>::type CUniqueSwizzleVector;
+				typedef typename mpl::equal_to<mpl::size<CUniqueSwizzleVector>, mpl::size<CSwizzleVector_>> TIsWriteMaskValid;
 			public:
 				// unique for CSwizzleDesc (not present in CVectorSwizzleDesc)
 				static constexpr unsigned short packedSwizzle = packedSwizzle_;
@@ -510,7 +511,7 @@ consider using preprocessor instead of templates or overloading each target func
 				typedef CSwizzleVector_ CSwizzleVector;
 			public:
 				typedef typename mpl::size<CSwizzleVector_>::type TDimension;
-				typedef typename mpl::equal_to<mpl::size<CUniqueSwizzleVector>, mpl::size<CSwizzleVector_>> TIsWriteMaskValid;
+				static constexpr typename TIsWriteMaskValid::value_type isWriteMaskValid = TIsWriteMaskValid::value;
 			};
 
 			template<unsigned int vectorDimension>
@@ -521,7 +522,7 @@ consider using preprocessor instead of templates or overloading each target func
 				typedef mpl::range_c<unsigned int, 0, vectorDimension> CSwizzleVector;
 			public:
 				typedef typename mpl::integral_c<unsigned, vectorDimension> TDimension;
-				typedef typename std::true_type TIsWriteMaskValid;
+				static constexpr bool isWriteMaskValid = true;
 			};
 
 			template<class LeftSwizzleDesc, class RightSwizzleDesc>
@@ -1013,7 +1014,7 @@ consider using preprocessor instead of templates or overloading each target func
 					CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet> &left,													\
 					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right)										\
 					{																																					\
-						static_assert(LeftSwizzleDesc::TIsWriteMaskValid::value, "operator "#op"=: invalid write mask");												\
+						static_assert(LeftSwizzleDesc::isWriteMaskValid, "operator "#op"=: invalid write mask");														\
 						static_assert(LeftSwizzleDesc::TDimension::value <= RightSwizzleDesc::TDimension::value, "operator "#op"=: too small src dimension");			\
 						const vector<RightElementType, RightSwizzleDesc::TDimension::value> right_copy(right);															\
 						for (typename LeftSwizzleDesc::TDimension::value_type i = 0; i < LeftSwizzleDesc::TDimension::value; i++)										\
@@ -1048,7 +1049,7 @@ consider using preprocessor instead of templates or overloading each target func
 					CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet> &left,													\
 					RightElementType right)																																\
 					{																																					\
-						static_assert(LeftSwizzleDesc::TIsWriteMaskValid::value, "operator "#op"=: invalid write mask");												\
+						static_assert(LeftSwizzleDesc::isWriteMaskValid, "operator "#op"=: invalid write mask");														\
 						for (typename LeftSwizzleDesc::TDimension::value_type i = 0; i < LeftSwizzleDesc::TDimension::value; i++)										\
 							left[i] op##= right;																														\
 						return left;																																	\
