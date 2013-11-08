@@ -479,7 +479,11 @@ consider using preprocessor instead of templates or overloading each target func
 #	include <boost\mpl\size.hpp>
 #	include <boost\mpl\unique.hpp>
 #	include <boost\mpl\equal_to.hpp>
+#	include <boost\mpl\less.hpp>
+#	include <boost\mpl\or.hpp>
 #	include <boost\mpl\integral_c.hpp>
+#	include <boost\mpl\deref.hpp>
+#	include <boost\mpl\iter_fold.hpp>
 #	include <boost\mpl\find.hpp>
 
 //#	define GET_SWIZZLE_ELEMENT(vectorDimension, idx, cv) (reinterpret_cast<cv CData<ElementType, vectorDimension> &>(*this)._data[(idx)])
@@ -525,9 +529,17 @@ consider using preprocessor instead of templates or overloading each target func
 				static constexpr bool isWriteMaskValid = true;
 			};
 
-			template<class LeftSwizzleDesc, class RightSwizzleDesc>
-			struct TIsSwizzleWARHazard
+			template<class DstSwizzleDesc, class SrcSwizzleDesc>
+			class CIsSwizzleWARHazard
 			{
+				typedef typename DstSwizzleDesc::CSwizzleVector CDstSwizzleVector;
+				typedef typename SrcSwizzleDesc::CSwizzleVector CSrcSwizzleVector;
+				// TODO: cut off CSrcSwizzleVector
+			//private:
+			//	typedef typename mpl::less<mpl::find<CDstSwizzleVector, mpl::deref<mpl::_>>::type::pos, mpl::_::value> TPred;
+			//	typedef typename mpl::iter_fold<CSrcSwizzleVector, std::false_type, mpl::or_<mpl::_1, TPred<_2>>>::type TResult;
+			//public:
+			//	static constexpr TResult::value_type value = TResult::value;
 			};
 
 			template<typename ElementType, unsigned int dimension>
