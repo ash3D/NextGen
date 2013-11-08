@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		7.11.2013 (c)Alexey Shaydurov
+\date		8.11.2013 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -472,6 +472,7 @@ consider using preprocessor instead of templates or overloading each target func
 #	include <boost\preprocessor\seq\to_tuple.hpp>
 #	include <boost\mpl\placeholders.hpp>
 #	include <boost\mpl\vector_c.hpp>
+#	include <boost\mpl\range_c.hpp>
 #	include <boost\mpl\at.hpp>
 #	include <boost\mpl\min_max.hpp>
 #	include <boost\mpl\sort.hpp>
@@ -480,7 +481,6 @@ consider using preprocessor instead of templates or overloading each target func
 #	include <boost\mpl\equal_to.hpp>
 #	include <boost\mpl\integral_c.hpp>
 #	include <boost\mpl\find.hpp>
-#	include <boost\mpl\distance.hpp>
 
 //#	define GET_SWIZZLE_ELEMENT(vectorDimension, idx, cv) (reinterpret_cast<cv CData<ElementType, vectorDimension> &>(*this)._data[(idx)])
 //#	define GET_SWIZZLE_ELEMENT_PACKED(vectorDimension, packedSwizzle, idx, cv) (GET_SWIZZLE_ELEMENT(vectorDimension, packedSwizzle >> ((idx) << 1) & 3u, cv))
@@ -498,21 +498,27 @@ consider using preprocessor instead of templates or overloading each target func
 
 			class CEmpty {};
 
-			template<unsigned short packedSwizzle_, class CSwizzleVector>
+			template<unsigned short packedSwizzle_, class CSwizzleVector_>
 			class CSwizzleDesc
 			{
-				typedef typename mpl::sort<CSwizzleVector>::type CSortedSwizzleVector;
+				typedef typename mpl::sort<CSwizzleVector_>::type CSortedSwizzleVector;
 				typedef typename mpl::unique<CSortedSwizzleVector, std::is_same<mpl::_, mpl::_>>::type CUniqueSwizzleVector;
 			public:
+				// unique for CSwizzleDesc (not present in CVectorSwizzleDesc)
 				static constexpr unsigned short packedSwizzle = packedSwizzle_;
 			public:
-				typedef typename mpl::size<CSwizzleVector>::type TDimension;
-				typedef typename mpl::equal_to<mpl::size<CUniqueSwizzleVector>, mpl::size<CSwizzleVector>> TIsWriteMaskValid;
+				typedef CSwizzleVector_ CSwizzleVector;
+			public:
+				typedef typename mpl::size<CSwizzleVector_>::type TDimension;
+				typedef typename mpl::equal_to<mpl::size<CUniqueSwizzleVector>, mpl::size<CSwizzleVector_>> TIsWriteMaskValid;
 			};
 
 			template<unsigned int vectorDimension>
 			class CVectorSwizzleDesc
 			{
+			public:
+				// CSwizzleVector here not actually vector but rather range
+				typedef mpl::range_c<unsigned int, 0, vectorDimension> CSwizzleVector;
 			public:
 				typedef typename mpl::integral_c<unsigned, vectorDimension> TDimension;
 				typedef typename std::true_type TIsWriteMaskValid;
