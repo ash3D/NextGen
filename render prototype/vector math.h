@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		8.11.2013 (c)Alexey Shaydurov
+\date		12.11.2013 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -482,7 +482,10 @@ consider using preprocessor instead of templates or overloading each target func
 #	include <boost\mpl\less.hpp>
 #	include <boost\mpl\or.hpp>
 #	include <boost\mpl\integral_c.hpp>
+#	include <boost\mpl\iterator_range.hpp>
 #	include <boost\mpl\deref.hpp>
+#	include <boost\mpl\begin.hpp>
+#	include <boost\mpl\distance.hpp>
 #	include <boost\mpl\iter_fold.hpp>
 #	include <boost\mpl\find.hpp>
 
@@ -530,16 +533,21 @@ consider using preprocessor instead of templates or overloading each target func
 			};
 
 			template<class DstSwizzleDesc, class SrcSwizzleDesc>
-			class CIsSwizzleWARHazard
+			class DetectSwizzleWARHazard
 			{
 				typedef typename DstSwizzleDesc::CSwizzleVector CDstSwizzleVector;
-				typedef typename SrcSwizzleDesc::CSwizzleVector CSrcSwizzleVector;
-				// TODO: cut off CSrcSwizzleVector
-			//private:
-			//	typedef typename mpl::less<mpl::find<CDstSwizzleVector, mpl::deref<mpl::_>>::type::pos, mpl::_::value> TPred;
-			//	typedef typename mpl::iter_fold<CSrcSwizzleVector, std::false_type, mpl::or_<mpl::_1, TPred<_2>>>::type TResult;
-			//public:
-			//	static constexpr TResult::value_type value = TResult::value;
+				typedef typename /*mpl::iterator_range<*/SrcSwizzleDesc::CSwizzleVector CSrcSwizzleVector;
+				// cut off CSrcSwizzleVector
+			private:
+				template<class Seq, class Iter>
+				struct DistanceFromBegin : mpl::distance<typename mpl::begin<Seq>::type, Iter> {};
+				template<class Value>
+				struct FindInDst : mpl::find<CDstSwizzleVector, Value> {};
+				template<class SrcIter>
+				struct Pred : mpl::less<typename DistanceFromBegin<CDstSwizzleVector, typename FindInDst<typename mpl::deref<SrcIter>::type>::type>::type, typename DistanceFromBegin<CSrcSwizzleVector, SrcIter>::type> {};
+				typedef typename mpl::iter_fold<CSrcSwizzleVector, std::false_type, mpl::or_<mpl::_1, Pred<mpl::_2>>>::type Result;
+			public:
+				static constexpr typename Result::value_type value = Result::value;
 			};
 
 			template<typename ElementType, unsigned int dimension>
