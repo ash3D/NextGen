@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		12.11.2013 (c)Alexey Shaydurov
+\date		13.11.2013 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -485,6 +485,7 @@ consider using preprocessor instead of templates or overloading each target func
 #	include <boost\mpl\iterator_range.hpp>
 #	include <boost\mpl\deref.hpp>
 #	include <boost\mpl\begin.hpp>
+#	include <boost\mpl\advance.hpp>
 #	include <boost\mpl\distance.hpp>
 #	include <boost\mpl\iter_fold.hpp>
 #	include <boost\mpl\find.hpp>
@@ -536,16 +537,19 @@ consider using preprocessor instead of templates or overloading each target func
 			class DetectSwizzleWARHazard
 			{
 				typedef typename DstSwizzleDesc::CSwizzleVector CDstSwizzleVector;
-				typedef typename /*mpl::iterator_range<*/SrcSwizzleDesc::CSwizzleVector CSrcSwizzleVector;
+				typedef typename SrcSwizzleDesc::CSwizzleVector CSrcSwizzleVector;
 				// cut off CSrcSwizzleVector
+				typedef typename mpl::min<typename mpl::size<CSrcSwizzleVector>::type, typename mpl::size<CDstSwizzleVector>::type>::type MinSwizzleSize;
+				typedef typename mpl::begin<CSrcSwizzleVector>::type SrcSwizzleBegin;
+				typedef typename mpl::iterator_range<SrcSwizzleBegin, typename mpl::advance<SrcSwizzleBegin, MinSwizzleSize>::type>::type CCuttedSrcSwizzleVector;
 			private:
 				template<class Seq, class Iter>
 				struct DistanceFromBegin : mpl::distance<typename mpl::begin<Seq>::type, Iter> {};
 				template<class Value>
 				struct FindInDst : mpl::find<CDstSwizzleVector, Value> {};
 				template<class SrcIter>
-				struct Pred : mpl::less<typename DistanceFromBegin<CDstSwizzleVector, typename FindInDst<typename mpl::deref<SrcIter>::type>::type>::type, typename DistanceFromBegin<CSrcSwizzleVector, SrcIter>::type> {};
-				typedef typename mpl::iter_fold<CSrcSwizzleVector, std::false_type, mpl::or_<mpl::_1, Pred<mpl::_2>>>::type Result;
+				struct Pred : mpl::less<typename DistanceFromBegin<CDstSwizzleVector, typename FindInDst<typename mpl::deref<SrcIter>::type>::type>::type, typename DistanceFromBegin<CCuttedSrcSwizzleVector, SrcIter>::type> {};
+				typedef typename mpl::iter_fold<CCuttedSrcSwizzleVector, std::false_type, mpl::or_<mpl::_1, Pred<mpl::_2>>>::type Result;
 			public:
 				static constexpr typename Result::value_type value = Result::value;
 			};
