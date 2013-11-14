@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		13.11.2013 (c)Alexey Shaydurov
+\date		14.11.2013 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -478,8 +478,7 @@ consider using preprocessor instead of templates or overloading each target func
 #	include <boost\mpl\sort.hpp>
 #	include <boost\mpl\size.hpp>
 #	include <boost\mpl\unique.hpp>
-#	include <boost\mpl\equal_to.hpp>
-#	include <boost\mpl\less.hpp>
+#	include <boost\mpl\comparison.hpp>
 #	include <boost\mpl\or.hpp>
 #	include <boost\mpl\integral_c.hpp>
 #	include <boost\mpl\iterator_range.hpp>
@@ -533,7 +532,7 @@ consider using preprocessor instead of templates or overloading each target func
 				static constexpr bool isWriteMaskValid = true;
 			};
 
-			template<class DstSwizzleDesc, class SrcSwizzleDesc>
+			template<class DstSwizzleDesc, class SrcSwizzleDesc, bool assign>
 			class DetectSwizzleWARHazard
 			{
 				typedef typename DstSwizzleDesc::CSwizzleVector CDstSwizzleVector;
@@ -543,12 +542,22 @@ consider using preprocessor instead of templates or overloading each target func
 				typedef typename mpl::begin<CSrcSwizzleVector>::type SrcSwizzleBegin;
 				typedef typename mpl::iterator_range<SrcSwizzleBegin, typename mpl::advance<SrcSwizzleBegin, MinSwizzleSize>::type>::type CCuttedSrcSwizzleVector;
 			private:
-				template<class Seq, class Iter>
-				struct DistanceFromBegin : mpl::distance<typename mpl::begin<Seq>::type, Iter> {};
-				template<class Value>
-				struct FindInDst : mpl::find<CDstSwizzleVector, Value> {};
 				template<class SrcIter>
-				struct Pred : mpl::less<typename DistanceFromBegin<CDstSwizzleVector, typename FindInDst<typename mpl::deref<SrcIter>::type>::type>::type, typename DistanceFromBegin<CCuttedSrcSwizzleVector, SrcIter>::type> {};
+				class Pred
+				{
+					template<class Seq, class Iter>
+					struct DistanceFromBegin : mpl::distance<typename mpl::begin<Seq>::type, Iter> {};
+					typedef typename mpl::find<CDstSwizzleVector, typename mpl::deref<SrcIter>::type>::type DstIter;
+					typedef typename mpl::less<typename DistanceFromBegin<CDstSwizzleVector, DstIter>::type, typename DistanceFromBegin<CCuttedSrcSwizzleVector, SrcIter>::type>::type DstWasAlreadyWritten;
+				private:
+					// use metafunctions to perform lazy evaluation
+					template<class DstIter = DstIter>
+					struct FindSrcWrittenToDstIter : mpl::advance<typename mpl::begin<CCuttedSrcSwizzleVector>::type, typename DistanceFromBegin<CDstSwizzleVector, DstIter>::type> {};
+					template<class DstIter = DstIter>
+					struct DstWasModified : mpl::not_equal_to<typename mpl::deref<DstIter>::type, typename mpl::deref<typename FindSrcWrittenToDstIter<>::type>::type> {};
+				public:
+					typedef typename std::conditional<assign && DstWasAlreadyWritten::value, DstWasModified<>, DstWasAlreadyWritten>::type type;
+				};
 				typedef typename mpl::iter_fold<CCuttedSrcSwizzleVector, std::false_type, mpl::or_<mpl::_1, Pred<mpl::_2>>>::type Result;
 			public:
 				static constexpr typename Result::value_type value = Result::value;
