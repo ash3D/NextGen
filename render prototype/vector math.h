@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		15.11.2013 (c)Alexey Shaydurov
+\date		18.11.2013 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -893,6 +893,15 @@ consider using preprocessor instead of templates or overloading each target func
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>
 			class CSwizzleAssign: public CSwizzleCommon<ElementType, rows, columns, SwizzleDesc, odd, namingSet>
 			{
+#ifdef MSVC_LIMITATIONS
+				template<typename Arg, bool WARHazard>
+				class SelectAssign
+				{
+					typedef void (CSwizzleAssign::*const TAssign)(Arg);
+				public:
+					static TAssign Assign;
+				};
+#else
 				template<typename Arg, bool WARHazard>
 				class SelectAssign
 				{
@@ -902,6 +911,7 @@ consider using preprocessor instead of templates or overloading each target func
 				public:
 					static constexpr TAssign Assign = std::conditional<WARHazard, AssignWrapper<&CSwizzleAssign::AssignCopy>, AssignWrapper<&CSwizzleAssign::AssignDirect>>::type::value;
 				};
+#endif
 			protected:
 #ifndef MSVC_LIMITATIONS
 				CSwizzleAssign() = default;
@@ -941,6 +951,12 @@ consider using preprocessor instead of templates or overloading each target func
 
 				inline void operator =(std::initializer_list<CInitListItem<ElementType>> initList);
 			};
+
+#ifdef MSVC_LIMITATIONS
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>
+			template<typename Arg, bool WARHazard>
+			typename CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, odd, namingSet>::template SelectAssign<Arg, WARHazard>::TAssign CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, odd, namingSet>::SelectAssign<Arg, WARHazard>::Assign = WARHazard ? CSwizzleAssign::SelectAssign<Arg, WARHazard>::TAssign(&CSwizzleAssign::AssignCopy) : CSwizzleAssign::SelectAssign<Arg, WARHazard>::TAssign(&CSwizzleAssign::AssignDirect);
+#endif
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>
 			template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
