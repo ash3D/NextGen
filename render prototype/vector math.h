@@ -893,25 +893,17 @@ consider using preprocessor instead of templates or overloading each target func
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>
 			class CSwizzleAssign: public CSwizzleCommon<ElementType, rows, columns, SwizzleDesc, odd, namingSet>
 			{
-#ifdef MSVC_LIMITATIONS
 				template<typename Arg, bool WARHazard>
 				class SelectAssign
 				{
 					typedef void (CSwizzleAssign::*const TAssign)(Arg);
 				public:
+#ifdef MSVC_LIMITATIONS
 					static TAssign Assign;
-				};
 #else
-				template<typename Arg, bool WARHazard>
-				class SelectAssign
-				{
-					typedef void (CSwizzleAssign::*TAssign)(Arg);
-					template<TAssign Assign>
-					using AssignWrapper = std::integral_constant<TAssign, Assign>;
-				public:
-					static constexpr TAssign Assign = std::conditional<WARHazard, AssignWrapper<&CSwizzleAssign::AssignCopy>, AssignWrapper<&CSwizzleAssign::AssignDirect>>::type::value;
-				};
+					static constexpr TAssign Assign = WARHazard ? TAssign(&CSwizzleAssign::AssignCopy) : TAssign(&CSwizzleAssign::AssignDirect);
 #endif
+				};
 			protected:
 #ifndef MSVC_LIMITATIONS
 				CSwizzleAssign() = default;
