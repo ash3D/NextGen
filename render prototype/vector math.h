@@ -112,22 +112,17 @@ consider using preprocessor instead of templates or overloading each target func
 	ElementType needed in order to compiler can deduce template args for operators
 	*/
 #if !defined DISABLE_MATRIX_SWIZZLES || ROWS == 0
-#	ifdef MSVC_LIMITATIONS
-#		define TEMPLATE
-#	else
-#		define TEMPLATE template
-#	endif
 #	define GENERATE_TEMPLATED_ASSIGN_OPERATORS(leftSwizzleSeq)																													\
-		template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>					\
-		CSwizzle &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &&right)										\
-		{																																										\
-			CSwizzleAssign<ElementType, ROWS, COLUMNS, CSwizzleDesc<PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>>::TEMPLATE operator =<false>(right);	\
-			return *this;																																						\
-		}																																										\
 		template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>					\
 		CSwizzle &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right)										\
 		{																																										\
 			CSwizzleAssign<ElementType, ROWS, COLUMNS, CSwizzleDesc<PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>>::operator =(right);					\
+			return *this;																																						\
+		}																																										\
+		template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>					\
+		CSwizzle &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &&right)										\
+		{																																										\
+			CSwizzleAssign<ElementType, ROWS, COLUMNS, CSwizzleDesc<PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>>::TEMPLATE operator =<false>(right);	\
 			return *this;																																						\
 		}
 #	define GENERATE_COPY_ASSIGN_OPERATOR CSwizzle &operator =(const CSwizzle &) = default;
@@ -221,7 +216,6 @@ consider using preprocessor instead of templates or overloading each target func
 		};
 	GENERATE_SWIZZLES((SWIZZLE_SPECIALIZATION))
 #endif
-#	undef TEMPLATE
 #	undef GENERATE_TEMPLATED_ASSIGN_OPERATORS
 #	undef GENERATE_COPY_ASSIGN_OPERATOR
 #	undef GENERATE_INIT_LIST_ASSIGGN_OPERATOR
@@ -423,9 +417,9 @@ consider using preprocessor instead of templates or overloading each target func
 #	ifndef __VECTOR_MATH_H__
 #	define __VECTOR_MATH_H__
 
-#if defined _MSC_VER & _MSC_VER < 1800 | defined __GNUC__ & (__GNUC__ < 4 | (__GNUC__ >= 4 & __GNUC_MINOR__ < 7))
-#error old compiler version
-#endif
+#	if defined _MSC_VER & _MSC_VER < 1800 | defined __GNUC__ & (__GNUC__ < 4 | (__GNUC__ >= 4 & __GNUC_MINOR__ < 7))
+#	error old compiler version
+#	endif
 
 #	pragma warning(push)
 #	pragma warning(disable: 4003 4005/*temp for MSVC_SWIZZLE_ASSIGN_WORKAROUND*/)
@@ -494,6 +488,12 @@ consider using preprocessor instead of templates or overloading each target func
 #	include <boost\mpl\distance.hpp>
 #	include <boost\mpl\iter_fold.hpp>
 #	include <boost\mpl\find.hpp>
+
+#	ifdef MSVC_LIMITATIONS
+#		define TEMPLATE
+#	else
+#		define TEMPLATE template
+#	endif
 
 //#	define GET_SWIZZLE_ELEMENT(vectorDimension, idx, cv) (reinterpret_cast<cv CData<ElementType, vectorDimension> &>(*this)._data[(idx)])
 //#	define GET_SWIZZLE_ELEMENT_PACKED(vectorDimension, packedSwizzle, idx, cv) (GET_SWIZZLE_ELEMENT(vectorDimension, packedSwizzle >> ((idx) << 1) & 3u, cv))
@@ -1389,6 +1389,9 @@ consider using preprocessor instead of templates or overloading each target func
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
 				vector &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right);
 
+				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
+				vector &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &&right);
+
 				vector &operator =(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar);
 
 				vector &operator =(std::initializer_list<CInitListItem<ElementType>> initList);
@@ -1790,6 +1793,14 @@ consider using preprocessor instead of templates or overloading each target func
 				inline auto vector<ElementType, dimension>::operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right) -> vector &
 				{
 					CSwizzleAssign<ElementType, 0, dimension>::operator =(right);
+					return *this;
+				}
+
+				template<typename ElementType, unsigned int dimension>
+				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
+				inline auto vector<ElementType, dimension>::operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &&right) -> vector &
+				{
+					CSwizzleAssign<ElementType, 0, dimension>::TEMPLATE operator =<false>(right);
 					return *this;
 				}
 
@@ -2635,7 +2646,9 @@ consider using preprocessor instead of templates or overloading each target func
 //#	undef GET_SWIZZLE_ELEMENT
 //#	undef GET_SWIZZLE_ELEMENT_PACKED
 
+#	undef TEMPLATE
+
 #	pragma warning(pop)
 
-	#endif//__VECTOR_MATH_H__
+#endif//__VECTOR_MATH_H__
 #endif
