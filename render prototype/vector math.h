@@ -32,6 +32,9 @@ TODO: consider specialized '=', 'op=', 'op' to eliminate temp copies where it is
 apply now have overloads similar to valarray's apply (in order to handle functions having template overloads) and some other overloads in addition
 but it still does not perform as desired (vector<int, ...>.apply(floor) for example)
 consider using preprocessor instead of templates or overloading each target function (floor(const vector<T, ...> &)
+
+no need for '&& = const &&' overloads because '&& = const &' will be used in this case ('&&' can not be converted to non-const '&')
+same applies for 'op='
 */
 #pragma endregion
 
@@ -112,6 +115,7 @@ consider using preprocessor instead of templates or overloading each target func
 	ElementType needed in order to compiler can deduce template args for operators
 	*/
 #if !defined DISABLE_MATRIX_SWIZZLES || ROWS == 0
+#if defined MSVC_LIMITATIONS || defined __GNUC__
 #	define GENERATE_TEMPLATED_ASSIGN_OPERATORS(leftSwizzleSeq)																													\
 		template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>					\
 		CSwizzle &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right)										\
@@ -125,6 +129,27 @@ consider using preprocessor instead of templates or overloading each target func
 			CSwizzleAssign<ElementType, ROWS, COLUMNS, CSwizzleDesc<PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>>::TEMPLATE operator =<false>(right);	\
 			return *this;																																						\
 		}
+#else
+#	define GENERATE_TEMPLATED_ASSIGN_OPERATORS(leftSwizzleSeq)																													\
+		template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>					\
+		CSwizzle &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right) &									\
+		{																																										\
+			CSwizzleAssign<ElementType, ROWS, COLUMNS, CSwizzleDesc<PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>>::operator =(right);					\
+			return *this;																																						\
+		}																																										\
+		template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>					\
+		CSwizzle &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &&right) &									\
+		{																																										\
+			CSwizzleAssign<ElementType, ROWS, COLUMNS, CSwizzleDesc<PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>>::TEMPLATE operator =<false>(right);	\
+			return *this;																																						\
+		}																																										\
+		template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>					\
+		CSwizzle &&operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right) &&									\
+		{																																										\
+			CSwizzleAssign<ElementType, ROWS, COLUMNS, CSwizzleDesc<PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>>::TEMPLATE operator =<false>(right);	\
+			return *this;																																						\
+		}
+#endif
 #	define GENERATE_COPY_ASSIGN_OPERATOR CSwizzle &operator =(const CSwizzle &) = default;
 #	define GENERATE_SCALAR_ASSIGN_OPERATOR(leftSwizzleSeq)																										\
 		CSwizzle &operator =(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar)					\
@@ -417,7 +442,7 @@ consider using preprocessor instead of templates or overloading each target func
 #	ifndef __VECTOR_MATH_H__
 #	define __VECTOR_MATH_H__
 
-#	if defined _MSC_VER & _MSC_VER < 1800 | defined __GNUC__ & (__GNUC__ < 4 | (__GNUC__ >= 4 & __GNUC_MINOR__ < 7))
+#	if defined _MSC_VER && _MSC_VER < 1800 || defined __GNUC__ && (__GNUC__ < 4 || (__GNUC__ >= 4 && __GNUC_MINOR__ < 7))
 #	error old compiler version
 #	endif
 
@@ -1386,11 +1411,22 @@ consider using preprocessor instead of templates or overloading each target func
 				template<typename SrcElementType>
 				vector(const SrcElementType (&src)[dimension]);
 
+#if defined MSVC_LIMITATIONS || defined __GNUC__
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
 				vector &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right);
 
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
 				vector &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &&right);
+#else
+				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
+				vector &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right) &;
+
+				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
+				vector &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &&right) &;
+
+				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
+				vector &&operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right) &&;
+#endif
 
 				vector &operator =(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar);
 
@@ -1788,6 +1824,7 @@ consider using preprocessor instead of templates or overloading each target func
 					operator =(initList);
 				}
 
+#if defined MSVC_LIMITATIONS || defined __GNUC__
 				template<typename ElementType, unsigned int dimension>
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
 				inline auto vector<ElementType, dimension>::operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right) -> vector &
@@ -1803,6 +1840,31 @@ consider using preprocessor instead of templates or overloading each target func
 					CSwizzleAssign<ElementType, 0, dimension>::TEMPLATE operator =<false>(right);
 					return *this;
 				}
+#else
+				template<typename ElementType, unsigned int dimension>
+				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
+				inline auto vector<ElementType, dimension>::operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right) & -> vector &
+				{
+					CSwizzleAssign<ElementType, 0, dimension>::operator =(right);
+					return *this;
+				}
+
+				template<typename ElementType, unsigned int dimension>
+				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
+				inline auto vector<ElementType, dimension>::operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &&right) & -> vector &
+				{
+					CSwizzleAssign<ElementType, 0, dimension>::TEMPLATE operator =<false>(right);
+					return *this;
+				}
+
+				template<typename ElementType, unsigned int dimension>
+				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
+				inline auto vector<ElementType, dimension>::operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right) && -> vector &&
+				{
+					CSwizzleAssign<ElementType, 0, dimension>::TEMPLATE operator =<false>(right);
+					return *this;
+				}
+#endif
 
 				template<typename ElementType, unsigned int dimension>
 				inline auto vector<ElementType, dimension>::operator =(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar) -> vector &
