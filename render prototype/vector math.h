@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.11.2013 (c)Alexey Shaydurov
+\date		19.11.2013 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1116,6 +1116,7 @@ same applies for 'op='
 #				define OPERATOR_DEFINITION(op)																															\
 					template																																			\
 					<																																					\
+						bool WARHazard,																																	\
 						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc, bool leftOdd, unsigned leftNamingSet,			\
 						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet	\
 					>																																					\
@@ -1123,12 +1124,31 @@ same applies for 'op='
 					CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet> &left,													\
 					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right)										\
 					{																																					\
-						static_assert(LeftSwizzleDesc::isWriteMaskValid, "operator "#op"=: invalid write mask");														\
-						static_assert(LeftSwizzleDesc::TDimension::value <= RightSwizzleDesc::TDimension::value, "operator "#op"=: too small src dimension");			\
-						const vector<RightElementType, RightSwizzleDesc::TDimension::value> right_copy(right);															\
-						for (typename LeftSwizzleDesc::TDimension::value_type i = 0; i < LeftSwizzleDesc::TDimension::value; i++)										\
-							left[i] op## = right_copy[i];																												\
-						return left;																																	\
+						if (WARHazard)																																	\
+							return operator op##=(left, vector<RightElementType, RightSwizzleDesc::TDimension::value>(right));											\
+						else																																			\
+						{																																				\
+							static_assert(LeftSwizzleDesc::isWriteMaskValid, "operator "#op"=: invalid write mask");													\
+							static_assert(LeftSwizzleDesc::TDimension::value <= RightSwizzleDesc::TDimension::value, "operator "#op"=: too small src dimension");		\
+							for (typename LeftSwizzleDesc::TDimension::value_type i = 0; i < LeftSwizzleDesc::TDimension::value; i++)									\
+								left[i] op##= right[i];																													\
+							return left;																																\
+						}																																				\
+					};
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#				undef OPERATOR_DEFINITION
+
+#				define OPERATOR_DEFINITION(op)																															\
+					template																																			\
+					<																																					\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc, bool leftOdd, unsigned leftNamingSet,			\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet	\
+					>																																					\
+					inline typename CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet>::TOperationResult &operator op##=(		\
+					CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet> &left,													\
+					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right)										\
+					{																																					\
+						return operator op##=<DetectSwizzleWARHazard<LeftSwizzleDesc, RightSwizzleDesc, false>::value>(left, right);									\
 					};
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
@@ -1143,7 +1163,7 @@ same applies for 'op='
 					CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet> &left,													\
 					const vector<RightElementType, rightDimension> &right)																								\
 					{																																					\
-						return left op## = static_cast<const CSwizzle<RightElementType, 0, rightDimension> &>(right);													\
+						return left op##= static_cast<const CSwizzle<RightElementType, 0, rightDimension> &>(right);													\
 					};
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
