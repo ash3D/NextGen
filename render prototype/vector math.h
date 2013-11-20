@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		19.11.2013 (c)Alexey Shaydurov
+\date		20.11.2013 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -138,13 +138,13 @@ same applies for 'op='
 			return *this;																																						\
 		}																																										\
 		template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>					\
-		CSwizzle &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &&right) &									\
+		CSwizzle &&operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right) &&									\
 		{																																										\
 			CSwizzleAssign<ElementType, ROWS, COLUMNS, CSwizzleDesc<PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>>::TEMPLATE operator =<false>(right);	\
 			return *this;																																						\
 		}																																										\
 		template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>					\
-		CSwizzle &&operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right) &&									\
+		CSwizzle &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &&right) &									\
 		{																																										\
 			CSwizzleAssign<ElementType, ROWS, COLUMNS, CSwizzleDesc<PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>>::TEMPLATE operator =<false>(right);	\
 			return *this;																																						\
@@ -879,7 +879,7 @@ same applies for 'op='
 				~CSwizzleCommon() = default;
 				CSwizzleCommon &operator =(const CSwizzleCommon &) = default;
 #endif
-				// TODO: consider adding x= operators to friends and making some stuff below protected/private (and TOperationResult for other CSwizzleCommon above)
+				// TODO: consider adding 'op=' operators to friends and making some stuff below protected/private (and TOperationResult for other CSwizzleCommon above)
 			public:
 				typedef Tvector TOperationResult;
 			public:
@@ -1125,7 +1125,7 @@ same applies for 'op='
 					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right)										\
 					{																																					\
 						if (WARHazard)																																	\
-							return operator op##=(left, vector<RightElementType, RightSwizzleDesc::TDimension::value>(right));											\
+							return operator op##=<false>(left, vector<RightElementType, RightSwizzleDesc::TDimension::value>(right));									\
 						else																																			\
 						{																																				\
 							static_assert(LeftSwizzleDesc::isWriteMaskValid, "operator "#op"=: invalid write mask");													\
@@ -1157,6 +1157,36 @@ same applies for 'op='
 					template																																			\
 					<																																					\
 						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc, bool leftOdd, unsigned leftNamingSet,			\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet	\
+					>																																					\
+					inline typename CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet>::TOperationResult &&operator op##=(		\
+					CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet> &&left,													\
+					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right)										\
+					{																																					\
+						return std::move(operator op##=<false>(left, right));																							\
+					};
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#				undef OPERATOR_DEFINITION
+
+#				define OPERATOR_DEFINITION(op)																															\
+					template																																			\
+					<																																					\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc, bool leftOdd, unsigned leftNamingSet,			\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet	\
+					>																																					\
+					inline typename CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet>::TOperationResult &operator op##=(		\
+					CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet> &left,													\
+					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &&right)										\
+					{																																					\
+						return operator op##=<false>(left, right);																										\
+					};
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#				undef OPERATOR_DEFINITION
+
+#				define OPERATOR_DEFINITION(op)																															\
+					template																																			\
+					<																																					\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc, bool leftOdd, unsigned leftNamingSet,			\
 						typename RightElementType, unsigned int rightDimension																							\
 					>																																					\
 					inline typename CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet>::TOperationResult &operator op##=(		\
@@ -1167,6 +1197,39 @@ same applies for 'op='
 					};
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
+
+				// VS 2013 call 'CSwizzle & += const CSwizzle &' instead of 'CSwizzle & += const CSwizzle &&' for variant with static_cast<const CSwizzle &&>
+#ifdef MSVC_LIMITATIONS
+#				define OPERATOR_DEFINITION(op)																															\
+					template																																			\
+					<																																					\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc, bool leftOdd, unsigned leftNamingSet,			\
+						typename RightElementType, unsigned int rightDimension																							\
+					>																																					\
+					inline typename CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet>::TOperationResult &operator op##=(		\
+					CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet> &left,													\
+					const vector<RightElementType, rightDimension> &&right)																								\
+					{																																					\
+						return operator op##=<false>(left, right);																										\
+					};
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#				undef OPERATOR_DEFINITION
+#else
+#				define OPERATOR_DEFINITION(op)																															\
+					template																																			\
+					<																																					\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc, bool leftOdd, unsigned leftNamingSet,			\
+						typename RightElementType, unsigned int rightDimension																							\
+					>																																					\
+					inline typename CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet>::TOperationResult &operator op##=(		\
+					CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet> &left,													\
+					const vector<RightElementType, rightDimension> &&right)																								\
+					{																																					\
+						return left op##= static_cast<const CSwizzle<RightElementType, 0, rightDimension> &&>(right);													\
+					};
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#				undef OPERATOR_DEFINITION
+#endif
 
 #				define OPERATOR_DEFINITION(op)																															\
 					template																																			\
@@ -1185,6 +1248,53 @@ same applies for 'op='
 					};
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
+
+#ifdef MSVC_LIMITATIONS
+#				define OPERATOR_DEFINITION(op)																															\
+					template																																			\
+					<																																					\
+						typename LeftElementType, unsigned int leftDimension,																							\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet	\
+					>																																					\
+					inline vector<LeftElementType, leftDimension> &&operator op## = (																					\
+					vector<LeftElementType, leftDimension> &&left,																										\
+					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &&right)										\
+					{																																					\
+						return static_cast<CSwizzle<LeftElementType, 0, leftDimension> &&>(left) op##= right;															\
+					};
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#				undef OPERATOR_DEFINITION
+
+#				define OPERATOR_DEFINITION(op)																															\
+					template																																			\
+					<																																					\
+						typename LeftElementType, unsigned int leftDimension,																							\
+						typename RightElementType, unsigned int rightDimension																							\
+					>																																					\
+					inline vector<LeftElementType, leftDimension> &&operator op## = (																					\
+					vector<LeftElementType, leftDimension> &&left,																										\
+					const vector<RightElementType, rightDimension> &right)																								\
+					{																																					\
+						return static_cast<CSwizzle<LeftElementType, 0, leftDimension> &&>(left) op##= right;															\
+					};
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#				undef OPERATOR_DEFINITION
+
+#				define OPERATOR_DEFINITION(op)																															\
+					template																																			\
+					<																																					\
+						typename LeftElementType, unsigned int leftDimension,																							\
+						typename RightElementType, unsigned int rightDimension																							\
+					>																																					\
+					inline vector<LeftElementType, leftDimension> &&operator op## = (																					\
+					vector<LeftElementType, leftDimension> &&left,																										\
+					const vector<RightElementType, rightDimension> &&right)																								\
+					{																																					\
+						return static_cast<CSwizzle<LeftElementType, 0, leftDimension> &&>(left) op##= right;															\
+					};
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#				undef OPERATOR_DEFINITION
+#endif
 
 #				define OPERATOR_DEFINITION(op)																															\
 					template																																			\
@@ -1442,10 +1552,10 @@ same applies for 'op='
 				vector &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right) &;
 
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
-				vector &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &&right) &;
+				vector &&operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right) &&;
 
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
-				vector &&operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right) &&;
+				vector &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &&right) &;
 #endif
 
 				vector &operator =(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar);
@@ -1871,7 +1981,7 @@ same applies for 'op='
 
 				template<typename ElementType, unsigned int dimension>
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
-				inline auto vector<ElementType, dimension>::operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &&right) & -> vector &
+				inline auto vector<ElementType, dimension>::operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right) && -> vector &&
 				{
 					CSwizzleAssign<ElementType, 0, dimension>::TEMPLATE operator =<false>(right);
 					return *this;
@@ -1879,7 +1989,7 @@ same applies for 'op='
 
 				template<typename ElementType, unsigned int dimension>
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
-				inline auto vector<ElementType, dimension>::operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right) && -> vector &&
+				inline auto vector<ElementType, dimension>::operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &&right) & -> vector &
 				{
 					CSwizzleAssign<ElementType, 0, dimension>::TEMPLATE operator =<false>(right);
 					return *this;
