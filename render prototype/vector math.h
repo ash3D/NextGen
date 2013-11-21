@@ -1014,8 +1014,19 @@ same applies for 'op='
 			template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
 			inline void CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, odd, namingSet>::AssignDirect(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right)
 			{
-				// NOTE: assert should not be triggered if called from copy assign below
-				//assert(SwizzleDesc::packedSwizzle == RightSwizzleDesc::packedSwizzle || &this->operator const ElementType &() != (const void *)&right.operator const RightElementType &());
+				/*
+				NOTE: assert should not be triggered if WAR hazard not detected.
+				C-style casts to CDataContainer below performed as static_cast if corresponding swizzle is
+				CDataContainer's base and as reinterpret_cast if swizzle is part of CDataContainer's union.
+				*/
+				assert((
+					!DetectSwizzleWARHazard
+					<
+						ElementType, rows, columns, SwizzleDesc,
+						RightElementType, rightRows, rightColumns, RightSwizzleDesc,
+						true
+					>::value ||
+					(const CDataContainer<ElementType, rows, columns> *)static_cast<const CSwizzle<ElementType, rows, columns, SwizzleDesc, odd, namingSet> *>(this) != (const void *)(const CDataContainer<RightElementType, rightRows, rightColumns> *)&right));
 				static_assert(SwizzleDesc::TDimension::value <= RightSwizzleDesc::TDimension::value, "operator =: too small src dimension");
 				for (unsigned idx = 0; idx < SwizzleDesc::TDimension::value; idx++)
 				{
