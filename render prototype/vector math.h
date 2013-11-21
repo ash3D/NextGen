@@ -1026,7 +1026,8 @@ same applies for 'op='
 						RightElementType, rightRows, rightColumns, RightSwizzleDesc,
 						true
 					>::value ||
-					(const CDataContainer<ElementType, rows, columns> *)static_cast<const CSwizzle<ElementType, rows, columns, SwizzleDesc, odd, namingSet> *>(this) != (const void *)(const CDataContainer<RightElementType, rightRows, rightColumns> *)&right));
+					(const CDataContainer<ElementType, rows, columns> *)static_cast<const CSwizzle<ElementType, rows, columns, SwizzleDesc, odd, namingSet> *>(this) !=
+					(const void *)(const CDataContainer<RightElementType, rightRows, rightColumns> *)&right));
 				static_assert(SwizzleDesc::TDimension::value <= RightSwizzleDesc::TDimension::value, "operator =: too small src dimension");
 				for (unsigned idx = 0; idx < SwizzleDesc::TDimension::value; idx++)
 				{
@@ -1174,6 +1175,15 @@ same applies for 'op='
 							return operator op##=<false>(left, vector<RightElementType, RightSwizzleDesc::TDimension::value>(right));									\
 						else																																			\
 						{																																				\
+							assert((																																	\
+							!DetectSwizzleWARHazard																														\
+								<																																		\
+									LeftElementType, leftRows, leftColumns, LeftSwizzleDesc,																			\
+									RightElementType, rightRows, rightColumns, RightSwizzleDesc,																		\
+									false																																\
+								>::value ||																																\
+								(const CDataContainer<LeftElementType, leftRows, leftColumns> *)(&left) !=																\
+								(const void *)(const CDataContainer<RightElementType, rightRows, rightColumns> *)&right));												\
 							static_assert(LeftSwizzleDesc::isWriteMaskValid, "operator "#op"=: invalid write mask");													\
 							static_assert(LeftSwizzleDesc::TDimension::value <= RightSwizzleDesc::TDimension::value, "operator "#op"=: too small src dimension");		\
 							for (typename LeftSwizzleDesc::TDimension::value_type i = 0; i < LeftSwizzleDesc::TDimension::value; i++)									\
