@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		20.11.2013 (c)Alexey Shaydurov
+\date		21.11.2013 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -563,8 +563,25 @@ same applies for 'op='
 				static constexpr bool isWriteMaskValid = true;
 			};
 
+			template
+			<
+				typename DstElementType, unsigned int dstRows, unsigned int dstColumns, class DstSwizzleDesc,
+				typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc,
+				bool assign
+			>
+			struct DetectSwizzleWARHazard : std::false_type {};
+
+#ifdef MSVC_LIMITATIONS
 			template<class DstSwizzleDesc, class SrcSwizzleDesc, bool assign>
-			class DetectSwizzleWARHazard
+			class DetectSwizzleWARHazardImpl
+#else
+			template
+			<
+				typename ElementType, unsigned int rows, unsigned int columns,
+				class DstSwizzleDesc, class SrcSwizzleDesc, bool assign
+			>
+			class DetectSwizzleWARHazard<ElementType, rows, columns, DstSwizzleDesc, ElementType, rows, columns, SrcSwizzleDesc, assign>
+#endif
 			{
 				typedef typename DstSwizzleDesc::CSwizzleVector CDstSwizzleVector;
 				typedef typename SrcSwizzleDesc::CSwizzleVector CSrcSwizzleVector;
@@ -594,6 +611,18 @@ same applies for 'op='
 				static constexpr typename Result::value_type value = Result::value;
 			};
 
+#ifdef MSVC_LIMITATIONS
+			template
+			<
+				typename ElementType, unsigned int rows, unsigned int columns,
+				class DstSwizzleDesc, class SrcSwizzleDesc, bool assign
+			>
+			class DetectSwizzleWARHazard<ElementType, rows, columns, DstSwizzleDesc, ElementType, rows, columns, SrcSwizzleDesc, assign> :
+			public DetectSwizzleWARHazardImpl<DstSwizzleDesc, SrcSwizzleDesc, assign>
+			{
+			};
+#endif
+			
 			template<typename ElementType, unsigned int dimension>
 			class vector;
 
@@ -954,7 +983,13 @@ same applies for 'op='
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
 				void operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right)
 				{
-					operator =<DetectSwizzleWARHazard<SwizzleDesc, RightSwizzleDesc, true>::value>(right);
+					static constexpr auto WARHazard = DetectSwizzleWARHazard
+					<
+						ElementType, rows, columns, SwizzleDesc,
+						RightElementType, rightRows, rightColumns, RightSwizzleDesc,
+						true
+					>::value;
+					operator =<WARHazard>(right);
 				}
 
 #ifndef MSVC_LIMITATIONS
@@ -1148,7 +1183,13 @@ same applies for 'op='
 					CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet> &left,													\
 					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right)										\
 					{																																					\
-						return operator op##=<DetectSwizzleWARHazard<LeftSwizzleDesc, RightSwizzleDesc, false>::value>(left, right);									\
+						static constexpr auto WARHazard = DetectSwizzleWARHazard																						\
+						<																																				\
+							LeftElementType, leftRows, leftColumns, LeftSwizzleDesc,																					\
+							RightElementType, rightRows, rightColumns, RightSwizzleDesc,																				\
+							false																																		\
+						>::value;																																		\
+						return operator op##=<WARHazard>(left, right);																									\
 					};
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
