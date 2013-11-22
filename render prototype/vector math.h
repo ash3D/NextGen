@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		21.11.2013 (c)Alexey Shaydurov
+\date		22.11.2013 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -141,7 +141,7 @@ same applies for 'op='
 		CSwizzle &&operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right) &&									\
 		{																																										\
 			CSwizzleAssign<ElementType, ROWS, COLUMNS, CSwizzleDesc<PACK_SWIZZLE(leftSwizzleSeq), SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>>::TEMPLATE operator =<false>(right);	\
-			return *this;																																						\
+			return std::move(*this);																																			\
 		}																																										\
 		template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>					\
 		CSwizzle &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &&right) &									\
@@ -1260,6 +1260,21 @@ same applies for 'op='
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
 
+#				define OPERATOR_DEFINITION(op)																															\
+					template																																			\
+					<																																					\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc, bool leftOdd, unsigned leftNamingSet,			\
+						typename RightElementType, unsigned int rightDimension																							\
+					>																																					\
+					inline typename CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet>::TOperationResult &&operator op##=(		\
+					CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet> &&left,													\
+					const vector<RightElementType, rightDimension> &right)																								\
+					{																																					\
+						return std::move(left) op##= static_cast<const CSwizzle<RightElementType, 0, rightDimension> &>(right);											\
+					};
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#				undef OPERATOR_DEFINITION
+
 				// VS 2013 call 'CSwizzle & += const CSwizzle &' instead of 'CSwizzle & += const CSwizzle &&' for variant with static_cast<const CSwizzle &&>
 #ifdef MSVC_LIMITATIONS
 #				define OPERATOR_DEFINITION(op)																															\
@@ -1311,6 +1326,21 @@ same applies for 'op='
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
 
+#				define OPERATOR_DEFINITION(op)																															\
+					template																																			\
+					<																																					\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc, bool leftOdd, unsigned leftNamingSet,			\
+						typename RightElementType																														\
+					>																																					\
+					inline typename CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet>::TOperationResult &operator op##=(		\
+					CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet> &&left,													\
+					RightElementType right)																																\
+					{																																					\
+						return left op##= right;																														\
+					};
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#				undef OPERATOR_DEFINITION
+
 #ifdef MSVC_LIMITATIONS
 #				define OPERATOR_DEFINITION(op)																															\
 					template																																			\
@@ -1318,7 +1348,7 @@ same applies for 'op='
 						typename LeftElementType, unsigned int leftDimension,																							\
 						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet	\
 					>																																					\
-					inline vector<LeftElementType, leftDimension> &&operator op## = (																					\
+					inline vector<LeftElementType, leftDimension> &&operator op##=(																						\
 					vector<LeftElementType, leftDimension> &&left,																										\
 					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &&right)										\
 					{																																					\
@@ -1333,22 +1363,7 @@ same applies for 'op='
 						typename LeftElementType, unsigned int leftDimension,																							\
 						typename RightElementType, unsigned int rightDimension																							\
 					>																																					\
-					inline vector<LeftElementType, leftDimension> &&operator op## = (																					\
-					vector<LeftElementType, leftDimension> &&left,																										\
-					const vector<RightElementType, rightDimension> &right)																								\
-					{																																					\
-						return static_cast<CSwizzle<LeftElementType, 0, leftDimension> &&>(left) op##= right;															\
-					};
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
-#				undef OPERATOR_DEFINITION
-
-#				define OPERATOR_DEFINITION(op)																															\
-					template																																			\
-					<																																					\
-						typename LeftElementType, unsigned int leftDimension,																							\
-						typename RightElementType, unsigned int rightDimension																							\
-					>																																					\
-					inline vector<LeftElementType, leftDimension> &&operator op## = (																					\
+					inline vector<LeftElementType, leftDimension> &&operator op##=(																						\
 					vector<LeftElementType, leftDimension> &&left,																										\
 					const vector<RightElementType, rightDimension> &&right)																								\
 					{																																					\
@@ -1385,7 +1400,7 @@ same applies for 'op='
 								typename RightSwizzleDesc::TDimension																									\
 							>::type::value																																\
 						> result(left);																																	\
-						return result op##= right;																														\
+						return std::move(result) op##= right;																											\
 					};
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
@@ -1440,7 +1455,7 @@ same applies for 'op='
 							decltype(std::declval<LeftElementType>() op std::declval<RightElementType>()),																\
 							LeftSwizzleDesc::TDimension::value																											\
 						> result(left);																																	\
-						return result op##= right;																														\
+						return std::move(result) op##= right;																											\
 					};
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
@@ -1487,7 +1502,7 @@ same applies for 'op='
 							decltype(std::declval<LeftElementType>() op std::declval<RightElementType>()),																\
 							RightSwizzleDesc::TDimension::value																											\
 						> result(left);																																	\
-						return result op##= right;																														\
+						return std::move(result) op##= right;																											\
 					};
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
@@ -2046,7 +2061,7 @@ same applies for 'op='
 				inline auto vector<ElementType, dimension>::operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right) && -> vector &&
 				{
 					CSwizzleAssign<ElementType, 0, dimension>::TEMPLATE operator =<false>(right);
-					return *this;
+					return std::move(*this);
 				}
 
 				template<typename ElementType, unsigned int dimension>
