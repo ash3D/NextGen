@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.11.2013 (c)Alexey Shaydurov
+\date		25.11.2013 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -307,15 +307,13 @@ same applies for 'op='
 			{																																					\
 				_data.~CData<ElementType, ROWS, COLUMNS>();																										\
 			}																																					\
-			CDataContainerImpl &operator =(const CDataContainerImpl &right)																						\
+			void operator =(const CDataContainerImpl &right)																									\
 			{																																					\
 				_data = right._data;																															\
-				return *this;																																	\
 			}																																					\
-			CDataContainerImpl &operator =(CDataContainerImpl &&right)																							\
+			void operator =(CDataContainerImpl &&right)																											\
 			{																																					\
 				_data = std::move(right._data);																													\
-				return *this;																																	\
 			}																																					\
 		public:																																					\
 			union																																				\
