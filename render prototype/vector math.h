@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.11.2013 (c)Alexey Shaydurov
+\date		26.11.2013 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -107,140 +107,6 @@ same applies for 'op='
 	ElementType needed in order to compiler can deduce template args for operators
 	*/
 #if !defined DISABLE_MATRIX_SWIZZLES || ROWS == 0
-#if defined MSVC_LIMITATIONS || defined __GNUC__
-#	define GENERATE_TEMPLATED_ASSIGN_OPERATORS(leftSwizzleSeq)																									\
-		template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>	\
-		CSwizzle &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right)						\
-		{																																						\
-			CSwizzleAssign<ElementType, ROWS, COLUMNS, CSwizzleDesc<SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>>::operator =(right);									\
-			return *this;																																		\
-		}																																						\
-		template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>	\
-		CSwizzle &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &&right)						\
-		{																																						\
-			CSwizzleAssign<ElementType, ROWS, COLUMNS, CSwizzleDesc<SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>>::TEMPLATE operator =<false>(right);					\
-			return *this;																																		\
-		}
-#else
-#	define GENERATE_TEMPLATED_ASSIGN_OPERATORS(leftSwizzleSeq)																									\
-		template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>	\
-		CSwizzle &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right) &					\
-		{																																						\
-			CSwizzleAssign<ElementType, ROWS, COLUMNS, CSwizzleDesc<SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>>::operator =(right);									\
-			return *this;																																		\
-		}																																						\
-		template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>	\
-		CSwizzle &&operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right) &&					\
-		{																																						\
-			CSwizzleAssign<ElementType, ROWS, COLUMNS, CSwizzleDesc<SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>>::TEMPLATE operator =<false>(right);					\
-			return std::move(*this);																															\
-		}																																						\
-		template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>	\
-		CSwizzle &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &&right) &					\
-		{																																						\
-			CSwizzleAssign<ElementType, ROWS, COLUMNS, CSwizzleDesc<SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>>::TEMPLATE operator =<false>(right);					\
-			return *this;																																		\
-		}
-#endif
-#	define GENERATE_COPY_ASSIGN_OPERATOR CSwizzle &operator =(const CSwizzle &) = default;
-#	define GENERATE_SCALAR_ASSIGN_OPERATOR(leftSwizzleSeq)																										\
-		CSwizzle &operator =(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar)					\
-		{																																						\
-			CSwizzleAssign<ElementType, ROWS, COLUMNS, CSwizzleDesc<SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>>::operator =(scalar);									\
-			return *this;																																		\
-		}
-#	define GENERATE_INIT_LIST_ASSIGGN_OPERATOR(leftSwizzleSeq)																									\
-		CSwizzle &operator =(std::initializer_list<CInitListItem<ElementType>> initList)																		\
-		{																																						\
-			CSwizzleAssign<ElementType, ROWS, COLUMNS, CSwizzleDesc<SWIZZLE_SEQ_2_VECTOR(leftSwizzleSeq)>>::operator =(initList);								\
-			return *this;																																		\
-		}
-#	ifdef MSVC_LIMITATIONS
-		// VS 2013 does not allow copy operator = in union members
-#		define GENERATE_ASSIGN_OPERATORS(leftSwizzleSeq)		\
-			GENERATE_TEMPLATED_ASSIGN_OPERATORS(leftSwizzleSeq)	\
-			GENERATE_SCALAR_ASSIGN_OPERATOR(leftSwizzleSeq)		\
-			GENERATE_INIT_LIST_ASSIGGN_OPERATOR(leftSwizzleSeq)
-#		define DISABLE_ASSIGN_OPERATOR(leftSwizzleSeq) /*private: CSwizzle &operator =(const CSwizzle &);*/
-#		define SWIZZLE_TRIVIAL_CTORS_DTOR
-#	else
-#		define GENERATE_ASSIGN_OPERATORS(leftSwizzleSeq)		\
-			GENERATE_TEMPLATED_ASSIGN_OPERATORS(leftSwizzleSeq)	\
-			GENERATE_COPY_ASSIGN_OPERATOR						\
-			GENERATE_SCALAR_ASSIGN_OPERATOR(leftSwizzleSeq)		\
-			GENERATE_INIT_LIST_ASSIGGN_OPERATOR(leftSwizzleSeq)
-#		define DISABLE_ASSIGN_OPERATOR(leftSwizzleSeq) CSwizzle &operator =(const CSwizzle &) = delete;
-#		define SWIZZLE_TRIVIAL_CTORS_DTOR			\
-			CSwizzle() = default;					\
-			CSwizzle(const CSwizzle &) = delete;	\
-			~CSwizzle() = default;
-#	endif
-#if defined MSVC_LIMITATIONS & defined MSVC_SWIZZLE_ASSIGN_WORKAROUND
-#	define SWIZZLE_SPECIALIZATION(swizzle_seq)																															\
-		template<typename ElementType>																																	\
-		class CSwizzle<ElementType, ROWS, COLUMNS, CSwizzleDesc<SWIZZLE_SEQ_2_VECTOR(swizzle_seq)>, false, 1>:															\
-		public BOOST_PP_IIF(IS_SEQ_UNIQUE(swizzle_seq), CSwizzleAssign, CSwizzleCommon)<ElementType, ROWS, COLUMNS, CSwizzleDesc<SWIZZLE_SEQ_2_VECTOR(swizzle_seq)>>	\
-		{																																								\
-		public:																																							\
-			BOOST_PP_IIF(IS_SEQ_UNIQUE(swizzle_seq), GENERATE_ASSIGN_OPERATORS, DISABLE_ASSIGN_OPERATOR)(swizzle_seq)													\
-		protected:																																						\
-			SWIZZLE_TRIVIAL_CTORS_DTOR																																	\
-		};
-	GENERATE_SWIZZLES((SWIZZLE_SPECIALIZATION))
-#	define SWIZZLE_SPECIALIZATION(swizzle_seq)																															\
-		template<typename ElementType>																																	\
-		class CSwizzle<ElementType, ROWS, COLUMNS, CSwizzleDesc<SWIZZLE_SEQ_2_VECTOR(swizzle_seq)>, false, 2>:															\
-		public BOOST_PP_IIF(IS_SEQ_UNIQUE(swizzle_seq), CSwizzleAssign, CSwizzleCommon)<ElementType, ROWS, COLUMNS, CSwizzleDesc<SWIZZLE_SEQ_2_VECTOR(swizzle_seq)>>	\
-		{																																								\
-		public:																																							\
-			BOOST_PP_IIF(IS_SEQ_UNIQUE(swizzle_seq), GENERATE_ASSIGN_OPERATORS, DISABLE_ASSIGN_OPERATOR)(swizzle_seq)													\
-		protected:																																						\
-			SWIZZLE_TRIVIAL_CTORS_DTOR																																	\
-		};
-	GENERATE_SWIZZLES((SWIZZLE_SPECIALIZATION))
-#	define SWIZZLE_SPECIALIZATION(swizzle_seq)																															\
-		template<typename ElementType>																																	\
-		class CSwizzle<ElementType, ROWS, COLUMNS, CSwizzleDesc<SWIZZLE_SEQ_2_VECTOR(swizzle_seq)>, true, 1>:															\
-		public BOOST_PP_IIF(IS_SEQ_UNIQUE(swizzle_seq), CSwizzleAssign, CSwizzleCommon)<ElementType, ROWS, COLUMNS, CSwizzleDesc<SWIZZLE_SEQ_2_VECTOR(swizzle_seq)>>	\
-		{																																								\
-		public:																																							\
-			BOOST_PP_IIF(IS_SEQ_UNIQUE(swizzle_seq), GENERATE_ASSIGN_OPERATORS, DISABLE_ASSIGN_OPERATOR)(swizzle_seq)													\
-		protected:																																						\
-			SWIZZLE_TRIVIAL_CTORS_DTOR																																	\
-		};
-	GENERATE_SWIZZLES((SWIZZLE_SPECIALIZATION))
-#	define SWIZZLE_SPECIALIZATION(swizzle_seq)																															\
-		template<typename ElementType>																																	\
-		class CSwizzle<ElementType, ROWS, COLUMNS, CSwizzleDesc<SWIZZLE_SEQ_2_VECTOR(swizzle_seq)>, true, 2>:															\
-		public BOOST_PP_IIF(IS_SEQ_UNIQUE(swizzle_seq), CSwizzleAssign, CSwizzleCommon)<ElementType, ROWS, COLUMNS, CSwizzleDesc<SWIZZLE_SEQ_2_VECTOR(swizzle_seq)>>	\
-		{																																								\
-		public:																																							\
-			BOOST_PP_IIF(IS_SEQ_UNIQUE(swizzle_seq), GENERATE_ASSIGN_OPERATORS, DISABLE_ASSIGN_OPERATOR)(swizzle_seq)													\
-		protected:																																						\
-			SWIZZLE_TRIVIAL_CTORS_DTOR																																	\
-		};
-	GENERATE_SWIZZLES((SWIZZLE_SPECIALIZATION))
-#else
-#	define SWIZZLE_SPECIALIZATION(swizzle_seq)																															\
-		template<typename ElementType>																																	\
-		class CSwizzle<ElementType, ROWS, COLUMNS, CSwizzleDesc<SWIZZLE_SEQ_2_VECTOR(swizzle_seq)>>:																	\
-		public BOOST_PP_IIF(IS_SEQ_UNIQUE(swizzle_seq), CSwizzleAssign, CSwizzleCommon)<ElementType, ROWS, COLUMNS, CSwizzleDesc<SWIZZLE_SEQ_2_VECTOR(swizzle_seq)>>	\
-		{																																								\
-		public:																																							\
-			BOOST_PP_IIF(IS_SEQ_UNIQUE(swizzle_seq), GENERATE_ASSIGN_OPERATORS, DISABLE_ASSIGN_OPERATOR)(swizzle_seq)													\
-		protected:																																						\
-			SWIZZLE_TRIVIAL_CTORS_DTOR																																	\
-		};
-	GENERATE_SWIZZLES((SWIZZLE_SPECIALIZATION))
-#endif
-#	undef GENERATE_TEMPLATED_ASSIGN_OPERATORS
-#	undef GENERATE_COPY_ASSIGN_OPERATOR
-#	undef GENERATE_INIT_LIST_ASSIGGN_OPERATOR
-#	undef GENERATE_ASSIGN_OPERATORS
-#	undef DISABLE_ASSIGN_OPERATOR
-#	undef SWIZZLE_TRIVIAL_CTORS_DTOR
-#	undef SWIZZLE_SPECIALIZATION
-
 #	define NAMING_SET_1 BOOST_PP_IF(ROWS, MATRIX_ZERO_BASED, XYZW)
 #	define NAMING_SET_2 BOOST_PP_IF(ROWS, MATRIX_ONE_BASED, RGBA)
 
@@ -630,7 +496,7 @@ same applies for 'op='
 			class CSwizzleAssign;
 
 			// rows = 0 for vectors
-			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc = CVectorSwizzleDesc<columns>, bool odd = false, unsigned namingSet = 1>
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc = CVectorSwizzleDesc<columns>, bool odd = false, unsigned namingSet = 1, typename isWriteMaskValid = std::integral_constant<bool, SwizzleDesc::isWriteMaskValid>>
 			class CSwizzle;
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, bool trivialCtor>
@@ -1062,13 +928,86 @@ same applies for 'op='
 			TODO: try with newer version
 			*/
 			template<typename ElementType, unsigned int vectorDimension>
-			class CSwizzle<ElementType, 0, vectorDimension, CVectorSwizzleDesc<vectorDimension>>: public CSwizzleAssign<ElementType, 0, vectorDimension>
+			class CSwizzle<ElementType, 0, vectorDimension, CVectorSwizzleDesc<vectorDimension>, false, 1, std::true_type>: public CSwizzleAssign<ElementType, 0, vectorDimension>
 			{
 			protected:
 				CSwizzle() = default;
 				CSwizzle(const CSwizzle &) = default;
 				~CSwizzle() = default;
 				CSwizzle &operator =(const CSwizzle &) = default;
+			};
+
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>
+			class CSwizzle<ElementType, rows, columns, SwizzleDesc, odd, namingSet, std::false_type>: public CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>
+			{
+			public:
+#ifndef MSVC_LIMITATIONS
+				CSwizzle &operator =(const CSwizzle &) = delete;
+#endif
+			protected:
+#ifndef MSVC_LIMITATIONS
+				CSwizzle() = default;
+				CSwizzle(const CSwizzle &) = delete;
+				~CSwizzle() = default;
+#endif
+			};
+
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>
+			class CSwizzle<ElementType, rows, columns, SwizzleDesc, odd, namingSet, std::true_type>: public CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>
+			{
+			public:
+#if defined MSVC_LIMITATIONS || defined __GNUC__
+				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
+				CSwizzle &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right)
+				{
+					CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(right);
+					return *this;
+				}
+				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
+				CSwizzle &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &&right)
+				{
+					CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::TEMPLATE operator =<false>(right);
+					return *this;
+				}
+#else
+				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
+				CSwizzle &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right) &
+				{
+					CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(right);
+					return *this;
+				}
+				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
+				CSwizzle &&operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right) &&
+				{
+					CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::TEMPLATE operator =<false>(right);
+					return std::move(*this);
+				}
+				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
+				CSwizzle &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &&right) &
+				{
+					CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::TEMPLATE operator =<false>(right);
+					return *this;
+				}
+#endif
+#ifndef MSVC_LIMITATIONS
+				CSwizzle &operator =(const CSwizzle &) = default;
+#endif
+				CSwizzle &operator =(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar)
+				{
+					CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(scalar);
+					return *this;
+				}
+				CSwizzle &operator =(std::initializer_list<CInitListItem<ElementType>> initList)
+				{
+					CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(initList);
+					return *this;
+				}
+			protected:
+#ifndef MSVC_LIMITATIONS
+				CSwizzle() = default;
+				CSwizzle(const CSwizzle &) = delete;
+				~CSwizzle() = default;
+#endif
 			};
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd = false, unsigned namingSet = 1>
