@@ -509,13 +509,25 @@ same applies for 'op='
 			class CInitListItem;
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>
+#ifdef MSVC_LIMITATIONS
+			bool all(const CSwizzle<ElementType, rows, columns, SwizzleDesc, odd, namingSet, std::integral_constant<bool, SwizzleDesc::isWriteMaskValid>> &src);
+#else
 			bool all(const CSwizzle<ElementType, rows, columns, SwizzleDesc, odd, namingSet> &src);
+#endif
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>
+#ifdef MSVC_LIMITATIONS
+			bool any(const CSwizzle<ElementType, rows, columns, SwizzleDesc, odd, namingSet, std::integral_constant<bool, SwizzleDesc::isWriteMaskValid>> &src);
+#else
 			bool any(const CSwizzle<ElementType, rows, columns, SwizzleDesc, odd, namingSet> &src);
+#endif
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>
+#ifdef MSVC_LIMITATIONS
+			bool none(const CSwizzle<ElementType, rows, columns, SwizzleDesc, odd, namingSet, std::integral_constant<bool, SwizzleDesc::isWriteMaskValid>> &src);
+#else
 			bool none(const CSwizzle<ElementType, rows, columns, SwizzleDesc, odd, namingSet> &src);
+#endif
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			bool all(const matrix<ElementType, rows, columns> &src);
@@ -827,10 +839,18 @@ same applies for 'op='
 
 			private:
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
+#ifdef MSVC_LIMITATIONS
+				inline void AssignDirect(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet, std::integral_constant<bool, RightSwizzleDesc::isWriteMaskValid>> &right);
+#else
 				inline void AssignDirect(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right);
+#endif
 
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
+#ifdef MSVC_LIMITATIONS
+				inline void AssignCopy(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet, std::integral_constant<bool, RightSwizzleDesc::isWriteMaskValid>> &right);
+#else
 				inline void AssignCopy(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right);
+#endif
 
 			protected:
 				template<bool WARHazard, typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
@@ -872,7 +892,11 @@ same applies for 'op='
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>
 			template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
+#ifdef MSVC_LIMITATIONS
+			inline void CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, odd, namingSet>::AssignDirect(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet, std::integral_constant<bool, RightSwizzleDesc::isWriteMaskValid>> &right)
+#else
 			inline void CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, odd, namingSet>::AssignDirect(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right)
+#endif
 			{
 				/*
 				NOTE: assert should not be triggered if WAR hazard not detected.
@@ -897,7 +921,11 @@ same applies for 'op='
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>
 			template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
+#ifdef MSVC_LIMITATIONS
+			inline void CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, odd, namingSet>::AssignCopy(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet, std::integral_constant<bool, RightSwizzleDesc::isWriteMaskValid>> &right)
+#else
 			inline void CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, odd, namingSet>::AssignCopy(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right)
+#endif
 			{
 				// make copy and call AssignDirect()
 				AssignDirect(vector<RightElementType, RightSwizzleDesc::TDimension::value>(right));
@@ -1530,12 +1558,20 @@ same applies for 'op='
 				vector() = default;
 
 				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, bool srcOdd, unsigned srcNamingSet>
+#ifdef MSVC_LIMITATIONS
+				vector(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet, std::integral_constant<bool, SrcSwizzleDesc::isWriteMaskValid>> &src);
+#else
 				vector(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet> &src);
+#endif
 
 				vector(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar);
 
 				template<typename FirstElementType, unsigned int firstRows, unsigned int firstColumns, class FirstSwizzleDesc, bool firstOdd, unsigned firstNamingSet, typename ...Rest>
+#ifdef MSVC_LIMITATIONS
+				vector(const CSwizzle<FirstElementType, firstRows, firstColumns, FirstSwizzleDesc, firstOdd, firstNamingSet, std::integral_constant<bool, FirstSwizzleDesc::isWriteMaskValid>> &first, const Rest &...rest);
+#else
 				vector(const CSwizzle<FirstElementType, firstRows, firstColumns, FirstSwizzleDesc, firstOdd, firstNamingSet> &first, const Rest &...rest);
+#endif
 
 				template<typename FirstElementType, unsigned int firstRows, unsigned int firstColumns, typename ...Rest>
 				vector(const matrix<FirstElementType, firstRows, firstColumns> &first, const Rest &...rest);
@@ -1553,10 +1589,18 @@ same applies for 'op='
 
 #if defined MSVC_LIMITATIONS || defined __GNUC__
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
+#ifdef MSVC_LIMITATIONS
+				vector &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet, std::integral_constant<bool, RightSwizzleDesc::isWriteMaskValid>> &right);
+#else
 				vector &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right);
+#endif
 
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
+#ifdef MSVC_LIMITATIONS
+				vector &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet, std::integral_constant<bool, RightSwizzleDesc::isWriteMaskValid>> &&right);
+#else
 				vector &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &&right);
+#endif
 #else
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
 				vector &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right) &;
@@ -1603,7 +1647,11 @@ same applies for 'op='
 				matrix(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar);
 
 				template<typename FirstElementType, unsigned int firstRows, unsigned int firstColumns, class FirstSwizzleDesc, bool firstOdd, unsigned firstNamingSet, typename ...Rest>
+#ifdef MSVC_LIMITATIONS
+				matrix(const CSwizzle<FirstElementType, firstRows, firstColumns, FirstSwizzleDesc, firstOdd, firstNamingSet, std::integral_constant<bool, FirstSwizzleDesc::isWriteMaskValid>> &first, const Rest &...rest);
+#else
 				matrix(const CSwizzle<FirstElementType, firstRows, firstColumns, FirstSwizzleDesc, firstOdd, firstNamingSet> &first, const Rest &...rest);
+#endif
 
 				template<typename FirstElementType, unsigned int firstRows, unsigned int firstColumns, typename ...Rest>
 				matrix(const matrix<FirstElementType, firstRows, firstColumns> &first, const Rest &...rest);
@@ -1879,7 +1927,11 @@ same applies for 'op='
 
 				template<typename ElementType, unsigned int dimension>
 				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, bool srcOdd, unsigned srcNamingSet>
+#ifdef MSVC_LIMITATIONS
+				inline vector<ElementType, dimension>::vector(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet, std::integral_constant<bool, SrcSwizzleDesc::isWriteMaskValid>> &src)
+#else
 				inline vector<ElementType, dimension>::vector(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet> &src)
+#endif
 				{
 					static_assert(dimension <= SrcSwizzleDesc::TDimension::value, "\"copy\" ctor: too small src dimension");
 					for (unsigned i = 0; i < dimension; i++)
@@ -1918,7 +1970,11 @@ same applies for 'op='
 
 				template<typename ElementType, unsigned int dimension>
 				template<typename FirstElementType, unsigned int firstRows, unsigned int firstColumns, class FirstSwizzleDesc, bool firstOdd, unsigned firstNamingSet, typename ...Rest>
+#ifdef MSVC_LIMITATIONS
+				vector<ElementType, dimension>::vector(const CSwizzle<FirstElementType, firstRows, firstColumns, FirstSwizzleDesc, firstOdd, firstNamingSet, std::integral_constant<bool, FirstSwizzleDesc::isWriteMaskValid>> &first, const Rest &...rest)
+#else
 				vector<ElementType, dimension>::vector(const CSwizzle<FirstElementType, firstRows, firstColumns, FirstSwizzleDesc, firstOdd, firstNamingSet> &first, const Rest &...rest)
+#endif
 				{
 					_Init<0>(first, rest...);
 				}
@@ -1967,7 +2023,11 @@ same applies for 'op='
 #if defined MSVC_LIMITATIONS || defined __GNUC__
 				template<typename ElementType, unsigned int dimension>
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
+#ifdef MSVC_LIMITATIONS
+				inline auto vector<ElementType, dimension>::operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet, std::integral_constant<bool, RightSwizzleDesc::isWriteMaskValid>> &right)->vector &
+#else
 				inline auto vector<ElementType, dimension>::operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right) -> vector &
+#endif
 				{
 					CSwizzleAssign<ElementType, 0, dimension>::operator =(right);
 					return *this;
@@ -1975,7 +2035,11 @@ same applies for 'op='
 
 				template<typename ElementType, unsigned int dimension>
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
+#ifdef MSVC_LIMITATIONS
+				inline auto vector<ElementType, dimension>::operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet, std::integral_constant<bool, RightSwizzleDesc::isWriteMaskValid>> &&right)->vector &
+#else
 				inline auto vector<ElementType, dimension>::operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &&right) -> vector &
+#endif
 				{
 					CSwizzleAssign<ElementType, 0, dimension>::TEMPLATE operator =<false>(right);
 					return *this;
@@ -2094,7 +2158,11 @@ same applies for 'op='
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				template<typename FirstElementType, unsigned int firstRows, unsigned int firstColumns, class FirstSwizzleDesc, bool firstOdd, unsigned firstNamingSet, typename ...Rest>
+#ifdef MSVC_LIMITATIONS
+				matrix<ElementType, rows, columns>::matrix(const CSwizzle<FirstElementType, firstRows, firstColumns, FirstSwizzleDesc, firstOdd, firstNamingSet, std::integral_constant<bool, FirstSwizzleDesc::isWriteMaskValid>> &first, const Rest &...rest)
+#else
 				matrix<ElementType, rows, columns>::matrix(const CSwizzle<FirstElementType, firstRows, firstColumns, FirstSwizzleDesc, firstOdd, firstNamingSet> &first, const Rest &...rest)
+#endif
 				{
 					_Init<0>(first, rest...);
 				}
@@ -2594,6 +2662,20 @@ same applies for 'op='
 #			pragma endregion
 
 #			pragma region all/any/none functions
+#ifdef MSVC_LIMITATIONS
+#				define FUNCTION_DEFINITION(f)																																	\
+					template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>									\
+					inline bool f(const CSwizzle<ElementType, rows, columns, SwizzleDesc, odd, namingSet, std::integral_constant<bool, SwizzleDesc::isWriteMaskValid>> &src)	\
+					{																																							\
+						typedef CSwizzleIterator<ElementType, rows, columns, SwizzleDesc, odd, namingSet> TSwizzleIterator;														\
+						return std::f##_of(TSwizzleIterator(src, 0), TSwizzleIterator(src, SwizzleDesc::TDimension::value), [](typename std::conditional						\
+						<																																						\
+							sizeof(typename TSwizzleIterator::value_type) <= sizeof(void *),																					\
+							typename TSwizzleIterator::value_type,																												\
+							typename TSwizzleIterator::reference																												\
+						>::type element) -> bool {return element;});																											\
+					};
+#else
 #				define FUNCTION_DEFINITION(f)																												\
 					template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>				\
 					inline bool f(const CSwizzle<ElementType, rows, columns, SwizzleDesc, odd, namingSet> &src)												\
@@ -2606,6 +2688,7 @@ same applies for 'op='
 							typename TSwizzleIterator::reference																							\
 						>::type element) -> bool {return element;});																						\
 					};
+#endif
 				FUNCTION_DEFINITION(all)
 				FUNCTION_DEFINITION(any)
 				FUNCTION_DEFINITION(none)
