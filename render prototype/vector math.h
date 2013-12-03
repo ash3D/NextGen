@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		2.12.2013 (c)Alexey Shaydurov
+\date		3.12.2013 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1806,20 +1806,21 @@ same applies for 'op='
 				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
 				matrix(const matrix<SrcElementType, srcRows, srcColumns> &src);
 
-				matrix(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar);
+				template<typename SrcElementType>
+				matrix(const SrcElementType &scalar);
 
-				template<typename FirstElementType, unsigned int firstRows, unsigned int firstColumns, class FirstSwizzleDesc, bool firstOdd, unsigned firstNamingSet, typename ...Rest>
+				template<typename First, typename ...Rest>
+				matrix(const First &first, const Rest &...rest);
+
+				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, bool srcOdd, unsigned srcNamingSet>
 #ifdef MSVC_LIMITATIONS
-				matrix(const CSwizzle<FirstElementType, firstRows, firstColumns, FirstSwizzleDesc, firstOdd, firstNamingSet, std::integral_constant<bool, FirstSwizzleDesc::isWriteMaskValid>> &first, const Rest &...rest);
+				matrix(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet, std::integral_constant<bool, SrcSwizzleDesc::isWriteMaskValid>> &src);
 #else
-				matrix(const CSwizzle<FirstElementType, firstRows, firstColumns, FirstSwizzleDesc, firstOdd, firstNamingSet> &first, const Rest &...rest);
+				matrix(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet> &src);
 #endif
 
-				template<typename FirstElementType, unsigned int firstRows, unsigned int firstColumns, typename ...Rest>
-				matrix(const matrix<FirstElementType, firstRows, firstColumns> &first, const Rest &...rest);
-
-				template<typename ...Rest>
-				matrix(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type first, const Rest &...rest);
+				template<typename SrcElementType, unsigned int srcDimenstion>
+				matrix(const vector<SrcElementType, srcDimenstion> &src);
 
 				matrix(std::initializer_list<CInitListItem<ElementType>> initList);
 
@@ -1832,7 +1833,8 @@ same applies for 'op='
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns>
 				matrix &operator =(const matrix<RightElementType, rightRows, rightColumns> &right);
 
-				matrix &operator =(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar);
+				template<typename SrcElementType>
+				matrix &operator =(const SrcElementType &scalar);
 
 				matrix &operator =(std::initializer_list<CInitListItem<ElementType>> initList);
 
@@ -2227,7 +2229,8 @@ same applies for 'op='
 				}
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
-				inline matrix<ElementType, rows, columns>::matrix(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar)
+				template<typename SrcElementType>
+				inline matrix<ElementType, rows, columns>::matrix(const SrcElementType &scalar)
 				{
 					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)
 					{
@@ -2261,28 +2264,28 @@ same applies for 'op='
 				}
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
-				template<typename FirstElementType, unsigned int firstRows, unsigned int firstColumns, class FirstSwizzleDesc, bool firstOdd, unsigned firstNamingSet, typename ...Rest>
+				template<typename First, typename ...Rest>
+				matrix<ElementType, rows, columns>::matrix(const First &first, const Rest &...rest)
+				{
+					_Init<0>(first, rest...);
+				}
+
+				template<typename ElementType, unsigned int rows, unsigned int columns>
+				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, bool srcOdd, unsigned srcNamingSet>
 #ifdef MSVC_LIMITATIONS
-				matrix<ElementType, rows, columns>::matrix(const CSwizzle<FirstElementType, firstRows, firstColumns, FirstSwizzleDesc, firstOdd, firstNamingSet, std::integral_constant<bool, FirstSwizzleDesc::isWriteMaskValid>> &first, const Rest &...rest)
+				matrix<ElementType, rows, columns>::matrix(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet, std::integral_constant<bool, SrcSwizzleDesc::isWriteMaskValid>> &src)
 #else
-				matrix<ElementType, rows, columns>::matrix(const CSwizzle<FirstElementType, firstRows, firstColumns, FirstSwizzleDesc, firstOdd, firstNamingSet> &first, const Rest &...rest)
+				matrix<ElementType, rows, columns>::matrix(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet> &src)
 #endif
 				{
-					_Init<0>(first, rest...);
+					_Init<0>(src);
 				}
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
-				template<typename FirstElementType, unsigned int firstRows, unsigned int firstColumns, typename ...Rest>
-				matrix<ElementType, rows, columns>::matrix(const matrix<FirstElementType, firstRows, firstColumns> &first, const Rest &...rest)
+				template<typename SrcElementType, unsigned int srcDimenstion>
+				matrix<ElementType, rows, columns>::matrix(const vector<SrcElementType, srcDimenstion> &src)
 				{
-					_Init<0>(first, rest...);
-				}
-
-				template<typename ElementType, unsigned int rows, unsigned int columns>
-				template<typename ...Rest>
-				matrix<ElementType, rows, columns>::matrix(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type first, const Rest &...rest)
-				{
-					_Init<0>(first, rest...);
+					_Init<0>(src);
 				}
 
 				//template<typename ElementType, unsigned int rows, unsigned int columns>
@@ -2338,7 +2341,8 @@ same applies for 'op='
 				}
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
-				inline auto matrix<ElementType, rows, columns>::operator =(typename std::conditional<sizeof(ElementType) <= sizeof(void *), ElementType, const ElementType &>::type scalar) -> matrix &
+				template<typename SrcElementType>
+				inline auto matrix<ElementType, rows, columns>::operator =(const SrcElementType &scalar) -> matrix &
 				{
 					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)
 						operator [](rowIdx) = scalar;
