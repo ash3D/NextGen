@@ -1532,7 +1532,7 @@ same applies for 'op='
 						LeftSwizzleDesc::TDimension::value																												\
 					> operator op(																																		\
 					const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet> &left,												\
-					RightElementType right)																																\
+					const RightElementType &right)																														\
 					{																																					\
 						vector																																			\
 						<																																				\
@@ -1556,7 +1556,7 @@ same applies for 'op='
 						LeftSwizzleDesc::TDimension::value																												\
 					> operator op(																																		\
 					const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet> &left,												\
-					RightElementType right)																																\
+					const RightElementType &right)																														\
 					{																																					\
 						constexpr unsigned int dimension = LeftSwizzleDesc::TDimension::value;																			\
 						vector<bool, dimension> result;																													\
@@ -1578,7 +1578,7 @@ same applies for 'op='
 						decltype(std::declval<LeftElementType>() op std::declval<RightElementType>()),																	\
 						RightSwizzleDesc::TDimension::value																												\
 					> operator op(																																		\
-					LeftElementType left,																																\
+					const LeftElementType &left,																														\
 					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right)										\
 					{																																					\
 						vector																																			\
@@ -1602,7 +1602,7 @@ same applies for 'op='
 						bool,																																			\
 						RightSwizzleDesc::TDimension::value																												\
 					> operator op(																																		\
-					LeftElementType left,																																\
+					const LeftElementType &left,																														\
 					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right)										\
 					{																																					\
 						constexpr unsigned int dimension = RightSwizzleDesc::TDimension::value;																			\
@@ -2449,7 +2449,7 @@ same applies for 'op='
 						leftRows, leftColumns																\
 					> operator op(																			\
 					const matrix<LeftElementType, leftRows, leftColumns> &left,								\
-					RightElementType right)																	\
+					const RightElementType &right)															\
 					{																						\
 						matrix																				\
 						<																					\
@@ -2474,7 +2474,7 @@ same applies for 'op='
 						leftRows, leftColumns														\
 					> operator op(																	\
 					const matrix<LeftElementType, leftRows, leftColumns> &left,						\
-					RightElementType right)															\
+					const RightElementType &right)													\
 					{																				\
 						matrix<bool, leftRows, leftColumns> result;									\
 						for (unsigned i = 0; i < leftRows; i++)										\
@@ -2495,7 +2495,7 @@ same applies for 'op='
 						decltype(std::declval<LeftElementType>() op std::declval<RightElementType>()),		\
 						rightRows, rightColumns																\
 					> operator op(																			\
-					LeftElementType left,																	\
+					const LeftElementType &left,															\
 					const matrix<RightElementType, rightRows, rightColumns> &right)							\
 					{																						\
 						matrix																				\
@@ -2503,8 +2503,8 @@ same applies for 'op='
 							decltype(std::declval<LeftElementType>() op std::declval<RightElementType>()),	\
 							rightRows, rightColumns															\
 						>																					\
-						result(right);																		\
-						return result op##= left;															\
+						result(left);																		\
+						return result op##= right;															\
 					}
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
@@ -2520,7 +2520,7 @@ same applies for 'op='
 						bool,																			\
 						rightRows, rightColumns															\
 					> operator op(																		\
-					LeftElementType left,																\
+					const LeftElementType &left,														\
 					const matrix<RightElementType, rightRows, rightColumns> &right)						\
 					{																					\
 						matrix<bool, rightRows, rightColumns> result;									\
