@@ -1784,7 +1784,7 @@ same applies for 'op='
 			private:
 				template<unsigned idx>
 				inline void _Init();
-				template<unsigned startIdx, typename TCurSrc, typename ...TRestSrc>
+				template<unsigned startIdx = 0u, typename TCurSrc, typename ...TRestSrc>
 				inline void _Init(const TCurSrc &curSrc, const TRestSrc &...restSrc);
 			};
 
@@ -1901,7 +1901,7 @@ same applies for 'op='
 			private:
 				template<unsigned idx>
 				inline void _Init();
-				template<unsigned startIdx, typename TCurSrc, typename ...TRestSrc>
+				template<unsigned startIdx = 0u, typename TCurSrc, typename ...TRestSrc>
 				inline void _Init(const TCurSrc &curSrc, const TRestSrc &...restSrc);
 			};
 
@@ -2153,14 +2153,14 @@ same applies for 'op='
 				template<typename First, typename ...Rest>
 				vector<ElementType, dimension>::vector(const First &first, const Rest &...rest)
 				{
-					_Init<0>(first, rest...);
+					_Init(first, rest...);
 				}
 
 				template<typename ElementType, unsigned int dimension>
 				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
 				vector<ElementType, dimension>::vector(const matrix<SrcElementType, srcRows, srcColumns> &src)
 				{
-					_Init<0>(src);
+					_Init(src);
 				}
 
 				//template<typename ElementType, unsigned int dimension>
@@ -2267,7 +2267,7 @@ same applies for 'op='
 				template<typename First, typename ...Rest>
 				matrix<ElementType, rows, columns>::matrix(const First &first, const Rest &...rest)
 				{
-					_Init<0>(first, rest...);
+					_Init(first, rest...);
 				}
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
@@ -2278,14 +2278,14 @@ same applies for 'op='
 				matrix<ElementType, rows, columns>::matrix(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet> &src)
 #endif
 				{
-					_Init<0>(src);
+					_Init(src);
 				}
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				template<typename SrcElementType, unsigned int srcDimenstion>
 				matrix<ElementType, rows, columns>::matrix(const vector<SrcElementType, srcDimenstion> &src)
 				{
-					_Init<0>(src);
+					_Init(src);
 				}
 
 				//template<typename ElementType, unsigned int rows, unsigned int columns>
