@@ -2843,8 +2843,9 @@ same applies for 'op='
 						typename LeftSwizzleDesc::TDimension,
 						typename RightSwizzleDesc::TDimension
 					>::type::value;
+					typedef decltype(std::declval<LeftElementType>() + std::declval<RightElementType>()) ElementType;
 
-					decltype(std::declval<LeftElementType>() + std::declval<RightElementType>()) result(0);
+					ElementType result = ElementType();
 
 					for (unsigned i = 0; i < rowXcolumnDimension; i++)
 						result += left[i] * right[i];
@@ -2870,7 +2871,7 @@ same applies for 'op='
 						>::type::value;
 					typedef decltype(std::declval<LeftElementType>() + std::declval<RightElementType>()) ElementType;
 
-					vector<ElementType, resultColumns> result(ElementType(0));
+					vector<ElementType, resultColumns> result = ElementType();
 
 					for (unsigned c = 0; c < resultColumns; c++)
 						for (unsigned i = 0; i < rowXcolumnDimension; i++)
@@ -2897,7 +2898,7 @@ same applies for 'op='
 						>::type::value;
 					typedef decltype(std::declval<LeftElementType>() + std::declval<RightElementType>()) ElementType;
 
-					vector<ElementType, resultRows> result(ElementType(0));
+					vector<ElementType, resultRows> result = ElementType();
 
 					for (unsigned r = 0; r < resultRows; r++)
 						for (unsigned i = 0; i < rowXcolumnDimension; i++)
@@ -2925,7 +2926,7 @@ same applies for 'op='
 						>::type::value;
 					typedef decltype(std::declval<LeftElementType>() + std::declval<RightElementType>()) ElementType;
 
-					matrix<ElementType, resultRows, resultColumns> result(ElementType(0));
+					matrix<ElementType, resultRows, resultColumns> result = ElementType();
 
 					for (unsigned r = 0; r < resultRows; r++)
 						for (unsigned c = 0; c < resultColumns; c++)
