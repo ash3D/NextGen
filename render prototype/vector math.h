@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		3.12.2013 (c)Alexey Shaydurov
+\date		4.12.2013 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -630,6 +630,172 @@ same applies for 'op='
 #		endif
 			};
 
+#			pragma region Flat idx accessors
+			template<typename Src>
+			class CFlatIdxAccessor;
+
+			template<typename Scalar>
+			class CFlatIdxAccessor
+			{
+				const Scalar &_scalar;
+			public:
+				CFlatIdxAccessor(const Scalar &scalar) noexcept : _scalar(scalar) {}
+			public:
+				const Scalar &operator [](unsigned idx) const noexcept
+				{
+					  assert(idx < dimension);
+					  return _scalar;
+			}
+			public:
+				static constexpr unsigned dimension = 1;
+			};
+
+			// assert not required for swizzle and matrix because it's 'operator []' already have assert
+
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>
+			class CFlatIdxAccessor<const CSwizzle<ElementType, rows, columns, SwizzleDesc, odd, namingSet>>
+			{
+				typedef const CSwizzle<ElementType, rows, columns, SwizzleDesc, odd, namingSet> TSwizzle;
+				TSwizzle &_swizzle;
+			public:
+				CFlatIdxAccessor(TSwizzle &swizzle) noexcept : _swizzle(swizzle) {}
+			public:
+				const ElementType &operator [](unsigned idx) const noexcept
+				{
+					  return _swizzle[idx];
+			}
+			public:
+				static constexpr unsigned dimension = SwizzleDesc::TDimension::value;
+			};
+
+			template<typename ElementType, unsigned int dimension>
+			class CFlatIdxAccessor<const vector<ElementType, dimension>>: public CFlatIdxAccessor<const CSwizzle<ElementType, 0, dimension>>
+			{
+			public:
+				// TODO: use C++11 inheriting ctor
+				CFlatIdxAccessor(const vector<ElementType, dimension> &vector) :
+					CFlatIdxAccessor<const CSwizzle<ElementType, 0, dimension>>(vector) {}
+			};
+
+			template<typename ElementType, unsigned int rows, unsigned int columns>
+			class CFlatIdxAccessor<const matrix<ElementType, rows, columns>>
+			{
+				typedef const matrix<ElementType, rows, columns> TMatrix;
+				TMatrix &_matrix;
+			public:
+				CFlatIdxAccessor(TMatrix &matrix) noexcept : _matrix(matrix) {}
+			public:
+				const ElementType &operator [](unsigned idx) const noexcept
+				{
+					  return _matrix[idx / columns][idx % columns];
+			}
+			public:
+				static constexpr unsigned dimension = rows * columns;
+			};
+
+			template<typename Src>
+			inline CFlatIdxAccessor<Src> CreateFlatIdxAccessor(Src &src) noexcept
+			{
+				return CFlatIdxAccessor<Src>(src);
+			}
+#			pragma endregion TODO: move to vector/matrix base class in order to hide from user
+
+#			pragma region Initializer list
+			template<typename ElementType>
+			class CInitListItem final
+			{
+				CInitListItem() = delete;
+				CInitListItem(const CInitListItem &) = delete;
+				CInitListItem &operator =(const CInitListItem &) = delete;
+			private:
+				static ElementType _GetItemElement(const void *item, unsigned)
+				{
+					return *reinterpret_cast<const ElementType *>(item);
+				}
+
+				template<unsigned int dimension>
+				static ElementType _GetItemElement(const void *item, unsigned idx)
+				{
+					const auto &v = *reinterpret_cast<const vector<ElementType, dimension> *>(item);
+					return v[idx];
+				}
+
+				template<unsigned int rows, unsigned int columns>
+				static ElementType _GetItemElement(const void *item, unsigned idx)
+				{
+					const auto &m = *reinterpret_cast<const matrix<ElementType, rows, columns> *>(item);
+					return m[idx / columns][idx % columns];
+				}
+
+				static void _Delete(const void *ptr)
+				{
+					delete (const ElementType *)ptr;
+				}
+
+				template<unsigned int dimension>
+				static void _Delete(const void *ptr)
+				{
+					delete (const vector<ElementType, dimension> *)ptr;
+				}
+
+				template<unsigned int rows, unsigned int columns>
+				static void _Delete(const void *ptr)
+				{
+					delete (const matrix<ElementType, rows, columns> *)ptr;
+				}
+
+				class CDeleter
+				{
+					typedef void(*TImpl)(const void *ptr);
+					TImpl _impl;
+				public:
+					CDeleter(TImpl impl) : _impl(impl) {}
+				public:
+					void operator ()(const void *ptr) const
+					{
+						_impl(ptr);
+					}
+				};
+			public:
+				CInitListItem(const ElementType &item) :
+					_getItemElement(_GetItemElement),
+					_item(new ElementType(item), CDeleter(_Delete)),
+					_itemSize(1)
+				{
+				}
+
+				template<typename ItemElementType, unsigned int itemRows, unsigned int itemColumns, class ItemSwizzleDesc>
+				CInitListItem(const CSwizzle<ItemElementType, itemRows, itemColumns, ItemSwizzleDesc> &item) noexcept:
+				_getItemElement(_GetItemElement<ItemSwizzleDesc::TDimension::value>),
+					_item(new vector<ElementType, ItemSwizzleDesc::TDimension::value>(item), CDeleter(_Delete<ItemSwizzleDesc::TDimension::value>)),
+					_itemSize(ItemSwizzleDesc::TDimension::value)
+				{
+				}
+
+				template<typename ItemElementType, unsigned int itemRows, unsigned int itemColumns>
+				CInitListItem(const matrix<ItemElementType, itemRows, itemColumns> &item) noexcept:
+				_getItemElement(_GetItemElement<itemRows, itemColumns>),
+					_item(new matrix<ElementType, itemRows, itemColumns>(item), CDeleter(_Delete<itemRows, itemColumns>)),
+					_itemSize(itemRows * itemColumns)
+				{
+				}
+
+				ElementType operator [](unsigned idx) const
+				{
+					return _getItemElement(_item.get(), idx);
+				}
+
+				unsigned GetItemSize() const noexcept
+				{
+					return _itemSize;
+				}
+			private:
+				ElementType(&_getItemElement)(const void *, unsigned);
+				const std::unique_ptr<const void, CDeleter> _item;
+				const unsigned _itemSize;
+			};
+#			pragma endregion
+
 			// specializations for graphics vectors/matrices
 #			define BOOST_PP_ITERATION_LIMITS (0, 4)
 #			define BOOST_PP_FILENAME_1 "vector math.h"
@@ -981,7 +1147,36 @@ same applies for 'op='
 				inline TOperationResult &operator =(const RightElementType &scalar);
 
 				inline TOperationResult &operator =(std::initializer_list<CInitListItem<ElementType>> initList);
+			protected:
+				template<unsigned idx>
+				inline void _Init();
+				template<unsigned startIdx = 0u, typename TCurSrc, typename ...TRestSrc>
+				inline void _Init(const TCurSrc &curSrc, const TRestSrc &...restSrc);
+			public:
+				using CSwizzleCommon<ElementType, rows, columns, SwizzleDesc, odd, namingSet>::operator [];
 			};
+
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>
+			template<unsigned idx>
+			inline void CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, odd, namingSet>::_Init()
+			{
+				static constexpr auto dimension = SwizzleDesc::TDimension::value;
+				static_assert(idx >= dimension, "too few src elements");
+				static_assert(idx <= dimension, "too many src elements");
+			}
+
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>
+			template<unsigned startIdx, typename TCurSrc, typename ...TRestSrc>
+			inline void CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, odd, namingSet>::_Init(const TCurSrc &curSrc, const TRestSrc &...restSrc)
+			{
+				const auto src_accesssor = CreateFlatIdxAccessor(curSrc);
+				for (unsigned i = 0; i < src_accesssor.dimension; i++)
+				{
+					operator [](i + startIdx).~ElementType();
+					new(&operator [](i + startIdx)) ElementType(src_accesssor[i]);
+				}
+				_Init<startIdx + src_accesssor.dimension>(restSrc...);
+			}
 
 #ifdef MSVC_LIMITATIONS
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>
@@ -1782,10 +1977,7 @@ same applies for 'op='
 
 				ElementType &operator [](unsigned int idx) noexcept;
 			private:
-				template<unsigned idx>
-				inline void _Init();
-				template<unsigned startIdx = 0u, typename TCurSrc, typename ...TRestSrc>
-				inline void _Init(const TCurSrc &curSrc, const TRestSrc &...restSrc);
+				using CSwizzleAssign<ElementType, 0, dimension>::_Init;
 			};
 
 			template<typename ElementType_, unsigned int rows_, unsigned int columns_>
@@ -1905,172 +2097,6 @@ same applies for 'op='
 				inline void _Init(const TCurSrc &curSrc, const TRestSrc &...restSrc);
 			};
 
-#			pragma region Flat idx accessors
-				template<typename Src>
-				class CFlatIdxAccessor;
-
-				template<typename Scalar>
-				class CFlatIdxAccessor
-				{
-					const Scalar &_scalar;
-				public:
-					CFlatIdxAccessor(const Scalar &scalar) noexcept: _scalar(scalar) {}
-				public:
-					const Scalar &operator [](unsigned idx) const noexcept
-					{
-						assert(idx < dimension);
-						return _scalar;
-					}
-				public:
-					static constexpr unsigned dimension = 1;
-				};
-
-				// assert not required for swizzle and matrix because it's 'operator []' already have assert
-
-				template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>
-				class CFlatIdxAccessor<const CSwizzle<ElementType, rows, columns, SwizzleDesc, odd, namingSet>>
-				{
-					typedef const CSwizzle<ElementType, rows, columns, SwizzleDesc, odd, namingSet> TSwizzle;
-					TSwizzle &_swizzle;
-				public:
-					CFlatIdxAccessor(TSwizzle &swizzle) noexcept: _swizzle(swizzle) {}
-				public:
-					const ElementType &operator [](unsigned idx) const noexcept
-					{
-						return _swizzle[idx];
-					}
-				public:
-					static constexpr unsigned dimension = SwizzleDesc::TDimension::value;
-				};
-
-				template<typename ElementType, unsigned int dimension>
-				class CFlatIdxAccessor<const vector<ElementType, dimension>>: public CFlatIdxAccessor<const CSwizzle<ElementType, 0, dimension>>
-				{
-				public:
-					// TODO: use C++11 inheriting ctor
-					CFlatIdxAccessor(const vector<ElementType, dimension> &vector) :
-						CFlatIdxAccessor<const CSwizzle<ElementType, 0, dimension>>(vector) {}
-				};
-
-				template<typename ElementType, unsigned int rows, unsigned int columns>
-				class CFlatIdxAccessor<const matrix<ElementType, rows, columns>>
-				{
-					typedef const matrix<ElementType, rows, columns> TMatrix;
-					TMatrix &_matrix;
-				public:
-					CFlatIdxAccessor(TMatrix &matrix) noexcept: _matrix(matrix) {}
-				public:
-					const ElementType &operator [](unsigned idx) const noexcept
-					{
-						return _matrix[idx / columns][idx % columns];
-					}
-				public:
-					static constexpr unsigned dimension = rows * columns;
-				};
-
-				template<typename Src>
-				inline CFlatIdxAccessor<Src> CreateFlatIdxAccessor(Src &src) noexcept
-				{
-					return CFlatIdxAccessor<Src>(src);
-				}
-#			pragma endregion TODO: move to vector/matrix base class in order to hide from user
-
-#			pragma region Initializer list
-				template<typename ElementType>
-				class CInitListItem final
-				{
-					CInitListItem() = delete;
-					CInitListItem(const CInitListItem &) = delete;
-					CInitListItem &operator =(const CInitListItem &) = delete;
-				private:
-					static ElementType _GetItemElement(const void *item, unsigned)
-					{
-						return *reinterpret_cast<const ElementType *>(item);
-					}
-
-					template<unsigned int dimension>
-					static ElementType _GetItemElement(const void *item, unsigned idx)
-					{
-						const auto &v = *reinterpret_cast<const vector<ElementType, dimension> *>(item);
-						return v[idx];
-					}
-
-					template<unsigned int rows, unsigned int columns>
-					static ElementType _GetItemElement(const void *item, unsigned idx)
-					{
-						const auto &m = *reinterpret_cast<const matrix<ElementType, rows, columns> *>(item);
-						return m[idx / columns][idx % columns];
-					}
-
-					static void _Delete(const void *ptr)
-					{
-						delete (const ElementType *)ptr;
-					}
-
-					template<unsigned int dimension>
-					static void _Delete(const void *ptr)
-					{
-						delete (const vector<ElementType, dimension> *)ptr;
-					}
-
-					template<unsigned int rows, unsigned int columns>
-					static void _Delete(const void *ptr)
-					{
-						delete (const matrix<ElementType, rows, columns> *)ptr;
-					}
-
-					class CDeleter
-					{
-						typedef void (*TImpl)(const void *ptr);
-						TImpl _impl;
-					public:
-						CDeleter(TImpl impl): _impl(impl) {}
-					public:
-						void operator ()(const void *ptr) const
-						{
-							_impl(ptr);
-						}
-					};
-				public:
-					CInitListItem(const ElementType &item):
-						_getItemElement(_GetItemElement),
-						_item(new ElementType(item), CDeleter(_Delete)),
-						_itemSize(1)
-					{
-					}
-
-					template<typename ItemElementType, unsigned int itemRows, unsigned int itemColumns, class ItemSwizzleDesc>
-					CInitListItem(const CSwizzle<ItemElementType, itemRows, itemColumns, ItemSwizzleDesc> &item) noexcept:
-						_getItemElement(_GetItemElement<ItemSwizzleDesc::TDimension::value>),
-						_item(new vector<ElementType, ItemSwizzleDesc::TDimension::value>(item), CDeleter(_Delete<ItemSwizzleDesc::TDimension::value>)),
-						_itemSize(ItemSwizzleDesc::TDimension::value)
-					{
-					}
-
-					template<typename ItemElementType, unsigned int itemRows, unsigned int itemColumns>
-					CInitListItem(const matrix<ItemElementType, itemRows, itemColumns> &item) noexcept:
-						_getItemElement(_GetItemElement<itemRows, itemColumns>),
-						_item(new matrix<ElementType, itemRows, itemColumns>(item), CDeleter(_Delete<itemRows, itemColumns>)),
-						_itemSize(itemRows * itemColumns)
-					{
-					}
-
-					ElementType operator [](unsigned idx) const
-					{
-						return _getItemElement(_item.get(), idx);
-					}
-
-					unsigned GetItemSize() const noexcept
-					{
-						return _itemSize;
-					}
-				private:
-					ElementType (&_getItemElement)(const void *, unsigned);
-					const std::unique_ptr<const void, CDeleter> _item;
-					const unsigned _itemSize;
-				};
-#			pragma endregion
-
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>
 			template<typename F>
 			inline vector<typename std::result_of<F &(ElementType)>::type, SwizzleDesc::TDimension::value>
@@ -2126,27 +2152,6 @@ same applies for 'op='
 				inline vector<ElementType, dimension>::vector(const SrcElementType &scalar)
 				{
 					std::fill_n(CDataContainer<ElementType, 0, dimension>::_data._data, dimension, scalar);
-				}
-
-				template<typename ElementType, unsigned int dimension>
-				template<unsigned idx>
-				inline void vector<ElementType, dimension>::_Init()
-				{
-					static_assert(idx >= dimension, "too few src elements");
-					static_assert(idx <= dimension, "too many src elements");
-				}
-
-				template<typename ElementType, unsigned int dimension>
-				template<unsigned startIdx, typename TCurSrc, typename ...TRestSrc>
-				inline void vector<ElementType, dimension>::_Init(const TCurSrc &curSrc, const TRestSrc &...restSrc)
-				{
-					const auto src_accesssor = CreateFlatIdxAccessor(curSrc);
-					for (unsigned i = 0; i < src_accesssor.dimension; i++)
-					{
-						operator [](i + startIdx).~ElementType();
-						new(&operator [](i + startIdx)) ElementType(src_accesssor[i]);
-					}
-					_Init<startIdx + src_accesssor.dimension>(restSrc...);
 				}
 
 				template<typename ElementType, unsigned int dimension>
