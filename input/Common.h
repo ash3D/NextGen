@@ -13,7 +13,7 @@ See "DGLE.h" for more details.
 #	define _CRT_SECURE_NO_WARNINGS
 #endif
 
-#include <DGLE.h>
+#include "DGLE.h"
 
 #include <string>
 #include <vector>

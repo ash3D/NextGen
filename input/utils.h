@@ -9,7 +9,7 @@ See "DGLE.h" for more details.
 
 #pragma once
 
-#include <DGLE.h>
+#include "DGLE.h"
 #include <string>
 
 std::string ToLowerCase(const std::string &inString);

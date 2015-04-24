@@ -1,12 +1,16 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 11.00
-# Visual Studio 2010
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2013
+VisualStudioVersion = 12.0.30723.0
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DirectInput", "input\DirectInput.vcxproj", "{B31EFA24-913C-4B5C-AD21-2296226E1347}"
 	ProjectSection(ProjectDependencies) = postProject
 		{7166311D-E55F-48DA-9406-9CEB64FCA275} = {7166311D-E55F-48DA-9406-9CEB64FCA275}
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Test", "test\Test.vcxproj", "{7166311D-E55F-48DA-9406-9CEB64FCA275}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CoreRendererDX9", "CoreRendererDX9\CoreRendererDX9.vcxproj", "{19823387-A221-4E2F-929F-DF5C33983B9A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -28,6 +32,12 @@ Global
 		{7166311D-E55F-48DA-9406-9CEB64FCA275}.Release|Win32.ActiveCfg = Release|Win32
 		{7166311D-E55F-48DA-9406-9CEB64FCA275}.Release|Win32.Build.0 = Release|Win32
 		{7166311D-E55F-48DA-9406-9CEB64FCA275}.Release|x64.ActiveCfg = Release|Win32
+		{19823387-A221-4E2F-929F-DF5C33983B9A}.Debug|Win32.ActiveCfg = Debug|Win32
+		{19823387-A221-4E2F-929F-DF5C33983B9A}.Debug|Win32.Build.0 = Debug|Win32
+		{19823387-A221-4E2F-929F-DF5C33983B9A}.Debug|x64.ActiveCfg = Debug|Win32
+		{19823387-A221-4E2F-929F-DF5C33983B9A}.Release|Win32.ActiveCfg = Release|Win32
+		{19823387-A221-4E2F-929F-DF5C33983B9A}.Release|Win32.Build.0 = Release|Win32
+		{19823387-A221-4E2F-929F-DF5C33983B9A}.Release|x64.ActiveCfg = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
