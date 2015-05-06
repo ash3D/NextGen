@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		28.09.2014 (c)Andrey Korotkov
+\date		7.5.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1039,8 +1039,8 @@ namespace
 }
 
 #pragma region CCoreRendererDX9
-CCoreRendererDX9::CCoreRendererDX9(uint uiInstIdx) :
-CInstancedObj(uiInstIdx), _stInitResults(false),
+CCoreRendererDX9::CCoreRendererDX9(IEngineCore &engineCore) :
+_engineCore(engineCore), _stInitResults(false),
 _depthPool(CSurfacePool::E_TYPE::DEPTH),
 _colorPool(CSurfacePool::E_TYPE::COLOR_LOCKABLE),
 _MSAAcolorPool(CSurfacePool::E_TYPE::COLOR)
@@ -1070,23 +1070,23 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Prepare(TCrRndrInitResults &stResults)
 D3DPRESENT_PARAMETERS CCoreRendererDX9::_GetPresentParams(TEngineWindow &wnd) const
 {
 	TWindowHandle hwnd;
-	AssertHR(Core()->pMainWindow()->GetWindowHandle(hwnd));
+	AssertHR(_engineCore.GetWindowHandle(hwnd));
 	D3DPRESENT_PARAMETERS present_params =
 	{
-		wnd.uiWidth,																	// width
-		wnd.uiHeight,																	// heigth
-		Core()->InitFlags() & EIF_FORCE_16_BIT_COLOR ? D3DFMT_R5G6B5 : D3DFMT_A8R8G8B8,	// format
-		0,																				// back buffer count, use default
-		Multisample_DGLE_2_D3D(wnd.eMultisampling),										// MSAA
-		0,																				// MSAA quality
-		D3DSWAPEFFECT_DISCARD,															// swap effect
-		hwnd,																			// device window (used for Present)
-		!wnd.bFullScreen,																// is windowed
-		TRUE,																			// enable auto depth stencil
-		D3DFMT_D24S8,																	// auto depth stencil format
-		0,																				// flags
-		0,																				// refresh rate
-		D3DPRESENT_INTERVAL_DEFAULT														// presentaion interval
+		wnd.uiWidth,									// width
+		wnd.uiHeight,									// heigth
+		_16bitColor ? D3DFMT_R5G6B5 : D3DFMT_A8R8G8B8,	// format
+		0,												// back buffer count, use default
+		Multisample_DGLE_2_D3D(wnd.eMultisampling),		// MSAA
+		0,												// MSAA quality
+		D3DSWAPEFFECT_DISCARD,							// swap effect
+		hwnd,											// device window (used for Present)
+		!wnd.bFullScreen,								// is windowed
+		TRUE,											// enable auto depth stencil
+		D3DFMT_D24S8,									// auto depth stencil format
+		0,												// flags
+		0,												// refresh rate
+		D3DPRESENT_INTERVAL_DEFAULT						// presentaion interval
 	};
 	if (FAILED(d3d->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, present_params.BackBufferFormat, present_params.Windowed, present_params.MultiSampleType, NULL)) ||
 		FAILED(d3d->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, present_params.AutoDepthStencilFormat, present_params.Windowed, present_params.MultiSampleType, NULL)))
@@ -1099,14 +1099,16 @@ D3DPRESENT_PARAMETERS CCoreRendererDX9::_GetPresentParams(TEngineWindow &wnd) co
 	return present_params;
 }
 
-DGLE_RESULT DGLE_API CCoreRendererDX9::Initialize(TCrRndrInitResults &stResults)
+DGLE_RESULT DGLE_API CCoreRendererDX9::Initialize(TCrRndrInitResults &stResults, TEngineWindow &stWin, E_ENGINE_INIT_FLAGS &eInitFlags)
 {
 	if (_stInitResults)
 		return E_ABORT;
 
+	_16bitColor = eInitFlags & EIF_FORCE_16_BIT_COLOR;
+
 	LOG("Initializing Core Renderer...", LT_INFO);
 
-	D3DPRESENT_PARAMETERS present_params = _GetPresentParams(*Core()->EngWindow());
+	D3DPRESENT_PARAMETERS present_params = _GetPresentParams(stWin);
 	if (FAILED(d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, present_params.hDeviceWindow, D3DCREATE_HARDWARE_VERTEXPROCESSING, &present_params, &_device)))
 	{
 		AssertHR(Finalize());
@@ -1144,7 +1146,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Initialize(TCrRndrInitResults &stResults)
 	AssertHR(SetMatrix(MatrixIdentity(), MT_PROJECTION));
 	AssertHR(SetMatrix(MatrixIdentity(), MT_MODELVIEW));
 
-	AssertHR(Core()->AddEventListener(ET_ON_PER_SECOND_TIMER, EventsHandler, this));
+	AssertHR(_engineCore.AddEventListener(ET_ON_PER_SECOND_TIMER, EventsHandler, this));
 
 	_stInitResults = stResults;
 
@@ -1158,7 +1160,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Finalize()
 	if (!_stInitResults)
 		return E_ABORT;
 
-	Core()->RemoveEventListener(ET_ON_PER_SECOND_TIMER, EventsHandler, this);
+	_engineCore.RemoveEventListener(ET_ON_PER_SECOND_TIMER, EventsHandler, this);
 
 	delete _FFP;
 
@@ -1546,9 +1548,11 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::SetRenderTarget(ICoreTexture *pTexture)
 		case D3DFMT_D16:
 			return E_INVALIDARG;
 		}
-		dst_desc.MultiSampleType = Multisample_DGLE_2_D3D(Core()->EngWindow()->eMultisampling);
-		if (FAILED(d3d->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, dst_desc.Format, !Core()->EngWindow()->bFullScreen, dst_desc.MultiSampleType, NULL)) ||
-			FAILED(d3d->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, _offscreenDepthFormat, !Core()->EngWindow()->bFullScreen, dst_desc.MultiSampleType, NULL)))
+		TEngineWindow wnd;
+		AssertHR(_engineCore.GetCurrentWindow(wnd));
+		dst_desc.MultiSampleType = Multisample_DGLE_2_D3D(wnd.eMultisampling);
+		if (FAILED(d3d->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, dst_desc.Format, !wnd.bFullScreen, dst_desc.MultiSampleType, NULL)) ||
+			FAILED(d3d->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, _offscreenDepthFormat, !wnd.bFullScreen, dst_desc.MultiSampleType, NULL)))
 			dst_desc.MultiSampleType = D3DMULTISAMPLE_NONE;
 		AssertHR(_device->GetRenderTarget(0, &_screenColorTarget));
 		AssertHR(_device->GetDepthStencilSurface(&_screenDepthTarget));

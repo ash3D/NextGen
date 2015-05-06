@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		24.4.2015 (c)Korotkov Andrey
+\date		7.5.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -20,8 +20,9 @@ static inline uint GetInstanceIndex(IEngineCore *pEngineCore)
 
 CPluginCore::CPluginCore(IEngineCore *pEngineCore):
 _instIdx(GetInstanceIndex(pEngineCore)),
-_pEngineCore(pEngineCore), _renderer(_instIdx)
+_pEngineCore(pEngineCore), _renderer(*pEngineCore)
 {
+	assert(pEngineCore);
 }
 
 CPluginCore::~CPluginCore() = default;

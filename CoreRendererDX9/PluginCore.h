@@ -28,7 +28,7 @@ public:
 	~CPluginCore();
 
 	DGLE_RESULT DGLE_API GetPluginInfo(TPluginInfo &stInfo);
-	DGLE_RESULT DGLE_API GetPluginInterfaceName(char* pcName, uint &uiCharsCount);
+	DGLE_RESULT DGLE_API GetPluginInterfaceName(char *pcName, uint &uiCharsCount);
 
 	DGLE_RESULT DGLE_API GetSubSystemInterface(IEngineSubSystem *&prSubSystem);
 

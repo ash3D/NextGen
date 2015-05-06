@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		28.09.2014 (c)Andrey Korotkov
+\date		7.5.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -21,11 +21,14 @@ See "DGLE.h" for more details.
 
 namespace WRL = Microsoft::WRL;
 
-class CCoreRendererDX9 final : private CInstancedObj, public ICoreRenderer
+class CCoreRendererDX9 final : public ICoreRenderer
 {
+	IEngineCore &_engineCore;
+
 	WRL::ComPtr<IDirect3DDevice9> _device;
 
 	TCrRndrInitResults _stInitResults;
+	bool _16bitColor;
 
 	D3DCOLOR _clearColor = 0;	// default OpenGL value
 	float _lineWidth = 1;
@@ -213,14 +216,14 @@ private:
 
 public:
 
-	CCoreRendererDX9(uint uiInstIdx);
+	CCoreRendererDX9(IEngineCore &engineCore);
 	CCoreRendererDX9(CCoreRendererDX9 &) = delete;
 	void operator =(CCoreRendererDX9 &) = delete;
 
 	static inline uint GetVertexSize(const TDrawDataDesc &stDesc);
 
 	DGLE_RESULT DGLE_API Prepare(TCrRndrInitResults &stResults) override;
-	DGLE_RESULT DGLE_API Initialize(TCrRndrInitResults &stResults) override;
+	DGLE_RESULT DGLE_API Initialize(TCrRndrInitResults &stResults, TEngineWindow &stWin, E_ENGINE_INIT_FLAGS &eInitFlags) override;
 	DGLE_RESULT DGLE_API Finalize() override;
 	DGLE_RESULT DGLE_API AdjustMode(TEngineWindow &stNewWin) override;
 	DGLE_RESULT DGLE_API MakeCurrent() override;
