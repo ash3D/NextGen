@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		28.09.2014 (c)Andrey Korotkov
+\date		7.5.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -88,11 +88,11 @@ public:
 
 	DGLE_RESULT DGLE_API SetFogEnabled(bool bEnabled) override;
 	DGLE_RESULT DGLE_API SetFogColor(const TColor4 &stColor) override;
-	DGLE_RESULT DGLE_API ConfigureFog(float fStart, float fEnd, float fDensity) override;
+	DGLE_RESULT DGLE_API ConfigureFog(float fStart, float fEnd) override;
 
 	DGLE_RESULT DGLE_API GetFogEnabled(bool &bEnabled) override;
 	DGLE_RESULT DGLE_API GetFogColor(TColor4 &stColor) override;
-	DGLE_RESULT DGLE_API GetFogConfiguration(float &fStart, float &fEnd, float &fDensity) override;
+	DGLE_RESULT DGLE_API GetFogConfiguration(float &fStart, float &fEnd) override;
 
 	IDGLE_BASE_IMPLEMENTATION(IFixedFunctionPipeline, INTERFACE_IMPL_END)
 };

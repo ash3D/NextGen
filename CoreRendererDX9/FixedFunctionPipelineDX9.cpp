@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		28.09.2014 (c)Andrey Korotkov
+\date		7.5.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -433,15 +433,10 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::SetFogColor(const TColor4 &stCol
 	return S_OK;
 }
 
-DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::ConfigureFog(float fStart, float fEnd, float fDensity)
+DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::ConfigureFog(float fStart, float fEnd)
 {
-	/*
-		NOTE: density have no effect with linear fog distribution
-		send it to device in order to have possibility to receive it via GetFogConfiguration()
-	*/
 	AssertHR(_device->SetRenderState(D3DRS_FOGSTART, (const DWORD &)fStart));
 	AssertHR(_device->SetRenderState(D3DRS_FOGEND, (const DWORD &)fEnd));
-	AssertHR(_device->SetRenderState(D3DRS_FOGDENSITY, (const DWORD &)fDensity));
 
 	return S_OK;
 }
@@ -462,10 +457,9 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetFogColor(TColor4 &stColor)
 	return S_OK;
 }
 
-DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetFogConfiguration(float &fStart, float &fEnd, float &fDensity)
+DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetFogConfiguration(float &fStart, float &fEnd)
 {
 	AssertHR(_device->GetRenderState(D3DRS_FOGSTART, (DWORD *)&fStart));
 	AssertHR(_device->GetRenderState(D3DRS_FOGEND, (DWORD *)&fEnd));
-	AssertHR(_device->GetRenderState(D3DRS_FOGDENSITY, (DWORD *)&fDensity));
 	return S_OK;
 }
