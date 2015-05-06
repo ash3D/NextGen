@@ -20,6 +20,8 @@ See "DGLE.h" for more details.
 
 #include <wrl.h>
 
+#include "utils.h"
+
 using namespace DGLE;
 
 inline void AssertHR(const HRESULT hr)

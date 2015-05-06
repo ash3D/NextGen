@@ -88,12 +88,14 @@
     <ClCompile Include="FixedFunctionPipelineDX9.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="PluginCore.cpp" />
+    <ClCompile Include="utils.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Common.h" />
     <ClInclude Include="CoreRendererDX9.h" />
     <ClInclude Include="FixedFunctionPipelineDX9.h" />
     <ClInclude Include="PluginCore.h" />
+    <ClInclude Include="utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

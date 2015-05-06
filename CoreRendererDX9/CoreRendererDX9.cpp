@@ -1740,7 +1740,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CreateTexture(ICoreTexture *&prTex, const
 			for (unsigned int l = 0; l < start_level; ++l)
 			{
 				if (eDataAlignment == CRDA_ALIGNED_BY_4)
-					cur_align = GetDataAlignmentIncrement((uint)cur_w, bytes_per_pixel, 4);
+					cur_align = GetPixelDataAlignmentIncrement((uint)cur_w, bytes_per_pixel, 4);
 
 				if (is_compressed)
 					pData += ((cur_w + 3) / 4) * ((cur_h + 3) / 4) * bytes_per_pixel;
@@ -1786,7 +1786,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CreateTexture(ICoreTexture *&prTex, const
 	do
 	{
 		if (eDataAlignment == CRDA_ALIGNED_BY_4)
-			cur_align = GetDataAlignmentIncrement(cur_w, bytes_per_pixel, 4);
+			cur_align = GetPixelDataAlignmentIncrement(cur_w, bytes_per_pixel, 4);
 
 		D3DLOCKED_RECT locked;
 		AssertHR(texture->LockRect(cur_mipmap, &locked, NULL, 0));
