@@ -794,7 +794,7 @@ namespace
 
 		DGLE_RESULT DGLE_API SetPixelData(const uint8 *pData, uint uiDataSize, uint uiLodLevel) override;
 
-		DGLE_RESULT DGLE_API Reallocate(const uint8 *pData, uint uiWidth, uint uiHeight, E_TEXTURE_DATA_FORMAT eDataFormat) override;
+		DGLE_RESULT DGLE_API Reallocate(const uint8 *pData, uint uiWidth, uint uiHeight, bool bMipMaps, E_TEXTURE_DATA_FORMAT eDataFormat) override;
 
 		DGLE_RESULT DGLE_API GetBaseObject(IBaseRenderObjectContainer *&prObj) override
 		{
@@ -973,9 +973,9 @@ namespace
 		return S_OK;
 	}
 
-	DGLE_RESULT DGLE_API CCoreTexture::Reallocate(const uint8 *pData, uint uiWidth, uint uiHeight, E_TEXTURE_DATA_FORMAT eDataFormat)
+	DGLE_RESULT DGLE_API CCoreTexture::Reallocate(const uint8 *pData, uint uiWidth, uint uiHeight, bool bMipMaps, E_TEXTURE_DATA_FORMAT eDataFormat)
 	{
-		if (eDataFormat != _format)
+		if (!pData || eDataFormat != _format)
 			return E_INVALIDARG;
 
 		_w = uiWidth; _h = uiHeight;
@@ -1031,7 +1031,7 @@ namespace
 		if (FAILED(SetPixelData(pData, _DataSize(0).size, 0)))
 			return E_ABORT;
 
-		if (_mipMaps)
+		if (_mipMaps && !bMipMaps)
 			AssertHR(D3DXFilterTexture(_texture.Get(), NULL, D3DX_DEFAULT, D3DX_DEFAULT));
 
 		return S_OK;
