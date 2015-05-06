@@ -14,20 +14,9 @@ HMODULE hModule	= NULL;
 
 std::vector<CPluginCore *> vecPluginCores;
 
-void LogWrite(uint uiInstIdx, const char *pcTxt, E_LOG_TYPE eType, const char *pcSrcFileName, int iSrcLineNumber)
+void LogWrite(IEngineCore &engineCore, const char *pcTxt, E_LOG_TYPE eType, const char *pcSrcFileName, int iSrcLineNumber)
 {
-	if (uiInstIdx == -1)
-	{
-		for (size_t i = 0; i < vecPluginCores.size(); ++i)
-			vecPluginCores[i]->_pEngineCore->WriteToLogEx(("**Broadcast**" + std::string(pcTxt)).c_str(), eType, pcSrcFileName, iSrcLineNumber);
-		
-		return;
-	}
-
-	if (uiInstIdx >= (uint)vecPluginCores.size())
-		return;
-
-	vecPluginCores[uiInstIdx]->_pEngineCore->WriteToLogEx(pcTxt, eType, pcSrcFileName, iSrcLineNumber);
+	engineCore.WriteToLogEx(pcTxt, eType, pcSrcFileName, iSrcLineNumber);
 }
 
 void CALLBACK InitPlugin(IEngineCore *engineCore, ISubSystemPlugin *&plugin)

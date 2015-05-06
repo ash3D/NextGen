@@ -35,7 +35,7 @@ inline void AssertHR(const HRESULT hr)
 #define PLUGIN_DESCRIPTION		"DirectX 9 implementation for ICoreRendererInterface"
 #define PLUGIN_INTERFACE_NAME	"ISubSystemPlugin"
 
-void LogWrite(uint uiInstIdx, const char *pcTxt, E_LOG_TYPE eType, const char *pcSrcFileName, int iSrcLineNumber);
+void LogWrite(IEngineCore &engineCore, const char *pcTxt, E_LOG_TYPE eType, const char *pcSrcFileName, int iSrcLineNumber);
 
 #define PTHIS(cl_name) (reinterpret_cast<cl_name *>(pParameter))
-#define LOG(txt, type) LogWrite(_uiInstIdx, std::string(txt).c_str(), type, GetFileName(__FILE__).c_str(), __LINE__)
+#define LOG(txt, type) LogWrite(_engineCore, std::string(txt).c_str(), type, GetFileName(__FILE__).c_str(), __LINE__)
