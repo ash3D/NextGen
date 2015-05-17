@@ -1748,6 +1748,8 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CreateTexture(ICoreTexture *&prTex, const
 		if (mipmaps > 4 && (eLoadFlags & TLF_DECREASE_QUALITY_MEDIUM || eLoadFlags & TLF_DECREASE_QUALITY_HIGH))
 		{
 			const unsigned int start_level = eLoadFlags & TLF_DECREASE_QUALITY_MEDIUM ? 1 : 2;
+			uiWidth >>= start_level;
+			uiHeight >>= start_level;
 			mipmaps -= start_level;
 
 			for (unsigned int l = 0; l < start_level; ++l)
