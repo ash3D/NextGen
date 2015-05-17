@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		7.5.2015 (c)Andrey Korotkov
+\date		17.5.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -730,6 +730,7 @@ namespace
 {
 	class __declspec(uuid("{356F5347-3EF8-40C5-84A4-817993A23196}")) CCoreTexture final : public ICoreTexture, public CDX9TextureContainer
 	{
+		CCoreRendererDX9 &_parent;
 		const E_TEXTURE_TYPE _type;
 		uint _w, _h, _d;
 		const E_TEXTURE_DATA_FORMAT _format;
@@ -754,7 +755,7 @@ namespace
 		TDataSize _DataSize(uint lod) const;
 
 	public:
-		CCoreTexture(const ComPtr<IDirect3DTexture9> texture, E_TEXTURE_TYPE type, uint w, uint h, uint d, E_TEXTURE_DATA_FORMAT format, E_TEXTURE_LOAD_FLAGS loadFlags, bool mipMaps, DWORD anisoLevel, DWORD addressCaps, DGLE_RESULT &ret);
+		CCoreTexture(CCoreRendererDX9 &parent, const ComPtr<IDirect3DTexture9> texture, E_TEXTURE_TYPE type, uint w, uint h, uint d, E_TEXTURE_DATA_FORMAT format, E_TEXTURE_LOAD_FLAGS loadFlags, bool mipMaps, DWORD anisoLevel, DWORD addressCaps, DGLE_RESULT &ret);
 		CCoreTexture(CCoreTexture &) = delete;
 		void operator =(CCoreTexture &) = delete;
 
@@ -877,8 +878,8 @@ namespace
 		return result;
 	}
 
-	CCoreTexture::CCoreTexture(const ComPtr<IDirect3DTexture9> texture, E_TEXTURE_TYPE type, uint w, uint h, uint d, E_TEXTURE_DATA_FORMAT format, E_TEXTURE_LOAD_FLAGS loadFlags, bool mipMaps, DWORD anisoLevel, DWORD addressCaps, DGLE_RESULT &ret) :
-		CDX9TextureContainer(texture), _type(type), _w(w), _h(h), _d(d), _format(format), _loadFlags(loadFlags), _mipMaps(mipMaps), anisoLevel(anisoLevel),
+	CCoreTexture::CCoreTexture(CCoreRendererDX9 &parent, const ComPtr<IDirect3DTexture9> texture, E_TEXTURE_TYPE type, uint w, uint h, uint d, E_TEXTURE_DATA_FORMAT format, E_TEXTURE_LOAD_FLAGS loadFlags, bool mipMaps, DWORD anisoLevel, DWORD addressCaps, DGLE_RESULT &ret) :
+		_parent(parent), CDX9TextureContainer(texture), _type(type), _w(w), _h(h), _d(d), _format(format), _loadFlags(loadFlags), _mipMaps(mipMaps), anisoLevel(anisoLevel),
 		magFilter(loadFlags & TLF_FILTERING_NONE ? D3DTEXF_POINT : D3DTEXF_LINEAR),
 		minFilter(loadFlags & TLF_FILTERING_NONE ? D3DTEXF_POINT : loadFlags & TLF_FILTERING_ANISOTROPIC ? D3DTEXF_ANISOTROPIC : D3DTEXF_LINEAR),
 		mipFilter(mipMaps ? loadFlags & (TLF_FILTERING_NONE | TLF_FILTERING_BILINEAR) ? D3DTEXF_POINT : D3DTEXF_LINEAR : D3DTEXF_NONE),
@@ -912,6 +913,11 @@ namespace
 
 	DGLE_RESULT DGLE_API CCoreTexture::GetPixelData(uint8 *pData, uint &uiDataSize, uint uiLodLevel)
 	{
+		ICoreTexture *curRT;
+		_parent.GetRenderTarget(curRT);
+		if (curRT == this)
+			return E_ABORT;
+
 		if (!_mipMaps && uiLodLevel != 0)
 			return E_INVALIDARG;
 
@@ -945,6 +951,11 @@ namespace
 
 	DGLE_RESULT DGLE_API CCoreTexture::SetPixelData(const uint8 *pData, uint uiDataSize, uint uiLodLevel)
 	{
+		ICoreTexture *curRT;
+		_parent.GetRenderTarget(curRT);
+		if (curRT == this)
+			return E_ABORT;
+
 		if (!_mipMaps && uiLodLevel != 0)
 			return E_INVALIDARG;
 
@@ -1813,7 +1824,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CreateTexture(ICoreTexture *&prTex, const
 		}
 	}
 
-	prTex = new CCoreTexture(texture, TT_2D, uiWidth, uiHeight, 0, eDataFormat, eLoadFlags, eLoadFlags & TLF_GENERATE_MIPMAPS || bMipmapsPresented, required_anisotropy, _textureAddressCaps, ret);
+	prTex = new CCoreTexture(*this, texture, TT_2D, uiWidth, uiHeight, 0, eDataFormat, eLoadFlags, eLoadFlags & TLF_GENERATE_MIPMAPS || bMipmapsPresented, required_anisotropy, _textureAddressCaps, ret);
 
 	return ret;
 }
