@@ -637,11 +637,13 @@ namespace
 
 			if (_indicesDataSize != 0)
 			{
+				_indicesCount = uiIndicesCount;
+
 				if (_indicesDataSize != indices_data_size)
 				{
-					_indicesCount = indices_data_size;
+					_indicesDataSize = indices_data_size;
 					delete[] _drawDataDesc.pIndexBuffer;
-					_drawDataDesc.pIndexBuffer = new uint8[_indicesCount];
+					_drawDataDesc.pIndexBuffer = new uint8[_indicesDataSize];
 				}
 
 				memcpy(_drawDataDesc.pIndexBuffer, stDesc.pIndexBuffer, _indicesDataSize);
