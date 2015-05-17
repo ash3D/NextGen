@@ -925,7 +925,7 @@ namespace
 
 		auto data_size = _DataSize(uiLodLevel);
 
-		if (data_size.size != uiDataSize)
+		if (!pData || data_size.size != uiDataSize)
 		{
 			uiDataSize = data_size.size;
 			return S_FALSE;
