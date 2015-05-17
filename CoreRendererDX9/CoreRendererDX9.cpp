@@ -991,6 +991,11 @@ namespace
 		if (!pData || eDataFormat != _format)
 			return E_INVALIDARG;
 
+		int max_tex_res;
+		AssertHR(_parent.GetDeviceMetric(CRMT_MAX_TEXTURE_RESOLUTION, max_tex_res));
+		if (min(uiWidth, uiHeight) > max_tex_res)
+			return E_INVALIDARG;
+
 		_w = uiWidth; _h = uiHeight;
 
 		ComPtr<IDirect3DDevice9> device;
