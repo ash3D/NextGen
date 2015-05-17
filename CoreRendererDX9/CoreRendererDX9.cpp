@@ -995,45 +995,9 @@ namespace
 
 		ComPtr<IDirect3DDevice9> device;
 		AssertHR(_texture->GetDevice(&device));
-		D3DFORMAT d3d_format;
-		switch (_format)
-		{
-		case TDF_BGR8:
-			{
-				ComPtr<IDirect3DDevice9> device;
-				AssertHR(_texture->GetDevice(&device));
-				if (!TexFormatSupported(device, d3d_format = D3DFMT_R8G8B8))
-					d3d_format = D3DFMT_X8B8G8R8;
-			}
-			break;
-		case TDF_RGB8:
-			d3d_format = D3DFMT_X8B8G8R8;
-			break;
-		case TDF_DEPTH_COMPONENT24:
-			return E_INVALIDARG;
-		case TDF_DEPTH_COMPONENT32:
-			d3d_format = D3DFMT_D32F_LOCKABLE;
-			break;
-		case TDF_BGRA8:
-			d3d_format = D3DFMT_A8R8G8B8;
-			break;
-		case TDF_RGBA8:
-			d3d_format = D3DFMT_A8B8G8R8;
-			break;
-		case TDF_ALPHA8:
-			d3d_format = D3DFMT_A8;
-			break;
-		case TDF_DXT1:
-			d3d_format = D3DFMT_DXT1;
-			break;
-		case TDF_DXT5:
-			d3d_format = D3DFMT_DXT5;
-			break;
-		default:
-			assert(false);
-			__assume(false);
-		}
-		switch (device->CreateTexture(uiWidth, uiHeight, _mipMaps ? 0 : 1, 0, d3d_format, D3DPOOL_MANAGED, &_texture, NULL))
+		D3DSURFACE_DESC desc;
+		AssertHR(_texture->GetLevelDesc(0, &desc));
+		switch (device->CreateTexture(uiWidth, uiHeight, _mipMaps ? 0 : 1, 0, desc.Format, D3DPOOL_MANAGED, &_texture, NULL))
 		{
 		case S_OK:					break;
 		case D3DERR_INVALIDCALL:	return E_INVALIDARG;
