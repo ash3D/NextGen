@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.5.2015 (c)Andrey Korotkov
+\date		18.5.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -991,9 +991,7 @@ namespace
 		if (!pData || eDataFormat != _format)
 			return E_INVALIDARG;
 
-		int max_tex_res;
-		AssertHR(_parent.GetDeviceMetric(CRMT_MAX_TEXTURE_RESOLUTION, max_tex_res));
-		if (min(uiWidth, uiHeight) > max_tex_res)
+		if (uiWidth > _parent.GetMaxTextureWidth() || uiHeight > _parent.GetMaxTextureHeight())
 			return E_INVALIDARG;
 
 		_w = uiWidth; _h = uiHeight;
