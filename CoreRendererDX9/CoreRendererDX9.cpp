@@ -734,7 +734,6 @@ namespace
 	{
 		CCoreRendererDX9 &_parent;
 		const E_TEXTURE_TYPE _type;
-		uint _w, _h, _d;
 		const E_TEXTURE_DATA_FORMAT _format;
 		const E_TEXTURE_LOAD_FLAGS _loadFlags;
 
@@ -757,7 +756,7 @@ namespace
 		TDataSize _DataSize(uint lod) const;
 
 	public:
-		CCoreTexture(CCoreRendererDX9 &parent, const ComPtr<IDirect3DTexture9> texture, E_TEXTURE_TYPE type, uint w, uint h, uint d, E_TEXTURE_DATA_FORMAT format, E_TEXTURE_LOAD_FLAGS loadFlags, bool mipMaps, DWORD anisoLevel, DWORD addressCaps, DGLE_RESULT &ret);
+		CCoreTexture(CCoreRendererDX9 &parent, const ComPtr<IDirect3DTexture9> texture, E_TEXTURE_TYPE type, E_TEXTURE_DATA_FORMAT format, E_TEXTURE_LOAD_FLAGS loadFlags, bool mipMaps, DWORD anisoLevel, DWORD addressCaps, DGLE_RESULT &ret);
 		CCoreTexture(CCoreTexture &) = delete;
 		void operator =(CCoreTexture &) = delete;
 
@@ -765,13 +764,15 @@ namespace
 
 		DGLE_RESULT DGLE_API GetSize(uint &width, uint &height) override
 		{
-			width = _w; height = _h;
+			D3DSURFACE_DESC desc;
+			AssertHR(_texture->GetLevelDesc(0, &desc));
+			width = desc.Width; height = desc.Height;
 			return S_OK;
 		}
 
 		DGLE_RESULT DGLE_API GetDepth(uint &depth) override
 		{
-			depth = _d;
+			depth = 0;
 			return S_OK;
 		}
 
@@ -866,12 +867,9 @@ namespace
 			__assume(false);
 		}
 
-		result.lw = _w, result.lh = _h;
-
-		while (lod--)
-		{
-			result.lw /= 2; result.lh /= 2;
-		}
+		D3DSURFACE_DESC desc;
+		AssertHR(_texture->GetLevelDesc(lod, &desc));
+		result.lw = desc.Width, result.lh = desc.Height;
 
 		if (_Compressed())
 			(result.lw += 3) /= 4, (result.lh += 3) /= 4;
@@ -880,8 +878,8 @@ namespace
 		return result;
 	}
 
-	CCoreTexture::CCoreTexture(CCoreRendererDX9 &parent, const ComPtr<IDirect3DTexture9> texture, E_TEXTURE_TYPE type, uint w, uint h, uint d, E_TEXTURE_DATA_FORMAT format, E_TEXTURE_LOAD_FLAGS loadFlags, bool mipMaps, DWORD anisoLevel, DWORD addressCaps, DGLE_RESULT &ret) :
-		_parent(parent), CDX9TextureContainer(texture), _type(type), _w(w), _h(h), _d(d), _format(format), _loadFlags(loadFlags), _mipMaps(mipMaps), anisoLevel(anisoLevel),
+	CCoreTexture::CCoreTexture(CCoreRendererDX9 &parent, const ComPtr<IDirect3DTexture9> texture, E_TEXTURE_TYPE type, E_TEXTURE_DATA_FORMAT format, E_TEXTURE_LOAD_FLAGS loadFlags, bool mipMaps, DWORD anisoLevel, DWORD addressCaps, DGLE_RESULT &ret) :
+		_parent(parent), CDX9TextureContainer(texture), _type(type), _format(format), _loadFlags(loadFlags), _mipMaps(mipMaps), anisoLevel(anisoLevel),
 		magFilter(loadFlags & TLF_FILTERING_NONE ? D3DTEXF_POINT : D3DTEXF_LINEAR),
 		minFilter(loadFlags & TLF_FILTERING_NONE ? D3DTEXF_POINT : loadFlags & TLF_FILTERING_ANISOTROPIC ? D3DTEXF_ANISOTROPIC : D3DTEXF_LINEAR),
 		mipFilter(mipMaps ? loadFlags & (TLF_FILTERING_NONE | TLF_FILTERING_BILINEAR) ? D3DTEXF_POINT : D3DTEXF_LINEAR : D3DTEXF_NONE),
@@ -993,8 +991,6 @@ namespace
 
 		if (uiWidth > _parent.GetMaxTextureWidth() || uiHeight > _parent.GetMaxTextureHeight())
 			return E_INVALIDARG;
-
-		_w = uiWidth; _h = uiHeight;
 
 		ComPtr<IDirect3DDevice9> device;
 		AssertHR(_texture->GetDevice(&device));
@@ -1571,7 +1567,6 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CreateTexture(ICoreTexture *&prTex, const
 	D3DFORMAT tex_format;
 	uint bytes_per_pixel;
 	unsigned int row_size;
-	unsigned int cur_w = uiWidth, cur_h = uiHeight;
 	const unsigned int *row_length = &row_size;
 	void (*WriteRow)(const void *const src, void *const dst, unsigned length) = CopyRow;
 	bool need_format_adjust = false;
@@ -1715,25 +1710,20 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CreateTexture(ICoreTexture *&prTex, const
 		if (mipmaps > 4 && (eLoadFlags & TLF_DECREASE_QUALITY_MEDIUM || eLoadFlags & TLF_DECREASE_QUALITY_HIGH))
 		{
 			const unsigned int start_level = eLoadFlags & TLF_DECREASE_QUALITY_MEDIUM ? 1 : 2;
-			uiWidth >>= start_level;
-			uiHeight >>= start_level;
 			mipmaps -= start_level;
 
 			for (unsigned int l = 0; l < start_level; ++l)
 			{
 				if (eDataAlignment == CRDA_ALIGNED_BY_4)
-					cur_align = GetPixelDataAlignmentIncrement((uint)cur_w, bytes_per_pixel, 4);
+					cur_align = GetPixelDataAlignmentIncrement((uint)uiWidth, bytes_per_pixel, 4);
 
 				if (is_compressed)
-					pData += ((cur_w + 3) / 4) * ((cur_h + 3) / 4) * bytes_per_pixel;
+					pData += ((uiWidth + 3) / 4) * ((uiHeight + 3) / 4) * bytes_per_pixel;
 				else
-					pData += cur_h * (cur_w * bytes_per_pixel + cur_align);
+					pData += uiHeight * (uiWidth * bytes_per_pixel + cur_align);
 
-				cur_w /= 2;
-				if (cur_w == 0) cur_w = 1;
-
-				cur_h /= 2;
-				if (cur_h == 0) cur_h = 1;
+				uiWidth /= 2;
+				uiHeight /= 2;
 			}
 		}
 	}
@@ -1753,11 +1743,11 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CreateTexture(ICoreTexture *&prTex, const
 		if (!(WriteRow = GetRowConvertion(eDataFormat, tex_format)))
 			return E_FAIL;
 		else if (WriteRow != CopyRow)
-			row_length = &cur_w;
+			row_length = &uiWidth;
 	}
 
 	ComPtr<IDirect3DTexture9> texture;
-	switch (_device->CreateTexture(cur_w, cur_h, mipmaps, 0, tex_format, D3DPOOL_MANAGED, &texture, NULL))
+	switch (_device->CreateTexture(uiWidth, uiHeight, mipmaps, 0, tex_format, D3DPOOL_MANAGED, &texture, NULL))
 	{
 	case S_OK:					break;
 	case D3DERR_INVALIDCALL:	return E_INVALIDARG;
@@ -1768,22 +1758,22 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CreateTexture(ICoreTexture *&prTex, const
 	do
 	{
 		if (eDataAlignment == CRDA_ALIGNED_BY_4)
-			cur_align = GetPixelDataAlignmentIncrement(cur_w, bytes_per_pixel, 4);
+			cur_align = GetPixelDataAlignmentIncrement(uiWidth, bytes_per_pixel, 4);
 
 		D3DLOCKED_RECT locked;
 		AssertHR(texture->LockRect(cur_mipmap, &locked, NULL, 0));
-		row_size = is_compressed ? (cur_w + 3) / 4 * bytes_per_pixel : cur_w * bytes_per_pixel;
+		row_size = is_compressed ? (uiWidth + 3) / 4 * bytes_per_pixel : uiWidth * bytes_per_pixel;
 		const unsigned int src_stride = row_size + cur_align;
-		const unsigned int row_count = is_compressed ? (cur_h + 3) / 4 : cur_h;
+		const unsigned int row_count = is_compressed ? (uiHeight + 3) / 4 : uiHeight;
 		for (unsigned int row = 0; row < row_count; row++, pData += src_stride, (uint8_t *&)locked.pBits += locked.Pitch)
 			WriteRow(pData, locked.pBits, *row_length);
 		AssertHR(texture->UnlockRect(cur_mipmap));
 
-		cur_w /= 2;
-		if (cur_w == 0) cur_w = 1;
+		uiWidth /= 2;
+		if (uiWidth == 0) uiWidth = 1;
 
-		cur_h /= 2;
-		if (cur_h == 0) cur_h = 1;
+		uiHeight /= 2;
+		if (uiHeight == 0) uiHeight = 1;
 	} while (++cur_mipmap < mipmaps);
 
 	if (!bMipmapsPresented && eLoadFlags & TLF_GENERATE_MIPMAPS)
@@ -1795,7 +1785,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CreateTexture(ICoreTexture *&prTex, const
 		}
 	}
 
-	prTex = new CCoreTexture(*this, texture, TT_2D, uiWidth, uiHeight, 0, eDataFormat, eLoadFlags, eLoadFlags & TLF_GENERATE_MIPMAPS || bMipmapsPresented, required_anisotropy, _textureAddressCaps, ret);
+	prTex = new CCoreTexture(*this, texture, TT_2D, eDataFormat, eLoadFlags, eLoadFlags & TLF_GENERATE_MIPMAPS || bMipmapsPresented, required_anisotropy, _textureAddressCaps, ret);
 
 	return ret;
 }
