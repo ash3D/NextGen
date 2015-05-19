@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.5.2015 (c)Andrey Korotkov
+\date		20.5.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -222,8 +222,11 @@ public:
 
 	static inline uint GetVertexSize(const TDrawDataDesc &stDesc);
 
-	auto GetMaxTextureWidth() const -> decltype(_maxTexResolution[0]) { return _maxTexResolution[0]; }
-	auto GetMaxTextureHeight() const -> decltype(_maxTexResolution[1]) { return _maxTexResolution[1]; }
+	inline bool GetNPOTTexSupport() const{ return _NPOTTexSupport; }
+	inline bool GetNSQTexSupport() const { return _NSQTexSupport; }
+	inline bool GetMipmapSupport() const { return _mipmapSupport; }
+	inline auto GetMaxTextureWidth() const -> decltype(_maxTexResolution[0]) { return _maxTexResolution[0]; }
+	inline auto GetMaxTextureHeight() const -> decltype(_maxTexResolution[1]) { return _maxTexResolution[1]; }
 
 	DGLE_RESULT DGLE_API Prepare(TCrRndrInitResults &stResults) override;
 	DGLE_RESULT DGLE_API Initialize(TCrRndrInitResults &stResults, TEngineWindow &stWin, E_ENGINE_INIT_FLAGS &eInitFlags) override;

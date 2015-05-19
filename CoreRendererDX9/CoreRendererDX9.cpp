@@ -951,17 +951,33 @@ namespace
 
 	DGLE_RESULT DGLE_API CCoreTexture::Reallocate(const uint8 *pData, uint uiWidth, uint uiHeight, bool bMipMaps, E_TEXTURE_DATA_FORMAT eDataFormat)
 	{
+		if (uiWidth == 0 || uiHeight == 0 || !_parent.GetNSQTexSupport() && uiWidth != uiHeight)
+			return E_INVALIDARG;
+
 		if (!pData || eDataFormat != _format)
 			return E_INVALIDARG;
 
-		if (uiWidth > _parent.GetMaxTextureWidth() || uiHeight > _parent.GetMaxTextureHeight())
+		const bool non_power_of_two = __popcnt(uiWidth) != 1 || __popcnt(uiHeight) != 1;
+		if (uiWidth > _parent.GetMaxTextureWidth() || uiHeight > _parent.GetMaxTextureHeight() || !_parent.GetNPOTTexSupport() && non_power_of_two)
 			return E_INVALIDARG;
+
+		// DX does not support compressed textures with top mip level not multiple block size
+		if (_Compressed() && uiWidth % 4 && uiHeight % 4)
+			return E_INVALIDARG;
+
+		DGLE_RESULT ret = S_OK;
+		
+		if (!_parent.GetMipmapSupport() && bMipMaps)
+		{
+			bMipMaps = false;
+			ret = S_FALSE;
+		}
 
 		ComPtr<IDirect3DDevice9> device;
 		AssertHR(_texture->GetDevice(&device));
 		D3DSURFACE_DESC desc;
 		AssertHR(_texture->GetLevelDesc(0, &desc));
-		switch (device->CreateTexture(uiWidth, uiHeight, _mipMaps ? 0 : 1, 0, desc.Format, D3DPOOL_MANAGED, &_texture, NULL))
+		switch (device->CreateTexture(uiWidth, uiHeight, _mipMaps || bMipMaps ? 0 : 1, 0, desc.Format, D3DPOOL_MANAGED, &_texture, NULL))
 		{
 		case S_OK:					break;
 		case D3DERR_INVALIDCALL:	return E_INVALIDARG;
@@ -969,13 +985,25 @@ namespace
 		}
 		AssertHR(_texture->SetPrivateData(__uuidof(CCoreTexture), this, sizeof this, 0));
 
-		if (FAILED(SetPixelData(pData, _DataSize(0).size, 0)))
-			return E_ABORT;
+		uint lod = 0;
+		do
+		{
+			if (!uiWidth) uiWidth = 1;
+			if (!uiHeight) uiHeight = 1;
+
+			if (FAILED(ret = SetPixelData(pData, _DataSize(lod).size, lod)))
+				return E_ABORT;
+
+			lod++;
+		} while ((uiWidth /= 2) && (uiHeight /= 2) && bMipMaps);
 
 		if (_mipMaps && !bMipMaps)
-			AssertHR(D3DXFilterTexture(_texture.Get(), NULL, D3DX_DEFAULT, D3DX_DEFAULT));
+		{
+			if (FAILED(D3DXFilterTexture(_texture.Get(), NULL, D3DX_DEFAULT, D3DX_DEFAULT)))
+				ret = S_FALSE;
+		}
 
-		return S_OK;
+		return ret;
 	}
 }
 
@@ -1524,8 +1552,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CreateTexture(ICoreTexture *&prTex, const
 		return E_INVALIDARG;
 
 	const bool non_power_of_two = __popcnt(uiWidth) != 1 || __popcnt(uiHeight) != 1;
-
-	if ((int)uiWidth > _maxTexResolution[0] || (int)uiHeight > _maxTexResolution[1] || !_NPOTTexSupport && non_power_of_two)
+	if (uiWidth > _maxTexResolution[0] || uiHeight > _maxTexResolution[1] || !_NPOTTexSupport && non_power_of_two)
 		return E_INVALIDARG;
 
 	DGLE_RESULT ret = S_OK;
@@ -1666,6 +1693,13 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CreateTexture(ICoreTexture *&prTex, const
 
 	unsigned long int mipmaps = 1;
 
+	if (!_mipmapSupport && (eLoadFlags & TLF_GENERATE_MIPMAPS || bMipmapsPresented))
+	{
+		(int &)eLoadFlags &= ~TLF_GENERATE_MIPMAPS;
+		bMipmapsPresented = false;
+		ret = S_FALSE;
+	}
+
 	uint cur_align = 0;
 
 	if (bMipmapsPresented)
@@ -1695,12 +1729,6 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CreateTexture(ICoreTexture *&prTex, const
 	}
 	else if (eLoadFlags & TLF_GENERATE_MIPMAPS)
 		mipmaps = 0;
-
-	if (!_mipmapSupport && mipmaps != 1)
-	{
-		mipmaps = 1;
-		ret = S_FALSE;
-	}
 
 	if (need_format_adjust)
 	{
