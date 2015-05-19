@@ -255,7 +255,7 @@ namespace
 		{
 			static inline void (*(*apply())(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
 			{
-				return ::RowConvertion;
+				return RowCopy;
 			};
 		};
 
@@ -388,8 +388,7 @@ namespace
 #endif
 	}
 
-	// consider moving it up
-	void (*RowConvertion(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
+	void (*RowCopy(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
 	{
 		return TexFormatImpl::CopyRow;
 	}
@@ -910,7 +909,7 @@ namespace
 		}
 
 		const auto ReadRow = _RowConvertion(false);
-		if (_RowConvertion == ::RowConvertion)
+		if (_RowConvertion == RowCopy)
 			data_size.lw = data_size.rowSize;
 
 		D3DLOCKED_RECT locked;
@@ -938,7 +937,7 @@ namespace
 			return E_INVALIDARG;
 
 		const auto WriteRow = _RowConvertion(true);
-		if (_RowConvertion == ::RowConvertion)
+		if (_RowConvertion == RowCopy)
 			data_size.lw = data_size.rowSize;
 
 		D3DLOCKED_RECT locked;
@@ -1314,12 +1313,12 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::ReadFrameBuffer(uint uiX, uint uiY, uint 
 	bytes *= uiWidth;
 	unsigned int row_length = bytes;
 
-	auto RowConvertion = ::RowConvertion;
+	auto RowConvertion = RowCopy;
 	if (need_format_adjust)
 	{
 		if (!(RowConvertion = GetRowConvertion(eDataFormat, desc.Format)))
 			return E_FAIL;
-		else if (RowConvertion != ::RowConvertion)
+		else if (RowConvertion != RowCopy)
 			row_length = uiWidth;
 	}
 	const auto ReadRow = RowConvertion(false);
@@ -1535,7 +1534,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CreateTexture(ICoreTexture *&prTex, const
 	uint bytes_per_pixel;
 	unsigned int row_size;
 	const unsigned int *row_length = &row_size;
-	auto RowConvertion = ::RowConvertion;
+	auto RowConvertion = RowCopy;
 	bool need_format_adjust = false;
 
 #if 0
@@ -1709,7 +1708,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CreateTexture(ICoreTexture *&prTex, const
 			return E_FAIL;
 		if (!(RowConvertion = GetRowConvertion(eDataFormat, tex_format)))
 			return E_FAIL;
-		else if (RowConvertion != ::RowConvertion)
+		else if (RowConvertion != RowCopy)
 			row_length = &uiWidth;
 	}
 
