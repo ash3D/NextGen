@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.5.2015 (c)Andrey Korotkov
+\date		19.5.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -86,11 +86,6 @@ namespace
 		{ &TDrawDataDesc::uiTangentOffset,			D3DDECLTYPE_FLOAT3,	D3DDECLUSAGE_TANGENT	},
 		{ &TDrawDataDesc::uiBinormalOffset,			D3DDECLTYPE_FLOAT3,	D3DDECLUSAGE_BINORMAL	}
 	};
-
-	void CopyRow(const void *const src, void *const dst, unsigned length)
-	{
-		memcpy(dst, src, length);
-	}
 
 	namespace TexFormatImpl
 	{
@@ -235,32 +230,43 @@ namespace
 			});
 		}
 
+		void CopyRow(const void *const src, void *const dst, unsigned length)
+		{
+			memcpy(dst, src, length);
+		}
+
+		template<TPackedLayout dgleFormatLayout, TPackedLayout d3dFormatLayout>
+		void (*RowConvertion(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
+		{
+			return dgle2d3d ? TransformRow<dgleFormatLayout, d3dFormatLayout> : TransformRow<d3dFormatLayout, dgleFormatLayout>;
+		}
+
 		template<TPackedLayout dgleFormatLayout, TPackedLayout d3dFormatLayout>
 		struct GetRowConvertion
 		{
-			static inline void (*apply(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
+			static inline void (*(*apply())(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
 			{
-				return dgle2d3d ? TransformRow<dgleFormatLayout, d3dFormatLayout> : TransformRow<d3dFormatLayout, dgleFormatLayout>;
-			}
+				return RowConvertion<dgleFormatLayout, d3dFormatLayout>;
+			};
 		};
 
 		template<TPackedLayout formatLayuot>
 		struct GetRowConvertion<formatLayuot, formatLayuot>
 		{
-			static inline void (*apply(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
+			static inline void (*(*apply())(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
 			{
-				return CopyRow;
-			}
+				return ::RowConvertion;
+			};
 		};
 
 		template<unsigned idx = 0>
 		struct IterateD3DRowConvertion
 		{
 			template<TPackedLayout dgleFormatLayout>
-			static inline void (*apply(D3DFORMAT d3dFormat, bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
+			static inline void (*(*apply(D3DFORMAT d3dFormat))(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
 			{
 				typedef typename TD3DFormatLayoutArray::at<idx> TCurFormatLayout;
-				return d3dFormat == TCurFormatLayout::format ? GetRowConvertion<dgleFormatLayout, TCurFormatLayout::layout>::apply(dgle2d3d) : IterateD3DRowConvertion<idx + 1>::apply<dgleFormatLayout>(d3dFormat, dgle2d3d);
+				return d3dFormat == TCurFormatLayout::format ? GetRowConvertion<dgleFormatLayout, TCurFormatLayout::layout>::apply() : IterateD3DRowConvertion<idx + 1>::apply<dgleFormatLayout>(d3dFormat);
 			}
 		};
 
@@ -268,17 +274,17 @@ namespace
 		struct IterateD3DRowConvertion<TD3DFormatLayoutArray::length>
 		{
 			template<TPackedLayout dgleFormatLayout>
-			static inline void (*apply(D3DFORMAT d3dFormat, bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
+			static inline void (*(*apply(D3DFORMAT d3dFormat))(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
 			{
 				return nullptr;
 			}
 		};
 
 		template<unsigned idx = 0>
-		inline void (*IterateDGLERowConvertion(E_TEXTURE_DATA_FORMAT dgleFormat, D3DFORMAT d3dFormat, bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
+		inline void (*(*IterateDGLERowConvertion(E_TEXTURE_DATA_FORMAT dgleFormat, D3DFORMAT d3dFormat))(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
 		{
 			typedef typename TDGLEFormatLayoutArray::at<idx> TCurFormatLayout;
-			return dgleFormat == TCurFormatLayout::format ? IterateD3DRowConvertion<>::apply<TCurFormatLayout::layout>(d3dFormat, dgle2d3d) : IterateDGLERowConvertion<idx + 1>(dgleFormat, d3dFormat, dgle2d3d);
+			return dgleFormat == TCurFormatLayout::format ? IterateD3DRowConvertion<>::apply<TCurFormatLayout::layout>(d3dFormat) : IterateDGLERowConvertion<idx + 1>(dgleFormat, d3dFormat);
 		}
 
 		/*
@@ -286,7 +292,8 @@ namespace
 			TODO: try with newer version
 		*/
 		template<>
-		inline auto IterateDGLERowConvertion<TDGLEFormatLayoutArray::length>(E_TEXTURE_DATA_FORMAT dgleFormat, D3DFORMAT d3dFormat, bool dgle2d3d) -> void (*)(const void *const src, void *const dst, unsigned length)
+		//inline void (*(*IterateDGLERowConvertion<TDGLEFormatLayoutArray::length>(E_TEXTURE_DATA_FORMAT dgleFormat, D3DFORMAT d3dFormat))(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
+		inline auto IterateDGLERowConvertion<TDGLEFormatLayoutArray::length>(E_TEXTURE_DATA_FORMAT dgleFormat, D3DFORMAT d3dFormat) -> void (*(*)(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
 		{
 			return nullptr;
 		}
@@ -381,14 +388,15 @@ namespace
 #endif
 	}
 
-	inline void (*GetRowConvertion(E_TEXTURE_DATA_FORMAT srcFormat, D3DFORMAT dstFormat))(const void *const src, void *const dst, unsigned length)
+	// consider moving it up
+	void (*RowConvertion(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
 	{
-		return TexFormatImpl::IterateDGLERowConvertion(srcFormat, dstFormat, true);
+		return TexFormatImpl::CopyRow;
 	}
 
-	inline void (*GetRowConvertion(D3DFORMAT srcFormat, E_TEXTURE_DATA_FORMAT dstFormat))(const void *const src, void *const dst, unsigned length)
+	inline void (*(*GetRowConvertion(E_TEXTURE_DATA_FORMAT dgleFormat, D3DFORMAT d3dFormat))(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
 	{
-		return TexFormatImpl::IterateDGLERowConvertion(dstFormat, srcFormat, false);
+		return TexFormatImpl::IterateDGLERowConvertion(dgleFormat, d3dFormat);
 	}
 #if 0
 	template<E_TEXTURE_DATA_FORMAT format>
@@ -736,6 +744,8 @@ namespace
 		const E_TEXTURE_TYPE _type;
 		const E_TEXTURE_DATA_FORMAT _format;
 		const E_TEXTURE_LOAD_FLAGS _loadFlags;
+		void (*(*const _RowConvertion)(bool dgle2d3d))(const void *const src, void *const dst, unsigned length);
+		uint _bytesPerPixel;	// per block for compressed formats
 
 	public:
 		const D3DTEXTUREFILTERTYPE magFilter, minFilter, mipFilter;
@@ -750,13 +760,14 @@ namespace
 
 		struct TDataSize
 		{
-			uint size, rowSize, lw, lh;
-			bool needAdjustRowConvertion;
-		};
-		TDataSize _DataSize(uint lod) const;
+			uint lw, lh, rowSize, size;
+		} _DataSize(uint lod) const;
 
 	public:
-		CCoreTexture(CCoreRendererDX9 &parent, const ComPtr<IDirect3DTexture9> texture, E_TEXTURE_TYPE type, E_TEXTURE_DATA_FORMAT format, E_TEXTURE_LOAD_FLAGS loadFlags, bool mipMaps, DWORD anisoLevel, DWORD addressCaps, DGLE_RESULT &ret);
+		CCoreTexture(
+			CCoreRendererDX9 &parent, const ComPtr<IDirect3DTexture9> texture, E_TEXTURE_TYPE type, E_TEXTURE_DATA_FORMAT format, E_TEXTURE_LOAD_FLAGS loadFlags,
+			void (*RowConvertion(bool dgle2d3d))(const void *const src, void *const dst, unsigned length), uint bytesPerPixel,
+			bool mipMaps, DWORD anisoLevel, DWORD addressCaps, DGLE_RESULT &ret);
 		CCoreTexture(CCoreTexture &) = delete;
 		void operator =(CCoreTexture &) = delete;
 
@@ -834,52 +845,21 @@ namespace
 
 	auto CCoreTexture::_DataSize(uint lod) const -> TDataSize
 	{
-		TDataSize result;
-		result.needAdjustRowConvertion = false;
-		uint bytes;
-
-		switch (_format)
-		{
-		case TDF_BGR8:
-		case TDF_RGB8:
-			result.needAdjustRowConvertion = true;
-		case TDF_DEPTH_COMPONENT24:
-			bytes = 3;
-			break;
-		case TDF_BGRA8:
-		case TDF_RGBA8:
-			result.needAdjustRowConvertion = true;
-		case TDF_DEPTH_COMPONENT32:
-			bytes = 4;
-			break;
-		case TDF_ALPHA8:
-			result.needAdjustRowConvertion = true;
-			bytes = 1;
-			break;
-		case TDF_DXT1:
-			bytes = 8;
-			break;
-		case TDF_DXT5:
-			bytes = 16;
-			break;
-		default:
-			assert(false);
-			__assume(false);
-		}
-
 		D3DSURFACE_DESC desc;
 		AssertHR(_texture->GetLevelDesc(lod, &desc));
-		result.lw = desc.Width, result.lh = desc.Height;
-
 		if (_Compressed())
-			(result.lw += 3) /= 4, (result.lh += 3) /= 4;
-		result.rowSize = result.lw * bytes;
-		result.size = result.rowSize * result.lh;
+			(desc.Width += 3) /= 4, (desc.Height += 3) /= 4;
+
+		const TDataSize result = { desc.Width, desc.Height, result.lw * _bytesPerPixel, result.rowSize * result.lh };
 		return result;
 	}
 
-	CCoreTexture::CCoreTexture(CCoreRendererDX9 &parent, const ComPtr<IDirect3DTexture9> texture, E_TEXTURE_TYPE type, E_TEXTURE_DATA_FORMAT format, E_TEXTURE_LOAD_FLAGS loadFlags, bool mipMaps, DWORD anisoLevel, DWORD addressCaps, DGLE_RESULT &ret) :
-		_parent(parent), CDX9TextureContainer(texture), _type(type), _format(format), _loadFlags(loadFlags), _mipMaps(mipMaps), anisoLevel(anisoLevel),
+	CCoreTexture::CCoreTexture(
+		CCoreRendererDX9 &parent, const ComPtr<IDirect3DTexture9> texture, E_TEXTURE_TYPE type, E_TEXTURE_DATA_FORMAT format, E_TEXTURE_LOAD_FLAGS loadFlags,
+		void (*RowConvertion(bool dgle2d3d))(const void *const src, void *const dst, unsigned length), uint bytesPerPixel,
+		bool mipMaps, DWORD anisoLevel, DWORD addressCaps, DGLE_RESULT &ret) :
+		_parent(parent), CDX9TextureContainer(texture), _type(type), _format(format), _loadFlags(loadFlags),
+		_RowConvertion(RowConvertion), _bytesPerPixel(bytesPerPixel), _mipMaps(mipMaps), anisoLevel(anisoLevel),
 		magFilter(loadFlags & TLF_FILTERING_NONE ? D3DTEXF_POINT : D3DTEXF_LINEAR),
 		minFilter(loadFlags & TLF_FILTERING_NONE ? D3DTEXF_POINT : loadFlags & TLF_FILTERING_ANISOTROPIC ? D3DTEXF_ANISOTROPIC : D3DTEXF_LINEAR),
 		mipFilter(mipMaps ? loadFlags & (TLF_FILTERING_NONE | TLF_FILTERING_BILINEAR) ? D3DTEXF_POINT : D3DTEXF_LINEAR : D3DTEXF_NONE),
@@ -929,15 +909,8 @@ namespace
 			return S_FALSE;
 		}
 
-		auto ReadRow = CopyRow;
-		if (data_size.needAdjustRowConvertion)
-		{
-			D3DSURFACE_DESC desc;
-			AssertHR(_texture->GetLevelDesc(uiLodLevel, &desc));
-			if (!(ReadRow = GetRowConvertion(desc.Format, _format)))
-				return E_FAIL;
-		}
-		if (ReadRow == CopyRow)
+		const auto ReadRow = _RowConvertion(false);
+		if (_RowConvertion == ::RowConvertion)
 			data_size.lw = data_size.rowSize;
 
 		D3DLOCKED_RECT locked;
@@ -964,15 +937,8 @@ namespace
 		if (data_size.size != uiDataSize)
 			return E_INVALIDARG;
 
-		auto WriteRow = CopyRow;
-		if (data_size.needAdjustRowConvertion)
-		{
-			D3DSURFACE_DESC desc;
-			AssertHR(_texture->GetLevelDesc(uiLodLevel, &desc));
-			if (!(WriteRow = GetRowConvertion(_format, desc.Format)))
-				return E_FAIL;
-		}
-		if (WriteRow == CopyRow)
+		const auto WriteRow = _RowConvertion(true);
+		if (_RowConvertion == ::RowConvertion)
 			data_size.lw = data_size.rowSize;
 
 		D3DLOCKED_RECT locked;
@@ -1348,14 +1314,15 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::ReadFrameBuffer(uint uiX, uint uiY, uint 
 	bytes *= uiWidth;
 	unsigned int row_length = bytes;
 
-	auto ReadRow = CopyRow;
+	auto RowConvertion = ::RowConvertion;
 	if (need_format_adjust)
 	{
-		if (!(ReadRow = GetRowConvertion(desc.Format, eDataFormat)))
+		if (!(RowConvertion = GetRowConvertion(eDataFormat, desc.Format)))
 			return E_FAIL;
-		else if (ReadRow != CopyRow)
+		else if (RowConvertion != ::RowConvertion)
 			row_length = uiWidth;
 	}
+	const auto ReadRow = RowConvertion(false);
 
 	if (uiDataSize < uiHeight * bytes)
 		return E_INVALIDARG;
@@ -1364,7 +1331,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::ReadFrameBuffer(uint uiX, uint uiY, uint 
 
 	AssertHR(frame_buffer->LockRect(&locked, prect, D3DLOCK_READONLY));
 	for (uint row = 0; row < uiHeight; row++, pData += bytes, (uint8 *&)locked.pBits += locked.Pitch)
-		CopyRow(locked.pBits, pData, row_length);
+		ReadRow(locked.pBits, pData, row_length);
 	AssertHR(frame_buffer->UnlockRect());
 
 	return S_OK;
@@ -1568,7 +1535,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CreateTexture(ICoreTexture *&prTex, const
 	uint bytes_per_pixel;
 	unsigned int row_size;
 	const unsigned int *row_length = &row_size;
-	void (*WriteRow)(const void *const src, void *const dst, unsigned length) = CopyRow;
+	auto RowConvertion = ::RowConvertion;
 	bool need_format_adjust = false;
 
 #if 0
@@ -1740,9 +1707,9 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CreateTexture(ICoreTexture *&prTex, const
 	{
 		if (FAILED(D3DXCheckTextureRequirements(_device.Get(), NULL, NULL, NULL, 0, &tex_format, D3DPOOL_MANAGED)))
 			return E_FAIL;
-		if (!(WriteRow = GetRowConvertion(eDataFormat, tex_format)))
+		if (!(RowConvertion = GetRowConvertion(eDataFormat, tex_format)))
 			return E_FAIL;
-		else if (WriteRow != CopyRow)
+		else if (RowConvertion != ::RowConvertion)
 			row_length = &uiWidth;
 	}
 
@@ -1754,6 +1721,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CreateTexture(ICoreTexture *&prTex, const
 	default:					return E_ABORT;
 	}
 
+	const auto WriteRow = RowConvertion(true);
 	unsigned long cur_mipmap = 0;
 	do
 	{
@@ -1785,7 +1753,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CreateTexture(ICoreTexture *&prTex, const
 		}
 	}
 
-	prTex = new CCoreTexture(*this, texture, TT_2D, eDataFormat, eLoadFlags, eLoadFlags & TLF_GENERATE_MIPMAPS || bMipmapsPresented, required_anisotropy, _textureAddressCaps, ret);
+	prTex = new CCoreTexture(*this, texture, TT_2D, eDataFormat, eLoadFlags, RowConvertion, bytes_per_pixel, eLoadFlags & TLF_GENERATE_MIPMAPS || bMipmapsPresented, required_anisotropy, _textureAddressCaps, ret);
 
 	return ret;
 }
