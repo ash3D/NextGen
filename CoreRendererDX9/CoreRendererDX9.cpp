@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		19.5.2015 (c)Andrey Korotkov
+\date		21.5.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -8,10 +8,12 @@ See "DGLE.h" for more details.
 */
 
 #include "CoreRendererDX9.h"
-//#include "ResourceManager.h"
 #include <d3dx9.h>
 
 #ifndef NO_BUILTIN_RENDERER
+
+#define DEVTYPE D3DDEVTYPE_HAL
+//#define DEVTYPE D3DDEVTYPE_REF
 
 using namespace std;
 using WRL::ComPtr;
@@ -433,7 +435,7 @@ namespace
 	{
 		D3DDISPLAYMODE mode;
 		AssertHR(device->GetDisplayMode(0, &mode));
-		return SUCCEEDED(d3d->CheckDeviceFormat(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, mode.Format, 0, D3DRTYPE_TEXTURE, format));
+		return SUCCEEDED(d3d->CheckDeviceFormat(D3DADAPTER_DEFAULT, DEVTYPE, mode.Format, 0, D3DRTYPE_TEXTURE, format));
 	}
 }
 
@@ -741,12 +743,12 @@ namespace
 	{
 		CCoreRendererDX9 &_parent;
 		const E_TEXTURE_TYPE _type;
-		const E_TEXTURE_DATA_FORMAT _format;
 		const E_TEXTURE_LOAD_FLAGS _loadFlags;
 		void (*(*const _RowConvertion)(bool dgle2d3d))(const void *const src, void *const dst, unsigned length);
 		uint _bytesPerPixel;	// per block for compressed formats
 
 	public:
+		const E_TEXTURE_DATA_FORMAT format;
 		const D3DTEXTUREFILTERTYPE magFilter, minFilter, mipFilter;
 		const D3DTEXTUREADDRESS addressMode;
 		const DWORD anisoLevel;
@@ -794,7 +796,7 @@ namespace
 
 		DGLE_RESULT DGLE_API GetFormat(E_TEXTURE_DATA_FORMAT &eFormat) override
 		{
-			eFormat = _format;
+			eFormat = format;
 			return S_OK;
 		}
 
@@ -832,7 +834,7 @@ namespace
 
 	inline bool CCoreTexture::_Compressed() const
 	{
-		switch (_format)
+		switch (format)
 		{
 		case TDF_DXT1:
 		case TDF_DXT5:
@@ -857,7 +859,7 @@ namespace
 		CCoreRendererDX9 &parent, const ComPtr<IDirect3DTexture9> texture, E_TEXTURE_TYPE type, E_TEXTURE_DATA_FORMAT format, E_TEXTURE_LOAD_FLAGS loadFlags,
 		void (*RowConvertion(bool dgle2d3d))(const void *const src, void *const dst, unsigned length), uint bytesPerPixel,
 		bool mipMaps, DWORD anisoLevel, DWORD addressCaps, DGLE_RESULT &ret) :
-		_parent(parent), CDX9TextureContainer(texture), _type(type), _format(format), _loadFlags(loadFlags),
+		_parent(parent), CDX9TextureContainer(texture), _type(type), format(format), _loadFlags(loadFlags),
 		_RowConvertion(RowConvertion), _bytesPerPixel(bytesPerPixel), _mipMaps(mipMaps), anisoLevel(anisoLevel),
 		magFilter(loadFlags & TLF_FILTERING_NONE ? D3DTEXF_POINT : D3DTEXF_LINEAR),
 		minFilter(loadFlags & TLF_FILTERING_NONE ? D3DTEXF_POINT : loadFlags & TLF_FILTERING_ANISOTROPIC ? D3DTEXF_ANISOTROPIC : D3DTEXF_LINEAR),
@@ -954,7 +956,7 @@ namespace
 		if (uiWidth == 0 || uiHeight == 0 || !_parent.GetNSQTexSupport() && uiWidth != uiHeight)
 			return E_INVALIDARG;
 
-		if (!pData || eDataFormat != _format)
+		if (!pData || eDataFormat != format)
 			return E_INVALIDARG;
 
 		const bool non_power_of_two = __popcnt(uiWidth) != 1 || __popcnt(uiHeight) != 1;
@@ -1057,8 +1059,8 @@ D3DPRESENT_PARAMETERS CCoreRendererDX9::_GetPresentParams(TEngineWindow &wnd) co
 		0,												// refresh rate
 		D3DPRESENT_INTERVAL_DEFAULT						// presentaion interval
 	};
-	if (FAILED(d3d->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, present_params.BackBufferFormat, present_params.Windowed, present_params.MultiSampleType, NULL)) ||
-		FAILED(d3d->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, present_params.AutoDepthStencilFormat, present_params.Windowed, present_params.MultiSampleType, NULL)))
+	if (FAILED(d3d->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, DEVTYPE, present_params.BackBufferFormat, present_params.Windowed, present_params.MultiSampleType, NULL)) ||
+		FAILED(d3d->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, DEVTYPE, present_params.AutoDepthStencilFormat, present_params.Windowed, present_params.MultiSampleType, NULL)))
 	{
 		wnd.eMultisampling = MM_NONE;
 		present_params.MultiSampleType = D3DMULTISAMPLE_NONE;
@@ -1078,7 +1080,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Initialize(TCrRndrInitResults &stResults,
 	LOG("Initializing Core Renderer...", LT_INFO);
 
 	D3DPRESENT_PARAMETERS present_params = _GetPresentParams(stWin);
-	if (FAILED(d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, present_params.hDeviceWindow, D3DCREATE_HARDWARE_VERTEXPROCESSING, &present_params, &_device)))
+	if (FAILED(d3d->CreateDevice(D3DADAPTER_DEFAULT, DEVTYPE, present_params.hDeviceWindow, D3DCREATE_HARDWARE_VERTEXPROCESSING, &present_params, &_device)))
 	{
 		AssertHR(Finalize());
 		LOG("Can't create Direct3D Device.", LT_FATAL);
@@ -1521,8 +1523,8 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::SetRenderTarget(ICoreTexture *pTexture)
 		TEngineWindow wnd;
 		AssertHR(_engineCore.GetCurrentWindow(wnd));
 		dst_desc.MultiSampleType = Multisample_DGLE_2_D3D(wnd.eMultisampling);
-		if (FAILED(d3d->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, dst_desc.Format, !wnd.bFullScreen, dst_desc.MultiSampleType, NULL)) ||
-			FAILED(d3d->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, _offscreenDepthFormat, !wnd.bFullScreen, dst_desc.MultiSampleType, NULL)))
+		if (FAILED(d3d->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, DEVTYPE, dst_desc.Format, !wnd.bFullScreen, dst_desc.MultiSampleType, NULL)) ||
+			FAILED(d3d->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, DEVTYPE, _offscreenDepthFormat, !wnd.bFullScreen, dst_desc.MultiSampleType, NULL)))
 			dst_desc.MultiSampleType = D3DMULTISAMPLE_NONE;
 		AssertHR(_device->GetRenderTarget(0, &_screenColorTarget));
 		AssertHR(_device->GetDepthStencilSurface(&_screenDepthTarget));
@@ -2369,6 +2371,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::DrawBuffer(ICoreGeometryBuffer *pBuffer)
 		assert(_FFP);
 		const DWORD arg = buff->GetDrawDesc().uiColorOffset == ~0 && !_FFP->IsGlobalLightingEnabled() ? D3DTA_TFACTOR : D3DTA_CURRENT;
 		AssertHR(_device->SetTextureStageState(0, D3DTSS_COLORARG2, arg));
+		AssertHR(_device->SetTextureStageState(0, D3DTSS_ALPHAARG2, arg));
 
 		AssertHR(_device->SetVertexDeclaration(buff->GetVBDecl().Get()));
 		_BindVB(buff->GetDrawDesc(), buff->GetVB());
@@ -2494,10 +2497,20 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::BindTexture(ICoreTexture *pTex, uint uiTe
 
 	_selectedTexLayer = uiTextureLayer;
 
-	AssertHR(_device->SetTexture(uiTextureLayer, pTex ? static_cast<CCoreTexture *>(pTex)->GetTex().Get() : NULL));
-	AssertHR(_device->SetTextureStageState(uiTextureLayer, D3DTSS_COLOROP, pTex ? D3DTOP_MODULATE : uiTextureLayer == 0 ? D3DTOP_SELECTARG2 : D3DTOP_DISABLE));
+	const auto tex = static_cast<CCoreTexture *>(pTex);
+	AssertHR(_device->SetTexture(uiTextureLayer, tex ? tex->GetTex().Get() : NULL));
+	D3DTEXTUREOP colorop, alphaop;
+	if (tex)
+	{
+		colorop = tex->format == TDF_ALPHA8 ? D3DTOP_SELECTARG2 : D3DTOP_MODULATE;
+		alphaop = D3DTOP_MODULATE;
+	}
+	else
+		colorop = alphaop = uiTextureLayer == 0 ? D3DTOP_SELECTARG2 : D3DTOP_DISABLE;
+	AssertHR(_device->SetTextureStageState(uiTextureLayer, D3DTSS_COLOROP, colorop));
+	AssertHR(_device->SetTextureStageState(uiTextureLayer, D3DTSS_ALPHAOP, alphaop));
 
-	if (const auto tex = static_cast<CCoreTexture *>(pTex))
+	if (tex)
 	{
 		AssertHR(_device->SetSamplerState(uiTextureLayer, D3DSAMP_MAGFILTER, tex->magFilter));
 		AssertHR(_device->SetSamplerState(uiTextureLayer, D3DSAMP_MINFILTER, tex->minFilter));

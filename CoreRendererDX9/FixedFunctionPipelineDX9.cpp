@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		7.5.2015 (c)Andrey Korotkov
+\date		21.5.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -54,7 +54,7 @@ CFixedFunctionPipelineDX9::CFixedFunctionPipelineDX9(const ComPtr<IDirect3DDevic
 	for (int i = 0; i < _maxLights; ++i)
 	{
 		AssertHR(_device->LightEnable(i, FALSE));
-			const D3DLIGHT9 lightDesc =
+		const D3DLIGHT9 lightDesc =
 		{
 			D3DLIGHT_DIRECTIONAL,
 			{ 1, 1, 1, 1 },				// Diffuse
