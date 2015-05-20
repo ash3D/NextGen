@@ -18,6 +18,7 @@ DGLE_DYNAMIC_FUNC
 #define SCREEN_Y 600
 
 #define INPUT_PLUGIN_PATH "..\\bin\\DirectInput.dll"
+#define RENDER_PLUGIN_PATH "..\\bin\\CoreRendererDX9.dll"
 
 IEngineCore *pEngineCore = NULL;
 IInput *pInput = NULL;
@@ -210,6 +211,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	if (GetEngine(DLL_PATH, pEngineCore))
 	{
 		pEngineCore->AddPluginToInitializationList(INPUT_PLUGIN_PATH);
+		pEngineCore->AddPluginToInitializationList(RENDER_PLUGIN_PATH);
 
 		if (SUCCEEDED(pEngineCore->InitializeEngine(NULL, APP_CAPTION, TEngineWindow(SCREEN_X, SCREEN_Y, false, false, MM_NONE, EWF_ALLOW_SIZEING), 33)))
 		{
