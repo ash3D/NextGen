@@ -75,16 +75,16 @@ namespace
 
 	static const/*expr*/ struct
 	{
-		uint TDrawDataDesc::*offset;
+		uint TDrawDataDesc::*offset, TDrawDataDesc::*stride;
 		BYTE type;
 		BYTE usage;
 	} vertexElementLUT[] =
 	{
-		{ &TDrawDataDesc::uiNormalOffset,			D3DDECLTYPE_FLOAT3,	D3DDECLUSAGE_NORMAL		},
-		{ &TDrawDataDesc::uiTextureVertexOffset,	D3DDECLTYPE_FLOAT2,	D3DDECLUSAGE_TEXCOORD	},
-		{ &TDrawDataDesc::uiColorOffset,			D3DDECLTYPE_FLOAT4,	D3DDECLUSAGE_COLOR		},
-		{ &TDrawDataDesc::uiTangentOffset,			D3DDECLTYPE_FLOAT3,	D3DDECLUSAGE_TANGENT	},
-		{ &TDrawDataDesc::uiBinormalOffset,			D3DDECLTYPE_FLOAT3,	D3DDECLUSAGE_BINORMAL	}
+		{ &TDrawDataDesc::uiNormalOffset,			&TDrawDataDesc::uiNormalStride,			D3DDECLTYPE_FLOAT3,	D3DDECLUSAGE_NORMAL		},
+		{ &TDrawDataDesc::uiTextureVertexOffset,	&TDrawDataDesc::uiTextureVertexStride,	D3DDECLTYPE_FLOAT2,	D3DDECLUSAGE_TEXCOORD	},
+		{ &TDrawDataDesc::uiColorOffset,			&TDrawDataDesc::uiColorStride,			D3DDECLTYPE_FLOAT4,	D3DDECLUSAGE_COLOR		},
+		{ &TDrawDataDesc::uiTangentOffset,			&TDrawDataDesc::uiTangentStride,		D3DDECLTYPE_FLOAT3,	D3DDECLUSAGE_TANGENT	},
+		{ &TDrawDataDesc::uiBinormalOffset,			&TDrawDataDesc::uiBinormalStride,		D3DDECLTYPE_FLOAT3,	D3DDECLUSAGE_BINORMAL	}
 	};
 
 	namespace TexFormatImpl
@@ -1793,7 +1793,7 @@ namespace
 	{
 		elements[stream] =
 		{
-			stream,					// Steam
+			stream,					// Stream
 			0,						// Offset
 			type,					// Type
 			D3DDECLMETHOD_DEFAULT,	// Method
@@ -2326,14 +2326,18 @@ inline void CCoreRendererDX9::_BindVB(const TDrawDataDesc &drawDesc, const ComPt
 {
 	const auto offset = drawDesc.*vertexElementLUT[idx].offset;
 	if (offset != -1)
-		AssertHR(_device->SetStreamSource(stream++, VB.Get(), offset, GetVertexElementStride(vertexElementLUT[idx].type)));
+	{
+		const auto stride = drawDesc.*vertexElementLUT[idx].stride ? drawDesc.*vertexElementLUT[idx].stride : GetVertexElementStride(vertexElementLUT[idx].type);
+		AssertHR(_device->SetStreamSource(stream++, VB.Get(), offset, stride));
+	}
 	_BindVB<idx + 1>(drawDesc, VB, stream);
 }
 
 template<>
 inline void CCoreRendererDX9::_BindVB<extent<decltype(vertexElementLUT)>::value>(const TDrawDataDesc &drawDesc, const ComPtr<IDirect3DVertexBuffer9> &VB, UINT stream) const
 {
-	AssertHR(_device->SetStreamSource(stream, VB.Get(), 0, GetVertexElementStride(drawDesc.bVertices2D ? D3DDECLTYPE_FLOAT2 : D3DDECLTYPE_FLOAT3)));
+	const auto stride = drawDesc.uiVertexStride ? drawDesc.uiVertexStride : GetVertexElementStride(drawDesc.bVertices2D ? D3DDECLTYPE_FLOAT2 : D3DDECLTYPE_FLOAT3);
+	AssertHR(_device->SetStreamSource(stream, VB.Get(), 0, stride));
 }
 
 DGLE_RESULT DGLE_API CCoreRendererDX9::Draw(const TDrawDataDesc &stDrawDesc, E_CORE_RENDERER_DRAW_MODE eMode, uint uiCount)

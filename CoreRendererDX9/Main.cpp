@@ -12,7 +12,7 @@ See "DGLE.h" for more details.
 
 HMODULE hModule	= NULL;
 
-std::vector<std::unique_ptr<CPluginCore>> pluginCores;
+static std::vector<std::unique_ptr<CPluginCore>> pluginCores;
 
 void LogWrite(IEngineCore &engineCore, const char *pcTxt, E_LOG_TYPE eType, const char *pcSrcFileName, int iSrcLineNumber)
 {
@@ -34,10 +34,7 @@ void CALLBACK FreePlugin(IPlugin *plugin)
 	}));
 }
 
-BOOL APIENTRY DllMain( HMODULE hModule,
-					   DWORD  ul_reason_for_call,
-					   LPVOID lpReserved
-					 )
+BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReserved)
 {
 	switch (ul_reason_for_call)
 	{
