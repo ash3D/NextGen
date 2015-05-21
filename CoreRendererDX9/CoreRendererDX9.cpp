@@ -2270,13 +2270,24 @@ inline D3DTRANSFORMSTATETYPE CCoreRendererDX9::_MatrixType_DGLE_2_D3D(E_MATRIX_T
 
 DGLE_RESULT DGLE_API CCoreRendererDX9::SetMatrix(const TMatrix4x4 &stMatrix, E_MATRIX_TYPE eMatType)
 {
-	AssertHR(_device->SetTransform(_MatrixType_DGLE_2_D3D(eMatType), reinterpret_cast<const D3DMATRIX *>(stMatrix._2D)));
+	TMatrix4x4 xform = stMatrix;
+	if (eMatType == MT_PROJECTION)
+	{
+		for (int i = 0; i < 4; i++)
+			xform._2D[i][2] = (xform._2D[i][2] + xform._2D[i][3]) * .5f;
+	}
+	AssertHR(_device->SetTransform(_MatrixType_DGLE_2_D3D(eMatType), reinterpret_cast<const D3DMATRIX *>(xform._2D)));
 	return S_OK;
 }
 
 DGLE_RESULT DGLE_API CCoreRendererDX9::GetMatrix(TMatrix4x4 &stMatrix, E_MATRIX_TYPE eMatType)
 {
 	AssertHR(_device->GetTransform(_MatrixType_DGLE_2_D3D(eMatType), reinterpret_cast<D3DMATRIX *>(stMatrix._2D)));
+	if (eMatType == MT_PROJECTION)
+	{
+		for (int i = 0; i < 4; i++)
+			stMatrix._2D[i][2] = stMatrix._2D[i][2] * 2 - stMatrix._2D[i][3];
+	}
 	return S_OK;
 }
 
