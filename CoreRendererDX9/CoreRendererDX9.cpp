@@ -1227,8 +1227,6 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::GetViewport(uint &x, uint &y, uint &width
 
 DGLE_RESULT DGLE_API CCoreRendererDX9::SetScissorRectangle(uint x, uint y, uint width, uint height)
 {
-	_FlipRectY(y, height);
-
 	const RECT rect =
 	{
 		x, y,
@@ -1247,8 +1245,6 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::GetScissorRectangle(uint &x, uint &y, uin
 	y = rect.top;
 	width = rect.right - rect.left;
 	height = rect.bottom - rect.top;
-
-	_FlipRectY(y, height);
 
 	return S_OK;
 }
