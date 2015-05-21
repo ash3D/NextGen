@@ -1485,7 +1485,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::SetRenderTarget(ICoreTexture *pTexture)
 				break;
 			}
 			row_size *= offscreen_desc.Width;
-			for (unsigned int row = 0; row < offscreen_desc.Height; row++, (uint8_t *&)src_locked += src_locked.Pitch, (uint8_t *&)dst_locked.pBits += dst_locked.Pitch)
+			for (unsigned int row = 0; row < offscreen_desc.Height; row++, (uint8_t *&)src_locked.pBits += src_locked.Pitch, (uint8_t *&)dst_locked.pBits += dst_locked.Pitch)
 				memcpy(dst_locked.pBits, src_locked.pBits, row_size);
 			AssertHR(offscreen_target->UnlockRect());
 			AssertHR(static_cast<CCoreTexture *>(_curRenderTarget)->GetTex()->UnlockRect(0));
