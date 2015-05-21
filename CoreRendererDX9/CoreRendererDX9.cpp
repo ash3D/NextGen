@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		21.5.2015 (c)Andrey Korotkov
+\date		22.5.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -2393,17 +2393,24 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::DrawBuffer(ICoreGeometryBuffer *pBuffer)
 	return S_FALSE;
 }
 
+static inline D3DCOLOR SwapRB(D3DCOLOR color)
+{
+	auto &bytes = reinterpret_cast<uint8_t (&)[4]>(color);
+	swap(bytes[0], bytes[2]);
+	return color;
+}
+
 DGLE_RESULT DGLE_API CCoreRendererDX9::SetColor(const TColor4 &stColor)
 {
-	AssertHR(_device->SetRenderState(D3DRS_TEXTUREFACTOR, stColor));
+	AssertHR(_device->SetRenderState(D3DRS_TEXTUREFACTOR, SwapRB(stColor)));
 	return S_OK;
 }
 
 DGLE_RESULT DGLE_API CCoreRendererDX9::GetColor(TColor4 &stColor)
 {
-	DWORD color;
+	D3DCOLOR color;
 	AssertHR(_device->GetRenderState(D3DRS_TEXTUREFACTOR, &color));
-	stColor = color;
+	stColor = SwapRB(color);
 	return S_OK;
 }
 
