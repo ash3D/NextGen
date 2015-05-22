@@ -47,7 +47,6 @@ CFixedFunctionPipelineDX9::CFixedFunctionPipelineDX9(const ComPtr<IDirect3DDevic
 
 	_maxLights = caps.MaxActiveLights;
 
-	AssertHR(_device->SetRenderState(D3DRS_RANGEFOGENABLE, TRUE));
 	AssertHR(_device->SetRenderState(D3DRS_FOGVERTEXMODE, D3DFOG_LINEAR));
 	AssertHR(_device->SetRenderState(D3DRS_AMBIENT, D3DCOLOR_RGBA(50, 50, 50, 255)));
 
