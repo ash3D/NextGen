@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		21.5.2015 (c)Andrey Korotkov
+\date		22.5.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -435,8 +435,8 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::SetFogColor(const TColor4 &stCol
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::ConfigureFog(float fStart, float fEnd)
 {
-	AssertHR(_device->SetRenderState(D3DRS_FOGSTART, (const DWORD &)fStart));
-	AssertHR(_device->SetRenderState(D3DRS_FOGEND, (const DWORD &)fEnd));
+	AssertHR(_device->SetRenderState(D3DRS_FOGSTART, reinterpret_cast<const DWORD &>(fStart)));
+	AssertHR(_device->SetRenderState(D3DRS_FOGEND, reinterpret_cast<const DWORD &>(fEnd)));
 
 	return S_OK;
 }
@@ -459,7 +459,7 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetFogColor(TColor4 &stColor)
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetFogConfiguration(float &fStart, float &fEnd)
 {
-	AssertHR(_device->GetRenderState(D3DRS_FOGSTART, (DWORD *)&fStart));
-	AssertHR(_device->GetRenderState(D3DRS_FOGEND, (DWORD *)&fEnd));
+	AssertHR(_device->GetRenderState(D3DRS_FOGSTART, reinterpret_cast<DWORD *>(&fStart)));
+	AssertHR(_device->GetRenderState(D3DRS_FOGEND, reinterpret_cast<DWORD *>(&fEnd)));
 	return S_OK;
 }
