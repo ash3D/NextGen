@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.5.2015 (c)Andrey Korotkov
+\date		27.5.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -40,15 +40,21 @@ namespace
 
 const float CFixedFunctionPipelineDX9::_attenuationFactor = 1.75f;
 
-CFixedFunctionPipelineDX9::CFixedFunctionPipelineDX9(const ComPtr<IDirect3DDevice9> &device) : _device(device)
+CFixedFunctionPipelineDX9::CFixedFunctionPipelineDX9(const ComPtr<IDirect3DDevice9> &device) :
+_device(device),
+_maxLights([this]()
 {
 	D3DCAPS9 caps;
 	AssertHR(_device->GetDeviceCaps(&caps));
-
-	_maxLights = caps.MaxActiveLights;
+	return caps.MaxActiveLights;
+} ()),
+_viewXforms(new std::enable_if<true, decltype(_viewXforms)>::type::element_type [_maxLights])
+{
+	std::fill_n(_viewXforms.get(), _maxLights, MatrixIdentity());
 
 	AssertHR(_device->SetRenderState(D3DRS_FOGVERTEXMODE, D3DFOG_LINEAR));
 	AssertHR(_device->SetRenderState(D3DRS_AMBIENT, D3DCOLOR_RGBA(50, 50, 50, 255)));
+	AssertHR(_device->SetRenderState(D3DRS_NORMALIZENORMALS, TRUE));
 
 	for (int i = 0; i < _maxLights; ++i)
 	{
@@ -82,7 +88,7 @@ void CFixedFunctionPipelineDX9::PushLights()
 	{
 		D3DLIGHT9 light;
 		if (SUCCEEDED(_device->GetLight(i, &light)))
-			cur_state[i].light.reset(new D3DLIGHT9(light));
+			cur_state[i].light.reset(new std::enable_if<true, decltype(cur_state[i].light)>::type::element_type(light, _viewXforms[i]));
 
 		if (FAILED(_device->GetLightEnable(i, &cur_state[i].enabled)))
 			cur_state[i].enabled = -1;
@@ -96,7 +102,10 @@ void CFixedFunctionPipelineDX9::PopLights()
 	{
 		const auto &saved_state = _lightStateStack.top()[i];
 		if (saved_state.light)
-			AssertHR(_device->SetLight(i, saved_state.light.get()));
+		{
+			AssertHR(_device->SetLight(i, &saved_state.light->first));
+			_viewXforms[i] = saved_state.light->second;
+		}
 		if (saved_state.enabled != -1)
 			AssertHR(_device->LightEnable(i, saved_state.enabled));
 	}
@@ -264,10 +273,12 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::ConfigureDirectionalLight(uint u
 	if (uiIdx >= _maxLights)
 		return E_INVALIDARG;
 
+	AssertHR(_device->GetTransform(D3DTS_WORLD, (D3DMATRIX *)&_viewXforms[uiIdx]));
+
 	D3DLIGHT9 light;
 	AssertHR(_device->GetLight(uiIdx, &light));
 	light.Type = D3DLIGHT_DIRECTIONAL;
-	light.Direction = Vector_DGLE_2_D3D(stDirection);
+	light.Direction = Vector_DGLE_2_D3D(_viewXforms[uiIdx].ApplyToVector({ -stDirection.x, -stDirection.y, -stDirection.z }));
 	AssertHR(_device->SetLight(uiIdx, &light));
 
 	return S_OK;
@@ -278,10 +289,12 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::ConfigurePointLight(uint uiIdx, 
 	if (uiIdx >= _maxLights)
 		return E_INVALIDARG;
 
+	AssertHR(_device->GetTransform(D3DTS_WORLD, (D3DMATRIX *)&_viewXforms[uiIdx]));
+
 	D3DLIGHT9 light;
 	AssertHR(_device->GetLight(uiIdx, &light));
 	light.Type = D3DLIGHT_POINT;
-	light.Position = Vector_DGLE_2_D3D(stPosition);
+	light.Position = Vector_DGLE_2_D3D(_viewXforms[uiIdx].ApplyToPoint(stPosition));
 	light.Attenuation1 = _attenuationFactor / fRange;
 	light.Range = fRange;
 	AssertHR(_device->SetLight(uiIdx, &light));
@@ -294,11 +307,13 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::ConfigureSpotLight(uint uiIdx, c
 	if (uiIdx >= _maxLights)
 		return E_INVALIDARG;
 
+	AssertHR(_device->GetTransform(D3DTS_WORLD, (D3DMATRIX *)&_viewXforms[uiIdx]));
+
 	D3DLIGHT9 light;
 	AssertHR(_device->GetLight(uiIdx, &light));
 	light.Type = D3DLIGHT_SPOT;
-	light.Position = Vector_DGLE_2_D3D(stPosition);
-	light.Direction = Vector_DGLE_2_D3D(stDirection);
+	light.Position = Vector_DGLE_2_D3D(_viewXforms[uiIdx].ApplyToPoint(stPosition));
+	light.Direction = Vector_DGLE_2_D3D(_viewXforms[uiIdx].ApplyToVector({ -stDirection.x, -stDirection.y, -stDirection.z }));
 	light.Phi = fSpotAngle * (M_PI / 180.F);
 	light.Attenuation1 = _attenuationFactor / fRange;
 	light.Range = fRange;
@@ -377,7 +392,7 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetDirectionalLightConfiguration
 	if (light.Type != D3DLIGHT_DIRECTIONAL)
 		return E_INVALIDARG;
 
-	stDirection = Vector_D3D_2_DGLE(light.Direction);
+	stDirection = MatrixInverse(_viewXforms[uiIdx]).ApplyToVector(Vector_D3D_2_DGLE(light.Direction));
 
 	return S_OK;
 }
@@ -393,7 +408,7 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetPointLightConfiguration(uint 
 	if (light.Type != D3DLIGHT_POINT)
 		return E_INVALIDARG;
 
-	stPosition = Vector_D3D_2_DGLE(light.Position);
+	stPosition = MatrixInverse(_viewXforms[uiIdx]).ApplyToPoint(Vector_D3D_2_DGLE(light.Position));
 
 	fRange = light.Range;
 
@@ -411,8 +426,9 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetSpotLightConfiguration(uint u
 	if (light.Type != D3DLIGHT_SPOT)
 		return E_INVALIDARG;
 
-	stPosition = Vector_D3D_2_DGLE(light.Position);
-	stDirection = Vector_D3D_2_DGLE(light.Direction);
+	const auto xform = MatrixInverse(_viewXforms[uiIdx]);
+	stPosition = xform.ApplyToPoint(Vector_D3D_2_DGLE(light.Position));
+	stDirection = xform.ApplyToVector(Vector_D3D_2_DGLE(light.Direction));
 
 	fSpotAngle = light.Phi * (180.F / M_PI);
 	fRange = light.Range;

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		7.5.2015 (c)Andrey Korotkov
+\date		27.5.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -20,11 +20,13 @@ class CFixedFunctionPipelineDX9 final : public IFixedFunctionPipeline
 
 	static const/*expr*/ float _attenuationFactor;
 
-	DWORD _maxLights;
+	const DWORD _maxLights;
+	const std::unique_ptr<TMatrix4x4 []> _viewXforms;
 
 	struct TLightState
 	{
-		std::unique_ptr<D3DLIGHT9> light;
+		// enable_if (here and in some other places) - workaround for VS 2013
+		std::unique_ptr<std::pair<D3DLIGHT9, std::enable_if<true, decltype(_viewXforms)>::type::element_type>> light;
 		BOOL enabled;
 	};
 	typedef std::stack<std::unique_ptr<TLightState []>> TLightStateStack;

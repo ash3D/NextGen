@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.5.2015 (c)Andrey Korotkov
+\date		27.5.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -2255,7 +2255,7 @@ inline D3DTRANSFORMSTATETYPE CCoreRendererDX9::_MatrixType_DGLE_2_D3D(E_MATRIX_T
 {
 	switch (dgleType)
 	{
-	case MT_MODELVIEW:	return D3DTS_VIEW;
+	case MT_MODELVIEW:	return D3DTS_WORLD;
 	case MT_PROJECTION:	return D3DTS_PROJECTION;
 	case MT_TEXTURE:	return D3DTRANSFORMSTATETYPE(D3DTS_TEXTURE0 + _selectedTexLayer);
 	default:
