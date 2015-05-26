@@ -55,6 +55,7 @@ _viewXforms(new std::enable_if<true, decltype(_viewXforms)>::type::element_type 
 	AssertHR(_device->SetRenderState(D3DRS_FOGVERTEXMODE, D3DFOG_LINEAR));
 	AssertHR(_device->SetRenderState(D3DRS_AMBIENT, D3DCOLOR_RGBA(50, 50, 50, 255)));
 	AssertHR(_device->SetRenderState(D3DRS_NORMALIZENORMALS, TRUE));
+	AssertHR(_device->SetRenderState(D3DRS_SPECULARENABLE, TRUE));
 
 	for (int i = 0; i < _maxLights; ++i)
 	{
