@@ -14,6 +14,13 @@ See "DGLE.h" for more details.
 
 namespace WRL = Microsoft::WRL;
 
+inline D3DCOLOR SwapRB(D3DCOLOR color)
+{
+	auto &bytes = reinterpret_cast<uint8_t (&)[4]>(color);
+	std::swap(bytes[0], bytes[2]);
+	return color;
+}
+
 class CFixedFunctionPipelineDX9 final : public IFixedFunctionPipeline
 {
 	WRL::ComPtr<IDirect3DDevice9> _device;

@@ -2400,13 +2400,6 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::DrawBuffer(ICoreGeometryBuffer *pBuffer)
 	return S_FALSE;
 }
 
-static inline D3DCOLOR SwapRB(D3DCOLOR color)
-{
-	auto &bytes = reinterpret_cast<uint8_t (&)[4]>(color);
-	swap(bytes[0], bytes[2]);
-	return color;
-}
-
 DGLE_RESULT DGLE_API CCoreRendererDX9::SetColor(const TColor4 &stColor)
 {
 	AssertHR(_device->SetRenderState(D3DRS_TEXTUREFACTOR, SwapRB(stColor)));

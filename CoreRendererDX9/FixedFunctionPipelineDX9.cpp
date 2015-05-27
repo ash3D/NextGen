@@ -209,7 +209,7 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::ToggleGlobalLighting(bool bEnabl
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::SetGloablAmbientLight(const TColor4 &stColor)
 {
-	AssertHR(_device->SetRenderState(D3DRS_AMBIENT, stColor));
+	AssertHR(_device->SetRenderState(D3DRS_AMBIENT, SwapRB(stColor)));
 	return S_OK;
 }
 
@@ -229,7 +229,7 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetGloablAmbientLight(TColor4 &s
 {
 	DWORD ambient;
 	AssertHR(_device->GetRenderState(D3DRS_AMBIENT, &ambient));
-	stColor = ambient;
+	stColor = SwapRB(ambient);
 	return S_OK;
 }
 
@@ -445,7 +445,7 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::SetFogEnabled(bool bEnabled)
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::SetFogColor(const TColor4 &stColor)
 {
-	AssertHR(_device->SetRenderState(D3DRS_FOGCOLOR, stColor));
+	AssertHR(_device->SetRenderState(D3DRS_FOGCOLOR, SwapRB(stColor)));
 	return S_OK;
 }
 
@@ -469,7 +469,7 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetFogColor(TColor4 &stColor)
 {
 	DWORD color;
 	AssertHR(_device->GetRenderState(D3DRS_FOGCOLOR, &color));
-	stColor = color;
+	stColor = SwapRB(color);
 	return S_OK;
 }
 
