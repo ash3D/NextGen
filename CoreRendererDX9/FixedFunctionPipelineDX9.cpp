@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		27.5.2015 (c)Andrey Korotkov
+\date		31.5.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -35,6 +35,11 @@ namespace
 	inline TVector3 Vector_D3D_2_DGLE(const D3DVECTOR &d3dVector)
 	{
 		return TVector3(d3dVector.x, d3dVector.y, d3dVector.z);
+	}
+
+	inline TPoint3 operator -(TPoint3 point)
+	{
+		return{ -point.x, -point.y, -point.z };
 	}
 }
 
@@ -279,7 +284,7 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::ConfigureDirectionalLight(uint u
 	D3DLIGHT9 light;
 	AssertHR(_device->GetLight(uiIdx, &light));
 	light.Type = D3DLIGHT_DIRECTIONAL;
-	light.Direction = Vector_DGLE_2_D3D(_viewXforms[uiIdx].ApplyToVector({ -stDirection.x, -stDirection.y, -stDirection.z }));
+	light.Direction = Vector_DGLE_2_D3D(_viewXforms[uiIdx].ApplyToVector(-stDirection));
 	AssertHR(_device->SetLight(uiIdx, &light));
 
 	return S_OK;
@@ -314,7 +319,7 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::ConfigureSpotLight(uint uiIdx, c
 	AssertHR(_device->GetLight(uiIdx, &light));
 	light.Type = D3DLIGHT_SPOT;
 	light.Position = Vector_DGLE_2_D3D(_viewXforms[uiIdx].ApplyToPoint(stPosition));
-	light.Direction = Vector_DGLE_2_D3D(_viewXforms[uiIdx].ApplyToVector({ -stDirection.x, -stDirection.y, -stDirection.z }));
+	light.Direction = Vector_DGLE_2_D3D(_viewXforms[uiIdx].ApplyToVector(-stDirection));
 	light.Phi = fSpotAngle * (M_PI / 180.F);
 	light.Attenuation1 = _attenuationFactor / fRange;
 	light.Range = fRange;
@@ -393,7 +398,7 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetDirectionalLightConfiguration
 	if (light.Type != D3DLIGHT_DIRECTIONAL)
 		return E_INVALIDARG;
 
-	stDirection = MatrixInverse(_viewXforms[uiIdx]).ApplyToVector(Vector_D3D_2_DGLE(light.Direction));
+	stDirection = -MatrixInverse(_viewXforms[uiIdx]).ApplyToVector(Vector_D3D_2_DGLE(light.Direction));
 
 	return S_OK;
 }
@@ -429,7 +434,7 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetSpotLightConfiguration(uint u
 
 	const auto xform = MatrixInverse(_viewXforms[uiIdx]);
 	stPosition = xform.ApplyToPoint(Vector_D3D_2_DGLE(light.Position));
-	stDirection = xform.ApplyToVector(Vector_D3D_2_DGLE(light.Direction));
+	stDirection = -xform.ApplyToVector(Vector_D3D_2_DGLE(light.Direction));
 
 	fSpotAngle = light.Phi * (180.F / M_PI);
 	fRange = light.Range;
