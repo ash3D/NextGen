@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		20.5.2015 (c)Andrey Korotkov
+\date		13.6.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -33,11 +33,82 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	D3DCOLOR _clearColor = 0;	// default OpenGL value
 	float _lineWidth = 1;
 
-	CFixedFunctionPipelineDX9 *_FFP;
+	CFixedFunctionPipelineDX9 *_FFP = nullptr;
 
 	unsigned int _maxTexResolution[2], _maxAnisotropy, _maxTexUnits, _maxTexStages, _maxRTs, _maxVertexStreams, _maxClipPlanes, _maxVSFloatConsts;
 	DWORD _textureAddressCaps;
 	bool _NPOTTexSupport, _NSQTexSupport, _mipmapSupport, _anisoSupport;
+
+	CBroadcast<> _frameEndBroadcast, _clearBroadcast;
+	CBroadcast<const WRL::ComPtr<IDirect3DDevice9> &> _restoreBroadcast;
+
+	class CDynamicBufferBase
+	{
+		CBroadcast<>::CCallbackHandle _frameEndCallbackHandle;
+	protected:
+		CBroadcast<>::CCallbackHandle _clearCallbackHandle;
+		CBroadcast<const WRL::ComPtr<IDirect3DDevice9> &>::CCallbackHandle _restoreCallbackHandle;
+	protected:
+		unsigned int _size = 1024u, _offset = 0, _lastFrameSize = 0;
+	protected:
+		CDynamicBufferBase() = default;
+		CDynamicBufferBase(CCoreRendererDX9 &parent, CBroadcast<>::CCallbackHandle &&clearCallbackHandle, CBroadcast<const WRL::ComPtr<IDirect3DDevice9> &>::CCallbackHandle &&restoreCallbackHandle);
+		CDynamicBufferBase(CDynamicBufferBase &) = delete;
+		void operator =(CDynamicBufferBase &) = delete;
+		~CDynamicBufferBase();
+	public:
+		unsigned int FillSegment(const void *data, unsigned int size);
+		void OnFrameEnd();
+	protected:
+		static inline DWORD _Usage(bool points);
+	private:
+		inline void _CreateBuffer();
+	private:
+		virtual void _CreateBufferImpl() = 0;
+		virtual void _FillSegmentImpl(const void *data, unsigned int size, DWORD lockFlags) = 0;
+	};
+
+	class CDynamicVB final : public CDynamicBufferBase
+	{
+		WRL::ComPtr<IDirect3DVertexBuffer9> _VB;
+	private:
+		inline void _CreateBuffer(const WRL::ComPtr<IDirect3DDevice9> &device, DWORD usage);
+		inline void _CreateBuffer(DWORD usage);
+	public:
+		CDynamicVB(CCoreRendererDX9 &parent, const WRL::ComPtr<IDirect3DDevice9> &device, bool points);
+	public:
+		void Reset(bool points);
+		void Clear();
+		void Restore(const WRL::ComPtr<IDirect3DDevice9> &device, bool points);
+		const WRL::ComPtr<IDirect3DVertexBuffer9> &GetVB() const { return _VB; }
+	private:
+		void _CreateBufferImpl() override;
+		void _FillSegmentImpl(const void *data, unsigned int size, DWORD lockFlags) override;
+	} *_immediateVB = nullptr, *_immediatePointsVB = nullptr, *_GetImmediateVB(bool points) const;
+
+	class CDynamicIB final : public CDynamicBufferBase
+	{
+		WRL::ComPtr<IDirect3DIndexBuffer9> _IB;
+	private:
+		inline void _CreateBuffer(const WRL::ComPtr<IDirect3DDevice9> &device, DWORD usage, D3DFORMAT format);
+		inline void _CreateBuffer(DWORD usage, D3DFORMAT format);
+	public:
+		CDynamicIB() = default;
+		CDynamicIB(CCoreRendererDX9 &parent, const WRL::ComPtr<IDirect3DDevice9> &device, bool points, bool _32);
+	public:
+		void Reset(bool points, bool _32);
+		void Clear();
+		void Restore(const WRL::ComPtr<IDirect3DDevice9> &device, bool points, bool _32);
+		const WRL::ComPtr<IDirect3DIndexBuffer9> &GetIB() const { return _IB; }
+	private:
+		void _CreateBufferImpl() override;
+		void _FillSegmentImpl(const void *data, unsigned int size, DWORD lockFlags) override;
+	} *_immediateIB16 = nullptr, *_immediateIB32 = nullptr, *_immediatePointsIB16 = nullptr, *_immediatePointsIB32 = nullptr, *_GetImmediateIB(bool points, bool _32) const;
+
+	class CGeometryProvider;
+	class CCoreGeometryBufferSoftware;
+	class CCoreGeometryBufferDynamic;
+	class CCoreGeometryBufferStatic;
 
 	class CSurfacePool
 	{
@@ -210,7 +281,9 @@ private:
 	void _FlipRectY(uint &y, uint height) const;
 
 	template<unsigned idx = 0>
-	inline void _BindVB(const TDrawDataDesc &drawDesc, const WRL::ComPtr<IDirect3DVertexBuffer9> &VB, UINT stream = 0) const;
+	inline void _BindVB(const TDrawDataDesc &drawDesc, const WRL::ComPtr<IDirect3DVertexBuffer9> &VB, unsigned int baseOffset, UINT stream = 0) const;
+
+	void _Draw(class CGeometryProviderBase &geom);
 
 	static void DGLE_API EventsHandler(void *pParameter, IBaseEvent *pEvent);
 
@@ -219,8 +292,6 @@ public:
 	CCoreRendererDX9(IEngineCore &engineCore);
 	CCoreRendererDX9(CCoreRendererDX9 &) = delete;
 	void operator =(CCoreRendererDX9 &) = delete;
-
-	static inline uint GetVertexSize(const TDrawDataDesc &stDesc);
 
 	inline bool GetNPOTTexSupport() const{ return _NPOTTexSupport; }
 	inline bool GetNSQTexSupport() const { return _NSQTexSupport; }
