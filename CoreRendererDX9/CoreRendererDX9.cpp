@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		14.6.2015 (c)Andrey Korotkov
+\date		15.6.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -3083,13 +3083,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::SetRasterizerState(const TRasterizerState
 {
 	AssertHR(_device->SetRenderState(D3DRS_ALPHATESTENABLE, stState.bAlphaTestEnabled));
 	AssertHR(_device->SetRenderState(D3DRS_ALPHAFUNC, CmpFunc_DGLE_2_D3D(stState.eAlphaTestFunc)));
-
-	/*
-		rounding towards 0 currently used
-		TODO: consider rounding to nearest even instead
-	*/
-	AssertHR(_device->SetRenderState(D3DRS_ALPHAREF, stState.fAlphaTestRefValue * 255));
-
+	AssertHR(_device->SetRenderState(D3DRS_ALPHAREF, round(stState.fAlphaTestRefValue * 255)));
 	AssertHR(_device->SetRenderState(D3DRS_SCISSORTESTENABLE, stState.bScissorEnabled));
 	AssertHR(_device->SetRenderState(D3DRS_FILLMODE, stState.bWireframe ? D3DFILL_WIREFRAME : D3DFILL_SOLID));
 	AssertHR(_device->SetRenderState(D3DRS_CULLMODE, CullMode_DGLE_2_D3D(stState.eCullMode, stState.bFrontCounterClockwise)));

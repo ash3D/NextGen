@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		31.5.2015 (c)Andrey Korotkov
+\date		15.6.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -62,7 +62,7 @@ _viewXforms(new std::enable_if<true, decltype(_viewXforms)>::type::element_type 
 	AssertHR(_device->SetRenderState(D3DRS_NORMALIZENORMALS, TRUE));
 	AssertHR(_device->SetRenderState(D3DRS_SPECULARENABLE, TRUE));
 
-	for (int i = 0; i < _maxLights; ++i)
+	for (DWORD i = 0; i < _maxLights; ++i)
 	{
 		AssertHR(_device->LightEnable(i, FALSE));
 		const D3DLIGHT9 lightDesc =
@@ -79,7 +79,7 @@ _viewXforms(new std::enable_if<true, decltype(_viewXforms)>::type::element_type 
 			_attenuationFactor / 100.f,	// Attenuation1
 			0,							// Attenuation2
 			0,							// Theta (ignored for directional light)
-			M_PI						// Phi (ignored for directional light)
+			float(M_PI)					// Phi (ignored for directional light)
 		};
 		AssertHR(_device->SetLight(i, &lightDesc));
 	}
@@ -320,7 +320,7 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::ConfigureSpotLight(uint uiIdx, c
 	light.Type = D3DLIGHT_SPOT;
 	light.Position = Vector_DGLE_2_D3D(_viewXforms[uiIdx].ApplyToPoint(stPosition));
 	light.Direction = Vector_DGLE_2_D3D(_viewXforms[uiIdx].ApplyToVector(-stDirection));
-	light.Phi = fSpotAngle * (M_PI / 180.F);
+	light.Phi = fSpotAngle * (float(M_PI) / 180);
 	light.Attenuation1 = _attenuationFactor / fRange;
 	light.Range = fRange;
 	AssertHR(_device->SetLight(uiIdx, &light));
@@ -436,7 +436,7 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetSpotLightConfiguration(uint u
 	stPosition = xform.ApplyToPoint(Vector_D3D_2_DGLE(light.Position));
 	stDirection = -xform.ApplyToVector(Vector_D3D_2_DGLE(light.Direction));
 
-	fSpotAngle = light.Phi * (180.F / M_PI);
+	fSpotAngle = light.Phi * (180 / float(M_PI));
 	fRange = light.Range;
 
 	return S_OK;

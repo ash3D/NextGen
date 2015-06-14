@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		7.5.2015 (c)Korotkov Andrey
+\date		15.6.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -8,8 +8,6 @@ See "DGLE.h" for more details.
 */
 
 #include "PluginCore.h"
-
-using namespace std;
 
 static inline uint GetInstanceIndex(IEngineCore *pEngineCore)
 {
@@ -29,10 +27,12 @@ CPluginCore::~CPluginCore() = default;
 
 DGLE_RESULT DGLE_API CPluginCore::GetPluginInfo(TPluginInfo &stInfo)
 {
-	strcpy(stInfo.cName, PLUGIN_NAME);
-	strcpy(stInfo.cVersion, PLUGIN_VERSION);
-	strcpy(stInfo.cVendor, PLUGIN_VENDOR);
-	strcpy(stInfo.cDescription, PLUGIN_DESCRIPTION);
+	using std::extent;	// sizeof or C++17 std::size can be used a well
+	// ' - 1' for terminator
+	strncpy(stInfo.cName, PLUGIN_NAME, extent<decltype(stInfo.cName)>::value - 1);
+	strncpy(stInfo.cVersion, PLUGIN_VERSION, extent<decltype(stInfo.cVersion)>::value - 1);
+	strncpy(stInfo.cVendor, PLUGIN_VENDOR, extent<decltype(stInfo.cVendor)>::value - 1);
+	strncpy(stInfo.cDescription, PLUGIN_DESCRIPTION, extent<decltype(stInfo.cDescription)>::value - 1);
 	stInfo.ui8PluginSDKVersion = _DGLE_PLUGIN_SDK_VER_;
 	
 	return S_OK;
