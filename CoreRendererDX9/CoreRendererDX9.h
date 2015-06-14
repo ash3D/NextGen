@@ -44,6 +44,8 @@ class CCoreRendererDX9 final : public ICoreRenderer
 
 	class CDynamicBufferBase
 	{
+		static const/*expr*/ unsigned int _initSize = 1024u, _limit = 128u * 1024u * 1024u;
+	private:
 		CBroadcast<>::CCallbackHandle _frameEndCallbackHandle;
 	protected:
 		CBroadcast<>::CCallbackHandle _clearCallbackHandle;
@@ -51,7 +53,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	private:
 		unsigned int _lastFrameSize = 0;
 	protected:
-		unsigned int _size = 1024u, _offset = 0;
+		unsigned int _size = _initSize, _offset = 0;
 	protected:
 		CDynamicBufferBase() = default;
 		CDynamicBufferBase(CCoreRendererDX9 &parent, CBroadcast<>::CCallbackHandle &&clearCallbackHandle, CBroadcast<const WRL::ComPtr<IDirect3DDevice9> &>::CCallbackHandle &&restoreCallbackHandle);

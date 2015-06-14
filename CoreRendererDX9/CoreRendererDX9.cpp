@@ -1715,10 +1715,12 @@ unsigned int CCoreRendererDX9::CDynamicBufferBase::FillSegment(const void *data,
 
 void CCoreRendererDX9::CDynamicBufferBase::_OnFrameEnd()
 {
-	if (_size < _lastFrameSize)
+	const auto target_size = min(_lastFrameSize, _limit);
+	_lastFrameSize = 0;
+	if (_size < target_size)
 	{
 		const auto old_size = _size;
-		_size = _lastFrameSize;
+		_size = target_size;
 		try
 		{
 			_CreateBuffer();
@@ -1729,7 +1731,6 @@ void CCoreRendererDX9::CDynamicBufferBase::_OnFrameEnd()
 			// do not rethrow, leave old buffer on fail
 		}
 	}
-	_lastFrameSize = 0;
 }
 
 inline DWORD CCoreRendererDX9::CDynamicBufferBase::_Usage(bool points)
