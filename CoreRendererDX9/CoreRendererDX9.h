@@ -60,11 +60,12 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		~CDynamicBufferBase();
 	public:
 		unsigned int FillSegment(const void *data, unsigned int size);
-		void OnFrameEnd();
 	protected:
 		static inline DWORD _Usage(bool points);
 	private:
 		inline void _CreateBuffer();
+	private:
+		void _OnFrameEnd();
 	private:
 		virtual void _CreateBufferImpl() = 0;
 		virtual void _FillSegmentImpl(const void *data, unsigned int size, DWORD lockFlags) = 0;
@@ -80,9 +81,10 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		CDynamicVB(CCoreRendererDX9 &parent, const WRL::ComPtr<IDirect3DDevice9> &device, bool points);
 	public:
 		void Reset(bool points);
-		void Clear();
-		void Restore(const WRL::ComPtr<IDirect3DDevice9> &device, bool points);
 		const WRL::ComPtr<IDirect3DVertexBuffer9> &GetVB() const { return _VB; }
+	private:
+		void _Clear();
+		void _Restore(const WRL::ComPtr<IDirect3DDevice9> &device, bool points);
 	private:
 		void _CreateBufferImpl() override;
 		void _FillSegmentImpl(const void *data, unsigned int size, DWORD lockFlags) override;
@@ -99,9 +101,10 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		CDynamicIB(CCoreRendererDX9 &parent, const WRL::ComPtr<IDirect3DDevice9> &device, bool points, bool _32);
 	public:
 		void Reset(bool points, bool _32);
-		void Clear();
-		void Restore(const WRL::ComPtr<IDirect3DDevice9> &device, bool points, bool _32);
 		const WRL::ComPtr<IDirect3DIndexBuffer9> &GetIB() const { return _IB; }
+	private:
+		void _Clear();
+		void _Restore(const WRL::ComPtr<IDirect3DDevice9> &device, bool points, bool _32);
 	private:
 		void _CreateBufferImpl() override;
 		void _FillSegmentImpl(const void *data, unsigned int size, DWORD lockFlags) override;

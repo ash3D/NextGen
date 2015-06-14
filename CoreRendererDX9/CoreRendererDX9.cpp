@@ -854,8 +854,6 @@ public:
 inline CCoreRendererDX9::CCoreGeometryBufferDynamic::CCoreGeometryBufferDynamic(const ComPtr<IDirect3DDevice9> &device, const TDrawDataDesc &drawDesc, uint verCnt, uint idxCnt, E_CORE_RENDERER_DRAW_MODE mode, CCoreRendererDX9 &parent) :
 CGeometryProviderBase(device, drawDesc, mode), CCoreGeometryBufferBase(device, drawDesc, mode), _VB(parent, device, mode == CRDM_POINTS)
 {
-	parent._frameEndBroadcast.AddCallback(bind(&CDynamicVB::OnFrameEnd, &_VB));
-	parent._clearBroadcast.AddCallback(bind((void (CDynamicVB::*)())&CDynamicVB::Reset, &_VB));
 	if (idxCnt)
 	{
 		// consider using swap with temp for exception safety
@@ -863,8 +861,6 @@ CGeometryProviderBase(device, drawDesc, mode), CCoreGeometryBufferBase(device, d
 		try
 		{
 			new(&_IB) CDynamicIB(parent, device, mode == CRDM_POINTS, drawDesc.bIndexBuffer32);
-			parent._frameEndBroadcast.AddCallback(bind(&CDynamicIB::OnFrameEnd, &_IB));
-			parent._clearBroadcast.AddCallback(bind((void (CDynamicIB::*)())&CDynamicIB::Reset, &_IB));
 		}
 		catch (...)
 		{
@@ -1685,7 +1681,7 @@ inline void CCoreRendererDX9::CDynamicBufferBase::_CreateBuffer()
 }
 
 CCoreRendererDX9::CDynamicBufferBase::CDynamicBufferBase(CCoreRendererDX9 &parent, CBroadcast<>::CCallbackHandle &&clearCallbackHandle, CBroadcast<const WRL::ComPtr<IDirect3DDevice9> &>::CCallbackHandle &&restoreCallbackHandle) :
-_frameEndCallbackHandle(parent._frameEndBroadcast.AddCallback(std::bind(&CDynamicBufferBase::OnFrameEnd, this))),
+_frameEndCallbackHandle(parent._frameEndBroadcast.AddCallback(std::bind(&CDynamicBufferBase::_OnFrameEnd, this))),
 _clearCallbackHandle(move(clearCallbackHandle)), _restoreCallbackHandle(move(restoreCallbackHandle))
 {}
 
@@ -1717,7 +1713,7 @@ unsigned int CCoreRendererDX9::CDynamicBufferBase::FillSegment(const void *data,
 	return offset;
 }
 
-void CCoreRendererDX9::CDynamicBufferBase::OnFrameEnd()
+void CCoreRendererDX9::CDynamicBufferBase::_OnFrameEnd()
 {
 	if (_size < _lastFrameSize)
 	{
@@ -1765,26 +1761,26 @@ inline void CCoreRendererDX9::CDynamicVB::_CreateBuffer(DWORD usage)
 
 CCoreRendererDX9::CDynamicVB::CDynamicVB(CCoreRendererDX9 &parent, const ComPtr<IDirect3DDevice9> &device, bool points) :
 CDynamicBufferBase(parent,
-	parent._clearBroadcast.AddCallback(bind(&CDynamicVB::Clear, this)),
-	parent._restoreBroadcast.AddCallback(bind(&CDynamicVB::Restore, this, placeholders::_1, points)))
+	parent._clearBroadcast.AddCallback(bind(&CDynamicVB::_Clear, this)),
+	parent._restoreBroadcast.AddCallback(bind(&CDynamicVB::_Restore, this, placeholders::_1, points)))
 {
-	Restore(device, points);
+	_Restore(device, points);
 }
 
 void CCoreRendererDX9::CDynamicVB::Reset(bool points)
 {
-	_clearCallbackHandle = _clearCallbackHandle.GetParent()->AddCallback(bind(&CDynamicVB::Clear, this));
-	_restoreCallbackHandle = _restoreCallbackHandle.GetParent()->AddCallback(bind(&CDynamicVB::Restore, this, placeholders::_1, points));
+	_clearCallbackHandle = _clearCallbackHandle.GetParent()->AddCallback(bind(&CDynamicVB::_Clear, this));
+	_restoreCallbackHandle = _restoreCallbackHandle.GetParent()->AddCallback(bind(&CDynamicVB::_Restore, this, placeholders::_1, points));
 	_CreateBuffer(_Usage(points));
 }
 
-void CCoreRendererDX9::CDynamicVB::Clear()
+void CCoreRendererDX9::CDynamicVB::_Clear()
 {
 	_VB.Reset();
 	_offset = 0;
 }
 
-void CCoreRendererDX9::CDynamicVB::Restore(const ComPtr<IDirect3DDevice9> &device, bool points)
+void CCoreRendererDX9::CDynamicVB::_Restore(const ComPtr<IDirect3DDevice9> &device, bool points)
 {
 	_CreateBuffer(device, _Usage(points));
 }
@@ -1835,26 +1831,26 @@ inline void CCoreRendererDX9::CDynamicIB::_CreateBuffer(DWORD usage, D3DFORMAT f
 
 CCoreRendererDX9::CDynamicIB::CDynamicIB(CCoreRendererDX9 &parent, const ComPtr<IDirect3DDevice9> &device, bool points, bool _32) :
 CDynamicBufferBase(parent,
-	parent._clearBroadcast.AddCallback(bind(&CDynamicIB::Clear, this)),
-	parent._restoreBroadcast.AddCallback(bind(&CDynamicIB::Restore, this, placeholders::_1, points, _32)))
+	parent._clearBroadcast.AddCallback(bind(&CDynamicIB::_Clear, this)),
+	parent._restoreBroadcast.AddCallback(bind(&CDynamicIB::_Restore, this, placeholders::_1, points, _32)))
 {
-	Restore(device, points, _32);
+	_Restore(device, points, _32);
 }
 
 void CCoreRendererDX9::CDynamicIB::Reset(bool points, bool _32)
 {
-	_clearCallbackHandle = _clearCallbackHandle.GetParent()->AddCallback(bind(&CDynamicIB::Clear, this));
-	_restoreCallbackHandle = _restoreCallbackHandle.GetParent()->AddCallback(bind(&CDynamicIB::Restore, this, placeholders::_1, points, _32));
+	_clearCallbackHandle = _clearCallbackHandle.GetParent()->AddCallback(bind(&CDynamicIB::_Clear, this));
+	_restoreCallbackHandle = _restoreCallbackHandle.GetParent()->AddCallback(bind(&CDynamicIB::_Restore, this, placeholders::_1, points, _32));
 	_CreateBuffer(_Usage(points), _32 ? D3DFMT_INDEX32 : D3DFMT_INDEX16);
 }
 
-void CCoreRendererDX9::CDynamicIB::Clear()
+void CCoreRendererDX9::CDynamicIB::_Clear()
 {
 	_IB.Reset();
 	_offset = 0;
 }
 
-void CCoreRendererDX9::CDynamicIB::Restore(const ComPtr<IDirect3DDevice9> &device, bool points, bool _32)
+void CCoreRendererDX9::CDynamicIB::_Restore(const ComPtr<IDirect3DDevice9> &device, bool points, bool _32)
 {
 	_CreateBuffer(device, _Usage(points), _32 ? D3DFMT_INDEX32 : D3DFMT_INDEX16);
 }
