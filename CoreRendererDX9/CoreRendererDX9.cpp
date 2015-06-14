@@ -1889,15 +1889,9 @@ inline bool CCoreRendererDX9::CSurfacePool::TSurfaceDesc::operator ==(const TSur
 	return width == src.width && height == src.height && format == src.format && MSAA == src.MSAA;
 }
 
-template<typename T>
-static inline size_t GetHash(T value)
-{
-	return hash<T>()(value);
-}
-
 size_t CCoreRendererDX9::CSurfacePool::THash::operator ()(const TSurfaceDesc &src) const
 {
-	return GetHash(src.width) + GetHash(src.height) + GetHash(src.format) + src.MSAA;
+	return ComposeHash(src.width, src.height, src.format, src.MSAA);
 }
 
 static inline bool Used(IUnknown *object)

@@ -23,7 +23,9 @@ See "DGLE.h" for more details.
 #include <unordered_map>
 #include <functional>
 #include <utility>
+#include <type_traits>
 #include <cassert>
+#include <cstddef>
 
 #include <wrl.h>
 
@@ -38,6 +40,34 @@ inline void CheckHR(const HRESULT hr)
 {
 	if (FAILED(hr)) throw hr;
 }
+
+#pragma region hash
+template<typename T>
+inline size_t GetHash(T &&value)
+{
+	return std::hash<std::decay<T>::type>()(std::forward<T>(value));
+}
+
+namespace detail
+{
+	template<typename Cur, typename ...Rest>
+	inline size_t ComposeHash(size_t accum, Cur &&cur, Rest &&...rest)
+	{
+		return ComposeHash(accum * 31 + GetHash(std::forward<Cur>(cur)), std::forward<Rest>(rest)...);
+	}
+
+	inline size_t ComposeHash(size_t accum)
+	{
+		return accum;
+	}
+}
+
+template<typename ...Args>
+inline size_t ComposeHash(Args &&...args)
+{
+	return detail::ComposeHash(17, std::forward<Args>(args)...);
+}
+#pragma endregion consider moving it to utils or dedicated repo
 
 #pragma region broadcast
 template<typename ...Params>
