@@ -11,6 +11,10 @@ See "DGLE.h" for more details.
 
 #include "DGLE.h"
 #include "DGLE_CoreRenderer.h"
+#include "utils.h"
+
+#undef min
+#undef max
 
 #include <memory>
 #include <string>
@@ -22,8 +26,6 @@ See "DGLE.h" for more details.
 #include <cassert>
 
 #include <wrl.h>
-
-#include "utils.h"
 
 using namespace DGLE;
 
