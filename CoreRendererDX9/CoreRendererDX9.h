@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		13.6.2015 (c)Andrey Korotkov
+\date		14.6.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -48,8 +48,10 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	protected:
 		CBroadcast<>::CCallbackHandle _clearCallbackHandle;
 		CBroadcast<const WRL::ComPtr<IDirect3DDevice9> &>::CCallbackHandle _restoreCallbackHandle;
+	private:
+		unsigned int _lastFrameSize = 0;
 	protected:
-		unsigned int _size = 1024u, _offset = 0, _lastFrameSize = 0;
+		unsigned int _size = 1024u, _offset = 0;
 	protected:
 		CDynamicBufferBase() = default;
 		CDynamicBufferBase(CCoreRendererDX9 &parent, CBroadcast<>::CCallbackHandle &&clearCallbackHandle, CBroadcast<const WRL::ComPtr<IDirect3DDevice9> &>::CCallbackHandle &&restoreCallbackHandle);

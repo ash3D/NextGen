@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		13.6.2015 (c)Korotkov Andrey
+\date		14.6.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -30,6 +30,11 @@ using namespace DGLE;
 inline void AssertHR(const HRESULT hr)
 {
 	assert(SUCCEEDED(hr));
+}
+
+inline void CheckHR(const HRESULT hr)
+{
+	if (FAILED(hr)) throw hr;
 }
 
 #pragma region broadcast
@@ -147,7 +152,7 @@ void CBroadcast<Params...>::operator ()(Params ...params) const
 #define PLUGIN_NAME				"CoreRendererDX9"
 #define PLUGIN_VERSION			("0.1 (" + std::string(__DATE__) + ")").c_str()
 #define PLUGIN_VENDOR			"DGLE Team"
-#define PLUGIN_DESCRIPTION		"DirectX 9 implementation for ICoreRendererInterface"
+#define PLUGIN_DESCRIPTION		"ICoreRendererInterface DirectX 9 implementation"
 #define PLUGIN_INTERFACE_NAME	"ISubSystemPlugin"
 
 void LogWrite(IEngineCore &engineCore, const char *pcTxt, E_LOG_TYPE eType, const char *pcSrcFileName, int iSrcLineNumber);

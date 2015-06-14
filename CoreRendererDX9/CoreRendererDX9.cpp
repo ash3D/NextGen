@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		13.6.2015 (c)Andrey Korotkov
+\date		14.6.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -628,7 +628,14 @@ namespace
 			if (_indicesCount == 0 && uiIndicesCount != 0)
 				return E_INVALIDARG;
 
-			_Reallocate(stDesc, uiVerticesCount, uiIndicesCount, eMode);
+			try
+			{
+				_Reallocate(stDesc, uiVerticesCount, uiIndicesCount, eMode);
+			}
+			catch (const HRESULT hr)
+			{
+				return hr;
+			}
 
 			return S_OK;
 		}
@@ -966,22 +973,29 @@ void CCoreRendererDX9::CCoreGeometryBufferStatic::_ReallocateImpl(const TDrawDat
 	const DWORD old_usage = _drawMode == CRDM_POINTS ? D3DUSAGE_POINTS : 0, new_usage = drawMode == CRDM_POINTS ? D3DUSAGE_POINTS : 0;
 	const bool usage_changed = old_usage != new_usage;
 
+	auto VB = _VB;
 	if (usage_changed || GetVerticesDataSize(drawDesc, _verticesCount) != verticesDataSize)
-		AssertHR(_device->CreateVertexBuffer(verticesDataSize, new_usage, 0, D3DPOOL_MANAGED, &_VB, NULL));
+		CheckHR(_device->CreateVertexBuffer(verticesDataSize, new_usage, 0, D3DPOOL_MANAGED, &VB, NULL));
 
-	AssertHR(_VB->Lock(0, verticesDataSize, &locked, D3DLOCK_READONLY));
+	AssertHR(VB->Lock(0, verticesDataSize, &locked, D3DLOCK_READONLY));
 	memcpy(locked, drawDesc.pData, verticesDataSize);
-	AssertHR(_VB->Unlock());
+	AssertHR(VB->Unlock());
 
 	if (indicesDataSize)
 	{
 		if (usage_changed || _drawDataDesc.bIndexBuffer32 != drawDesc.bIndexBuffer32 || GetIndicesDataSize(drawDesc, _indicesCount) != indicesDataSize)
-			AssertHR(_device->CreateIndexBuffer(indicesDataSize, new_usage, drawDesc.bIndexBuffer32 ? D3DFMT_INDEX32 : D3DFMT_INDEX16, D3DPOOL_MANAGED, &_IB, NULL));
+		{
+			decltype(_IB) IB;
+			CheckHR(_device->CreateIndexBuffer(indicesDataSize, new_usage, drawDesc.bIndexBuffer32 ? D3DFMT_INDEX32 : D3DFMT_INDEX16, D3DPOOL_MANAGED, &IB, NULL));
+			_IB.Swap(IB);
+		}
 
 		AssertHR(_IB->Lock(0, indicesDataSize, &locked, D3DLOCK_READONLY));
 		memcpy(locked, drawDesc.pIndexBuffer, indicesDataSize);
 		AssertHR(_IB->Unlock());
 	}
+
+	_VB.Swap(VB);
 }
 #pragma endregion
 
@@ -1376,12 +1390,20 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Initialize(TCrRndrInitResults &stResults,
 
 	_FFP = new CFixedFunctionPipelineDX9(_device);
 
-	_immediateVB = new CDynamicVB(*this, _device, false);
-	_immediatePointsVB = new CDynamicVB(*this, _device, true);
-	_immediateIB16 = new CDynamicIB(*this, _device, false, false);
-	_immediateIB32 = new CDynamicIB(*this, _device, false, true);
-	_immediatePointsIB16 = new CDynamicIB(*this, _device, true, false);
-	_immediatePointsIB32 = new CDynamicIB(*this, _device, true, true);
+	try
+	{
+		_immediateVB = new CDynamicVB(*this, _device, false);
+		_immediatePointsVB = new CDynamicVB(*this, _device, true);
+		_immediateIB16 = new CDynamicIB(*this, _device, false, false);
+		_immediateIB32 = new CDynamicIB(*this, _device, false, true);
+		_immediatePointsIB16 = new CDynamicIB(*this, _device, true, false);
+		_immediatePointsIB32 = new CDynamicIB(*this, _device, true, true);
+	}
+	catch (const HRESULT hr)
+	{
+		LOG("Core Renderer initialization error: fail to create dynamic vertex buffers.", LT_FATAL);
+		return hr;
+	}
 
 	AssertHR(BindTexture(NULL, 0));
 	AssertHR(SetBlendState(TBlendStateDesc()));
@@ -1424,30 +1446,38 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Finalize()
 
 DGLE_RESULT DGLE_API CCoreRendererDX9::AdjustMode(TEngineWindow &stNewWin)
 {
-	_clearBroadcast();
-	_depthPool.Clear();
-	_colorPool.Clear();
-	_MSAAcolorPool.Clear();
-	_offcreenDepth.Clear();
-	_screenColorTarget.Reset();
-	_screenDepthTarget.Reset();
-	_PushStates();
-	D3DPRESENT_PARAMETERS present_params = _GetPresentParams(stNewWin);
-	switch (_device->Reset(&present_params))
+	try
 	{
-	case S_OK:
-		break;
-		// TODO: handle lost device here
-	case D3DERR_DEVICELOST:
-	default:
-		assert(false);
+		_clearBroadcast();
+		_depthPool.Clear();
+		_colorPool.Clear();
+		_MSAAcolorPool.Clear();
+		_offcreenDepth.Clear();
+		_screenColorTarget.Reset();
+		_screenDepthTarget.Reset();
+		_PushStates();
+		D3DPRESENT_PARAMETERS present_params = _GetPresentParams(stNewWin);
+		switch (_device->Reset(&present_params))
+		{
+		case S_OK:
+			break;
+			// TODO: handle lost device here
+		case D3DERR_DEVICELOST:
+		default:
+			assert(false);
+		}
+		_restoreBroadcast(_device);
+		CheckHR(_device->BeginScene());
+		_PopStates();
+		CheckHR(_device->GetRenderTarget(0, &_screenColorTarget));
+		CheckHR(_device->GetDepthStencilSurface(&_screenDepthTarget));
+		return S_OK;
 	}
-	_restoreBroadcast(_device);
-	AssertHR(_device->BeginScene());
-	_PopStates();
-	AssertHR(_device->GetRenderTarget(0, &_screenColorTarget));
-	AssertHR(_device->GetDepthStencilSurface(&_screenDepthTarget));
-	return S_OK;
+	catch (const HRESULT hr)
+	{
+		LOG("Fail to adjust mode", LT_FATAL);
+		return hr;
+	}
 }
 
 DGLE_RESULT DGLE_API CCoreRendererDX9::MakeCurrent()
@@ -1650,8 +1680,8 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::ReadFrameBuffer(uint uiX, uint uiY, uint 
 #pragma region CDynamicBufferBase
 inline void CCoreRendererDX9::CDynamicBufferBase::_CreateBuffer()
 {
-	_offset = 0;
 	_CreateBufferImpl();
+	_offset = 0;
 }
 
 CCoreRendererDX9::CDynamicBufferBase::CDynamicBufferBase(CCoreRendererDX9 &parent, CBroadcast<>::CCallbackHandle &&clearCallbackHandle, CBroadcast<const WRL::ComPtr<IDirect3DDevice9> &>::CCallbackHandle &&restoreCallbackHandle) :
@@ -1663,11 +1693,22 @@ CCoreRendererDX9::CDynamicBufferBase::~CDynamicBufferBase() = default;
 
 unsigned int CCoreRendererDX9::CDynamicBufferBase::FillSegment(const void *data, unsigned int size)
 {
+	const auto old_offset = _offset;
 	const auto lock_flags = _size - _offset >= size ? D3DLOCK_NOOVERWRITE : (_offset = 0, D3DLOCK_DISCARD);
 	if (_size < size)
 	{
+		const auto old_size = _size;
 		_size = size;
-		_CreateBuffer();
+		try
+		{
+			_CreateBuffer();
+		}
+		catch (...)
+		{
+			_size = old_size;
+			_offset = old_offset;
+			throw;
+		}
 	}
 	_FillSegmentImpl(data, size, lock_flags);
 	_lastFrameSize += size;
@@ -1680,8 +1721,17 @@ void CCoreRendererDX9::CDynamicBufferBase::OnFrameEnd()
 {
 	if (_size < _lastFrameSize)
 	{
+		const auto old_size = _size;
 		_size = _lastFrameSize;
-		_CreateBuffer();
+		try
+		{
+			_CreateBuffer();
+		}
+		catch (...)
+		{
+			_size = old_size;
+			// do not rethrow, leave old buffer on fail
+		}
 	}
 	_lastFrameSize = 0;
 }
@@ -1698,7 +1748,9 @@ inline DWORD CCoreRendererDX9::CDynamicBufferBase::_Usage(bool points)
 #pragma region CDynamicVB
 inline void CCoreRendererDX9::CDynamicVB::_CreateBuffer(const ComPtr<IDirect3DDevice9> &device, DWORD usage)
 {
-	AssertHR(device->CreateVertexBuffer(_size, usage, 0, D3DPOOL_DEFAULT, &_VB, NULL));
+	decltype(_VB) VB;
+	CheckHR(device->CreateVertexBuffer(_size, usage, 0, D3DPOOL_DEFAULT, &VB, NULL));
+	_VB.Swap(VB);
 }
 
 inline void CCoreRendererDX9::CDynamicVB::_CreateBuffer(DWORD usage)
@@ -1728,8 +1780,8 @@ void CCoreRendererDX9::CDynamicVB::Reset(bool points)
 
 void CCoreRendererDX9::CDynamicVB::Clear()
 {
-	_offset = 0;
 	_VB.Reset();
+	_offset = 0;
 }
 
 void CCoreRendererDX9::CDynamicVB::Restore(const ComPtr<IDirect3DDevice9> &device, bool points)
@@ -1766,7 +1818,9 @@ inline auto CCoreRendererDX9::_GetImmediateVB(bool points) const -> CDynamicVB *
 #pragma region CDynamicIB
 inline void CCoreRendererDX9::CDynamicIB::_CreateBuffer(const ComPtr<IDirect3DDevice9> &device, DWORD usage, D3DFORMAT format)
 {
-	AssertHR(device->CreateIndexBuffer(_size, usage, format, D3DPOOL_DEFAULT, &_IB, NULL));
+	decltype(_IB) IB;
+	CheckHR(device->CreateIndexBuffer(_size, usage, format, D3DPOOL_DEFAULT, &IB, NULL));
+	_IB.Swap(IB);
 }
 
 inline void CCoreRendererDX9::CDynamicIB::_CreateBuffer(DWORD usage, D3DFORMAT format)
@@ -1796,8 +1850,8 @@ void CCoreRendererDX9::CDynamicIB::Reset(bool points, bool _32)
 
 void CCoreRendererDX9::CDynamicIB::Clear()
 {
-	_offset = 0;
 	_IB.Reset();
+	_offset = 0;
 }
 
 void CCoreRendererDX9::CDynamicIB::Restore(const ComPtr<IDirect3DDevice9> &device, bool points, bool _32)
@@ -1998,10 +2052,11 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::SetRenderTarget(ICoreTexture *pTexture)
 		CSurfacePool &rt_pool = dst_desc.MultiSampleType == D3DMULTISAMPLE_NONE ? _colorPool : _MSAAcolorPool;
 		const auto color_target = rt_pool.GetSurface(_device.Get(), { dst_desc.Width, dst_desc.Height, dst_desc.Format, dst_desc.MultiSampleType });
 		const auto depth_target = _offcreenDepth.Get(_device.Get(), dst_desc.Width, dst_desc.Height, dst_desc.MultiSampleType);
-		if (!color_target || !depth_target)
+		if (!color_target || !depth_target || FAILED(_device->SetRenderTarget(0, color_target.Get())) || FAILED(_device->SetDepthStencilSurface(depth_target.Get())))
+		{
+			LOG("Fail to set rendertarget", LT_FATAL);
 			return E_FAIL;
-		if (FAILED(_device->SetRenderTarget(0, color_target.Get())) || FAILED(_device->SetDepthStencilSurface(depth_target.Get())))
-			return E_FAIL;
+		}
 		_curRenderTarget = pTexture;
 	}
 	else
@@ -2258,19 +2313,26 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CreateGeometryBuffer(ICoreGeometryBuffer 
 	if (!stDrawDesc.pData || uiVerticesCount == 0 || uiIndicesCount && eMode == CRDM_POINTS)
 		return E_INVALIDARG;
 
-	switch (eType)
+	try
 	{
-	case CRBT_HARDWARE_DYNAMIC:
-		prBuffer = new CCoreGeometryBufferSoftware(_device, stDrawDesc, uiVerticesCount, uiIndicesCount, eMode, *this);
-		break;
-	case CRBT_SOFTWARE:
-		prBuffer = new CCoreGeometryBufferDynamic(_device, stDrawDesc, uiVerticesCount, uiIndicesCount, eMode, *this);
-		break;
-	case CRBT_HARDWARE_STATIC:
-		prBuffer = new CCoreGeometryBufferStatic(_device, stDrawDesc, uiVerticesCount, uiIndicesCount, eMode);
-		break;
-	default:
-		return E_INVALIDARG;
+		switch (eType)
+		{
+		case CRBT_HARDWARE_DYNAMIC:
+			prBuffer = new CCoreGeometryBufferSoftware(_device, stDrawDesc, uiVerticesCount, uiIndicesCount, eMode, *this);
+			break;
+		case CRBT_SOFTWARE:
+			prBuffer = new CCoreGeometryBufferDynamic(_device, stDrawDesc, uiVerticesCount, uiIndicesCount, eMode, *this);
+			break;
+		case CRBT_HARDWARE_STATIC:
+			prBuffer = new CCoreGeometryBufferStatic(_device, stDrawDesc, uiVerticesCount, uiIndicesCount, eMode);
+			break;
+		default:
+			return E_INVALIDARG;
+		}
+	}
+	catch (const HRESULT hr)
+	{
+		return hr;
 	}
 
 	return S_OK;
@@ -2748,29 +2810,43 @@ void CCoreRendererDX9::_Draw(CGeometryProviderBase &geom)
 
 DGLE_RESULT DGLE_API CCoreRendererDX9::Draw(const TDrawDataDesc &stDrawDesc, E_CORE_RENDERER_DRAW_MODE eMode, uint uiCount)
 {
-	uint v_count = uiCount, i_count = 0;
-	if (stDrawDesc.pIndexBuffer)
+	try
 	{
-		v_count = stDrawDesc.bIndexBuffer32 ? GetVCount((const uint32 *)stDrawDesc.pIndexBuffer, uiCount) : GetVCount((const uint32 *)stDrawDesc.pIndexBuffer, uiCount);
-		i_count = uiCount;
+		uint v_count = uiCount, i_count = 0;
+		if (stDrawDesc.pIndexBuffer)
+		{
+			v_count = stDrawDesc.bIndexBuffer32 ? GetVCount((const uint32 *)stDrawDesc.pIndexBuffer, uiCount) : GetVCount((const uint32 *)stDrawDesc.pIndexBuffer, uiCount);
+			i_count = uiCount;
+		}
+
+		const bool points = eMode == CRDM_POINTS;
+		CGeometryProvider geom(_device, stDrawDesc, eMode, v_count, i_count, _GetImmediateVB(points), stDrawDesc.pIndexBuffer ? _GetImmediateIB(points, stDrawDesc.bIndexBuffer32) : nullptr);
+		_Draw(geom);
+
+		return S_OK;
 	}
-
-	const bool points = eMode == CRDM_POINTS;
-	CGeometryProvider geom(_device, stDrawDesc, eMode, v_count, i_count, _GetImmediateVB(points), stDrawDesc.pIndexBuffer ? _GetImmediateIB(points, stDrawDesc.bIndexBuffer32) : nullptr);
-	_Draw(geom);
-
-	return S_OK;
+	catch (const HRESULT hr)
+	{
+		return hr;
+	}
 }
 
 DGLE_RESULT DGLE_API CCoreRendererDX9::DrawBuffer(ICoreGeometryBuffer *pBuffer)
 {
-	if (const auto geom = dynamic_cast<CGeometryProviderBase *const>(pBuffer))
+	try
 	{
-		_Draw(*geom);
-		return S_OK;
-	}
+		if (const auto geom = dynamic_cast<CGeometryProviderBase *const>(pBuffer))
+		{
+			_Draw(*geom);
+			return S_OK;
+		}
 
-	return S_FALSE;
+		return S_FALSE;
+	}
+	catch (const HRESULT hr)
+	{
+		return hr;
+	}
 }
 
 DGLE_RESULT DGLE_API CCoreRendererDX9::SetColor(const TColor4 &stColor)
@@ -3058,15 +3134,23 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::GetRasterizerState(TRasterizerStateDesc &
 
 DGLE_RESULT DGLE_API CCoreRendererDX9::Present()
 {
-	_frameEndBroadcast();
-	AssertHR(_device->EndScene());
-	switch (_device->Present(NULL, NULL, NULL, NULL))
+	try
 	{
-		// TODO: handle lost device here
-	}
-	AssertHR(_device->BeginScene());
+		_frameEndBroadcast();
+		CheckHR(_device->EndScene());
+		switch (_device->Present(NULL, NULL, NULL, NULL))
+		{
+			// TODO: handle lost device here
+		}
+		CheckHR(_device->BeginScene());
 
-	return S_OK;
+		return S_OK;
+	}
+	catch (const HRESULT hr)
+	{
+		LOG("Fail to present frame", LT_FATAL);
+		return hr;
+	}
 }
 
 DGLE_RESULT DGLE_API CCoreRendererDX9::GetFixedFunctionPipelineAPI(IFixedFunctionPipeline *&prFFP)
