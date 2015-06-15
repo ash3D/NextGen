@@ -3209,7 +3209,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::IsFeatureSupported(E_CORE_RENDERER_FEATUR
 		bIsSupported = _textureAddressCaps & D3DPTADDRESSCAPS_MIRROR;
 		break;
 	case CRFT_TEXTURE_MIRROR_CLAMP:
-		bIsSupported = D3DPTADDRESSCAPS_MIRRORONCE;
+		bIsSupported = _textureAddressCaps & D3DPTADDRESSCAPS_MIRRORONCE;
 		break;
 	case CRFT_GEOMETRY_BUFFER:
 		bIsSupported = true;
