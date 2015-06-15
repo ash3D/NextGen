@@ -80,7 +80,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		inline void _CreateBuffer(const WRL::ComPtr<IDirect3DDevice9> &device, DWORD usage);
 		inline void _CreateBuffer(DWORD usage);
 	public:
-		CDynamicVB(CCoreRendererDX9 &parent, const WRL::ComPtr<IDirect3DDevice9> &device, bool points);
+		CDynamicVB(CCoreRendererDX9 &parent, bool points);
 	public:
 		void Reset(bool points);
 		const WRL::ComPtr<IDirect3DVertexBuffer9> &GetVB() const { return _VB; }
@@ -100,7 +100,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		inline void _CreateBuffer(DWORD usage, D3DFORMAT format);
 	public:
 		CDynamicIB() = default;
-		CDynamicIB(CCoreRendererDX9 &parent, const WRL::ComPtr<IDirect3DDevice9> &device, bool points, bool _32);
+		CDynamicIB(CCoreRendererDX9 &parent, bool points, bool _32);
 	public:
 		void Reset(bool points, bool _32);
 		const WRL::ComPtr<IDirect3DIndexBuffer9> &GetIB() const { return _IB; }
@@ -112,10 +112,39 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		void _FillSegmentImpl(const void *data, unsigned int size, DWORD lockFlags) override;
 	} *_immediateIB16 = nullptr, *_immediateIB32 = nullptr, *_immediatePointsIB16 = nullptr, *_immediatePointsIB32 = nullptr, *_GetImmediateIB(bool points, bool _32) const;
 
+	class CGeometryProviderBase;
 	class CGeometryProvider;
+	class CCoreGeometryBufferBase;
 	class CCoreGeometryBufferSoftware;
 	class CCoreGeometryBufferDynamic;
 	class CCoreGeometryBufferStatic;
+
+	class CVertexDeclarationCache
+	{
+		/*
+			currently there are small amount of unique vertex declarations
+			therefore fixed-sized LUT would be propably faster
+		*/
+		union tag
+		{
+			unsigned char packed;
+			struct
+			{
+				bool _2D : 1, normal : 1, uv : 1, color : 1;
+			};
+		public:
+			inline tag(const TDrawDataDesc &desc);
+			inline bool operator ==(const tag src) const { return packed == src.packed; }
+		};
+		struct THash
+		{
+			inline size_t operator ()(const tag &src) const { return GetHash(src.packed); }
+		};
+		typedef std::unordered_map<tag, WRL::ComPtr<IDirect3DVertexDeclaration9>, THash> TCache;
+		TCache _cache;
+	public:
+		TCache::mapped_type GetDecl(IDirect3DDevice9 *device, const TDrawDataDesc &desc);
+	} _VBDeclCache;
 
 	class CSurfacePool
 	{
@@ -129,15 +158,15 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		};
 		struct THash
 		{
-			size_t operator ()(const TSurfaceDesc &src) const;
+			inline size_t operator ()(const TSurfaceDesc &src) const;
 		};
 		struct TSurface
 		{
 			WRL::ComPtr<IDirect3DSurface9> surface;
 			uint_least32_t idleTime = 0;
 		};
-		typedef std::unordered_multimap<TSurfaceDesc, TSurface, THash> TSurfaces;
-		TSurfaces _surfaces;
+		typedef std::unordered_multimap<TSurfaceDesc, TSurface, THash> TPool;
+		TPool _pool;
 		HRESULT(__stdcall IDirect3DDevice9::*const _createSurface)(UINT Width, UINT Height, D3DFORMAT Format, D3DMULTISAMPLE_TYPE MultiSample, DWORD MultisampleQuality, BOOL, IDirect3DSurface9 **ppSurface, HANDLE *pSharedHandle);
 		const BOOL _boolParam;
 		static const/*expr*/ size_t _maxPoolSize = 16;
@@ -150,10 +179,12 @@ class CCoreRendererDX9 final : public ICoreRenderer
 			COLOR_LOCKABLE,
 		};
 		explicit CSurfacePool(E_TYPE type);
+		CSurfacePool(CSurfacePool &) = delete;
+		void operator =(CSurfacePool &) = delete;
 	public:
-		WRL::ComPtr<IDirect3DSurface9> GetSurface(IDirect3DDevice9 *device, const TSurfaces::key_type &desc);
+		WRL::ComPtr<IDirect3DSurface9> GetSurface(IDirect3DDevice9 *device, const TPool::key_type &desc);
 		void Clean();
-		void Clear() { _surfaces.clear(); }
+		void Clear() { _pool.clear(); }
 	} _depthPool, _colorPool, _MSAAcolorPool;
 	class COffscreenDepth
 	{

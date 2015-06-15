@@ -463,54 +463,21 @@ namespace
 	{
 		return indicesCount * (desc.bIndexBuffer32 ? sizeof(uint32) : sizeof(uint16));
 	}
-
-	typedef D3DVERTEXELEMENT9 TVertexDecl[extent<decltype(vertexElementLUT)>::value + 2];	// +2 for position and D3DDECL_END()
-
-	inline void SetVertexElement(TVertexDecl &elements, UINT stream, BYTE type, BYTE usage)
-	{
-		elements[stream] =
-		{
-			stream,					// Stream
-			0,						// Offset
-			type,					// Type
-			D3DDECLMETHOD_DEFAULT,	// Method
-			usage,					// Usage
-			0						// UsageIndex
-		};
-	}
-
-	template<unsigned idx = 0>
-	inline void FillVertexDecl(const TDrawDataDesc &drawDesc, TVertexDecl &elements, UINT stream = 0)
-	{
-		if (drawDesc.*vertexElementLUT[idx].offset != -1)
-			SetVertexElement(elements, stream++, vertexElementLUT[idx].type, vertexElementLUT[idx].usage);
-		FillVertexDecl<idx + 1>(drawDesc, elements, stream);
-	}
-
-	template<>
-	inline void FillVertexDecl<extent<decltype(vertexElementLUT)>::value>(const TDrawDataDesc &drawDesc, TVertexDecl &elements, UINT stream)
-	{
-		SetVertexElement(elements, stream, drawDesc.bVertices2D ? D3DDECLTYPE_FLOAT2 : D3DDECLTYPE_FLOAT3, D3DDECLUSAGE_POSITION);
-		elements[++stream] = D3DDECL_END();
-	}
 }
 
 #pragma region CGeometryProviderBase
-class CGeometryProviderBase
+class CCoreRendererDX9::CGeometryProviderBase
 {
 	ComPtr<IDirect3DVertexDeclaration9> _VBDecl;
 
 protected:
+	CCoreRendererDX9 &_parent;
 	TDrawDataDesc _drawDataDesc;
 	E_CORE_RENDERER_DRAW_MODE _drawMode;
 	uint _verticesCount, _indicesCount;
 
 protected:
-	CGeometryProviderBase(const ComPtr<IDirect3DDevice9> &device, const TDrawDataDesc &drawDesc, E_CORE_RENDERER_DRAW_MODE mode, uint verCnt = 0, uint idxCnt = 0) :
-		_drawDataDesc(drawDesc), _drawMode(mode), _verticesCount(verCnt), _indicesCount(idxCnt)
-	{
-		_CreateVBDecl(device);
-	}
+	CGeometryProviderBase(CCoreRendererDX9 &parent, const TDrawDataDesc &drawDesc, E_CORE_RENDERER_DRAW_MODE mode, uint verCnt = 0, uint idxCnt = 0);
 
 	CGeometryProviderBase(CGeometryProviderBase &) = delete;
 	void operator =(CGeometryProviderBase &) = delete;
@@ -533,186 +500,18 @@ public:
 	inline const TDrawDataDesc &GetDrawDesc() const { return _drawDataDesc; }
 
 protected:
-	void _CreateVBDecl(const ComPtr<IDirect3DDevice9> &device);
+	void _UpdateVBDecl();
 };
 
-void CGeometryProviderBase::_CreateVBDecl(const ComPtr<IDirect3DDevice9> &device)
+CCoreRendererDX9::CGeometryProviderBase::CGeometryProviderBase(CCoreRendererDX9 &parent, const TDrawDataDesc &drawDesc, E_CORE_RENDERER_DRAW_MODE mode, uint verCnt, uint idxCnt) :
+_VBDecl(parent._VBDeclCache.GetDecl(parent._device.Get(), drawDesc)), _parent(parent), _drawDataDesc(drawDesc), _drawMode(mode), _verticesCount(verCnt), _indicesCount(idxCnt)
+{}
+
+inline void CCoreRendererDX9::CGeometryProviderBase::_UpdateVBDecl()
 {
-	TVertexDecl elements;
-	FillVertexDecl(_drawDataDesc, elements);
-	AssertHR(device->CreateVertexDeclaration(elements, &_VBDecl));
+	_VBDecl = _parent._VBDeclCache.GetDecl(_parent._device.Get(), _drawDataDesc);
 }
 #pragma endregion
-
-namespace
-{
-	class CCoreGeometryBufferBase : virtual public CGeometryProviderBase, public ICoreGeometryBuffer
-#ifdef DX9_LEGACY_BASE_OBJECTS
-		, public IDX9BufferContainer
-#endif
-	{
-		using CGeometryProviderBase::GetVB;
-		using CGeometryProviderBase::GetIB;
-		using CGeometryProviderBase::GetVBDecl;
-
-	protected:
-		CCoreGeometryBufferBase(const ComPtr<IDirect3DDevice9> &device, const TDrawDataDesc &drawDesc, E_CORE_RENDERER_DRAW_MODE mode) :
-			CGeometryProviderBase(device, drawDesc, mode)
-		{
-			_drawDataDesc.pData = _drawDataDesc.pIndexBuffer = nullptr;
-		}
-
-		virtual ~CCoreGeometryBufferBase() override
-		{
-			delete[] _drawDataDesc.pData;
-			delete[] _drawDataDesc.pIndexBuffer;
-		}
-
-	private:
-		void _UpdateVBDecl()
-		{
-			ComPtr<IDirect3DDevice9> device;
-			AssertHR(GetVBDecl()->GetDevice(&device));
-			_CreateVBDecl(device);
-		}
-
-	protected:
-		void _Reallocate(const TDrawDataDesc &drawDesc, uint verticesDataSize, uint indicesDataSize, E_CORE_RENDERER_DRAW_MODE drawMode);
-
-	private:
-		virtual void _GetGeometryDataImpl(void *vertexData, uint verticesDataSize, void *indexData, uint indicesDataSize) const = 0;
-		virtual void _ReallocateImpl(const TDrawDataDesc &drawDesc, uint verticesDataSize, uint indicesDataSize, E_CORE_RENDERER_DRAW_MODE drawMode) = 0;
-
-	public:
-		DGLE_RESULT DGLE_API GetVB(IDirect3DVertexBuffer9 *&VB)
-		{
-			GetVB().CopyTo(&VB);
-			return S_OK;
-		}
-
-		DGLE_RESULT DGLE_API GetIB(IDirect3DIndexBuffer9 *&IB)
-		{
-			GetIB().CopyTo(&IB);
-			return S_OK;
-		}
-
-		DGLE_RESULT DGLE_API GetVBDecl(IDirect3DVertexDeclaration9 *&VBDecl)
-		{
-			GetVBDecl().CopyTo(&VBDecl);
-			return S_OK;
-		}
-
-		DGLE_RESULT DGLE_API GetObjectType(E_ENGINE_OBJECT_TYPE &eType)
-		{
-			eType = EOT_MESH;
-			return S_OK;
-		}
-
-#ifdef DX9_LEGACY_BASE_OBJECTS
-		IDGLE_BASE_IMPLEMENTATION(IDX9BufferContainer, INTERFACE_IMPL(IBaseRenderObjectContainer, INTERFACE_IMPL_END))
-#endif
-
-	public:
-		DGLE_RESULT DGLE_API GetGeometryData(TDrawDataDesc &stDesc, uint uiVerticesDataSize, uint uiIndexesDataSize) override;
-
-		DGLE_RESULT DGLE_API SetGeometryData(const TDrawDataDesc &stDesc, uint uiVerticesDataSize, uint uiIndexesDataSize) override
-		{
-			if (uiVerticesDataSize != GetVerticesDataSize(_drawDataDesc, _verticesCount) || uiIndexesDataSize != GetIndicesDataSize(_drawDataDesc, _indicesCount))
-				return E_INVALIDARG;
-
-			return Reallocate(stDesc, _verticesCount, _indicesCount, _drawMode);
-		}
-
-		DGLE_RESULT DGLE_API Reallocate(const TDrawDataDesc &stDesc, uint uiVerticesCount, uint uiIndicesCount, E_CORE_RENDERER_DRAW_MODE eMode) override
-		{
-			if (_indicesCount == 0 && uiIndicesCount != 0)
-				return E_INVALIDARG;
-
-			try
-			{
-				_Reallocate(stDesc, uiVerticesCount, uiIndicesCount, eMode);
-			}
-			catch (const HRESULT hr)
-			{
-				return hr;
-			}
-
-			return S_OK;
-		}
-
-		DGLE_RESULT DGLE_API GetBufferDimensions(uint &uiVerticesDataSize, uint &uiVerticesCount, uint &uiIndexesDataSize, uint &uiIndicesCount) override
-		{
-			uiVerticesDataSize = GetVerticesDataSize(_drawDataDesc, _verticesCount);
-			uiVerticesCount = _verticesCount;
-			uiIndexesDataSize = GetIndicesDataSize(_drawDataDesc, _indicesCount);
-			uiIndicesCount = _indicesCount;
-			return S_OK;
-		}
-
-		DGLE_RESULT DGLE_API GetBufferDrawDataDesc(TDrawDataDesc &stDesc) override
-		{
-			stDesc = _drawDataDesc;
-			return S_OK;
-		}
-
-		DGLE_RESULT DGLE_API GetBufferDrawMode(E_CORE_RENDERER_DRAW_MODE &eMode) override
-		{
-			eMode = _drawMode;
-			return S_OK;
-		}
-
-		DGLE_RESULT DGLE_API GetBaseObject(IBaseRenderObjectContainer *&prObj) override
-		{
-#ifdef DX9_LEGACY_BASE_OBJECTS
-			prObj = this;
-			return S_OK;
-#else
-			prObj = nullptr;
-			return S_FALSE;
-#endif
-		}
-
-		DGLE_RESULT DGLE_API Free() override
-		{
-			delete this;
-			return S_OK;
-		}
-
-		IDGLE_BASE_IMPLEMENTATION(ICoreGeometryBuffer, INTERFACE_IMPL_END)
-	};
-
-	void CCoreGeometryBufferBase::_Reallocate(const TDrawDataDesc &stDesc, uint uiVerticesCount, uint uiIndicesCount, E_CORE_RENDERER_DRAW_MODE eMode)
-	{
-		_ReallocateImpl(stDesc, GetVerticesDataSize(stDesc, uiVerticesCount), GetIndicesDataSize(stDesc, uiIndicesCount), eMode);
-
-		uint8 *const data = _drawDataDesc.pData, *const idx = _drawDataDesc.pIndexBuffer;
-		_drawDataDesc = stDesc;
-		_drawDataDesc.pData = data;
-		_drawDataDesc.pIndexBuffer = idx;
-
-		_drawMode = eMode;
-
-		_verticesCount = uiVerticesCount;
-		_indicesCount = uiIndicesCount;
-
-		_UpdateVBDecl();
-	}
-
-	DGLE_RESULT DGLE_API CCoreGeometryBufferBase::GetGeometryData(TDrawDataDesc &stDesc, uint uiVerticesDataSize, uint uiIndexesDataSize)
-	{
-		if (uiVerticesDataSize != GetVerticesDataSize(stDesc, _verticesCount) || uiIndexesDataSize != GetIndicesDataSize(stDesc, _indicesCount))
-			return E_INVALIDARG;
-
-		uint8 *data = stDesc.pData, *idx = stDesc.pIndexBuffer;
-		stDesc = _drawDataDesc;
-		stDesc.pData = data;
-		stDesc.pIndexBuffer = idx;
-
-		_GetGeometryDataImpl(stDesc.pData, uiVerticesDataSize, stDesc.pIndexBuffer, uiIndexesDataSize);
-
-		return S_OK;
-	}
-}
 
 #pragma region CGeometryProvider
 class CCoreRendererDX9::CGeometryProvider : virtual public CGeometryProviderBase
@@ -723,12 +522,12 @@ protected:
 
 protected:
 	// TODO: consider using C++11 inheriting ctor (note: may be prevented due to virtual inheritence)
-	CGeometryProvider(const ComPtr<IDirect3DDevice9> &device, const TDrawDataDesc &drawDesc, E_CORE_RENDERER_DRAW_MODE mode) :
-		CGeometryProviderBase(device, drawDesc, mode) {}
+	CGeometryProvider(CCoreRendererDX9 &parent, const TDrawDataDesc &drawDesc, E_CORE_RENDERER_DRAW_MODE mode) :
+		CGeometryProviderBase(parent, drawDesc, mode) {}
 
 public:
-	CGeometryProvider(const ComPtr<IDirect3DDevice9> &device, const TDrawDataDesc &drawDesc, E_CORE_RENDERER_DRAW_MODE mode, uint verCnt, uint idxCnt, CDynamicVB *VB, CDynamicIB *IB) :
-		CGeometryProviderBase(device, drawDesc, mode, verCnt, idxCnt), _VB(VB), _IB(IB) {}
+	CGeometryProvider(CCoreRendererDX9 &parent, const TDrawDataDesc &drawDesc, E_CORE_RENDERER_DRAW_MODE mode, uint verCnt, uint idxCnt, CDynamicVB *VB, CDynamicIB *IB) :
+		CGeometryProviderBase(parent, drawDesc, mode, verCnt, idxCnt), _VB(VB), _IB(IB) {}
 
 public:
 	virtual const ComPtr<IDirect3DVertexBuffer9> &GetVB() const override { assert(_VB);  return _VB->GetVB(); }
@@ -750,13 +549,172 @@ unsigned int CCoreRendererDX9::CGeometryProvider::SetupIB()
 }
 #pragma endregion
 
+#pragma region CCoreGeometryBufferBase
+class CCoreRendererDX9::CCoreGeometryBufferBase : virtual public CGeometryProviderBase, public ICoreGeometryBuffer
+#ifdef DX9_LEGACY_BASE_OBJECTS
+	, public IDX9BufferContainer
+#endif
+{
+	using CGeometryProviderBase::GetVB;
+	using CGeometryProviderBase::GetIB;
+	using CGeometryProviderBase::GetVBDecl;
+
+protected:
+	CCoreGeometryBufferBase(CCoreRendererDX9 &parent, const TDrawDataDesc &drawDesc, E_CORE_RENDERER_DRAW_MODE mode) :
+		CGeometryProviderBase(parent, drawDesc, mode)
+	{
+		_drawDataDesc.pData = _drawDataDesc.pIndexBuffer = nullptr;
+	}
+
+	virtual ~CCoreGeometryBufferBase() override
+	{
+		delete[] _drawDataDesc.pData;
+		delete[] _drawDataDesc.pIndexBuffer;
+	}
+
+protected:
+	void _Reallocate(const TDrawDataDesc &drawDesc, uint verticesDataSize, uint indicesDataSize, E_CORE_RENDERER_DRAW_MODE drawMode);
+
+private:
+	virtual void _GetGeometryDataImpl(void *vertexData, uint verticesDataSize, void *indexData, uint indicesDataSize) const = 0;
+	virtual void _ReallocateImpl(const TDrawDataDesc &drawDesc, uint verticesDataSize, uint indicesDataSize, E_CORE_RENDERER_DRAW_MODE drawMode) = 0;
+
+public:
+	DGLE_RESULT DGLE_API GetVB(IDirect3DVertexBuffer9 *&VB)
+	{
+		GetVB().CopyTo(&VB);
+		return S_OK;
+	}
+
+	DGLE_RESULT DGLE_API GetIB(IDirect3DIndexBuffer9 *&IB)
+	{
+		GetIB().CopyTo(&IB);
+		return S_OK;
+	}
+
+	DGLE_RESULT DGLE_API GetVBDecl(IDirect3DVertexDeclaration9 *&VBDecl)
+	{
+		GetVBDecl().CopyTo(&VBDecl);
+		return S_OK;
+	}
+
+	DGLE_RESULT DGLE_API GetObjectType(E_ENGINE_OBJECT_TYPE &eType)
+	{
+		eType = EOT_MESH;
+		return S_OK;
+	}
+
+#ifdef DX9_LEGACY_BASE_OBJECTS
+	IDGLE_BASE_IMPLEMENTATION(IDX9BufferContainer, INTERFACE_IMPL(IBaseRenderObjectContainer, INTERFACE_IMPL_END))
+#endif
+
+public:
+	DGLE_RESULT DGLE_API GetGeometryData(TDrawDataDesc &stDesc, uint uiVerticesDataSize, uint uiIndexesDataSize) override;
+
+	DGLE_RESULT DGLE_API SetGeometryData(const TDrawDataDesc &stDesc, uint uiVerticesDataSize, uint uiIndexesDataSize) override
+	{
+		if (uiVerticesDataSize != GetVerticesDataSize(_drawDataDesc, _verticesCount) || uiIndexesDataSize != GetIndicesDataSize(_drawDataDesc, _indicesCount))
+			return E_INVALIDARG;
+
+		return Reallocate(stDesc, _verticesCount, _indicesCount, _drawMode);
+	}
+
+	DGLE_RESULT DGLE_API Reallocate(const TDrawDataDesc &stDesc, uint uiVerticesCount, uint uiIndicesCount, E_CORE_RENDERER_DRAW_MODE eMode) override
+	{
+		if (_indicesCount == 0 && uiIndicesCount != 0)
+			return E_INVALIDARG;
+
+		try
+		{
+			_Reallocate(stDesc, uiVerticesCount, uiIndicesCount, eMode);
+		}
+		catch (const HRESULT hr)
+		{
+			return hr;
+		}
+
+		return S_OK;
+	}
+
+	DGLE_RESULT DGLE_API GetBufferDimensions(uint &uiVerticesDataSize, uint &uiVerticesCount, uint &uiIndexesDataSize, uint &uiIndicesCount) override
+	{
+		uiVerticesDataSize = GetVerticesDataSize(_drawDataDesc, _verticesCount);
+		uiVerticesCount = _verticesCount;
+		uiIndexesDataSize = GetIndicesDataSize(_drawDataDesc, _indicesCount);
+		uiIndicesCount = _indicesCount;
+		return S_OK;
+	}
+
+	DGLE_RESULT DGLE_API GetBufferDrawDataDesc(TDrawDataDesc &stDesc) override
+	{
+		stDesc = _drawDataDesc;
+		return S_OK;
+	}
+
+	DGLE_RESULT DGLE_API GetBufferDrawMode(E_CORE_RENDERER_DRAW_MODE &eMode) override
+	{
+		eMode = _drawMode;
+		return S_OK;
+	}
+
+	DGLE_RESULT DGLE_API GetBaseObject(IBaseRenderObjectContainer *&prObj) override
+	{
+#ifdef DX9_LEGACY_BASE_OBJECTS
+		prObj = this;
+		return S_OK;
+#else
+		prObj = nullptr;
+		return S_FALSE;
+#endif
+	}
+
+	DGLE_RESULT DGLE_API Free() override
+	{
+		delete this;
+		return S_OK;
+	}
+
+	IDGLE_BASE_IMPLEMENTATION(ICoreGeometryBuffer, INTERFACE_IMPL_END)
+};
+
+void CCoreRendererDX9::CCoreGeometryBufferBase::_Reallocate(const TDrawDataDesc &stDesc, uint uiVerticesCount, uint uiIndicesCount, E_CORE_RENDERER_DRAW_MODE eMode)
+{
+	_ReallocateImpl(stDesc, GetVerticesDataSize(stDesc, uiVerticesCount), GetIndicesDataSize(stDesc, uiIndicesCount), eMode);
+
+	uint8 *const data = _drawDataDesc.pData, *const idx = _drawDataDesc.pIndexBuffer;
+	_drawDataDesc = stDesc;
+	_drawDataDesc.pData = data;
+	_drawDataDesc.pIndexBuffer = idx;
+
+	_drawMode = eMode;
+
+	_verticesCount = uiVerticesCount;
+	_indicesCount = uiIndicesCount;
+
+	_UpdateVBDecl();
+}
+
+DGLE_RESULT DGLE_API CCoreRendererDX9::CCoreGeometryBufferBase::GetGeometryData(TDrawDataDesc &stDesc, uint uiVerticesDataSize, uint uiIndexesDataSize)
+{
+	if (uiVerticesDataSize != GetVerticesDataSize(stDesc, _verticesCount) || uiIndexesDataSize != GetIndicesDataSize(stDesc, _indicesCount))
+		return E_INVALIDARG;
+
+	uint8 *data = stDesc.pData, *idx = stDesc.pIndexBuffer;
+	stDesc = _drawDataDesc;
+	stDesc.pData = data;
+	stDesc.pIndexBuffer = idx;
+
+	_GetGeometryDataImpl(stDesc.pData, uiVerticesDataSize, stDesc.pIndexBuffer, uiIndexesDataSize);
+
+	return S_OK;
+}
+#pragma endregion
+
 #pragma region CCoreGeometryBufferSoftware
 class CCoreRendererDX9::CCoreGeometryBufferSoftware final : public CCoreGeometryBufferBase, CGeometryProvider
 {
-	const CCoreRendererDX9 &_parent;
-
 public:
-	CCoreGeometryBufferSoftware(const ComPtr<IDirect3DDevice9> &device, const TDrawDataDesc &drawDesc, uint verCnt, uint idxCnt, E_CORE_RENDERER_DRAW_MODE mode, const CCoreRendererDX9 &parent);
+	CCoreGeometryBufferSoftware(CCoreRendererDX9 &parent, const TDrawDataDesc &drawDesc, uint verCnt, uint idxCnt, E_CORE_RENDERER_DRAW_MODE mode);
 
 private:
 	virtual void _GetGeometryDataImpl(void *vertexData, uint verticesDataSize, void *indexData, uint indicesDataSize) const override;
@@ -771,8 +729,8 @@ public:
 };
 
 // 1 call site
-inline CCoreRendererDX9::CCoreGeometryBufferSoftware::CCoreGeometryBufferSoftware(const ComPtr<IDirect3DDevice9> &device, const TDrawDataDesc &drawDesc, uint verCnt, uint idxCnt, E_CORE_RENDERER_DRAW_MODE mode, const CCoreRendererDX9 &parent) :
-CGeometryProviderBase(device, drawDesc, mode), CCoreGeometryBufferBase(device, drawDesc, mode), CGeometryProvider(device, drawDesc, mode), _parent(parent)
+inline CCoreRendererDX9::CCoreGeometryBufferSoftware::CCoreGeometryBufferSoftware(CCoreRendererDX9 &parent, const TDrawDataDesc &drawDesc, uint verCnt, uint idxCnt, E_CORE_RENDERER_DRAW_MODE mode) :
+CGeometryProviderBase(parent, drawDesc, mode), CCoreGeometryBufferBase(parent, drawDesc, mode), CGeometryProvider(parent, drawDesc, mode)
 {
 	_Reallocate(drawDesc, verCnt, idxCnt, mode);
 }
@@ -830,7 +788,7 @@ class CCoreRendererDX9::CCoreGeometryBufferDynamic final : public CCoreGeometryB
 	unsigned int _VBoffset = 0, _IBoffset = 0;
 
 public:
-	CCoreGeometryBufferDynamic(const ComPtr<IDirect3DDevice9> &device, const TDrawDataDesc &drawDesc, uint verCnt, uint idxCnt, E_CORE_RENDERER_DRAW_MODE mode, CCoreRendererDX9 &parent);
+	CCoreGeometryBufferDynamic(CCoreRendererDX9 &parent, const TDrawDataDesc &drawDesc, uint verCnt, uint idxCnt, E_CORE_RENDERER_DRAW_MODE mode);
 
 public:
 	virtual const ComPtr<IDirect3DVertexBuffer9> &GetVB() const override { return _VB.GetVB(); }
@@ -851,8 +809,8 @@ public:
 };
 
 // 1 call site
-inline CCoreRendererDX9::CCoreGeometryBufferDynamic::CCoreGeometryBufferDynamic(const ComPtr<IDirect3DDevice9> &device, const TDrawDataDesc &drawDesc, uint verCnt, uint idxCnt, E_CORE_RENDERER_DRAW_MODE mode, CCoreRendererDX9 &parent) :
-CGeometryProviderBase(device, drawDesc, mode), CCoreGeometryBufferBase(device, drawDesc, mode), _VB(parent, device, mode == CRDM_POINTS)
+inline CCoreRendererDX9::CCoreGeometryBufferDynamic::CCoreGeometryBufferDynamic(CCoreRendererDX9 &parent, const TDrawDataDesc &drawDesc, uint verCnt, uint idxCnt, E_CORE_RENDERER_DRAW_MODE mode) :
+CGeometryProviderBase(parent, drawDesc, mode), CCoreGeometryBufferBase(parent, drawDesc, mode), _VB(parent, mode == CRDM_POINTS)
 {
 	if (idxCnt)
 	{
@@ -860,7 +818,7 @@ CGeometryProviderBase(device, drawDesc, mode), CCoreGeometryBufferBase(device, d
 		_IB.~CDynamicIB();
 		try
 		{
-			new(&_IB) CDynamicIB(parent, device, mode == CRDM_POINTS, drawDesc.bIndexBuffer32);
+			new(&_IB) CDynamicIB(parent, mode == CRDM_POINTS, drawDesc.bIndexBuffer32);
 		}
 		catch (...)
 		{
@@ -914,12 +872,11 @@ void CCoreRendererDX9::CCoreGeometryBufferDynamic::_ReallocateImpl(const TDrawDa
 #pragma region CCoreGeometryBufferStatic
 class CCoreRendererDX9::CCoreGeometryBufferStatic final : public CCoreGeometryBufferBase
 {
-	const ComPtr<IDirect3DDevice9> &_device;
 	ComPtr<IDirect3DVertexBuffer9> _VB;
 	ComPtr<IDirect3DIndexBuffer9> _IB;
 
 public:
-	CCoreGeometryBufferStatic(const ComPtr<IDirect3DDevice9> &device, const TDrawDataDesc &drawDesc, uint verCnt, uint idxCnt, E_CORE_RENDERER_DRAW_MODE mode);
+	CCoreGeometryBufferStatic(CCoreRendererDX9 &parent, const TDrawDataDesc &drawDesc, uint verCnt, uint idxCnt, E_CORE_RENDERER_DRAW_MODE mode);
 
 public:
 	virtual const ComPtr<IDirect3DVertexBuffer9> &GetVB() const override { return _VB; }
@@ -940,8 +897,8 @@ public:
 };
 
 // 1 call site
-inline CCoreRendererDX9::CCoreGeometryBufferStatic::CCoreGeometryBufferStatic(const ComPtr<IDirect3DDevice9> &device, const TDrawDataDesc &drawDesc, uint verCnt, uint idxCnt, E_CORE_RENDERER_DRAW_MODE mode) :
-CGeometryProviderBase(device, drawDesc, mode), CCoreGeometryBufferBase(device, drawDesc, mode), _device(device)
+inline CCoreRendererDX9::CCoreGeometryBufferStatic::CCoreGeometryBufferStatic(CCoreRendererDX9 &parent, const TDrawDataDesc &drawDesc, uint verCnt, uint idxCnt, E_CORE_RENDERER_DRAW_MODE mode) :
+CGeometryProviderBase(parent, drawDesc, mode), CCoreGeometryBufferBase(parent, drawDesc, mode)
 {
 	_Reallocate(drawDesc, verCnt, idxCnt, mode);
 }
@@ -971,7 +928,7 @@ void CCoreRendererDX9::CCoreGeometryBufferStatic::_ReallocateImpl(const TDrawDat
 
 	auto VB = _VB;
 	if (usage_changed || GetVerticesDataSize(drawDesc, _verticesCount) != verticesDataSize)
-		CheckHR(_device->CreateVertexBuffer(verticesDataSize, new_usage, 0, D3DPOOL_MANAGED, &VB, NULL));
+		CheckHR(_parent._device->CreateVertexBuffer(verticesDataSize, new_usage, 0, D3DPOOL_MANAGED, &VB, NULL));
 
 	AssertHR(VB->Lock(0, verticesDataSize, &locked, D3DLOCK_READONLY));
 	memcpy(locked, drawDesc.pData, verticesDataSize);
@@ -982,7 +939,7 @@ void CCoreRendererDX9::CCoreGeometryBufferStatic::_ReallocateImpl(const TDrawDat
 		if (usage_changed || _drawDataDesc.bIndexBuffer32 != drawDesc.bIndexBuffer32 || GetIndicesDataSize(drawDesc, _indicesCount) != indicesDataSize)
 		{
 			decltype(_IB) IB;
-			CheckHR(_device->CreateIndexBuffer(indicesDataSize, new_usage, drawDesc.bIndexBuffer32 ? D3DFMT_INDEX32 : D3DFMT_INDEX16, D3DPOOL_MANAGED, &IB, NULL));
+			CheckHR(_parent._device->CreateIndexBuffer(indicesDataSize, new_usage, drawDesc.bIndexBuffer32 ? D3DFMT_INDEX32 : D3DFMT_INDEX16, D3DPOOL_MANAGED, &IB, NULL));
 			_IB.Swap(IB);
 		}
 
@@ -1388,12 +1345,12 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Initialize(TCrRndrInitResults &stResults,
 
 	try
 	{
-		_immediateVB = new CDynamicVB(*this, _device, false);
-		_immediatePointsVB = new CDynamicVB(*this, _device, true);
-		_immediateIB16 = new CDynamicIB(*this, _device, false, false);
-		_immediateIB32 = new CDynamicIB(*this, _device, false, true);
-		_immediatePointsIB16 = new CDynamicIB(*this, _device, true, false);
-		_immediatePointsIB32 = new CDynamicIB(*this, _device, true, true);
+		_immediateVB = new CDynamicVB(*this, false);
+		_immediatePointsVB = new CDynamicVB(*this, true);
+		_immediateIB16 = new CDynamicIB(*this, false, false);
+		_immediateIB32 = new CDynamicIB(*this, false, true);
+		_immediatePointsIB16 = new CDynamicIB(*this, true, false);
+		_immediatePointsIB32 = new CDynamicIB(*this, true, true);
 	}
 	catch (const HRESULT hr)
 	{
@@ -1760,12 +1717,12 @@ inline void CCoreRendererDX9::CDynamicVB::_CreateBuffer(DWORD usage)
 	_CreateBuffer(device, usage);
 }
 
-CCoreRendererDX9::CDynamicVB::CDynamicVB(CCoreRendererDX9 &parent, const ComPtr<IDirect3DDevice9> &device, bool points) :
+CCoreRendererDX9::CDynamicVB::CDynamicVB(CCoreRendererDX9 &parent, bool points) :
 CDynamicBufferBase(parent,
 	parent._clearBroadcast.AddCallback(bind(&CDynamicVB::_Clear, this)),
 	parent._restoreBroadcast.AddCallback(bind(&CDynamicVB::_Restore, this, placeholders::_1, points)))
 {
-	_Restore(device, points);
+	_Restore(parent._device, points);
 }
 
 void CCoreRendererDX9::CDynamicVB::Reset(bool points)
@@ -1830,12 +1787,12 @@ inline void CCoreRendererDX9::CDynamicIB::_CreateBuffer(DWORD usage, D3DFORMAT f
 	_CreateBuffer(device, usage, format);
 }
 
-CCoreRendererDX9::CDynamicIB::CDynamicIB(CCoreRendererDX9 &parent, const ComPtr<IDirect3DDevice9> &device, bool points, bool _32) :
+CCoreRendererDX9::CDynamicIB::CDynamicIB(CCoreRendererDX9 &parent, bool points, bool _32) :
 CDynamicBufferBase(parent,
 	parent._clearBroadcast.AddCallback(bind(&CDynamicIB::_Clear, this)),
 	parent._restoreBroadcast.AddCallback(bind(&CDynamicIB::_Restore, this, placeholders::_1, points, _32)))
 {
-	_Restore(device, points, _32);
+	_Restore(parent._device, points, _32);
 }
 
 void CCoreRendererDX9::CDynamicIB::Reset(bool points, bool _32)
@@ -1883,13 +1840,63 @@ inline auto CCoreRendererDX9::_GetImmediateIB(bool points, bool _32) const -> CD
 #pragma endregion
 #pragma endregion
 
+namespace
+{
+	typedef D3DVERTEXELEMENT9 TVertexDecl[extent<decltype(vertexElementLUT)>::value + 2];	// +2 for position and D3DDECL_END()
+
+	inline void SetVertexElement(TVertexDecl &elements, UINT stream, BYTE type, BYTE usage)
+	{
+		elements[stream] =
+		{
+			stream,					// Stream
+			0,						// Offset
+			type,					// Type
+			D3DDECLMETHOD_DEFAULT,	// Method
+			usage,					// Usage
+			0						// UsageIndex
+		};
+	}
+
+	template<unsigned idx = 0>
+	inline void FillVertexDecl(const TDrawDataDesc &drawDesc, TVertexDecl &elements, UINT stream = 0)
+	{
+		if (drawDesc.*vertexElementLUT[idx].offset != -1)
+			SetVertexElement(elements, stream++, vertexElementLUT[idx].type, vertexElementLUT[idx].usage);
+		FillVertexDecl<idx + 1>(drawDesc, elements, stream);
+	}
+
+	template<>
+	inline void FillVertexDecl<extent<decltype(vertexElementLUT)>::value>(const TDrawDataDesc &drawDesc, TVertexDecl &elements, UINT stream)
+	{
+		SetVertexElement(elements, stream, drawDesc.bVertices2D ? D3DDECLTYPE_FLOAT2 : D3DDECLTYPE_FLOAT3, D3DDECLUSAGE_POSITION);
+		elements[++stream] = D3DDECL_END();
+	}
+}
+
+#pragma region CVertexDeclarationCache
+inline CCoreRendererDX9::CVertexDeclarationCache::tag::tag(const TDrawDataDesc &desc) :
+packed(), _2D(desc.bVertices2D), normal(desc.uiNormalOffset != ~0), uv(desc.uiTextureVertexOffset != ~0), color(desc.uiColorOffset != ~0) {}
+
+auto CCoreRendererDX9::CVertexDeclarationCache::GetDecl(IDirect3DDevice9 *device, const TDrawDataDesc &desc) -> TCache::mapped_type
+{
+	const auto emplaced = _cache.emplace(desc, nullptr);
+	if (emplaced.second)
+	{
+		TVertexDecl elements;
+		FillVertexDecl(desc, elements);
+		AssertHR(device->CreateVertexDeclaration(elements, &emplaced.first->second));
+	}
+	return emplaced.first->second;
+}
+#pragma endregion
+
 #pragma region CSurfacePool
 inline bool CCoreRendererDX9::CSurfacePool::TSurfaceDesc::operator ==(const TSurfaceDesc &src) const
 {
 	return width == src.width && height == src.height && format == src.format && MSAA == src.MSAA;
 }
 
-size_t CCoreRendererDX9::CSurfacePool::THash::operator ()(const TSurfaceDesc &src) const
+inline size_t CCoreRendererDX9::CSurfacePool::THash::operator ()(const TSurfaceDesc &src) const
 {
 	return ComposeHash(src.width, src.height, src.format, src.MSAA);
 }
@@ -1906,12 +1913,12 @@ _boolParam(type != E_TYPE::COLOR)
 {
 }
 
-ComPtr<IDirect3DSurface9> CCoreRendererDX9::CSurfacePool::GetSurface(IDirect3DDevice9 *device, const TSurfaces::key_type &desc)
+ComPtr<IDirect3DSurface9> CCoreRendererDX9::CSurfacePool::GetSurface(IDirect3DDevice9 *device, const TPool::key_type &desc)
 {
-	const auto range = _surfaces.equal_range(desc);
+	const auto range = _pool.equal_range(desc);
 
 	// find unused
-	const auto unused = find_if(range.first, range.second, [](TSurfaces::const_reference rt)
+	const auto unused = find_if(range.first, range.second, [](TPool::const_reference rt)
 	{
 		return Used(rt.second.surface.Get());
 	});
@@ -1923,19 +1930,19 @@ ComPtr<IDirect3DSurface9> CCoreRendererDX9::CSurfacePool::GetSurface(IDirect3DDe
 	}
 
 	// unused not found, create new
-	TSurfaces::mapped_type surface;
+	TPool::mapped_type surface;
 	AssertHR((device->*_createSurface)(desc.width, desc.height, desc.format, desc.MSAA, 0, _boolParam, &surface.surface, NULL));
-	_surfaces.insert({ desc, surface });
+	_pool.insert({ desc, surface });
 	return surface.surface;
 }
 
 void CCoreRendererDX9::CSurfacePool::Clean()
 {
-	auto cur_rt = _surfaces.begin();
-	while (cur_rt != _surfaces.end())
+	auto cur_rt = _pool.begin();
+	while (cur_rt != _pool.end())
 	{
-		if (!Used(cur_rt->second.surface.Get()) && ++cur_rt->second.idleTime > _maxIdle && _surfaces.size() > _maxPoolSize)
-			cur_rt = _surfaces.erase(cur_rt);
+		if (!Used(cur_rt->second.surface.Get()) && ++cur_rt->second.idleTime > _maxIdle && _pool.size() > _maxPoolSize)
+			cur_rt = _pool.erase(cur_rt);
 		else
 			++cur_rt;
 	}
@@ -2309,13 +2316,13 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CreateGeometryBuffer(ICoreGeometryBuffer 
 		switch (eType)
 		{
 		case CRBT_HARDWARE_DYNAMIC:
-			prBuffer = new CCoreGeometryBufferSoftware(_device, stDrawDesc, uiVerticesCount, uiIndicesCount, eMode, *this);
+			prBuffer = new CCoreGeometryBufferSoftware(*this, stDrawDesc, uiVerticesCount, uiIndicesCount, eMode);
 			break;
 		case CRBT_SOFTWARE:
-			prBuffer = new CCoreGeometryBufferDynamic(_device, stDrawDesc, uiVerticesCount, uiIndicesCount, eMode, *this);
+			prBuffer = new CCoreGeometryBufferDynamic(*this, stDrawDesc, uiVerticesCount, uiIndicesCount, eMode);
 			break;
 		case CRBT_HARDWARE_STATIC:
-			prBuffer = new CCoreGeometryBufferStatic(_device, stDrawDesc, uiVerticesCount, uiIndicesCount, eMode);
+			prBuffer = new CCoreGeometryBufferStatic(*this, stDrawDesc, uiVerticesCount, uiIndicesCount, eMode);
 			break;
 		default:
 			return E_INVALIDARG;
@@ -2811,7 +2818,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Draw(const TDrawDataDesc &stDrawDesc, E_C
 		}
 
 		const bool points = eMode == CRDM_POINTS;
-		CGeometryProvider geom(_device, stDrawDesc, eMode, v_count, i_count, _GetImmediateVB(points), stDrawDesc.pIndexBuffer ? _GetImmediateIB(points, stDrawDesc.bIndexBuffer32) : nullptr);
+		CGeometryProvider geom(*this, stDrawDesc, eMode, v_count, i_count, _GetImmediateVB(points), stDrawDesc.pIndexBuffer ? _GetImmediateIB(points, stDrawDesc.bIndexBuffer32) : nullptr);
 		_Draw(geom);
 
 		return S_OK;
