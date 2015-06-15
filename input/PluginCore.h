@@ -1,6 +1,6 @@
 /*
 \author		Arseny Lezin aka SleepWalk
-\date		25.10.2012 (c)Arseny Lezin
+\date		15.6.2015 (c)Arseny Lezin
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -33,5 +33,5 @@ public:
 
 	DGLE_RESULT DGLE_API GetSubSystemInterface(IEngineSubSystem *&prSubSystem);
 	
-	IDGLE_BASE_IMPLEMENTATION(ISubSystemPlugin)
+	IDGLE_BASE_IMPLEMENTATION(ISubSystemPlugin, INTERFACE_IMPL_END)
 };
