@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		15.6.2015 (c)Andrey Korotkov
+\date		16.6.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -122,7 +122,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	class CVertexDeclarationCache
 	{
 		/*
-			currently there are small amount of unique vertex declarations
+			currently there is small amount of unique vertex declarations
 			therefore fixed-sized LUT would be propably faster
 		*/
 		union tag

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		15.6.2015 (c)Andrey Korotkov
+\date		16.6.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -48,6 +48,39 @@ namespace
 		// rely on NRVO
 		return surface_desc;
 	}
+}
+
+#pragma region geometry
+/*
+	Currently each vertex attribute mapped to dedicated stream which is bad from GPU's input assembler point of view
+	but simplifies handling of source geometry with arbitrary attribute offsets and strides.
+	Consider rearrangement of geometry data in fewer streams for static buffers in order to optimize GPU performance.
+*/
+
+namespace
+{
+	inline uint GetVertexSize(const TDrawDataDesc &desc)
+	{
+		uint res = sizeof(float) * ((desc.bVertices2D ? 2 : 3) + (desc.uiNormalOffset != -1 ? 3 : 0) + (desc.uiTextureVertexOffset != -1 ? 2 : 0) +
+			(desc.uiColorOffset != -1 ? 4 : 0) + (desc.uiTangentOffset != -1 ? 3 : 0) + (desc.uiBinormalOffset != -1 ? 3 : 0));
+
+		if (desc.pAttribs)
+		{
+			/* not implemented */
+		}
+
+		return res;
+	}
+
+	inline uint GetVerticesDataSize(const TDrawDataDesc &desc, uint verticesCount)
+	{
+		return verticesCount * GetVertexSize(desc);
+	}
+
+	inline uint GetIndicesDataSize(const TDrawDataDesc &desc, uint indicesCount)
+	{
+		return indicesCount * (desc.bIndexBuffer32 ? sizeof(uint32) : sizeof(uint16));
+	}
 
 	inline /*constexpr*/ UINT GetVertexElementStride(BYTE type)
 	{
@@ -88,381 +121,6 @@ namespace
 		{ &TDrawDataDesc::uiTangentOffset,			&TDrawDataDesc::uiTangentStride,		D3DDECLTYPE_FLOAT3,	D3DDECLUSAGE_TANGENT	},
 		{ &TDrawDataDesc::uiBinormalOffset,			&TDrawDataDesc::uiBinormalStride,		D3DDECLTYPE_FLOAT3,	D3DDECLUSAGE_BINORMAL	}
 	};
-
-	namespace TexFormatImpl
-	{
-		// TODO: redesign for constexpr
-		typedef uint_fast16_t TPackedLayout;
-
-		// use C++14 constexpr variable template
-		template<unsigned int ...layoutIdx>
-		class PackedLayout
-		{
-			template<unsigned int idx, unsigned int ...rest>
-			struct PackIdx
-			{
-				static const/*expr*/ TPackedLayout value = (idx & 7u) << sizeof...(rest) * 3u | PackIdx<rest...>::value;
-			};
-
-			template<unsigned int idx>
-			struct PackIdx<idx>
-			{
-				static const/*expr*/ TPackedLayout value = idx & 7u;
-			};
-		public:
-			static const/*expr*/ TPackedLayout value = sizeof...(layoutIdx) << 12u | PackIdx<layoutIdx...>::value;
-		};
-
-		template<TPackedLayout packedLayout>
-		struct LayoutLength
-		{
-			static const/*expr*/ auto value = packedLayout >> 12u;
-		};
-
-		template<TPackedLayout packedLayout, unsigned idx>
-		struct UnpackLayout
-		{
-			static const/*expr*/ auto value = packedLayout >> (LayoutLength<packedLayout>::value - 1u - idx) * 3u & 7u;
-		};
-
-		template<typename ...FormatLayouts>
-		class CFormatLayoutArray
-		{
-			template<unsigned idx, typename, typename ...rest>
-			struct atImpl
-			{
-				typedef typename atImpl<idx - 1, rest...>::type type;
-			};
-
-			template<typename FormatLayout, typename ...rest>
-			struct atImpl<0, FormatLayout, rest...>
-			{
-				typedef FormatLayout type;
-			};
-		public:
-			static const/*expr*/ unsigned length = sizeof...(FormatLayouts);
-
-			template<unsigned idx>
-			using at = typename atImpl<idx, FormatLayouts...>::type;
-		};
-
-		template<typename Format, Format inputFormat, TPackedLayout inputLayout>
-		struct TFormatLayout
-		{
-			static const/*expr*/ Format format = inputFormat;
-			static const/*expr*/ TPackedLayout layout = inputLayout;
-		};
-
-#		define DECL_FORMAT_LAYOUT(format, ...) TFormatLayout<decltype(format), format, PackedLayout<__VA_ARGS__>::value>
-
-		typedef CFormatLayoutArray
-		<
-			DECL_FORMAT_LAYOUT(D3DFMT_X8R8G8B8, 2, 1, 0, ~0u),
-			DECL_FORMAT_LAYOUT(D3DFMT_X8B8G8R8, 0, 1, 2, ~0u),
-			DECL_FORMAT_LAYOUT(D3DFMT_A8B8G8R8, 0, 1, 2, 3),
-			DECL_FORMAT_LAYOUT(D3DFMT_A8, 0),
-			DECL_FORMAT_LAYOUT(D3DFMT_R8G8B8, 2, 1, 0),
-			DECL_FORMAT_LAYOUT(D3DFMT_A8R8G8B8, 2, 1, 0, 3)
-		> TD3DFormatLayoutArray;
-
-		typedef CFormatLayoutArray
-		<
-			DECL_FORMAT_LAYOUT(TDF_RGB8, 0, 1, 2),
-			DECL_FORMAT_LAYOUT(TDF_RGBA8, 0, 1, 2, 3),
-			DECL_FORMAT_LAYOUT(TDF_ALPHA8, 0),
-			DECL_FORMAT_LAYOUT(TDF_BGR8, 2, 1, 0),
-			DECL_FORMAT_LAYOUT(TDF_BGRA8, 2, 1, 0, 3)
-		> TDGLEFormatLayoutArray;
-
-#		undef DECL_FORMAT_LAYOUT
-
-		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx, unsigned srcIdx = 0, unsigned srcSize = LayoutLength<srcLayout>::value>
-		struct FindSrcIdx
-		{
-			static const/*expr*/ unsigned value = UnpackLayout<srcLayout, srcIdx>::value == UnpackLayout<dstLayout, dstIdx>::value ? srcIdx : FindSrcIdx<srcLayout, dstLayout, dstIdx, srcIdx + 1>::value;
-		};
-
-		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx, unsigned srcSize>
-		struct FindSrcIdx<srcLayout, dstLayout, dstIdx, srcSize, srcSize>
-		{
-			static const/*expr*/ unsigned value = ~0u;
-		};
-
-		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx = 0, unsigned dstSize = LayoutLength<dstLayout>::value>
-		struct FillTexel
-		{
-			template<class TSource, class TDest>
-			static inline void apply(TSource &source, TDest &dest);
-		};
-
-		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx, unsigned dstSize>
-		template<class TSource, class TDest>
-		inline void FillTexel<srcLayout, dstLayout, dstIdx, dstSize>::apply(TSource &source, TDest &dest)
-		{
-			if (UnpackLayout<dstLayout, dstIdx>::value != 7u)
-			{
-				const/*expr*/ unsigned src_idx = FindSrcIdx<srcLayout, dstLayout, dstIdx>::value;
-				dest[dstIdx] = src_idx == ~0u ? ~0u : source[src_idx];
-			}
-			FillTexel<srcLayout, dstLayout, dstIdx + 1, dstSize>::apply(source, dest);
-		}
-
-		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstSize>
-		struct FillTexel<srcLayout, dstLayout, dstSize, dstSize>
-		{
-			template<class TSource, class TDest>
-			static inline void apply(TSource &source, TDest &dest) {}
-		};
-
-		template<TPackedLayout srcLayout, TPackedLayout dstLayout>
-		inline void TransformRow(const void *const src, void *const dst, unsigned width)
-		{
-			const/*expr*/ auto src_len = LayoutLength<srcLayout>::value, dst_len = LayoutLength<dstLayout>::value;
-			static_assert(src_len, "zero SrcLayout");
-			static_assert(dst_len, "zero DstLayout");
-			typedef const array<uint8_t, src_len> TSource;
-			typedef array<uint8_t, dst_len> TDest;
-			const auto source = static_cast<TSource *const>(src);
-			const auto dest = static_cast<TDest *const>(dst);
-			transform(source, source + width, dest, [](TSource &source)
-			{
-				register TDest dest;
-				FillTexel<srcLayout, dstLayout>::apply(source, dest);
-				return dest;	// rely on NRVO
-			});
-		}
-
-		void CopyRow(const void *const src, void *const dst, unsigned length)
-		{
-			memcpy(dst, src, length);
-		}
-
-		template<TPackedLayout dgleFormatLayout, TPackedLayout d3dFormatLayout>
-		void (*RowConvertion(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
-		{
-			return dgle2d3d ? TransformRow<dgleFormatLayout, d3dFormatLayout> : TransformRow<d3dFormatLayout, dgleFormatLayout>;
-		}
-
-		template<TPackedLayout dgleFormatLayout, TPackedLayout d3dFormatLayout>
-		struct GetRowConvertion
-		{
-			static inline void (*(*apply())(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
-			{
-				return RowConvertion<dgleFormatLayout, d3dFormatLayout>;
-			};
-		};
-
-		template<TPackedLayout formatLayuot>
-		struct GetRowConvertion<formatLayuot, formatLayuot>
-		{
-			static inline void (*(*apply())(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
-			{
-				return RowCopy;
-			};
-		};
-
-		template<unsigned idx = 0>
-		struct IterateD3DRowConvertion
-		{
-			template<TPackedLayout dgleFormatLayout>
-			static inline void (*(*apply(D3DFORMAT d3dFormat))(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
-			{
-				typedef typename TD3DFormatLayoutArray::at<idx> TCurFormatLayout;
-				return d3dFormat == TCurFormatLayout::format ? GetRowConvertion<dgleFormatLayout, TCurFormatLayout::layout>::apply() : IterateD3DRowConvertion<idx + 1>::apply<dgleFormatLayout>(d3dFormat);
-			}
-		};
-
-		template<>
-		struct IterateD3DRowConvertion<TD3DFormatLayoutArray::length>
-		{
-			template<TPackedLayout dgleFormatLayout>
-			static inline void (*(*apply(D3DFORMAT d3dFormat))(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
-			{
-				return nullptr;
-			}
-		};
-
-		template<unsigned idx = 0>
-		inline void (*(*IterateDGLERowConvertion(E_TEXTURE_DATA_FORMAT dgleFormat, D3DFORMAT d3dFormat))(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
-		{
-			typedef typename TDGLEFormatLayoutArray::at<idx> TCurFormatLayout;
-			return dgleFormat == TCurFormatLayout::format ? IterateD3DRowConvertion<>::apply<TCurFormatLayout::layout>(d3dFormat) : IterateDGLERowConvertion<idx + 1>(dgleFormat, d3dFormat);
-		}
-
-		/*
-			workaround for VS 2013 bug (auto ... ->)
-			TODO: try with newer version
-		*/
-		template<>
-		//inline void (*(*IterateDGLERowConvertion<TDGLEFormatLayoutArray::length>(E_TEXTURE_DATA_FORMAT dgleFormat, D3DFORMAT d3dFormat))(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
-		inline auto IterateDGLERowConvertion<TDGLEFormatLayoutArray::length>(E_TEXTURE_DATA_FORMAT dgleFormat, D3DFORMAT d3dFormat) -> void (*(*)(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
-		{
-			return nullptr;
-		}
-
-#if 0
-		// TODO: use C++14 constexpr variable template
-		struct BGRXFormatLayout
-		{
-			static const/*expr*/ unsigned value[];
-		};
-
-		const unsigned BGRXFormatLayout::value[] = { 2, 1, 0, ~0u };
-
-		template<E_TEXTURE_DATA_FORMAT format>
-		struct FormatLayout
-		{
-			static const/*expr*/ unsigned value[];
-		};
-
-#		define DECL_FORMAT_LAYOUT(format, ...)	\
-			template<>							\
-			const unsigned FormatLayout<format>::value[] = { __VA_ARGS__ };
-
-		DECL_FORMAT_LAYOUT(TDF_RGB8, 0, 1, 2)
-		DECL_FORMAT_LAYOUT(TDF_BGR8, 2, 1, 0)
-		//DECL_FORMAT_LAYOUT(TDF_RGBA8, 0, 1, 2, 3)
-#		undef DECL_FORMAT_TRAITS
-
-		template<class SrcLayout, class DstLayout, unsigned dstIdx, unsigned srcIdx = 0, unsigned srcSize = extent<decltype(SrcLayout::value)>::value>
-		struct FindSrcIdx
-		{
-			//static const/*expr*/ unsigned value = SrcLayout::value[srcIdx] == DstLayout::value[dstIdx] ? srcIdx : FindSrcIdx<SrcLayout, DstLayout, dstIdx, srcIdx + 1>::value;
-			static inline unsigned value()
-			{
-				return SrcLayout::value[srcIdx] == DstLayout::value[dstIdx] ? srcIdx : FindSrcIdx<SrcLayout, DstLayout, dstIdx, srcIdx + 1>::value();
-			}
-		};
-
-		template<class SrcLayout, class DstLayout, unsigned dstIdx, unsigned srcSize>
-		struct FindSrcIdx<SrcLayout, DstLayout, dstIdx, srcSize, srcSize>
-		{
-			//static const/*expr*/ unsigned value = ~0u;
-			static inline unsigned value()
-			{
-				return ~0u;
-			}
-		};
-
-		template<class SrcLayout, class DstLayout, unsigned dstIdx = 0, unsigned dstSize = extent<decltype(DstLayout::value)>::value>
-		struct FillTexel
-		{
-			template<class TSource, class TDest>
-			static inline void apply(TSource &source, TDest &dest);
-		};
-
-		template<class SrcLayout, class DstLayout, unsigned dstIdx, unsigned dstSize>
-		template<class TSource, class TDest>
-		inline void FillTexel<SrcLayout, DstLayout, dstIdx, dstSize>::apply(TSource &source, TDest &dest)
-		{
-			if (DstLayout::value[dstIdx] != ~0u)
-			{
-				const/*expr*/ unsigned src_idx = FindSrcIdx<SrcLayout, DstLayout, dstIdx>::value();
-				dest[dstIdx] = src_idx == ~0u ? ~0u : source[src_idx];
-			}
-			FillTexel<SrcLayout, DstLayout, dstIdx + 1, dstSize>::apply(source, dest);
-		}
-
-		template<class SrcLayout, class DstLayout, unsigned dstSize>
-		struct FillTexel<SrcLayout, DstLayout, dstSize, dstSize>
-		{
-			template<class TSource, class TDest>
-			static inline void apply(TSource &source, TDest &dest) {}
-		};
-
-		template<class SrcLayout, class DstLayout>
-		inline void TransformRow(const void *const src, void *const dst, unsigned width)
-		{
-			const/*expr*/ auto src_len = extent<decltype(SrcLayout::value)>::value, dst_len = extent<decltype(DstLayout::value)>::value;
-			static_assert(src_len, "zero SrcLayout");
-			static_assert(dst_len, "zero DstLayout");
-			typedef const array<uint8_t, src_len> TSource;
-			typedef array<uint8_t, dst_len> TDest;
-			const auto source = static_cast<TSource *const>(src);
-			const auto dest = static_cast<TDest *const>(dst);
-			transform(source, source + width, dest, [](TSource &source)
-			{
-				register TDest dest;
-				FillTexel<SrcLayout, DstLayout>::apply(source, dest);
-				return dest;	// rely on NRVO
-			});
-		}
-#endif
-	}
-
-	void (*RowCopy(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
-	{
-		return TexFormatImpl::CopyRow;
-	}
-
-	inline void (*(*GetRowConvertion(E_TEXTURE_DATA_FORMAT dgleFormat, D3DFORMAT d3dFormat))(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
-	{
-		return TexFormatImpl::IterateDGLERowConvertion(dgleFormat, d3dFormat);
-	}
-#if 0
-	template<E_TEXTURE_DATA_FORMAT format>
-	void WriteRow(const void *const src, void *const dst, unsigned width)
-	{
-		using namespace TexFormatImpl;
-		TransformRow<FormatLayout<format>, BGRXFormatLayout>(src, dst, width);
-	}
-
-	template<E_TEXTURE_DATA_FORMAT format>
-	void ReadRow(const void *const src, void *const dst, unsigned width)
-	{
-		using namespace TexFormatImpl;
-		TransformRow<BGRXFormatLayout, FormatLayout<format>>(src, dst, width);
-	}
-
-	template<E_TEXTURE_DATA_FORMAT format>
-	void (*(GetRowConvertion)(bool read))(const void *const src, void *const dst, unsigned length)
-	{
-		return read ? ReadRow<format> : WriteRow<format>;
-	}
-
-	void CopyRow(const void *const src, void *const dst, unsigned length)
-	{
-		memcpy(dst, src, length);
-	}
-
-	void (*(GetRowConvertion)(bool read))(const void *const src, void *const dst, unsigned length)
-	{
-		return CopyRow;
-	}
-#endif
-
-	bool TexFormatSupported(const ComPtr<IDirect3DDevice9> &device, D3DFORMAT format)
-	{
-		D3DDISPLAYMODE mode;
-		AssertHR(device->GetDisplayMode(0, &mode));
-		return SUCCEEDED(d3d->CheckDeviceFormat(D3DADAPTER_DEFAULT, DEVTYPE, mode.Format, 0, D3DRTYPE_TEXTURE, format));
-	}
-}
-
-namespace
-{
-	inline uint GetVertexSize(const TDrawDataDesc &desc)
-	{
-		uint res = sizeof(float) * ((desc.bVertices2D ? 2 : 3) + (desc.uiNormalOffset != -1 ? 3 : 0) + (desc.uiTextureVertexOffset != -1 ? 2 : 0) +
-			(desc.uiColorOffset != -1 ? 4 : 0) + (desc.uiTangentOffset != -1 ? 3 : 0) + (desc.uiBinormalOffset != -1 ? 3 : 0));
-
-		if (desc.pAttribs)
-		{
-			/* not implemented */
-		}
-
-		return res;
-	}
-
-	inline uint GetVerticesDataSize(const TDrawDataDesc &desc, uint verticesCount)
-	{
-		return verticesCount * GetVertexSize(desc);
-	}
-
-	inline uint GetIndicesDataSize(const TDrawDataDesc &desc, uint indicesCount)
-	{
-		return indicesCount * (desc.bIndexBuffer32 ? sizeof(uint32) : sizeof(uint16));
-	}
 }
 
 #pragma region CGeometryProviderBase
@@ -951,8 +609,361 @@ void CCoreRendererDX9::CCoreGeometryBufferStatic::_ReallocateImpl(const TDrawDat
 	_VB.Swap(VB);
 }
 #pragma endregion
+#pragma endregion
 
-#pragma region CDX9Texture
+#pragma region texture
+namespace
+{
+	namespace TexFormatImpl
+	{
+		// TODO: redesign for constexpr
+		typedef uint_fast16_t TPackedLayout;
+
+		// use C++14 constexpr variable template
+		template<unsigned int ...layoutIdx>
+		class PackedLayout
+		{
+			template<unsigned int idx, unsigned int ...rest>
+			struct PackIdx
+			{
+				static const/*expr*/ TPackedLayout value = (idx & 7u) << sizeof...(rest)* 3u | PackIdx<rest...>::value;
+			};
+
+			template<unsigned int idx>
+			struct PackIdx<idx>
+			{
+				static const/*expr*/ TPackedLayout value = idx & 7u;
+			};
+		public:
+			static const/*expr*/ TPackedLayout value = sizeof...(layoutIdx) << 12u | PackIdx<layoutIdx...>::value;
+		};
+
+		template<TPackedLayout packedLayout>
+		struct LayoutLength
+		{
+			static const/*expr*/ auto value = packedLayout >> 12u;
+		};
+
+		template<TPackedLayout packedLayout, unsigned idx>
+		struct UnpackLayout
+		{
+			static const/*expr*/ auto value = packedLayout >> (LayoutLength<packedLayout>::value - 1u - idx) * 3u & 7u;
+		};
+
+		template<typename ...FormatLayouts>
+		class CFormatLayoutArray
+		{
+			template<unsigned idx, typename, typename ...rest>
+			struct atImpl
+			{
+				typedef typename atImpl<idx - 1, rest...>::type type;
+			};
+
+			template<typename FormatLayout, typename ...rest>
+			struct atImpl<0, FormatLayout, rest...>
+			{
+				typedef FormatLayout type;
+			};
+		public:
+			static const/*expr*/ unsigned length = sizeof...(FormatLayouts);
+
+			template<unsigned idx>
+			using at = typename atImpl<idx, FormatLayouts...>::type;
+		};
+
+		template<typename Format, Format inputFormat, TPackedLayout inputLayout>
+		struct TFormatLayout
+		{
+			static const/*expr*/ Format format = inputFormat;
+			static const/*expr*/ TPackedLayout layout = inputLayout;
+		};
+
+#		define DECL_FORMAT_LAYOUT(format, ...) TFormatLayout<decltype(format), format, PackedLayout<__VA_ARGS__>::value>
+
+		typedef CFormatLayoutArray
+			<
+			DECL_FORMAT_LAYOUT(D3DFMT_X8R8G8B8, 2, 1, 0, ~0u),
+			DECL_FORMAT_LAYOUT(D3DFMT_X8B8G8R8, 0, 1, 2, ~0u),
+			DECL_FORMAT_LAYOUT(D3DFMT_A8B8G8R8, 0, 1, 2, 3),
+			DECL_FORMAT_LAYOUT(D3DFMT_A8, 0),
+			DECL_FORMAT_LAYOUT(D3DFMT_R8G8B8, 2, 1, 0),
+			DECL_FORMAT_LAYOUT(D3DFMT_A8R8G8B8, 2, 1, 0, 3)
+			> TD3DFormatLayoutArray;
+
+		typedef CFormatLayoutArray
+			<
+			DECL_FORMAT_LAYOUT(TDF_RGB8, 0, 1, 2),
+			DECL_FORMAT_LAYOUT(TDF_RGBA8, 0, 1, 2, 3),
+			DECL_FORMAT_LAYOUT(TDF_ALPHA8, 0),
+			DECL_FORMAT_LAYOUT(TDF_BGR8, 2, 1, 0),
+			DECL_FORMAT_LAYOUT(TDF_BGRA8, 2, 1, 0, 3)
+			> TDGLEFormatLayoutArray;
+
+#		undef DECL_FORMAT_LAYOUT
+
+		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx, unsigned srcIdx = 0, unsigned srcSize = LayoutLength<srcLayout>::value>
+		struct FindSrcIdx
+		{
+			static const/*expr*/ unsigned value = UnpackLayout<srcLayout, srcIdx>::value == UnpackLayout<dstLayout, dstIdx>::value ? srcIdx : FindSrcIdx<srcLayout, dstLayout, dstIdx, srcIdx + 1>::value;
+		};
+
+		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx, unsigned srcSize>
+		struct FindSrcIdx<srcLayout, dstLayout, dstIdx, srcSize, srcSize>
+		{
+			static const/*expr*/ unsigned value = ~0u;
+		};
+
+		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx = 0, unsigned dstSize = LayoutLength<dstLayout>::value>
+		struct FillTexel
+		{
+			template<class TSource, class TDest>
+			static inline void apply(TSource &source, TDest &dest);
+		};
+
+		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx, unsigned dstSize>
+		template<class TSource, class TDest>
+		inline void FillTexel<srcLayout, dstLayout, dstIdx, dstSize>::apply(TSource &source, TDest &dest)
+		{
+			if (UnpackLayout<dstLayout, dstIdx>::value != 7u)
+			{
+				const/*expr*/ unsigned src_idx = FindSrcIdx<srcLayout, dstLayout, dstIdx>::value;
+				dest[dstIdx] = src_idx == ~0u ? ~0u : source[src_idx];
+			}
+			FillTexel<srcLayout, dstLayout, dstIdx + 1, dstSize>::apply(source, dest);
+		}
+
+		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstSize>
+		struct FillTexel<srcLayout, dstLayout, dstSize, dstSize>
+		{
+			template<class TSource, class TDest>
+			static inline void apply(TSource &source, TDest &dest) {}
+		};
+
+		template<TPackedLayout srcLayout, TPackedLayout dstLayout>
+		inline void TransformRow(const void *const src, void *const dst, unsigned width)
+		{
+			const/*expr*/ auto src_len = LayoutLength<srcLayout>::value, dst_len = LayoutLength<dstLayout>::value;
+			static_assert(src_len, "zero SrcLayout");
+			static_assert(dst_len, "zero DstLayout");
+			typedef const array<uint8_t, src_len> TSource;
+			typedef array<uint8_t, dst_len> TDest;
+			const auto source = static_cast<TSource *const>(src);
+			const auto dest = static_cast<TDest *const>(dst);
+			transform(source, source + width, dest, [](TSource &source)
+			{
+				register TDest dest;
+				FillTexel<srcLayout, dstLayout>::apply(source, dest);
+				return dest;	// rely on NRVO
+			});
+		}
+
+		void CopyRow(const void *const src, void *const dst, unsigned length)
+		{
+			memcpy(dst, src, length);
+		}
+
+		template<TPackedLayout dgleFormatLayout, TPackedLayout d3dFormatLayout>
+		void(*RowConvertion(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
+		{
+			return dgle2d3d ? TransformRow<dgleFormatLayout, d3dFormatLayout> : TransformRow<d3dFormatLayout, dgleFormatLayout>;
+		}
+
+		template<TPackedLayout dgleFormatLayout, TPackedLayout d3dFormatLayout>
+		struct GetRowConvertion
+		{
+			static inline void(*(*apply())(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
+			{
+				return RowConvertion<dgleFormatLayout, d3dFormatLayout>;
+			};
+		};
+
+		template<TPackedLayout formatLayuot>
+		struct GetRowConvertion<formatLayuot, formatLayuot>
+		{
+			static inline void(*(*apply())(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
+			{
+				return RowCopy;
+			};
+		};
+
+		template<unsigned idx = 0>
+		struct IterateD3DRowConvertion
+		{
+			template<TPackedLayout dgleFormatLayout>
+			static inline void(*(*apply(D3DFORMAT d3dFormat))(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
+			{
+				typedef typename TD3DFormatLayoutArray::at<idx> TCurFormatLayout;
+				return d3dFormat == TCurFormatLayout::format ? GetRowConvertion<dgleFormatLayout, TCurFormatLayout::layout>::apply() : IterateD3DRowConvertion<idx + 1>::apply<dgleFormatLayout>(d3dFormat);
+			}
+		};
+
+		template<>
+		struct IterateD3DRowConvertion<TD3DFormatLayoutArray::length>
+		{
+			template<TPackedLayout dgleFormatLayout>
+			static inline void(*(*apply(D3DFORMAT d3dFormat))(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
+			{
+				return nullptr;
+			}
+		};
+
+		template<unsigned idx = 0>
+		inline void(*(*IterateDGLERowConvertion(E_TEXTURE_DATA_FORMAT dgleFormat, D3DFORMAT d3dFormat))(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
+		{
+			typedef typename TDGLEFormatLayoutArray::at<idx> TCurFormatLayout;
+			return dgleFormat == TCurFormatLayout::format ? IterateD3DRowConvertion<>::apply<TCurFormatLayout::layout>(d3dFormat) : IterateDGLERowConvertion<idx + 1>(dgleFormat, d3dFormat);
+		}
+
+		/*
+		workaround for VS 2013 bug (auto ... ->)
+		TODO: try with newer version
+		*/
+		template<>
+		//inline void (*(*IterateDGLERowConvertion<TDGLEFormatLayoutArray::length>(E_TEXTURE_DATA_FORMAT dgleFormat, D3DFORMAT d3dFormat))(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
+		inline auto IterateDGLERowConvertion<TDGLEFormatLayoutArray::length>(E_TEXTURE_DATA_FORMAT dgleFormat, D3DFORMAT d3dFormat) -> void(*(*)(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
+		{
+			return nullptr;
+		}
+
+#if 0
+		// TODO: use C++14 constexpr variable template
+		struct BGRXFormatLayout
+		{
+			static const/*expr*/ unsigned value[];
+		};
+
+		const unsigned BGRXFormatLayout::value[] = { 2, 1, 0, ~0u };
+
+		template<E_TEXTURE_DATA_FORMAT format>
+		struct FormatLayout
+		{
+			static const/*expr*/ unsigned value[];
+		};
+
+#		define DECL_FORMAT_LAYOUT(format, ...)	\
+			template<>							\
+			const unsigned FormatLayout<format>::value[] = { __VA_ARGS__ };
+
+		DECL_FORMAT_LAYOUT(TDF_RGB8, 0, 1, 2)
+			DECL_FORMAT_LAYOUT(TDF_BGR8, 2, 1, 0)
+			//DECL_FORMAT_LAYOUT(TDF_RGBA8, 0, 1, 2, 3)
+#		undef DECL_FORMAT_TRAITS
+
+			template<class SrcLayout, class DstLayout, unsigned dstIdx, unsigned srcIdx = 0, unsigned srcSize = extent<decltype(SrcLayout::value)>::value>
+		struct FindSrcIdx
+		{
+			//static const/*expr*/ unsigned value = SrcLayout::value[srcIdx] == DstLayout::value[dstIdx] ? srcIdx : FindSrcIdx<SrcLayout, DstLayout, dstIdx, srcIdx + 1>::value;
+			static inline unsigned value()
+			{
+				return SrcLayout::value[srcIdx] == DstLayout::value[dstIdx] ? srcIdx : FindSrcIdx<SrcLayout, DstLayout, dstIdx, srcIdx + 1>::value();
+			}
+		};
+
+		template<class SrcLayout, class DstLayout, unsigned dstIdx, unsigned srcSize>
+		struct FindSrcIdx<SrcLayout, DstLayout, dstIdx, srcSize, srcSize>
+		{
+			//static const/*expr*/ unsigned value = ~0u;
+			static inline unsigned value()
+			{
+				return ~0u;
+			}
+		};
+
+		template<class SrcLayout, class DstLayout, unsigned dstIdx = 0, unsigned dstSize = extent<decltype(DstLayout::value)>::value>
+		struct FillTexel
+		{
+			template<class TSource, class TDest>
+			static inline void apply(TSource &source, TDest &dest);
+		};
+
+		template<class SrcLayout, class DstLayout, unsigned dstIdx, unsigned dstSize>
+		template<class TSource, class TDest>
+		inline void FillTexel<SrcLayout, DstLayout, dstIdx, dstSize>::apply(TSource &source, TDest &dest)
+		{
+			if (DstLayout::value[dstIdx] != ~0u)
+			{
+				const/*expr*/ unsigned src_idx = FindSrcIdx<SrcLayout, DstLayout, dstIdx>::value();
+				dest[dstIdx] = src_idx == ~0u ? ~0u : source[src_idx];
+			}
+			FillTexel<SrcLayout, DstLayout, dstIdx + 1, dstSize>::apply(source, dest);
+		}
+
+		template<class SrcLayout, class DstLayout, unsigned dstSize>
+		struct FillTexel<SrcLayout, DstLayout, dstSize, dstSize>
+		{
+			template<class TSource, class TDest>
+			static inline void apply(TSource &source, TDest &dest) {}
+		};
+
+		template<class SrcLayout, class DstLayout>
+		inline void TransformRow(const void *const src, void *const dst, unsigned width)
+		{
+			const/*expr*/ auto src_len = extent<decltype(SrcLayout::value)>::value, dst_len = extent<decltype(DstLayout::value)>::value;
+			static_assert(src_len, "zero SrcLayout");
+			static_assert(dst_len, "zero DstLayout");
+			typedef const array<uint8_t, src_len> TSource;
+			typedef array<uint8_t, dst_len> TDest;
+			const auto source = static_cast<TSource *const>(src);
+			const auto dest = static_cast<TDest *const>(dst);
+			transform(source, source + width, dest, [](TSource &source)
+			{
+				register TDest dest;
+				FillTexel<SrcLayout, DstLayout>::apply(source, dest);
+				return dest;	// rely on NRVO
+			});
+		}
+#endif
+	}
+
+	void(*RowCopy(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
+	{
+		return TexFormatImpl::CopyRow;
+	}
+
+	inline void(*(*GetRowConvertion(E_TEXTURE_DATA_FORMAT dgleFormat, D3DFORMAT d3dFormat))(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
+	{
+		return TexFormatImpl::IterateDGLERowConvertion(dgleFormat, d3dFormat);
+	}
+#if 0
+	template<E_TEXTURE_DATA_FORMAT format>
+	void WriteRow(const void *const src, void *const dst, unsigned width)
+	{
+		using namespace TexFormatImpl;
+		TransformRow<FormatLayout<format>, BGRXFormatLayout>(src, dst, width);
+	}
+
+	template<E_TEXTURE_DATA_FORMAT format>
+	void ReadRow(const void *const src, void *const dst, unsigned width)
+	{
+		using namespace TexFormatImpl;
+		TransformRow<BGRXFormatLayout, FormatLayout<format>>(src, dst, width);
+	}
+
+	template<E_TEXTURE_DATA_FORMAT format>
+	void(*(GetRowConvertion)(bool read))(const void *const src, void *const dst, unsigned length)
+	{
+		return read ? ReadRow<format> : WriteRow<format>;
+	}
+
+	void CopyRow(const void *const src, void *const dst, unsigned length)
+	{
+		memcpy(dst, src, length);
+	}
+
+	void(*(GetRowConvertion)(bool read))(const void *const src, void *const dst, unsigned length)
+	{
+		return CopyRow;
+	}
+#endif
+
+	bool TexFormatSupported(const ComPtr<IDirect3DDevice9> &device, D3DFORMAT format)
+	{
+		D3DDISPLAYMODE mode;
+		AssertHR(device->GetDisplayMode(0, &mode));
+		return SUCCEEDED(d3d->CheckDeviceFormat(D3DADAPTER_DEFAULT, DEVTYPE, mode.Format, 0, D3DRTYPE_TEXTURE, format));
+	}
+}
+
 class CDX9TextureContainer
 #ifdef DX9_LEGACY_BASE_OBJECTS
 	: public IDX9TextureContainer
@@ -980,10 +991,9 @@ public:
 	}
 
 #ifdef DX9_LEGACY_BASE_OBJECTS
-	IDGLE_BASE_IMPLEMENTATION(IOpenGLTextureContainer, INTERFACE_IMPL(IBaseRenderObjectContainer, INTERFACE_IMPL_END))
+	IDGLE_BASE_IMPLEMENTATION(IDX9TextureContainer, INTERFACE_IMPL(IBaseRenderObjectContainer, INTERFACE_IMPL_END))
 #endif
 };
-#pragma endregion
 
 namespace
 {
@@ -1256,6 +1266,7 @@ namespace
 		return ret;
 	}
 }
+#pragma endregion
 
 #pragma region CCoreRendererDX9
 CCoreRendererDX9::CCoreRendererDX9(IEngineCore &engineCore) :
