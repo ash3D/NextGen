@@ -1788,7 +1788,6 @@ CDynamicBufferBase(parent,
 
 void CCoreRendererDX9::CDynamicVB::Reset(bool points)
 {
-	_clearCallbackHandle = _clearCallbackHandle.GetParent()->AddCallback(bind(&CDynamicVB::_Clear, this));
 	_restoreCallbackHandle = _restoreCallbackHandle.GetParent()->AddCallback(bind(&CDynamicVB::_Restore, this, placeholders::_1, points));
 	_CreateBuffer(_Usage(points));
 }
@@ -1858,7 +1857,6 @@ CDynamicBufferBase(parent,
 
 void CCoreRendererDX9::CDynamicIB::Reset(bool points, bool _32)
 {
-	_clearCallbackHandle = _clearCallbackHandle.GetParent()->AddCallback(bind(&CDynamicIB::_Clear, this));
 	_restoreCallbackHandle = _restoreCallbackHandle.GetParent()->AddCallback(bind(&CDynamicIB::_Restore, this, placeholders::_1, points, _32));
 	_CreateBuffer(_Usage(points), _32 ? D3DFMT_INDEX32 : D3DFMT_INDEX16);
 }
