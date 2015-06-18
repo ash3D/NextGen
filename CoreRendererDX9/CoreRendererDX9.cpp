@@ -1191,6 +1191,10 @@ void CCoreRendererDX9::CCoreTexture::SyncRT()
 			memcpy(dst_locked.pBits, src_locked.pBits, row_size);
 		AssertHR(lockable_surface->UnlockRect());
 		AssertHR(_texture->UnlockRect(0));
+
+		if (_texture->GetLevelCount() != 1)
+			AssertHR(D3DXFilterTexture(_texture.Get(), NULL, D3DX_DEFAULT, D3DX_DEFAULT));
+
 		rt = nullptr;
 	}
 }
