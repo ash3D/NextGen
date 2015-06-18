@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		16.6.2015 (c)Andrey Korotkov
+\date		18.6.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -146,46 +146,62 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		TCache::mapped_type GetDecl(IDirect3DDevice9 *device, const TDrawDataDesc &desc);
 	} _VBDeclCache;
 
-	class CSurfacePool
+	class CCoreTexture;
+
+	class CImagePool
 	{
-		struct TSurfaceDesc
+		struct TImageDesc
 		{
 			UINT width, height;
 			D3DFORMAT format;
-			D3DMULTISAMPLE_TYPE MSAA;
 		public:
-			inline bool operator ==(const TSurfaceDesc &src) const;
+			inline bool operator ==(const TImageDesc &src) const;
 		};
 		struct THash
 		{
-			inline size_t operator ()(const TSurfaceDesc &src) const;
+			inline size_t operator ()(const TImageDesc &src) const;
 		};
-		struct TSurface
+		struct TImage
 		{
-			WRL::ComPtr<IDirect3DSurface9> surface;
-			uint_least32_t idleTime = 0;
+			WRL::ComPtr<IDirect3DResource9> image;
+			uint_least32_t idleTime;
+		public:
+			TImage(const WRL::ComPtr<IDirect3DResource9> image) : image(image), idleTime() {}
 		};
-		typedef std::unordered_multimap<TSurfaceDesc, TSurface, THash> TPool;
+		typedef std::unordered_multimap<TImageDesc, TImage, THash> TPool;
 		TPool _pool;
-		HRESULT(__stdcall IDirect3DDevice9::*const _createSurface)(UINT Width, UINT Height, D3DFORMAT Format, D3DMULTISAMPLE_TYPE MultiSample, DWORD MultisampleQuality, BOOL, IDirect3DSurface9 **ppSurface, HANDLE *pSharedHandle);
-		const BOOL _boolParam;
+		typedef WRL::ComPtr<IDirect3DResource9> TCreateImageSignature(IDirect3DDevice9 *device, const TPool::key_type &desc) const;
+		TCreateImageSignature CImagePool::*const _createImage;
+		const bool _param;
 		static const/*expr*/ size_t _maxPoolSize = 16;
 		static const/*expr*/ uint_least32_t _maxIdle = 10;
+	protected:
+		CImagePool(bool texture, bool param);	// param: MSAA for rendertargets, mips for textures
+		CImagePool(CImagePool &) = delete;
+		void operator =(CImagePool &) = delete;
+	protected:
+		WRL::ComPtr<IDirect3DResource9> _GetImage(IDirect3DDevice9 *device, const TPool::key_type &desc);
 	public:
-		enum class E_TYPE
-		{
-			DEPTH,
-			COLOR,
-			COLOR_LOCKABLE,
-		};
-		explicit CSurfacePool(E_TYPE type);
-		CSurfacePool(CSurfacePool &) = delete;
-		void operator =(CSurfacePool &) = delete;
-	public:
-		WRL::ComPtr<IDirect3DSurface9> GetSurface(IDirect3DDevice9 *device, const TPool::key_type &desc);
 		void Clean();
 		void Clear() { _pool.clear(); }
-	} _depthPool, _colorPool, _MSAAcolorPool;
+	private:
+		TCreateImageSignature _CreateRendertarget, _CreateTexture;
+	};
+
+	class CRendertargetPool : public CImagePool
+	{
+	public:
+		explicit CRendertargetPool(bool MSAA) : CImagePool(false, MSAA) {}
+		inline WRL::ComPtr<IDirect3DSurface9> GetRendertarget(IDirect3DDevice9 *device, const TPool::key_type &desc);
+	} _rendertargetPool{ false }, _MSAARendertargetPool{ true };
+
+	class CTexturePool : public CImagePool
+	{
+	public:
+		explicit CTexturePool(bool mipmaps) : CImagePool(true, mipmaps) {}
+		inline WRL::ComPtr<IDirect3DTexture9> GetTexture(IDirect3DDevice9 *device, const TPool::key_type &desc);
+	} _texturePool{ false }, _mipmappedTexturePool{ true };
+
 	class COffscreenDepth
 	{
 		WRL::ComPtr<IDirect3DSurface9> _surface;
@@ -193,8 +209,9 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		WRL::ComPtr<IDirect3DSurface9> Get(IDirect3DDevice9 *device, UINT width, UINT height, D3DMULTISAMPLE_TYPE MSAA);
 		void Clear() { _surface.Reset(); }
 	} _offcreenDepth;
+
 	static const/*expr*/ D3DFORMAT _offscreenDepthFormat = D3DFMT_D24S8;
-	ICoreTexture *_curRenderTarget = nullptr;
+	CCoreTexture *_curRenderTarget = nullptr;
 	WRL::ComPtr<IDirect3DSurface9> _screenColorTarget, _screenDepthTarget;
 	D3DVIEWPORT9 _screenViewport;
 	uint_least8_t _selectedTexLayer = 0;
@@ -268,7 +285,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 #if 1
 		/*
 			VS 2013 does not support default move ctor generation for such struct
-			TODO: try to remove it future VS version
+			TODO: try to remove it in future VS version
 		*/
 	public:
 		TStates() = default;
