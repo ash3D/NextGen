@@ -1123,7 +1123,7 @@ CCoreRendererDX9::CCoreTexture::CCoreTexture(
 	CCoreRendererDX9 &parent, const ComPtr<IDirect3DTexture9> texture, E_TEXTURE_TYPE type, E_TEXTURE_DATA_FORMAT format, E_TEXTURE_LOAD_FLAGS loadFlags,
 	void (*RowConvertion(bool dgle2d3d))(const void *const src, void *const dst, unsigned length), uint bytesPerPixel,
 	bool mipMaps, DWORD anisoLevel, DWORD addressCaps, DGLE_RESULT &ret) :
-	_parent(parent), CDX9TextureContainer(texture), _clearCallbackHandle(parent._clearBroadcast.AddCallback([this]() { rt = nullptr; })), _type(type), format(format), _loadFlags(loadFlags),
+	_parent(parent), CDX9TextureContainer(texture), _clearCallbackHandle(parent._clearBroadcast.AddCallback(bind(&CCoreTexture::SyncRT, this))), _type(type), format(format), _loadFlags(loadFlags),
 	_RowConvertion(RowConvertion), _bytesPerPixel(bytesPerPixel), _mipMaps(mipMaps), anisoLevel(anisoLevel),
 	magFilter(loadFlags & TLF_FILTERING_NONE ? D3DTEXF_POINT : D3DTEXF_LINEAR),
 	minFilter(loadFlags & TLF_FILTERING_NONE ? D3DTEXF_POINT : loadFlags & TLF_FILTERING_ANISOTROPIC ? D3DTEXF_ANISOTROPIC : D3DTEXF_LINEAR),
