@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.6.2015 (c)Andrey Korotkov
+\date		19.6.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1687,7 +1687,8 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::ReadFrameBuffer(uint uiX, uint uiY, uint 
 	D3DLOCKED_RECT locked;
 
 	AssertHR(frame_buffer->LockRect(&locked, prect, D3DLOCK_READONLY));
-	for (uint row = 0; row < uiHeight; row++, pData += bytes, (uint8 *&)locked.pBits += locked.Pitch)
+	pData += (uiHeight - 1) * bytes;
+	for (uint row = 0; row < uiHeight; row++, pData -= bytes, (uint8 *&)locked.pBits += locked.Pitch)
 		ReadRow(locked.pBits, pData, row_length);
 	AssertHR(frame_buffer->UnlockRect());
 
@@ -2153,6 +2154,12 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::SetRenderTarget(ICoreTexture *pTexture)
 	}
 	else
 		return S_FALSE;
+
+	D3DMATRIX proj;
+	AssertHR(_device->GetTransform(D3DTS_PROJECTION, &proj));
+	for (int i = 0; i < 4; i++)
+		proj.m[i][1] = -proj.m[i][1];
+	AssertHR(_device->SetTransform(D3DTS_PROJECTION, &proj));
 
 	return S_OK;
 }
@@ -2796,7 +2803,11 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::SetMatrix(const TMatrix4x4 &stMatrix, E_M
 	if (eMatType == MT_PROJECTION)
 	{
 		for (int i = 0; i < 4; i++)
+		{
+			if (_curRenderTarget)
+				xform._2D[i][1] = -xform._2D[i][1];
 			xform._2D[i][2] = (xform._2D[i][2] + xform._2D[i][3]) * .5f;
+		}
 	}
 	AssertHR(_device->SetTransform(_MatrixType_DGLE_2_D3D(eMatType), reinterpret_cast<const D3DMATRIX *>(xform._2D)));
 	return S_OK;
@@ -2808,7 +2819,11 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::GetMatrix(TMatrix4x4 &stMatrix, E_MATRIX_
 	if (eMatType == MT_PROJECTION)
 	{
 		for (int i = 0; i < 4; i++)
+		{
+			if (_curRenderTarget)
+				stMatrix._2D[i][1] = -stMatrix._2D[i][1];
 			stMatrix._2D[i][2] = stMatrix._2D[i][2] * 2 - stMatrix._2D[i][3];
+		}
 	}
 	return S_OK;
 }
