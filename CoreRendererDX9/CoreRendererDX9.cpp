@@ -2155,11 +2155,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::SetRenderTarget(ICoreTexture *pTexture)
 	else
 		return S_FALSE;
 
-	D3DMATRIX proj;
-	AssertHR(_device->GetTransform(D3DTS_PROJECTION, &proj));
-	for (int i = 0; i < 4; i++)
-		proj.m[i][1] = -proj.m[i][1];
-	AssertHR(_device->SetTransform(D3DTS_PROJECTION, &proj));
+	_SetProjXform();
 
 	return S_OK;
 }
@@ -2598,6 +2594,25 @@ const/*expr*/ D3DTEXTURESTAGESTATETYPE CCoreRendererDX9::_stageStateTypes[] =
 	D3DTSS_CONSTANT,
 };
 
+void CCoreRendererDX9::_SetProjXform()
+{
+	D3DSURFACE_DESC rt_desc;
+	ComPtr<IDirect3DSurface9> cur_rt;
+	AssertHR(_device->GetRenderTarget(0, &cur_rt));
+	AssertHR(cur_rt->GetDesc(&rt_desc));
+
+	TMatrix4x4 patched_xform = _projXform;
+	for (int i = 0; i < 4; i++)
+	{
+		if (_curRenderTarget)
+			patched_xform._2D[i][1] = -patched_xform._2D[i][1];
+		patched_xform._2D[i][2] = (patched_xform._2D[i][2] + patched_xform._2D[i][3]) * .5f;
+	}
+	patched_xform._2D[3][0] -= 1.f / rt_desc.Width;
+	patched_xform._2D[3][1] += 1.f / rt_desc.Height;
+	AssertHR(_device->SetTransform(D3DTS_PROJECTION, reinterpret_cast<const D3DMATRIX *>(patched_xform._2D)));
+}
+
 void CCoreRendererDX9::_PushStates()
 {
 	typedef decltype(_stateStack) TStateStack;
@@ -2802,29 +2817,20 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::SetMatrix(const TMatrix4x4 &stMatrix, E_M
 	TMatrix4x4 xform = stMatrix;
 	if (eMatType == MT_PROJECTION)
 	{
-		for (int i = 0; i < 4; i++)
-		{
-			if (_curRenderTarget)
-				xform._2D[i][1] = -xform._2D[i][1];
-			xform._2D[i][2] = (xform._2D[i][2] + xform._2D[i][3]) * .5f;
-		}
+		_projXform = stMatrix;
+		_SetProjXform();
 	}
-	AssertHR(_device->SetTransform(_MatrixType_DGLE_2_D3D(eMatType), reinterpret_cast<const D3DMATRIX *>(xform._2D)));
+	else
+		AssertHR(_device->SetTransform(_MatrixType_DGLE_2_D3D(eMatType), reinterpret_cast<const D3DMATRIX *>(xform._2D)));
 	return S_OK;
 }
 
 DGLE_RESULT DGLE_API CCoreRendererDX9::GetMatrix(TMatrix4x4 &stMatrix, E_MATRIX_TYPE eMatType)
 {
-	AssertHR(_device->GetTransform(_MatrixType_DGLE_2_D3D(eMatType), reinterpret_cast<D3DMATRIX *>(stMatrix._2D)));
 	if (eMatType == MT_PROJECTION)
-	{
-		for (int i = 0; i < 4; i++)
-		{
-			if (_curRenderTarget)
-				stMatrix._2D[i][1] = -stMatrix._2D[i][1];
-			stMatrix._2D[i][2] = stMatrix._2D[i][2] * 2 - stMatrix._2D[i][3];
-		}
-	}
+		stMatrix = _projXform;
+	else
+		AssertHR(_device->GetTransform(_MatrixType_DGLE_2_D3D(eMatType), reinterpret_cast<D3DMATRIX *>(stMatrix._2D)));
 	return S_OK;
 }
 

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.6.2015 (c)Andrey Korotkov
+\date		19.6.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -38,6 +38,8 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	unsigned int _maxTexResolution[2], _maxAnisotropy, _maxTexUnits, _maxTexStages, _maxRTs, _maxVertexStreams, _maxClipPlanes, _maxVSFloatConsts;
 	DWORD _textureAddressCaps;
 	bool _NPOTTexSupport, _NSQTexSupport, _mipmapSupport, _anisoSupport;
+
+	TMatrix4x4 _projXform = MatrixIdentity();
 
 	CBroadcast<> _frameEndBroadcast, _clearBroadcast;
 	CBroadcast<const WRL::ComPtr<IDirect3DDevice9> &> _restoreBroadcast;
@@ -328,8 +330,9 @@ private:
 
 	D3DPRESENT_PARAMETERS _GetPresentParams(TEngineWindow &wnd) const;
 
-	void _PushStates();
-	void _PopStates();
+	void _SetProjXform();
+
+	void _PushStates(), _PopStates();
 
 	inline D3DTRANSFORMSTATETYPE _MatrixType_DGLE_2_D3D(E_MATRIX_TYPE dgleType) const;
 
