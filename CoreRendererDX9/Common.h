@@ -23,6 +23,7 @@ See "DGLE.h" for more details.
 #include <functional>
 #include <utility>
 #include <type_traits>
+#include <filesystem>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -192,4 +193,4 @@ void CBroadcast<Params...>::operator ()(Params ...params) const
 void LogWrite(IEngineCore &engineCore, const char *pcTxt, E_LOG_TYPE eType, const char *pcSrcFileName, int iSrcLineNumber);
 
 #define PTHIS(cl_name) (reinterpret_cast<cl_name *>(pParameter))
-#define LOG(txt, type) LogWrite(_engineCore, std::string(txt).c_str(), type, __FILE__, __LINE__)
+#define LOG(txt, type) LogWrite(_engineCore, std::string(txt).c_str(), type, std::tr2::sys::path(__FILE__).filename().c_str(), __LINE__)
