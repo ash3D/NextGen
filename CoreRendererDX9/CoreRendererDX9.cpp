@@ -2290,6 +2290,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::SetRenderTarget(ICoreTexture *pTexture)
 				if (FAILED(_device->StretchRect(offscreen_target.Get(), NULL, resolved_surface.Get(), NULL, D3DTEXF_NONE)))
 					return E_FAIL;
 				_curRenderTarget->rt = resolved_texture;
+				AssertHR(resolved_texture->SetPrivateData(__uuidof(CCoreTexture), this, sizeof this, 0));
 			}
 			AssertHR(_device->SetRenderTarget(0, _screenColorTarget.Get()));
 			AssertHR(_device->SetDepthStencilSurface(_screenDepthTarget.Get()));
@@ -2338,6 +2339,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::SetRenderTarget(ICoreTexture *pTexture)
 			{
 				auto &texture_pool = texture.GetTex()->GetLevelCount() == 1 ? _texturePool : _mipmappedTexturePool;
 				texture.rt = texture_pool.GetTexture(_device.Get(), { dst_desc.Width, dst_desc.Height, dst_desc.Format });
+				AssertHR(texture.rt->SetPrivateData(__uuidof(CCoreTexture), this, sizeof this, 0));
 			}
 			AssertHR(texture.rt->GetSurfaceLevel(0, &color_target));
 		}
@@ -3107,7 +3109,8 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::BindTexture(ICoreTexture *pTex, uint uiTe
 	_selectedTexLayer = uiTextureLayer;
 
 	const auto tex = static_cast<CCoreTexture *>(pTex);
-	AssertHR(_device->SetTexture(uiTextureLayer, tex ? tex->GetTex().Get() : NULL));
+	if (FAILED(_device->SetTexture(uiTextureLayer, tex ? tex->GetTex().Get() : NULL)))
+		return E_FAIL;
 	D3DTEXTUREOP colorop, alphaop;
 	if (tex)
 	{
