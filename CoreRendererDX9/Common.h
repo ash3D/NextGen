@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		15.6.2015 (c)Korotkov Andrey
+\date		22.6.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -11,7 +11,6 @@ See "DGLE.h" for more details.
 
 #include "DGLE.h"
 #include "DGLE_CoreRenderer.h"
-#include "utils.h"
 
 #undef min
 #undef max
@@ -26,6 +25,7 @@ See "DGLE.h" for more details.
 #include <type_traits>
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <cmath>
 
@@ -192,4 +192,4 @@ void CBroadcast<Params...>::operator ()(Params ...params) const
 void LogWrite(IEngineCore &engineCore, const char *pcTxt, E_LOG_TYPE eType, const char *pcSrcFileName, int iSrcLineNumber);
 
 #define PTHIS(cl_name) (reinterpret_cast<cl_name *>(pParameter))
-#define LOG(txt, type) LogWrite(_engineCore, std::string(txt).c_str(), type, GetFileName(__FILE__).c_str(), __LINE__)
+#define LOG(txt, type) LogWrite(_engineCore, std::string(txt).c_str(), type, __FILE__, __LINE__)
