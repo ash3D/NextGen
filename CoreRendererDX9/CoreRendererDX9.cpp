@@ -3144,10 +3144,15 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::GetBindedTexture(ICoreTexture *&prTex, ui
 
 	ComPtr<IDirect3DBaseTexture9> d3dTex;
 	AssertHR(_device->GetTexture(uiTextureLayer, &d3dTex));
+
+	if (!d3dTex)
+		return S_FALSE;
+
 	DWORD data_size;
 	if (FAILED(d3dTex->GetPrivateData(__uuidof(CCoreTexture), &prTex, &data_size)))
 		return E_FAIL;
 	assert(data_size == sizeof prTex);
+	prTex = reinterpret_cast<CCoreTexture *&>(prTex);
 
 	return S_OK;
 }
