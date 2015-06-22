@@ -2791,6 +2791,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::PushStates()
 
 	AssertHR(_device->GetDepthStencilSurface(&cur_bindings.deptStensil));
 
+#ifdef SAVE_ALL_STATES
 	AssertHR(_device->GetIndices(&cur_bindings.IB));
 
 	typedef decltype(cur_bindings.vertexStreams) TVertexStreams;
@@ -2802,6 +2803,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::PushStates()
 	}
 
 	AssertHR(_device->GetVertexDeclaration(&cur_bindings.VBDecl));
+#endif
 
 	_bindingsStack.push(move(cur_bindings));
 
@@ -2833,8 +2835,6 @@ void CCoreRendererDX9::_PopStates()
 #ifdef SAVE_ALL_STATES
 	for (DWORD idx = 0; idx < _maxClipPlanes; idx++)
 		AssertHR(_device->SetClipPlane(idx, saved_state.clipPlanes[idx]));
-#endif
-#ifdef SAVE_ALL_STATES
 	AssertHR(_device->SetFVF(saved_state.FVF));
 	AssertHR(_device->SetNPatchMode(saved_state.NPatchMode));
 
@@ -2870,6 +2870,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::PopStates()
 
 	AssertHR(_device->SetDepthStencilSurface(saved_bindings.deptStensil.Get()));
 
+#ifdef SAVE_ALL_STATES
 	AssertHR(_device->SetIndices(saved_bindings.IB.Get()));
 
 	for (DWORD idx = 0; idx < _maxVertexStreams; idx++)
@@ -2879,6 +2880,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::PopStates()
 	}
 
 	AssertHR(_device->SetVertexDeclaration(saved_bindings.VBDecl.Get()));
+#endif
 
 	_bindingsStack.pop();
 

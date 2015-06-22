@@ -222,6 +222,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	{
 		std::unique_ptr<WRL::ComPtr<IDirect3DSurface9> []> rendertargets;
 		WRL::ComPtr<IDirect3DSurface9> deptStensil;
+#ifdef SAVE_ALL_STATES
 		WRL::ComPtr<IDirect3DIndexBuffer9> IB;
 		struct TVertexStream
 		{
@@ -232,6 +233,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		};
 		std::unique_ptr<TVertexStream []> vertexStreams;
 		WRL::ComPtr<IDirect3DVertexDeclaration9> VBDecl;
+#endif
 #if 1
 		/*
 		VS 2013 does not support default move ctor generation for such struct
@@ -241,10 +243,13 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		TBindings() = default;
 		TBindings(TBindings &&src) :
 			rendertargets(std::move(src.rendertargets)),
-			deptStensil(std::move(src.deptStensil)),
+			deptStensil(std::move(src.deptStensil))
+#ifdef SAVE_ALL_STATES
+			,
 			IB(std::move(src.IB)),
 			vertexStreams(std::move(src.vertexStreams)),
 			VBDecl(std::move(src.VBDecl))
+#endif
 			{}
 #endif
 	};
@@ -272,8 +277,6 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		RECT scissorRect;
 #ifdef SAVE_ALL_STATES
 		std::unique_ptr<float [][4]> clipPlanes;
-#endif
-#ifdef SAVE_ALL_STATES
 		DWORD FVF;
 		FLOAT NPatchMode;
 		WRL::ComPtr<IDirect3DVertexShader9> VS;
@@ -301,8 +304,6 @@ class CCoreRendererDX9 final : public ICoreRenderer
 			scissorRect(std::move(src.scissorRect)),
 #ifdef SAVE_ALL_STATES
 			clipPlanes(std::move(src.clipPlanes)),
-#endif
-#ifdef SAVE_ALL_STATES
 			FVF(std::move(src.FVF)),
 			NPatchMode(std::move(src.NPatchMode)),
 			VS(std::move(src.VS)),
