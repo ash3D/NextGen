@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.6.2015 (c)Andrey Korotkov
+\date		23.6.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -973,9 +973,7 @@ class CDX9TextureContainer
 {
 protected:
 	ComPtr<IDirect3DTexture9> _texture;
-
-public:
-	ComPtr<IDirect3DTexture9> rt;
+	ComPtr<IDirect3DTexture9> _rt;
 
 protected:
 	CDX9TextureContainer() = default;
@@ -1049,9 +1047,12 @@ public:
 	CCoreTexture(const TInit &init, E_TEXTURE_TYPE type, const uint8_t *data, unsigned int width, unsigned int height, bool mipsPresented, E_CORE_RENDERER_DATA_ALIGNMENT dataAlignment, E_TEXTURE_LOAD_FLAGS loadFlags, DWORD anisoLevel, DGLE_RESULT &ret);
 	CCoreTexture(CCoreTexture &) = delete;
 	void operator =(CCoreTexture &) = delete;
+	~CCoreTexture();
 
 public:
-	inline const ComPtr<IDirect3DTexture9> &GetTex() const { return rt ? rt : _texture; }
+	inline const ComPtr<IDirect3DTexture9> &GetTex() const { return _rt ? _rt : _texture; }
+	inline const ComPtr<IDirect3DTexture9> &GetRT() const { return _rt; }
+	void SetRT(const ComPtr<IDirect3DTexture9> &rt);
 	void SyncRT();
 
 private:
@@ -1331,9 +1332,36 @@ addressMode(loadFlags & TLF_COORDS_CLAMP ? D3DTADDRESS_CLAMP : loadFlags & TLF_C
 		ret = S_FALSE;
 }
 
+CCoreRendererDX9::CCoreTexture::~CCoreTexture()
+{
+	if (_parent._curRenderTarget == this)
+		_parent.SetRenderTarget(nullptr);
+	if (_texture)
+		AssertHR(_texture->FreePrivateData(__uuidof(CCoreTexture)));
+	if (_rt)
+	{
+		CCoreTexture *null = nullptr;
+		AssertHR(_rt->SetPrivateData(__uuidof(CCoreTexture), &null, sizeof null, 0));
+	}
+}
+
+void CCoreRendererDX9::CCoreTexture::SetRT(const ComPtr<IDirect3DTexture9> &rt)
+{
+	if (_rt)
+	{
+		CCoreTexture *null = nullptr;
+		AssertHR(_rt->SetPrivateData(__uuidof(CCoreTexture), &null, sizeof null, 0));
+	}
+	if (_rt = rt)
+	{
+		CCoreTexture *ptr = this;
+		AssertHR(_rt->SetPrivateData(__uuidof(CCoreTexture), &ptr, sizeof ptr, 0));
+	}
+}
+
 void CCoreRendererDX9::CCoreTexture::SyncRT()
 {
-	if (rt)
+	if (_rt)
 	{
 		D3DSURFACE_DESC desc;
 		AssertHR(_texture->GetLevelDesc(0, &desc));
@@ -1355,7 +1383,7 @@ void CCoreRendererDX9::CCoreTexture::SyncRT()
 		row_size *= desc.Width;
 
 		ComPtr<IDirect3DSurface9> rt_surface;
-		AssertHR(rt->GetSurfaceLevel(0, &rt_surface));
+		AssertHR(_rt->GetSurfaceLevel(0, &rt_surface));
 		const auto lockable_surface = _parent._rendertargetPool.GetRendertarget(_parent._device.Get(), { desc.Width, desc.Height, desc.Format });
 		AssertHR(_parent._device->StretchRect(rt_surface.Get(), NULL, lockable_surface.Get(), NULL, D3DTEXF_NONE));
 
@@ -1370,7 +1398,25 @@ void CCoreRendererDX9::CCoreTexture::SyncRT()
 		if (_texture->GetLevelCount() != 1)
 			AssertHR(D3DXFilterTexture(_texture.Get(), NULL, D3DX_DEFAULT, D3DX_DEFAULT));
 
-		rt = nullptr;
+		for (decltype(_maxTexUnits) cur_stage = 0; cur_stage < _parent._maxTexUnits; cur_stage++)
+		{
+			ComPtr<IDirect3DBaseTexture9> d3dTex;
+			AssertHR(_parent._device->GetTexture(cur_stage, &d3dTex));
+
+			if (!d3dTex)
+				continue;
+
+			CCoreTexture *bound_tex;
+			DWORD data_size;
+			if (FAILED(d3dTex->GetPrivateData(__uuidof(CCoreTexture), &bound_tex, &data_size)) || !bound_tex)
+				continue;
+			assert(data_size == sizeof bound_tex);
+
+			if (bound_tex == this)
+				AssertHR(_parent._device->SetTexture(cur_stage, _texture.Get()));
+		}
+
+		SetRT(nullptr);
 	}
 }
 
@@ -1406,7 +1452,9 @@ void CCoreRendererDX9::CCoreTexture::_Reallocate(const uint8_t *data, unsigned i
 	default:					throw E_ABORT;
 	}
 	_texture.Swap(texture);
-	AssertHR(_texture->SetPrivateData(__uuidof(CCoreTexture), this, sizeof this, 0));
+
+	CCoreTexture *ptr = this;
+	AssertHR(_texture->SetPrivateData(__uuidof(CCoreTexture), &ptr, sizeof ptr, 0));
 
 	unsigned int cur_mip = 0;
 	do
@@ -1509,7 +1557,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CCoreTexture::Reallocate(const uint8 *pDa
 		return hr;
 	}
 
-	rt = nullptr;
+	SetRT(nullptr);
 
 	if (_mipMaps && !bMipMaps)
 	{
@@ -2283,14 +2331,15 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::SetRenderTarget(ICoreTexture *pTexture)
 			AssertHR(offscreen_target->GetDesc(&offscreen_desc));
 			if (offscreen_desc.MultiSampleType != D3DMULTISAMPLE_NONE)
 			{
-				auto &texture_pool = _curRenderTarget->GetTex()->GetLevelCount() == 1 ? _texturePool : _mipmappedTexturePool;
-				const auto resolved_texture = texture_pool.GetTexture(_device.Get(), { offscreen_desc.Width, offscreen_desc.Height, offscreen_desc.Format });
+				if (!_curRenderTarget->GetRT())
+				{
+					auto &texture_pool = _curRenderTarget->GetTex()->GetLevelCount() == 1 ? _texturePool : _mipmappedTexturePool;
+					_curRenderTarget->SetRT(texture_pool.GetTexture(_device.Get(), { offscreen_desc.Width, offscreen_desc.Height, offscreen_desc.Format }));
+				}
 				ComPtr<IDirect3DSurface9> resolved_surface;
-				AssertHR(resolved_texture->GetSurfaceLevel(0, &resolved_surface));
+				AssertHR(_curRenderTarget->GetRT()->GetSurfaceLevel(0, &resolved_surface));
 				if (FAILED(_device->StretchRect(offscreen_target.Get(), NULL, resolved_surface.Get(), NULL, D3DTEXF_NONE)))
 					return E_FAIL;
-				_curRenderTarget->rt = resolved_texture;
-				AssertHR(resolved_texture->SetPrivateData(__uuidof(CCoreTexture), this, sizeof this, 0));
 			}
 			AssertHR(_device->SetRenderTarget(0, _screenColorTarget.Get()));
 			AssertHR(_device->SetDepthStencilSurface(_screenDepthTarget.Get()));
@@ -2335,13 +2384,12 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::SetRenderTarget(ICoreTexture *pTexture)
 		ComPtr<IDirect3DSurface9> color_target;
 		if (dst_desc.MultiSampleType == D3DMULTISAMPLE_NONE)
 		{
-			if (!texture.rt)
+			if (!texture.GetRT())
 			{
 				auto &texture_pool = texture.GetTex()->GetLevelCount() == 1 ? _texturePool : _mipmappedTexturePool;
-				texture.rt = texture_pool.GetTexture(_device.Get(), { dst_desc.Width, dst_desc.Height, dst_desc.Format });
-				AssertHR(texture.rt->SetPrivateData(__uuidof(CCoreTexture), this, sizeof this, 0));
+				texture.SetRT(texture_pool.GetTexture(_device.Get(), { dst_desc.Width, dst_desc.Height, dst_desc.Format }));
 			}
-			AssertHR(texture.rt->GetSurfaceLevel(0, &color_target));
+			AssertHR(texture.GetRT()->GetSurfaceLevel(0, &color_target));
 		}
 		else
 			color_target = _MSAARendertargetPool.GetRendertarget(_device.Get(), { dst_desc.Width, dst_desc.Height, dst_desc.Format });
@@ -2693,18 +2741,6 @@ void CCoreRendererDX9::_PushStates()
 	for (DWORD idx = 0; idx < _maxClipPlanes; idx++)
 		AssertHR(_device->GetClipPlane(idx, cur_state.clipPlanes[idx]));
 #endif
-
-	AssertHR(_device->GetIndices(&cur_state.IB));
-
-	typedef decltype(cur_state.vertexStreams) TVertexStreams;
-	cur_state.vertexStreams = make_unique<TVertexStreams::element_type[]>(_maxVertexStreams);
-	for (DWORD idx = 0; idx < _maxVertexStreams; idx++)
-	{
-		AssertHR(_device->GetStreamSource(idx, &cur_state.vertexStreams[idx].VB, &cur_state.vertexStreams[idx].offset, &cur_state.vertexStreams[idx].stride));
-		AssertHR(_device->GetStreamSourceFreq(idx, &cur_state.vertexStreams[idx].freq));
-	}
-
-	AssertHR(_device->GetVertexDeclaration(&cur_state.VBDecl));
 #ifdef SAVE_ALL_STATES
 	AssertHR(_device->GetFVF(&cur_state.FVF));
 	cur_state.NPatchMode = _device->GetNPatchMode();
@@ -2736,8 +2772,8 @@ void CCoreRendererDX9::_PushStates()
 
 DGLE_RESULT DGLE_API CCoreRendererDX9::PushStates()
 {
-	typedef decltype(_rtBindingsStack) TRTBindingsStack;
-	TRTBindingsStack::value_type cur_bindings;
+	typedef decltype(_bindingsStack) TBindingsStack;
+	TBindingsStack::value_type cur_bindings;
 
 	typedef decltype(cur_bindings.rendertargets) TSurfaces;
 	cur_bindings.rendertargets = make_unique<TSurfaces::element_type[]>(_maxRTs);
@@ -2755,7 +2791,19 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::PushStates()
 
 	AssertHR(_device->GetDepthStencilSurface(&cur_bindings.deptStensil));
 
-	_rtBindingsStack.push(move(cur_bindings));
+	AssertHR(_device->GetIndices(&cur_bindings.IB));
+
+	typedef decltype(cur_bindings.vertexStreams) TVertexStreams;
+	cur_bindings.vertexStreams = make_unique<TVertexStreams::element_type[]>(_maxVertexStreams);
+	for (DWORD idx = 0; idx < _maxVertexStreams; idx++)
+	{
+		AssertHR(_device->GetStreamSource(idx, &cur_bindings.vertexStreams[idx].VB, &cur_bindings.vertexStreams[idx].offset, &cur_bindings.vertexStreams[idx].stride));
+		AssertHR(_device->GetStreamSourceFreq(idx, &cur_bindings.vertexStreams[idx].freq));
+	}
+
+	AssertHR(_device->GetVertexDeclaration(&cur_bindings.VBDecl));
+
+	_bindingsStack.push(move(cur_bindings));
 
 	_PushStates();
 
@@ -2786,16 +2834,6 @@ void CCoreRendererDX9::_PopStates()
 	for (DWORD idx = 0; idx < _maxClipPlanes; idx++)
 		AssertHR(_device->SetClipPlane(idx, saved_state.clipPlanes[idx]));
 #endif
-
-	AssertHR(_device->SetIndices(saved_state.IB.Get()));
-
-	for (DWORD idx = 0; idx < _maxVertexStreams; idx++)
-	{
-		AssertHR(_device->SetStreamSource(idx, saved_state.vertexStreams[idx].VB.Get(), saved_state.vertexStreams[idx].offset, saved_state.vertexStreams[idx].stride));
-		AssertHR(_device->SetStreamSourceFreq(idx, saved_state.vertexStreams[idx].freq));
-	}
-
-	AssertHR(_device->SetVertexDeclaration(saved_state.VBDecl.Get()));
 #ifdef SAVE_ALL_STATES
 	AssertHR(_device->SetFVF(saved_state.FVF));
 	AssertHR(_device->SetNPatchMode(saved_state.NPatchMode));
@@ -2825,14 +2863,24 @@ void CCoreRendererDX9::_PopStates()
 
 DGLE_RESULT DGLE_API CCoreRendererDX9::PopStates()
 {
-	const auto &saved_bindings = _rtBindingsStack.top();
+	const auto &saved_bindings = _bindingsStack.top();
 
 	for (DWORD idx = 0; idx < _maxRTs; idx++)
 		AssertHR(_device->SetRenderTarget(idx, saved_bindings.rendertargets[idx].Get()));
 
 	AssertHR(_device->SetDepthStencilSurface(saved_bindings.deptStensil.Get()));
 
-	_rtBindingsStack.pop();
+	AssertHR(_device->SetIndices(saved_bindings.IB.Get()));
+
+	for (DWORD idx = 0; idx < _maxVertexStreams; idx++)
+	{
+		AssertHR(_device->SetStreamSource(idx, saved_bindings.vertexStreams[idx].VB.Get(), saved_bindings.vertexStreams[idx].offset, saved_bindings.vertexStreams[idx].stride));
+		AssertHR(_device->SetStreamSourceFreq(idx, saved_bindings.vertexStreams[idx].freq));
+	}
+
+	AssertHR(_device->SetVertexDeclaration(saved_bindings.VBDecl.Get()));
+
+	_bindingsStack.pop();
 
 	_PopStates();
 
@@ -3109,8 +3157,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::BindTexture(ICoreTexture *pTex, uint uiTe
 	_selectedTexLayer = uiTextureLayer;
 
 	const auto tex = static_cast<CCoreTexture *>(pTex);
-	if (FAILED(_device->SetTexture(uiTextureLayer, tex ? tex->GetTex().Get() : NULL)))
-		return E_FAIL;
+	AssertHR(_device->SetTexture(uiTextureLayer, tex ? tex->GetTex().Get() : NULL));
 	D3DTEXTUREOP colorop, alphaop;
 	if (tex)
 	{
@@ -3146,11 +3193,11 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::GetBindedTexture(ICoreTexture *&prTex, ui
 	AssertHR(_device->GetTexture(uiTextureLayer, &d3dTex));
 
 	if (!d3dTex)
-		return S_FALSE;
+		return S_OK;
 
 	DWORD data_size;
-	if (FAILED(d3dTex->GetPrivateData(__uuidof(CCoreTexture), &prTex, &data_size)))
-		return E_FAIL;
+	if (FAILED(d3dTex->GetPrivateData(__uuidof(CCoreTexture), &prTex, &data_size)) || !prTex)
+		return S_FALSE;
 	assert(data_size == sizeof prTex);
 	prTex = reinterpret_cast<CCoreTexture *&>(prTex);
 

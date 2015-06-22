@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		19.6.2015 (c)Andrey Korotkov
+\date		23.6.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -218,24 +218,37 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	D3DVIEWPORT9 _screenViewport;
 	uint_least8_t _selectedTexLayer = 0;
 
-	struct TRTBindings
+	struct TBindings
 	{
 		std::unique_ptr<WRL::ComPtr<IDirect3DSurface9> []> rendertargets;
 		WRL::ComPtr<IDirect3DSurface9> deptStensil;
+		WRL::ComPtr<IDirect3DIndexBuffer9> IB;
+		struct TVertexStream
+		{
+			WRL::ComPtr<IDirect3DVertexBuffer9> VB;
+			UINT offset;
+			UINT stride;
+			UINT freq;
+		};
+		std::unique_ptr<TVertexStream []> vertexStreams;
+		WRL::ComPtr<IDirect3DVertexDeclaration9> VBDecl;
 #if 1
 		/*
 		VS 2013 does not support default move ctor generation for such struct
 		TODO: try to remove it future VS version
 		*/
 	public:
-		TRTBindings() = default;
-		TRTBindings(TRTBindings &&src) :
+		TBindings() = default;
+		TBindings(TBindings &&src) :
 			rendertargets(std::move(src.rendertargets)),
-			deptStensil(std::move(src.deptStensil))
-		{}
+			deptStensil(std::move(src.deptStensil)),
+			IB(std::move(src.IB)),
+			vertexStreams(std::move(src.vertexStreams)),
+			VBDecl(std::move(src.VBDecl))
+			{}
 #endif
 	};
-	std::stack<TRTBindings> _rtBindingsStack;
+	std::stack<TBindings> _bindingsStack;
 
 	/*
 		VS 2013 does not support constexpr => have to define array content in .cpp => have to expicit specify array size here (it used later in TStates struct)
@@ -260,16 +273,6 @@ class CCoreRendererDX9 final : public ICoreRenderer
 #ifdef SAVE_ALL_STATES
 		std::unique_ptr<float [][4]> clipPlanes;
 #endif
-		WRL::ComPtr<IDirect3DIndexBuffer9> IB;
-		struct TVertexStream
-		{
-			WRL::ComPtr<IDirect3DVertexBuffer9> VB;
-			UINT offset;
-			UINT stride;
-			UINT freq;
-		};
-		std::unique_ptr<TVertexStream []> vertexStreams;
-		WRL::ComPtr<IDirect3DVertexDeclaration9> VBDecl;
 #ifdef SAVE_ALL_STATES
 		DWORD FVF;
 		FLOAT NPatchMode;
@@ -299,9 +302,6 @@ class CCoreRendererDX9 final : public ICoreRenderer
 #ifdef SAVE_ALL_STATES
 			clipPlanes(std::move(src.clipPlanes)),
 #endif
-			IB(std::move(src.IB)),
-			vertexStreams(std::move(src.vertexStreams)),
-			VBDecl(std::move(src.VBDecl)),
 #ifdef SAVE_ALL_STATES
 			FVF(std::move(src.FVF)),
 			NPatchMode(std::move(src.NPatchMode)),
