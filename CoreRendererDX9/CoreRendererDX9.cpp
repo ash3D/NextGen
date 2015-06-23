@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		23.6.2015 (c)Andrey Korotkov
+\date		24.6.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1983,9 +1983,11 @@ inline void CCoreRendererDX9::CDynamicBufferBase::_CreateBuffer()
 	_offset = 0;
 }
 
-CCoreRendererDX9::CDynamicBufferBase::CDynamicBufferBase(CCoreRendererDX9 &parent, CBroadcast<>::CCallbackHandle &&clearCallbackHandle, CBroadcast<const ComPtr<IDirect3DDevice9> &>::CCallbackHandle &&restoreCallbackHandle) :
+CCoreRendererDX9::CDynamicBufferBase::CDynamicBufferBase(CCoreRendererDX9 &parent, unsigned int sizeMultiplier,
+	CBroadcast<>::CCallbackHandle &&clearCallbackHandle, CBroadcast<const ComPtr<IDirect3DDevice9> &>::CCallbackHandle &&restoreCallbackHandle) :
 _frameEndCallbackHandle(parent._frameEndBroadcast.AddCallback(std::bind(&CDynamicBufferBase::_OnFrameEnd, this))),
-_clearCallbackHandle(move(clearCallbackHandle)), _restoreCallbackHandle(move(restoreCallbackHandle))
+_clearCallbackHandle(move(clearCallbackHandle)), _restoreCallbackHandle(move(restoreCallbackHandle)),
+_limit(_baseLimit * sizeMultiplier), _size(_baseStartSize * sizeMultiplier)
 {}
 
 CCoreRendererDX9::CDynamicBufferBase::~CDynamicBufferBase() = default;
@@ -2066,7 +2068,7 @@ inline void CCoreRendererDX9::CDynamicVB::_CreateBuffer(DWORD usage)
 }
 
 CCoreRendererDX9::CDynamicVB::CDynamicVB(CCoreRendererDX9 &parent, bool points) :
-CDynamicBufferBase(parent,
+CDynamicBufferBase(parent, 4,
 parent._clearBroadcast.AddCallback(bind(&CDynamicVB::_Clear, this)),
 parent._restoreBroadcast.AddCallback(bind(&CDynamicVB::_Restore, this, placeholders::_1, points)))
 {
@@ -2135,7 +2137,7 @@ inline void CCoreRendererDX9::CDynamicIB::_CreateBuffer(DWORD usage, D3DFORMAT f
 }
 
 CCoreRendererDX9::CDynamicIB::CDynamicIB(CCoreRendererDX9 &parent, bool points, bool _32) :
-CDynamicBufferBase(parent,
+CDynamicBufferBase(parent, 1,
 parent._clearBroadcast.AddCallback(bind(&CDynamicIB::_Clear, this)),
 parent._restoreBroadcast.AddCallback(bind(&CDynamicIB::_Restore, this, placeholders::_1, points, _32)))
 {

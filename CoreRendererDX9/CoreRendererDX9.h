@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		23.6.2015 (c)Andrey Korotkov
+\date		24.6.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -46,19 +46,21 @@ class CCoreRendererDX9 final : public ICoreRenderer
 
 	class CDynamicBufferBase
 	{
-		static const/*expr*/ unsigned int _initSize = 1024u, _limit = 128u * 1024u * 1024u;
+		static const/*expr*/ unsigned int _baseStartSize = 1024u * 1024u, _baseLimit = 32u * 1024u * 1024u;
 	private:
 		CBroadcast<>::CCallbackHandle _frameEndCallbackHandle;
 	protected:
 		CBroadcast<>::CCallbackHandle _clearCallbackHandle;
 		CBroadcast<const WRL::ComPtr<IDirect3DDevice9> &>::CCallbackHandle _restoreCallbackHandle;
 	private:
+		const unsigned int _limit = _baseLimit;
 		unsigned int _lastFrameSize = 0;
 	protected:
-		unsigned int _size = _initSize, _offset = 0;
+		unsigned int _size, _offset = 0;
 	protected:
 		CDynamicBufferBase() = default;
-		CDynamicBufferBase(CCoreRendererDX9 &parent, CBroadcast<>::CCallbackHandle &&clearCallbackHandle, CBroadcast<const WRL::ComPtr<IDirect3DDevice9> &>::CCallbackHandle &&restoreCallbackHandle);
+		CDynamicBufferBase(CCoreRendererDX9 &parent, unsigned int sizeMultiplier,
+			CBroadcast<>::CCallbackHandle &&clearCallbackHandle, CBroadcast<const WRL::ComPtr<IDirect3DDevice9> &>::CCallbackHandle &&restoreCallbackHandle);
 		CDynamicBufferBase(CDynamicBufferBase &) = delete;
 		void operator =(CDynamicBufferBase &) = delete;
 		~CDynamicBufferBase();
