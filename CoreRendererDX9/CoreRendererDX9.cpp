@@ -440,12 +440,45 @@ void CCoreRendererDX9::CCoreGeometryBufferSoftware::_ReallocateImpl(const TDrawD
 }
 #pragma endregion
 
+namespace
+{
+	template<class Base>
+	class CDynamicBuffer final : public Base
+	{
+		unsigned int _offset;
+
+	public:
+		// use C++11 inheriting ctor
+		//using Base::Base;
+		template<typename ...Args>
+		CDynamicBuffer(Args &&...args) : Base(args...) {}
+
+	public:
+		void FillSegment(const void *data, unsigned int size) { _offset = Base::FillSegment(data, size); }
+		unsigned int GetOffset() const { return _offset; }
+
+	private:
+		void _OnGrow(const ComPtr<IDirect3DResource9> &oldBuffer) override;
+	};
+
+	template<class Base>
+	void CDynamicBuffer<Base>::_OnGrow(const ComPtr<IDirect3DResource9> &oldBufferBase)
+	{
+		ComPtr<Interface> old_buffer;
+		AssertHR(oldBufferBase.As(&old_buffer));
+		void *locked;
+		const auto size = CDynamicBufferBase::_offset - _offset;
+		AssertHR(old_buffer->Lock(_offset, size, &locked, D3DLOCK_READONLY));
+		FillSegment(locked, size);
+		AssertHR(old_buffer->Unlock());
+	}
+}
+
 #pragma region CCoreGeometryBufferDynamic
 class CCoreRendererDX9::CCoreGeometryBufferDynamic final : public CCoreGeometryBufferBase
 {
-	CDynamicVB _VB;
-	CDynamicIB _IB;
-	unsigned int _VBoffset = 0, _IBoffset = 0;
+	CDynamicBuffer<CDynamicVB> _VB;
+	CDynamicBuffer<CDynamicIB> _IB;
 
 public:
 	CCoreGeometryBufferDynamic(CCoreRendererDX9 &parent, const TDrawDataDesc &drawDesc, uint verCnt, uint idxCnt, E_CORE_RENDERER_DRAW_MODE mode);
@@ -453,8 +486,8 @@ public:
 public:
 	virtual const ComPtr<IDirect3DVertexBuffer9> &GetVB() const override { return _VB.GetVB(); }
 	virtual const ComPtr<IDirect3DIndexBuffer9> GetIB() const override { return _IB.GetIB(); }
-	virtual unsigned int SetupVB() override { return _VBoffset; }
-	virtual unsigned int SetupIB() override { return _IBoffset; }
+	virtual unsigned int SetupVB() override { return _VB.GetOffset(); }
+	virtual unsigned int SetupIB() override { return _IB.GetOffset(); }
 
 private:
 	virtual void _GetGeometryDataImpl(void *vertexData, uint verticesDataSize, void *indexData, uint indicesDataSize) const override;
@@ -475,14 +508,14 @@ CGeometryProviderBase(parent, drawDesc, mode), CCoreGeometryBufferBase(parent, d
 	if (idxCnt)
 	{
 		// consider using swap with temp for exception safety
-		_IB.~CDynamicIB();
+		_IB.~CDynamicBuffer();
 		try
 		{
-			new(&_IB) CDynamicIB(parent, mode == CRDM_POINTS, drawDesc.bIndexBuffer32);
+			new(&_IB) decltype(_IB)(parent, mode == CRDM_POINTS, drawDesc.bIndexBuffer32);
 		}
 		catch (...)
 		{
-			new(&_IB) CDynamicIB;
+			new(&_IB) decltype(_IB);
 			throw;
 		}
 	}
@@ -493,13 +526,13 @@ void CCoreRendererDX9::CCoreGeometryBufferDynamic::_GetGeometryDataImpl(void *ve
 {
 	void *locked;
 
-	AssertHR(_VB.GetVB()->Lock(_VBoffset, verticesDataSize, &locked, D3DLOCK_NOOVERWRITE | D3DLOCK_READONLY));
+	AssertHR(_VB.GetVB()->Lock(_VB.GetOffset(), verticesDataSize, &locked, D3DLOCK_NOOVERWRITE | D3DLOCK_READONLY));
 	memcpy(vertexData, locked, verticesDataSize);
 	AssertHR(_VB.GetVB()->Unlock());
 
 	if (indicesDataSize)
 	{
-		AssertHR(_IB.GetIB()->Lock(_IBoffset, indicesDataSize, &locked, D3DLOCK_NOOVERWRITE | D3DLOCK_READONLY));
+		AssertHR(_IB.GetIB()->Lock(_IB.GetOffset(), indicesDataSize, &locked, D3DLOCK_NOOVERWRITE | D3DLOCK_READONLY));
 		memcpy(indexData, locked, indicesDataSize);
 		AssertHR(_IB.GetIB()->Unlock());
 	}
@@ -512,19 +545,19 @@ void CCoreRendererDX9::CCoreGeometryBufferDynamic::_ReallocateImpl(const TDrawDa
 	if (points_changed)
 		_VB.Reset(new_is_points);
 
-	_VBoffset = _VB.FillSegment(drawDesc.pData, verticesDataSize);
+	_VB.FillSegment(drawDesc.pData, verticesDataSize);
 
 	if (indicesDataSize)
 	{
 		if (points_changed || _drawDataDesc.bIndexBuffer32 != drawDesc.bIndexBuffer32)
 			_IB.Reset(new_is_points, drawDesc.bIndexBuffer32);
 
-		_IBoffset = _IB.FillSegment(drawDesc.pIndexBuffer, indicesDataSize);
+		_IB.FillSegment(drawDesc.pIndexBuffer, indicesDataSize);
 	}
 	else
 	{
-		_IB.~CDynamicIB();
-		new(&_IB) CDynamicIB;
+		_IB.~CDynamicBuffer();
+		new(&_IB) decltype(_IB);
 	}
 }
 #pragma endregion
@@ -1993,7 +2026,9 @@ void CCoreRendererDX9::CDynamicBufferBase::_OnFrameEnd()
 		_size = target_size;
 		try
 		{
+			const auto old_buffer = _GetBuffer();
 			_CreateBuffer();
+			_OnGrow(old_buffer);
 		}
 		catch (...)
 		{
@@ -2283,7 +2318,7 @@ ComPtr<IDirect3DResource9> CCoreRendererDX9::CImagePool::_CreateTexture(IDirect3
 inline ComPtr<IDirect3DSurface9> CCoreRendererDX9::CRendertargetPool::GetRendertarget(IDirect3DDevice9 *device, const TPool::key_type &desc)
 {
 	ComPtr<IDirect3DSurface9> result;
-	AssertHR(_GetImage(device, desc).As<IDirect3DSurface9>(&result));
+	AssertHR(_GetImage(device, desc).As(&result));
 	return result;
 }
 
@@ -2291,7 +2326,7 @@ inline ComPtr<IDirect3DSurface9> CCoreRendererDX9::CRendertargetPool::GetRendert
 inline ComPtr<IDirect3DTexture9> CCoreRendererDX9::CTexturePool::GetTexture(IDirect3DDevice9 *device, const TPool::key_type &desc)
 {
 	ComPtr<IDirect3DTexture9> result;
-	AssertHR(_GetImage(device, desc).As<IDirect3DTexture9>(&result));
+	AssertHR(_GetImage(device, desc).As(&result));
 	return result;
 }
 #pragma endregion

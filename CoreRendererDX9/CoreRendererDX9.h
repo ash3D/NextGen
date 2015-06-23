@@ -73,11 +73,15 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	private:
 		virtual void _CreateBufferImpl() = 0;
 		virtual void _FillSegmentImpl(const void *data, unsigned int size, DWORD lockFlags) = 0;
+		virtual const WRL::ComPtr<IDirect3DResource9> _GetBuffer() const = 0;
+		virtual void _OnGrow(const WRL::ComPtr<IDirect3DResource9> &oldBuffer) {}
 	};
 
-	class CDynamicVB final : public CDynamicBufferBase
+	class CDynamicVB : public CDynamicBufferBase
 	{
 		WRL::ComPtr<IDirect3DVertexBuffer9> _VB;
+	protected:
+		typedef std::enable_if<true, decltype(_VB)>::type::InterfaceType Interface;
 	private:
 		inline void _CreateBuffer(const WRL::ComPtr<IDirect3DDevice9> &device, DWORD usage);
 		inline void _CreateBuffer(DWORD usage);
@@ -90,13 +94,16 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		void _Clear();
 		void _Restore(const WRL::ComPtr<IDirect3DDevice9> &device, bool points);
 	private:
-		void _CreateBufferImpl() override;
-		void _FillSegmentImpl(const void *data, unsigned int size, DWORD lockFlags) override;
+		void _CreateBufferImpl() override final;
+		void _FillSegmentImpl(const void *data, unsigned int size, DWORD lockFlags) override final;
+		const WRL::ComPtr<IDirect3DResource9> _GetBuffer() const override final { return _VB; }
 	} *_immediateVB = nullptr, *_immediatePointsVB = nullptr, *_GetImmediateVB(bool points) const;
 
-	class CDynamicIB final : public CDynamicBufferBase
+	class CDynamicIB : public CDynamicBufferBase
 	{
 		WRL::ComPtr<IDirect3DIndexBuffer9> _IB;
+	protected:
+		typedef std::enable_if<true, decltype(_IB)>::type::InterfaceType Interface;
 	private:
 		inline void _CreateBuffer(const WRL::ComPtr<IDirect3DDevice9> &device, DWORD usage, D3DFORMAT format);
 		inline void _CreateBuffer(DWORD usage, D3DFORMAT format);
@@ -110,8 +117,9 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		void _Clear();
 		void _Restore(const WRL::ComPtr<IDirect3DDevice9> &device, bool points, bool _32);
 	private:
-		void _CreateBufferImpl() override;
-		void _FillSegmentImpl(const void *data, unsigned int size, DWORD lockFlags) override;
+		void _CreateBufferImpl() override final;
+		void _FillSegmentImpl(const void *data, unsigned int size, DWORD lockFlags) override final;
+		const WRL::ComPtr<IDirect3DResource9> _GetBuffer() const override final { return _IB; }
 	} *_immediateIB16 = nullptr, *_immediateIB32 = nullptr, *_immediatePointsIB16 = nullptr, *_immediatePointsIB32 = nullptr, *_GetImmediateIB(bool points, bool _32) const;
 
 	class CGeometryProviderBase;
