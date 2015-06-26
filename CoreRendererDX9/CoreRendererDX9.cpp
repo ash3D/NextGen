@@ -2531,6 +2531,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CreateTexture(ICoreTexture *&prTex, const
 
 		const auto init = CCoreTexture::GetInit(*this, eDataFormat);
 
+		typedef add_reference<underlying_type<E_TEXTURE_LOAD_FLAGS>::type>::type TLoadFlags;
 		if (eLoadFlags & TLF_FILTERING_ANISOTROPIC)
 		{
 			if (_anisoSupport)
@@ -2552,32 +2553,32 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CreateTexture(ICoreTexture *&prTex, const
 			}
 			else
 			{
-				(int &)eLoadFlags &= ~TLF_FILTERING_ANISOTROPIC;
-				(int &)eLoadFlags |= init.is_depth ? TLF_FILTERING_BILINEAR : TLF_FILTERING_TRILINEAR;
+				(TLoadFlags)eLoadFlags &= ~TLF_FILTERING_ANISOTROPIC;
+				(TLoadFlags)eLoadFlags |= init.is_depth ? TLF_FILTERING_BILINEAR : TLF_FILTERING_TRILINEAR;
 
-				(int &)eLoadFlags &= ~TLF_ANISOTROPY_2X;
-				(int &)eLoadFlags &= ~TLF_ANISOTROPY_4X;
-				(int &)eLoadFlags &= ~TLF_ANISOTROPY_8X;
-				(int &)eLoadFlags &= ~TLF_ANISOTROPY_16X;
+				(TLoadFlags)eLoadFlags &= ~TLF_ANISOTROPY_2X;
+				(TLoadFlags)eLoadFlags &= ~TLF_ANISOTROPY_4X;
+				(TLoadFlags)eLoadFlags &= ~TLF_ANISOTROPY_8X;
+				(TLoadFlags)eLoadFlags &= ~TLF_ANISOTROPY_16X;
 
 				ret = S_FALSE;
 			}
 		}
 
 		if (eLoadFlags & TLF_FILTERING_TRILINEAR && !(eLoadFlags & TLF_GENERATE_MIPMAPS) && !bMipmapsPresented)
-			(int &)eLoadFlags |= TLF_GENERATE_MIPMAPS;
+			(TLoadFlags)eLoadFlags |= TLF_GENERATE_MIPMAPS;
 
 		if (eLoadFlags & TLF_COMPRESS)
 			ret = S_FALSE;
 
 		if ((!_mipmapSupport || init.is_depth) && (eLoadFlags & TLF_GENERATE_MIPMAPS || bMipmapsPresented))
 		{
-			(int &)eLoadFlags &= ~TLF_GENERATE_MIPMAPS;
+			(TLoadFlags)eLoadFlags &= ~TLF_GENERATE_MIPMAPS;
 			bMipmapsPresented = false;
 			if (eLoadFlags & TLF_FILTERING_TRILINEAR)
 			{
-				(int &)eLoadFlags &= ~TLF_FILTERING_TRILINEAR;
-				(int &)eLoadFlags |= TLF_FILTERING_BILINEAR;
+				(TLoadFlags)eLoadFlags &= ~TLF_FILTERING_TRILINEAR;
+				(TLoadFlags)eLoadFlags |= TLF_FILTERING_BILINEAR;
 			}
 			ret = S_FALSE;
 		}
@@ -2587,7 +2588,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CreateTexture(ICoreTexture *&prTex, const
 
 		if (!bMipmapsPresented && eLoadFlags & TLF_GENERATE_MIPMAPS && FAILED(D3DXFilterTexture(texture->GetTex().Get(), NULL, D3DX_DEFAULT, D3DX_DEFAULT)))
 		{
-			(int &)eLoadFlags &= ~TLF_GENERATE_MIPMAPS;
+			(TLoadFlags)eLoadFlags &= ~TLF_GENERATE_MIPMAPS;
 			ret = S_FALSE;
 		}
 
