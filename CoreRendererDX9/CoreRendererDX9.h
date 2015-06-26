@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		24.6.2015 (c)Andrey Korotkov
+\date		27.6.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -41,21 +41,24 @@ class CCoreRendererDX9 final : public ICoreRenderer
 
 	TMatrix4x4 _projXform = MatrixIdentity();
 
-	CBroadcast<> _frameEndBroadcast, _clearBroadcast;
+	CBroadcast<> _frameEndBroadcast, _clearBroadcast, _cleanBroadcast;
 	CBroadcast<const WRL::ComPtr<IDirect3DDevice9> &> _restoreBroadcast;
 
 	class CDynamicBufferBase
 	{
 		static const/*expr*/ unsigned int _baseStartSize = 1024u * 1024u, _baseLimit = 32u * 1024u * 1024u;
 	private:
-		CBroadcast<>::CCallbackHandle _frameEndCallbackHandle;
+		const CBroadcast<>::CCallbackHandle _frameEndCallbackHandle{};
 	protected:
-		CBroadcast<>::CCallbackHandle _clearCallbackHandle;
+		const CBroadcast<>::CCallbackHandle _clearCallbackHandle{};
 		CBroadcast<const WRL::ComPtr<IDirect3DDevice9> &>::CCallbackHandle _restoreCallbackHandle;
 	private:
 		const unsigned int _limit = _baseLimit;
 		unsigned int _lastFrameSize = 0;
 	protected:
+#if 1	// protected does not work with VS 2013, try with newer version
+	public:
+#endif
 		unsigned int _size, _offset = 0;
 	protected:
 		CDynamicBufferBase() = default;
@@ -81,6 +84,10 @@ class CCoreRendererDX9 final : public ICoreRenderer
 
 	class CDynamicVB : public CDynamicBufferBase
 	{
+#if 1
+		using CDynamicBufferBase::_size;
+		using CDynamicBufferBase::_offset;
+#endif
 		WRL::ComPtr<IDirect3DVertexBuffer9> _VB;
 	protected:
 		typedef std::enable_if<true, decltype(_VB)>::type::InterfaceType Interface;
@@ -93,7 +100,6 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		void Reset(bool points);
 		const WRL::ComPtr<IDirect3DVertexBuffer9> &GetVB() const { return _VB; }
 	private:
-		void _Clear();
 		void _Restore(const WRL::ComPtr<IDirect3DDevice9> &device, bool points);
 	private:
 		void _CreateBufferImpl() override final;
@@ -103,6 +109,10 @@ class CCoreRendererDX9 final : public ICoreRenderer
 
 	class CDynamicIB : public CDynamicBufferBase
 	{
+#if 1
+		using CDynamicBufferBase::_size;
+		using CDynamicBufferBase::_offset;
+#endif
 		WRL::ComPtr<IDirect3DIndexBuffer9> _IB;
 	protected:
 		typedef std::enable_if<true, decltype(_IB)>::type::InterfaceType Interface;
@@ -116,7 +126,6 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		void Reset(bool points, bool _32);
 		const WRL::ComPtr<IDirect3DIndexBuffer9> &GetIB() const { return _IB; }
 	private:
-		void _Clear();
 		void _Restore(const WRL::ComPtr<IDirect3DDevice9> &device, bool points, bool _32);
 	private:
 		void _CreateBufferImpl() override final;
@@ -155,10 +164,23 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		typedef std::unordered_map<tag, WRL::ComPtr<IDirect3DVertexDeclaration9>, THash> TCache;
 		TCache _cache;
 	public:
-		TCache::mapped_type GetDecl(IDirect3DDevice9 *device, const TDrawDataDesc &desc);
+		const TCache::mapped_type &GetDecl(IDirect3DDevice9 *device, const TDrawDataDesc &desc);
 	} _VBDeclCache;
 
 	class CCoreTexture;
+
+	class CRendertargetCache
+	{
+		typedef std::unordered_map<D3DFORMAT, WRL::ComPtr<IDirect3DSurface9>> TCache;
+		TCache _cache;
+		const CBroadcast<>::CCallbackHandle _clearCallbackHandle;
+	public:
+		CRendertargetCache(CCoreRendererDX9 &parent);
+		CRendertargetCache(CRendertargetCache &) = delete;
+		void operator =(CRendertargetCache &) = delete;
+	public:
+		const TCache::mapped_type &GetRendertarget(IDirect3DDevice9 *device, unsigned int width, unsigned int height, TCache::key_type format);
+	} _rendertargetCache{ *this };
 
 	class CImagePool
 	{
@@ -182,45 +204,56 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		};
 		typedef std::unordered_multimap<TImageDesc, TImage, THash> TPool;
 		TPool _pool;
-		typedef WRL::ComPtr<IDirect3DResource9> TCreateImageSignature(IDirect3DDevice9 *device, const TPool::key_type &desc) const;
-		TCreateImageSignature CImagePool::*const _createImage;
-		const bool _param;
+		const CBroadcast<>::CCallbackHandle _clearCallbackHandle, _cleanCallbackHandle;
 		static const/*expr*/ size_t _maxPoolSize = 16;
 		static const/*expr*/ uint_least32_t _maxIdle = 10;
 	protected:
-		CImagePool(bool texture, bool param);	// param: MSAA for rendertargets, mips for textures
+		explicit CImagePool(CCoreRendererDX9 &parent, bool managed = false);
 		CImagePool(CImagePool &) = delete;
 		void operator =(CImagePool &) = delete;
 	protected:
-		WRL::ComPtr<IDirect3DResource9> _GetImage(IDirect3DDevice9 *device, const TPool::key_type &desc);
-	public:
-		void Clean();
-		void Clear() { _pool.clear(); }
+		const WRL::ComPtr<IDirect3DResource9> &_GetImage(IDirect3DDevice9 *device, const TPool::key_type &desc);
 	private:
-		TCreateImageSignature _CreateRendertarget, _CreateTexture;
+		virtual const WRL::ComPtr<IDirect3DResource9> _CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const = 0;
 	};
 
-	class CRendertargetPool : public CImagePool
+	class CMSAARendertargetPool : public CImagePool
 	{
 	public:
-		explicit CRendertargetPool(bool MSAA) : CImagePool(false, MSAA) {}
+		explicit CMSAARendertargetPool(CCoreRendererDX9 &parent);
 		inline WRL::ComPtr<IDirect3DSurface9> GetRendertarget(IDirect3DDevice9 *device, const TPool::key_type &desc);
-	} _rendertargetPool{ false }, _MSAARendertargetPool{ true };
+	private:
+		const WRL::ComPtr<IDirect3DResource9> _CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const override;
+	} _MSAARendertargetPool{ *this };
 
 	class CTexturePool : public CImagePool
 	{
+		const bool _managed, _mipmaps;
 	public:
-		explicit CTexturePool(bool mipmaps) : CImagePool(true, mipmaps) {}
+		CTexturePool(CCoreRendererDX9 &parent, bool managed, bool mipmaps);
 		inline WRL::ComPtr<IDirect3DTexture9> GetTexture(IDirect3DDevice9 *device, const TPool::key_type &desc);
-	} _texturePool{ false }, _mipmappedTexturePool{ true };
+	private:
+		const WRL::ComPtr<IDirect3DResource9> _CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const override;
+	}
+#if 0
+	_texturePools[2][2] =
+	{
+		{ { *this, false, false }, { *this, false, true } },
+		{ { *this, true, false }, { *this, true, true } }
+	};
+#else	// workaround for VS 2013
+	_texturePool{ *this, false, false }, _mipmappedTexturePool{ *this, false, true }, _managedTexturePool{ *this, true, false }, _managedMpmappedTexturePool{ *this, true, true },
+	*_texturePools[2][2];
+#endif
 
 	class COffscreenDepth
 	{
 		WRL::ComPtr<IDirect3DSurface9> _surface;
+		const CBroadcast<>::CCallbackHandle _clearCallbackHandle;
 	public:
+		COffscreenDepth(CCoreRendererDX9 &parent);
 		WRL::ComPtr<IDirect3DSurface9> Get(IDirect3DDevice9 *device, UINT width, UINT height, D3DMULTISAMPLE_TYPE MSAA);
-		void Clear() { _surface.Reset(); }
-	} _offcreenDepth;
+	} _offscreenDepth{ *this };
 
 	static const/*expr*/ D3DFORMAT _offscreenDepthFormat = D3DFMT_D24S8;
 	CCoreTexture *_curRenderTarget = nullptr;

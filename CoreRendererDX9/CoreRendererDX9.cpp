@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		24.6.2015 (c)Andrey Korotkov
+\date		27.6.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -150,8 +150,7 @@ public:
 	const ComPtr<IDirect3DVertexDeclaration9> &GetVBDecl() const { return _VBDecl; }
 
 	// returns byte offset
-	virtual unsigned int SetupVB() = 0;
-	virtual unsigned int SetupIB() = 0;
+	virtual unsigned int SetupVB() = 0, SetupIB() = 0;
 
 public:
 	inline E_CORE_RENDERER_DRAW_MODE GetDrawMode() const { return _drawMode; }
@@ -192,8 +191,7 @@ public:
 public:
 	virtual const ComPtr<IDirect3DVertexBuffer9> &GetVB() const override { assert(_VB);  return _VB->GetVB(); }
 	virtual const ComPtr<IDirect3DIndexBuffer9> GetIB() const override { return _IB ? _IB->GetIB() : nullptr; }
-	virtual unsigned int SetupVB() override;
-	virtual unsigned int SetupIB() override;
+	virtual unsigned int SetupVB() override, SetupIB() override;
 };
 
 unsigned int CCoreRendererDX9::CGeometryProvider::SetupVB()
@@ -1006,7 +1004,6 @@ class CDX9TextureContainer
 {
 protected:
 	ComPtr<IDirect3DTexture9> _texture;
-	ComPtr<IDirect3DTexture9> _rt;
 
 protected:
 	CDX9TextureContainer() = default;
@@ -1038,7 +1035,7 @@ class __declspec(uuid("{356F5347-3EF8-40C5-84A4-817993A23196}")) CCoreRendererDX
 	const CBroadcast<>::CCallbackHandle _clearCallbackHandle;
 	const E_TEXTURE_TYPE _type;
 	const E_TEXTURE_LOAD_FLAGS _loadFlags;
-	void(*(*const _RowConvertion)(bool dgle2d3d))(const void *const src, void *const dst, unsigned length);
+	void (*(*const _RowConvertion)(bool dgle2d3d))(const void *const src, void *const dst, unsigned length);
 	const unsigned int _bytesPerPixel;	// per block for compressed formats
 
 public:
@@ -1059,12 +1056,12 @@ public:
 		CCoreRendererDX9 &_parent;
 		const E_TEXTURE_DATA_FORMAT _format;
 		const D3DFORMAT _DXFormat;
-		void(*(*const _RowConvertion)(bool dgle2d3d))(const void *const src, void *const dst, unsigned length);
+		void (*(*const _RowConvertion)(bool dgle2d3d))(const void *const src, void *const dst, unsigned length);
 		const unsigned int _bytesPerPixel;
 
 	private:
 		inline TInit(bool is_depth, CCoreRendererDX9 &parent, E_TEXTURE_DATA_FORMAT format, D3DFORMAT DXFormat,
-			void(*RowConvertion(bool dgle2d3d))(const void *const src, void *const dst, unsigned length), unsigned int bytesPerPixel);
+			void (*RowConvertion(bool dgle2d3d))(const void *const src, void *const dst, unsigned length), unsigned int bytesPerPixel);
 		friend class CCoreTexture;
 	} GetInit(CCoreRendererDX9 &parent, E_TEXTURE_DATA_FORMAT format);
 
@@ -1083,8 +1080,8 @@ public:
 	~CCoreTexture();
 
 public:
-	inline const ComPtr<IDirect3DTexture9> &GetTex() const { return _rt ? _rt : _texture; }
-	inline const ComPtr<IDirect3DTexture9> &GetRT() const { return _rt; }
+	inline bool IsDepth() const;
+	inline const ComPtr<IDirect3DTexture9> &GetTex() const { return _texture; }
 	void SetRT(const ComPtr<IDirect3DTexture9> &rt);
 	void SyncRT();
 
@@ -1270,6 +1267,18 @@ inline bool CCoreRendererDX9::CCoreTexture::_Compressed() const
 	}
 }
 
+inline bool CCoreRendererDX9::CCoreTexture::IsDepth() const
+{
+	switch (format)
+	{
+	case TDF_DEPTH_COMPONENT24:
+	case TDF_DEPTH_COMPONENT32:
+		return true;
+	default:
+		return false;
+	}
+}
+
 auto CCoreRendererDX9::CCoreTexture::_DataSize(unsigned int width, unsigned int height, unsigned int alignment) const -> TDataSize
 {
 	if (_Compressed())
@@ -1291,7 +1300,17 @@ auto CCoreRendererDX9::CCoreTexture::_DataSize(unsigned int lod, unsigned int al
 }
 
 CCoreRendererDX9::CCoreTexture::CCoreTexture(const TInit &init, E_TEXTURE_TYPE type, const uint8_t *data, unsigned int width, unsigned int height, bool mipsPresented, E_CORE_RENDERER_DATA_ALIGNMENT dataAlignment, E_TEXTURE_LOAD_FLAGS loadFlags, DWORD anisoLevel, DGLE_RESULT &ret) :
-_parent(init._parent), _clearCallbackHandle(init._parent._clearBroadcast.AddCallback(bind(&CCoreTexture::SyncRT, this))), _type(type), format(init._format), _loadFlags(loadFlags),
+_parent(init._parent), _clearCallbackHandle(init._parent._clearBroadcast.AddCallback([this]
+{
+	try
+	{
+		SyncRT();
+	}
+	catch (const HRESULT hr)
+	{
+		LogWrite(_parent._engineCore, ("Failed to sync rendertarget texture while preparing to device reset (hr = " + to_string(hr) + ").").c_str(), LT_ERROR, tr2::sys::path(__FILE__).filename().c_str(), __LINE__);
+	}
+})), _type(type), format(init._format), _loadFlags(loadFlags),
 _RowConvertion(init._RowConvertion), _bytesPerPixel(init._bytesPerPixel), _mipMaps(loadFlags & TLF_GENERATE_MIPMAPS || mipsPresented), anisoLevel(anisoLevel),
 magFilter(loadFlags & TLF_FILTERING_NONE ? D3DTEXF_POINT : D3DTEXF_LINEAR),
 minFilter(loadFlags & TLF_FILTERING_NONE ? D3DTEXF_POINT : loadFlags & TLF_FILTERING_ANISOTROPIC ? D3DTEXF_ANISOTROPIC : D3DTEXF_LINEAR),
@@ -1369,35 +1388,26 @@ CCoreRendererDX9::CCoreTexture::~CCoreTexture()
 {
 	if (_parent._curRenderTarget == this)
 		_parent.SetRenderTarget(nullptr);
-	if (_texture)
-		AssertHR(_texture->FreePrivateData(__uuidof(CCoreTexture)));
-	if (_rt)
-	{
-		CCoreTexture *null = nullptr;
-		AssertHR(_rt->SetPrivateData(__uuidof(CCoreTexture), &null, sizeof null, 0));
-	}
+	CCoreTexture *const null = nullptr;
+	AssertHR(_texture->SetPrivateData(__uuidof(CCoreTexture), &null, sizeof null, 0));
 }
 
 void CCoreRendererDX9::CCoreTexture::SetRT(const ComPtr<IDirect3DTexture9> &rt)
 {
-	if (_rt)
-	{
-		CCoreTexture *null = nullptr;
-		AssertHR(_rt->SetPrivateData(__uuidof(CCoreTexture), &null, sizeof null, 0));
-	}
-	if (_rt = rt)
-	{
-		CCoreTexture *ptr = this;
-		AssertHR(_rt->SetPrivateData(__uuidof(CCoreTexture), &ptr, sizeof ptr, 0));
-	}
+	assert(rt);
+	CCoreTexture *ptr = nullptr;
+	AssertHR(_texture->SetPrivateData(__uuidof(CCoreTexture), &ptr, sizeof ptr, 0));
+	_texture = rt;
+	ptr = this;
+	AssertHR(_texture->SetPrivateData(__uuidof(CCoreTexture), &ptr, sizeof ptr, 0));
 }
 
 void CCoreRendererDX9::CCoreTexture::SyncRT()
 {
-	if (_rt)
+	D3DSURFACE_DESC desc;
+	AssertHR(_texture->GetLevelDesc(0, &desc));
+	if (desc.Pool == D3DPOOL_DEFAULT)
 	{
-		D3DSURFACE_DESC desc;
-		AssertHR(_texture->GetLevelDesc(0, &desc));
 		unsigned int row_size;
 		switch (desc.Format)
 		{
@@ -1412,16 +1422,21 @@ void CCoreRendererDX9::CCoreTexture::SyncRT()
 		case D3DFMT_A8:
 			row_size = 1;
 			break;
+		default:
+			assert(false);
+			__assume(false);
 		}
 		row_size *= desc.Width;
 
 		ComPtr<IDirect3DSurface9> rt_surface;
-		AssertHR(_rt->GetSurfaceLevel(0, &rt_surface));
-		const auto lockable_surface = _parent._rendertargetPool.GetRendertarget(_parent._device.Get(), { desc.Width, desc.Height, desc.Format });
-		AssertHR(_parent._device->StretchRect(rt_surface.Get(), NULL, lockable_surface.Get(), NULL, D3DTEXF_NONE));
+		AssertHR(_texture->GetSurfaceLevel(0, &rt_surface));
+		const auto &lockable_surface = _parent._rendertargetCache.GetRendertarget(_parent._device.Get(), desc.Width, desc.Height, desc.Format);
+		const RECT lockable_rect = { 0, 0, desc.Width, desc.Height };
+		AssertHR(_parent._device->StretchRect(rt_surface.Get(), NULL, lockable_surface.Get(), &lockable_rect, D3DTEXF_NONE));
 
 		D3DLOCKED_RECT src_locked, dst_locked;
-		AssertHR(lockable_surface->LockRect(&src_locked, NULL, D3DLOCK_READONLY));
+		AssertHR(lockable_surface->LockRect(&src_locked, &lockable_rect, D3DLOCK_READONLY));
+		_texture = _parent._texturePools[true][_texture->GetLevelCount() != 1]->GetTexture(_parent._device.Get(), { desc.Width, desc.Height, desc.Format });
 		AssertHR(_texture->LockRect(0, &dst_locked, NULL, 0));
 		for (unsigned int row = 0; row < desc.Height; row++, (uint8_t *&)src_locked.pBits += src_locked.Pitch, (uint8_t *&)dst_locked.pBits += dst_locked.Pitch)
 			memcpy(dst_locked.pBits, src_locked.pBits, row_size);
@@ -1448,8 +1463,6 @@ void CCoreRendererDX9::CCoreTexture::SyncRT()
 			if (bound_tex == this)
 				AssertHR(_parent._device->SetTexture(cur_stage, _texture.Get()));
 		}
-
-		SetRT(nullptr);
 	}
 }
 
@@ -1477,76 +1490,82 @@ void CCoreRendererDX9::CCoreTexture::_Reallocate(const uint8_t *data, unsigned i
 	if (_Compressed() && width % 4 && height % 4)
 		throw E_INVALIDARG;
 
-	ComPtr<IDirect3DTexture9> texture;
-	switch (_parent._device->CreateTexture(width, height, mipmaps, 0, format, D3DPOOL_MANAGED, &texture, NULL))
-	{
-	case S_OK:					break;
-	case D3DERR_INVALIDCALL:	throw E_INVALIDARG;
-	default:					throw E_ABORT;
-	}
-	_texture.Swap(texture);
+	_texture = _parent._texturePools[true][mipmaps != 1]->GetTexture(_parent._device.Get(), { width, height, format });
 
-	CCoreTexture *ptr = this;
+	CCoreTexture *const ptr = this;
 	AssertHR(_texture->SetPrivateData(__uuidof(CCoreTexture), &ptr, sizeof ptr, 0));
 
-	unsigned int cur_mip = 0;
-	do
-		_SetPixelData(data, _DataSize(cur_mip, alignment), cur_mip);
-	while (++cur_mip < mipmaps);
+	if (!IsDepth() || this->format == TDF_DEPTH_COMPONENT32 && format == D3DFMT_D32F_LOCKABLE)
+	{
+		unsigned int cur_mip = 0;
+		do
+			_SetPixelData(data, _DataSize(cur_mip, alignment), cur_mip);
+		while (++cur_mip < mipmaps);
+	}
 }
 
 DGLE_RESULT DGLE_API CCoreRendererDX9::CCoreTexture::GetPixelData(uint8 *pData, uint &uiDataSize, uint uiLodLevel)
 {
-	ICoreTexture *curRT;
-	_parent.GetRenderTarget(curRT);
-	if (curRT == this)
-		return E_ABORT;
-
-	if (!_mipMaps && uiLodLevel != 0)
-		return E_INVALIDARG;
-
-	const auto data_size = _DataSize(uiLodLevel);
-
-	const auto size = data_size.h * data_size.rowSize;
-	if (!pData || size != uiDataSize)
+	try
 	{
-		uiDataSize = size;
-		return S_FALSE;
+		if (_parent._curRenderTarget == this)
+			return E_ABORT;
+
+		if (!_mipMaps && uiLodLevel != 0)
+			return E_INVALIDARG;
+
+		const auto data_size = _DataSize(uiLodLevel);
+
+		const auto size = data_size.h * data_size.rowSize;
+		if (!pData || size != uiDataSize)
+		{
+			uiDataSize = size;
+			return S_FALSE;
+		}
+
+		SyncRT();
+
+		const auto ReadRow = _RowConvertion(false);
+
+		D3DLOCKED_RECT locked;
+		AssertHR(_texture->LockRect(uiLodLevel, &locked, NULL, D3DLOCK_READONLY));
+		for (unsigned row = 0; row < data_size.h; row++, pData += data_size.rowSize, (uint8_t *&)locked.pBits += locked.Pitch)
+			ReadRow(locked.pBits, pData, data_size.w);
+		AssertHR(_texture->UnlockRect(uiLodLevel));
+
+		return S_OK;
 	}
-
-	SyncRT();
-
-	const auto ReadRow = _RowConvertion(false);
-
-	D3DLOCKED_RECT locked;
-	AssertHR(_texture->LockRect(uiLodLevel, &locked, NULL, D3DLOCK_READONLY));
-	for (unsigned row = 0; row < data_size.h; row++, pData += data_size.rowSize, (uint8_t *&)locked.pBits += locked.Pitch)
-		ReadRow(locked.pBits, pData, data_size.w);
-	AssertHR(_texture->UnlockRect(uiLodLevel));
-
-	return S_OK;
+	catch (const HRESULT hr)
+	{
+		return hr;
+	}
 }
 
 DGLE_RESULT DGLE_API CCoreRendererDX9::CCoreTexture::SetPixelData(const uint8 *pData, uint uiDataSize, uint uiLodLevel)
 {
-	ICoreTexture *curRT;
-	_parent.GetRenderTarget(curRT);
-	if (curRT == this)
-		return E_ABORT;
+	try
+	{
+		if (_parent._curRenderTarget == this)
+			return E_ABORT;
 
-	if (!_mipMaps && uiLodLevel != 0)
-		return E_INVALIDARG;
+		if (!_mipMaps && uiLodLevel != 0)
+			return E_INVALIDARG;
 
-	const auto data_size = _DataSize(uiLodLevel);
+		const auto data_size = _DataSize(uiLodLevel);
 
-	if (data_size.h * data_size.rowSize != uiDataSize)
-		return E_INVALIDARG;
+		if (data_size.h * data_size.rowSize != uiDataSize)
+			return E_INVALIDARG;
 
-	SyncRT();
+		SyncRT();
 
-	_SetPixelData(pData, data_size, uiLodLevel);
+		_SetPixelData(pData, data_size, uiLodLevel);
 
-	return S_OK;
+		return S_OK;
+	}
+	catch (const HRESULT hr)
+	{
+		return hr;
+	}
 }
 
 DGLE_RESULT DGLE_API CCoreRendererDX9::CCoreTexture::Reallocate(const uint8 *pData, uint uiWidth, uint uiHeight, bool bMipMaps, E_TEXTURE_DATA_FORMAT eDataFormat)
@@ -1590,8 +1609,6 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CCoreTexture::Reallocate(const uint8 *pDa
 		return hr;
 	}
 
-	SetRT(nullptr);
-
 	if (_mipMaps && !bMipMaps)
 	{
 		if (FAILED(D3DXFilterTexture(_texture.Get(), NULL, D3DX_DEFAULT, D3DX_DEFAULT)))
@@ -1607,6 +1624,10 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CCoreTexture::Reallocate(const uint8 *pDa
 CCoreRendererDX9::CCoreRendererDX9(IEngineCore &engineCore) :
 _engineCore(engineCore), _stInitResults(false)
 {
+#if 1
+	_texturePools[0][0] = &_texturePool, _texturePools[0][1] = &_mipmappedTexturePool;
+	_texturePools[1][0] = &_managedTexturePool, _texturePools[1][1] = &_managedMpmappedTexturePool;
+#endif
 	assert(d3d);
 }
 
@@ -1745,11 +1766,6 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::AdjustMode(TEngineWindow &stNewWin)
 	try
 	{
 		_clearBroadcast();
-		_rendertargetPool.Clear();
-		_MSAARendertargetPool.Clear();
-		_texturePool.Clear();
-		_mipmappedTexturePool.Clear();
-		_offcreenDepth.Clear();
 		_screenColorTarget.Reset();
 		_screenDepthTarget.Reset();
 		_PushStates();
@@ -1885,94 +1901,98 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::GetPointSize(float &fSize)
 
 DGLE_RESULT DGLE_API CCoreRendererDX9::ReadFrameBuffer(uint uiX, uint uiY, uint uiWidth, uint uiHeight, uint8 *pData, uint uiDataSize, E_TEXTURE_DATA_FORMAT eDataFormat)
 {
-	ComPtr<IDirect3DSurface9> frame_buffer;
-
-	if (eDataFormat == TDF_DEPTH_COMPONENT24 || eDataFormat == TDF_DEPTH_COMPONENT32)
+	try
 	{
-		if (!(frame_buffer = _screenDepthTarget))
-			AssertHR(_device->GetDepthStencilSurface(&frame_buffer));
-	}
-	else
-		AssertHR(_device->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &frame_buffer));
+		ComPtr<IDirect3DSurface9> frame_buffer;
 
-	const auto desc = FlipRectY(frame_buffer, uiY, uiWidth);
-
-	const RECT rect =
-	{
-		uiX, uiY,
-		uiX + uiWidth, uiY + uiHeight
-	}, *prect = &rect;
-
-	if (desc.MultiSampleType != D3DMULTISAMPLE_NONE)
-	{
-		ComPtr<IDirect3DSurface9> resolved;
-		AssertHR(_texturePool.GetTexture(_device.Get(), { uiWidth, uiHeight, desc.Format })->GetSurfaceLevel(0, &resolved));
-		if (FAILED(_device->StretchRect(frame_buffer.Get(), prect, resolved.Get(), NULL, D3DTEXF_NONE)))
-			return E_FAIL;
-		prect = nullptr;
-		frame_buffer = resolved;
-	}
-
-	bool need_format_adjust = false;
-	unsigned int bytes;
-	switch (eDataFormat)
-	{
-	case TDF_RGB8:
-		bytes = 3;
-		need_format_adjust = true;
-		break;
-	case TDF_RGBA8:
-		bytes = 4;
-		need_format_adjust = true;
-		break;
-	case TDF_ALPHA8:
-		bytes = 1;
-		need_format_adjust = true;
-		break;
-	case TDF_BGR8:
-		bytes = 3;
-		need_format_adjust = true;
-		break;
-	case TDF_BGRA8:
-		bytes = 4;
-		break;
-	case TDF_DEPTH_COMPONENT32:
-		if (desc.Format == D3DFMT_D32F_LOCKABLE)
+		if (eDataFormat == TDF_DEPTH_COMPONENT24 || eDataFormat == TDF_DEPTH_COMPONENT32)
 		{
-			bytes = 4;
-			break;
+			if (!(frame_buffer = _screenDepthTarget))
+				AssertHR(_device->GetDepthStencilSurface(&frame_buffer));
 		}
 		else
+			AssertHR(_device->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &frame_buffer));
+
+		const auto desc = FlipRectY(frame_buffer, uiY, uiWidth);
+
+		const RECT rect =
+		{
+			uiX, uiY,
+			uiX + uiWidth, uiY + uiHeight
+		};
+
+		if (desc.MultiSampleType != D3DMULTISAMPLE_NONE)
+		{
+			const auto &resolved = _rendertargetCache.GetRendertarget(_device.Get(), uiWidth, uiHeight, desc.Format);
+			CheckHR(_device->StretchRect(frame_buffer.Get(), &rect, resolved.Get(), &rect, D3DTEXF_NONE));
+			frame_buffer = resolved;
+		}
+
+		bool need_format_adjust = false;
+		unsigned int bytes;
+		switch (eDataFormat)
+		{
+		case TDF_RGB8:
+			bytes = 3;
+			need_format_adjust = true;
+			break;
+		case TDF_RGBA8:
+			bytes = 4;
+			need_format_adjust = true;
+			break;
+		case TDF_ALPHA8:
+			bytes = 1;
+			need_format_adjust = true;
+			break;
+		case TDF_BGR8:
+			bytes = 3;
+			need_format_adjust = true;
+			break;
+		case TDF_BGRA8:
+			bytes = 4;
+			break;
+		case TDF_DEPTH_COMPONENT32:
+			if (desc.Format == D3DFMT_D32F_LOCKABLE)
+			{
+				bytes = 4;
+				break;
+			}
+			else
+				return E_INVALIDARG;
+		default:
 			return E_INVALIDARG;
-	default:
-		return FPE_INVALID;
+		}
+
+		bytes *= uiWidth;
+		unsigned int row_length = bytes;
+
+		auto RowConvertion = RowCopy;
+		if (need_format_adjust)
+		{
+			if (!(RowConvertion = GetRowConvertion(eDataFormat, desc.Format)))
+				return E_FAIL;
+			else if (RowConvertion != RowCopy)
+				row_length = uiWidth;
+		}
+		const auto ReadRow = RowConvertion(false);
+
+		if (uiDataSize < uiHeight * bytes)
+			return E_INVALIDARG;
+
+		D3DLOCKED_RECT locked;
+
+		AssertHR(frame_buffer->LockRect(&locked, &rect, D3DLOCK_READONLY));
+		pData += (uiHeight - 1) * bytes;
+		for (uint row = 0; row < uiHeight; row++, pData -= bytes, (uint8 *&)locked.pBits += locked.Pitch)
+			ReadRow(locked.pBits, pData, row_length);
+		AssertHR(frame_buffer->UnlockRect());
+
+		return S_OK;
 	}
-
-	bytes *= uiWidth;
-	unsigned int row_length = bytes;
-
-	auto RowConvertion = RowCopy;
-	if (need_format_adjust)
+	catch (const HRESULT hr)
 	{
-		if (!(RowConvertion = GetRowConvertion(eDataFormat, desc.Format)))
-			return E_FAIL;
-		else if (RowConvertion != RowCopy)
-			row_length = uiWidth;
+		return hr;
 	}
-	const auto ReadRow = RowConvertion(false);
-
-	if (uiDataSize < uiHeight * bytes)
-		return E_INVALIDARG;
-
-	D3DLOCKED_RECT locked;
-
-	AssertHR(frame_buffer->LockRect(&locked, prect, D3DLOCK_READONLY));
-	pData += (uiHeight - 1) * bytes;
-	for (uint row = 0; row < uiHeight; row++, pData -= bytes, (uint8 *&)locked.pBits += locked.Pitch)
-		ReadRow(locked.pBits, pData, row_length);
-	AssertHR(frame_buffer->UnlockRect());
-
-	return S_OK;
 }
 
 #pragma region DynamicBuffer
@@ -2069,7 +2089,7 @@ inline void CCoreRendererDX9::CDynamicVB::_CreateBuffer(DWORD usage)
 
 CCoreRendererDX9::CDynamicVB::CDynamicVB(CCoreRendererDX9 &parent, bool points) :
 CDynamicBufferBase(parent, 4,
-parent._clearBroadcast.AddCallback(bind(&CDynamicVB::_Clear, this)),
+parent._clearBroadcast.AddCallback([this]{ _VB.Reset(), _offset = 0; }),
 parent._restoreBroadcast.AddCallback(bind(&CDynamicVB::_Restore, this, placeholders::_1, points)))
 {
 	_Restore(parent._device, points);
@@ -2079,12 +2099,6 @@ void CCoreRendererDX9::CDynamicVB::Reset(bool points)
 {
 	_restoreCallbackHandle = _restoreCallbackHandle.GetParent()->AddCallback(bind(&CDynamicVB::_Restore, this, placeholders::_1, points));
 	_CreateBuffer(_Usage(points));
-}
-
-void CCoreRendererDX9::CDynamicVB::_Clear()
-{
-	_VB.Reset();
-	_offset = 0;
 }
 
 void CCoreRendererDX9::CDynamicVB::_Restore(const ComPtr<IDirect3DDevice9> &device, bool points)
@@ -2138,7 +2152,7 @@ inline void CCoreRendererDX9::CDynamicIB::_CreateBuffer(DWORD usage, D3DFORMAT f
 
 CCoreRendererDX9::CDynamicIB::CDynamicIB(CCoreRendererDX9 &parent, bool points, bool _32) :
 CDynamicBufferBase(parent, 1,
-parent._clearBroadcast.AddCallback(bind(&CDynamicIB::_Clear, this)),
+parent._clearBroadcast.AddCallback([this]{ _IB.Reset(), _offset = 0; }),
 parent._restoreBroadcast.AddCallback(bind(&CDynamicIB::_Restore, this, placeholders::_1, points, _32)))
 {
 	_Restore(parent._device, points, _32);
@@ -2148,12 +2162,6 @@ void CCoreRendererDX9::CDynamicIB::Reset(bool points, bool _32)
 {
 	_restoreCallbackHandle = _restoreCallbackHandle.GetParent()->AddCallback(bind(&CDynamicIB::_Restore, this, placeholders::_1, points, _32));
 	_CreateBuffer(_Usage(points), _32 ? D3DFMT_INDEX32 : D3DFMT_INDEX16);
-}
-
-void CCoreRendererDX9::CDynamicIB::_Clear()
-{
-	_IB.Reset();
-	_offset = 0;
 }
 
 void CCoreRendererDX9::CDynamicIB::_Restore(const ComPtr<IDirect3DDevice9> &device, bool points, bool _32)
@@ -2225,7 +2233,7 @@ namespace
 inline CCoreRendererDX9::CVertexDeclarationCache::tag::tag(const TDrawDataDesc &desc) :
 packed(), _2D(desc.bVertices2D), normal(desc.uiNormalOffset != ~0), uv(desc.uiTextureVertexOffset != ~0), color(desc.uiColorOffset != ~0) {}
 
-auto CCoreRendererDX9::CVertexDeclarationCache::GetDecl(IDirect3DDevice9 *device, const TDrawDataDesc &desc) -> TCache::mapped_type
+auto CCoreRendererDX9::CVertexDeclarationCache::GetDecl(IDirect3DDevice9 *device, const TDrawDataDesc &desc) -> const TCache::mapped_type &
 {
 	const auto emplaced = _cache.emplace(desc, nullptr);
 	if (emplaced.second)
@@ -2238,7 +2246,31 @@ auto CCoreRendererDX9::CVertexDeclarationCache::GetDecl(IDirect3DDevice9 *device
 }
 #pragma endregion
 
+#pragma region CRendertargetCache
+CCoreRendererDX9::CRendertargetCache::CRendertargetCache(CCoreRendererDX9 &parent) :
+_clearCallbackHandle(parent._clearBroadcast.AddCallback([this]{ _cache.clear(); }))
+{}
+
+auto CCoreRendererDX9::CRendertargetCache::GetRendertarget(IDirect3DDevice9 *device, unsigned int width, unsigned int height, TCache::key_type format) -> const TCache::mapped_type &
+{
+	auto &cached = _cache[format];
+	if (!cached || [=, &cached]
+	{
+		D3DSURFACE_DESC desc;
+		AssertHR(cached->GetDesc(&desc));
+		return desc.Width < width || desc.Height < height;
+	}())
+	{
+		ComPtr<IDirect3DSurface9> created;
+		CheckHR(device->CreateRenderTarget(width, height, format, D3DMULTISAMPLE_NONE, 0, TRUE, &created, NULL));
+		cached.Swap(created);
+	}
+	return cached;
+}
+#pragma endregion
+
 #pragma region image pool
+#pragma region CImagePool
 inline bool CCoreRendererDX9::CImagePool::TImageDesc::operator ==(const TImageDesc &src) const
 {
 	return width == src.width && height == src.height && format == src.format;
@@ -2249,16 +2281,28 @@ inline size_t CCoreRendererDX9::CImagePool::THash::operator ()(const TImageDesc 
 	return ComposeHash(src.width, src.height, src.format);
 }
 
-CCoreRendererDX9::CImagePool::CImagePool(bool texture, bool param) :
-_createImage(texture ? &CImagePool::_CreateTexture : &CImagePool::_CreateRendertarget), _param(param) {}
-
 static inline bool Used(IUnknown *object)
 {
 	object->AddRef();
 	return object->Release() == 1;
 }
 
-ComPtr<IDirect3DResource9> CCoreRendererDX9::CImagePool::_GetImage(IDirect3DDevice9 *device, const TPool::key_type &desc)
+CCoreRendererDX9::CImagePool::CImagePool(CCoreRendererDX9 &parent, bool managed) :
+_clearCallbackHandle(managed ? decltype(_clearCallbackHandle)() : decltype(_clearCallbackHandle)(parent._clearBroadcast.AddCallback([this]{ _pool.clear(); }))),
+_cleanCallbackHandle(parent._cleanBroadcast.AddCallback([this]
+{
+	auto cur_rt = _pool.begin();
+	while (cur_rt != _pool.end())
+	{
+		if (!Used(cur_rt->second.image.Get()) && ++cur_rt->second.idleTime > _maxIdle && _pool.size() > _maxPoolSize)
+			cur_rt = _pool.erase(cur_rt);
+		else
+			++cur_rt;
+	}
+}))
+{}
+
+const ComPtr<IDirect3DResource9> &CCoreRendererDX9::CImagePool::_GetImage(IDirect3DDevice9 *device, const TPool::key_type &desc)
 {
 	const auto range = _pool.equal_range(desc);
 
@@ -2275,66 +2319,83 @@ ComPtr<IDirect3DResource9> CCoreRendererDX9::CImagePool::_GetImage(IDirect3DDevi
 	}
 
 	// unused not found, create new
-	return _pool.emplace(desc, (this->*_createImage)(device, desc))->second.image;
+	return _pool.emplace(desc, _CreateImage(device, desc))->second.image;
 }
+#pragma endregion
 
-void CCoreRendererDX9::CImagePool::Clean()
-{
-	auto cur_rt = _pool.begin();
-	while (cur_rt != _pool.end())
-	{
-		if (!Used(cur_rt->second.image.Get()) && ++cur_rt->second.idleTime > _maxIdle && _pool.size() > _maxPoolSize)
-			cur_rt = _pool.erase(cur_rt);
-		else
-			++cur_rt;
-	}
-}
+#pragma region CMSAARendertargetPool
+inline CCoreRendererDX9::CMSAARendertargetPool::CMSAARendertargetPool(CCoreRendererDX9 &parent) : CImagePool(parent) {}
 
-ComPtr<IDirect3DResource9> CCoreRendererDX9::CImagePool::_CreateRendertarget(IDirect3DDevice9 *device, const TPool::key_type &desc) const
-{
-	D3DMULTISAMPLE_TYPE MSAA = D3DMULTISAMPLE_NONE;
-	if (_param)
-	{
-		ComPtr<IDirect3DSwapChain9> swap_chain;
-		AssertHR(device->GetSwapChain(0, &swap_chain));
-		D3DPRESENT_PARAMETERS params;
-		AssertHR(swap_chain->GetPresentParameters(&params));
-		MSAA = params.MultiSampleType;
-	}
-	ComPtr<IDirect3DSurface9> result;
-	AssertHR(device->CreateRenderTarget(desc.width, desc.height, desc.format, MSAA, 0, !_param, &result, NULL));
-	return result;
-}
-
-ComPtr<IDirect3DResource9> CCoreRendererDX9::CImagePool::_CreateTexture(IDirect3DDevice9 *device, const TPool::key_type &desc) const
-{
-	DWORD usage = D3DUSAGE_RENDERTARGET;
-	if (_param)
-		usage |= D3DUSAGE_AUTOGENMIPMAP;
-	ComPtr<IDirect3DTexture9> result;
-	AssertHR(device->CreateTexture(desc.width, desc.height, _param ? 0 : 1, usage, desc.format, D3DPOOL_DEFAULT, &result, NULL));
-	return result;
-}
-
-// returns null if failed
-inline ComPtr<IDirect3DSurface9> CCoreRendererDX9::CRendertargetPool::GetRendertarget(IDirect3DDevice9 *device, const TPool::key_type &desc)
+inline ComPtr<IDirect3DSurface9> CCoreRendererDX9::CMSAARendertargetPool::GetRendertarget(IDirect3DDevice9 *device, const TPool::key_type &desc)
 {
 	ComPtr<IDirect3DSurface9> result;
 	AssertHR(_GetImage(device, desc).As(&result));
 	return result;
 }
 
-// returns null if failed
+const ComPtr<IDirect3DResource9> CCoreRendererDX9::CMSAARendertargetPool::_CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const
+{
+	D3DMULTISAMPLE_TYPE MSAA = D3DMULTISAMPLE_NONE;
+	ComPtr<IDirect3DSwapChain9> swap_chain;
+	AssertHR(device->GetSwapChain(0, &swap_chain));
+	D3DPRESENT_PARAMETERS params;
+	AssertHR(swap_chain->GetPresentParameters(&params));
+	MSAA = params.MultiSampleType;
+	ComPtr<IDirect3DSurface9> result;
+	CheckHR(device->CreateRenderTarget(desc.width, desc.height, desc.format, MSAA, 0, FALSE, &result, NULL));
+	return result;
+}
+#pragma endregion
+
+#pragma region CTexturePool
+inline CCoreRendererDX9::CTexturePool::CTexturePool(CCoreRendererDX9 &parent, bool managed, bool mipmaps) :
+CImagePool(parent, managed), _managed(managed), _mipmaps(mipmaps)
+{}
+
 inline ComPtr<IDirect3DTexture9> CCoreRendererDX9::CTexturePool::GetTexture(IDirect3DDevice9 *device, const TPool::key_type &desc)
 {
 	ComPtr<IDirect3DTexture9> result;
 	AssertHR(_GetImage(device, desc).As(&result));
 	return result;
 }
+
+const ComPtr<IDirect3DResource9> CCoreRendererDX9::CTexturePool::_CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const
+{
+	DWORD usage = 0;
+	if (!_managed)
+	{
+		switch (desc.format)
+		{
+		case D3DFMT_D15S1:
+		case D3DFMT_D16:
+		case D3DFMT_D16_LOCKABLE:
+		case D3DFMT_D24FS8:
+		case D3DFMT_D24S8:
+		case D3DFMT_D24X4S4:
+		case D3DFMT_D24X8:
+		case D3DFMT_D32:
+		case D3DFMT_D32F_LOCKABLE:
+		case D3DFMT_D32_LOCKABLE:
+			usage |= D3DUSAGE_DEPTHSTENCIL;
+			break;
+		default:
+			usage |= D3DUSAGE_RENDERTARGET;
+		}
+		if (_mipmaps)
+			usage |= D3DUSAGE_AUTOGENMIPMAP;
+	}
+	ComPtr<IDirect3DTexture9> result;
+	CheckHR(device->CreateTexture(desc.width, desc.height, _mipmaps ? 0 : 1, usage, desc.format, _managed ? D3DPOOL_MANAGED : D3DPOOL_DEFAULT, &result, NULL));
+	return result;
+}
+#pragma endregion
 #pragma endregion
 
 #pragma region COffscreenDepth
-// returns null if failed
+CCoreRendererDX9::COffscreenDepth::COffscreenDepth(CCoreRendererDX9 &parent) :
+_clearCallbackHandle(parent._clearBroadcast.AddCallback([this]{ _surface.Reset(); }))
+{}
+
 ComPtr<IDirect3DSurface9> CCoreRendererDX9::COffscreenDepth::Get(IDirect3DDevice9 *device, UINT width, UINT height, D3DMULTISAMPLE_TYPE MSAA)
 {
 	bool need_recreate = true;
@@ -2347,7 +2408,7 @@ ComPtr<IDirect3DSurface9> CCoreRendererDX9::COffscreenDepth::Get(IDirect3DDevice
 	}
 
 	if (need_recreate)
-		AssertHR(device->CreateDepthStencilSurface(width, height, _offscreenDepthFormat, MSAA, 0, TRUE, &_surface, NULL));
+		CheckHR(device->CreateDepthStencilSurface(width, height, _offscreenDepthFormat, MSAA, 0, TRUE, &_surface, NULL));
 
 	return _surface;
 }
@@ -2355,95 +2416,103 @@ ComPtr<IDirect3DSurface9> CCoreRendererDX9::COffscreenDepth::Get(IDirect3DDevice
 
 DGLE_RESULT DGLE_API CCoreRendererDX9::SetRenderTarget(ICoreTexture *pTexture)
 {
-	if (pTexture && _curRenderTarget && FAILED(SetRenderTarget(NULL)))
-		return E_ABORT;
-
-	if (!pTexture && _curRenderTarget)
+	try
 	{
-		ComPtr<IDirect3DSurface9> offscreen_target;
-		AssertHR(_device->GetRenderTarget(0, &offscreen_target));
-		if (offscreen_target)
+		if (pTexture && _curRenderTarget && FAILED(SetRenderTarget(NULL)))
+			return E_ABORT;
+
+		if (!pTexture && _curRenderTarget)
 		{
-			D3DSURFACE_DESC offscreen_desc;
-			AssertHR(offscreen_target->GetDesc(&offscreen_desc));
-			if (offscreen_desc.MultiSampleType != D3DMULTISAMPLE_NONE)
+			ComPtr<IDirect3DSurface9> offscreen_target;
+			AssertHR(_device->GetRenderTarget(0, &offscreen_target));
+			if (offscreen_target)
 			{
-				if (!_curRenderTarget->GetRT())
+				D3DSURFACE_DESC offscreen_desc;
+				AssertHR(offscreen_target->GetDesc(&offscreen_desc));
+				if (offscreen_desc.MultiSampleType != D3DMULTISAMPLE_NONE)
 				{
-					auto &texture_pool = _curRenderTarget->GetTex()->GetLevelCount() == 1 ? _texturePool : _mipmappedTexturePool;
-					_curRenderTarget->SetRT(texture_pool.GetTexture(_device.Get(), { offscreen_desc.Width, offscreen_desc.Height, offscreen_desc.Format }));
+					D3DSURFACE_DESC desc;
+					AssertHR(_curRenderTarget->GetTex()->GetLevelDesc(0, &desc));
+					if (desc.Pool == D3DPOOL_MANAGED)
+					{
+						auto &texture_pool = *_texturePools[false][_curRenderTarget->GetTex()->GetLevelCount() != 1];
+						_curRenderTarget->SetRT(texture_pool.GetTexture(_device.Get(), { desc.Width, desc.Height, desc.Format }));
+					}
+					ComPtr<IDirect3DSurface9> resolved_surface;
+					AssertHR(_curRenderTarget->GetTex()->GetSurfaceLevel(0, &resolved_surface));
+					CheckHR(_device->StretchRect(offscreen_target.Get(), NULL, resolved_surface.Get(), NULL, D3DTEXF_NONE));
 				}
-				ComPtr<IDirect3DSurface9> resolved_surface;
-				AssertHR(_curRenderTarget->GetRT()->GetSurfaceLevel(0, &resolved_surface));
-				if (FAILED(_device->StretchRect(offscreen_target.Get(), NULL, resolved_surface.Get(), NULL, D3DTEXF_NONE)))
-					return E_FAIL;
-			}
-			AssertHR(_device->SetRenderTarget(0, _screenColorTarget.Get()));
-			AssertHR(_device->SetDepthStencilSurface(_screenDepthTarget.Get()));
-			AssertHR(_device->SetViewport(&_screenViewport));
+				AssertHR(_device->SetRenderTarget(0, _screenColorTarget.Get()));
+				AssertHR(_device->SetDepthStencilSurface(_screenDepthTarget.Get()));
+				AssertHR(_device->SetViewport(&_screenViewport));
 #			ifndef SYNC_RT_TEX_LAZY
-			_curRenderTarget->SyncRT();
+				_curRenderTarget->SyncRT();
 #			endif
-			_curRenderTarget = nullptr;
-		}
-		else
-			return E_FAIL;
-	}
-	else if (pTexture && !_curRenderTarget)
-	{
-		auto &texture = *static_cast<CCoreTexture *>(pTexture);
-		D3DSURFACE_DESC dst_desc;
-		AssertHR(texture.GetTex()->GetLevelDesc(0, &dst_desc));
-		switch (dst_desc.Format)
-		{
-		case D3DFMT_D16_LOCKABLE:
-		case D3DFMT_D32:
-		case D3DFMT_D15S1:
-		case D3DFMT_D24S8:
-		case D3DFMT_D24X8:
-		case D3DFMT_D24X4S4:
-		case D3DFMT_D32F_LOCKABLE:
-		case D3DFMT_D24FS8:
-		case D3DFMT_D32_LOCKABLE:
-		case D3DFMT_S8_LOCKABLE:
-		case D3DFMT_D16:
-			return E_INVALIDARG;
-		}
-		TEngineWindow wnd;
-		AssertHR(_engineCore.GetCurrentWindow(wnd));
-		dst_desc.MultiSampleType = Multisample_DGLE_2_D3D(wnd.eMultisampling);
-		if (FAILED(d3d->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, DEVTYPE, dst_desc.Format, !wnd.bFullScreen, dst_desc.MultiSampleType, NULL)) ||
-			FAILED(d3d->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, DEVTYPE, _offscreenDepthFormat, !wnd.bFullScreen, dst_desc.MultiSampleType, NULL)))
-			dst_desc.MultiSampleType = D3DMULTISAMPLE_NONE;
-		AssertHR(_device->GetRenderTarget(0, &_screenColorTarget));
-		AssertHR(_device->GetDepthStencilSurface(&_screenDepthTarget));
-		AssertHR(_device->GetViewport(&_screenViewport));
-		ComPtr<IDirect3DSurface9> color_target;
-		if (dst_desc.MultiSampleType == D3DMULTISAMPLE_NONE)
-		{
-			if (!texture.GetRT())
-			{
-				auto &texture_pool = texture.GetTex()->GetLevelCount() == 1 ? _texturePool : _mipmappedTexturePool;
-				texture.SetRT(texture_pool.GetTexture(_device.Get(), { dst_desc.Width, dst_desc.Height, dst_desc.Format }));
+				_curRenderTarget = nullptr;
 			}
-			AssertHR(texture.GetRT()->GetSurfaceLevel(0, &color_target));
+			else
+				return E_FAIL;
+		}
+		else if (pTexture && !_curRenderTarget)
+		{
+			auto &texture = *static_cast<CCoreTexture *>(pTexture);
+			D3DSURFACE_DESC dst_desc;
+			AssertHR(texture.GetTex()->GetLevelDesc(0, &dst_desc));
+			switch (dst_desc.Format)
+			{
+			case D3DFMT_D16_LOCKABLE:
+			case D3DFMT_D32:
+			case D3DFMT_D15S1:
+			case D3DFMT_D24S8:
+			case D3DFMT_D24X8:
+			case D3DFMT_D24X4S4:
+			case D3DFMT_D32F_LOCKABLE:
+			case D3DFMT_D24FS8:
+			case D3DFMT_D32_LOCKABLE:
+			case D3DFMT_S8_LOCKABLE:
+			case D3DFMT_D16:
+				return E_INVALIDARG;
+			}
+			TEngineWindow wnd;
+			AssertHR(_engineCore.GetCurrentWindow(wnd));
+			dst_desc.MultiSampleType = Multisample_DGLE_2_D3D(wnd.eMultisampling);
+			if (FAILED(d3d->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, DEVTYPE, dst_desc.Format, !wnd.bFullScreen, dst_desc.MultiSampleType, NULL)) ||
+				FAILED(d3d->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, DEVTYPE, _offscreenDepthFormat, !wnd.bFullScreen, dst_desc.MultiSampleType, NULL)))
+				dst_desc.MultiSampleType = D3DMULTISAMPLE_NONE;
+			AssertHR(_device->GetRenderTarget(0, &_screenColorTarget));
+			AssertHR(_device->GetDepthStencilSurface(&_screenDepthTarget));
+			AssertHR(_device->GetViewport(&_screenViewport));
+			ComPtr<IDirect3DSurface9> color_target;
+			if (dst_desc.MultiSampleType == D3DMULTISAMPLE_NONE)
+			{
+				D3DSURFACE_DESC desc;
+				AssertHR(texture.GetTex()->GetLevelDesc(0, &desc));
+				if (desc.Pool == D3DPOOL_MANAGED)
+				{
+					auto &texture_pool = *_texturePools[false][texture.GetTex()->GetLevelCount() != 1];
+					texture.SetRT(texture_pool.GetTexture(_device.Get(), { dst_desc.Width, dst_desc.Height, dst_desc.Format }));
+				}
+				AssertHR(texture.GetTex()->GetSurfaceLevel(0, &color_target));
+			}
+			else
+				color_target = _MSAARendertargetPool.GetRendertarget(_device.Get(), { dst_desc.Width, dst_desc.Height, dst_desc.Format });
+			const auto depth_target = _offscreenDepth.Get(_device.Get(), dst_desc.Width, dst_desc.Height, dst_desc.MultiSampleType);
+			CheckHR(_device->SetRenderTarget(0, color_target.Get()));
+			CheckHR(_device->SetDepthStencilSurface(depth_target.Get()));
+			_curRenderTarget = static_cast<CCoreTexture *>(pTexture);
 		}
 		else
-			color_target = _MSAARendertargetPool.GetRendertarget(_device.Get(), { dst_desc.Width, dst_desc.Height, dst_desc.Format });
-		const auto depth_target = _offcreenDepth.Get(_device.Get(), dst_desc.Width, dst_desc.Height, dst_desc.MultiSampleType);
-		if (!color_target || !depth_target || FAILED(_device->SetRenderTarget(0, color_target.Get())) || FAILED(_device->SetDepthStencilSurface(depth_target.Get())))
-		{
-			LOG("Fail to set rendertarget", LT_FATAL);
-			return E_FAIL;
-		}
-		_curRenderTarget = static_cast<CCoreTexture *>(pTexture);
+			return S_FALSE;
+
+		_SetProjXform();
+
+		return S_OK;
 	}
-	else
-		return S_FALSE;
-
-	_SetProjXform();
-
-	return S_OK;
+	catch (const HRESULT hr)
+	{
+		LOG("Fail to set rendertarget", LT_FATAL);
+		return hr;
+	}
 }
 
 DGLE_RESULT DGLE_API CCoreRendererDX9::GetRenderTarget(ICoreTexture *&prTexture)
@@ -2454,65 +2523,65 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::GetRenderTarget(ICoreTexture *&prTexture)
 
 DGLE_RESULT DGLE_API CCoreRendererDX9::CreateTexture(ICoreTexture *&prTex, const uint8 *pData, uint uiWidth, uint uiHeight, bool bMipmapsPresented, E_CORE_RENDERER_DATA_ALIGNMENT eDataAlignment, E_TEXTURE_DATA_FORMAT eDataFormat, E_TEXTURE_LOAD_FLAGS eLoadFlags)
 {
-	DGLE_RESULT ret = S_OK;
-
-	DWORD required_anisotropy = 4;
-
-	const auto init = CCoreTexture::GetInit(*this, eDataFormat);
-
-	if (eLoadFlags & TLF_FILTERING_ANISOTROPIC)
-	{
-		if (_anisoSupport)
-		{
-			if (eLoadFlags & TLF_ANISOTROPY_2X)
-				required_anisotropy = 2;
-			else
-				if (eLoadFlags & TLF_ANISOTROPY_4X)
-					required_anisotropy = 4;
-				else
-					if (eLoadFlags & TLF_ANISOTROPY_8X)
-						required_anisotropy = 8;
-					else
-						if (eLoadFlags & TLF_ANISOTROPY_16X)
-							required_anisotropy = 16;
-
-			if (required_anisotropy > _maxAnisotropy)
-				required_anisotropy = _maxAnisotropy;
-		}
-		else
-		{
-			(int &)eLoadFlags &= ~TLF_FILTERING_ANISOTROPIC;
-			(int &)eLoadFlags |= init.is_depth ? TLF_FILTERING_BILINEAR : TLF_FILTERING_TRILINEAR;
-
-			(int &)eLoadFlags &= ~TLF_ANISOTROPY_2X;
-			(int &)eLoadFlags &= ~TLF_ANISOTROPY_4X;
-			(int &)eLoadFlags &= ~TLF_ANISOTROPY_8X;
-			(int &)eLoadFlags &= ~TLF_ANISOTROPY_16X;
-
-			ret = S_FALSE;
-		}
-	}
-
-	if (eLoadFlags & TLF_FILTERING_TRILINEAR && !(eLoadFlags & TLF_GENERATE_MIPMAPS) && !bMipmapsPresented)
-		(int &)eLoadFlags |= TLF_GENERATE_MIPMAPS;
-
-	if (eLoadFlags & TLF_COMPRESS)
-		ret = S_FALSE;
-
-	if ((!_mipmapSupport || init.is_depth) && (eLoadFlags & TLF_GENERATE_MIPMAPS || bMipmapsPresented))
-	{
-		(int &)eLoadFlags &= ~TLF_GENERATE_MIPMAPS;
-		bMipmapsPresented = false;
-		if (eLoadFlags & TLF_FILTERING_TRILINEAR)
-		{
-			(int &)eLoadFlags &= ~TLF_FILTERING_TRILINEAR;
-			(int &)eLoadFlags |= TLF_FILTERING_BILINEAR;
-		}
-		ret = S_FALSE;
-	}
-
 	try
 	{
+		DGLE_RESULT ret = S_OK;
+
+		DWORD required_anisotropy = 4;
+
+		const auto init = CCoreTexture::GetInit(*this, eDataFormat);
+
+		if (eLoadFlags & TLF_FILTERING_ANISOTROPIC)
+		{
+			if (_anisoSupport)
+			{
+				if (eLoadFlags & TLF_ANISOTROPY_2X)
+					required_anisotropy = 2;
+				else
+					if (eLoadFlags & TLF_ANISOTROPY_4X)
+						required_anisotropy = 4;
+					else
+						if (eLoadFlags & TLF_ANISOTROPY_8X)
+							required_anisotropy = 8;
+						else
+							if (eLoadFlags & TLF_ANISOTROPY_16X)
+								required_anisotropy = 16;
+
+				if (required_anisotropy > _maxAnisotropy)
+					required_anisotropy = _maxAnisotropy;
+			}
+			else
+			{
+				(int &)eLoadFlags &= ~TLF_FILTERING_ANISOTROPIC;
+				(int &)eLoadFlags |= init.is_depth ? TLF_FILTERING_BILINEAR : TLF_FILTERING_TRILINEAR;
+
+				(int &)eLoadFlags &= ~TLF_ANISOTROPY_2X;
+				(int &)eLoadFlags &= ~TLF_ANISOTROPY_4X;
+				(int &)eLoadFlags &= ~TLF_ANISOTROPY_8X;
+				(int &)eLoadFlags &= ~TLF_ANISOTROPY_16X;
+
+				ret = S_FALSE;
+			}
+		}
+
+		if (eLoadFlags & TLF_FILTERING_TRILINEAR && !(eLoadFlags & TLF_GENERATE_MIPMAPS) && !bMipmapsPresented)
+			(int &)eLoadFlags |= TLF_GENERATE_MIPMAPS;
+
+		if (eLoadFlags & TLF_COMPRESS)
+			ret = S_FALSE;
+
+		if ((!_mipmapSupport || init.is_depth) && (eLoadFlags & TLF_GENERATE_MIPMAPS || bMipmapsPresented))
+		{
+			(int &)eLoadFlags &= ~TLF_GENERATE_MIPMAPS;
+			bMipmapsPresented = false;
+			if (eLoadFlags & TLF_FILTERING_TRILINEAR)
+			{
+				(int &)eLoadFlags &= ~TLF_FILTERING_TRILINEAR;
+				(int &)eLoadFlags |= TLF_FILTERING_BILINEAR;
+			}
+			ret = S_FALSE;
+		}
+
 		const auto texture = new CCoreTexture(init, TT_2D, pData, uiWidth, uiHeight, bMipmapsPresented, eDataAlignment, eLoadFlags, required_anisotropy, ret);
 		prTex = texture;
 
@@ -2521,13 +2590,13 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CreateTexture(ICoreTexture *&prTex, const
 			(int &)eLoadFlags &= ~TLF_GENERATE_MIPMAPS;
 			ret = S_FALSE;
 		}
+
+		return ret;
 	}
 	catch (const HRESULT hr)
 	{
 		return hr;
 	}
-
-	return ret;
 }
 
 DGLE_RESULT DGLE_API CCoreRendererDX9::CreateGeometryBuffer(ICoreGeometryBuffer *&prBuffer, const TDrawDataDesc &stDrawDesc, uint uiVerticesCount, uint uiIndicesCount, E_CORE_RENDERER_DRAW_MODE eMode, E_CORE_RENDERER_BUFFER_TYPE eType)
@@ -3490,10 +3559,7 @@ void DGLE_API CCoreRendererDX9::EventsHandler(void *pParameter, IBaseEvent *pEve
 	switch (type)
 	{
 	case ET_ON_PER_SECOND_TIMER:
-		PTHIS(CCoreRendererDX9)->_rendertargetPool.Clean();
-		PTHIS(CCoreRendererDX9)->_MSAARendertargetPool.Clean();
-		PTHIS(CCoreRendererDX9)->_texturePool.Clean();
-		PTHIS(CCoreRendererDX9)->_mipmappedTexturePool.Clean();
+		PTHIS(CCoreRendererDX9)->_cleanBroadcast();
 		break;
 	}
 }

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.6.2015 (c)Korotkov Andrey
+\date		27.6.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -171,7 +171,7 @@ template<typename ...Params>
 template<typename ...Args>
 auto CBroadcast<Params...>::AddCallback(Args &&...args) -> CCallbackHandle
 {
-	_callbacks.emplace_front(forward<Args>(args)...);
+	_callbacks.emplace_front(std::forward<Args>(args)...);
 	return CCallbackHandle(this, _callbacks.begin());
 }
 
