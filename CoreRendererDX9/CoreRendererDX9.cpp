@@ -1404,6 +1404,9 @@ void CCoreRendererDX9::CCoreTexture::SetTex(const ComPtr<IDirect3DTexture9> &tex
 
 void CCoreRendererDX9::CCoreTexture::SyncRT()
 {
+	if (IsDepth())
+		return;
+
 	D3DSURFACE_DESC desc;
 	AssertHR(_texture->GetLevelDesc(0, &desc));
 	if (desc.Pool == D3DPOOL_DEFAULT)
@@ -1490,7 +1493,7 @@ void CCoreRendererDX9::CCoreTexture::_Reallocate(const uint8_t *data, unsigned i
 	if (_Compressed() && width % 4 && height % 4)
 		throw E_INVALIDARG;
 
-	SetTex(_parent._texturePools[true][mipmaps != 1]->GetTexture(_parent._device.Get(), { width, height, format }));
+	SetTex(_parent._texturePools[!IsDepth()][mipmaps != 1]->GetTexture(_parent._device.Get(), { width, height, format }));
 
 	CCoreTexture *const ptr = this;
 	AssertHR(_texture->SetPrivateData(__uuidof(CCoreTexture), &ptr, sizeof ptr, 0));
@@ -1508,6 +1511,14 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CCoreTexture::GetPixelData(uint8 *pData, 
 {
 	try
 	{
+		if (IsDepth() && (format != TDF_DEPTH_COMPONENT32 || [this]
+		{
+			D3DSURFACE_DESC desc;
+			AssertHR(_texture->GetLevelDesc(0, &desc));
+			return desc.Format != D3DFMT_D32F_LOCKABLE;
+		}()))
+			return S_FALSE;
+
 		if (_parent._curRenderTarget == this)
 			return E_ABORT;
 
@@ -1545,6 +1556,14 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CCoreTexture::SetPixelData(const uint8 *p
 {
 	try
 	{
+		if (IsDepth() && (format != TDF_DEPTH_COMPONENT32 || [this]
+		{
+			D3DSURFACE_DESC desc;
+			AssertHR(_texture->GetLevelDesc(0, &desc));
+			return desc.Format != D3DFMT_D32F_LOCKABLE;
+		}()))
+			return S_FALSE;
+
 		if (_parent._curRenderTarget == this)
 			return E_ABORT;
 
@@ -2380,9 +2399,9 @@ const ComPtr<IDirect3DResource9> CCoreRendererDX9::CTexturePool::_CreateImage(ID
 			break;
 		default:
 			usage |= D3DUSAGE_RENDERTARGET;
+			if (_mipmaps)
+				usage |= D3DUSAGE_AUTOGENMIPMAP;
 		}
-		if (_mipmaps)
-			usage |= D3DUSAGE_AUTOGENMIPMAP;
 	}
 	ComPtr<IDirect3DTexture9> result;
 	CheckHR(device->CreateTexture(desc.width, desc.height, _mipmaps ? 0 : 1, usage, desc.format, _managed ? D3DPOOL_MANAGED : D3DPOOL_DEFAULT, &result, NULL));
@@ -2423,82 +2442,78 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::SetRenderTarget(ICoreTexture *pTexture)
 
 		if (!pTexture && _curRenderTarget)
 		{
-			ComPtr<IDirect3DSurface9> offscreen_target;
-			AssertHR(_device->GetRenderTarget(0, &offscreen_target));
-			if (offscreen_target)
+			if (!_curRenderTarget->IsDepth())
 			{
-				D3DSURFACE_DESC offscreen_desc;
-				AssertHR(offscreen_target->GetDesc(&offscreen_desc));
-				if (offscreen_desc.MultiSampleType != D3DMULTISAMPLE_NONE)
+				ComPtr<IDirect3DSurface9> offscreen_target;
+				AssertHR(_device->GetRenderTarget(0, &offscreen_target));
+				if (offscreen_target)
 				{
-					D3DSURFACE_DESC desc;
-					AssertHR(_curRenderTarget->GetTex()->GetLevelDesc(0, &desc));
-					if (desc.Pool == D3DPOOL_MANAGED)
+					D3DSURFACE_DESC offscreen_desc;
+					AssertHR(offscreen_target->GetDesc(&offscreen_desc));
+					if (offscreen_desc.MultiSampleType != D3DMULTISAMPLE_NONE)
 					{
-						auto &texture_pool = *_texturePools[false][_curRenderTarget->GetTex()->GetLevelCount() != 1];
-						_curRenderTarget->SetTex(texture_pool.GetTexture(_device.Get(), { desc.Width, desc.Height, desc.Format }));
+						D3DSURFACE_DESC desc;
+						AssertHR(_curRenderTarget->GetTex()->GetLevelDesc(0, &desc));
+						if (desc.Pool == D3DPOOL_MANAGED)
+						{
+							auto &texture_pool = *_texturePools[false][_curRenderTarget->GetTex()->GetLevelCount() != 1];
+							_curRenderTarget->SetTex(texture_pool.GetTexture(_device.Get(), { desc.Width, desc.Height, desc.Format }));
+						}
+						ComPtr<IDirect3DSurface9> resolved_surface;
+						AssertHR(_curRenderTarget->GetTex()->GetSurfaceLevel(0, &resolved_surface));
+						CheckHR(_device->StretchRect(offscreen_target.Get(), NULL, resolved_surface.Get(), NULL, D3DTEXF_NONE));
 					}
-					ComPtr<IDirect3DSurface9> resolved_surface;
-					AssertHR(_curRenderTarget->GetTex()->GetSurfaceLevel(0, &resolved_surface));
-					CheckHR(_device->StretchRect(offscreen_target.Get(), NULL, resolved_surface.Get(), NULL, D3DTEXF_NONE));
+#					ifndef SYNC_RT_TEX_LAZY
+						_curRenderTarget->SyncRT();
+#					endif
 				}
-				AssertHR(_device->SetRenderTarget(0, _screenColorTarget.Get()));
-				AssertHR(_device->SetDepthStencilSurface(_screenDepthTarget.Get()));
-				AssertHR(_device->SetViewport(&_screenViewport));
-#			ifndef SYNC_RT_TEX_LAZY
-				_curRenderTarget->SyncRT();
-#			endif
-				_curRenderTarget = nullptr;
+				else
+					throw E_FAIL;
 			}
-			else
-				return E_FAIL;
+			AssertHR(_device->SetRenderTarget(0, _screenColorTarget.Get()));
+			AssertHR(_device->SetDepthStencilSurface(_screenDepthTarget.Get()));
+			AssertHR(_device->SetViewport(&_screenViewport));
+			_curRenderTarget = nullptr;
 		}
 		else if (pTexture && !_curRenderTarget)
 		{
 			auto &texture = *static_cast<CCoreTexture *>(pTexture);
-			D3DSURFACE_DESC dst_desc;
-			AssertHR(texture.GetTex()->GetLevelDesc(0, &dst_desc));
-			switch (dst_desc.Format)
+			ComPtr<IDirect3DSurface9> depth_target, color_target;
+			if (texture.IsDepth())
 			{
-			case D3DFMT_D16_LOCKABLE:
-			case D3DFMT_D32:
-			case D3DFMT_D15S1:
-			case D3DFMT_D24S8:
-			case D3DFMT_D24X8:
-			case D3DFMT_D24X4S4:
-			case D3DFMT_D32F_LOCKABLE:
-			case D3DFMT_D24FS8:
-			case D3DFMT_D32_LOCKABLE:
-			case D3DFMT_S8_LOCKABLE:
-			case D3DFMT_D16:
-				return E_INVALIDARG;
-			}
-			TEngineWindow wnd;
-			AssertHR(_engineCore.GetCurrentWindow(wnd));
-			dst_desc.MultiSampleType = Multisample_DGLE_2_D3D(wnd.eMultisampling);
-			if (FAILED(d3d->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, DEVTYPE, dst_desc.Format, !wnd.bFullScreen, dst_desc.MultiSampleType, NULL)) ||
-				FAILED(d3d->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, DEVTYPE, _offscreenDepthFormat, !wnd.bFullScreen, dst_desc.MultiSampleType, NULL)))
-				dst_desc.MultiSampleType = D3DMULTISAMPLE_NONE;
-			AssertHR(_device->GetRenderTarget(0, &_screenColorTarget));
-			AssertHR(_device->GetDepthStencilSurface(&_screenDepthTarget));
-			AssertHR(_device->GetViewport(&_screenViewport));
-			ComPtr<IDirect3DSurface9> color_target;
-			if (dst_desc.MultiSampleType == D3DMULTISAMPLE_NONE)
-			{
-				D3DSURFACE_DESC desc;
-				AssertHR(texture.GetTex()->GetLevelDesc(0, &desc));
-				if (desc.Pool == D3DPOOL_MANAGED)
-				{
-					auto &texture_pool = *_texturePools[false][texture.GetTex()->GetLevelCount() != 1];
-					texture.SetTex(texture_pool.GetTexture(_device.Get(), { dst_desc.Width, dst_desc.Height, dst_desc.Format }));
-				}
-				AssertHR(texture.GetTex()->GetSurfaceLevel(0, &color_target));
+				AssertHR(texture.GetTex()->GetSurfaceLevel(0, &depth_target));
+				AssertHR(_device->SetRenderState(D3DRS_COLORWRITEENABLE, 0));
 			}
 			else
-				color_target = _MSAARendertargetPool.GetRendertarget(_device.Get(), { dst_desc.Width, dst_desc.Height, dst_desc.Format });
-			const auto depth_target = _offscreenDepth.Get(_device.Get(), dst_desc.Width, dst_desc.Height, dst_desc.MultiSampleType);
-			CheckHR(_device->SetRenderTarget(0, color_target.Get()));
+			{
+				D3DSURFACE_DESC dst_desc;
+				AssertHR(texture.GetTex()->GetLevelDesc(0, &dst_desc));
+				TEngineWindow wnd;
+				AssertHR(_engineCore.GetCurrentWindow(wnd));
+				dst_desc.MultiSampleType = Multisample_DGLE_2_D3D(wnd.eMultisampling);
+				if (FAILED(d3d->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, DEVTYPE, dst_desc.Format, !wnd.bFullScreen, dst_desc.MultiSampleType, NULL)) ||
+					FAILED(d3d->CheckDeviceMultiSampleType(D3DADAPTER_DEFAULT, DEVTYPE, _offscreenDepthFormat, !wnd.bFullScreen, dst_desc.MultiSampleType, NULL)))
+					dst_desc.MultiSampleType = D3DMULTISAMPLE_NONE;
+				AssertHR(_device->GetRenderTarget(0, &_screenColorTarget));
+				AssertHR(_device->GetDepthStencilSurface(&_screenDepthTarget));
+				AssertHR(_device->GetViewport(&_screenViewport));
+				if (dst_desc.MultiSampleType == D3DMULTISAMPLE_NONE)
+				{
+					D3DSURFACE_DESC desc;
+					AssertHR(texture.GetTex()->GetLevelDesc(0, &desc));
+					if (desc.Pool == D3DPOOL_MANAGED)
+					{
+						auto &texture_pool = *_texturePools[false][texture.GetTex()->GetLevelCount() != 1];
+						texture.SetTex(texture_pool.GetTexture(_device.Get(), { dst_desc.Width, dst_desc.Height, dst_desc.Format }));
+					}
+					AssertHR(texture.GetTex()->GetSurfaceLevel(0, &color_target));
+				}
+				else
+					color_target = _MSAARendertargetPool.GetRendertarget(_device.Get(), { dst_desc.Width, dst_desc.Height, dst_desc.Format });
+				depth_target = _offscreenDepth.Get(_device.Get(), dst_desc.Width, dst_desc.Height, dst_desc.MultiSampleType);
+			}
 			CheckHR(_device->SetDepthStencilSurface(depth_target.Get()));
+			CheckHR(_device->SetRenderTarget(0, color_target.Get()));
 			_curRenderTarget = static_cast<CCoreTexture *>(pTexture);
 		}
 		else
@@ -3523,7 +3538,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::IsFeatureSupported(E_CORE_RENDERER_FEATUR
 		bIsSupported = _NPOTTexSupport;
 		break;
 	case CRFT_DEPTH_TEXTURES:
-		bIsSupported = false;	// TDF_DEPTH_COMPONENT24 currently unsupported
+		bIsSupported = true;
 		break;
 	case CRFT_TEXTURE_ANISOTROPY:
 		bIsSupported = _anisoSupport;
