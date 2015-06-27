@@ -11,8 +11,6 @@ See "DGLE.h" for more details.
 
 #include "Common.h"
 
-#ifndef NO_BUILTIN_RENDERER
-
 //#define SAVE_ALL_STATES
 
 #include "FixedFunctionPipelineDX9.h"
@@ -453,5 +451,3 @@ public:
 
 	IDGLE_BASE_IMPLEMENTATION(ICoreRenderer, INTERFACE_IMPL(IEngineSubSystem, INTERFACE_IMPL_END))
 };
-
-#endif

@@ -10,8 +10,6 @@ See "DGLE.h" for more details.
 #include "CoreRendererDX9.h"
 #include <d3dx9.h>
 
-#ifndef NO_BUILTIN_RENDERER
-
 #define DEVTYPE D3DDEVTYPE_HAL
 //#define DEVTYPE D3DDEVTYPE_REF
 
@@ -209,13 +207,46 @@ unsigned int CCoreRendererDX9::CGeometryProvider::SetupIB()
 
 #pragma region CCoreGeometryBufferBase
 class CCoreRendererDX9::CCoreGeometryBufferBase : virtual public CGeometryProviderBase, public ICoreGeometryBuffer
-#ifdef DX9_LEGACY_BASE_OBJECTS
-	, public IDX9BufferContainer
-#endif
 {
 	using CGeometryProviderBase::GetVB;
 	using CGeometryProviderBase::GetIB;
 	using CGeometryProviderBase::GetVBDecl;
+
+	class CDX9BufferContainer : public IDX9BufferContainer
+	{
+		// need to store reference since offsetof() may be unsafe here due to virtual inheritence
+		const CGeometryProviderBase &_geomProvider;
+
+	public:
+		CDX9BufferContainer(const CGeometryProviderBase &geomProvider) : _geomProvider(geomProvider) {}
+
+	public:
+		DGLE_RESULT DGLE_API GetVB(IDirect3DVertexBuffer9 *&VB) override
+		{
+			_geomProvider.GetVB().CopyTo(&VB);
+			return S_OK;
+		}
+
+		DGLE_RESULT DGLE_API GetIB(IDirect3DIndexBuffer9 *&IB) override
+		{
+			_geomProvider.GetIB().CopyTo(&IB);
+			return S_OK;
+		}
+
+		DGLE_RESULT DGLE_API GetVBDecl(IDirect3DVertexDeclaration9 *&VBDecl) override
+		{
+			_geomProvider.GetVBDecl().CopyTo(&VBDecl);
+			return S_OK;
+		}
+
+		DGLE_RESULT DGLE_API GetObjectType(E_ENGINE_OBJECT_TYPE &eType) override
+		{
+			eType = EOT_MESH;
+			return S_OK;
+		}
+
+		IDGLE_BASE_IMPLEMENTATION(IDX9BufferContainer, INTERFACE_IMPL(IBaseRenderObjectContainer, INTERFACE_IMPL_END))
+	} _bufferContainer{ *this };
 
 protected:
 	CCoreGeometryBufferBase(CCoreRendererDX9 &parent, const TDrawDataDesc &drawDesc, E_CORE_RENDERER_DRAW_MODE mode) :
@@ -236,35 +267,6 @@ protected:
 private:
 	virtual void _GetGeometryDataImpl(void *vertexData, uint verticesDataSize, void *indexData, uint indicesDataSize) const = 0;
 	virtual void _ReallocateImpl(const TDrawDataDesc &drawDesc, uint verticesDataSize, uint indicesDataSize, E_CORE_RENDERER_DRAW_MODE drawMode) = 0;
-
-public:
-	DGLE_RESULT DGLE_API GetVB(IDirect3DVertexBuffer9 *&VB)
-	{
-		GetVB().CopyTo(&VB);
-		return S_OK;
-	}
-
-	DGLE_RESULT DGLE_API GetIB(IDirect3DIndexBuffer9 *&IB)
-	{
-		GetIB().CopyTo(&IB);
-		return S_OK;
-	}
-
-	DGLE_RESULT DGLE_API GetVBDecl(IDirect3DVertexDeclaration9 *&VBDecl)
-	{
-		GetVBDecl().CopyTo(&VBDecl);
-		return S_OK;
-	}
-
-	DGLE_RESULT DGLE_API GetObjectType(E_ENGINE_OBJECT_TYPE &eType)
-	{
-		eType = EOT_MESH;
-		return S_OK;
-	}
-
-#ifdef DX9_LEGACY_BASE_OBJECTS
-	IDGLE_BASE_IMPLEMENTATION(IDX9BufferContainer, INTERFACE_IMPL(IBaseRenderObjectContainer, INTERFACE_IMPL_END))
-#endif
 
 public:
 	DGLE_RESULT DGLE_API GetGeometryData(TDrawDataDesc &stDesc, uint uiVerticesDataSize, uint uiIndexesDataSize) override;
@@ -317,13 +319,8 @@ public:
 
 	DGLE_RESULT DGLE_API GetBaseObject(IBaseRenderObjectContainer *&prObj) override
 	{
-#ifdef DX9_LEGACY_BASE_OBJECTS
-		prObj = this;
+		prObj = &_bufferContainer;
 		return S_OK;
-#else
-		prObj = nullptr;
-		return S_FALSE;
-#endif
 	}
 
 	DGLE_RESULT DGLE_API Free() override
@@ -997,40 +994,28 @@ namespace
 	}
 }
 
-class CDX9TextureContainer
-#ifdef DX9_LEGACY_BASE_OBJECTS
-	: public IDX9TextureContainer
-#endif
-{
-protected:
-	ComPtr<IDirect3DTexture9> _texture;
-
-protected:
-	CDX9TextureContainer() = default;
-	CDX9TextureContainer(CDX9TextureContainer &) = delete;
-	void operator =(CDX9TextureContainer &) = delete;
-
-public:
-	DGLE_RESULT DGLE_API GetObjectType(E_ENGINE_OBJECT_TYPE &eType)
-	{
-		eType = EOT_TEXTURE;
-		return S_OK;
-	}
-
-	DGLE_RESULT DGLE_API GetTexture(IDirect3DTexture9 *&texture)
-	{
-		_texture.CopyTo(&texture);
-		return S_OK;
-	}
-
-#ifdef DX9_LEGACY_BASE_OBJECTS
-	IDGLE_BASE_IMPLEMENTATION(IDX9TextureContainer, INTERFACE_IMPL(IBaseRenderObjectContainer, INTERFACE_IMPL_END))
-#endif
-};
-
 #pragma region CCoreTexture
-class __declspec(uuid("{356F5347-3EF8-40C5-84A4-817993A23196}")) CCoreRendererDX9::CCoreTexture final : public ICoreTexture, public CDX9TextureContainer
+class __declspec(uuid("{356F5347-3EF8-40C5-84A4-817993A23196}")) CCoreRendererDX9::CCoreTexture final : public ICoreTexture
 {
+	struct CDX9TextureContainer : public IDX9TextureContainer
+	{
+		ComPtr<IDirect3DTexture9> texture;
+
+	public:
+		DGLE_RESULT DGLE_API GetObjectType(E_ENGINE_OBJECT_TYPE &eType) override
+		{
+			eType = EOT_TEXTURE;
+			return S_OK;
+		}
+
+		DGLE_RESULT DGLE_API GetTexture(IDirect3DTexture9 *&texture) override
+		{
+			this->texture.CopyTo(&texture);
+			return S_OK;
+		}
+
+		IDGLE_BASE_IMPLEMENTATION(IDX9TextureContainer, INTERFACE_IMPL(IBaseRenderObjectContainer, INTERFACE_IMPL_END))
+	} _textureContainer;
 	CCoreRendererDX9 &_parent;
 	const CBroadcast<>::CCallbackHandle _clearCallbackHandle;
 	const E_TEXTURE_TYPE _type;
@@ -1081,7 +1066,7 @@ public:
 
 public:
 	inline bool IsDepth() const;
-	inline const ComPtr<IDirect3DTexture9> &GetTex() const { return _texture; }
+	inline const ComPtr<IDirect3DTexture9> &GetTex() const { return _textureContainer.texture; }
 	void SetTex(const ComPtr<IDirect3DTexture9> &texture);
 	void SyncRT();
 
@@ -1093,7 +1078,7 @@ public:
 	DGLE_RESULT DGLE_API GetSize(uint &width, uint &height) override
 	{
 		D3DSURFACE_DESC desc;
-		AssertHR(_texture->GetLevelDesc(0, &desc));
+		AssertHR(GetTex()->GetLevelDesc(0, &desc));
 		width = desc.Width; height = desc.Height;
 		return S_OK;
 	}
@@ -1130,16 +1115,11 @@ public:
 
 	DGLE_RESULT DGLE_API GetBaseObject(IBaseRenderObjectContainer *&prObj) override
 	{
-#ifdef DX9_LEGACY_BASE_OBJECTS
-		prObj = this;
+		prObj = &_textureContainer;
 		return S_OK;
-#else
-		prObj = nullptr;
-		return S_FALSE;
-#endif
 	}
 
-	DGLE_RESULT DGLE_API Free()
+	DGLE_RESULT DGLE_API Free() override
 	{
 		delete this;
 		return S_OK;
@@ -1294,7 +1274,7 @@ auto CCoreRendererDX9::CCoreTexture::_DataSize(unsigned int width, unsigned int 
 auto CCoreRendererDX9::CCoreTexture::_DataSize(unsigned int lod, unsigned int alignment) const -> TDataSize
 {
 	D3DSURFACE_DESC desc;
-	AssertHR(_texture->GetLevelDesc(lod, &desc));
+	AssertHR(GetTex()->GetLevelDesc(lod, &desc));
 
 	return _DataSize(desc.Width, desc.Height, alignment);
 }
@@ -1389,17 +1369,17 @@ CCoreRendererDX9::CCoreTexture::~CCoreTexture()
 	if (_parent._curRenderTarget == this)
 		_parent.SetRenderTarget(nullptr);
 	CCoreTexture *const null = nullptr;
-	AssertHR(_texture->SetPrivateData(__uuidof(CCoreTexture), &null, sizeof null, 0));
+	AssertHR(GetTex()->SetPrivateData(__uuidof(CCoreTexture), &null, sizeof null, 0));
 }
 
 void CCoreRendererDX9::CCoreTexture::SetTex(const ComPtr<IDirect3DTexture9> &texture)
 {
 	assert(texture);
 	CCoreTexture *ptr;
-	if (_texture)
-		AssertHR(_texture->SetPrivateData(__uuidof(CCoreTexture), &(ptr = nullptr), sizeof ptr, 0));
-	_texture = texture;
-	AssertHR(_texture->SetPrivateData(__uuidof(CCoreTexture), &(ptr = this), sizeof ptr, 0));
+	if (GetTex())
+		AssertHR(GetTex()->SetPrivateData(__uuidof(CCoreTexture), &(ptr = nullptr), sizeof ptr, 0));
+	_textureContainer.texture = texture;
+	AssertHR(GetTex()->SetPrivateData(__uuidof(CCoreTexture), &(ptr = this), sizeof ptr, 0));
 }
 
 void CCoreRendererDX9::CCoreTexture::SyncRT()
@@ -1408,7 +1388,7 @@ void CCoreRendererDX9::CCoreTexture::SyncRT()
 		return;
 
 	D3DSURFACE_DESC desc;
-	AssertHR(_texture->GetLevelDesc(0, &desc));
+	AssertHR(GetTex()->GetLevelDesc(0, &desc));
 	if (desc.Pool == D3DPOOL_DEFAULT)
 	{
 		unsigned int row_size;
@@ -1432,22 +1412,22 @@ void CCoreRendererDX9::CCoreTexture::SyncRT()
 		row_size *= desc.Width;
 
 		ComPtr<IDirect3DSurface9> rt_surface;
-		AssertHR(_texture->GetSurfaceLevel(0, &rt_surface));
+		AssertHR(GetTex()->GetSurfaceLevel(0, &rt_surface));
 		const auto &lockable_surface = _parent._rendertargetCache.GetRendertarget(_parent._device.Get(), desc.Width, desc.Height, desc.Format);
 		const RECT lockable_rect = { 0, 0, desc.Width, desc.Height };
 		AssertHR(_parent._device->StretchRect(rt_surface.Get(), NULL, lockable_surface.Get(), &lockable_rect, D3DTEXF_NONE));
 
 		D3DLOCKED_RECT src_locked, dst_locked;
 		AssertHR(lockable_surface->LockRect(&src_locked, &lockable_rect, D3DLOCK_READONLY));
-		SetTex(_parent._texturePools[true][_texture->GetLevelCount() != 1]->GetTexture(_parent._device.Get(), { desc.Width, desc.Height, desc.Format }));
-		AssertHR(_texture->LockRect(0, &dst_locked, NULL, 0));
+		SetTex(_parent._texturePools[true][GetTex()->GetLevelCount() != 1]->GetTexture(_parent._device.Get(), { desc.Width, desc.Height, desc.Format }));
+		AssertHR(GetTex()->LockRect(0, &dst_locked, NULL, 0));
 		for (unsigned int row = 0; row < desc.Height; row++, (uint8_t *&)src_locked.pBits += src_locked.Pitch, (uint8_t *&)dst_locked.pBits += dst_locked.Pitch)
 			memcpy(dst_locked.pBits, src_locked.pBits, row_size);
 		AssertHR(lockable_surface->UnlockRect());
-		AssertHR(_texture->UnlockRect(0));
+		AssertHR(GetTex()->UnlockRect(0));
 
-		if (_texture->GetLevelCount() != 1)
-			AssertHR(D3DXFilterTexture(_texture.Get(), NULL, D3DX_DEFAULT, D3DX_DEFAULT));
+		if (GetTex()->GetLevelCount() != 1)
+			AssertHR(D3DXFilterTexture(GetTex().Get(), NULL, D3DX_DEFAULT, D3DX_DEFAULT));
 
 		for (decltype(_maxTexUnits) cur_stage = 0; cur_stage < _parent._maxTexUnits; cur_stage++)
 		{
@@ -1464,7 +1444,7 @@ void CCoreRendererDX9::CCoreTexture::SyncRT()
 			assert(data_size == sizeof bound_tex);
 
 			if (bound_tex == this)
-				AssertHR(_parent._device->SetTexture(cur_stage, _texture.Get()));
+				AssertHR(_parent._device->SetTexture(cur_stage, GetTex().Get()));
 		}
 	}
 }
@@ -1474,10 +1454,10 @@ void CCoreRendererDX9::CCoreTexture::_SetPixelData(const uint8_t *&data, const T
 	const auto WriteRow = _RowConvertion(true);
 
 	D3DLOCKED_RECT locked;
-	AssertHR(_texture->LockRect(lod, &locked, NULL, 0));
+	AssertHR(GetTex()->LockRect(lod, &locked, NULL, 0));
 	for (unsigned row = 0; row < dataSize.h; row++, data += dataSize.rowSize, (const uint8_t *&)locked.pBits += locked.Pitch)
 		WriteRow(data, locked.pBits, dataSize.w);
-	AssertHR(_texture->UnlockRect(lod));
+	AssertHR(GetTex()->UnlockRect(lod));
 }
 
 void CCoreRendererDX9::CCoreTexture::_Reallocate(const uint8_t *data, unsigned int width, unsigned int height, unsigned int mipmaps, unsigned int alignment, D3DFORMAT format)
@@ -1496,7 +1476,7 @@ void CCoreRendererDX9::CCoreTexture::_Reallocate(const uint8_t *data, unsigned i
 	SetTex(_parent._texturePools[!IsDepth()][mipmaps != 1]->GetTexture(_parent._device.Get(), { width, height, format }));
 
 	CCoreTexture *const ptr = this;
-	AssertHR(_texture->SetPrivateData(__uuidof(CCoreTexture), &ptr, sizeof ptr, 0));
+	AssertHR(GetTex()->SetPrivateData(__uuidof(CCoreTexture), &ptr, sizeof ptr, 0));
 
 	if (!IsDepth() || this->format == TDF_DEPTH_COMPONENT32 && format == D3DFMT_D32F_LOCKABLE)
 	{
@@ -1514,7 +1494,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CCoreTexture::GetPixelData(uint8 *pData, 
 		if (IsDepth() && (format != TDF_DEPTH_COMPONENT32 || [this]
 		{
 			D3DSURFACE_DESC desc;
-			AssertHR(_texture->GetLevelDesc(0, &desc));
+			AssertHR(GetTex()->GetLevelDesc(0, &desc));
 			return desc.Format != D3DFMT_D32F_LOCKABLE;
 		}()))
 			return S_FALSE;
@@ -1539,10 +1519,10 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CCoreTexture::GetPixelData(uint8 *pData, 
 		const auto ReadRow = _RowConvertion(false);
 
 		D3DLOCKED_RECT locked;
-		AssertHR(_texture->LockRect(uiLodLevel, &locked, NULL, D3DLOCK_READONLY));
+		AssertHR(GetTex()->LockRect(uiLodLevel, &locked, NULL, D3DLOCK_READONLY));
 		for (unsigned row = 0; row < data_size.h; row++, pData += data_size.rowSize, (uint8_t *&)locked.pBits += locked.Pitch)
 			ReadRow(locked.pBits, pData, data_size.w);
-		AssertHR(_texture->UnlockRect(uiLodLevel));
+		AssertHR(GetTex()->UnlockRect(uiLodLevel));
 
 		return S_OK;
 	}
@@ -1559,7 +1539,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CCoreTexture::SetPixelData(const uint8 *p
 		if (IsDepth() && (format != TDF_DEPTH_COMPONENT32 || [this]
 		{
 			D3DSURFACE_DESC desc;
-			AssertHR(_texture->GetLevelDesc(0, &desc));
+			AssertHR(GetTex()->GetLevelDesc(0, &desc));
 			return desc.Format != D3DFMT_D32F_LOCKABLE;
 		}()))
 			return S_FALSE;
@@ -1603,7 +1583,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CCoreTexture::Reallocate(const uint8 *pDa
 	unsigned long int mipmaps = 1;
 	if (bMipMaps)
 	{
-		if (_texture)
+		if (GetTex())
 		{
 			_BitScanReverse(&mipmaps, max(uiWidth, uiHeight));
 			mipmaps++;
@@ -1620,7 +1600,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CCoreTexture::Reallocate(const uint8 *pDa
 	try
 	{
 		D3DSURFACE_DESC desc;
-		AssertHR(_texture->GetLevelDesc(0, &desc));
+		AssertHR(GetTex()->GetLevelDesc(0, &desc));
 		_Reallocate(pData, uiWidth, uiHeight, mipmaps, 0, desc.Format);
 	}
 	catch (const HRESULT hr)
@@ -1630,7 +1610,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CCoreTexture::Reallocate(const uint8 *pDa
 
 	if (_mipMaps && !bMipMaps)
 	{
-		if (FAILED(D3DXFilterTexture(_texture.Get(), NULL, D3DX_DEFAULT, D3DX_DEFAULT)))
+		if (FAILED(D3DXFilterTexture(GetTex().Get(), NULL, D3DX_DEFAULT, D3DX_DEFAULT)))
 			ret = S_FALSE;
 	}
 
@@ -3592,5 +3572,3 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::GetType(E_ENGINE_SUB_SYSTEM &eSubSystemTy
 	return S_OK;
 }
 #pragma endregion
-
-#endif
