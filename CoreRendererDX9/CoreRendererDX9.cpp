@@ -1082,7 +1082,7 @@ public:
 public:
 	inline bool IsDepth() const;
 	inline const ComPtr<IDirect3DTexture9> &GetTex() const { return _texture; }
-	void SetRT(const ComPtr<IDirect3DTexture9> &rt);
+	void SetTex(const ComPtr<IDirect3DTexture9> &texture);
 	void SyncRT();
 
 private:
@@ -1392,14 +1392,14 @@ CCoreRendererDX9::CCoreTexture::~CCoreTexture()
 	AssertHR(_texture->SetPrivateData(__uuidof(CCoreTexture), &null, sizeof null, 0));
 }
 
-void CCoreRendererDX9::CCoreTexture::SetRT(const ComPtr<IDirect3DTexture9> &rt)
+void CCoreRendererDX9::CCoreTexture::SetTex(const ComPtr<IDirect3DTexture9> &texture)
 {
-	assert(rt);
-	CCoreTexture *ptr = nullptr;
-	AssertHR(_texture->SetPrivateData(__uuidof(CCoreTexture), &ptr, sizeof ptr, 0));
-	_texture = rt;
-	ptr = this;
-	AssertHR(_texture->SetPrivateData(__uuidof(CCoreTexture), &ptr, sizeof ptr, 0));
+	assert(texture);
+	CCoreTexture *ptr;
+	if (_texture)
+		AssertHR(_texture->SetPrivateData(__uuidof(CCoreTexture), &(ptr = nullptr), sizeof ptr, 0));
+	_texture = texture;
+	AssertHR(_texture->SetPrivateData(__uuidof(CCoreTexture), &(ptr = this), sizeof ptr, 0));
 }
 
 void CCoreRendererDX9::CCoreTexture::SyncRT()
@@ -1436,7 +1436,7 @@ void CCoreRendererDX9::CCoreTexture::SyncRT()
 
 		D3DLOCKED_RECT src_locked, dst_locked;
 		AssertHR(lockable_surface->LockRect(&src_locked, &lockable_rect, D3DLOCK_READONLY));
-		_texture = _parent._texturePools[true][_texture->GetLevelCount() != 1]->GetTexture(_parent._device.Get(), { desc.Width, desc.Height, desc.Format });
+		SetTex(_parent._texturePools[true][_texture->GetLevelCount() != 1]->GetTexture(_parent._device.Get(), { desc.Width, desc.Height, desc.Format }));
 		AssertHR(_texture->LockRect(0, &dst_locked, NULL, 0));
 		for (unsigned int row = 0; row < desc.Height; row++, (uint8_t *&)src_locked.pBits += src_locked.Pitch, (uint8_t *&)dst_locked.pBits += dst_locked.Pitch)
 			memcpy(dst_locked.pBits, src_locked.pBits, row_size);
@@ -1490,7 +1490,7 @@ void CCoreRendererDX9::CCoreTexture::_Reallocate(const uint8_t *data, unsigned i
 	if (_Compressed() && width % 4 && height % 4)
 		throw E_INVALIDARG;
 
-	_texture = _parent._texturePools[true][mipmaps != 1]->GetTexture(_parent._device.Get(), { width, height, format });
+	SetTex(_parent._texturePools[true][mipmaps != 1]->GetTexture(_parent._device.Get(), { width, height, format }));
 
 	CCoreTexture *const ptr = this;
 	AssertHR(_texture->SetPrivateData(__uuidof(CCoreTexture), &ptr, sizeof ptr, 0));
@@ -2436,7 +2436,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::SetRenderTarget(ICoreTexture *pTexture)
 					if (desc.Pool == D3DPOOL_MANAGED)
 					{
 						auto &texture_pool = *_texturePools[false][_curRenderTarget->GetTex()->GetLevelCount() != 1];
-						_curRenderTarget->SetRT(texture_pool.GetTexture(_device.Get(), { desc.Width, desc.Height, desc.Format }));
+						_curRenderTarget->SetTex(texture_pool.GetTexture(_device.Get(), { desc.Width, desc.Height, desc.Format }));
 					}
 					ComPtr<IDirect3DSurface9> resolved_surface;
 					AssertHR(_curRenderTarget->GetTex()->GetSurfaceLevel(0, &resolved_surface));
@@ -2490,7 +2490,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::SetRenderTarget(ICoreTexture *pTexture)
 				if (desc.Pool == D3DPOOL_MANAGED)
 				{
 					auto &texture_pool = *_texturePools[false][texture.GetTex()->GetLevelCount() != 1];
-					texture.SetRT(texture_pool.GetTexture(_device.Get(), { dst_desc.Width, dst_desc.Height, dst_desc.Format }));
+					texture.SetTex(texture_pool.GetTexture(_device.Get(), { dst_desc.Width, dst_desc.Height, dst_desc.Format }));
 				}
 				AssertHR(texture.GetTex()->GetSurfaceLevel(0, &color_target));
 			}
@@ -2523,6 +2523,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::GetRenderTarget(ICoreTexture *&prTexture)
 
 DGLE_RESULT DGLE_API CCoreRendererDX9::CreateTexture(ICoreTexture *&prTex, const uint8 *pData, uint uiWidth, uint uiHeight, bool bMipmapsPresented, E_CORE_RENDERER_DATA_ALIGNMENT eDataAlignment, E_TEXTURE_DATA_FORMAT eDataFormat, E_TEXTURE_LOAD_FLAGS eLoadFlags)
 {
+	typedef add_reference<underlying_type<E_TEXTURE_LOAD_FLAGS>::type>::type TLoadFlags;
 	try
 	{
 		DGLE_RESULT ret = S_OK;
@@ -2531,7 +2532,6 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CreateTexture(ICoreTexture *&prTex, const
 
 		const auto init = CCoreTexture::GetInit(*this, eDataFormat);
 
-		typedef add_reference<underlying_type<E_TEXTURE_LOAD_FLAGS>::type>::type TLoadFlags;
 		if (eLoadFlags & TLF_FILTERING_ANISOTROPIC)
 		{
 			if (_anisoSupport)
