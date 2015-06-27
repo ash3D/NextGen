@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		27.6.2015 (c)Andrey Korotkov
+\date		28.6.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1284,6 +1284,8 @@ _parent(init._parent), _clearCallbackHandle(init._parent._clearBroadcast.AddCall
 {
 	try
 	{
+		if (IsDepth())
+			_textureContainer.texture.Reset();
 		SyncRT();
 	}
 	catch (const HRESULT hr)
