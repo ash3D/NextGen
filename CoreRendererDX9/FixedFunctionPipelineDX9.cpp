@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		15.6.2015 (c)Andrey Korotkov
+\date		29.6.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -8,6 +8,7 @@ See "DGLE.h" for more details.
 */
 
 #include "FixedFunctionPipelineDX9.h"
+#include "CoreRendererDX9.h"
 
 using WRL::ComPtr;
 
@@ -45,8 +46,8 @@ namespace
 
 const float CFixedFunctionPipelineDX9::_attenuationFactor = 1.75f;
 
-CFixedFunctionPipelineDX9::CFixedFunctionPipelineDX9(const ComPtr<IDirect3DDevice9> &device) :
-_device(device),
+CFixedFunctionPipelineDX9::CFixedFunctionPipelineDX9(const CCoreRendererDX9 &parent, const ComPtr<IDirect3DDevice9> &device) :
+_parent(parent), _device(device),
 _maxLights([this]()
 {
 	D3DCAPS9 caps;
@@ -120,6 +121,8 @@ void CFixedFunctionPipelineDX9::PopLights()
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::PushStates()
 {
+	CHECK_DEVICE(_parent);
+
 	// straightforward unoptimized implementation
 	TStateStack::value_type curStates;
 	AssertHR(_device->GetRenderState(D3DRS_FOGENABLE, &curStates.fogEnable));
@@ -137,6 +140,8 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::PushStates()
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::PopStates()
 {
+	CHECK_DEVICE(_parent);
+
 	AssertHR(_device->SetRenderState(D3DRS_FOGENABLE, _stateStack.top().fogEnable));
 	AssertHR(_device->SetRenderState(D3DRS_FOGCOLOR, _stateStack.top().fogColor));
 	AssertHR(_device->SetRenderState(D3DRS_FOGSTART, _stateStack.top().fogStart));
@@ -157,6 +162,8 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::PopStates()
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::SetMaterialDiffuseColor(const TColor4 &stColor)
 {
+	CHECK_DEVICE(_parent);
+
 	D3DMATERIAL9 material;
 	AssertHR(_device->GetMaterial(&material));
 	material.Ambient = material.Diffuse = Color_DGLE_2_D3D(stColor);
@@ -166,6 +173,8 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::SetMaterialDiffuseColor(const TC
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::SetMaterialSpecularColor(const TColor4 &stColor)
 {
+	CHECK_DEVICE(_parent);
+
 	D3DMATERIAL9 material;
 	AssertHR(_device->GetMaterial(&material));
 	material.Specular = Color_DGLE_2_D3D(stColor);
@@ -175,6 +184,8 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::SetMaterialSpecularColor(const T
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::SetMaterialShininess(float fShininess)
 {
+	CHECK_DEVICE(_parent);
+
 	D3DMATERIAL9 material;
 	AssertHR(_device->GetMaterial(&material));
 	material.Power = (128.f / 100.f) * (100.f - fShininess);
@@ -184,6 +195,8 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::SetMaterialShininess(float fShin
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetMaterialDiffuseColor(TColor4 &stColor)
 {
+	CHECK_DEVICE(_parent);
+
 	D3DMATERIAL9 material;
 	AssertHR(_device->GetMaterial(&material));
 	stColor = Color_D3D_2_DGLE(material.Diffuse);
@@ -192,6 +205,8 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetMaterialDiffuseColor(TColor4 
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetMaterialSpecularColor(TColor4 &stColor)
 {
+	CHECK_DEVICE(_parent);
+
 	D3DMATERIAL9 material;
 	AssertHR(_device->GetMaterial(&material));
 	stColor = Color_D3D_2_DGLE(material.Specular);
@@ -200,6 +215,8 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetMaterialSpecularColor(TColor4
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetMaterialShininess(float &fShininess)
 {
+	CHECK_DEVICE(_parent);
+
 	D3DMATERIAL9 material;
 	AssertHR(_device->GetMaterial(&material));
 	fShininess = 100.f - material.Power * (100.f / 128.f);
@@ -208,12 +225,16 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetMaterialShininess(float &fShi
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::ToggleGlobalLighting(bool bEnabled)
 {
+	CHECK_DEVICE(_parent);
+
 	AssertHR(_device->SetRenderState(D3DRS_LIGHTING, bEnabled));
 	return S_OK;
 }
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::SetGloablAmbientLight(const TColor4 &stColor)
 {
+	CHECK_DEVICE(_parent);
+
 	AssertHR(_device->SetRenderState(D3DRS_AMBIENT, SwapRB(stColor)));
 	return S_OK;
 }
@@ -226,12 +247,16 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetMaxLightsPerPassCount(uint &u
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::IsGlobalLightingEnabled(bool &bEnabled)
 {
+	CHECK_DEVICE(_parent);
+
 	bEnabled = IsGlobalLightingEnabled();
 	return S_OK;
 }
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetGloablAmbientLight(TColor4 &stColor)
 {
+	CHECK_DEVICE(_parent);
+
 	DWORD ambient;
 	AssertHR(_device->GetRenderState(D3DRS_AMBIENT, &ambient));
 	stColor = SwapRB(ambient);
@@ -240,6 +265,8 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetGloablAmbientLight(TColor4 &s
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::SetLightEnabled(uint uiIdx, bool bEnabled)
 {
+	CHECK_DEVICE(_parent);
+
 	if (uiIdx >= _maxLights)
 		return E_INVALIDARG;
 
@@ -250,6 +277,8 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::SetLightEnabled(uint uiIdx, bool
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::SetLightColor(uint uiIdx, const TColor4 &stColor)
 {
+	CHECK_DEVICE(_parent);
+
 	if (uiIdx >= _maxLights)
 		return E_INVALIDARG;
 
@@ -263,6 +292,8 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::SetLightColor(uint uiIdx, const 
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::SetLightIntensity(uint uiIdx, float fIntensity)
 {
+	CHECK_DEVICE(_parent);
+
 	if (uiIdx >= (uint)_maxLights)
 		return E_INVALIDARG;
 
@@ -276,6 +307,8 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::SetLightIntensity(uint uiIdx, fl
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::ConfigureDirectionalLight(uint uiIdx, const TVector3 &stDirection)
 {
+	CHECK_DEVICE(_parent);
+
 	if (uiIdx >= _maxLights)
 		return E_INVALIDARG;
 
@@ -292,6 +325,8 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::ConfigureDirectionalLight(uint u
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::ConfigurePointLight(uint uiIdx, const TPoint3 &stPosition, float fRange)
 {
+	CHECK_DEVICE(_parent);
+
 	if (uiIdx >= _maxLights)
 		return E_INVALIDARG;
 
@@ -310,6 +345,8 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::ConfigurePointLight(uint uiIdx, 
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::ConfigureSpotLight(uint uiIdx, const TPoint3 &stPosition, const TVector3 &stDirection, float fRange, float fSpotAngle)
 {
+	CHECK_DEVICE(_parent);
+
 	if (uiIdx >= _maxLights)
 		return E_INVALIDARG;
 
@@ -330,6 +367,8 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::ConfigureSpotLight(uint uiIdx, c
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetLightEnabled(uint uiIdx, bool &bEnabled)
 {
+	CHECK_DEVICE(_parent);
+
 	if (uiIdx >= _maxLights)
 		return E_INVALIDARG;
 
@@ -342,7 +381,9 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetLightEnabled(uint uiIdx, bool
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetLightColor(uint uiIdx, TColor4 &stColor)
 {
-	if (uiIdx >= (uint)_maxLights)
+	CHECK_DEVICE(_parent);
+
+	if (uiIdx >= _maxLights)
 		return E_INVALIDARG;
 
 	D3DLIGHT9 light;
@@ -354,6 +395,8 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetLightColor(uint uiIdx, TColor
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetLightIntensity(uint uiIdx, float &fIntensity)
 {
+	CHECK_DEVICE(_parent);
+
 	if (uiIdx >= _maxLights)
 		return E_INVALIDARG;
 
@@ -366,6 +409,8 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetLightIntensity(uint uiIdx, fl
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetLightType(uint uiIdx, E_LIGHT_TYPE &eType)
 {
+	CHECK_DEVICE(_parent);
+
 	if (uiIdx >= _maxLights)
 		return E_INVALIDARG;
 
@@ -389,6 +434,8 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetLightType(uint uiIdx, E_LIGHT
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetDirectionalLightConfiguration(uint uiIdx, TVector3 &stDirection)
 {
+	CHECK_DEVICE(_parent);
+
 	if (uiIdx >= _maxLights)
 		return E_INVALIDARG;
 
@@ -405,6 +452,8 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetDirectionalLightConfiguration
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetPointLightConfiguration(uint uiIdx, TPoint3 &stPosition, float &fRange)
 {
+	CHECK_DEVICE(_parent);
+
 	if (uiIdx >= _maxLights)
 		return E_INVALIDARG;
 
@@ -423,6 +472,8 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetPointLightConfiguration(uint 
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetSpotLightConfiguration(uint uiIdx, TPoint3 &stPosition, TVector3 &stDirection, float &fRange, float &fSpotAngle)
 {
+	CHECK_DEVICE(_parent);
+
 	if (uiIdx >= _maxLights)
 		return E_INVALIDARG;
 
@@ -444,18 +495,24 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetSpotLightConfiguration(uint u
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::SetFogEnabled(bool bEnabled)
 {
+	CHECK_DEVICE(_parent);
+
 	AssertHR(_device->SetRenderState(D3DRS_FOGENABLE, bEnabled));
 	return S_OK;
 }
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::SetFogColor(const TColor4 &stColor)
 {
+	CHECK_DEVICE(_parent);
+
 	AssertHR(_device->SetRenderState(D3DRS_FOGCOLOR, SwapRB(stColor)));
 	return S_OK;
 }
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::ConfigureFog(float fStart, float fEnd)
 {
+	CHECK_DEVICE(_parent);
+
 	AssertHR(_device->SetRenderState(D3DRS_FOGSTART, reinterpret_cast<const DWORD &>(fStart)));
 	AssertHR(_device->SetRenderState(D3DRS_FOGEND, reinterpret_cast<const DWORD &>(fEnd)));
 
@@ -464,6 +521,8 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::ConfigureFog(float fStart, float
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetFogEnabled(bool &bEnabled)
 {
+	CHECK_DEVICE(_parent);
+
 	DWORD enabled;
 	AssertHR(_device->GetRenderState(D3DRS_FOGENABLE, &enabled));
 	bEnabled = enabled;
@@ -472,6 +531,8 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetFogEnabled(bool &bEnabled)
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetFogColor(TColor4 &stColor)
 {
+	CHECK_DEVICE(_parent);
+
 	DWORD color;
 	AssertHR(_device->GetRenderState(D3DRS_FOGCOLOR, &color));
 	stColor = SwapRB(color);
@@ -480,6 +541,8 @@ DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetFogColor(TColor4 &stColor)
 
 DGLE_RESULT DGLE_API CFixedFunctionPipelineDX9::GetFogConfiguration(float &fStart, float &fEnd)
 {
+	CHECK_DEVICE(_parent);
+
 	AssertHR(_device->GetRenderState(D3DRS_FOGSTART, reinterpret_cast<DWORD *>(&fStart)));
 	AssertHR(_device->GetRenderState(D3DRS_FOGEND, reinterpret_cast<DWORD *>(&fEnd)));
 	return S_OK;

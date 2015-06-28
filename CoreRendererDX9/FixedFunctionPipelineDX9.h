@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		15.6.2015 (c)Andrey Korotkov
+\date		29.6.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -23,6 +23,7 @@ inline D3DCOLOR SwapRB(D3DCOLOR color)
 
 class CFixedFunctionPipelineDX9 final : public IFixedFunctionPipeline
 {
+	const class CCoreRendererDX9 &_parent;
 	WRL::ComPtr<IDirect3DDevice9> _device;
 
 	static const/*expr*/ float _attenuationFactor;
@@ -49,7 +50,7 @@ class CFixedFunctionPipelineDX9 final : public IFixedFunctionPipeline
 
 public:
 
-	CFixedFunctionPipelineDX9(const WRL::ComPtr<IDirect3DDevice9> &device);
+	CFixedFunctionPipelineDX9(const CCoreRendererDX9 &parent, const WRL::ComPtr<IDirect3DDevice9> &device);
 	~CFixedFunctionPipelineDX9();
 
 	inline bool IsGlobalLightingEnabled() const

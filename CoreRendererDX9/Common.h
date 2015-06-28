@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		27.6.2015 (c)Korotkov Andrey
+\date		29.6.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -73,6 +73,8 @@ inline size_t ComposeHash(Args &&...args)
 #pragma endregion consider moving it to utils or dedicated repo
 
 #pragma region broadcast
+#define ALLOW_CALLBACK_ERASE_DURING_CALL
+
 template<typename ...Params>
 class CBroadcast
 {
@@ -115,14 +117,14 @@ class CBroadcast<Params...>::CCallbackHandle final
 #endif
 
 private:
-	CBroadcast *_parent = nullptr;
-	typename std::enable_if<true, decltype(_callbacks)>::type::const_iterator _iter{};
+	CBroadcast *_parent;
+	typename std::enable_if<true, decltype(_callbacks)>::type::const_iterator _iter;
 
 private:
 	inline CCallbackHandle(CBroadcast *parent, decltype(_iter) iter) /*noexcept*/;
 
 public:
-	inline CCallbackHandle() = default;
+	inline CCallbackHandle(nullptr_t = nullptr) /*noexcept*/;
 	inline CCallbackHandle(CCallbackHandle &&src) /*noexcept*/;
 	inline CCallbackHandle &operator =(CCallbackHandle &&src) /*noexcept*/;
 	~CCallbackHandle();
@@ -140,6 +142,11 @@ inline void swap(typename CBroadcast<Params...>::CCallbackHandle &left, typename
 }
 
 template<typename ...Params>
+inline CBroadcast<Params...>::CCallbackHandle::CCallbackHandle(nullptr_t) /*noexcept*/ :
+_parent(), _iter()
+{}
+
+template<typename ...Params>
 inline CBroadcast<Params...>::CCallbackHandle::CCallbackHandle(CBroadcast *parent, decltype(_iter) iter) /*noexcept*/ :
 _parent(parent), _iter(iter)
 {}
@@ -154,7 +161,12 @@ _parent(src._parent), _iter(std::move(src._iter))
 template<typename ...Params>
 inline auto CBroadcast<Params...>::CCallbackHandle::operator =(CCallbackHandle &&src) -> CCallbackHandle & /*noexcept*/
 {
-	swap(*this, src);
+	/*
+		'::' and explicit template parameters required in some cases for VS 2013
+		it looks like overload resolution / template parameter deduction problem
+		try with other compilers
+	*/
+	::swap<Params...>(*this, src);
 	return *this;
 }
 
@@ -178,8 +190,16 @@ auto CBroadcast<Params...>::AddCallback(Args &&...args) -> CCallbackHandle
 template<typename ...Params>
 void CBroadcast<Params...>::operator ()(Params ...params) const
 {
+#ifdef ALLOW_CALLBACK_ERASE_DURING_CALL
+	// this version allows for deletion callback being called
+	auto cur = _callbacks.cbegin();
+	const auto end = _callbacks.cend();
+	while (cur != end)
+		cur++->operator ()(params...);
+#else
 	for (auto &&callback : _callbacks)
 		callback(params...);
+#endif
 }
 #pragma endregion
 #pragma endregion consider moving it to utils or dedicated repo

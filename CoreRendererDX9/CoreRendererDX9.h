@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		27.6.2015 (c)Andrey Korotkov
+\date		29.6.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -17,6 +17,12 @@ See "DGLE.h" for more details.
 
 #include <d3d9.h>
 
+#define LOST_DEVICE_RETURN_CODE E_FAIL
+#define LOST_DEVICE_RETURN_CODE S_FALSE
+#define CHECK_DEVICE(coreRenderer)		\
+	if ((coreRenderer).DeviceLost())	\
+		return LOST_DEVICE_RETURN_CODE
+
 namespace WRL = Microsoft::WRL;
 
 class CCoreRendererDX9 final : public ICoreRenderer
@@ -27,6 +33,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 
 	TCrRndrInitResults _stInitResults;
 	bool _16bitColor;
+	bool _deviceLost = false;
 
 	D3DCOLOR _clearColor = 0;	// default OpenGL value
 	float _lineWidth = 1;
@@ -374,7 +381,7 @@ private:
 
 	void _SetProjXform();
 
-	void _PushStates(), _PopStates();
+	void _PushStates(), _PopStates(), _DiscardStates();
 
 	inline D3DTRANSFORMSTATETYPE _MatrixType_DGLE_2_D3D(E_MATRIX_TYPE dgleType) const;
 
@@ -393,7 +400,9 @@ public:
 	CCoreRendererDX9(CCoreRendererDX9 &) = delete;
 	void operator =(CCoreRendererDX9 &) = delete;
 
-	inline bool GetNPOTTexSupport() const{ return _NPOTTexSupport; }
+	inline bool DeviceLost() const /*noexcept*/ { return _deviceLost; }
+
+	inline bool GetNPOTTexSupport() const { return _NPOTTexSupport; }
 	inline bool GetNSQTexSupport() const { return _NSQTexSupport; }
 	inline bool GetMipmapSupport() const { return _mipmapSupport; }
 	inline auto GetMaxTextureWidth() const -> decltype(_maxTexResolution[0]) { return _maxTexResolution[0]; }
