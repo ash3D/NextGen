@@ -8,6 +8,8 @@
 #include "DGLE.h"
 #include <string>
 
+#define FORCE_NVIDIA_GPU
+
 using namespace DGLE;
 
 DGLE_DYNAMIC_FUNC
@@ -35,6 +37,10 @@ uint uiJoyCnt;
 uint uiCharCnt = 256;
 
 char **ppcJoyName;
+
+#ifdef FORCE_NVIDIA_GPU
+extern "C" _declspec(dllexport) const DWORD NvOptimusEnablement = 0x00000001;
+#endif
 
 std::string IntToStr(int val)
 {
