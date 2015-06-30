@@ -2373,14 +2373,14 @@ packed(), _2D(desc.bVertices2D), normal(desc.uiNormalOffset != ~0), uv(desc.uiTe
 
 auto CCoreRendererDX9::CVertexDeclarationCache::GetDecl(IDirect3DDevice9 *device, const TDrawDataDesc &desc) -> const TCache::mapped_type &
 {
-	const auto emplaced = _cache.emplace(desc, nullptr);
-	if (emplaced.second)
+	auto &cached = _cache[desc];
+	if (!cached)
 	{
 		TVertexDecl elements;
 		FillVertexDecl(desc, elements);
-		AssertHR(device->CreateVertexDeclaration(elements, &emplaced.first->second));
+		CheckHR(device->CreateVertexDeclaration(elements, &cached));
 	}
-	return emplaced.first->second;
+	return cached;
 }
 #pragma endregion
 
