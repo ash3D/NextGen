@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		29.6.2015 (c)Andrey Korotkov
+\date		30.6.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -17,7 +17,7 @@ See "DGLE.h" for more details.
 
 #include <d3d9.h>
 
-#define LOST_DEVICE_RETURN_CODE E_FAIL
+//#define LOST_DEVICE_RETURN_CODE E_FAIL
 #define LOST_DEVICE_RETURN_CODE S_FALSE
 #define CHECK_DEVICE(coreRenderer)		\
 	if ((coreRenderer).DeviceLost())	\
@@ -378,6 +378,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 private:
 
 	D3DPRESENT_PARAMETERS _GetPresentParams(TEngineWindow &wnd) const;
+	void _ConfigureWindow(const TEngineWindow &wnd, DGLE_RESULT &res);
 
 	void _SetProjXform();
 

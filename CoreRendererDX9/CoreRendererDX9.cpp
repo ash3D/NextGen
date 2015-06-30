@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		29.6.2015 (c)Andrey Korotkov
+\date		30.6.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1721,6 +1721,67 @@ D3DPRESENT_PARAMETERS CCoreRendererDX9::_GetPresentParams(TEngineWindow &wnd) co
 	return present_params;
 }
 
+void CCoreRendererDX9::_ConfigureWindow(const TEngineWindow &wnd, DGLE_RESULT &res)
+{
+	const DWORD style = wnd.bFullScreen ? WS_POPUP : wnd.uiFlags & EWF_ALLOW_SIZEING ? WS_OVERLAPPEDWINDOW : WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
+
+	DWORD style_ex = WS_EX_APPWINDOW;
+
+	if (wnd.uiFlags & EWF_TOPMOST)
+		style_ex |= WS_EX_TOPMOST;
+
+	TWindowHandle hwnd;
+	AssertHR(_engineCore.GetWindowHandle(hwnd));
+
+	if (SetWindowLong(hwnd, GWL_EXSTYLE, style_ex) == 0)
+	{
+		LOG("Can't change window styleEx.", LT_ERROR);
+		res = S_FALSE;
+	}
+
+	if (SetWindowLong(hwnd, GWL_STYLE, style) == 0)
+	{
+		LOG("Can't change window style.", LT_ERROR);
+		res = S_FALSE;
+	}
+
+	uint desktop_width = 0, desktop_height = 0;
+
+	RECT rc = { 0, 0, wnd.uiWidth, wnd.uiHeight };
+	int	 top_x = 0, top_y = 0;
+
+	AdjustWindowRectEx(&rc, style, FALSE, style_ex);
+
+	if (!wnd.bFullScreen)
+	{
+		{
+			HDC desktop_dc = GetDC(GetDesktopWindow());
+			desktop_width = GetDeviceCaps(desktop_dc, HORZRES);
+			desktop_height = GetDeviceCaps(desktop_dc, VERTRES);
+			ReleaseDC(GetDesktopWindow(), desktop_dc);
+		}
+
+		LOG("Desktop resolution: " + to_string(desktop_width) + "X" + to_string(desktop_height), LT_INFO);
+
+		if (IsIconic(hwnd) == FALSE && (desktop_width < (uint)(rc.right - rc.left) || desktop_height < (uint)(rc.bottom - rc.top)))
+			LOG("Window rectangle is beyound screen.", LT_WARNING);
+
+		top_x = (desktop_width - (rc.right - rc.left)) / 2,
+			top_y = (desktop_height - (rc.bottom - rc.top)) / 2;
+
+		if (top_x < 0) top_x = 0;
+		if (top_y < 0) top_y = 0;
+	}
+
+	SetWindowPos(hwnd, HWND_TOP, top_x, top_y, rc.right - rc.left, rc.bottom - rc.top, SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+
+	//if (bSetFocus)
+	{
+		SetForegroundWindow(hwnd);
+		SetCursorPos(top_x + (rc.right - rc.left) / 2, top_y + (rc.bottom - rc.top) / 2);
+	}
+}
+
 DGLE_RESULT DGLE_API CCoreRendererDX9::Initialize(TCrRndrInitResults &stResults, TEngineWindow &stWin, E_ENGINE_INIT_FLAGS &eInitFlags)
 {
 	if (_stInitResults)
@@ -1738,6 +1799,8 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Initialize(TCrRndrInitResults &stResults,
 		stResults = false;
 		return E_ABORT;
 	}
+	DGLE_RESULT res = S_OK;
+	//_ConfigureWindow(stWin, res);
 	AssertHR(_device->BeginScene());
 
 	D3DCAPS9 caps;
@@ -1789,7 +1852,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Initialize(TCrRndrInitResults &stResults,
 
 	LOG("Core Renderer initialized.", LT_INFO);
 
-	return S_OK;
+	return res;
 }
 
 DGLE_RESULT DGLE_API CCoreRendererDX9::Finalize()
@@ -1824,27 +1887,32 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::AdjustMode(TEngineWindow &stNewWin)
 		_screenDepthTarget.Reset();
 		_PushStates();
 		D3DPRESENT_PARAMETERS present_params = _GetPresentParams(stNewWin);
+		DGLE_RESULT res = S_OK;
+		if (stNewWin.bFullScreen)
+			_ConfigureWindow(stNewWin, res);
 		switch (_device->Reset(&present_params))
 		{
 		case S_OK:
 			break;
 		case D3DERR_DEVICELOST:
 			_deviceLost = true;
+			LOG("Device lost while trying to adjust mode.", LT_INFO);
 			return LOST_DEVICE_RETURN_CODE;
 		default:
-			_deviceLost = true;
 			throw E_FAIL;
 		}
+		if (!stNewWin.bFullScreen)
+			_ConfigureWindow(stNewWin, res);
 		_restoreBroadcast(_device);
 		CheckHR(_device->BeginScene());
 		_PopStates();
 		CheckHR(_device->GetRenderTarget(0, &_screenColorTarget));
 		CheckHR(_device->GetDepthStencilSurface(&_screenDepthTarget));
-		return S_OK;
+		return res;
 	}
 	catch (const HRESULT hr)
 	{
-		//LOG("Fail to adjust mode", LT_FATAL);
+		LOG("Fail to adjust mode", LT_FATAL);
 		return hr;
 	}
 }
@@ -3571,6 +3639,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Present()
 			break;
 		case D3DERR_DEVICELOST:
 			_deviceLost = true;
+			LOG("Device lost while trying to present frame.", LT_INFO);
 			return LOST_DEVICE_RETURN_CODE;
 		default:
 			throw E_FAIL;
@@ -3582,7 +3651,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Present()
 	}
 	catch (const HRESULT hr)
 	{
-		//LOG("Fail to present frame", LT_FATAL);
+		LOG("Fail to present frame", LT_FATAL);
 		return hr;
 	}
 }
@@ -3621,7 +3690,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::IsFeatureSupported(E_CORE_RENDERER_FEATUR
 	switch (eFeature)
 	{
 	case CRFT_BUILTIN_FULLSCREEN_MODE:
-		bIsSupported = false;
+		bIsSupported = true;
 		break;
 	case CRFT_BUILTIN_STATE_FILTER:
 		bIsSupported = false;
@@ -3702,15 +3771,21 @@ void DGLE_API CCoreRendererDX9::EventsHandler(void *pParameter, IBaseEvent *pEve
 				TEngineWindow wnd;
 				AssertHR(renderer->_engineCore.GetCurrentWindow(wnd));
 				D3DPRESENT_PARAMETERS present_params = renderer->_GetPresentParams(wnd);
+				DGLE_RESULT res;
+				if (wnd.bFullScreen)
+					renderer->_ConfigureWindow(wnd, res);
 				switch (renderer->_device->Reset(&present_params))
 				{
 				case S_OK:
+					if (!wnd.bFullScreen)
+						renderer->_ConfigureWindow(wnd, res);
 					renderer->_restoreBroadcast(renderer->_device);
 					fail |= FAILED(renderer->_device->BeginScene());
 					renderer->_PopStates();
 					fail |= FAILED(renderer->_device->GetRenderTarget(0, &renderer->_screenColorTarget));
 					fail |= FAILED(renderer->_device->GetDepthStencilSurface(&renderer->_screenDepthTarget));
 					renderer->_deviceLost = false;
+					LogWrite(renderer->_engineCore, "Device restored back from lost state to operational one.", LT_INFO, tr2::sys::path(__FILE__).filename().c_str(), __LINE__);
 					break;
 				case D3DERR_DEVICELOST:
 					break;
@@ -3723,7 +3798,7 @@ void DGLE_API CCoreRendererDX9::EventsHandler(void *pParameter, IBaseEvent *pEve
 				fail = true;
 			}
 			if (fail)
-				LogWrite(renderer->_engineCore, "Fail to adjust mode", LT_FATAL, tr2::sys::path(__FILE__).filename().c_str(), __LINE__);
+				LogWrite(renderer->_engineCore, "Fail to reset device", LT_FATAL, tr2::sys::path(__FILE__).filename().c_str(), __LINE__);
 		}
 		else
 			renderer->_cleanBroadcast();
