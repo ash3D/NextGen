@@ -1787,6 +1787,14 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Initialize(TCrRndrInitResults &stResults,
 	if (_stInitResults)
 		return E_ABORT;
 
+	int cpu_info[4];
+	__cpuid(cpu_info, 0x00000001);
+	if (!(cpu_info[2] & 1 << 23))
+	{
+		LOG("POPCNT instruction does not supported", LT_FATAL);
+		return E_FAIL;
+	}
+
 	_16bitColor = eInitFlags & EIF_FORCE_16_BIT_COLOR;
 
 	LOG("Initializing Core Renderer...", LT_INFO);
