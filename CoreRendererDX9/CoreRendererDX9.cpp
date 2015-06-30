@@ -2416,7 +2416,7 @@ inline bool CCoreRendererDX9::CImagePool::TImageDesc::operator ==(const TImageDe
 
 inline size_t CCoreRendererDX9::CImagePool::THash::operator ()(const TImageDesc &src) const
 {
-	return ComposeHash(src.width, src.height, src.format);
+	return HashRange(src.width, src.height, src.format);
 }
 
 static inline bool Used(IUnknown *object)

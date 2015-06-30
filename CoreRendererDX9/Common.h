@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		29.6.2015 (c)Korotkov Andrey
+\date		30.6.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -46,7 +46,7 @@ inline void CheckHR(const HRESULT hr)
 
 #pragma region hash
 template<typename T>
-inline size_t GetHash(T &&value)
+inline size_t HashValue(T &&value)
 {
 	return std::hash<std::decay<T>::type>()(std::forward<T>(value));
 }
@@ -54,21 +54,21 @@ inline size_t GetHash(T &&value)
 namespace detail
 {
 	template<typename Cur, typename ...Rest>
-	inline size_t ComposeHash(size_t accum, Cur &&cur, Rest &&...rest)
+	inline size_t HashRange(size_t seed, Cur &&cur, Rest &&...rest)
 	{
-		return ComposeHash(accum * 31 + GetHash(std::forward<Cur>(cur)), std::forward<Rest>(rest)...);
+		return HashRange(seed ^ (HashValue(std::forward<Cur>(cur)) + 0x9e3779b9 + (seed << 6) + (seed >> 2)), std::forward<Rest>(rest)...);
 	}
 
-	inline size_t ComposeHash(size_t accum)
+	inline size_t HashRange(size_t seed)
 	{
-		return accum;
+		return seed;
 	}
 }
 
 template<typename ...Args>
-inline size_t ComposeHash(Args &&...args)
+inline size_t HashRange(Args &&...args)
 {
-	return detail::ComposeHash(17, std::forward<Args>(args)...);
+	return detail::HashRange(0, std::forward<Args>(args)...);
 }
 #pragma endregion consider moving it to utils or dedicated repo
 

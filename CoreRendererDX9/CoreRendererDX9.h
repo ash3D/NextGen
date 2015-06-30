@@ -164,7 +164,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		};
 		struct THash
 		{
-			inline size_t operator ()(const tag &src) const { return GetHash(src.packed); }
+			inline size_t operator ()(const tag &src) const { return HashValue(src.packed); }
 		};
 		typedef std::unordered_map<tag, WRL::ComPtr<IDirect3DVertexDeclaration9>, THash> TCache;
 		TCache _cache;
