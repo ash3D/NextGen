@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		20.5.2015 (c)Korotkov Andrey
+\date		1.7.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -9,8 +9,6 @@ See "DGLE.h" for more details.
 
 #include "Common.h"
 #include "PluginCore.h"
-
-HMODULE hModule	= NULL;
 
 static std::vector<std::unique_ptr<CPluginCore>> pluginCores;
 
@@ -36,11 +34,5 @@ void CALLBACK FreePlugin(IPlugin *plugin)
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReserved)
 {
-	switch (ul_reason_for_call)
-	{
-	case DLL_PROCESS_ATTACH:
-		::hModule = hModule;
-		break;
-	}
 	return TRUE;
 }
