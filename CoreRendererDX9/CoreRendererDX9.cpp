@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		30.6.2015 (c)Andrey Korotkov
+\date		2.7.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1907,6 +1907,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::AdjustMode(TEngineWindow &stNewWin)
 			LOG("Device lost while trying to adjust mode.", LT_INFO);
 			return LOST_DEVICE_RETURN_CODE;
 		default:
+			_deviceLost = true;
 			throw E_FAIL;
 		}
 		if (!stNewWin.bFullScreen)
@@ -1920,7 +1921,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::AdjustMode(TEngineWindow &stNewWin)
 	}
 	catch (const HRESULT hr)
 	{
-		LOG("Fail to adjust mode", LT_FATAL);
+		//LOG("Fail to adjust mode", LT_FATAL);
 		return hr;
 	}
 }
