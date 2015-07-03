@@ -13,6 +13,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Test", "test\Test.vcxproj",
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CoreRendererDX9", "CoreRendererDX9\CoreRendererDX9.vcxproj", "{19823387-A221-4E2F-929F-DF5C33983B9A}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CoreRendererDX11", "CoreRendererDX11\CoreRendererDX11.vcxproj", "{AD262CD6-1814-4E2A-B4DD-7F81EFA0DBDE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -39,6 +41,12 @@ Global
 		{19823387-A221-4E2F-929F-DF5C33983B9A}.Release|Win32.ActiveCfg = Release|Win32
 		{19823387-A221-4E2F-929F-DF5C33983B9A}.Release|Win32.Build.0 = Release|Win32
 		{19823387-A221-4E2F-929F-DF5C33983B9A}.Release|x64.ActiveCfg = Release|Win32
+		{AD262CD6-1814-4E2A-B4DD-7F81EFA0DBDE}.Debug|Win32.ActiveCfg = Debug|Win32
+		{AD262CD6-1814-4E2A-B4DD-7F81EFA0DBDE}.Debug|Win32.Build.0 = Debug|Win32
+		{AD262CD6-1814-4E2A-B4DD-7F81EFA0DBDE}.Debug|x64.ActiveCfg = Debug|Win32
+		{AD262CD6-1814-4E2A-B4DD-7F81EFA0DBDE}.Release|Win32.ActiveCfg = Release|Win32
+		{AD262CD6-1814-4E2A-B4DD-7F81EFA0DBDE}.Release|Win32.Build.0 = Release|Win32
+		{AD262CD6-1814-4E2A-B4DD-7F81EFA0DBDE}.Release|x64.ActiveCfg = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
