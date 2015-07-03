@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		30.6.2015 (c)Andrey Korotkov
+\date		3.7.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -164,7 +164,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		};
 		struct THash
 		{
-			inline size_t operator ()(const tag &src) const { return HashValue(src.packed); }
+			inline size_t operator ()(const tag src) const { return HashValue(src.packed); }
 		};
 		typedef std::unordered_map<tag, WRL::ComPtr<IDirect3DVertexDeclaration9>, THash> TCache;
 		TCache _cache;
