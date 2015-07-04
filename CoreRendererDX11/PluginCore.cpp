@@ -9,10 +9,10 @@ See "DGLE.h" for more details.
 
 #include "PluginCore.h"
 
-#define PLUGIN_NAME				"CoreRendererDX9"
+#define PLUGIN_NAME				"CoreRendererDX11"
 #define PLUGIN_VERSION			("0.1 (" + std::string(__DATE__) + ")").c_str()
 #define PLUGIN_VENDOR			"DGLE Team"
-#define PLUGIN_DESCRIPTION		"ICoreRendererInterface DirectX 9 implementation"
+#define PLUGIN_DESCRIPTION		"ICoreRendererInterface DirectX 11 implementation"
 #define PLUGIN_INTERFACE_NAME	"ISubSystemPlugin"
 
 static inline uint GetInstanceIndex(IEngineCore *pEngineCore)
@@ -22,9 +22,9 @@ static inline uint GetInstanceIndex(IEngineCore *pEngineCore)
 	return inst_idx;
 }
 
-CPluginCore::CPluginCore(IEngineCore *pEngineCore):
+CPluginCore::CPluginCore(IEngineCore *pEngineCore) :
 _instIdx(GetInstanceIndex(pEngineCore)),
-_pEngineCore(pEngineCore), _renderer(*pEngineCore)
+_pEngineCore(pEngineCore)//, _renderer(*pEngineCore)
 {
 	assert(pEngineCore);
 }
@@ -40,7 +40,7 @@ DGLE_RESULT DGLE_API CPluginCore::GetPluginInfo(TPluginInfo &stInfo)
 	strncpy(stInfo.cVendor, PLUGIN_VENDOR, extent<decltype(stInfo.cVendor)>::value - 1);
 	strncpy(stInfo.cDescription, PLUGIN_DESCRIPTION, extent<decltype(stInfo.cDescription)>::value - 1);
 	stInfo.ui8PluginSDKVersion = _DGLE_PLUGIN_SDK_VER_;
-	
+
 	return S_OK;
 }
 
@@ -49,9 +49,9 @@ DGLE_RESULT DGLE_API CPluginCore::GetPluginInterfaceName(char *pcName, uint &uiC
 	if (!pcName)
 	{
 		uiCharsCount = strlen(PLUGIN_INTERFACE_NAME) + 1;
-		return S_OK;	
+		return S_OK;
 	}
-	
+
 	if (uiCharsCount < strlen(PLUGIN_INTERFACE_NAME))
 	{
 		uiCharsCount = strlen(PLUGIN_INTERFACE_NAME) + 1;
@@ -60,13 +60,13 @@ DGLE_RESULT DGLE_API CPluginCore::GetPluginInterfaceName(char *pcName, uint &uiC
 	}
 
 	strcpy(pcName, PLUGIN_INTERFACE_NAME);
-	
+
 	return S_OK;
 }
 
 DGLE_RESULT DGLE_API CPluginCore::GetSubSystemInterface(IEngineSubSystem *&prSubSystem)
 {
-	prSubSystem = reinterpret_cast<IEngineSubSystem *const>(&_renderer);
+	//prSubSystem = reinterpret_cast<IEngineSubSystem *const>(&_renderer);
 
 	return S_OK;
 }

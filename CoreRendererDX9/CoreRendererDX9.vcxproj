@@ -96,6 +96,7 @@
     <ClCompile Include="PluginCore.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\Shared.h" />
     <ClInclude Include="Common.h" />
     <ClInclude Include="CoreRendererDX9.h" />
     <ClInclude Include="FixedFunctionPipelineDX9.h" />

@@ -9,7 +9,6 @@ See "DGLE.h" for more details.
 
 #pragma once
 
-#define ALLOW_CALLBACK_ERASE_DURING_CALL
 #include "../Shared.h"
 
 #include <memory>
