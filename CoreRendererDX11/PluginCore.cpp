@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		5.7.2015 (c)Korotkov Andrey
+\date		9.7.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -24,7 +24,7 @@ static inline uint GetInstanceIndex(IEngineCore *pEngineCore)
 
 CPluginCore::CPluginCore(IEngineCore *pEngineCore) :
 _instIdx(GetInstanceIndex(pEngineCore)),
-_pEngineCore(pEngineCore)//, _renderer(*pEngineCore)
+_pEngineCore(pEngineCore), _renderer(*pEngineCore)
 {
 	assert(pEngineCore);
 }
@@ -66,7 +66,7 @@ DGLE_RESULT DGLE_API CPluginCore::GetPluginInterfaceName(char *pcName, uint &uiC
 
 DGLE_RESULT DGLE_API CPluginCore::GetSubSystemInterface(IEngineSubSystem *&prSubSystem)
 {
-	//prSubSystem = reinterpret_cast<IEngineSubSystem *const>(&_renderer);
+	prSubSystem = reinterpret_cast<IEngineSubSystem *const>(&_renderer);
 
 	return S_OK;
 }

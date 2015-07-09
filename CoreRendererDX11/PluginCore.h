@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		5.7.2015 (c)Korotkov Andrey
+\date		9.7.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -20,7 +20,7 @@ private:
 
 	uint _instIdx;
 	IEngineCore *_pEngineCore;
-	//CCoreRendererDX11 _renderer;
+	CCoreRendererDX11 _renderer;
 
 public:
 
