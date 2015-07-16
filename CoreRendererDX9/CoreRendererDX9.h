@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		3.7.2015 (c)Andrey Korotkov
+\date		17.7.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -205,7 +205,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 			WRL::ComPtr<IDirect3DResource9> image;
 			uint_least32_t idleTime;
 		public:
-			TImage(const WRL::ComPtr<IDirect3DResource9> image) : image(image), idleTime() {}
+			TImage(const WRL::ComPtr<IDirect3DResource9> &image) : image(image), idleTime() {}
 		};
 		typedef std::unordered_multimap<TImageDesc, TImage, THash> TPool;
 		TPool _pool;

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		2.7.2015 (c)Andrey Korotkov
+\date		17.7.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -2438,10 +2438,11 @@ CCoreRendererDX9::CImagePool::CImagePool(CCoreRendererDX9 &parent, bool managed)
 _clearCallbackHandle(managed ? nullptr : decltype(_clearCallbackHandle)(parent._clearBroadcast.AddCallback([this]{ _pool.clear(); }))),
 _cleanCallbackHandle(parent._cleanBroadcast.AddCallback([this]
 {
-	auto cur_rt = _pool.begin();
-	while (cur_rt != _pool.end())
+	auto cur_rt = _pool.cbegin();
+	const auto end_rt = _pool.cend();
+	while (_pool.size() > _maxPoolSize && cur_rt != end_rt)
 	{
-		if (!Used(cur_rt->second.image.Get()) && ++cur_rt->second.idleTime > _maxIdle && _pool.size() > _maxPoolSize)
+		if (!Used(cur_rt->second.image.Get()) && cur_rt->second.idleTime > _maxIdle)
 			cur_rt = _pool.erase(cur_rt);
 		else
 			++cur_rt;
