@@ -2442,7 +2442,7 @@ _cleanCallbackHandle(parent._cleanBroadcast.AddCallback([this]
 	const auto end_rt = _pool.cend();
 	while (_pool.size() > _maxPoolSize && cur_rt != end_rt)
 	{
-		if (!Used(cur_rt->second.image.Get()) && cur_rt->second.idleTime > _maxIdle)
+		if (cur_rt->second.idleTime > _maxIdle && !Used(cur_rt->second.image.Get()))
 			cur_rt = _pool.erase(cur_rt);
 		else
 			++cur_rt;
