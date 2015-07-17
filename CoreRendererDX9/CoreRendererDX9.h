@@ -205,7 +205,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 			WRL::ComPtr<IDirect3DResource9> image;
 			uint_least32_t idleTime;
 		public:
-			TImage(const WRL::ComPtr<IDirect3DResource9> &image) : image(image), idleTime() {}
+			TImage(WRL::ComPtr<IDirect3DResource9> &&image) : image(std::move(image)), idleTime() {}
 		};
 		typedef std::unordered_multimap<TImageDesc, TImage, THash> TPool;
 		TPool _pool;
@@ -219,7 +219,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	protected:
 		const WRL::ComPtr<IDirect3DResource9> &_GetImage(IDirect3DDevice9 *device, const TPool::key_type &desc);
 	private:
-		virtual const WRL::ComPtr<IDirect3DResource9> _CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const = 0;
+		virtual WRL::ComPtr<IDirect3DResource9> _CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const = 0;
 	};
 
 	class CMSAARendertargetPool : public CImagePool
@@ -228,7 +228,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		explicit CMSAARendertargetPool(CCoreRendererDX9 &parent);
 		inline WRL::ComPtr<IDirect3DSurface9> GetRendertarget(IDirect3DDevice9 *device, const TPool::key_type &desc);
 	private:
-		const WRL::ComPtr<IDirect3DResource9> _CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const override;
+		WRL::ComPtr<IDirect3DResource9> _CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const override;
 	} _MSAARendertargetPool{ *this };
 
 	class CTexturePool : public CImagePool
@@ -238,7 +238,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		CTexturePool(CCoreRendererDX9 &parent, bool managed, bool mipmaps);
 		inline WRL::ComPtr<IDirect3DTexture9> GetTexture(IDirect3DDevice9 *device, const TPool::key_type &desc);
 	private:
-		const WRL::ComPtr<IDirect3DResource9> _CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const override;
+		WRL::ComPtr<IDirect3DResource9> _CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const override;
 	}
 #if 0
 	_texturePools[2][2] =

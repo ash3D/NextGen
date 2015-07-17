@@ -2408,7 +2408,7 @@ auto CCoreRendererDX9::CRendertargetCache::GetRendertarget(IDirect3DDevice9 *dev
 		return desc.Width < width || desc.Height < height;
 	}())
 	{
-		ComPtr<IDirect3DSurface9> created;
+		TCache::mapped_type created;
 		CheckHR(device->CreateRenderTarget(width, height, format, D3DMULTISAMPLE_NONE, 0, TRUE, &created, NULL));
 		cached.Swap(created);
 	}
@@ -2481,7 +2481,7 @@ inline ComPtr<IDirect3DSurface9> CCoreRendererDX9::CMSAARendertargetPool::GetRen
 	return result;
 }
 
-const ComPtr<IDirect3DResource9> CCoreRendererDX9::CMSAARendertargetPool::_CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const
+ComPtr<IDirect3DResource9> CCoreRendererDX9::CMSAARendertargetPool::_CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const
 {
 	D3DMULTISAMPLE_TYPE MSAA = D3DMULTISAMPLE_NONE;
 	ComPtr<IDirect3DSwapChain9> swap_chain;
@@ -2507,7 +2507,7 @@ inline ComPtr<IDirect3DTexture9> CCoreRendererDX9::CTexturePool::GetTexture(IDir
 	return result;
 }
 
-const ComPtr<IDirect3DResource9> CCoreRendererDX9::CTexturePool::_CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const
+ComPtr<IDirect3DResource9> CCoreRendererDX9::CTexturePool::_CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const
 {
 	DWORD usage = 0;
 	if (!_managed)
