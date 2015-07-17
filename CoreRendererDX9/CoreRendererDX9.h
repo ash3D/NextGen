@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.7.2015 (c)Andrey Korotkov
+\date		18.7.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -257,6 +257,9 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		const CBroadcast<>::CCallbackHandle _clearCallbackHandle;
 	public:
 		COffscreenDepth(CCoreRendererDX9 &parent);
+		COffscreenDepth(COffscreenDepth &) = delete;
+		void operator =(COffscreenDepth &) = delete;
+	public:
 		WRL::ComPtr<IDirect3DSurface9> Get(IDirect3DDevice9 *device, UINT width, UINT height, D3DMULTISAMPLE_TYPE MSAA);
 	} _offscreenDepth{ *this };
 
