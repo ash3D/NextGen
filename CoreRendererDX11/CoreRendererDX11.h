@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		9.7.2015 (c)Andrey Korotkov
+\date		20.7.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -19,6 +19,7 @@ class CCoreRendererDX11 final : public ICoreRenderer
 	IEngineCore &_engineCore;
 
 	WRL::ComPtr<ID3D11Device2> _device;
+	WRL::ComPtr<IDXGISwapChain2> _swapChain;
 
 	TCrRndrInitResults _stInitResults;
 	bool _16bitColor;
@@ -103,93 +104,61 @@ class CCoreRendererDX11 final : public ICoreRenderer
 
 	class CCoreTexture;
 
-	class CRendertargetCache
+	class CStageTextureCache
 	{
-		typedef std::unordered_map<D3DFORMAT, WRL::ComPtr<IDirect3DSurface9>> TCache;
+		typedef std::unordered_map<DXGI_FORMAT, WRL::ComPtr<ID3D11Texture2D>> TCache;
 		TCache _cache;
-		const CBroadcast<>::CCallbackHandle _clearCallbackHandle;
 	public:
-		CRendertargetCache(CCoreRendererDX11 &parent);
-		CRendertargetCache(CRendertargetCache &) = delete;
-		void operator =(CRendertargetCache &) = delete;
+		CStageTextureCache(CStageTextureCache &) = delete;
+		void operator =(CStageTextureCache &) = delete;
 	public:
-		const TCache::mapped_type &GetRendertarget(ID3D11Device2 *device, unsigned int width, unsigned int height, TCache::key_type format);
-	} _rendertargetCache{ *this };
+		const TCache::mapped_type &GetTexture(ID3D11Device2 *device, unsigned int width, unsigned int height, TCache::key_type format);
+	} _rendertargetCache;
 
-	class CImagePool
+	class CMSAARendertargetPool
 	{
-		struct TImageDesc
+		struct TRenderTargetDesc
 		{
 			UINT width, height;
-			D3DFORMAT format;
+			DXGI_FORMAT format;
 		public:
-			inline bool operator ==(const TImageDesc &src) const;
+			inline bool operator ==(const TRenderTargetDesc &src) const;
 		};
 		struct THash
 		{
-			inline size_t operator ()(const TImageDesc &src) const;
+			inline size_t operator ()(const TRenderTargetDesc &src) const;
 		};
-		struct TImage
+		struct TRenderTarget
 		{
-			WRL::ComPtr<IDirect3DResource9> image;
+			WRL::ComPtr<ID3D11Texture2D> rt;
 			uint_least32_t idleTime;
 		public:
-			TImage(const WRL::ComPtr<IDirect3DResource9> image) : image(image), idleTime() {}
+			TRenderTarget(WRL::ComPtr<ID3D11Texture2D> &&rt) : rt(std::move(rt)), idleTime() {}
 		};
-		typedef std::unordered_multimap<TImageDesc, TImage, THash> TPool;
+		typedef std::unordered_multimap<TRenderTargetDesc, TRenderTarget, THash> TPool;
 		TPool _pool;
-		const CBroadcast<>::CCallbackHandle _clearCallbackHandle, _cleanCallbackHandle;
+		const CBroadcast<>::CCallbackHandle _cleanCallbackHandle;
 		static const/*expr*/ size_t _maxPoolSize = 16;
 		static const/*expr*/ uint_least32_t _maxIdle = 10;
-	protected:
-		explicit CImagePool(CCoreRendererDX11 &parent, bool managed = false);
-		CImagePool(CImagePool &) = delete;
-		void operator =(CImagePool &) = delete;
-	protected:
-		const WRL::ComPtr<IDirect3DResource9> &_GetImage(ID3D11Device2 *device, const TPool::key_type &desc);
-	private:
-		virtual const WRL::ComPtr<IDirect3DResource9> _CreateImage(ID3D11Device2 *device, const TPool::key_type &desc) const = 0;
-	};
-
-	class CMSAARendertargetPool : public CImagePool
-	{
 	public:
 		explicit CMSAARendertargetPool(CCoreRendererDX11 &parent);
-		inline WRL::ComPtr<IDirect3DSurface9> GetRendertarget(ID3D11Device2 *device, const TPool::key_type &desc);
-	private:
-		const WRL::ComPtr<IDirect3DResource9> _CreateImage(ID3D11Device2 *device, const TPool::key_type &desc) const override;
-	} _MSAARendertargetPool{ *this };
-
-	class CTexturePool : public CImagePool
-	{
-		const bool _managed, _mipmaps;
+		CMSAARendertargetPool(CMSAARendertargetPool &) = delete;
+		void operator =(CMSAARendertargetPool &) = delete;
 	public:
-		CTexturePool(CCoreRendererDX11 &parent, bool managed, bool mipmaps);
-		inline WRL::ComPtr<IDirect3DTexture9> GetTexture(ID3D11Device2 *device, const TPool::key_type &desc);
-	private:
-		const WRL::ComPtr<IDirect3DResource9> _CreateImage(ID3D11Device2 *device, const TPool::key_type &desc) const override;
-	}
-#if 0
-	_texturePools[2][2] =
-	{
-		{ { *this, false, false }, { *this, false, true } },
-		{ { *this, true, false }, { *this, true, true } }
-	};
-#else	// workaround for VS 2013
-	_texturePool{ *this, false, false }, _mipmappedTexturePool{ *this, false, true }, _managedTexturePool{ *this, true, false }, _managedMpmappedTexturePool{ *this, true, true },
-		*_texturePools[2][2];
-#endif
+		const WRL::ComPtr<ID3D11Texture2D> &GetRendertarget(CCoreRendererDX11 &parent, const TPool::key_type &desc);
+	} _MSAARendertargetPool{ *this };
 
 	class COffscreenDepth
 	{
-		WRL::ComPtr<IDirect3DSurface9> _surface;
-		const CBroadcast<>::CCallbackHandle _clearCallbackHandle;
+		WRL::ComPtr<ID3D11Texture2D> _depth;
 	public:
-		COffscreenDepth(CCoreRendererDX11 &parent);
-		WRL::ComPtr<IDirect3DSurface9> Get(ID3D11Device2 *device, UINT width, UINT height, D3DMULTISAMPLE_TYPE MSAA);
-	} _offscreenDepth{ *this };
+		COffscreenDepth(COffscreenDepth &) = delete;
+		void operator =(COffscreenDepth &) = delete;
+	public:
+		WRL::ComPtr<ID3D11Texture2D> Get(ID3D11Device2 *device, UINT width, UINT height, const DXGI_SAMPLE_DESC &MSAA);
+	} _offscreenDepth;
 
-	static const/*expr*/ D3DFORMAT _offscreenDepthFormat = D3DFMT_D24S8;
+	static const/*expr*/ DXGI_FORMAT _offscreenDepthFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	CCoreTexture *_curRenderTarget = nullptr;
 	WRL::ComPtr<IDirect3DSurface9> _screenColorTarget, _screenDepthTarget;
 	D3DVIEWPORT9 _screenViewport;
@@ -214,7 +183,7 @@ class CCoreRendererDX11 final : public ICoreRenderer
 #if 1
 		/*
 		VS 2013 does not support default move ctor generation for such struct
-		TODO: try to remove it future VS version
+		TODO: try to remove it in future VS version
 		*/
 	public:
 		TBindings() = default;

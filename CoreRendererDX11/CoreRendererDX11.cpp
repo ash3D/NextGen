@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		9.7.2015 (c)Andrey Korotkov
+\date		20.7.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -2253,43 +2253,38 @@ auto CCoreRendererDX11::CInputLayoutCache::GetLayout(ID3D11Device2 *device, cons
 	{
 		TVertexDecl elements;
 		FillVertexDecl(desc, elements);
-		CheckHR(device->CreateVertexDeclaration(elements, &cached));
+		CheckHR(device->CreateInputLayout(elements, &cached));
 	}
 	return cached;
 }
 #pragma endregion
 
-#pragma region CRendertargetCache
-CCoreRendererDX11::CRendertargetCache::CRendertargetCache(CCoreRendererDX11 &parent) :
-_clearCallbackHandle(parent._clearBroadcast.AddCallback([this]{ _cache.clear(); }))
-{}
-
-auto CCoreRendererDX11::CRendertargetCache::GetRendertarget(IDirect3DDevice9 *device, unsigned int width, unsigned int height, TCache::key_type format) -> const TCache::mapped_type &
+#pragma region CStageTextureCache
+auto CCoreRendererDX11::CStageTextureCache::GetTexture(ID3D11Device2 *device, unsigned int width, unsigned int height, TCache::key_type format) -> const TCache::mapped_type &
 {
 	auto &cached = _cache[format];
 	if (!cached || [=, &cached]
 	{
-		D3DSURFACE_DESC desc;
+		D3D11_TEXTURE2D_DESC desc;
 		AssertHR(cached->GetDesc(&desc));
 		return desc.Width < width || desc.Height < height;
 	}())
 	{
-		ComPtr<IDirect3DSurface9> created;
-		CheckHR(device->CreateRenderTarget(width, height, format, D3DMULTISAMPLE_NONE, 0, TRUE, &created, NULL));
+		TCache::mapped_type created;
+		CheckHR(device->CreateTexture2D(&CD3D11_TEXTURE2D_DESC(format, width, height, 1, 1, 0, D3D11_USAGE_STAGING, D3D11_CPU_ACCESS_READ), NULL, &created));
 		cached.Swap(created);
 	}
 	return cached;
 }
 #pragma endregion
 
-#pragma region image pool
-#pragma region CImagePool
-inline bool CCoreRendererDX11::CImagePool::TImageDesc::operator ==(const TImageDesc &src) const
+#pragma region CMSAARendertargetPool
+inline bool CCoreRendererDX11::CMSAARendertargetPool::TRenderTargetDesc::operator ==(const TRenderTargetDesc &src) const
 {
 	return width == src.width && height == src.height && format == src.format;
 }
 
-inline size_t CCoreRendererDX11::CImagePool::THash::operator ()(const TImageDesc &src) const
+inline size_t CCoreRendererDX11::CMSAARendertargetPool::THash::operator ()(const TRenderTargetDesc &src) const
 {
 	return HashRange(src.width, src.height, src.format);
 }
@@ -2300,14 +2295,14 @@ static inline bool Used(IUnknown *object)
 	return object->Release() == 1;
 }
 
-CCoreRendererDX11::CImagePool::CImagePool(CCoreRendererDX11 &parent, bool managed) :
-_clearCallbackHandle(managed ? nullptr : decltype(_clearCallbackHandle)(parent._clearBroadcast.AddCallback([this]{ _pool.clear(); }))),
+CCoreRendererDX11::CMSAARendertargetPool::CMSAARendertargetPool(CCoreRendererDX11 &parent) :
 _cleanCallbackHandle(parent._cleanBroadcast.AddCallback([this]
 {
 	auto cur_rt = _pool.begin();
-	while (cur_rt != _pool.end())
+	const auto end_rt = _pool.cend();
+	while (cur_rt != end_rt)
 	{
-		if (!Used(cur_rt->second.image.Get()) && ++cur_rt->second.idleTime > _maxIdle && _pool.size() > _maxPoolSize)
+		if (!Used(cur_rt->second.rt.Get()) && ++cur_rt->second.idleTime > _maxIdle && _pool.size() > _maxPoolSize)
 			cur_rt = _pool.erase(cur_rt);
 		else
 			++cur_rt;
@@ -2315,115 +2310,47 @@ _cleanCallbackHandle(parent._cleanBroadcast.AddCallback([this]
 }))
 {}
 
-const ComPtr<IDirect3DResource9> &CCoreRendererDX11::CImagePool::_GetImage(IDirect3DDevice9 *device, const TPool::key_type &desc)
+const ComPtr<ID3D11Texture2D> &CCoreRendererDX11::CMSAARendertargetPool::GetRendertarget(CCoreRendererDX11 &parent, const TPool::key_type &desc)
 {
 	const auto range = _pool.equal_range(desc);
 
 	// find unused
 	const auto unused = find_if(range.first, range.second, [](TPool::const_reference rt)
 	{
-		return Used(rt.second.image.Get());
+		return Used(rt.second.rt.Get());
 	});
 
 	if (unused != range.second)
 	{
 		unused->second.idleTime = 0;
-		return unused->second.image;
+		return unused->second.rt;
 	}
 
 	// unused not found, create new
-	return _pool.emplace(desc, _CreateImage(device, desc))->second.image;
+	ComPtr<ID3D11Texture2D> rt;
+	DXGI_SWAP_CHAIN_DESC swap_chain_desc;
+	CheckHR(parent._swapChain->GetDesc(&swap_chain_desc));
+	CheckHR(parent._device->CreateTexture2D(&CD3D11_TEXTURE2D_DESC(desc.format, desc.width, desc.height, 1, 1, D3D11_BIND_RENDER_TARGET, D3D11_USAGE_DEFAULT, 0, swap_chain_desc.SampleDesc.Count, swap_chain_desc.SampleDesc.Quality), NULL, &rt));
+	return _pool.emplace(desc, rt)->second.rt;
 }
-#pragma endregion
-
-#pragma region CMSAARendertargetPool
-inline CCoreRendererDX11::CMSAARendertargetPool::CMSAARendertargetPool(CCoreRendererDX11 &parent) : CImagePool(parent) {}
-
-inline ComPtr<IDirect3DSurface9> CCoreRendererDX11::CMSAARendertargetPool::GetRendertarget(IDirect3DDevice9 *device, const TPool::key_type &desc)
-{
-	ComPtr<IDirect3DSurface9> result;
-	AssertHR(_GetImage(device, desc).As(&result));
-	return result;
-}
-
-const ComPtr<IDirect3DResource9> CCoreRendererDX11::CMSAARendertargetPool::_CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const
-{
-	D3DMULTISAMPLE_TYPE MSAA = D3DMULTISAMPLE_NONE;
-	ComPtr<IDirect3DSwapChain9> swap_chain;
-	AssertHR(device->GetSwapChain(0, &swap_chain));
-	D3DPRESENT_PARAMETERS params;
-	AssertHR(swap_chain->GetPresentParameters(&params));
-	MSAA = params.MultiSampleType;
-	ComPtr<IDirect3DSurface9> result;
-	CheckHR(device->CreateRenderTarget(desc.width, desc.height, desc.format, MSAA, 0, FALSE, &result, NULL));
-	return result;
-}
-#pragma endregion
-
-#pragma region CTexturePool
-inline CCoreRendererDX11::CTexturePool::CTexturePool(CCoreRendererDX11 &parent, bool managed, bool mipmaps) :
-CImagePool(parent, managed), _managed(managed), _mipmaps(mipmaps)
-{}
-
-inline ComPtr<IDirect3DTexture9> CCoreRendererDX11::CTexturePool::GetTexture(IDirect3DDevice9 *device, const TPool::key_type &desc)
-{
-	ComPtr<IDirect3DTexture9> result;
-	AssertHR(_GetImage(device, desc).As(&result));
-	return result;
-}
-
-const ComPtr<IDirect3DResource9> CCoreRendererDX11::CTexturePool::_CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const
-{
-	DWORD usage = 0;
-	if (!_managed)
-	{
-		switch (desc.format)
-		{
-		case D3DFMT_D15S1:
-		case D3DFMT_D16:
-		case D3DFMT_D16_LOCKABLE:
-		case D3DFMT_D24FS8:
-		case D3DFMT_D24S8:
-		case D3DFMT_D24X4S4:
-		case D3DFMT_D24X8:
-		case D3DFMT_D32:
-		case D3DFMT_D32F_LOCKABLE:
-		case D3DFMT_D32_LOCKABLE:
-			usage |= D3DUSAGE_DEPTHSTENCIL;
-			break;
-		default:
-			usage |= D3DUSAGE_RENDERTARGET;
-			if (_mipmaps)
-				usage |= D3DUSAGE_AUTOGENMIPMAP;
-		}
-	}
-	ComPtr<IDirect3DTexture9> result;
-	CheckHR(device->CreateTexture(desc.width, desc.height, _mipmaps ? 0 : 1, usage, desc.format, _managed ? D3DPOOL_MANAGED : D3DPOOL_DEFAULT, &result, NULL));
-	return result;
-}
-#pragma endregion
 #pragma endregion
 
 #pragma region COffscreenDepth
-CCoreRendererDX11::COffscreenDepth::COffscreenDepth(CCoreRendererDX11 &parent) :
-_clearCallbackHandle(parent._clearBroadcast.AddCallback([this]{ _surface.Reset(); }))
-{}
-
-ComPtr<IDirect3DSurface9> CCoreRendererDX11::COffscreenDepth::Get(IDirect3DDevice9 *device, UINT width, UINT height, D3DMULTISAMPLE_TYPE MSAA)
+ComPtr<ID3D11Texture2D> CCoreRendererDX11::COffscreenDepth::Get(ID3D11Device2 *device, UINT width, UINT height, const DXGI_SAMPLE_DESC &MSAA)
 {
 	bool need_recreate = true;
-	if (_surface)
+	if (_depth)
 	{
-		D3DSURFACE_DESC desc;
-		AssertHR(_surface->GetDesc(&desc));
-		if (desc.Width >= width && desc.Height >= height && desc.MultiSampleType == MSAA)
+		D3D11_TEXTURE2D_DESC desc;
+		_depth->GetDesc(&desc);
+		if (desc.Width >= width && desc.Height >= height && desc.SampleDesc.Count == MSAA.Count && desc.SampleDesc.Quality == MSAA.Quality)
 			need_recreate = false;
 	}
 
 	if (need_recreate)
-		CheckHR(device->CreateDepthStencilSurface(width, height, _offscreenDepthFormat, MSAA, 0, TRUE, &_surface, NULL));
+		CheckHR(device->CreateTexture2D(&CD3D11_TEXTURE2D_DESC(_offscreenDepthFormat, width, height, 1, 1, D3D11_BIND_DEPTH_STENCIL, D3D11_USAGE_DEFAULT, 0, MSAA.Count, MSAA.Quality), NULL, &_depth));
 
-	return _surface;
+	return _depth;
 }
 #pragma endregion
 

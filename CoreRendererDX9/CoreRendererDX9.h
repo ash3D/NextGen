@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.7.2015 (c)Andrey Korotkov
+\date		20.7.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -288,7 +288,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 #if 1
 		/*
 		VS 2013 does not support default move ctor generation for such struct
-		TODO: try to remove it future VS version
+		TODO: try to remove it in future VS version
 		*/
 	public:
 		TBindings() = default;
