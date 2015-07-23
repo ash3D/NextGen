@@ -277,24 +277,6 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		std::unique_ptr<TVertexStream []> vertexStreams;
 		WRL::ComPtr<IDirect3DVertexDeclaration9> VBDecl;
 #endif
-#if 1
-		/*
-		VS 2013 does not support default move ctor generation for such struct
-		TODO: try to remove it in future VS version
-		*/
-	public:
-		TBindings() = default;
-		TBindings(TBindings &&src) :
-			rendertargets(std::move(src.rendertargets)),
-			deptStensil(std::move(src.deptStensil))
-#ifdef SAVE_ALL_STATES
-			,
-			IB(std::move(src.IB)),
-			vertexStreams(std::move(src.vertexStreams)),
-			VBDecl(std::move(src.VBDecl))
-#endif
-			{}
-#endif
 	};
 	std::stack<TBindings> _bindingsStack;
 
@@ -333,40 +315,6 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		D3DCOLOR clearColor;
 		float lineWidth;
 		uint_least8_t selectedTexLayer;
-#if 1
-		/*
-			VS 2013 does not support default move ctor generation for such struct
-			TODO: try to remove it in future VS version
-		*/
-	public:
-		TStates() = default;
-		TStates(TStates &&src) :
-			renderStates(std::move(src.renderStates)),
-			textureStates(std::move(src.textureStates)),
-			viewport(std::move(src.viewport)),
-			scissorRect(std::move(src.scissorRect)),
-#ifdef SAVE_ALL_STATES
-			clipPlanes(std::move(src.clipPlanes)),
-			FVF(std::move(src.FVF)),
-			NPatchMode(std::move(src.NPatchMode)),
-			VS(std::move(src.VS)),
-			PS(std::move(src.PS)),
-			VSFloatConsts(std::move(src.VSFloatConsts)),
-#endif
-			material(std::move(src.material)),
-			clearColor(std::move(src.clearColor)),
-			lineWidth(std::move(src.lineWidth)),
-			selectedTexLayer(std::move(src.selectedTexLayer))
-		{
-#ifdef SAVE_ALL_STATES
-			memcpy(PSFloatConsts, src.PSFloatConsts, sizeof PSFloatConsts);
-			memcpy(VSIntConsts, src.VSIntConsts, sizeof VSIntConsts);
-			memcpy(PSIntConsts, src.PSIntConsts, sizeof PSIntConsts);
-			memcpy(VSBoolConsts, src.VSBoolConsts, sizeof VSBoolConsts);
-			memcpy(PSBoolConsts, src.PSBoolConsts, sizeof PSBoolConsts);
-#endif
-		}
-#endif
 	};
 	std::stack<TStates> _stateStack;
 

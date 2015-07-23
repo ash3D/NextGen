@@ -153,7 +153,7 @@ template<typename ...Params>
 inline auto CBroadcast<Params...>::CCallbackHandle::operator =(CCallbackHandle &&src) noexcept -> CCallbackHandle &
 {
 	/*
-	'::' and explicit template parameters required in some cases for VS 2013
+	'::' and explicit template parameters required in some cases for VS 2013/2015
 	it looks like overload resolution / template parameter deduction problem
 	try with other compilers
 	*/
