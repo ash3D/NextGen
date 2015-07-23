@@ -108,6 +108,7 @@ class CBroadcast<Params...>::CCallbackHandle final
 
 private:
 	CBroadcast *_parent;
+	// enable_if - workaround for VS 2013/2015
 	typename std::enable_if<true, decltype(_callbacks)>::type::const_iterator _iter;
 
 private:

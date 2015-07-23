@@ -92,7 +92,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 #endif
 		WRL::ComPtr<IDirect3DVertexBuffer9> _VB;
 	protected:
-		typedef std::enable_if<true, decltype(_VB)>::type::InterfaceType Interface;
+		typedef decltype(_VB)::InterfaceType Interface;
 	private:
 		inline void _CreateBuffer(const WRL::ComPtr<IDirect3DDevice9> &device, DWORD usage);
 		inline void _CreateBuffer(DWORD usage);
@@ -117,7 +117,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 #endif
 		WRL::ComPtr<IDirect3DIndexBuffer9> _IB;
 	protected:
-		typedef std::enable_if<true, decltype(_IB)>::type::InterfaceType Interface;
+		typedef decltype(_IB)::InterfaceType Interface;
 	private:
 		inline void _CreateBuffer(const WRL::ComPtr<IDirect3DDevice9> &device, DWORD usage, D3DFORMAT format);
 		inline void _CreateBuffer(DWORD usage, D3DFORMAT format);

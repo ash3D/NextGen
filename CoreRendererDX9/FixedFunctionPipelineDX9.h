@@ -33,8 +33,7 @@ class CFixedFunctionPipelineDX9 final : public IFixedFunctionPipeline
 
 	struct TLightState
 	{
-		// enable_if (here and in some other places) - workaround for VS 2013
-		std::unique_ptr<std::pair<D3DLIGHT9, std::enable_if<true, decltype(_viewXforms)>::type::element_type>> light;
+		std::unique_ptr<std::pair<D3DLIGHT9, decltype(_viewXforms)::element_type>> light;
 		BOOL enabled;
 	};
 	typedef std::stack<std::unique_ptr<TLightState []>> TLightStateStack;

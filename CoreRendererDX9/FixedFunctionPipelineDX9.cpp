@@ -52,7 +52,7 @@ _maxLights([this]()
 	AssertHR(_device->GetDeviceCaps(&caps));
 	return caps.MaxActiveLights;
 } ()),
-_viewXforms(new std::enable_if<true, decltype(_viewXforms)>::type::element_type [_maxLights])
+_viewXforms(new decltype(_viewXforms)::element_type [_maxLights])
 {
 	std::fill_n(_viewXforms.get(), _maxLights, MatrixIdentity());
 
@@ -93,7 +93,7 @@ void CFixedFunctionPipelineDX9::PushLights()
 	{
 		D3DLIGHT9 light;
 		if (SUCCEEDED(_device->GetLight(i, &light)))
-			cur_state[i].light.reset(new std::enable_if<true, decltype(cur_state[i].light)>::type::element_type(light, _viewXforms[i]));
+			cur_state[i].light.reset(new decltype(cur_state[i].light)::element_type(light, _viewXforms[i]));
 
 		if (FAILED(_device->GetLightEnable(i, &cur_state[i].enabled)))
 			cur_state[i].enabled = -1;
