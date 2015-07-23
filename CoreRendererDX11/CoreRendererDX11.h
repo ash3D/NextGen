@@ -299,7 +299,7 @@ public:
 	CCoreRendererDX11(CCoreRendererDX11 &) = delete;
 	void operator =(CCoreRendererDX11 &) = delete;
 
-	inline bool DeviceLost() const /*noexcept*/ { return _deviceLost; }
+	inline bool DeviceLost() const noexcept { return _deviceLost; }
 
 	inline bool GetNPOTTexSupport() const { return _NPOTTexSupport; }
 	inline bool GetNSQTexSupport() const { return _NSQTexSupport; }

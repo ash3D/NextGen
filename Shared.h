@@ -87,7 +87,7 @@ public:
 };
 
 template<typename ...Params>
-void swap(typename CBroadcast<Params...>::CCallbackHandle &left, typename CBroadcast<Params...>::CCallbackHandle &right) /*noexcept*/;
+void swap(typename CBroadcast<Params...>::CCallbackHandle &left, typename CBroadcast<Params...>::CCallbackHandle &right) noexcept;
 
 template<typename ...Params>
 class CBroadcast<Params...>::CCallbackHandle final
@@ -100,10 +100,10 @@ class CBroadcast<Params...>::CCallbackHandle final
 	friend class CBroadcast;
 #endif
 #if 0
-	friend void swap<>(typename CBroadcast<Params...>::CCallbackHandle &left, typename CBroadcast<Params...>::CCallbackHandle &right) /*noexcept*/;
+	friend void swap<>(typename CBroadcast<Params...>::CCallbackHandle &left, typename CBroadcast<Params...>::CCallbackHandle &right) noexcept;
 #else
 	template<typename ...Params>
-	friend void swap(typename CBroadcast<Params...>::CCallbackHandle &left, typename CBroadcast<Params...>::CCallbackHandle &right) /*noexcept*/;
+	friend void swap(typename CBroadcast<Params...>::CCallbackHandle &left, typename CBroadcast<Params...>::CCallbackHandle &right) noexcept;
 #endif
 
 private:
@@ -111,45 +111,45 @@ private:
 	typename std::enable_if<true, decltype(_callbacks)>::type::const_iterator _iter;
 
 private:
-	inline CCallbackHandle(CBroadcast *parent, decltype(_iter) iter) /*noexcept*/;
+	inline CCallbackHandle(CBroadcast *parent, decltype(_iter) iter) noexcept;
 
 public:
-	inline CCallbackHandle(nullptr_t = nullptr) /*noexcept*/;
-	inline CCallbackHandle(CCallbackHandle &&src) /*noexcept*/;
-	inline CCallbackHandle &operator =(CCallbackHandle &&src) /*noexcept*/;
+	inline CCallbackHandle(nullptr_t = nullptr) noexcept;
+	inline CCallbackHandle(CCallbackHandle &&src) noexcept;
+	inline CCallbackHandle &operator =(CCallbackHandle &&src) noexcept;
 	~CCallbackHandle();
 
 public:
-	CBroadcast *GetParent() const /*noexcept*/ { return _parent; }
+	CBroadcast *GetParent() const noexcept { return _parent; }
 };
 
 #pragma region CCallbackHandle impl
 template<typename ...Params>
-inline void swap(typename CBroadcast<Params...>::CCallbackHandle &left, typename CBroadcast<Params...>::CCallbackHandle &right) /*noexcept*/
+inline void swap(typename CBroadcast<Params...>::CCallbackHandle &left, typename CBroadcast<Params...>::CCallbackHandle &right) noexcept
 {
 	std::swap(left._parent, right._parent);
 	std::swap(left._iter, right._iter);
 }
 
 template<typename ...Params>
-inline CBroadcast<Params...>::CCallbackHandle::CCallbackHandle(nullptr_t) /*noexcept*/ :
+inline CBroadcast<Params...>::CCallbackHandle::CCallbackHandle(nullptr_t) noexcept :
 _parent(), _iter()
 {}
 
 template<typename ...Params>
-inline CBroadcast<Params...>::CCallbackHandle::CCallbackHandle(CBroadcast *parent, decltype(_iter) iter) /*noexcept*/ :
+inline CBroadcast<Params...>::CCallbackHandle::CCallbackHandle(CBroadcast *parent, decltype(_iter) iter) noexcept :
 _parent(parent), _iter(iter)
 {}
 
 template<typename ...Params>
-inline CBroadcast<Params...>::CCallbackHandle::CCallbackHandle(CCallbackHandle &&src) /*noexcept*/ :
+inline CBroadcast<Params...>::CCallbackHandle::CCallbackHandle(CCallbackHandle &&src) noexcept :
 _parent(src._parent), _iter(std::move(src._iter))
 {
 	src._parent = nullptr;
 }
 
 template<typename ...Params>
-inline auto CBroadcast<Params...>::CCallbackHandle::operator =(CCallbackHandle &&src) -> CCallbackHandle & /*noexcept*/
+inline auto CBroadcast<Params...>::CCallbackHandle::operator =(CCallbackHandle &&src) noexcept -> CCallbackHandle &
 {
 	/*
 	'::' and explicit template parameters required in some cases for VS 2013
