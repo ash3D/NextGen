@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		20.7.2015 (c)Andrey Korotkov
+\date		23.7.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -61,9 +61,6 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		const unsigned int _limit = _baseLimit;
 		unsigned int _lastFrameSize = 0;
 	protected:
-#if 1	// protected does not work with VS 2013, try with newer version
-	public:
-#endif
 		unsigned int _size, _offset = 0;
 	protected:
 		CDynamicBufferBase() = default;
