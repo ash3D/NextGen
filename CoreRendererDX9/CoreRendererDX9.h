@@ -237,16 +237,11 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	private:
 		WRL::ComPtr<IDirect3DResource9> _CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const override;
 	}
-#if 0
 	_texturePools[2][2] =
 	{
 		{ { *this, false, false }, { *this, false, true } },
 		{ { *this, true, false }, { *this, true, true } }
 	};
-#else	// workaround for VS 2013
-	_texturePool{ *this, false, false }, _mipmappedTexturePool{ *this, false, true }, _managedTexturePool{ *this, true, false }, _managedMpmappedTexturePool{ *this, true, true },
-	*_texturePools[2][2];
-#endif
 
 	class COffscreenDepth
 	{

@@ -1373,7 +1373,7 @@ void CCoreRendererDX11::CCoreTexture::SyncRT()
 
 		D3DLOCKED_RECT src_locked, dst_locked;
 		AssertHR(lockable_surface->LockRect(&src_locked, &lockable_rect, D3DLOCK_READONLY));
-		SetTex(_parent._texturePools[true][GetTex()->GetLevelCount() != 1]->GetTexture(_parent._device.Get(), { desc.Width, desc.Height, desc.Format }));
+		SetTex(_parent._texturePools[true][GetTex()->GetLevelCount() != 1].GetTexture(_parent._device.Get(), { desc.Width, desc.Height, desc.Format }));
 		AssertHR(GetTex()->LockRect(0, &dst_locked, NULL, 0));
 		for (unsigned int row = 0; row < desc.Height; row++, (uint8_t *&)src_locked.pBits += src_locked.Pitch, (uint8_t *&)dst_locked.pBits += dst_locked.Pitch)
 			memcpy(dst_locked.pBits, src_locked.pBits, row_size);
@@ -1437,7 +1437,7 @@ void CCoreRendererDX11::CCoreTexture::_Reallocate(const uint8_t *data, unsigned 
 	if (_Compressed() && width % 4 && height % 4)
 		throw E_INVALIDARG;
 
-	SetTex(_parent._texturePools[!IsDepth()][mipmaps != 1]->GetTexture(_parent._device.Get(), { width, height, format }));
+	SetTex(_parent._texturePools[!IsDepth()][mipmaps != 1].GetTexture(_parent._device.Get(), { width, height, format }));
 
 	CCoreTexture *const ptr = this;
 	AssertHR(GetTex()->SetPrivateData(__uuidof(CCoreTexture), &ptr, sizeof ptr, 0));
@@ -1472,7 +1472,7 @@ void CCoreRendererDX11::CCoreTexture::_Restore(const ComPtr<IDirect3DDevice9> &d
 {
 	try
 	{
-		_SetTex(_parent._texturePools[false][mipmaps != 1]->GetTexture(device.Get(), { width, height, format }));
+		_SetTex(_parent._texturePools[false][mipmaps != 1].GetTexture(device.Get(), { width, height, format }));
 	}
 	catch (const HRESULT hr)
 	{
@@ -1669,10 +1669,6 @@ DGLE_RESULT DGLE_API CCoreRendererDX11::CCoreTexture::Free()
 CCoreRendererDX11::CCoreRendererDX11(IEngineCore &engineCore) :
 _engineCore(engineCore), _stInitResults(false)
 {
-#if 1
-	_texturePools[0][0] = &_texturePool, _texturePools[0][1] = &_mipmappedTexturePool;
-	_texturePools[1][0] = &_managedTexturePool, _texturePools[1][1] = &_managedMpmappedTexturePool;
-#endif
 	assert(d3d);
 }
 
@@ -2376,7 +2372,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX11::SetRenderTarget(ICoreTexture *pTexture)
 						AssertHR(_curRenderTarget->GetTex()->GetLevelDesc(0, &desc));
 						if (desc.Pool == D3DPOOL_MANAGED)
 						{
-							auto &texture_pool = *_texturePools[false][_curRenderTarget->GetTex()->GetLevelCount() != 1];
+							auto &texture_pool = _texturePools[false][_curRenderTarget->GetTex()->GetLevelCount() != 1];
 							_curRenderTarget->SetTex(texture_pool.GetTexture(_device.Get(), { desc.Width, desc.Height, desc.Format }));
 						}
 						ComPtr<IDirect3DSurface9> resolved_surface;
@@ -2423,7 +2419,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX11::SetRenderTarget(ICoreTexture *pTexture)
 					AssertHR(texture.GetTex()->GetLevelDesc(0, &desc));
 					if (desc.Pool == D3DPOOL_MANAGED)
 					{
-						auto &texture_pool = *_texturePools[false][texture.GetTex()->GetLevelCount() != 1];
+						auto &texture_pool = _texturePools[false][texture.GetTex()->GetLevelCount() != 1];
 						texture.SetTex(texture_pool.GetTexture(_device.Get(), { dst_desc.Width, dst_desc.Height, dst_desc.Format }));
 					}
 					AssertHR(texture.GetTex()->GetSurfaceLevel(0, &color_target));
