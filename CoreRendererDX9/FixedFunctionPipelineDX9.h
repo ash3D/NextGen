@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		29.6.2015 (c)Andrey Korotkov
+\date		23.7.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -26,7 +26,7 @@ class CFixedFunctionPipelineDX9 final : public IFixedFunctionPipeline
 	const class CCoreRendererDX9 &_parent;
 	WRL::ComPtr<IDirect3DDevice9> _device;
 
-	static const/*expr*/ float _attenuationFactor;
+	static constexpr float _attenuationFactor = 1.75f;
 
 	const DWORD _maxLights;
 	const std::unique_ptr<TMatrix4x4 []> _viewXforms;

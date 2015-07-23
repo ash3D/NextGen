@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		29.6.2015 (c)Andrey Korotkov
+\date		23.7.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -43,8 +43,6 @@ namespace
 		return{ -point.x, -point.y, -point.z };
 	}
 }
-
-const float CFixedFunctionPipelineDX9::_attenuationFactor = 1.75f;
 
 CFixedFunctionPipelineDX9::CFixedFunctionPipelineDX9(const CCoreRendererDX9 &parent, const ComPtr<IDirect3DDevice9> &device) :
 _parent(parent), _device(device),

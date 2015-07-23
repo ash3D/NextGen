@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		20.7.2015 (c)Andrey Korotkov
+\date		23.7.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -33,7 +33,7 @@ class CCoreRendererDX11 final : public ICoreRenderer
 
 	class CDynamicBufferBase
 	{
-		static const/*expr*/ unsigned int _baseStartSize = 1024u * 1024u, _baseLimit = 32u * 1024u * 1024u;
+		static constexpr unsigned int _baseStartSize = 1024u * 1024u, _baseLimit = 32u * 1024u * 1024u;
 	private:
 		WRL::ComPtr<ID3D11Buffer> _buffer;
 	private:
@@ -138,8 +138,8 @@ class CCoreRendererDX11 final : public ICoreRenderer
 		typedef std::unordered_multimap<TRenderTargetDesc, TRenderTarget, THash> TPool;
 		TPool _pool;
 		const CBroadcast<>::CCallbackHandle _cleanCallbackHandle;
-		static const/*expr*/ size_t _maxPoolSize = 16;
-		static const/*expr*/ uint_least32_t _maxIdle = 10;
+		static constexpr size_t _maxPoolSize = 16;
+		static constexpr uint_least32_t _maxIdle = 10;
 	public:
 		explicit CMSAARendertargetPool(CCoreRendererDX11 &parent);
 		CMSAARendertargetPool(CMSAARendertargetPool &) = delete;
@@ -158,7 +158,7 @@ class CCoreRendererDX11 final : public ICoreRenderer
 		WRL::ComPtr<ID3D11Texture2D> Get(ID3D11Device2 *device, UINT width, UINT height, const DXGI_SAMPLE_DESC &MSAA);
 	} _offscreenDepth;
 
-	static const/*expr*/ DXGI_FORMAT _offscreenDepthFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	static constexpr DXGI_FORMAT _offscreenDepthFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	CCoreTexture *_curRenderTarget = nullptr;
 	WRL::ComPtr<IDirect3DSurface9> _screenColorTarget, _screenDepthTarget;
 	D3DVIEWPORT9 _screenViewport;

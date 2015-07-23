@@ -51,7 +51,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 
 	class CDynamicBufferBase
 	{
-		static const/*expr*/ unsigned int _baseStartSize = 1024u * 1024u, _baseLimit = 32u * 1024u * 1024u;
+		static constexpr unsigned int _baseStartSize = 1024u * 1024u, _baseLimit = 32u * 1024u * 1024u;
 	private:
 		const CBroadcast<>::CCallbackHandle _frameEndCallbackHandle{};
 	protected:
@@ -207,8 +207,8 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		typedef std::unordered_multimap<TImageDesc, TImage, THash> TPool;
 		TPool _pool;
 		const CBroadcast<>::CCallbackHandle _clearCallbackHandle, _cleanCallbackHandle;
-		static const/*expr*/ size_t _maxPoolSize = 16;
-		static const/*expr*/ uint_least32_t _maxIdle = 10;
+		static constexpr size_t _maxPoolSize = 16;
+		static constexpr uint_least32_t _maxIdle = 10;
 	protected:
 		explicit CImagePool(CCoreRendererDX9 &parent, bool managed = false);
 		CImagePool(CImagePool &) = delete;
@@ -255,7 +255,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		WRL::ComPtr<IDirect3DSurface9> Get(IDirect3DDevice9 *device, UINT width, UINT height, D3DMULTISAMPLE_TYPE MSAA);
 	} _offscreenDepth{ *this };
 
-	static const/*expr*/ D3DFORMAT _offscreenDepthFormat = D3DFMT_D24S8;
+	static constexpr D3DFORMAT _offscreenDepthFormat = D3DFMT_D24S8;
 	CCoreTexture *_curRenderTarget = nullptr;
 	WRL::ComPtr<IDirect3DSurface9> _screenColorTarget, _screenDepthTarget;
 	D3DVIEWPORT9 _screenViewport;

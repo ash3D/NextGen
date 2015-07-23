@@ -108,7 +108,7 @@ namespace
 		}
 	}
 
-	static const/*expr*/ struct
+	static constexpr struct
 	{
 		uint TDrawDataDesc::*offset, TDrawDataDesc::*stride;
 		BYTE type;
@@ -659,28 +659,28 @@ namespace
 			template<unsigned int idx, unsigned int ...rest>
 			struct PackIdx
 			{
-				static const/*expr*/ TPackedLayout value = (idx & 7u) << sizeof...(rest) * 3u | PackIdx<rest...>::value;
+				static constexpr TPackedLayout value = (idx & 7u) << sizeof...(rest) * 3u | PackIdx<rest...>::value;
 			};
 
 			template<unsigned int idx>
 			struct PackIdx<idx>
 			{
-				static const/*expr*/ TPackedLayout value = idx & 7u;
+				static constexpr TPackedLayout value = idx & 7u;
 			};
 		public:
-			static const/*expr*/ TPackedLayout value = sizeof...(layoutIdx) << 12u | PackIdx<layoutIdx...>::value;
+			static constexpr TPackedLayout value = sizeof...(layoutIdx) << 12u | PackIdx<layoutIdx...>::value;
 		};
 
 		template<TPackedLayout packedLayout>
 		struct LayoutLength
 		{
-			static const/*expr*/ auto value = packedLayout >> 12u;
+			static constexpr auto value = packedLayout >> 12u;
 		};
 
 		template<TPackedLayout packedLayout, unsigned idx>
 		struct UnpackLayout
 		{
-			static const/*expr*/ auto value = packedLayout >> (LayoutLength<packedLayout>::value - 1u - idx) * 3u & 7u;
+			static constexpr auto value = packedLayout >> (LayoutLength<packedLayout>::value - 1u - idx) * 3u & 7u;
 		};
 
 		template<typename ...FormatLayouts>
@@ -698,7 +698,7 @@ namespace
 				typedef FormatLayout type;
 			};
 		public:
-			static const/*expr*/ unsigned length = sizeof...(FormatLayouts);
+			static constexpr unsigned length = sizeof...(FormatLayouts);
 
 			template<unsigned idx>
 			using at = typename atImpl<idx, FormatLayouts...>::type;
@@ -707,8 +707,8 @@ namespace
 		template<typename Format, Format inputFormat, TPackedLayout inputLayout>
 		struct TFormatLayout
 		{
-			static const/*expr*/ Format format = inputFormat;
-			static const/*expr*/ TPackedLayout layout = inputLayout;
+			static constexpr Format format = inputFormat;
+			static constexpr TPackedLayout layout = inputLayout;
 		};
 
 #		define DECL_FORMAT_LAYOUT(format, ...) TFormatLayout<decltype(format), format, PackedLayout<__VA_ARGS__>::value>
@@ -737,13 +737,13 @@ namespace
 		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx, unsigned srcIdx = 0, unsigned srcSize = LayoutLength<srcLayout>::value>
 		struct FindSrcIdx
 		{
-			static const/*expr*/ unsigned value = UnpackLayout<srcLayout, srcIdx>::value == UnpackLayout<dstLayout, dstIdx>::value ? srcIdx : FindSrcIdx<srcLayout, dstLayout, dstIdx, srcIdx + 1>::value;
+			static constexpr unsigned value = UnpackLayout<srcLayout, srcIdx>::value == UnpackLayout<dstLayout, dstIdx>::value ? srcIdx : FindSrcIdx<srcLayout, dstLayout, dstIdx, srcIdx + 1>::value;
 		};
 
 		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx, unsigned srcSize>
 		struct FindSrcIdx < srcLayout, dstLayout, dstIdx, srcSize, srcSize >
 		{
-			static const/*expr*/ unsigned value = ~0u;
+			static constexpr unsigned value = ~0u;
 		};
 
 		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx = 0, unsigned dstSize = LayoutLength<dstLayout>::value>
@@ -759,7 +759,7 @@ namespace
 		{
 			if (UnpackLayout<dstLayout, dstIdx>::value != 7u)
 			{
-				const/*expr*/ unsigned src_idx = FindSrcIdx<srcLayout, dstLayout, dstIdx>::value;
+				constexpr unsigned src_idx = FindSrcIdx<srcLayout, dstLayout, dstIdx>::value;
 				dest[dstIdx] = src_idx == ~0u ? ~0u : source[src_idx];
 			}
 			FillTexel<srcLayout, dstLayout, dstIdx + 1, dstSize>::apply(source, dest);
@@ -775,7 +775,7 @@ namespace
 		template<TPackedLayout srcLayout, TPackedLayout dstLayout>
 		inline void TransformRow(const void *const src, void *const dst, unsigned width)
 		{
-			const/*expr*/ auto src_len = LayoutLength<srcLayout>::value, dst_len = LayoutLength<dstLayout>::value;
+			constexpr auto src_len = LayoutLength<srcLayout>::value, dst_len = LayoutLength<dstLayout>::value;
 			static_assert(src_len, "zero SrcLayout");
 			static_assert(dst_len, "zero DstLayout");
 			typedef const array<uint8_t, src_len> TSource;
@@ -2786,7 +2786,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::InvalidateStateFilter()
 /*
 	current push/pop implementation propably very slow
 	possily not all states being saved/restored
-	*/
+*/
 
 const/*expr*/ D3DRENDERSTATETYPE CCoreRendererDX9::_rederStateTypes[] =
 {
