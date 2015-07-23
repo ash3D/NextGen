@@ -449,10 +449,7 @@ namespace
 		unsigned int _offset;
 
 	public:
-		// use C++11 inheriting ctor
-		//using Base::Base;
-		template<typename ...Args>
-		CDynamicBuffer(Args &&...args) : Base(args...) {}
+		using Base::Base;
 
 	public:
 		void FillSegment(const void *data, unsigned int size) { _offset = Base::FillSegment(data, size); }
@@ -662,11 +659,11 @@ namespace
 			template<unsigned int idx, unsigned int ...rest>
 			struct PackIdx
 			{
-				static const/*expr*/ TPackedLayout value = (idx & 7u) << sizeof...(rest)* 3u | PackIdx<rest...>::value;
+				static const/*expr*/ TPackedLayout value = (idx & 7u) << sizeof...(rest) * 3u | PackIdx<rest...>::value;
 			};
 
 			template<unsigned int idx>
-			struct PackIdx < idx >
+			struct PackIdx<idx>
 			{
 				static const/*expr*/ TPackedLayout value = idx & 7u;
 			};
@@ -851,7 +848,7 @@ namespace
 		}
 
 		/*
-		workaround for VS 2013 bug (auto ... ->)
+		workaround for VS 2013/2015 bug (auto ... ->)
 		TODO: try with newer version
 		*/
 		template<>
