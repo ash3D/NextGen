@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		20.7.2015 (c)Andrey Korotkov
+\date		23.7.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1466,7 +1466,7 @@ void CCoreRendererDX11::CCoreTexture::_Clear()
 		}
 		catch (const HRESULT hr)
 		{
-			LogWrite(_parent._engineCore, ("Failed to sync rendertarget texture while preparing to device reset (hr = " + to_string(hr) + ").").c_str(), LT_ERROR, tr2::sys::path(__FILE__).filename().c_str(), __LINE__);
+			LogWrite(_parent._engineCore, ("Failed to sync rendertarget texture while preparing to device reset (hr = " + to_string(hr) + ").").c_str(), LT_ERROR, tr2::sys::path(__FILE__).filename().string().c_str(), __LINE__);
 		}
 	}
 }
@@ -1479,7 +1479,7 @@ void CCoreRendererDX11::CCoreTexture::_Restore(const ComPtr<IDirect3DDevice9> &d
 	}
 	catch (const HRESULT hr)
 	{
-		LogWrite(_parent._engineCore, ("Failed to restore texture after device reset (hr = " + to_string(hr) + ").").c_str(), LT_ERROR, tr2::sys::path(__FILE__).filename().c_str(), __LINE__);
+		LogWrite(_parent._engineCore, ("Failed to restore texture after device reset (hr = " + to_string(hr) + ").").c_str(), LT_ERROR, tr2::sys::path(__FILE__).filename().string().c_str(), __LINE__);
 	}
 }
 
@@ -2213,7 +2213,7 @@ namespace
 {
 	typedef D3DVERTEXELEMENT9 TVertexDecl[extent<decltype(vertexElementLUT)>::value + 2];	// +2 for position and D3DDECL_END()
 
-	inline void SetVertexElement(TVertexDecl &elements, UINT stream, BYTE type, BYTE usage)
+	inline void SetVertexElement(TVertexDecl &elements, WORD stream, BYTE type, BYTE usage)
 	{
 		elements[stream] =
 		{
@@ -2461,7 +2461,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX11::GetRenderTarget(ICoreTexture *&prTexture
 
 DGLE_RESULT DGLE_API CCoreRendererDX11::CreateTexture(ICoreTexture *&prTex, const uint8 *pData, uint uiWidth, uint uiHeight, bool bMipmapsPresented, E_CORE_RENDERER_DATA_ALIGNMENT eDataAlignment, E_TEXTURE_DATA_FORMAT eDataFormat, E_TEXTURE_LOAD_FLAGS eLoadFlags)
 {
-	typedef add_reference<underlying_type<E_TEXTURE_LOAD_FLAGS>::type>::type TLoadFlags;
+	typedef add_lvalue_reference<underlying_type<E_TEXTURE_LOAD_FLAGS>::type>::type TLoadFlags;
 	try
 	{
 		CHECK_DEVICE(*this);
@@ -3587,7 +3587,7 @@ void DGLE_API CCoreRendererDX11::EventsHandler(void *pParameter, IBaseEvent *pEv
 					fail |= FAILED(renderer->_device->GetRenderTarget(0, &renderer->_screenColorTarget));
 					fail |= FAILED(renderer->_device->GetDepthStencilSurface(&renderer->_screenDepthTarget));
 					renderer->_deviceLost = false;
-					LogWrite(renderer->_engineCore, "Device restored back from lost state to operational one.", LT_INFO, tr2::sys::path(__FILE__).filename().c_str(), __LINE__);
+					LogWrite(renderer->_engineCore, "Device restored back from lost state to operational one.", LT_INFO, tr2::sys::path(__FILE__).filename().string().c_str(), __LINE__);
 					break;
 				case D3DERR_DEVICELOST:
 					break;
@@ -3600,7 +3600,7 @@ void DGLE_API CCoreRendererDX11::EventsHandler(void *pParameter, IBaseEvent *pEv
 				fail = true;
 			}
 			if (fail)
-				LogWrite(renderer->_engineCore, "Fail to reset device", LT_FATAL, tr2::sys::path(__FILE__).filename().c_str(), __LINE__);
+				LogWrite(renderer->_engineCore, "Fail to reset device", LT_FATAL, tr2::sys::path(__FILE__).filename().string().c_str(), __LINE__);
 		}
 		else
 			renderer->_cleanBroadcast();

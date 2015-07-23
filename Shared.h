@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		5.7.2015 (c)Korotkov Andrey
+\date		23.7.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -197,4 +197,4 @@ void CBroadcast<Params...>::operator ()(Params ...params) const
 void LogWrite(IEngineCore &engineCore, const char *pcTxt, E_LOG_TYPE eType, const char *pcSrcFileName, int iSrcLineNumber);
 
 #define PTHIS(cl_name) (reinterpret_cast<cl_name *>(pParameter))
-#define LOG(txt, type) LogWrite(_engineCore, std::string(txt).c_str(), type, std::tr2::sys::path(__FILE__).filename().c_str(), __LINE__)
+#define LOG(txt, type) LogWrite(_engineCore, std::string(txt).c_str(), type, std::tr2::sys::path(__FILE__).filename().string().c_str(), __LINE__)
