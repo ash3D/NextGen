@@ -170,7 +170,7 @@ void DGLE_API Init(void *pParameter)
 void DGLE_API Free(void *pParameter)
 {
 	for (uint i = 0; i < uiJoyCnt; ++i)
-		delete[] ppcJoyName[uiCharCnt];
+		delete[] ppcJoyName[i];
 	delete[] ppcJoyName;
 
 	delete[] stJoys;
