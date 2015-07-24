@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		23.7.2015 (c)Andrey Korotkov
+\date		25.7.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -49,6 +49,7 @@ class CCoreRendererDX11 final : public ICoreRenderer
 		~CDynamicBufferBase();
 	public:
 		unsigned int FillSegment(ID3D11DeviceContext2 *context, const void *data, unsigned int size);
+		const WRL::ComPtr<ID3D11Buffer> &GetBuffer() const { return _buffer; }
 	private:
 		void _CreateBuffer();
 	private:
@@ -164,57 +165,16 @@ class CCoreRendererDX11 final : public ICoreRenderer
 	D3DVIEWPORT9 _screenViewport;
 	uint_least8_t _selectedTexLayer = 0;
 
-	struct TBindings
-	{
-		std::unique_ptr<WRL::ComPtr<IDirect3DSurface9>[]> rendertargets;
-		WRL::ComPtr<IDirect3DSurface9> deptStensil;
-#ifdef SAVE_ALL_STATES
-		WRL::ComPtr<IDirect3DIndexBuffer9> IB;
-		struct TVertexStream
-		{
-			WRL::ComPtr<IDirect3DVertexBuffer9> VB;
-			UINT offset;
-			UINT stride;
-			UINT freq;
-		};
-		std::unique_ptr<TVertexStream[]> vertexStreams;
-		WRL::ComPtr<IDirect3DVertexDeclaration9> VBDecl;
-#endif
-	};
-	std::stack<TBindings> _bindingsStack;
-
-	/*
-	VS 2013 does not support constexpr => have to define array content in .cpp => have to expicit specify array size here (it used later in TStates struct)
-	TODO: move array content definition from .cpp to .h when consexpr support appears in order to get rid of explicit array size specification
-	*/
-	static const/*expr*/ D3DRENDERSTATETYPE _rederStateTypes[103];
-	static const/*expr*/ D3DSAMPLERSTATETYPE _samplerStateTypes[13];
-	static const/*expr*/ D3DTEXTURESTAGESTATETYPE _stageStateTypes[18];
-
 	struct TStates
 	{
-		std::array<DWORD, std::extent<decltype(_rederStateTypes)>::value> renderStates;
-		struct TTextureStates
-		{
-			std::array<DWORD, std::extent<decltype(_samplerStateTypes)>::value> samplerStates;
-			std::array<DWORD, std::extent<decltype(_stageStateTypes)>::value> stageStates;
-			WRL::ComPtr<IDirect3DBaseTexture9> texture;
-		};
-		std::unique_ptr<TTextureStates[]> textureStates;
-		D3DVIEWPORT9 viewport;
-		RECT scissorRect;
-#ifdef SAVE_ALL_STATES
-		std::unique_ptr<float[][4]> clipPlanes;
-		DWORD FVF;
-		FLOAT NPatchMode;
-		WRL::ComPtr<IDirect3DVertexShader9> VS;
-		WRL::ComPtr<IDirect3DPixelShader9> PS;
-		std::unique_ptr<float[][4]> VSFloatConsts;
-		float PSFloatConsts[224][4];
-		int VSIntConsts[16][4], PSIntConsts[16][4];
-		BOOL VSBoolConsts[16][4], PSBoolConsts[16][4];
-#endif
-		D3DMATERIAL9 material;
+		WRL::ComPtr<ID3D11RasterizerState> rasterState;
+		WRL::ComPtr<ID3D11DepthStencilState> depthState;
+		WRL::ComPtr<ID3D11BlendState> blendState;
+		std::array<std::pair<WRL::ComPtr<ID3D11ShaderResourceView>, WRL::ComPtr<ID3D11SamplerState>>, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT> textures;
+		ComPtr<ID3D11RenderTargetView> rendertarget;
+		ComPtr<ID3D11DepthStencilView> depthStencil;
+		D3D11_VIEWPORT viewport;
+		D3D11_RECT scissorRect;
 		D3DCOLOR clearColor;
 		float lineWidth;
 		uint_least8_t selectedTexLayer;
@@ -246,14 +206,6 @@ public:
 	CCoreRendererDX11(IEngineCore &engineCore);
 	CCoreRendererDX11(CCoreRendererDX11 &) = delete;
 	void operator =(CCoreRendererDX11 &) = delete;
-
-	inline bool DeviceLost() const noexcept { return _deviceLost; }
-
-	inline bool GetNPOTTexSupport() const { return _NPOTTexSupport; }
-	inline bool GetNSQTexSupport() const { return _NSQTexSupport; }
-	inline bool GetMipmapSupport() const { return _mipmapSupport; }
-	inline auto GetMaxTextureWidth() const -> decltype(_maxTexResolution[0]) { return _maxTexResolution[0]; }
-	inline auto GetMaxTextureHeight() const -> decltype(_maxTexResolution[1]) { return _maxTexResolution[1]; }
 
 	DGLE_RESULT DGLE_API Prepare(TCrRndrInitResults &stResults) override;
 	DGLE_RESULT DGLE_API Initialize(TCrRndrInitResults &stResults, TEngineWindow &stWin, E_ENGINE_INIT_FLAGS &eInitFlags) override;

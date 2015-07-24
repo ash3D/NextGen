@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		23.7.2015 (c)Andrey Korotkov
+\date		25.7.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -122,7 +122,7 @@ namespace
 #pragma region CGeometryProviderBase
 class CCoreRendererDX11::CGeometryProviderBase
 {
-	ComPtr<IDirect3DVertexDeclaration9> _VBDecl;
+	ComPtr<ID3D11InputLayout> _VBLayout;
 
 protected:
 	CCoreRendererDX11 &_parent;
@@ -139,9 +139,9 @@ protected:
 	virtual ~CGeometryProviderBase() = default;
 
 public:
-	virtual const ComPtr<IDirect3DVertexBuffer9> &GetVB() const = 0;
-	virtual const ComPtr<IDirect3DIndexBuffer9> GetIB() const = 0; // return value rather than reference in order to eliminate reference to local object in CGeometryProvider's version
-	const ComPtr<IDirect3DVertexDeclaration9> &GetVBDecl() const { return _VBDecl; }
+	virtual const ComPtr<ID3D11Buffer> &GetVB() const = 0;
+	virtual const ComPtr<ID3D11Buffer> GetIB() const = 0; // return value rather than reference in order to eliminate reference to local object in CGeometryProvider's version
+	const ComPtr<ID3D11InputLayout> &GetVBLayout() const { return _VBLayout; }
 
 	// returns byte offset
 	virtual unsigned int SetupVB() = 0, SetupIB() = 0;
@@ -153,16 +153,16 @@ public:
 	inline const TDrawDataDesc &GetDrawDesc() const { return _drawDataDesc; }
 
 protected:
-	void _UpdateVBDecl();
+	void _UpdateVBLayout();
 };
 
 CCoreRendererDX11::CGeometryProviderBase::CGeometryProviderBase(CCoreRendererDX11 &parent, const TDrawDataDesc &drawDesc, E_CORE_RENDERER_DRAW_MODE mode, uint verCnt, uint idxCnt) :
-_VBDecl(parent._VBLayoutCache.GetDecl(parent._device.Get(), drawDesc)), _parent(parent), _drawDataDesc(drawDesc), _drawMode(mode), _verticesCount(verCnt), _indicesCount(idxCnt)
+	_VBLayout(parent._VBLayoutCache.GetLayout(parent._device.Get(), drawDesc)), _parent(parent), _drawDataDesc(drawDesc), _drawMode(mode), _verticesCount(verCnt), _indicesCount(idxCnt)
 {}
 
-inline void CCoreRendererDX11::CGeometryProviderBase::_UpdateVBDecl()
+inline void CCoreRendererDX11::CGeometryProviderBase::_UpdateVBLayout()
 {
-	_VBDecl = _parent._VBLayoutCache.GetDecl(_parent._device.Get(), _drawDataDesc);
+	_VBLayout = _parent._VBLayoutCache.GetLayout(_parent._device.Get(), _drawDataDesc);
 }
 #pragma endregion
 
@@ -183,8 +183,8 @@ public:
 		CGeometryProviderBase(parent, drawDesc, mode, verCnt, idxCnt), _VB(VB), _IB(IB) {}
 
 public:
-	virtual const ComPtr<IDirect3DVertexBuffer9> &GetVB() const override { assert(_VB);  return _VB->GetVB(); }
-	virtual const ComPtr<IDirect3DIndexBuffer9> GetIB() const override { return _IB ? _IB->GetIB() : nullptr; }
+	virtual const ComPtr<ID3D11Buffer> &GetVB() const override { assert(_VB);  return _VB->GetBuffer(); }
+	virtual const ComPtr<ID3D11Buffer> GetIB() const override { return _IB ? _IB->GetBuffer() : nullptr; }
 	virtual unsigned int SetupVB() override, SetupIB() override;
 };
 
@@ -206,9 +206,9 @@ class CCoreRendererDX11::CCoreGeometryBufferBase : virtual public CGeometryProvi
 {
 	using CGeometryProviderBase::GetVB;
 	using CGeometryProviderBase::GetIB;
-	using CGeometryProviderBase::GetVBDecl;
+	using CGeometryProviderBase::GetVBLayout;
 
-	class CDX9BufferContainer : public IDX9BufferContainer
+	class CDX9BufferContainer : public IDX11BufferContainer
 	{
 		// need to store reference since offsetof() may be unsafe here due to virtual inheritence
 		const CGeometryProviderBase &_geomProvider;
@@ -229,9 +229,9 @@ class CCoreRendererDX11::CCoreGeometryBufferBase : virtual public CGeometryProvi
 			return S_OK;
 		}
 
-		DGLE_RESULT DGLE_API GetVBDecl(IDirect3DVertexDeclaration9 *&VBDecl) override
+		DGLE_RESULT DGLE_API GetVBLayout(IDirect3DVertexDeclaration9 *&VBDecl) override
 		{
-			_geomProvider.GetVBDecl().CopyTo(&VBDecl);
+			_geomProvider.GetVBLayout().CopyTo(&VBDecl);
 			return S_OK;
 		}
 
@@ -346,7 +346,7 @@ void CCoreRendererDX11::CCoreGeometryBufferBase::_Reallocate(const TDrawDataDesc
 	_verticesCount = uiVerticesCount;
 	_indicesCount = uiIndicesCount;
 
-	_UpdateVBDecl();
+	_UpdateVBLayout();
 }
 
 DGLE_RESULT DGLE_API CCoreRendererDX11::CCoreGeometryBufferBase::GetGeometryData(TDrawDataDesc &stDesc, uint uiVerticesDataSize, uint uiIndexesDataSize)
@@ -689,7 +689,7 @@ namespace
 			};
 
 			template<typename FormatLayout, typename ...rest>
-			struct atImpl < 0, FormatLayout, rest... >
+			struct atImpl<0, FormatLayout, rest...>
 			{
 				typedef FormatLayout type;
 			};
@@ -762,7 +762,7 @@ namespace
 		}
 
 		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstSize>
-		struct FillTexel < srcLayout, dstLayout, dstSize, dstSize >
+		struct FillTexel<srcLayout, dstLayout, dstSize, dstSize>
 		{
 			template<class TSource, class TDest>
 			static inline void apply(TSource &source, TDest &dest) {}
@@ -802,12 +802,12 @@ namespace
 		{
 			static inline void(*(*apply())(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
 			{
-				return RowConvertion < dgleFormatLayout, d3dFormatLayout >;
+				return RowConvertion<dgleFormatLayout, d3dFormatLayout>;
 			};
 		};
 
 		template<TPackedLayout formatLayuot>
-		struct GetRowConvertion < formatLayuot, formatLayuot >
+		struct GetRowConvertion<formatLayuot, formatLayuot>
 		{
 			static inline void(*(*apply())(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
 			{
@@ -827,7 +827,7 @@ namespace
 		};
 
 		template<>
-		struct IterateD3DRowConvertion < TD3DFormatLayoutArray::length >
+		struct IterateD3DRowConvertion<TD3DFormatLayoutArray::length>
 		{
 			template<TPackedLayout dgleFormatLayout>
 			static inline void(*(*apply(D3DFORMAT d3dFormat))(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
@@ -3048,7 +3048,7 @@ void CCoreRendererDX11::_Draw(CGeometryProviderBase &geom)
 	AssertHR(_device->SetTextureStageState(0, D3DTSS_COLORARG2, arg));
 	AssertHR(_device->SetTextureStageState(0, D3DTSS_ALPHAARG2, arg));
 
-	AssertHR(_device->SetVertexDeclaration(geom.GetVBDecl().Get()));
+	AssertHR(_device->SetVertexDeclaration(geom.GetVBLayout().Get()));
 	const auto VB_offset = geom.SetupVB();
 	_BindVB(geom.GetDrawDesc(), geom.GetVB(), VB_offset);
 

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		23.7.2015 (c)Andrey Korotkov
+\date		25.7.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -693,7 +693,7 @@ namespace
 			};
 
 			template<typename FormatLayout, typename ...rest>
-			struct atImpl < 0, FormatLayout, rest... >
+			struct atImpl<0, FormatLayout, rest...>
 			{
 				typedef FormatLayout type;
 			};
@@ -766,7 +766,7 @@ namespace
 		}
 
 		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstSize>
-		struct FillTexel < srcLayout, dstLayout, dstSize, dstSize >
+		struct FillTexel<srcLayout, dstLayout, dstSize, dstSize>
 		{
 			template<class TSource, class TDest>
 			static inline void apply(TSource &source, TDest &dest) {}
@@ -806,12 +806,12 @@ namespace
 		{
 			static inline void(*(*apply())(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
 			{
-				return RowConvertion < dgleFormatLayout, d3dFormatLayout > ;
+				return RowConvertion<dgleFormatLayout, d3dFormatLayout>;
 			};
 		};
 
 		template<TPackedLayout formatLayuot>
-		struct GetRowConvertion < formatLayuot, formatLayuot >
+		struct GetRowConvertion<formatLayuot, formatLayuot>
 		{
 			static inline void(*(*apply())(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
 			{
@@ -831,7 +831,7 @@ namespace
 		};
 
 		template<>
-		struct IterateD3DRowConvertion < TD3DFormatLayoutArray::length >
+		struct IterateD3DRowConvertion<TD3DFormatLayoutArray::length>
 		{
 			template<TPackedLayout dgleFormatLayout>
 			static inline void(*(*apply(D3DFORMAT d3dFormat))(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
