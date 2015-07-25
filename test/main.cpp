@@ -34,7 +34,6 @@ bool bPressedEsc;
 bool bPressedSpace;
 
 uint uiJoyCnt;
-uint uiCharCnt = 256;
 
 char **ppcJoyName;
 
@@ -161,6 +160,8 @@ void DGLE_API Init(void *pParameter)
 
 	for (uint i = 0; i < uiJoyCnt; ++i)
 	{
+		uint uiCharCnt;
+		pInput->GetJoystickName(i, NULL, uiCharCnt);
 		ppcJoyName[i] = new char[uiCharCnt];
 
 		pInput->GetJoystickName(i, ppcJoyName[i], uiCharCnt);
