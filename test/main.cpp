@@ -7,6 +7,8 @@
 
 #include "DGLE.h"
 #include <string>
+#include <memory>
+#include <type_traits>
 
 #define FORCE_NVIDIA_GPU
 
@@ -35,7 +37,7 @@ bool bPressedSpace;
 
 uint uiJoyCnt;
 
-char **ppcJoyName;
+std::unique_ptr<char []> *ppcJoyName;
 
 #ifdef FORCE_NVIDIA_GPU
 extern "C" _declspec(dllexport) const DWORD NvOptimusEnablement = 0x00000001;
@@ -140,7 +142,7 @@ void JoystickTest()
 			pFnt->Draw2DSimple(x, y -= 12, strJoyParam.c_str(), TColor4());
 		}
 
-		pFnt->Draw2DSimple(x, y -= 24, ppcJoyName[i], TColor4());
+		pFnt->Draw2DSimple(x, y -= 24, ppcJoyName[i].get(), TColor4());
 	}	
 }
 
@@ -156,24 +158,20 @@ void DGLE_API Init(void *pParameter)
 
 	stJoys = new TJoystickStates[uiJoyCnt];
 
-	ppcJoyName = new char *[uiJoyCnt];
+	ppcJoyName = new std::remove_pointer<decltype(ppcJoyName)>::type[uiJoyCnt];
 
 	for (uint i = 0; i < uiJoyCnt; ++i)
 	{
 		uint uiCharCnt;
 		pInput->GetJoystickName(i, NULL, uiCharCnt);
-		ppcJoyName[i] = new char[uiCharCnt];
-
-		pInput->GetJoystickName(i, ppcJoyName[i], uiCharCnt);
+		ppcJoyName[i].reset(new char[uiCharCnt]);
+		pInput->GetJoystickName(i, ppcJoyName[i].get(), uiCharCnt);
 	}
 }
 
 void DGLE_API Free(void *pParameter)
 {
-	for (uint i = 0; i < uiJoyCnt; ++i)
-		delete[] ppcJoyName[i];
 	delete[] ppcJoyName;
-
 	delete[] stJoys;
 }
 
