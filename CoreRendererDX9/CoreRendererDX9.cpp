@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.7.2015 (c)Andrey Korotkov
+\date		26.7.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -144,7 +144,7 @@ protected:
 
 public:
 	virtual const ComPtr<IDirect3DVertexBuffer9> &GetVB() const = 0;
-	virtual const ComPtr<IDirect3DIndexBuffer9> GetIB() const = 0; // return value rather than reference in order to eliminate reference to local object in CGeometryProvider's version
+	virtual const ComPtr<IDirect3DIndexBuffer9> &GetIB() const = 0;
 	const ComPtr<IDirect3DVertexDeclaration9> &GetVBDecl() const { return _VBDecl; }
 
 	// returns byte offset
@@ -188,7 +188,7 @@ public:
 
 public:
 	virtual const ComPtr<IDirect3DVertexBuffer9> &GetVB() const override { assert(_VB);  return _VB->GetVB(); }
-	virtual const ComPtr<IDirect3DIndexBuffer9> GetIB() const override { return _IB ? _IB->GetIB() : nullptr; }
+	virtual const ComPtr<IDirect3DIndexBuffer9> &GetIB() const override { assert(_IB); return _IB->GetIB(); }
 	virtual unsigned int SetupVB() override, SetupIB() override;
 };
 
@@ -483,7 +483,7 @@ public:
 
 public:
 	virtual const ComPtr<IDirect3DVertexBuffer9> &GetVB() const override { return _VB.GetVB(); }
-	virtual const ComPtr<IDirect3DIndexBuffer9> GetIB() const override { return _IB.GetIB(); }
+	virtual const ComPtr<IDirect3DIndexBuffer9> &GetIB() const override { return _IB.GetIB(); }
 	virtual unsigned int SetupVB() override { return _VB.GetOffset(); }
 	virtual unsigned int SetupIB() override { return _IB.GetOffset(); }
 
@@ -571,7 +571,7 @@ public:
 
 public:
 	virtual const ComPtr<IDirect3DVertexBuffer9> &GetVB() const override { return _VB; }
-	virtual const ComPtr<IDirect3DIndexBuffer9> GetIB() const override { return _IB; }
+	virtual const ComPtr<IDirect3DIndexBuffer9> &GetIB() const override { return _IB; }
 	virtual unsigned int SetupVB() override { return 0; }
 	virtual unsigned int SetupIB() override { return 0; }
 
