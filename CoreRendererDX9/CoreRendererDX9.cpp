@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		26.7.2015 (c)Andrey Korotkov
+\date		28.7.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -456,16 +456,16 @@ namespace
 		unsigned int GetOffset() const { return _offset; }
 
 	private:
-		void _OnGrow(const ComPtr<IDirect3DResource9> &oldBuffer) override;
+		void _OnGrow(const ComPtr<IDirect3DResource9> &oldBuffer, unsigned int oldOffset) override;
 	};
 
 	template<class Base>
-	void CDynamicBuffer<Base>::_OnGrow(const ComPtr<IDirect3DResource9> &oldBufferBase)
+	void CDynamicBuffer<Base>::_OnGrow(const ComPtr<IDirect3DResource9> &oldBufferBase, unsigned int oldOffset)
 	{
 		ComPtr<Interface> old_buffer;
 		AssertHR(oldBufferBase.As(&old_buffer));
 		void *locked;
-		const auto size = CDynamicBufferBase::_offset - _offset;
+		const auto size = oldOffset - _offset;
 		AssertHR(old_buffer->Lock(_offset, size, &locked, D3DLOCK_READONLY));
 		FillSegment(locked, size);
 		AssertHR(old_buffer->Unlock());
@@ -2189,8 +2189,9 @@ void CCoreRendererDX9::CDynamicBufferBase::_OnFrameEnd()
 		try
 		{
 			const auto old_buffer = _GetBuffer();
+			const auto old_offset = _offset;
 			_CreateBuffer();
-			_OnGrow(old_buffer);
+			_OnGrow(old_buffer, old_offset);
 		}
 		catch (...)
 		{

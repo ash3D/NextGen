@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		23.7.2015 (c)Andrey Korotkov
+\date		28.7.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -81,7 +81,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		virtual void _CreateBufferImpl() = 0;
 		virtual void _FillSegmentImpl(const void *data, unsigned int size, DWORD lockFlags) = 0;
 		virtual const WRL::ComPtr<IDirect3DResource9> _GetBuffer() const = 0;
-		virtual void _OnGrow(const WRL::ComPtr<IDirect3DResource9> &oldBuffer) {}
+		virtual void _OnGrow(const WRL::ComPtr<IDirect3DResource9> &oldBuffer, unsigned int oldOffset) {}
 	};
 
 	class CDynamicVB : public CDynamicBufferBase
