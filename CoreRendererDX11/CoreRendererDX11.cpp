@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.7.2015 (c)Andrey Korotkov
+\date		27.7.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -122,7 +122,7 @@ namespace
 #pragma region CGeometryProviderBase
 class CCoreRendererDX11::CGeometryProviderBase
 {
-	ComPtr<ID3D11InputLayout> _VBLayout;
+	ComPtr<ID3D11InputLayout> _VBDecl;
 
 protected:
 	CCoreRendererDX11 &_parent;
@@ -140,8 +140,8 @@ protected:
 
 public:
 	virtual const ComPtr<ID3D11Buffer> &GetVB() const = 0;
-	virtual const ComPtr<ID3D11Buffer> GetIB() const = 0; // return value rather than reference in order to eliminate reference to local object in CGeometryProvider's version
-	const ComPtr<ID3D11InputLayout> &GetVBLayout() const { return _VBLayout; }
+	virtual const ComPtr<ID3D11Buffer> &GetIB() const = 0;
+	const ComPtr<ID3D11InputLayout> &GetVBDecl() const { return _VBDecl; }
 
 	// returns byte offset
 	virtual unsigned int SetupVB() = 0, SetupIB() = 0;
@@ -153,16 +153,16 @@ public:
 	inline const TDrawDataDesc &GetDrawDesc() const { return _drawDataDesc; }
 
 protected:
-	void _UpdateVBLayout();
+	void _UpdateVBDecl();
 };
 
 CCoreRendererDX11::CGeometryProviderBase::CGeometryProviderBase(CCoreRendererDX11 &parent, const TDrawDataDesc &drawDesc, E_CORE_RENDERER_DRAW_MODE mode, uint verCnt, uint idxCnt) :
-	_VBLayout(parent._VBLayoutCache.GetLayout(parent._device.Get(), drawDesc)), _parent(parent), _drawDataDesc(drawDesc), _drawMode(mode), _verticesCount(verCnt), _indicesCount(idxCnt)
+	_VBDecl(parent._VBDeclCache.GetLayout(parent._device.Get(), drawDesc)), _parent(parent), _drawDataDesc(drawDesc), _drawMode(mode), _verticesCount(verCnt), _indicesCount(idxCnt)
 {}
 
-inline void CCoreRendererDX11::CGeometryProviderBase::_UpdateVBLayout()
+inline void CCoreRendererDX11::CGeometryProviderBase::_UpdateVBDecl()
 {
-	_VBLayout = _parent._VBLayoutCache.GetLayout(_parent._device.Get(), _drawDataDesc);
+	_VBDecl = _parent._VBDeclCache.GetLayout(_parent._device.Get(), _drawDataDesc);
 }
 #pragma endregion
 
@@ -170,34 +170,28 @@ inline void CCoreRendererDX11::CGeometryProviderBase::_UpdateVBLayout()
 class CCoreRendererDX11::CGeometryProvider : virtual public CGeometryProviderBase
 {
 protected:
-	CDynamicVB *_VB;
-	CDynamicIB *_IB;
-
-protected:
 	// TODO: consider using C++11 inheriting ctor (note: may be prevented due to virtual inheritence)
 	CGeometryProvider(CCoreRendererDX11 &parent, const TDrawDataDesc &drawDesc, E_CORE_RENDERER_DRAW_MODE mode) :
 		CGeometryProviderBase(parent, drawDesc, mode) {}
 
 public:
-	CGeometryProvider(CCoreRendererDX11 &parent, const TDrawDataDesc &drawDesc, E_CORE_RENDERER_DRAW_MODE mode, uint verCnt, uint idxCnt, CDynamicVB *VB, CDynamicIB *IB) :
-		CGeometryProviderBase(parent, drawDesc, mode, verCnt, idxCnt), _VB(VB), _IB(IB) {}
+	CGeometryProvider(CCoreRendererDX11 &parent, const TDrawDataDesc &drawDesc, E_CORE_RENDERER_DRAW_MODE mode, uint verCnt, uint idxCnt) :
+		CGeometryProviderBase(parent, drawDesc, mode, verCnt, idxCnt) {}
 
 public:
-	virtual const ComPtr<ID3D11Buffer> &GetVB() const override { assert(_VB);  return _VB->GetBuffer(); }
-	virtual const ComPtr<ID3D11Buffer> GetIB() const override { return _IB ? _IB->GetBuffer() : nullptr; }
+	virtual const ComPtr<ID3D11Buffer> &GetVB() const override { return _parent._immediateVB->GetBuffer(); }
+	virtual const ComPtr<ID3D11Buffer> &GetIB() const override { return _parent._immediateIB->GetBuffer(); }
 	virtual unsigned int SetupVB() override, SetupIB() override;
 };
 
 unsigned int CCoreRendererDX11::CGeometryProvider::SetupVB()
 {
-	assert(_VB);
-	return _VB->FillSegment(_drawDataDesc.pData, GetVerticesDataSize(_drawDataDesc, _verticesCount));
+	return _parent._immediateVB->FillSegment(_parent._deviceContext.Get(), _drawDataDesc.pData, GetVerticesDataSize(_drawDataDesc, _verticesCount));
 }
 
 unsigned int CCoreRendererDX11::CGeometryProvider::SetupIB()
 {
-	assert(_IB);
-	return _IB->FillSegment(_drawDataDesc.pIndexBuffer, GetIndicesDataSize(_drawDataDesc, _indicesCount));
+	return _parent._immediateIB->FillSegment(_parent._deviceContext.Get(), _drawDataDesc.pIndexBuffer, GetIndicesDataSize(_drawDataDesc, _indicesCount));
 }
 #pragma endregion
 
@@ -206,32 +200,25 @@ class CCoreRendererDX11::CCoreGeometryBufferBase : virtual public CGeometryProvi
 {
 	using CGeometryProviderBase::GetVB;
 	using CGeometryProviderBase::GetIB;
-	using CGeometryProviderBase::GetVBLayout;
 
-	class CDX9BufferContainer : public IDX11BufferContainer
+	class CDX11BufferContainer : public IDX11BufferContainer
 	{
 		// need to store reference since offsetof() may be unsafe here due to virtual inheritence
 		const CGeometryProviderBase &_geomProvider;
 
 	public:
-		CDX9BufferContainer(const CGeometryProviderBase &geomProvider) : _geomProvider(geomProvider) {}
+		CDX11BufferContainer(const CGeometryProviderBase &geomProvider) : _geomProvider(geomProvider) {}
 
 	public:
-		DGLE_RESULT DGLE_API GetVB(IDirect3DVertexBuffer9 *&VB) override
+		DGLE_RESULT DGLE_API GetVB(ID3D11Buffer *&VB) override
 		{
 			_geomProvider.GetVB().CopyTo(&VB);
 			return S_OK;
 		}
 
-		DGLE_RESULT DGLE_API GetIB(IDirect3DIndexBuffer9 *&IB) override
+		DGLE_RESULT DGLE_API GetIB(ID3D11Buffer *&IB) override
 		{
 			_geomProvider.GetIB().CopyTo(&IB);
-			return S_OK;
-		}
-
-		DGLE_RESULT DGLE_API GetVBLayout(IDirect3DVertexDeclaration9 *&VBDecl) override
-		{
-			_geomProvider.GetVBLayout().CopyTo(&VBDecl);
 			return S_OK;
 		}
 
@@ -241,7 +228,7 @@ class CCoreRendererDX11::CCoreGeometryBufferBase : virtual public CGeometryProvi
 			return S_OK;
 		}
 
-		IDGLE_BASE_IMPLEMENTATION(IDX9BufferContainer, INTERFACE_IMPL(IBaseRenderObjectContainer, INTERFACE_IMPL_END))
+		IDGLE_BASE_IMPLEMENTATION(IDX11BufferContainer, INTERFACE_IMPL(IBaseRenderObjectContainer, INTERFACE_IMPL_END))
 	} _bufferContainer{ *this };
 
 protected:
@@ -269,8 +256,6 @@ public:
 
 	DGLE_RESULT DGLE_API SetGeometryData(const TDrawDataDesc &stDesc, uint uiVerticesDataSize, uint uiIndexesDataSize) override
 	{
-		CHECK_DEVICE(_parent);
-
 		if (uiVerticesDataSize != GetVerticesDataSize(_drawDataDesc, _verticesCount) || uiIndexesDataSize != GetIndicesDataSize(_drawDataDesc, _indicesCount))
 			return E_INVALIDARG;
 
@@ -279,8 +264,6 @@ public:
 
 	DGLE_RESULT DGLE_API Reallocate(const TDrawDataDesc &stDesc, uint uiVerticesCount, uint uiIndicesCount, E_CORE_RENDERER_DRAW_MODE eMode) override
 	{
-		CHECK_DEVICE(_parent);
-
 		if (_indicesCount == 0 && uiIndicesCount != 0)
 			return E_INVALIDARG;
 
@@ -346,13 +329,11 @@ void CCoreRendererDX11::CCoreGeometryBufferBase::_Reallocate(const TDrawDataDesc
 	_verticesCount = uiVerticesCount;
 	_indicesCount = uiIndicesCount;
 
-	_UpdateVBLayout();
+	_UpdateVBDecl();
 }
 
 DGLE_RESULT DGLE_API CCoreRendererDX11::CCoreGeometryBufferBase::GetGeometryData(TDrawDataDesc &stDesc, uint uiVerticesDataSize, uint uiIndexesDataSize)
 {
-	CHECK_DEVICE(_parent);
-
 	if (uiVerticesDataSize != GetVerticesDataSize(stDesc, _verticesCount) || uiIndexesDataSize != GetIndicesDataSize(stDesc, _indicesCount))
 		return E_INVALIDARG;
 
@@ -402,10 +383,6 @@ void CCoreRendererDX11::CCoreGeometryBufferSoftware::_GetGeometryDataImpl(void *
 
 void CCoreRendererDX11::CCoreGeometryBufferSoftware::_ReallocateImpl(const TDrawDataDesc &drawDesc, uint verticesDataSize, uint indicesDataSize, E_CORE_RENDERER_DRAW_MODE drawMode)
 {
-	const bool is_points = drawMode == CRDM_POINTS;
-
-	_VB = _parent._GetImmediateVB(is_points);
-
 	if (GetVerticesDataSize(drawDesc, _verticesCount) != verticesDataSize)
 	{
 		uint8 *const new_data = new uint8[verticesDataSize];
@@ -417,8 +394,6 @@ void CCoreRendererDX11::CCoreGeometryBufferSoftware::_ReallocateImpl(const TDraw
 
 	if (indicesDataSize)
 	{
-		_IB = _parent._GetImmediateIB(is_points, drawDesc.bIndexBuffer32);
-
 		if (GetIndicesDataSize(drawDesc, _indicesCount) != indicesDataSize)
 		{
 			uint8 *const new_data = new uint8[indicesDataSize];
@@ -432,54 +407,34 @@ void CCoreRendererDX11::CCoreGeometryBufferSoftware::_ReallocateImpl(const TDraw
 	{
 		delete[] _drawDataDesc.pIndexBuffer;
 		_drawDataDesc.pIndexBuffer = nullptr;
-		_IB = nullptr;
 	}
 }
 #pragma endregion
 
-namespace
+#pragma region CCoreGeometryBufferDynamic
+class CCoreRendererDX11::CCoreGeometryBufferDynamic final : public CCoreGeometryBufferBase
 {
-	template<class Base>
-	class CDynamicBuffer final : public Base
+	class CDynamicBuffer final : public CStreamBuffer
 	{
 		unsigned int _offset;
 
 	public:
-		using Base::Base;
+		CDynamicBuffer(CCoreRendererDX11 &parent, bool vertex) : CStreamBuffer(parent, vertex, true) {}
 
 	public:
-		void FillSegment(const void *data, unsigned int size) { _offset = Base::FillSegment(data, size); }
+		void FillSegment(ID3D11DeviceContext2 *context, const void *data, unsigned int size) { _offset = CStreamBuffer::FillSegment(context, data, size); }
 		unsigned int GetOffset() const { return _offset; }
 
 	private:
-		void _OnGrow(const ComPtr<IDirect3DResource9> &oldBuffer) override;
-	};
-
-	template<class Base>
-	void CDynamicBuffer<Base>::_OnGrow(const ComPtr<IDirect3DResource9> &oldBufferBase)
-	{
-		ComPtr<Interface> old_buffer;
-		AssertHR(oldBufferBase.As(&old_buffer));
-		void *locked;
-		const auto size = CDynamicBufferBase::_offset - _offset;
-		AssertHR(old_buffer->Lock(_offset, size, &locked, D3DLOCK_READONLY));
-		FillSegment(locked, size);
-		AssertHR(old_buffer->Unlock());
-	}
-}
-
-#pragma region CCoreGeometryBufferDynamic
-class CCoreRendererDX11::CCoreGeometryBufferDynamic final : public CCoreGeometryBufferBase
-{
-	CDynamicBuffer<CDynamicVB> _VB;
-	CDynamicBuffer<CDynamicIB> _IB;
+		void _OnGrow(const ComPtr<ID3D11Buffer> &oldBuffer) override;
+	} _VB, _IB;
 
 public:
 	CCoreGeometryBufferDynamic(CCoreRendererDX11 &parent, const TDrawDataDesc &drawDesc, uint verCnt, uint idxCnt, E_CORE_RENDERER_DRAW_MODE mode);
 
 public:
-	virtual const ComPtr<IDirect3DVertexBuffer9> &GetVB() const override { return _VB.GetVB(); }
-	virtual const ComPtr<IDirect3DIndexBuffer9> GetIB() const override { return _IB.GetIB(); }
+	virtual const ComPtr<ID3D11Buffer> &GetVB() const override { return _VB.GetBuffer(); }
+	virtual const ComPtr<ID3D11Buffer> &GetIB() const override { return _IB.GetBuffer(); }
 	virtual unsigned int SetupVB() override { return _VB.GetOffset(); }
 	virtual unsigned int SetupIB() override { return _IB.GetOffset(); }
 
@@ -495,17 +450,31 @@ public:
 	}
 };
 
+void CCoreRendererDX11::CCoreGeometryBufferDynamic::CDynamicBuffer::_OnGrow(const ComPtr<ID3D11Buffer> &oldBuffer)
+{
+	void *locked;
+	const auto size = CStreamBuffer::_offset - _offset;
+	ComPtr<ID3D11Device> device;
+	oldBuffer->GetDevice(&device);
+	ComPtr<ID3D11DeviceContext> device_context;
+	device->GetImmediateContext(&device_context);
+	device_context->CopySubresourceRegion(GetBuffer().Get(), 0, 0, 0, 0, oldBuffer.Get(), 0, &CD3D11_BOX();
+	AssertHR(old_buffer->Lock(_offset, size, &locked, D3DLOCK_READONLY));
+	FillSegment(locked, size);
+	AssertHR(old_buffer->Unlock());
+}
+
 // 1 call site
 inline CCoreRendererDX11::CCoreGeometryBufferDynamic::CCoreGeometryBufferDynamic(CCoreRendererDX11 &parent, const TDrawDataDesc &drawDesc, uint verCnt, uint idxCnt, E_CORE_RENDERER_DRAW_MODE mode) :
-CGeometryProviderBase(parent, drawDesc, mode), CCoreGeometryBufferBase(parent, drawDesc, mode), _VB(parent, mode == CRDM_POINTS)
+CGeometryProviderBase(parent, drawDesc, mode), CCoreGeometryBufferBase(parent, drawDesc, mode), _VB(parent, true)
 {
 	if (idxCnt)
 	{
 		// consider using swap with temp for exception safety
-		_IB.~CDynamicBufferBase();
+		_IB.~CDynamicBuffer();
 		try
 		{
-			new(&_IB) decltype(_IB)(parent, mode == CRDM_POINTS, drawDesc.bIndexBuffer32);
+			new(&_IB) decltype(_IB)(parent, false);
 		}
 		catch (...)
 		{
@@ -550,7 +519,7 @@ void CCoreRendererDX11::CCoreGeometryBufferDynamic::_ReallocateImpl(const TDrawD
 	}
 	else
 	{
-		_IB.~CDynamicBufferBase();
+		_IB.~CStreamBuffer();
 		new(&_IB) decltype(_IB);
 	}
 }
@@ -996,7 +965,7 @@ namespace
 #pragma region CCoreTexture
 class __declspec(uuid("{356F5347-3EF8-40C5-84A4-817993A23196}")) CCoreRendererDX11::CCoreTexture final : public ICoreTexture
 {
-	struct CDX9TextureContainer : public IDX9TextureContainer
+	struct CDX11TextureContainer : public IDX11TextureContainer
 	{
 		ComPtr<IDirect3DTexture9> texture;
 
@@ -1013,7 +982,7 @@ class __declspec(uuid("{356F5347-3EF8-40C5-84A4-817993A23196}")) CCoreRendererDX
 			return S_OK;
 		}
 
-		IDGLE_BASE_IMPLEMENTATION(IDX9TextureContainer, INTERFACE_IMPL(IBaseRenderObjectContainer, INTERFACE_IMPL_END))
+		IDGLE_BASE_IMPLEMENTATION(IDX11TextureContainer, INTERFACE_IMPL(IBaseRenderObjectContainer, INTERFACE_IMPL_END))
 	} _textureContainer;
 	CCoreRendererDX11 &_parent;
 	CBroadcast<>::CCallbackHandle _clearCallbackHandle;
@@ -1817,16 +1786,12 @@ DGLE_RESULT DGLE_API CCoreRendererDX11::Initialize(TCrRndrInitResults &stResults
 	_mipmapSupport = caps.TextureCaps & D3DPTEXTURECAPS_MIPMAP;
 	_anisoSupport = caps.RasterCaps & D3DPRASTERCAPS_ANISOTROPY;
 
-	_FFP = new CFixedFunctionPipelineDX9(*this, _device);
+	_FFP = new CFixedFunctionPipelineDX11(*this, _device);
 
 	try
 	{
-		_immediateVB = new CDynamicVB(*this, false);
-		_immediatePointsVB = new CDynamicVB(*this, true);
-		_immediateIB16 = new CDynamicIB(*this, false, false);
-		_immediateIB32 = new CDynamicIB(*this, false, true);
-		_immediatePointsIB16 = new CDynamicIB(*this, true, false);
-		_immediatePointsIB32 = new CDynamicIB(*this, true, true);
+		_immediateVB = new CStreamBuffer(*this, true);
+		_immediateIB = new CStreamBuffer(*this, false);
 	}
 	catch (const HRESULT hr)
 	{
@@ -2131,17 +2096,20 @@ DGLE_RESULT DGLE_API CCoreRendererDX11::ReadFrameBuffer(uint uiX, uint uiY, uint
 	}
 }
 
-#pragma region CDynamicBufferBase
-CCoreRendererDX11::CDynamicBufferBase::CDynamicBufferBase(CCoreRendererDX11 &parent, bool vertex) :
-_frameEndCallbackHandle(parent._frameEndBroadcast.AddCallback(std::bind(&CDynamicBufferBase::_OnFrameEnd, this))),
+#pragma region CStreamBuffer
+CCoreRendererDX11::CStreamBuffer::CStreamBuffer(CCoreRendererDX11 &parent, bool vertex, bool readAccess) :
+_frameEndCallbackHandle(parent._frameEndBroadcast.AddCallback(std::bind(&CStreamBuffer::_OnFrameEnd, this))),
 _limit(_baseLimit * vertex ? 4 : 1), _size(_baseStartSize * vertex ? 4 : 1)
 {
-	CheckHR(parent._device->CreateBuffer(&CD3D11_BUFFER_DESC(_size, vertex ? D3D11_BIND_VERTEX_BUFFER : D3D11_BIND_INDEX_BUFFER, D3D11_USAGE_DYNAMIC), NULL, &_buffer));
+	auto access_flage = D3D11_CPU_ACCESS_WRITE;
+	if (readAccess)
+		access_flage |= D3D11_CPU_ACCESS_READ;
+	CheckHR(parent._device->CreateBuffer(&CD3D11_BUFFER_DESC(_size, vertex ? D3D11_BIND_VERTEX_BUFFER : D3D11_BIND_INDEX_BUFFER, D3D11_USAGE_DYNAMIC, access_flage), NULL, &_buffer));
 }
 
-CCoreRendererDX11::CDynamicBufferBase::~CDynamicBufferBase() = default;
+CCoreRendererDX11::CStreamBuffer::~CStreamBuffer() = default;
 
-unsigned int CCoreRendererDX11::CDynamicBufferBase::FillSegment(ID3D11DeviceContext2 *context, const void *data, unsigned int size)
+unsigned int CCoreRendererDX11::CStreamBuffer::FillSegment(ID3D11DeviceContext2 *context, const void *data, unsigned int size, bool raw)
 {
 	const auto old_offset = _offset;
 	const auto copy_flags = _size - _offset >= size ? D3D11_COPY_NO_OVERWRITE : (_offset = 0, D3D11_COPY_DISCARD);
@@ -2161,12 +2129,16 @@ unsigned int CCoreRendererDX11::CDynamicBufferBase::FillSegment(ID3D11DeviceCont
 		}
 	}
 	const unsigned int offset = _offset;
-	context->UpdateSubresource1(_buffer.Get(), 0, &CD3D11_BOX(offset, 0, 0, _offset += size, 1, 1), data, 0, 0, copy_flags);
+	_offset += size;
+	if (raw)
+		context->UpdateSubresource1(_buffer.Get(), 0, &CD3D11_BOX(offset, 0, 0, _offset, 1, 1), data, 0, 0, copy_flags);
+	else
+		context->CopySubresourceRegion1(_buffer.Get(), 0, offset, 0, 0, (ID3D11Buffer *)data, 0, &CD3D11_BOX()
 	_lastFrameSize += size;
 	return offset;
 }
 
-void CCoreRendererDX11::CDynamicBufferBase::_CreateBuffer()
+void CCoreRendererDX11::CStreamBuffer::_CreateBuffer()
 {
 	ComPtr<ID3D11Device> device;
 	_buffer->GetDevice(&device);
@@ -2179,7 +2151,7 @@ void CCoreRendererDX11::CDynamicBufferBase::_CreateBuffer()
 	_offset = 0;
 }
 
-void CCoreRendererDX11::CDynamicBufferBase::_OnFrameEnd()
+void CCoreRendererDX11::CStreamBuffer::_OnFrameEnd()
 {
 	const auto target_size = min(_lastFrameSize, _limit);
 	_lastFrameSize = 0;
@@ -3048,7 +3020,7 @@ void CCoreRendererDX11::_Draw(CGeometryProviderBase &geom)
 	AssertHR(_device->SetTextureStageState(0, D3DTSS_COLORARG2, arg));
 	AssertHR(_device->SetTextureStageState(0, D3DTSS_ALPHAARG2, arg));
 
-	AssertHR(_device->SetVertexDeclaration(geom.GetVBLayout().Get()));
+	AssertHR(_device->SetVertexDeclaration(geom.GetVBDecl().Get()));
 	const auto VB_offset = geom.SetupVB();
 	_BindVB(geom.GetDrawDesc(), geom.GetVB(), VB_offset);
 

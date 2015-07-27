@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.7.2015 (c)Andrey Korotkov
+\date		27.7.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -19,6 +19,7 @@ class CCoreRendererDX11 final : public ICoreRenderer
 	IEngineCore &_engineCore;
 
 	WRL::ComPtr<ID3D11Device2> _device;
+	WRL::ComPtr<ID3D11DeviceContext2> _deviceContext;
 	WRL::ComPtr<IDXGISwapChain2> _swapChain;
 
 	TCrRndrInitResults _stInitResults;
@@ -31,7 +32,7 @@ class CCoreRendererDX11 final : public ICoreRenderer
 
 	CBroadcast<> _frameEndBroadcast, _cleanBroadcast;
 
-	class CDynamicBufferBase
+	class CStreamBuffer
 	{
 		static constexpr unsigned int _baseStartSize = 1024u * 1024u, _baseLimit = 32u * 1024u * 1024u;
 	private:
@@ -40,34 +41,25 @@ class CCoreRendererDX11 final : public ICoreRenderer
 		const CBroadcast<>::CCallbackHandle _frameEndCallbackHandle{};
 	private:
 		const unsigned int _limit = _baseLimit;
-		unsigned int _size, _offset = 0, _lastFrameSize = 0;
+		unsigned int _size, _lastFrameSize = 0;
 	protected:
-		CDynamicBufferBase() = default;
-		CDynamicBufferBase(CCoreRendererDX11 &parent, bool vertex/*index if false*/);
-		CDynamicBufferBase(CDynamicBufferBase &) = delete;
-		void operator =(CDynamicBufferBase &) = delete;
-		~CDynamicBufferBase();
+		unsigned int _offset = 0;
+	protected:
+		CStreamBuffer() = default;
+		CStreamBuffer(CCoreRendererDX11 &parent, bool vertex/*index if false*/, bool readAccess = false);
+		CStreamBuffer(CStreamBuffer &) = delete;
+		void operator =(CStreamBuffer &) = delete;
+		~CStreamBuffer();
 	public:
-		unsigned int FillSegment(ID3D11DeviceContext2 *context, const void *data, unsigned int size);
+		unsigned int FillSegment(ID3D11DeviceContext2 *context, const void *data, unsigned int size, bool raw = true/*interface if false*/);
 		const WRL::ComPtr<ID3D11Buffer> &GetBuffer() const { return _buffer; }
 	private:
 		void _CreateBuffer();
 	private:
 		void _OnFrameEnd();
-	};
-
-	class CDynamicVB : public CDynamicBufferBase
-	{
-	public:
-		CDynamicVB(CCoreRendererDX11 &parent) : CDynamicBufferBase(parent, true) {}
-	} *_immediateVB = nullptr;
-
-	class CDynamicIB : public CDynamicBufferBase
-	{
-	public:
-		CDynamicIB() = default;
-		CDynamicIB(CCoreRendererDX11 &parent) : CDynamicBufferBase(parent, false) {}
-	} *_immediateIB = nullptr;
+	private:
+		virtual void _OnGrow(const WRL::ComPtr<ID3D11Buffer> &oldBuffer) {}
+	} *_immediateVB = nullptr, *_immediateIB = nullptr;
 
 	class CGeometryProviderBase;
 	class CGeometryProvider;
@@ -101,7 +93,7 @@ class CCoreRendererDX11 final : public ICoreRenderer
 		TCache _cache;
 	public:
 		const TCache::mapped_type &GetLayout(ID3D11Device2 *device, const TDrawDataDesc &desc);
-	} _VBLayoutCache;
+	} _VBDeclCache;
 
 	class CCoreTexture;
 
