@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		27.7.2015 (c)Andrey Korotkov
+\date		28.7.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -41,9 +41,7 @@ class CCoreRendererDX11 final : public ICoreRenderer
 		const CBroadcast<>::CCallbackHandle _frameEndCallbackHandle{};
 	private:
 		const unsigned int _limit = _baseLimit;
-		unsigned int _size, _lastFrameSize = 0;
-	protected:
-		unsigned int _offset = 0;
+		unsigned int _size, _offset = 0, _lastFrameSize = 0;
 	protected:
 		CStreamBuffer() = default;
 		CStreamBuffer(CCoreRendererDX11 &parent, bool vertex/*index if false*/, bool readAccess = false);
@@ -51,14 +49,20 @@ class CCoreRendererDX11 final : public ICoreRenderer
 		void operator =(CStreamBuffer &) = delete;
 		~CStreamBuffer();
 	public:
-		unsigned int FillSegment(ID3D11DeviceContext2 *context, const void *data, unsigned int size, bool raw = true/*interface if false*/);
+		unsigned int FillSegment(ID3D11DeviceContext2 *context, const void *data, unsigned int size);
+		unsigned int FillSegment(ID3D11DeviceContext2 *context, ID3D11Buffer *data, unsigned int begin, unsigned int end);
 		const WRL::ComPtr<ID3D11Buffer> &GetBuffer() const { return _buffer; }
 	private:
+		const struct TFillDesc
+		{
+			const unsigned int oldOffset;
+			const const D3D11_COPY_FLAGS copyFlags;
+		} _PrepareFillSegment(unsigned int size);
 		void _CreateBuffer();
 	private:
 		void _OnFrameEnd();
 	private:
-		virtual void _OnGrow(const WRL::ComPtr<ID3D11Buffer> &oldBuffer) {}
+		virtual void _OnGrow(const WRL::ComPtr<ID3D11Buffer> &oldBuffer, unsigned int oldOffset) {}
 	} *_immediateVB = nullptr, *_immediateIB = nullptr;
 
 	class CGeometryProviderBase;
