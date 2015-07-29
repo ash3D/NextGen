@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		28.7.2015 (c)Andrey Korotkov
+\date		29.7.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -419,7 +419,7 @@ class CCoreRendererDX11::CCoreGeometryBufferDynamic final : public CCoreGeometry
 		unsigned int _offset;
 
 	public:
-		CDynamicBuffer(CCoreRendererDX11 &parent, bool vertex) : CStreamBuffer(parent, vertex, true) {}
+		using CStreamBuffer::CStreamBuffer;
 
 	public:
 		void FillSegment(ID3D11DeviceContext2 *context, ID3D11Buffer *data, unsigned int begin, unsigned int end) { _offset = CStreamBuffer::FillSegment(context, data, begin, end); }
@@ -455,7 +455,7 @@ void CCoreRendererDX11::CCoreGeometryBufferDynamic::CDynamicBuffer::_OnGrow(cons
 	ComPtr<ID3D11Device> device;
 	oldBuffer->GetDevice(&device);
 	ComPtr<ID3D11Device2> device2;
-	device.As(&device2);
+	AssertHR(device.As(&device2));
 	ComPtr<ID3D11DeviceContext2> device_context;
 	device2->GetImmediateContext2(&device_context);
 	FillSegment(device_context.Get(), oldBuffer.Get(), _offset, oldOffset);
@@ -2099,14 +2099,11 @@ void CCoreRendererDX11::CStreamBuffer::CRawDataSource::FillSegment(ID3D11DeviceC
 	context->UpdateSubresource1(dest, 0, &CD3D11_BOX(offset, 0, 0, _offset, 1, 1), _data, 0, 0, copyFlags);
 }
 
-CCoreRendererDX11::CStreamBuffer::CStreamBuffer(CCoreRendererDX11 &parent, bool vertex, bool readAccess) :
+CCoreRendererDX11::CStreamBuffer::CStreamBuffer(CCoreRendererDX11 &parent, bool vertex) :
 _frameEndCallbackHandle(parent._frameEndBroadcast.AddCallback(std::bind(&CStreamBuffer::_OnFrameEnd, this))),
 _limit(_baseLimit * vertex ? 4 : 1), _size(_baseStartSize * vertex ? 4 : 1)
 {
-	auto access_flage = D3D11_CPU_ACCESS_WRITE;
-	if (readAccess)
-		access_flage |= D3D11_CPU_ACCESS_READ;
-	CheckHR(parent._device->CreateBuffer(&CD3D11_BUFFER_DESC(_size, vertex ? D3D11_BIND_VERTEX_BUFFER : D3D11_BIND_INDEX_BUFFER, D3D11_USAGE_DYNAMIC, access_flage), NULL, &_buffer));
+	CheckHR(parent._device->CreateBuffer(&CD3D11_BUFFER_DESC(_size, vertex ? D3D11_BIND_VERTEX_BUFFER : D3D11_BIND_INDEX_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE), NULL, &_buffer));
 }
 
 CCoreRendererDX11::CStreamBuffer::~CStreamBuffer() = default;

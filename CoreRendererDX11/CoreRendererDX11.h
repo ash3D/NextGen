@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		28.7.2015 (c)Andrey Korotkov
+\date		29.7.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -44,7 +44,7 @@ class CCoreRendererDX11 final : public ICoreRenderer
 		unsigned int _size, _offset = 0, _lastFrameSize = 0;
 	protected:
 		CStreamBuffer() = default;
-		CStreamBuffer(CCoreRendererDX11 &parent, bool vertex/*index if false*/, bool readAccess = false);
+		CStreamBuffer(CCoreRendererDX11 &parent, bool vertex/*index if false*/);
 		CStreamBuffer(CStreamBuffer &) = delete;
 		void operator =(CStreamBuffer &) = delete;
 		~CStreamBuffer();
