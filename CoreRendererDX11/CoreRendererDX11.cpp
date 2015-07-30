@@ -264,7 +264,7 @@ public:
 
 	DGLE_RESULT DGLE_API Reallocate(const TDrawDataDesc &stDesc, uint uiVerticesCount, uint uiIndicesCount, E_CORE_RENDERER_DRAW_MODE eMode) override
 	{
-		if (_indicesCount == 0 && uiIndicesCount != 0)
+		if (_indicesCount) != bool(uiIndicesCount))
 			return E_INVALIDARG;
 
 		try

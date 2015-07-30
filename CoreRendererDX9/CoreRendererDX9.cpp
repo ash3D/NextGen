@@ -285,7 +285,7 @@ public:
 	{
 		CHECK_DEVICE(_parent);
 
-		if (_indicesCount == 0 && uiIndicesCount != 0)
+		if (bool(_indicesCount) != bool(uiIndicesCount))
 			return E_INVALIDARG;
 
 		try
