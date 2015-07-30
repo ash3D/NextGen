@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		28.7.2015 (c)Andrey Korotkov
+\date		30.7.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1621,7 +1621,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CCoreTexture::Reallocate(const uint8 *pDa
 	unsigned long int mipmaps = 1;
 	if (bMipMaps)
 	{
-		if (GetTex())
+		if (_parent._mipmapSupport && !IsDepth())
 		{
 			_BitScanReverse(&mipmaps, max(uiWidth, uiHeight));
 			mipmaps++;
