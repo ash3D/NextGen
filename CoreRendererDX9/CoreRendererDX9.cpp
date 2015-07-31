@@ -1443,9 +1443,6 @@ void CCoreRendererDX9::CCoreTexture::_Reallocate(const uint8_t *data, unsigned i
 
 	SetTex(_parent._texturePools[!IsDepth()][mipmaps != 1].GetTexture(_parent._device.Get(), { width, height, format }));
 
-	CCoreTexture *const ptr = this;
-	AssertHR(GetTex()->SetPrivateData(__uuidof(CCoreTexture), &ptr, sizeof ptr, 0));
-
 	if (!IsDepth() || this->format == TDF_DEPTH_COMPONENT32 && format == D3DFMT_D32F_LOCKABLE)
 	{
 		unsigned int cur_mip = 0;
