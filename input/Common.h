@@ -1,6 +1,6 @@
 /*
 \author		Arseny Lezin aka SleepWalk
-\date		25.10.2012 (c)Arseny Lezin
+\date		31.7.2015 (c)Arseny Lezin
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -17,6 +17,7 @@ See "DGLE.h" for more details.
 
 #include <string>
 #include <vector>
+#include <filesystem>
 
 #include "utils.h"
 
@@ -38,5 +39,9 @@ using namespace DGLE;
 #define PLUGIN_INTERFACE_NAME	"ISubSystemPlugin"
 
 void LogWrite(uint uiInstIdx, const char *pcTxt, E_LOG_TYPE eType, const char *pcSrcFileName, int iSrcLineNumber);
+inline void LogWrite(uint uiInstIdx, const std::string &str, E_LOG_TYPE eType, const char *pcSrcFileName, int iSrcLineNumber)
+{
+	LogWrite(uiInstIdx, str.c_str(), eType, pcSrcFileName, iSrcLineNumber);
+}
 
-#define LOG(txt, type) LogWrite(_uiInstIdx, std::string(txt).c_str(), type, __FILE__, __LINE__)
+#define LOG(txt, type) LogWrite(_uiInstIdx, txt, type, std::tr2::sys::path(__FILE__).filename().string().c_str(), __LINE__)
