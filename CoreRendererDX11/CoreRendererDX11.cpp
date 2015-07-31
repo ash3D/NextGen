@@ -1599,9 +1599,17 @@ DGLE_RESULT DGLE_API CCoreRendererDX11::CCoreTexture::Reallocate(const uint8 *pD
 
 	try
 	{
+		const auto old = GetTex();
 		D3DSURFACE_DESC desc;
-		AssertHR(GetTex()->GetLevelDesc(0, &desc));
+		AssertHR(old->GetLevelDesc(0, &desc));
 		_Reallocate(pData, uiWidth, uiHeight, mipmaps, 0, desc.Format);
+		for (unsigned stage = 0; stage < _parent._maxTexUnits; stage++)
+		{
+			ComPtr<IDirect3DBaseTexture9> binded;
+			AssertHR(_parent._device->GetTexture(stage, &binded));
+			if (binded == old)
+				AssertHR(_parent._device->SetTexture(stage, GetTex().Get()));
+		}
 	}
 	catch (const HRESULT hr)
 	{
