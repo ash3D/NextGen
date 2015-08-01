@@ -85,6 +85,7 @@
     <ClCompile Include="PluginCore.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\Shared.h" />
     <ClInclude Include="Common.h" />
     <ClInclude Include="CoreRendererDX11.h" />
     <ClInclude Include="PluginCore.h" />
