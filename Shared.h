@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		31.7.2015 (c)Korotkov Andrey
+\date		2.8.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -20,7 +20,6 @@ See "DGLE.h" for more details.
 #include <functional>
 #include <utility>
 #include <type_traits>
-#include <filesystem>
 #include <cassert>
 #include <cstddef>
 
@@ -201,5 +200,28 @@ inline void LogWrite(IEngineCore &engineCore, const std::string &str, E_LOG_TYPE
 	LogWrite(engineCore, str.c_str(), eType, pcSrcFileName, iSrcLineNumber);
 }
 
+namespace detail
+{
+	template<size_t offset>
+	inline constexpr const char *const FindFilename(const char path[])
+	{
+		return path[offset] == '\\' || path[offset] == '/' ? path + offset + 1 : FindFilename<offset - 1>(path);
+	}
+
+	template<>
+	inline constexpr const char *const FindFilename<0>(const char path[])
+	{
+		return path;
+	}
+}
+
+// use C++14 extended constexpr
+template<size_t length>
+inline constexpr const char *const ExtractFilename(const char (&path)[length])
+{
+	static_assert(length > 0, "path must be null-terminated string");
+	return detail::FindFilename<length - 1>(path);
+}
+
 #define PTHIS(cl_name) (reinterpret_cast<cl_name *>(pParameter))
-#define LOG(txt, type) LogWrite(_engineCore, txt, type, std::tr2::sys::path(__FILE__).filename().string().c_str(), __LINE__)
+#define LOG(txt, type) LogWrite(_engineCore, txt, type, ExtractFilename(__FILE__), __LINE__)

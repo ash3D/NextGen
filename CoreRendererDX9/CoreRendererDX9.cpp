@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		31.7.2015 (c)Andrey Korotkov
+\date		2.8.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1464,7 +1464,7 @@ void CCoreRendererDX9::CCoreTexture::_Clear()
 		}
 		catch (const HRESULT hr)
 		{
-			LogWrite(_parent._engineCore, ("Failed to sync rendertarget texture while preparing to device reset (hr = " + to_string(hr) + ").").c_str(), LT_ERROR, tr2::sys::path(__FILE__).filename().string().c_str(), __LINE__);
+			LogWrite(_parent._engineCore, ("Failed to sync rendertarget texture while preparing to device reset (hr = " + to_string(hr) + ").").c_str(), LT_ERROR, __FILE__, __LINE__);
 		}
 	}
 }
@@ -1477,7 +1477,7 @@ void CCoreRendererDX9::CCoreTexture::_Restore(const ComPtr<IDirect3DDevice9> &de
 	}
 	catch (const HRESULT hr)
 	{
-		LogWrite(_parent._engineCore, ("Failed to restore texture after device reset (hr = " + to_string(hr) + ").").c_str(), LT_ERROR, tr2::sys::path(__FILE__).filename().string().c_str(), __LINE__);
+		LogWrite(_parent._engineCore, ("Failed to restore texture after device reset (hr = " + to_string(hr) + ").").c_str(), LT_ERROR, __FILE__, __LINE__);
 	}
 }
 
@@ -3797,7 +3797,7 @@ void DGLE_API CCoreRendererDX9::EventsHandler(void *pParameter, IBaseEvent *pEve
 					fail |= FAILED(renderer->_device->GetRenderTarget(0, &renderer->_screenColorTarget));
 					fail |= FAILED(renderer->_device->GetDepthStencilSurface(&renderer->_screenDepthTarget));
 					renderer->_deviceLost = false;
-					LogWrite(renderer->_engineCore, "Device restored back from lost state to operational one.", LT_INFO, tr2::sys::path(__FILE__).filename().string().c_str(), __LINE__);
+					LogWrite(renderer->_engineCore, "Device restored back from lost state to operational one.", LT_INFO, __FILE__, __LINE__);
 					break;
 				case D3DERR_DEVICELOST:
 					break;
@@ -3810,7 +3810,7 @@ void DGLE_API CCoreRendererDX9::EventsHandler(void *pParameter, IBaseEvent *pEve
 				fail = true;
 			}
 			if (fail)
-				LogWrite(renderer->_engineCore, "Fail to reset device", LT_FATAL, tr2::sys::path(__FILE__).filename().string().c_str(), __LINE__);
+				LogWrite(renderer->_engineCore, "Fail to reset device", LT_FATAL, __FILE__, __LINE__);
 		}
 		else
 			renderer->_cleanBroadcast();
