@@ -1426,7 +1426,7 @@ void CCoreRendererDX11::CCoreTexture::_Clear()
 		}
 		catch (const HRESULT hr)
 		{
-			LogWrite(_parent._engineCore, ("Failed to sync rendertarget texture while preparing to device reset (hr = " + to_string(hr) + ").").c_str(), LT_ERROR, __FILE__, __LINE__);
+			LogWrite(_parent._engineCore, ("Failed to sync rendertarget texture while preparing to device reset (hr = " + to_string(hr) + ").").c_str(), LT_ERROR, ExtractFilename(__FILE__), __LINE__);
 		}
 	}
 }
@@ -1439,7 +1439,7 @@ void CCoreRendererDX11::CCoreTexture::_Restore(const ComPtr<IDirect3DDevice9> &d
 	}
 	catch (const HRESULT hr)
 	{
-		LogWrite(_parent._engineCore, ("Failed to restore texture after device reset (hr = " + to_string(hr) + ").").c_str(), LT_ERROR, __FILE__, __LINE__);
+		LogWrite(_parent._engineCore, ("Failed to restore texture after device reset (hr = " + to_string(hr) + ").").c_str(), LT_ERROR, ExtractFilename(__FILE__), __LINE__);
 	}
 }
 
@@ -3570,7 +3570,7 @@ void DGLE_API CCoreRendererDX11::EventsHandler(void *pParameter, IBaseEvent *pEv
 					fail |= FAILED(renderer->_device->GetRenderTarget(0, &renderer->_screenColorTarget));
 					fail |= FAILED(renderer->_device->GetDepthStencilSurface(&renderer->_screenDepthTarget));
 					renderer->_deviceLost = false;
-					LogWrite(renderer->_engineCore, "Device restored back from lost state to operational one.", LT_INFO, __FILE__, __LINE__);
+					LogWrite(renderer->_engineCore, "Device restored back from lost state to operational one.", LT_INFO, ExtractFilename(__FILE__), __LINE__);
 					break;
 				case D3DERR_DEVICELOST:
 					break;
@@ -3583,7 +3583,7 @@ void DGLE_API CCoreRendererDX11::EventsHandler(void *pParameter, IBaseEvent *pEv
 				fail = true;
 			}
 			if (fail)
-				LogWrite(renderer->_engineCore, "Fail to reset device", LT_FATAL, __FILE__, __LINE__);
+				LogWrite(renderer->_engineCore, "Fail to reset device", LT_FATAL, ExtractFilename(__FILE__), __LINE__);
 		}
 		else
 			renderer->_cleanBroadcast();
