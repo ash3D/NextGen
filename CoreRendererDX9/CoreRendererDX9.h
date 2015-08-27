@@ -15,6 +15,7 @@ See "DGLE.h" for more details.
 
 #include "FixedFunctionPipelineDX9.h"
 
+#include <comdef.h>
 #include <d3d9.h>
 
 //#define LOST_DEVICE_RETURN_CODE E_FAIL
@@ -23,13 +24,11 @@ See "DGLE.h" for more details.
 	if ((coreRenderer).DeviceLost())	\
 		return LOST_DEVICE_RETURN_CODE
 
-namespace WRL = Microsoft::WRL;
-
 class CCoreRendererDX9 final : public ICoreRenderer
 {
 	IEngineCore &_engineCore;
 
-	WRL::ComPtr<IDirect3DDevice9> _device;
+	IDirect3DDevice9Ptr _device;
 
 	TCrRndrInitResults _stInitResults;
 	bool _16bitColor;
@@ -47,7 +46,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	TMatrix4x4 _projXform = MatrixIdentity();
 
 	CBroadcast<> _frameEndBroadcast, _clearBroadcast, _cleanBroadcast;
-	CBroadcast<const WRL::ComPtr<IDirect3DDevice9> &> _restoreBroadcast;
+	CBroadcast<const IDirect3DDevice9Ptr &> _restoreBroadcast;
 
 	class CDynamicBufferBase
 	{
@@ -56,7 +55,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		const CBroadcast<>::CCallbackHandle _frameEndCallbackHandle{};
 	protected:
 		const CBroadcast<>::CCallbackHandle _clearCallbackHandle{};
-		CBroadcast<const WRL::ComPtr<IDirect3DDevice9> &>::CCallbackHandle _restoreCallbackHandle;
+		CBroadcast<const IDirect3DDevice9Ptr &>::CCallbackHandle _restoreCallbackHandle;
 	private:
 		const unsigned int _limit = _baseLimit;
 		unsigned int _lastFrameSize = 0;
@@ -65,7 +64,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	protected:
 		CDynamicBufferBase() = default;
 		CDynamicBufferBase(CCoreRendererDX9 &parent, unsigned int sizeMultiplier,
-			CBroadcast<>::CCallbackHandle &&clearCallbackHandle, CBroadcast<const WRL::ComPtr<IDirect3DDevice9> &>::CCallbackHandle &&restoreCallbackHandle);
+			CBroadcast<>::CCallbackHandle &&clearCallbackHandle, CBroadcast<const IDirect3DDevice9Ptr &>::CCallbackHandle &&restoreCallbackHandle);
 		CDynamicBufferBase(CDynamicBufferBase &) = delete;
 		void operator =(CDynamicBufferBase &) = delete;
 		~CDynamicBufferBase();
@@ -80,8 +79,8 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	private:
 		virtual void _CreateBufferImpl() = 0;
 		virtual void _FillSegmentImpl(const void *data, unsigned int size, DWORD lockFlags) = 0;
-		virtual const WRL::ComPtr<IDirect3DResource9> _GetBuffer() const = 0;
-		virtual void _OnGrow(const WRL::ComPtr<IDirect3DResource9> &oldBuffer, unsigned int oldOffset) {}
+		virtual const IDirect3DResource9Ptr _GetBuffer() const = 0;
+		virtual void _OnGrow(const IDirect3DResource9Ptr &oldBuffer, unsigned int oldOffset) {}
 	};
 
 	class CDynamicVB : public CDynamicBufferBase
@@ -90,23 +89,23 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		using CDynamicBufferBase::_size;
 		using CDynamicBufferBase::_offset;
 #endif
-		WRL::ComPtr<IDirect3DVertexBuffer9> _VB;
+		IDirect3DVertexBuffer9Ptr _VB;
 	protected:
-		typedef decltype(_VB)::InterfaceType Interface;
+		typedef decltype(_VB) InterfacePtr;
 	private:
-		inline void _CreateBuffer(const WRL::ComPtr<IDirect3DDevice9> &device, DWORD usage);
+		inline void _CreateBuffer(const IDirect3DDevice9Ptr &device, DWORD usage);
 		inline void _CreateBuffer(DWORD usage);
 	public:
 		CDynamicVB(CCoreRendererDX9 &parent, bool points);
 	public:
 		void Reset(bool points);
-		const WRL::ComPtr<IDirect3DVertexBuffer9> &GetVB() const { return _VB; }
+		const IDirect3DVertexBuffer9Ptr &GetVB() const { return _VB; }
 	private:
-		void _Restore(const WRL::ComPtr<IDirect3DDevice9> &device, bool points);
+		void _Restore(const IDirect3DDevice9Ptr &device, bool points);
 	private:
 		void _CreateBufferImpl() override final;
 		void _FillSegmentImpl(const void *data, unsigned int size, DWORD lockFlags) override final;
-		const WRL::ComPtr<IDirect3DResource9> _GetBuffer() const override final { return _VB; }
+		const IDirect3DResource9Ptr _GetBuffer() const override final { return _VB; }
 	} *_immediateVB = nullptr, *_immediatePointsVB = nullptr, *_GetImmediateVB(bool points) const;
 
 	class CDynamicIB : public CDynamicBufferBase
@@ -115,24 +114,24 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		using CDynamicBufferBase::_size;
 		using CDynamicBufferBase::_offset;
 #endif
-		WRL::ComPtr<IDirect3DIndexBuffer9> _IB;
+		IDirect3DIndexBuffer9Ptr _IB;
 	protected:
-		typedef decltype(_IB)::InterfaceType Interface;
+		typedef decltype(_IB) InterfacePtr;
 	private:
-		inline void _CreateBuffer(const WRL::ComPtr<IDirect3DDevice9> &device, DWORD usage, D3DFORMAT format);
+		inline void _CreateBuffer(const IDirect3DDevice9Ptr &device, DWORD usage, D3DFORMAT format);
 		inline void _CreateBuffer(DWORD usage, D3DFORMAT format);
 	public:
 		CDynamicIB() = default;
 		CDynamicIB(CCoreRendererDX9 &parent, bool points, bool _32);
 	public:
 		void Reset(bool points, bool _32);
-		const WRL::ComPtr<IDirect3DIndexBuffer9> &GetIB() const { return _IB; }
+		const IDirect3DIndexBuffer9Ptr &GetIB() const { return _IB; }
 	private:
-		void _Restore(const WRL::ComPtr<IDirect3DDevice9> &device, bool points, bool _32);
+		void _Restore(const IDirect3DDevice9Ptr &device, bool points, bool _32);
 	private:
 		void _CreateBufferImpl() override final;
 		void _FillSegmentImpl(const void *data, unsigned int size, DWORD lockFlags) override final;
-		const WRL::ComPtr<IDirect3DResource9> _GetBuffer() const override final { return _IB; }
+		const IDirect3DResource9Ptr _GetBuffer() const override final { return _IB; }
 	} *_immediateIB16 = nullptr, *_immediateIB32 = nullptr, *_immediatePointsIB16 = nullptr, *_immediatePointsIB32 = nullptr, *_GetImmediateIB(bool points, bool _32) const;
 
 	class CGeometryProviderBase;
@@ -163,7 +162,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		{
 			inline size_t operator ()(const tag src) const { return HashValue(src.packed); }
 		};
-		typedef std::unordered_map<tag, WRL::ComPtr<IDirect3DVertexDeclaration9>, THash> TCache;
+		typedef std::unordered_map<tag, IDirect3DVertexDeclaration9Ptr, THash> TCache;
 		TCache _cache;
 	public:
 		const TCache::mapped_type &GetDecl(IDirect3DDevice9 *device, const TDrawDataDesc &desc);
@@ -173,7 +172,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 
 	class CRendertargetCache
 	{
-		typedef std::unordered_map<D3DFORMAT, WRL::ComPtr<IDirect3DSurface9>> TCache;
+		typedef std::unordered_map<D3DFORMAT, IDirect3DSurface9Ptr> TCache;
 		TCache _cache;
 		const CBroadcast<>::CCallbackHandle _clearCallbackHandle;
 	public:
@@ -199,10 +198,10 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		};
 		struct TImage
 		{
-			WRL::ComPtr<IDirect3DResource9> image;
+			IDirect3DResource9Ptr image;
 			uint_least32_t idleTime;
 		public:
-			TImage(WRL::ComPtr<IDirect3DResource9> &&image) : image(std::move(image)), idleTime() {}
+			TImage(IDirect3DResource9Ptr &&image) : image(std::move(image)), idleTime() {}
 		};
 		typedef std::unordered_multimap<TImageDesc, TImage, THash> TPool;
 		TPool _pool;
@@ -214,18 +213,18 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		CImagePool(CImagePool &) = delete;
 		void operator =(CImagePool &) = delete;
 	protected:
-		const WRL::ComPtr<IDirect3DResource9> &_GetImage(IDirect3DDevice9 *device, const TPool::key_type &desc);
+		const IDirect3DResource9Ptr &_GetImage(IDirect3DDevice9 *device, const TPool::key_type &desc);
 	private:
-		virtual WRL::ComPtr<IDirect3DResource9> _CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const = 0;
+		virtual IDirect3DResource9Ptr _CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const = 0;
 	};
 
 	class CMSAARendertargetPool : public CImagePool
 	{
 	public:
 		explicit CMSAARendertargetPool(CCoreRendererDX9 &parent);
-		inline WRL::ComPtr<IDirect3DSurface9> GetRendertarget(IDirect3DDevice9 *device, const TPool::key_type &desc);
+		inline IDirect3DSurface9Ptr GetRendertarget(IDirect3DDevice9 *device, const TPool::key_type &desc);
 	private:
-		WRL::ComPtr<IDirect3DResource9> _CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const override;
+		IDirect3DResource9Ptr _CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const override;
 	} _MSAARendertargetPool{ *this };
 
 	class CTexturePool : public CImagePool
@@ -233,9 +232,9 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		const bool _managed, _mipmaps;
 	public:
 		CTexturePool(CCoreRendererDX9 &parent, bool managed, bool mipmaps);
-		inline WRL::ComPtr<IDirect3DTexture9> GetTexture(IDirect3DDevice9 *device, const TPool::key_type &desc);
+		inline IDirect3DTexture9Ptr GetTexture(IDirect3DDevice9 *device, const TPool::key_type &desc);
 	private:
-		WRL::ComPtr<IDirect3DResource9> _CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const override;
+		IDirect3DResource9Ptr _CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const override;
 	}
 	_texturePools[2][2] =
 	{
@@ -245,37 +244,37 @@ class CCoreRendererDX9 final : public ICoreRenderer
 
 	class COffscreenDepth
 	{
-		WRL::ComPtr<IDirect3DSurface9> _surface;
+		IDirect3DSurface9Ptr _surface;
 		const CBroadcast<>::CCallbackHandle _clearCallbackHandle;
 	public:
 		COffscreenDepth(CCoreRendererDX9 &parent);
 		COffscreenDepth(COffscreenDepth &) = delete;
 		void operator =(COffscreenDepth &) = delete;
 	public:
-		WRL::ComPtr<IDirect3DSurface9> Get(IDirect3DDevice9 *device, UINT width, UINT height, D3DMULTISAMPLE_TYPE MSAA);
+		IDirect3DSurface9Ptr Get(IDirect3DDevice9 *device, UINT width, UINT height, D3DMULTISAMPLE_TYPE MSAA);
 	} _offscreenDepth{ *this };
 
 	static constexpr D3DFORMAT _offscreenDepthFormat = D3DFMT_D24S8;
 	CCoreTexture *_curRenderTarget = nullptr;
-	WRL::ComPtr<IDirect3DSurface9> _screenColorTarget, _screenDepthTarget;
+	IDirect3DSurface9Ptr _screenColorTarget, _screenDepthTarget;
 	D3DVIEWPORT9 _screenViewport;
 	uint_least8_t _selectedTexLayer = 0;
 
 	struct TBindings
 	{
-		std::unique_ptr<WRL::ComPtr<IDirect3DSurface9> []> rendertargets;
-		WRL::ComPtr<IDirect3DSurface9> deptStensil;
+		std::unique_ptr<IDirect3DSurface9Ptr []> rendertargets;
+		IDirect3DSurface9Ptr deptStensil;
 #ifdef SAVE_ALL_STATES
-		WRL::ComPtr<IDirect3DIndexBuffer9> IB;
+		IDirect3DIndexBuffer9Ptr IB;
 		struct TVertexStream
 		{
-			WRL::ComPtr<IDirect3DVertexBuffer9> VB;
+			IDirect3DVertexBuffer9Ptr VB;
 			UINT offset;
 			UINT stride;
 			UINT freq;
 		};
 		std::unique_ptr<TVertexStream []> vertexStreams;
-		WRL::ComPtr<IDirect3DVertexDeclaration9> VBDecl;
+		IDirect3DVertexDeclaration9Ptr VBDecl;
 #endif
 	};
 	std::stack<TBindings> _bindingsStack;
@@ -295,7 +294,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		{
 			std::array<DWORD, std::extent<decltype(_samplerStateTypes)>::value> samplerStates;
 			std::array<DWORD, std::extent<decltype(_stageStateTypes)>::value> stageStates;
-			WRL::ComPtr<IDirect3DBaseTexture9> texture;
+			IDirect3DBaseTexture9Ptr texture;
 		};
 		std::unique_ptr<TTextureStates []> textureStates;
 		D3DVIEWPORT9 viewport;
@@ -304,8 +303,8 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		std::unique_ptr<float [][4]> clipPlanes;
 		DWORD FVF;
 		FLOAT NPatchMode;
-		WRL::ComPtr<IDirect3DVertexShader9> VS;
-		WRL::ComPtr<IDirect3DPixelShader9> PS;
+		IDirect3DVertexShader9Ptr VS;
+		IDirect3DPixelShader9Ptr PS;
 		std::unique_ptr<float [][4]> VSFloatConsts;
 		float PSFloatConsts[224][4];
 		int VSIntConsts[16][4], PSIntConsts[16][4];
@@ -332,7 +331,7 @@ private:
 	void _FlipRectY(uint &y, uint height) const;
 
 	template<unsigned idx = 0>
-	inline void _BindVB(const TDrawDataDesc &drawDesc, const WRL::ComPtr<IDirect3DVertexBuffer9> &VB, unsigned int baseOffset, UINT stream = 0) const;
+	inline void _BindVB(const TDrawDataDesc &drawDesc, const IDirect3DVertexBuffer9Ptr &VB, unsigned int baseOffset, UINT stream = 0) const;
 
 	void _Draw(class CGeometryProviderBase &geom);
 

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		23.7.2015 (c)Andrey Korotkov
+\date		28.8.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -9,8 +9,6 @@ See "DGLE.h" for more details.
 
 #include "FixedFunctionPipelineDX9.h"
 #include "CoreRendererDX9.h"
-
-using WRL::ComPtr;
 
 namespace
 {
@@ -44,7 +42,7 @@ namespace
 	}
 }
 
-CFixedFunctionPipelineDX9::CFixedFunctionPipelineDX9(const CCoreRendererDX9 &parent, const ComPtr<IDirect3DDevice9> &device) :
+CFixedFunctionPipelineDX9::CFixedFunctionPipelineDX9(const CCoreRendererDX9 &parent, const IDirect3DDevice9Ptr &device) :
 _parent(parent), _device(device),
 _maxLights([this]()
 {

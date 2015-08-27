@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		23.7.2015 (c)Andrey Korotkov
+\date		28.8.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -9,10 +9,9 @@ See "DGLE.h" for more details.
 
 #pragma once
 
+#include <comdef.h>
 #include <d3d9.h>
 #include "Common.h"
-
-namespace WRL = Microsoft::WRL;
 
 inline D3DCOLOR SwapRB(D3DCOLOR color)
 {
@@ -24,7 +23,7 @@ inline D3DCOLOR SwapRB(D3DCOLOR color)
 class CFixedFunctionPipelineDX9 final : public IFixedFunctionPipeline
 {
 	const class CCoreRendererDX9 &_parent;
-	WRL::ComPtr<IDirect3DDevice9> _device;
+	IDirect3DDevice9Ptr _device;
 
 	static constexpr float _attenuationFactor = 1.75f;
 
@@ -49,7 +48,7 @@ class CFixedFunctionPipelineDX9 final : public IFixedFunctionPipeline
 
 public:
 
-	CFixedFunctionPipelineDX9(const CCoreRendererDX9 &parent, const WRL::ComPtr<IDirect3DDevice9> &device);
+	CFixedFunctionPipelineDX9(const CCoreRendererDX9 &parent, const IDirect3DDevice9Ptr &device);
 	~CFixedFunctionPipelineDX9();
 
 	inline bool IsGlobalLightingEnabled() const
