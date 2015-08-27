@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		2.8.2015 (c)Andrey Korotkov
+\date		28.8.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -422,7 +422,7 @@ class CCoreRendererDX11::CCoreGeometryBufferDynamic final : public CCoreGeometry
 		using CStreamBuffer::CStreamBuffer;
 
 	public:
-		void FillSegment(ID3D11DeviceContext2 *context, ID3D11Buffer *data, unsigned int begin, unsigned int end) { _offset = CStreamBuffer::FillSegment(context, data, begin, end); }
+		void FillSegment(ID3D11DeviceContext2 *context, const void *data, unsigned int size) { _offset = CStreamBuffer::FillSegment(context, data, size); }
 		unsigned int GetOffset() const { return _offset; }
 
 	private:
@@ -458,7 +458,8 @@ void CCoreRendererDX11::CCoreGeometryBufferDynamic::CDynamicBuffer::_OnGrow(cons
 	AssertHR(device.As(&device2));
 	ComPtr<ID3D11DeviceContext2> device_context;
 	device2->GetImmediateContext2(&device_context);
-	FillSegment(device_context.Get(), oldBuffer.Get(), _offset, oldOffset);
+	device_context->CopySubresourceRegion(GetBuffer().Get(), 0, 0, 0, 0, oldBuffer.Get(), 0, &CD3D11_BOX(_offset, 0, 0, oldOffset, 1, 1));
+	CStreamBuffer::_offset = oldOffset - _offset;
 }
 
 // 1 call site
@@ -2118,22 +2119,8 @@ CCoreRendererDX11::CStreamBuffer::~CStreamBuffer() = default;
 
 unsigned int CCoreRendererDX11::CStreamBuffer::FillSegment(ID3D11DeviceContext2 *context, const void *data, unsigned int size)
 {
-	const auto fill_desc = _PrepareFillSegment(size);
-	context->UpdateSubresource1(_buffer.Get(), 0, &CD3D11_BOX(fill_desc.oldOffset, 0, 0, _offset, 1, 1), data, 0, 0, fill_desc.copyFlags);
-	return fill_desc.oldOffset;
-}
-
-unsigned int CCoreRendererDX11::CStreamBuffer::FillSegment(ID3D11DeviceContext2 *context, ID3D11Buffer *data, unsigned int begin, unsigned int end)
-{
-	const auto fill_desc = _PrepareFillSegment(end - begin);
-	context->CopySubresourceRegion1(_buffer.Get(), 0, fill_desc.oldOffset, 0, 0, data, 0, &CD3D11_BOX(begin, 0, 0, end, 1, 1), fill_desc.copyFlags);
-	return fill_desc.oldOffset;
-}
-
-auto CCoreRendererDX11::CStreamBuffer::_PrepareFillSegment(unsigned int size) -> const TFillDesc
-{
 	const auto old_offset = _offset;
-	const auto copy_flags = _size - _offset >= size ? D3D11_COPY_NO_OVERWRITE : (_offset = 0, D3D11_COPY_DISCARD);
+	const auto map_type = _size - _offset >= size ? D3D11_MAP_WRITE_NO_OVERWRITE : (_offset = 0, D3D11_MAP_WRITE_DISCARD);
 	if (_size < size)
 	{
 		const auto old_size = _size;
@@ -2149,10 +2136,14 @@ auto CCoreRendererDX11::CStreamBuffer::_PrepareFillSegment(unsigned int size) ->
 			throw;
 		}
 	}
-	_lastFrameSize += size;
-	const TFillDesc result = { _offset, copy_flags };
+	D3D11_MAPPED_SUBRESOURCE mapped;
+	context->Map(_buffer.Get(), 0, map_type, 0, &mapped);
+	memcpy(static_cast<uint8_t *>(mapped.pData) + _offset, data, size);
+	context->Unmap(_buffer.Get(), 0);
+	const unsigned int offset = _offset;
 	_offset += size;
-	return result;
+	_lastFrameSize += size;
+	return offset;
 }
 
 void CCoreRendererDX11::CStreamBuffer::_CreateBuffer()
