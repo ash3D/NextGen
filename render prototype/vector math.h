@@ -207,7 +207,7 @@ same applies for 'op='
 #	undef DATA_CONTAINER_IMPL_SPECIALIZATION
 
 	template<typename ElementType>
-	class CDataContainer<ElementType, ROWS, COLUMNS>: public CDataContainerImpl<ElementType, ROWS, COLUMNS, std::has_trivial_default_constructor<CData<ElementType, ROWS, COLUMNS>>::value>
+	class CDataContainer<ElementType, ROWS, COLUMNS>: public CDataContainerImpl<ElementType, ROWS, COLUMNS, std::is_trivially_default_constructible<CData<ElementType, ROWS, COLUMNS>>::value>
 	{
 	protected:
 		CDataContainer() = default;
