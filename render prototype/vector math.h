@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		30.8.2013 (c)Alexey Shaydurov
+\date		25.9.2015 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -23,7 +23,7 @@ TODO: try inherit vector from CSwizzle for future versions of VS
 it is safe to use const_cast if const version returns (const &), not value, and *this object is not const
 
 functions like distance now receives CSwizzle arguments
-function template with same name from other namespace can have hier priority when passing vector arguments
+function template with same name from other namespace can have higher priority when passing vector arguments
 (because no conversion required in contrast to vector->CSwizzle conversion required for function in VectorMath)
 consider overloads with vector arguments to eliminate this issue
 
