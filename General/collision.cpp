@@ -14,6 +14,7 @@ See "DGLE.h" for more details.
 #include <iterator>
 #include <set>
 #include <string>
+#include <cassert>
 
 using namespace std;
 using namespace DGLE;
@@ -100,12 +101,12 @@ Collision::CCollisionEdges<IB_format>::CCollisionEdges(IFile *pFile)
 	uint read;
 	uint32 size;
 
-	PARANOIC_CHECK_HR(pFile->Read(&size, sizeof size, read));
+	AssertHR(pFile->Read(&size, sizeof size, read));
 
 	if (size != 0)
 	{
 		_edges.resize(size);
-		PARANOIC_CHECK_HR(pFile->Read(_edges.data(), sizeof(TEdges::value_type) * size, read));
+		AssertHR(pFile->Read(_edges.data(), sizeof(TEdges::value_type) * size, read));
 	}
 }
 
@@ -120,13 +121,13 @@ uint Collision::CCollisionEdges<IB_format>::SaveToFile(IFile *pFile) const
 	uint writen;
 	uint32 size = _edges.size();
 
-	PARANOIC_CHECK_HR(pFile->Write(&size, sizeof size, writen));
+	AssertHR(pFile->Write(&size, sizeof size, writen));
 
 	res += writen;
 
 	if (size != 0)
 	{
-		PARANOIC_CHECK_HR(pFile->Write(_edges.data(), sizeof(TEdges::value_type) * size, writen));
+		AssertHR(pFile->Write(_edges.data(), sizeof(TEdges::value_type) * size, writen));
 		res += writen;
 	}
 
@@ -344,23 +345,30 @@ extern void CollisionStat::StartProfiling()
 	collideAndSlideInvokeCount = collideAndSlideIterationCount = cullerInvokeCount = cullerRejectCount = triColliderInvokeCount = edgeColliderInvokeCount = vertexColliderInvokeCount = 0;
 }
 
+// TODO: reuse single function here and in "Shared.h"
+static inline void AssertHR(const HRESULT hr)
+{
+	assert(SUCCEEDED(hr));
+}
+
+
 extern void CALLBACK CollisionStat::ProfilerEventHandler(void *pEngineCore, IBaseEvent *pEvent)
 {
 	E_EVENT_TYPE ev_type;
-	PARANOIC_CHECK_HR(pEvent->GetEventType(ev_type));
+	AssertHR(pEvent->GetEventType(ev_type));
 	switch (ev_type)
 	{
 	case ET_ON_PROFILER_DRAW:
 		IEngineCore *const &p_engine_core = reinterpret_cast<IEngineCore *const &>(pEngineCore);
-		PARANOIC_CHECK_HR(p_engine_core->RenderProfilerTxt("--Collision Stats--", TColor4()));
-		PARANOIC_CHECK_HR(p_engine_core->RenderProfilerTxt(("Collide and slide invoke count: " + to_string((unsigned long long)collideAndSlideInvokeCount)).c_str(), TColor4()));
-		PARANOIC_CHECK_HR(p_engine_core->RenderProfilerTxt(("Collide and slide iteration count: " + to_string((unsigned long long)collideAndSlideIterationCount)).c_str(), TColor4()));
-		PARANOIC_CHECK_HR(p_engine_core->RenderProfilerTxt(("Culler invoke count: " + to_string((unsigned long long)cullerInvokeCount)).c_str(), TColor4()));
-		PARANOIC_CHECK_HR(p_engine_core->RenderProfilerTxt(("Culler reject count: " + to_string((unsigned long long)cullerRejectCount)).c_str(), TColor4()));
-		PARANOIC_CHECK_HR(p_engine_core->RenderProfilerTxt(("Tri collider invoke count: " + to_string((unsigned long long)triColliderInvokeCount)).c_str(), TColor4()));
-		PARANOIC_CHECK_HR(p_engine_core->RenderProfilerTxt(("Edge collider invoke count: " + to_string((unsigned long long)edgeColliderInvokeCount)).c_str(), TColor4()));
-		PARANOIC_CHECK_HR(p_engine_core->RenderProfilerTxt(("Vertex collider invoke count: " + to_string((unsigned long long)vertexColliderInvokeCount)).c_str(), TColor4()));
-		PARANOIC_CHECK_HR(p_engine_core->RenderProfilerTxt("-------------------", TColor4()));
+		AssertHR(p_engine_core->RenderProfilerTxt("--Collision Stats--", TColor4()));
+		AssertHR(p_engine_core->RenderProfilerTxt(("Collide and slide invoke count: " + to_string((unsigned long long)collideAndSlideInvokeCount)).c_str(), TColor4()));
+		AssertHR(p_engine_core->RenderProfilerTxt(("Collide and slide iteration count: " + to_string((unsigned long long)collideAndSlideIterationCount)).c_str(), TColor4()));
+		AssertHR(p_engine_core->RenderProfilerTxt(("Culler invoke count: " + to_string((unsigned long long)cullerInvokeCount)).c_str(), TColor4()));
+		AssertHR(p_engine_core->RenderProfilerTxt(("Culler reject count: " + to_string((unsigned long long)cullerRejectCount)).c_str(), TColor4()));
+		AssertHR(p_engine_core->RenderProfilerTxt(("Tri collider invoke count: " + to_string((unsigned long long)triColliderInvokeCount)).c_str(), TColor4()));
+		AssertHR(p_engine_core->RenderProfilerTxt(("Edge collider invoke count: " + to_string((unsigned long long)edgeColliderInvokeCount)).c_str(), TColor4()));
+		AssertHR(p_engine_core->RenderProfilerTxt(("Vertex collider invoke count: " + to_string((unsigned long long)vertexColliderInvokeCount)).c_str(), TColor4()));
+		AssertHR(p_engine_core->RenderProfilerTxt("-------------------", TColor4()));
 		break;
 	}
 }
