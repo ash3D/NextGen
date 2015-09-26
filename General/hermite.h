@@ -13,7 +13,7 @@ namespace Math
 {
 	namespace Hermite
 	{
-		// Hermite polynomials
+		#pragma region Hermite polynomials
 		template<typename T>
 		extern inline T H0(T x) { return (1 + 2 * x) * (1 - x) * (1 - x); }
 
@@ -25,8 +25,9 @@ namespace Math
 
 		template<typename T>
 		extern inline T H3(T x) { return x * x * (3 - 2 * x); }
+		#pragma endregion
 
-		// Hermite polynomials derivatives
+		#pragma region Hermite polynomials derivatives
 		template<typename T>
 		extern inline T dH0dx(T x) { return 6 * x * (x - 1); }
 
@@ -38,5 +39,6 @@ namespace Math
 
 		template<typename T>
 		extern inline T dH3dx(T x) { return 6 * x * (1 - x); }
+		#pragma endregion
 	}
 }
