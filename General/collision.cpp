@@ -360,15 +360,15 @@ extern void CALLBACK CollisionStat::ProfilerEventHandler(void *pEngineCore, IBas
 	{
 	case ET_ON_PROFILER_DRAW:
 		IEngineCore *const &p_engine_core = reinterpret_cast<IEngineCore *const &>(pEngineCore);
-		AssertHR(p_engine_core->RenderProfilerTxt("--Collision Stats--", TColor4()));
-		AssertHR(p_engine_core->RenderProfilerTxt(("Collide and slide invoke count: " + to_string((unsigned long long)collideAndSlideInvokeCount)).c_str(), TColor4()));
-		AssertHR(p_engine_core->RenderProfilerTxt(("Collide and slide iteration count: " + to_string((unsigned long long)collideAndSlideIterationCount)).c_str(), TColor4()));
-		AssertHR(p_engine_core->RenderProfilerTxt(("Culler invoke count: " + to_string((unsigned long long)cullerInvokeCount)).c_str(), TColor4()));
-		AssertHR(p_engine_core->RenderProfilerTxt(("Culler reject count: " + to_string((unsigned long long)cullerRejectCount)).c_str(), TColor4()));
-		AssertHR(p_engine_core->RenderProfilerTxt(("Tri collider invoke count: " + to_string((unsigned long long)triColliderInvokeCount)).c_str(), TColor4()));
-		AssertHR(p_engine_core->RenderProfilerTxt(("Edge collider invoke count: " + to_string((unsigned long long)edgeColliderInvokeCount)).c_str(), TColor4()));
-		AssertHR(p_engine_core->RenderProfilerTxt(("Vertex collider invoke count: " + to_string((unsigned long long)vertexColliderInvokeCount)).c_str(), TColor4()));
-		AssertHR(p_engine_core->RenderProfilerTxt("-------------------", TColor4()));
+		AssertHR(p_engine_core->RenderProfilerText("--Collision Stats--", TColor4()));
+		AssertHR(p_engine_core->RenderProfilerText(("Collide and slide invoke count: " + to_string((unsigned long long)collideAndSlideInvokeCount)).c_str(), TColor4()));
+		AssertHR(p_engine_core->RenderProfilerText(("Collide and slide iteration count: " + to_string((unsigned long long)collideAndSlideIterationCount)).c_str(), TColor4()));
+		AssertHR(p_engine_core->RenderProfilerText(("Culler invoke count: " + to_string((unsigned long long)cullerInvokeCount)).c_str(), TColor4()));
+		AssertHR(p_engine_core->RenderProfilerText(("Culler reject count: " + to_string((unsigned long long)cullerRejectCount)).c_str(), TColor4()));
+		AssertHR(p_engine_core->RenderProfilerText(("Tri collider invoke count: " + to_string((unsigned long long)triColliderInvokeCount)).c_str(), TColor4()));
+		AssertHR(p_engine_core->RenderProfilerText(("Edge collider invoke count: " + to_string((unsigned long long)edgeColliderInvokeCount)).c_str(), TColor4()));
+		AssertHR(p_engine_core->RenderProfilerText(("Vertex collider invoke count: " + to_string((unsigned long long)vertexColliderInvokeCount)).c_str(), TColor4()));
+		AssertHR(p_engine_core->RenderProfilerText("-------------------", TColor4()));
 		break;
 	}
 }
