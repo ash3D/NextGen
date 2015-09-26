@@ -14,7 +14,8 @@ See "DGLE.h" for more details.
 #include <iterator>
 #include <type_traits>
 #include <cassert>
-#include "misc.h"	// for Reserve()
+#include "general math.h"	// for lerp
+#include "misc.h"			// for Reserve()
 
 template<typename ScalarType, unsigned int dimension, unsigned int degree>
 Math::Splines::CBezier<ScalarType, dimension, degree>::CBezier(const TPoint (&controlPoints)[degree + 1])
