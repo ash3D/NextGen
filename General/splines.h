@@ -46,52 +46,58 @@ namespace Math
 			TPoint _controlPoints[degree + 1];
 		};
 
-		template<typename ScalarType, unsigned int dimension>
-		class CBezierInterpolationBase
+		namespace Impl
 		{
-			static_assert(!std::is_integral<ScalarType>::value, "integral types for spline interpolation points is not allowed");
-		protected:
-			typedef CBezier<ScalarType, dimension, 3> TBezier;
-		public:
-			typedef typename TBezier::TPoint TPoint;
-		};
+			template<typename ScalarType, unsigned int dimension>
+			class CBezierInterpolationBase
+			{
+				static_assert(!std::is_integral<ScalarType>::value, "integral types for spline interpolation points is not allowed");
+			protected:
+				typedef CBezier<ScalarType, dimension, 3> TBezier;
+			public:
+				typedef typename TBezier::TPoint TPoint;
+			};
 
-		template<typename ScalarType, unsigned int dimension, template<typename ScalarType, unsigned int dimension> class CBezierInterpolationImpl>
-		class CBezierInterpolationCommon: public CBezierInterpolationImpl<ScalarType, dimension>
+			template<typename ScalarType, unsigned int dimension, template<typename ScalarType, unsigned int dimension> class CBezierInterpolationImpl>
+			class CBezierInterpolationCommon: public CBezierInterpolationImpl<ScalarType, dimension>
+			{
+			protected:
+				// TODO: use C++11 inheriting ctor
+				template<typename Iterator>
+				CBezierInterpolationCommon(Iterator begin, Iterator end):
+				CBezierInterpolationImpl<ScalarType, dimension>(begin, end) {}
+				CBezierInterpolationCommon(std::initializer_list<typename CBezierInterpolationImpl<ScalarType, dimension>::TPoint> points):
+				CBezierInterpolationImpl<ScalarType, dimension>(points) {}
+			public:
+				template<typename Iterator>
+				void Tessellate(Iterator output, ScalarType delta) const;
+			};
+		}
+
+		namespace Impl
 		{
-		protected:
-			// TODO: use C++11 inheriting ctor
-			template<typename Iterator>
-			CBezierInterpolationCommon(Iterator begin, Iterator end):
-			CBezierInterpolationImpl<ScalarType, dimension>(begin, end) {}
-			CBezierInterpolationCommon(std::initializer_list<typename CBezierInterpolationImpl<ScalarType, dimension>::TPoint> points):
-			CBezierInterpolationImpl<ScalarType, dimension>(points) {}
-		public:
-			template<typename Iterator>
-			void Tessellate(Iterator output, ScalarType delta) const;
-		};
+			template<typename ScalarType, unsigned int dimension>
+			class CCatmullRom: public CBezierInterpolationBase<ScalarType, dimension>
+			{
+			public:
+				using typename CBezierInterpolationBase<ScalarType, dimension>::TPoint;
+			protected:
+				template<typename Iterator>
+				CCatmullRom(Iterator begin, Iterator end);
+				CCatmullRom(std::initializer_list<TPoint> points);
+			public:
+				TPoint operator ()(ScalarType u) const;
+			protected:
+				typedef std::vector<TPoint> TPoints;
+			protected:
+				typename CBezierInterpolationBase<ScalarType, dimension>::TBezier _Segment(typename TPoints::size_type i) const;
+			protected:
+				TPoints _points;
+			};
+		}
 
 		template<typename ScalarType, unsigned int dimension>
-		class CCatmullRomImpl: public CBezierInterpolationBase<ScalarType, dimension>
-		{
-		public:
-			using typename CBezierInterpolationBase<ScalarType, dimension>::TPoint;
-		protected:
-			template<typename Iterator>
-			CCatmullRomImpl(Iterator begin, Iterator end);
-			CCatmullRomImpl(std::initializer_list<TPoint> points);
-		public:
-			TPoint operator ()(ScalarType u) const;
-		protected:
-			typedef std::vector<TPoint> TPoints;
-		protected:
-			typename CBezierInterpolationBase<ScalarType, dimension>::TBezier _Segment(typename TPoints::size_type i) const;
-		protected:
-			TPoints _points;
-		};
-
-		template<typename ScalarType, unsigned int dimension>
-		class CCatmullRom: public CBezierInterpolationCommon<ScalarType, dimension, CCatmullRomImpl>
+		class CCatmullRom: public Impl::CBezierInterpolationCommon<ScalarType, dimension, Impl::CCatmullRom>
 		{
 #ifdef MSVC_LIMITATIONS
 		public:
@@ -104,41 +110,44 @@ namespace Math
 			CBezierInterpolationCommon(points) {}
 #else
 		public:
-			using typename CBezierInterpolationCommon<ScalarType, dimension, CCatmullRomImpl>::TPoint;
+			using typename CBezierInterpolationCommon<ScalarType, dimension, Impl::CCatmullRom>::TPoint;
 		public:
 			// TODO: use C++11 inheriting ctor
 			template<typename Iterator>
 			CCatmullRom(Iterator begin, Iterator end):
-			CBezierInterpolationCommon<ScalarType, dimension, CCatmullRomImpl>(begin, end) {}
+			CBezierInterpolationCommon<ScalarType, dimension, Impl::CCatmullRom>(begin, end) {}
 			CCatmullRom(std::initializer_list<TPoint> points):
-			CBezierInterpolationCommon<ScalarType, dimension, CCatmullRomImpl>(points) {}
+			CBezierInterpolationCommon<ScalarType, dimension, Impl::CCatmullRom>(points) {}
 #endif
 		};
 
-		template<typename ScalarType, unsigned int dimension>
-		class CBesselOverhauserImpl: public CBezierInterpolationBase<ScalarType, dimension>
+		namespace Impl
 		{
-		public:
-			using typename CBezierInterpolationBase<ScalarType, dimension>::TPoint;
-		protected:
-			template<typename Iterator>
-			CBesselOverhauserImpl(Iterator begin, Iterator end);
-			CBesselOverhauserImpl(std::initializer_list<TPoint> points);
-		private:
-			template<typename Iterator>
-			void _Init(Iterator begin, Iterator end);
-		public:
-			TPoint operator ()(ScalarType u) const;
-		protected:
-			typedef std::vector<std::pair<ScalarType, TPoint>> TPoints;
-		protected:
-			typename CBezierInterpolationBase<ScalarType, dimension>::TBezier _Segment(typename TPoints::size_type i) const;
-		protected:
-			TPoints _points;
-		};
+			template<typename ScalarType, unsigned int dimension>
+			class CBesselOverhauser: public CBezierInterpolationBase<ScalarType, dimension>
+			{
+			public:
+				using typename CBezierInterpolationBase<ScalarType, dimension>::TPoint;
+			protected:
+				template<typename Iterator>
+				CBesselOverhauser(Iterator begin, Iterator end);
+				CBesselOverhauser(std::initializer_list<TPoint> points);
+			private:
+				template<typename Iterator>
+				void _Init(Iterator begin, Iterator end);
+			public:
+				TPoint operator ()(ScalarType u) const;
+			protected:
+				typedef std::vector<std::pair<ScalarType, TPoint>> TPoints;
+			protected:
+				typename CBezierInterpolationBase<ScalarType, dimension>::TBezier _Segment(typename TPoints::size_type i) const;
+			protected:
+				TPoints _points;
+			};
+		}
 
 		template<typename ScalarType, unsigned int dimension>
-		class CBesselOverhauser: public CBezierInterpolationCommon<ScalarType, dimension, CBesselOverhauserImpl>
+		class CBesselOverhauser: public Impl::CBezierInterpolationCommon<ScalarType, dimension, Impl::CBesselOverhauser>
 		{
 #ifdef MSVC_LIMITATIONS
 		public:
@@ -153,14 +162,14 @@ namespace Math
 		};
 #else
 		public:
-			using typename CBezierInterpolationCommon<ScalarType, dimension, CBesselOverhauserImpl>::TPoint;
+			using typename CBezierInterpolationCommon<ScalarType, dimension, Impl::CBesselOverhauser>::TPoint;
 		public:
 			// TODO: use C++11 inheriting ctor
 			template<typename Iterator>
 			CBesselOverhauser(Iterator begin, Iterator end):
-			CBezierInterpolationCommon<ScalarType, dimension, CBesselOverhauserImpl>(begin, end) {}
+			CBezierInterpolationCommon<ScalarType, dimension, Impl::CBesselOverhauser>(begin, end) {}
 			CBesselOverhauser(std::initializer_list<TPoint> points):
-			CBezierInterpolationCommon<ScalarType, dimension, CBesselOverhauserImpl>(points) {}
+			CBezierInterpolationCommon<ScalarType, dimension, Impl::CBesselOverhauser>(points) {}
 		};
 #endif
 	}
