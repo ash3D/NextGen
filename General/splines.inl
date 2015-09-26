@@ -13,6 +13,7 @@ See "DGLE.h" for more details.
 #include <algorithm>
 #include <iterator>
 #include <type_traits>
+#include <cassert>
 
 template<typename ScalarType, unsigned int dimension, unsigned int degree>
 Math::Splines::CBezier<ScalarType, dimension, degree>::CBezier(const TPoint (&controlPoints)[degree + 1])
@@ -128,20 +129,20 @@ template<typename Iterator>
 Math::Splines::CCatmullRomImpl<ScalarType, dimension>::CCatmullRomImpl(Iterator begin, Iterator end):
 _points(begin, end)
 {
-	_ASSERT(_points.size() >= 4);
+	assert(_points.size() >= 4);
 }
 
 template<typename ScalarType, unsigned int dimension>
 Math::Splines::CCatmullRomImpl<ScalarType, dimension>::CCatmullRomImpl(std::initializer_list<TPoint> points):
 _points(points)
 {
-	_ASSERT(_points.size() >= 4);
+	assert(_points.size() >= 4);
 }
 
 template<typename ScalarType, unsigned int dimension>
 auto Math::Splines::CCatmullRomImpl<ScalarType, dimension>::operator ()(ScalarType u) const -> TPoint
 {
-	_ASSERTE(u >= 0 && u <= 1);
+	assert(u >= 0 && u <= 1);
 	// [0..1]->[0..m-2]->[1..m-1]
 	u *= _points.size() - 3, u++;
 	// ensure i < m
@@ -152,7 +153,7 @@ auto Math::Splines::CCatmullRomImpl<ScalarType, dimension>::operator ()(ScalarTy
 template<typename ScalarType, unsigned int dimension>
 auto Math::Splines::CCatmullRomImpl<ScalarType, dimension>::_Segment(typename TPoints::size_type i) const -> TBezier
 {
-	_ASSERT(i >= 1 && i < _points.size() - 2);
+	assert(i >= 1 && i < _points.size() - 2);
 	return TBezier(_points[i], _points[i] + (_points[i + 1] - _points[i - 1]) / 6, _points[i + 1] - (_points[i + 2] - _points[i]) / 6, _points[i + 1]);
 }
 
@@ -175,7 +176,7 @@ template<typename ScalarType, unsigned int dimension>
 template<typename Iterator>
 void Math::Splines::CBesselOverhauserImpl<ScalarType, dimension>::_Init(Iterator begin, Iterator end)
 {
-	_ASSERTE(begin != end);
+	assert(begin != end);
 	_points.emplace_back(TPoints::value_type(0, *begin));
 	transform(std::next(begin), end, std::back_inserter(_points), [this](const TPoint &curPoint)
 	{
@@ -185,13 +186,13 @@ void Math::Splines::CBesselOverhauserImpl<ScalarType, dimension>::_Init(Iterator
 		*/
 		return CBesselOverhauserImpl<ScalarType, dimension>::TPoints::value_type(_points.back().first + VectorMath::distance(_points.back().second, curPoint), curPoint);
 	});
-	_ASSERT(_points.size() >= 4);
+	assert(_points.size() >= 4);
 }
 
 template<typename ScalarType, unsigned int dimension>
 auto Math::Splines::CBesselOverhauserImpl<ScalarType, dimension>::operator ()(ScalarType u) const -> TPoint
 {
-	_ASSERTE(u >= 0 && u <= 1);
+	assert(u >= 0 && u <= 1);
 	// [0..1]->[u_begin..u_end]
 	const ScalarType u_begin = std::next(_points.begin())->first, u_end = std::prev(_points.end(), 2)->first;
 	u_end - u_begin;
@@ -218,7 +219,7 @@ auto Math::Splines::CBesselOverhauserImpl<ScalarType, dimension>::operator ()(Sc
 template<typename ScalarType, unsigned int dimension>
 auto Math::Splines::CBesselOverhauserImpl<ScalarType, dimension>::_Segment(typename TPoints::size_type i) const -> TBezier
 {
-	_ASSERT(i >= 1 && i < _points.size() - 2);
+	assert(i >= 1 && i < _points.size() - 2);
 	const auto v_segment = [this](TPoints::size_type j)
 	{
 		return (_points[j + 1].second - _points[j].second) / (_points[j + 1].first - _points[j].first);
