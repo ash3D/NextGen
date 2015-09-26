@@ -225,13 +225,22 @@ auto Math::Splines::CBesselOverhauserImpl<ScalarType, dimension>::_Segment(typen
 	{
 		return (_points[j + 1].second - _points[j].second) / (_points[j + 1].first - _points[j].first);
 	};
+#ifdef MSVC_LIMITATIONS
+	const auto offset = [this, &v_segment, i](TPoints::size_type shift)
+#else
 	const TPoint segment_vels[3] = {v_segment(i - 1), v_segment(i), v_segment(i + 1)};
 	const auto offset = [this, &segment_vels, i](TPoints::size_type shift)
+#endif
 	{
 		return
 			(
+#ifdef MSVC_LIMITATIONS
+				(_points[i + 1 + shift].first - _points[i + shift].first) * v_segment(i - 1 + 0 + shift) +
+				(_points[i + shift].first - _points[i - 1 + shift].first) * v_segment(i - 1 + 1 + shift)
+#else
 				(_points[i + 1 + shift].first - _points[i + shift].first) * segment_vels[0 + shift] +
 				(_points[i + shift].first - _points[i - 1 + shift].first) * segment_vels[1 + shift]
+#endif
 			) /
 			((_points[i + 1 + shift].first - _points[i - 1 + shift].first) * 3) *
 			(_points[i + 1].first - _points[i].first);
