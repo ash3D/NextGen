@@ -10,62 +10,78 @@ See "DGLE.h" for more details.
 #pragma once
 
 #include <type_traits>
+#include <limits>
+#include <cstdint>
+#include <boost/integer.hpp>
 #include <intrin.h>
 
-template<unsigned n, typename T>
-struct TRotImpl
+namespace RotImpl
 {
-	static T apply(T value, int shift) noexcept;
-};
+	template<unsigned n>
+	struct RotL
+	{
+		static auto apply(typename boost::uint_t<n>::fast value, unsigned int shift) noexcept -> decltype(value);
+	};
 
-template<unsigned n, typename T>
-T TRotImpl<n, T>::apply(T value, int shift)
-{
-	shift %= n;
-	const auto mask = (1 << n) - 1;
-	return value & ~mask | (value << shift | (value & mask) >> n - shift) & mask;
+	template<unsigned n>
+	auto RotL<n>::apply(typename boost::uint_t<n>::fast value, unsigned int shift) noexcept -> decltype(value)
+	{
+		shift %= n;
+		const auto mask = (decltype(value)(1) << n) - decltype(value)(1);
+		return value & ~mask | (value << shift | (value & mask) >> n - shift) & mask;
+	}
+
+	template<>
+	struct RotL<8>
+	{
+		template<typename Value, typename Shift>
+		static auto apply(Value value, Shift shift) -> decltype(_rotl8(value, shift))
+		{
+			return _rotl8(value, shift);
+		}
+	};
+
+	template<>
+	struct RotL<16>
+	{
+		template<typename Value, typename Shift>
+		static auto apply(Value value, Shift shift) -> decltype(_rotl16(value, shift))
+		{
+			return _rotl16(value, shift);
+		}
+	};
+
+	template<>
+	struct RotL<32>
+	{
+		template<typename Value, typename Shift>
+		static auto apply(Value value, Shift shift) -> decltype(_rotl(value, shift))
+		{
+			return _rotl(value, shift);
+		}
+	};
+
+	template<>
+	struct RotL<64>
+	{
+		template<typename Value, typename Shift>
+		static auto apply(Value value, Shift shift) -> decltype(_rotl64(value, shift))
+		{
+			return _rotl64(value, shift);
+		}
+	};
 }
 
-template<typename T>
-struct TRotImpl<8, T>
+template<unsigned n, typename Value, typename Shift>
+inline auto rotl(Value value, Shift shift) -> typename std::make_unsigned<typename std::common_type<Value, decltype(RotImpl::RotL<n>::apply(value, shift))>::type>::type
 {
-	static auto apply(T value, int shift) -> decltype(_rotl8(value, shift))
-	{
-		return _rotl8(value, shift);
-	}
-};
+	static_assert(std::is_integral<Value>::value && std::is_integral<Shift>::value, "rotate works for integral types only");
+	static_assert(n <= std::numeric_limits<std::uintmax_t>::digits, "too large n");
+	return RotImpl::RotL<n>::apply(value, shift);
+}
 
-template<typename T>
-struct TRotImpl<16, T>
+template<typename Value, typename Shift>
+inline auto rotl(Value value, Shift shift) -> decltype(rotl<std::numeric_limits<std::make_unsigned<Value>::type>::digits>(value, shift))
 {
-	static auto apply(T value, int shift) -> decltype(_rotl16(value, shift))
-	{
-		return _rotl16(value, shift);
-	}
-};
-
-template<typename T>
-struct TRotImpl<32, T>
-{
-	static auto apply(T value, int shift) -> decltype(_rotl(value, shift))
-	{
-		return _rotl(value, shift);
-	}
-};
-
-template<typename T>
-struct TRotImpl<64, T>
-{
-	static auto apply(T value, int shift) -> decltype(_rotl64(value, shift))
-	{
-		return _rotl64(value, shift);
-	}
-};
-
-template<unsigned n, typename T>
-inline auto rotl(T value, int shift) -> decltype(TRotImpl<n, T>::apply(value, shift))
-{
-	static_assert(std::is_integral<T>::value, "rotate works for integral types only");
-	static_assert(n <= sizeof(T) * 8, "too large n");
-	return TRotImpl<n, T>::apply(value, shift);
+	return rotl<std::numeric_limits<std::make_unsigned<Value>::type>::digits>(value, shift);
 }
