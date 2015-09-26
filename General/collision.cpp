@@ -14,6 +14,7 @@ See "DGLE.h" for more details.
 #include <iterator>
 #include <set>
 #include <string>
+#include <type_traits>
 #include <cstdint>
 #include <cstring>	// for memcpy
 #include <cassert>
@@ -39,7 +40,7 @@ Collision::CCollisionEdges<IB_format>::CCollisionEdges(Iterator begin, Iterator 
 			IB_format
 				left_sorted[] = { min(v0, v1), max(v0, v1) },
 				right_sorted[] = { min(right.v0, right.v1), max(right.v0, right.v1) };
-			return lexicographical_compare(left_sorted, left_sorted + _countof(left_sorted), right_sorted, right_sorted + _countof(right_sorted));
+			return lexicographical_compare(left_sorted, left_sorted + std::extent<decltype(left_sorted)>::value, right_sorted, right_sorted + std::extent<decltype(right_sorted)>::value);
 		}
 		iterator_traits<Iterator>::reference tri;
 	};
