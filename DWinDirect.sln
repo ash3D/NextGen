@@ -18,6 +18,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CoreRendererDX11", "CoreRen
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vector math benchmark", "vector math benchmark\vector math benchmark.vcxproj", "{298AE0A1-CE47-4233-B06C-945E6FB9D260}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "General", "General\General.vcxproj", "{9E10BAC6-2AEB-4A56-A500-2ABC22A4EC70}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -58,6 +60,14 @@ Global
 		{298AE0A1-CE47-4233-B06C-945E6FB9D260}.Release|Win32.Build.0 = Release|Win32
 		{298AE0A1-CE47-4233-B06C-945E6FB9D260}.Release|x64.ActiveCfg = Release|x64
 		{298AE0A1-CE47-4233-B06C-945E6FB9D260}.Release|x64.Build.0 = Release|x64
+		{9E10BAC6-2AEB-4A56-A500-2ABC22A4EC70}.Debug|Win32.ActiveCfg = Debug|Win32
+		{9E10BAC6-2AEB-4A56-A500-2ABC22A4EC70}.Debug|Win32.Build.0 = Debug|Win32
+		{9E10BAC6-2AEB-4A56-A500-2ABC22A4EC70}.Debug|x64.ActiveCfg = Debug|x64
+		{9E10BAC6-2AEB-4A56-A500-2ABC22A4EC70}.Debug|x64.Build.0 = Debug|x64
+		{9E10BAC6-2AEB-4A56-A500-2ABC22A4EC70}.Release|Win32.ActiveCfg = Release|Win32
+		{9E10BAC6-2AEB-4A56-A500-2ABC22A4EC70}.Release|Win32.Build.0 = Release|Win32
+		{9E10BAC6-2AEB-4A56-A500-2ABC22A4EC70}.Release|x64.ActiveCfg = Release|x64
+		{9E10BAC6-2AEB-4A56-A500-2ABC22A4EC70}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
