@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		26.9.2015 (c)Korotkov Andrey
+\date		27.9.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -17,7 +17,7 @@ See "DGLE.h" for more details.
 template<typename ScalarType, unsigned int dimension, unsigned int degree>
 Math::Splines::CBezier<ScalarType, dimension, degree>::CBezier(const TPoint (&controlPoints)[degree + 1])
 {
-	std::copy(controlPoints, controlPoints + std::extent<typename std::remove_reference<decltype(controlPoints)>::type>::value, _controlPoints);
+	std::copy_n(controlPoints, std::extent<typename std::remove_reference<decltype(controlPoints)>::type>::value, _controlPoints);
 }
 
 template<typename ScalarType, unsigned int dimension, unsigned int degree>
