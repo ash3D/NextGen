@@ -14,6 +14,8 @@ See "DGLE.h" for more details.
 #include <iterator>
 #include <set>
 #include <string>
+#include <cstdint>
+#include <cstring>	// for memcpy
 #include <cassert>
 
 using namespace std;
@@ -87,7 +89,7 @@ Collision::CCollisionEdges<IB_format>::CCollisionEdges(const void *__restrict &d
 	if (!data) return;
 
 	const uint32 &size = *reinterpret_cast<const uint32 *>(data);
-	auto &buffer = reinterpret_cast<const DGLE2::byte *__restrict &>(data);
+	auto &buffer = reinterpret_cast<const uint8_t *__restrict &>(data);
 	_edges.resize(size);
 	memcpy(_edges.data(), buffer += sizeof size, sizeof(TEdges::value_type) * size);
 	buffer += sizeof(TEdges::value_type) * size;
@@ -134,10 +136,10 @@ uint Collision::CCollisionEdges<IB_format>::SaveToFile(IFile *pFile) const
 	return res;
 }
 
-template Collision::CCollisionEdges<uint16>;
-template Collision::CCollisionEdges<uint32>;
-template Collision::CCollisionEdges<uint16>::CCollisionEdges(const uint16(*begin)[3], const uint16(*end)[3], const vec3 *__restrict VB);
-template Collision::CCollisionEdges<uint32>::CCollisionEdges(const uint32(*begin)[3], const uint32(*end)[3], const vec3 *__restrict VB);
+template Collision::CCollisionEdges<uint16_t>;
+template Collision::CCollisionEdges<uint32_t>;
+template Collision::CCollisionEdges<uint16_t>::CCollisionEdges(const uint16_t(*begin)[3], const uint16_t(*end)[3], const vec3 *__restrict VB);
+template Collision::CCollisionEdges<uint32_t>::CCollisionEdges(const uint32_t(*begin)[3], const uint32_t(*end)[3], const vec3 *__restrict VB);
 
 // (?) check for 0 that avoids NaN improves perf for x87 and SSE1 modes
 
