@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		26.9.2015 (c)Korotkov Andrey
+\date		27.9.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -11,6 +11,7 @@ See "DGLE.h" for more details.
 
 #include <type_traits>
 #include <limits>
+#include <functional>
 #include <cstdint>
 #include <boost/integer.hpp>
 #include <intrin.h>
@@ -34,8 +35,7 @@ namespace RotImpl
 	template<>
 	struct RotL<8>
 	{
-		template<typename Value, typename Shift>
-		static auto apply(Value value, Shift shift) -> decltype(_rotl8(value, shift))
+		static std::function<decltype(_rotl8)>::result_type apply(std::function<decltype(_rotl8)>::first_argument_type value, std::function<decltype(_rotl8)>::second_argument_type shift)
 		{
 			return _rotl8(value, shift);
 		}
@@ -44,8 +44,7 @@ namespace RotImpl
 	template<>
 	struct RotL<16>
 	{
-		template<typename Value, typename Shift>
-		static auto apply(Value value, Shift shift) -> decltype(_rotl16(value, shift))
+		static std::function<decltype(_rotl16)>::result_type apply(std::function<decltype(_rotl16)>::first_argument_type value, std::function<decltype(_rotl16)>::second_argument_type shift)
 		{
 			return _rotl16(value, shift);
 		}
@@ -54,8 +53,7 @@ namespace RotImpl
 	template<>
 	struct RotL<32>
 	{
-		template<typename Value, typename Shift>
-		static auto apply(Value value, Shift shift) -> decltype(_rotl(value, shift))
+		static std::function<decltype(_rotl)>::result_type apply(std::function<decltype(_rotl)>::first_argument_type value, std::function<decltype(_rotl)>::second_argument_type shift)
 		{
 			return _rotl(value, shift);
 		}
@@ -64,8 +62,7 @@ namespace RotImpl
 	template<>
 	struct RotL<64>
 	{
-		template<typename Value, typename Shift>
-		static auto apply(Value value, Shift shift) -> decltype(_rotl64(value, shift))
+		static std::function<decltype(_rotl64)>::result_type apply(std::function<decltype(_rotl64)>::first_argument_type value, std::function<decltype(_rotl64)>::second_argument_type shift)
 		{
 			return _rotl64(value, shift);
 		}
