@@ -143,11 +143,12 @@ _points(points)
 template<typename ScalarType, unsigned int dimension>
 auto Math::Splines::Impl::CCatmullRom<ScalarType, dimension>::operator ()(ScalarType u) const -> TPoint
 {
-	assert(u >= 0 && u <= 1);
+	//assert(u >= 0 && u <= 1);
 	// [0..1]->[0..m-2]->[1..m-1]
 	u *= _points.size() - 3, u++;
-	// ensure i < m
-	const TPoints::size_type i = std::min(floor(u), _points.size() - 2);
+	// ensure 1 <= i < m
+	//const TPoints::size_type i = std::min<TPoints::size_type>(floor(u), _points.size() - 3);
+	const ScalarType i = fmin(fmax(floor(u), 1), _points.size() - 3);
 	return _Segment(i)(u - i);
 }
 
@@ -193,13 +194,12 @@ void Math::Splines::Impl::CBesselOverhauser<ScalarType, dimension>::_Init(Iterat
 template<typename ScalarType, unsigned int dimension>
 auto Math::Splines::Impl::CBesselOverhauser<ScalarType, dimension>::operator ()(ScalarType u) const -> TPoint
 {
-	assert(u >= 0 && u <= 1);
+	//assert(u >= 0 && u <= 1);
 	// [0..1]->[u_begin..u_end]
 	const ScalarType u_begin = std::next(_points.begin())->first, u_end = std::prev(_points.end(), 2)->first;
-	u_end - u_begin;
 	u *= u_end - u_begin, u += u_begin;
 	// ensure u in [u_begin..u_end]
-	u = std::min(std::max(u, u_begin), u_end);
+	//u = fmin(fmax(u, u_begin), u_end);
 	struct
 	{
 		bool operator ()(ScalarType left, TPoints::const_reference right) const
@@ -212,7 +212,10 @@ auto Math::Splines::Impl::CBesselOverhauser<ScalarType, dimension>::operator ()(
 		}
 	} point_order;
 	auto p1 = std::lower_bound(_points.begin(), _points.end(), u, point_order);
-	if (p1 == std::next(_points.begin())) ++p1;
+	if (std::distance(_points.begin(), p1) < 2)
+		p1 = std::next(_points.begin(), 2);
+	else if (std::distance(p1, _points.end()) < 2)
+		p1 = std::prev(_points.end(), 2);
 	const auto p0 = std::prev(p1);
 	return _Segment(std::distance(_points.begin(), p0))((u - p0->first) / (p1->first - p0->first));
 }
