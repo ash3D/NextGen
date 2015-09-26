@@ -12,7 +12,6 @@ See "DGLE.h" for more details.
 #include "splines.h"
 #include <algorithm>
 #include <iterator>
-#include <type_traits>
 #include <cassert>
 #include "general math.h"	// for lerp
 #include "misc.h"			// for Reserve()

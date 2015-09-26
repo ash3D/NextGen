@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		26.9.2015 (c)Korotkov Andrey
+\date		27.9.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -12,6 +12,7 @@ See "DGLE.h" for more details.
 #include <vector>
 #include <initializer_list>
 #include <utility>	// for std::pair
+#include <type_traits>
 #define DISABLE_MATRIX_SWIZZLES
 #include "vector math.h"
 
@@ -22,6 +23,7 @@ namespace Math
 		template<typename ScalarType, unsigned int dimension, unsigned int degree>
 		class CBezier
 		{
+			static_assert(!std::is_integral<ScalarType>::value, "integral types for bezier control points is not allowed");
 		public:
 			typedef VectorMath::vector<ScalarType, dimension> TPoint;
 		public:
@@ -47,6 +49,7 @@ namespace Math
 		template<typename ScalarType, unsigned int dimension>
 		class CBezierInterpolationBase
 		{
+			static_assert(!std::is_integral<ScalarType>::value, "integral types for spline interpolation points is not allowed");
 		protected:
 			typedef CBezier<ScalarType, dimension, 3> TBezier;
 		public:
