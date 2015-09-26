@@ -64,7 +64,7 @@ auto Math::Splines::CBezier<ScalarType, dimension, degree>::operator ()(ScalarTy
 		factors2[i] = factors2[i + 1] * (1 - u);
 	TPoint result = 0;
 	for (unsigned i = 0; i <= degree; i++, factor1 *= u)
-		result += boost::math::binomial_coefficient<unsigned int>(degree, i) * factor1 * factors2[i] * _controlPoints[i];
+		result += boost::math::binomial_coefficient<ScalarType>(degree, i) * factor1 * factors2[i] * _controlPoints[i];
 	return result;
 }
 
