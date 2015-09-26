@@ -10,11 +10,12 @@ See "DGLE.h" for more details.
 #pragma once
 
 #include "gauss.h"
+#include <cassert>
 
 template<typename T>
 inline void Math::Gauss::CGaussRange<T>::CIterator::_Check(CIterator iter1, CIterator iter2)
 {
-	_ASSERTE(iter1._sigma == iter2._sigma);
+	assert(iter1._sigma == iter2._sigma);
 }
 
 template<typename T>

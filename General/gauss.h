@@ -29,13 +29,12 @@ namespace Math
 		template<typename T>
 		class CGaussRange
 		{
+			const T _sigma;
 		public:
 			class CIterator;
 			CGaussRange(T sigma);
 			CIterator begin() const;
 			CIterator end() const;
-		private:
-			const T _sigma;
 		};
 
 		template<typename T>
