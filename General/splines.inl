@@ -14,6 +14,7 @@ See "DGLE.h" for more details.
 #include <iterator>
 #include <cmath>			// for fmin/fmax
 #include <cassert>
+#include <boost/math/special_functions/binomial.hpp>
 #include "general math.h"	// for lerp
 #include "misc.h"			// for Reserve()
 
