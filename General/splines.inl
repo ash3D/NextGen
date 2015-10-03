@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		27.9.2015 (c)Korotkov Andrey
+\date		29.9.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -12,7 +12,9 @@ See "DGLE.h" for more details.
 #include "splines.h"
 #include <algorithm>
 #include <iterator>
+#include <cmath>			// for fmin/fmax
 #include <cassert>
+#include <boost/math/special_functions/binomial.hpp>
 #include "general math.h"	// for lerp
 #include "misc.h"			// for Reserve()
 
@@ -119,7 +121,7 @@ void Math::Splines::CBezier<ScalarType, dimension, degree>::_Subdiv(Iterator out
 
 template<typename ScalarType, unsigned int dimension, template<typename ScalarType, unsigned int dimension> class CBezierInterpolationImpl>
 template<typename Iterator>
-void Math::Splines::CBezierInterpolationCommon<ScalarType, dimension, CBezierInterpolationImpl>::Tessellate(Iterator output, ScalarType delta) const
+void Math::Splines::Impl::CBezierInterpolationCommon<ScalarType, dimension, CBezierInterpolationImpl>::Tessellate(Iterator output, ScalarType delta) const
 {
 	for (TPoints::size_type i = 1; i < _points.size() - 2; i++)
 		_Segment(i).Tessellate(output, delta, i == 1);
@@ -127,14 +129,14 @@ void Math::Splines::CBezierInterpolationCommon<ScalarType, dimension, CBezierInt
 
 template<typename ScalarType, unsigned int dimension>
 template<typename Iterator>
-Math::Splines::Impl::CCatmullRom<ScalarType, dimension>::Impl::CCatmullRom(Iterator begin, Iterator end):
+Math::Splines::Impl::CCatmullRom<ScalarType, dimension>::CCatmullRom(Iterator begin, Iterator end):
 _points(begin, end)
 {
 	assert(_points.size() >= 4);
 }
 
 template<typename ScalarType, unsigned int dimension>
-Math::Splines::Impl::CCatmullRom<ScalarType, dimension>::Impl::CCatmullRom(std::initializer_list<TPoint> points):
+Math::Splines::Impl::CCatmullRom<ScalarType, dimension>::CCatmullRom(std::initializer_list<TPoint> points):
 _points(points)
 {
 	assert(_points.size() >= 4);
@@ -161,14 +163,14 @@ auto Math::Splines::Impl::CCatmullRom<ScalarType, dimension>::_Segment(typename 
 
 template<typename ScalarType, unsigned int dimension>
 template<typename Iterator>
-Math::Splines::Impl::CBesselOverhauser<ScalarType, dimension>::Impl::CBesselOverhauser(Iterator begin, Iterator end)
+Math::Splines::Impl::CBesselOverhauser<ScalarType, dimension>::CBesselOverhauser(Iterator begin, Iterator end)
 {
 	Reserve(_points, begin, end);
 	_Init(begin, end);
 }
 
 template<typename ScalarType, unsigned int dimension>
-Math::Splines::Impl::CBesselOverhauser<ScalarType, dimension>::Impl::CBesselOverhauser(std::initializer_list<TPoint> points)
+Math::Splines::Impl::CBesselOverhauser<ScalarType, dimension>::CBesselOverhauser(std::initializer_list<TPoint> points)
 {
 	_points.reserve(points.size());
 	_Init(points.begin(), points.end());
