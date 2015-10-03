@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		3.10.2015 (c)Alexey Shaydurov
+\date		4.10.2015 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1142,9 +1142,32 @@ same applies for 'op='
 				}
 
 				template<typename RightElementType>
+#if defined MSVC_LIMITATIONS || defined __GNUC__
 				inline TOperationResult &operator =(const RightElementType &scalar);
+#else
+				inline TOperationResult &operator =(const RightElementType &scalar) &;
+#endif
 
+#if !(defined MSVC_LIMITATIONS || defined __GNUC__)
+				template<typename RightElementType>
+				inline TOperationResult &&operator =(const RightElementType &scalar) &&
+				{
+					return std::move(operator =(scalar));
+				}
+#endif
+
+#if defined MSVC_LIMITATIONS || defined __GNUC__
 				inline TOperationResult &operator =(std::initializer_list<CInitListItem<ElementType>> initList);
+#else
+				inline TOperationResult &operator =(std::initializer_list<CInitListItem<ElementType>> initList) &;
+#endif
+
+#if !(defined MSVC_LIMITATIONS || defined __GNUC__)
+				inline TOperationResult &&operator =(std::initializer_list<CInitListItem<ElementType>> initList) &&
+				{
+					return std::move(operator =(initList));
+				}
+#endif
 			protected:
 				template<unsigned idx>
 				inline void _Init();
@@ -1215,7 +1238,11 @@ same applies for 'op='
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>
 			template<typename RightElementType>
+#if defined MSVC_LIMITATIONS || defined __GNUC__
 			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, odd, namingSet>::operator =(const RightElementType &scalar) -> TOperationResult &
+#else
+			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, odd, namingSet>::operator =(const RightElementType &scalar) & -> TOperationResult &
+#endif
 			{
 				for (unsigned idx = 0; idx < SwizzleDesc::TDimension::value; idx++)
 					(*this)[idx] = scalar;
@@ -1223,7 +1250,11 @@ same applies for 'op='
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>
+#if defined MSVC_LIMITATIONS || defined __GNUC__
 			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, odd, namingSet>::operator =(std::initializer_list<CInitListItem<ElementType>> initList) -> TOperationResult &
+#else
+			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, odd, namingSet>::operator =(std::initializer_list<CInitListItem<ElementType>> initList) & -> TOperationResult &
+#endif
 			{
 				unsigned dst_idx = 0;
 				for (const auto &item: initList)
@@ -1612,11 +1643,11 @@ same applies for 'op='
 						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc, bool leftOdd, unsigned leftNamingSet,			\
 						typename RightElementType																														\
 					>																																					\
-					inline typename CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet>::TOperationResult &operator op##=(		\
+					inline typename CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet>::TOperationResult &&operator op##=(		\
 					CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet> &&left,													\
 					RightElementType right)																																\
 					{																																					\
-						return left op##= right;																														\
+						return std::move(left op##= right);																												\
 					};
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
