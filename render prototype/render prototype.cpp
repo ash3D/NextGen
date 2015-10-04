@@ -76,7 +76,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
                      LPTSTR    lpCmdLine,
                      int       nCmdShow)
 {
-#ifdef _DEBUG
+#ifdef _DEBUG	// use _DEBUG here rather than NDEBUG because _CrtSetDbgFlag is MSVC specific like _DEBUG
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 #endif
 	UNREFERENCED_PARAMETER(hPrevInstance);
