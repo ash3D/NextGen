@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		30.7.2013 (c)Korotkov Andrey
+\date		4.10.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -9,7 +9,7 @@ See "DGLE2.h" for more details.
 
 #include "stdafx.h"
 #include <Unknwn.h>
-#include "Interface\Renderer.h"
+#include "Interface/Renderer.h"
 
 //#define _2D_FLOAT32_TO_FLOAT16
 
