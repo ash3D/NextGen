@@ -31,7 +31,6 @@
 #include <memory>
 #include <new>			// for bad_alloc
 #include <cassert>
-#include <malloc.h>		// for _get_heap_handle
 #include <crtdbg.h>
 
 #include <D3D11.h>
