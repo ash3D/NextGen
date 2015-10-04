@@ -78,7 +78,7 @@ void CRenderer::_Init()
 #else
 CRenderer::CRenderer(HWND hwnd, const DXGI_MODE_DESC &modeDesc, bool fullscreen, bool multithreaded):
 	CRendererBase(hwnd, modeDesc, fullscreen, multithreaded),
-	C2D(modeDesc, multithreaded)
+	C2D(modeDesc)
 #endif
 {
 	_SetupFrame();

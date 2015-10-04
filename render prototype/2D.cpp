@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		29.8.2013 (c)Korotkov Andrey
+\date		4.10.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -15,7 +15,7 @@ using RendererImpl::C2D;
 namespace Interface = RendererImpl::Interface;
 using namespace Interface::Instances::_2D;
 
-C2D::C2D(const DXGI_MODE_DESC &modeDesc, bool multithreaded):
+C2D::C2D(const DXGI_MODE_DESC &modeDesc):
 	_dynamicRectsAllocator(_dedicatedHeap),
 	//_staticRectsAllocator(0), _dynamicRectsAllocator(0),
 	//_staticEllipsesAllocator(0), _dynamicEllipsesAllocator(0),

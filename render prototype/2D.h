@@ -55,7 +55,7 @@ class RendererImpl::C2D: virtual public CRendererBase
 	class CQuadFiller;
 
 protected:
-	C2D(const DXGI_MODE_DESC &modeDesc, bool multithreaded);
+	C2D(const DXGI_MODE_DESC &modeDesc);
 #ifdef MSVC_LIMITATIONS
 	~C2D() {}
 #else
