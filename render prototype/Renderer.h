@@ -17,22 +17,6 @@ See "DGLE2.h" for more details.
 class RendererImpl::CRenderer: public C2D
 {
 	static DXGI_MODE_DESC _CreateModeDesc(UINT width, UINT height, UINT refreshRate);
-#ifdef MSVC_LIMITATIONS
-	void _Init();
-public:
-	CRenderer(HWND hwnd, unsigned modeIdx, bool fullscreen, bool multithreaded):
-		CRendererBase(hwnd, DisplayModesImpl::displayModes.GetDX11Mode(modeIdx), fullscreen, multithreaded),
-		C2D(DisplayModesImpl::displayModes.GetDX11Mode(modeIdx), multithreaded)
-	{
-		_Init();
-	}
-	CRenderer(HWND hwnd, unsigned int width, unsigned int height, bool fullscreen, unsigned int refreshRate, bool multithreaded/*, format*/):
-		CRendererBase(hwnd, _CreateModeDesc(width, height, refreshRate), fullscreen, multithreaded),
-		C2D(_CreateModeDesc(width, height, refreshRate), multithreaded)
-	{
-		_Init();
-	}
-#else
 	CRenderer(HWND hwnd, const DXGI_MODE_DESC &modeDesc, bool fullscreen, bool multithreaded);
 public:
 	CRenderer(HWND hwnd, unsigned modeIdx, bool fullscreen, bool multithreaded):
@@ -43,13 +27,8 @@ public:
 		CRenderer(hwnd, _CreateModeDesc(width, height, refreshRate), fullscreen, multithreaded)
 	{
 	}
-#endif
 private:
-#ifdef MSVC_LIMITATIONS
-	~CRenderer() {}
-#else
 	~CRenderer() = default;
-#endif
 
 public:
 	virtual void SetMode(unsigned int width, unsigned int height) override;

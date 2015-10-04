@@ -23,18 +23,9 @@ namespace DtorImpl
 			delete this;
 		}
 	protected:
-	#ifdef MSVC_LIMITATIONS
-		CDtor() {}
-	private:
-		CDtor(CDtor &);
-		void operator =(CDtor &);
-	protected:
-		virtual ~CDtor() {}
-	#else
 		CDtor() = default;
 		CDtor(CDtor &) = delete;
 		void operator =(CDtor &) = delete;
 		virtual ~CDtor() = default;
-	#endif
 	};
 }

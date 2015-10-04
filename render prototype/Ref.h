@@ -32,15 +32,9 @@ namespace DtorImpl
 		dtor called from internal implementation-dependent class => 'friend shared_ptr<CRef>;' does not help
 		*/
 		CRef(): _externRef(this, [](const CRef *dtor){delete dtor;}) {}
-	#ifdef MSVC_LIMITATIONS
-		CRef(CRef &);
-		void operator =(CRef &);
-		virtual ~CRef() {}
-	#else
 		CRef(CRef &) = delete;
 		void operator =(CRef &) = delete;
 		virtual ~CRef() = default;
-	#endif
 
 	private:
 		// use SFINAE to redirect to appropriate pointer cast (dynamic for virtual inheritence; static otherwise)
@@ -49,17 +43,13 @@ namespace DtorImpl
 		{
 		private:
 			template<class Test>
-			static std::true_type test(decltype(static_cast<Test *>(std::declval<CRef *>())) *);
+			static std::true_type test(decltype(static_cast<Test *>(std::declval<CRef *>())));
 
 			template<class>
 			static std::false_type test(...);
 
 		private:
-#ifdef MSVC_LIMITATIONS
-			typedef std::false_type type;
-#else
 			typedef decltype(test<Class>(nullptr)) type;
-#endif
 
 		public:
 			static constexpr bool value = type::value;

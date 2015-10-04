@@ -56,11 +56,7 @@ class RendererImpl::C2D: virtual public CRendererBase
 
 protected:
 	C2D(const DXGI_MODE_DESC &modeDesc);
-#ifdef MSVC_LIMITATIONS
-	~C2D() {}
-#else
 	~C2D() = default;
-#endif
 
 public:
 	virtual void DrawPoint(float x, float y, uint32_t color, float size) const override;
@@ -154,11 +150,7 @@ public:
 		std::shared_ptr<C2D> &&parent, bool dynamic, uint16_t layer,
 		float x, float y, float width, float height, uint32_t color, float angle);
 private:
-#ifdef MSVC_LIMITATIONS
-	virtual ~CRectHandle() {}
-#else
 	virtual ~CRectHandle() = default;
-#endif
 
 public:
 	virtual void SetPos(float x, float y) override
@@ -203,11 +195,7 @@ public:
 		std::shared_ptr<C2D> &&parent, bool dynamic, uint16_t layer,
 		float x, float y, float rx, float ry, uint32_t color, bool AA, float angle);
 private:
-#ifdef MSVC_LIMITATIONS
-	virtual ~CEllipseHandle() {}
-#else
 	virtual ~CEllipseHandle() = default;
-#endif
 
 public:
 	virtual void SetPos(float x, float y) override

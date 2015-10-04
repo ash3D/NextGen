@@ -27,11 +27,7 @@ class RendererImpl::CRendererBase: public DtorImpl::CRef, public Interface::IRen
 {
 protected:
 	// default ctor for virtual inheritance
-#ifdef MSVC_LIMITATIONS
-	CRendererBase() {}
-#else
 	CRendererBase() = default;
-#endif
 	CRendererBase(HWND hwnd, const DXGI_MODE_DESC &modeDesc, bool fullscreen, bool multithreaded);
 	~CRendererBase()
 	{
