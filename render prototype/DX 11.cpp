@@ -199,7 +199,7 @@ namespace DX11
 			0			//SysMemSlicePitch
 		};
 
-		ASSERT_HR(device->CreateBuffer(&desc, &data, &_geometry));
+		AssertHR(device->CreateBuffer(&desc, &data, &_geometry));
 	}
 
 	class CMaterial: public CRef<CMaterial>, public Materials::IMaterial

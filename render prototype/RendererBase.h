@@ -31,7 +31,7 @@ protected:
 	CRendererBase(HWND hwnd, const DXGI_MODE_DESC &modeDesc, bool fullscreen, bool multithreaded);
 	~CRendererBase()
 	{
-		ASSERT_HR(_swapChain->SetFullscreenState(FALSE, NULL))
+		AssertHR(_swapChain->SetFullscreenState(FALSE, NULL));
 	}
 protected:
 	Microsoft::WRL::ComPtr<ID3D11Device>			_device;

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		3.7.2013 (c)Korotkov Andrey
+\date		4.10.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -170,15 +170,15 @@ CDisplayModes::CDisplayModes()
 	More info then available in MSDN required for proper handling.
 	*/
 	ComPtr<IDXGIFactory1> factory;
-	ASSERT_HR(CreateDXGIFactory1(__uuidof(IDXGIFactory1), &factory))
+	AssertHR(CreateDXGIFactory1(__uuidof(IDXGIFactory1), &factory));
 	ComPtr<IDXGIAdapter1> adapter;
-	ASSERT_HR(factory->EnumAdapters1(0, &adapter))
+	AssertHR(factory->EnumAdapters1(0, &adapter));
 	UINT modes_count;
 	ComPtr<IDXGIOutput> output;
-	ASSERT_HR(adapter->EnumOutputs(0, &output))
-	ASSERT_HR(output->GetDisplayModeList(DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_ENUM_MODES_SCALING, &modes_count, NULL))
+	AssertHR(adapter->EnumOutputs(0, &output));
+	AssertHR(output->GetDisplayModeList(DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_ENUM_MODES_SCALING, &modes_count, NULL));
 	_modes.resize(modes_count);
-	ASSERT_HR(output->GetDisplayModeList(DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_ENUM_MODES_SCALING, &modes_count, _modes.data()))
+	AssertHR(output->GetDisplayModeList(DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_ENUM_MODES_SCALING, &modes_count, _modes.data()));
 }
 
 auto CDisplayModes::Get(unsigned idx) const -> TDispModeDesc

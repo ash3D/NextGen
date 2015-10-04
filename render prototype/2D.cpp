@@ -27,7 +27,7 @@ C2D::C2D(const DXGI_MODE_DESC &modeDesc):
 	_VBSize(64), _VBStart(0), _VCount(0), _count(0), _curLayer(~0)
 {
 	// create 2D effect
-	ASSERT_HR(D3DX11CreateEffectFromFile(TEXT("2D.cso"), 0, _device.Get(), &_effect2D))
+	AssertHR(D3DX11CreateEffectFromFile(TEXT("2D.cso"), 0, _device.Get(), &_effect2D));
 
 	// get technique passes
 	_rectPass = _effect2D->GetTechniqueByName("Rect")->GetPassByIndex(0);
@@ -39,7 +39,7 @@ C2D::C2D(const DXGI_MODE_DESC &modeDesc):
 
 	// init uniforms
 	const float res[4] = {modeDesc.Width, modeDesc.Height};
-	ASSERT_HR(_effect2D->GetVariableByName("targetRes")->AsVector()->SetFloatVector(res))
+	AssertHR(_effect2D->GetVariableByName("targetRes")->AsVector()->SetFloatVector(res));
 
 	// create 2D IA state objects
 #ifdef _2D_FLOAT32_TO_FLOAT16
@@ -60,14 +60,14 @@ C2D::C2D(const DXGI_MODE_DESC &modeDesc):
 	};
 #endif
 	D3DX11_PASS_DESC pass_desc;
-	ASSERT_HR(_effect2D->GetTechniqueByName("Rect")->GetPassByIndex(0)->GetDesc(&pass_desc))
-	ASSERT_HR(_device->CreateInputLayout(quadDesc, extent<decltype(quadDesc)>::value, pass_desc.pIAInputSignature, pass_desc.IAInputSignatureSize, &_quadLayout))
-	//ASSERT_HR(_device->CreateInputLayout(quadDesc, extent<decltype(quadDesc)>::value, _effect2D->GetVariableByName("Quad_VS")->AsShader()->))
+	AssertHR(_effect2D->GetTechniqueByName("Rect")->GetPassByIndex(0)->GetDesc(&pass_desc));
+	AssertHR(_device->CreateInputLayout(quadDesc, extent<decltype(quadDesc)>::value, pass_desc.pIAInputSignature, pass_desc.IAInputSignatureSize, &_quadLayout));
+	//AssertHR(_device->CreateInputLayout(quadDesc, extent<decltype(quadDesc)>::value, _effect2D->GetVariableByName("Quad_VS")->AsShader()->))
 
 	// immediate 2D
 	new(&_2DVB) CDynamicVB(_device, sizeof(TQuad) * 64);
 	D3D11_BUFFER_DESC desc = {sizeof(TQuad) * _VBSize, D3D11_USAGE_DYNAMIC, D3D11_BIND_VERTEX_BUFFER, D3D11_CPU_ACCESS_WRITE, 0, 0};
-	ASSERT_HR(_device->CreateBuffer(&desc, NULL, &_VB))
+	AssertHR(_device->CreateBuffer(&desc, NULL, &_VB));
 	D3D11_MAPPED_SUBRESOURCE mapped;
 	_immediateContext->Map(_VB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
 	_mappedVB = reinterpret_cast<TQuad *>(mapped.pData);
@@ -89,7 +89,7 @@ void C2D::DrawRect(float x, float y, float width, float height, uint32_t color, 
 		_immediateContext->Unmap(_VB.Get(), 0);
 		_immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
 		_immediateContext->IASetInputLayout(_quadLayout.Get());
-		ASSERT_HR(_rectPass->Apply(0, _immediateContext.Get()))
+		AssertHR(_rectPass->Apply(0, _immediateContext.Get()));
 		const UINT stride = sizeof(TQuad), offset = 0;
 		_immediateContext->IASetVertexBuffers(0, 1, _VB.GetAddressOf(), &stride, &offset);
 		_immediateContext->Draw(_VCount, _VBStart);
@@ -103,7 +103,7 @@ void C2D::DrawRect(float x, float y, float width, float height, uint32_t color, 
 	_VCount++;
 	_count++;
 	//_rects.push_back(_dev.AddRect(true, _curLayer--, x, y, width, height, color, angle));
-	//ASSERT_HR(_rectPass->Apply(0, _deviceContext))
+	//AssertHR(_rectPass->Apply(0, _deviceContext))
 	//_deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
 	//_deviceContext->IASetInputLayout(_quadLayout);
 	//_2DVB.Draw(_deviceContext, sizeof(TQuad), 1, CQuadFiller(x, y, width, height, 0, angle, color));
@@ -123,7 +123,7 @@ void C2D::DrawCircle(float x, float y, float r, uint32_t color) const
 
 void C2D::DrawEllipse(float x, float y, float rx, float ry, uint32_t color, bool AA, float angle) const
 {
-	ASSERT_HR((AA ? _ellipseAAPass : _ellipsePass)->Apply(0, _immediateContext.Get()))
+	AssertHR((AA ? _ellipseAAPass : _ellipsePass)->Apply(0, _immediateContext.Get()));
 	_immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
 	_immediateContext->IASetInputLayout(_quadLayout.Get());
 	_2DVB.Draw(_immediateContext, sizeof(TQuad), 1, CQuadFiller(x, y, rx, ry, 0, angle, color));
@@ -203,7 +203,7 @@ void C2D::_DrawScene() const
 			0									//StructureByteStride
 		};
 		const D3D11_SUBRESOURCE_DATA init_data = {vb_shadow.data(), 0, 0};
-		ASSERT_HR(_device->CreateBuffer(&VB_desc, &init_data, _static2DVB.GetAddressOf()))
+		AssertHR(_device->CreateBuffer(&VB_desc, &init_data, _static2DVB.GetAddressOf()));
 		_static2DDirty = false;
 	}
 
@@ -215,7 +215,7 @@ void C2D::_DrawScene() const
 		UINT stride = sizeof(TQuad), offset = 0;
 		auto draw = [&](ID3DX11EffectPass *pass, UINT vcount)
 		{
-			ASSERT_HR(pass->Apply(0, _immediateContext.Get()))
+			AssertHR(pass->Apply(0, _immediateContext.Get()));
 			_immediateContext->IASetVertexBuffers(0, 1, _static2DVB.GetAddressOf(), &stride, &offset);
 			_immediateContext->Draw(vcount, 0);
 			offset += vcount * sizeof(TQuad);
@@ -245,17 +245,17 @@ void C2D::_DrawScene() const
 				0,															//MiscFlags
 				0															//StructureByteStride
 			};
-			ASSERT_HR(_device->CreateBuffer(&VB_desc, NULL, _dynamic2DVB.GetAddressOf()))
+			AssertHR(_device->CreateBuffer(&VB_desc, NULL, _dynamic2DVB.GetAddressOf()));
 			vb_shadow.assign(_dynamicRects.begin(), _dynamicRects.end());
 		}
 		D3D11_MAPPED_SUBRESOURCE mapped;
-		ASSERT_HR(_immediateContext->Map(_dynamic2DVB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))
+		AssertHR(_immediateContext->Map(_dynamic2DVB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped));
 		copy(_dynamicRects.begin(), _dynamicRects.end(), reinterpret_cast<TQuad *>(mapped.pData));
 		//copy(vb_shadow.begin(), vb_shadow.end(), reinterpret_cast<TQuad *>(mapped.pData));
 		//memcpy(mapped.pData, vb_shadow.data(), _dynamic2DVBSize);
 		_immediateContext->Unmap(_dynamic2DVB.Get(), 0);
 		UINT stride = sizeof(TQuad), offset = 0;
-		ASSERT_HR(_rectPass->Apply(0, _immediateContext.Get()))
+		AssertHR(_rectPass->Apply(0, _immediateContext.Get()));
 		_immediateContext->IASetVertexBuffers(0, 1, _dynamic2DVB.GetAddressOf(), &stride, &offset);
 		_immediateContext->Draw(rects_count, 0);
 	}
@@ -271,7 +271,7 @@ void C2D::_NextFrame() const
 	{
 		_immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
 		_immediateContext->IASetInputLayout(_quadLayout.Get());
-		ASSERT_HR(_rectPass->Apply(0, _immediateContext.Get()))
+		AssertHR(_rectPass->Apply(0, _immediateContext.Get()));
 		const UINT stride = sizeof(TQuad), offset = 0;
 		_immediateContext->IASetVertexBuffers(0, 1, _VB.GetAddressOf(), &stride, &offset);
 		_immediateContext->Draw(_VCount, _VBStart);
@@ -280,10 +280,10 @@ void C2D::_NextFrame() const
 	if (_VBSize < _count)
 	{
 		D3D11_BUFFER_DESC desc = {sizeof(TQuad) * (_VBSize = _count), D3D11_USAGE_DYNAMIC, D3D11_BIND_VERTEX_BUFFER, D3D11_CPU_ACCESS_WRITE, 0, 0};
-		ASSERT_HR(_device->CreateBuffer(&desc, NULL, _VB.GetAddressOf()))
+		AssertHR(_device->CreateBuffer(&desc, NULL, _VB.GetAddressOf()));
 	}
 	D3D11_MAPPED_SUBRESOURCE mapped;
-	ASSERT_HR(_immediateContext->Map(_VB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))
+	AssertHR(_immediateContext->Map(_VB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped));
 	_mappedVB = reinterpret_cast<TQuad *>(mapped.pData);
 	_count = 0;
 	_curLayer = ~0;

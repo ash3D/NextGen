@@ -31,7 +31,8 @@
 #include <memory>
 #include <new>			// for bad_alloc
 #include <cassert>
-#include <crtdbg.h>
+#include <crtdbg.h>		// for _CrtSetDbgFlag
+#include "Winerror.h"	// for SUCCEEDED
 
 #include <D3D11.h>
 #include <wrl.h>
@@ -43,4 +44,7 @@
 //#define DISABLE_MATRIX_SWIZZLES
 //#include "vector math.h"
 
-#define ASSERT_HR(...) {const HRESULT hr = __VA_ARGS__; assert(SUCCEEDED(hr));}
+inline void AssertHR(const HRESULT hr)
+{
+	assert(SUCCEEDED(hr));
+}
