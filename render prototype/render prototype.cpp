@@ -64,7 +64,7 @@ void Proc()
 		start_tick = cur_tick;
 #define STR " fps"
 		char str[std::numeric_limits<decltype(fps)>::digits10 + sizeof STR];
-		sprintf_s(str, "%u"STR, fps);
+		sprintf_s(str, "%u" STR, fps);
 #undef STR
 		SetWindowTextA(hWnd, str);
 		fps = 0;

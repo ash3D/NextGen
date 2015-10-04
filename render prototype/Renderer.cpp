@@ -76,7 +76,7 @@ DXGI_MODE_DESC CRenderer::_CreateModeDesc(UINT width, UINT height, UINT refreshR
 #ifdef MSVC_LIMITATIONS
 void CRenderer::_Init()
 #else
-CRenderer::CRenderer(const DXGI_MODE_DESC &modeDesc):
+CRenderer::CRenderer(HWND hwnd, const DXGI_MODE_DESC &modeDesc, bool fullscreen, bool multithreaded):
 	CRendererBase(hwnd, modeDesc, fullscreen, multithreaded),
 	C2D(modeDesc, multithreaded)
 #endif

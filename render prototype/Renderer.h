@@ -33,14 +33,14 @@ public:
 		_Init();
 	}
 #else
-	CRenderer(const DXGI_MODE_DESC &modeDesc);
+	CRenderer(HWND hwnd, const DXGI_MODE_DESC &modeDesc, bool fullscreen, bool multithreaded);
 public:
 	CRenderer(HWND hwnd, unsigned modeIdx, bool fullscreen, bool multithreaded):
-		CRenderer(DisplayModesImpl::displayModes.GetDX11Mode(modeIdx))
+		CRenderer(hwnd, DisplayModesImpl::displayModes.GetDX11Mode(modeIdx), fullscreen, multithreaded)
 	{
 	}
 	CRenderer(HWND hwnd, unsigned int width, unsigned int height, bool fullscreen, unsigned int refreshRate, bool multithreaded/*, format*/):
-		CRenderer(_CreateModeDesc(width, height, refreshRate))
+		CRenderer(hwnd, _CreateModeDesc(width, height, refreshRate), fullscreen, multithreaded)
 	{
 	}
 #endif
