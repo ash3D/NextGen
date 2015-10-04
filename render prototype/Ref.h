@@ -22,7 +22,7 @@ namespace DtorImpl
 	public:
 		virtual void operator ~() const override
 		{
-			_ASSERTE(_externRef);
+			assert(_externRef);
 			_externRef.reset();
 		}
 

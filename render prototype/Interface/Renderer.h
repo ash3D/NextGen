@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		3.7.2013 (c)Korotkov Andrey
+\date		4.10.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -56,7 +56,7 @@ template for format (especially for structured buffer)
 #include <utility>
 #include <limits>
 #include <algorithm>
-#include <crtdbg.h>
+#include <cassert>
 
 namespace DGLE2
 {
@@ -1257,13 +1257,13 @@ namespace DGLE2
 #pragma region IDisplayModes::CIterator impl
 				void IDisplayModes::CIterator::_CheckRange() const
 				{
-					_ASSERTE(_idx >= 0);
-					_ASSERTE(_idx < _modes.Count());
+					assert(_idx >= 0);
+					assert(_idx < _modes.Count());
 				}
 
 				void IDisplayModes::CIterator::_CheckContainer(CIterator iter1, CIterator iter2)
 				{
-					_ASSERTE(&iter1._modes == &iter2._modes);
+					assert(&iter1._modes == &iter2._modes);
 				}
 
 				TDispModeDesc IDisplayModes::CIterator::operator *() const
