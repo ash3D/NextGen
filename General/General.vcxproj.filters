@@ -51,6 +51,9 @@
     <ClInclude Include="binaryIO.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="broadcast.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="collision.cpp">
@@ -68,6 +71,9 @@
       <Filter>Header Files</Filter>
     </None>
     <None Include="splines.inl">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="broadcast.inl">
       <Filter>Header Files</Filter>
     </None>
   </ItemGroup>
