@@ -39,7 +39,7 @@ inline void CheckHR(const HRESULT hr)
 template<typename T>
 inline size_t HashValue(T &&value)
 {
-	return std::hash<std::decay<T>::type>()(std::forward<T>(value));
+	return std::hash<std::decay_t<T>>()(std::forward<T>(value));
 }
 
 namespace detail
