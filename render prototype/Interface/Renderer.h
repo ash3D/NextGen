@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		4.10.2015 (c)Korotkov Andrey
+\date		22.10.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -9,7 +9,7 @@ See "DGLE2.h" for more details.
 
 #pragma once
 
-#if defined _MSC_VER && _MSC_VER < 1700
+#if defined _MSC_VER && _MSC_VER < 1800
 #error old compiler version
 #endif
 
@@ -86,13 +86,12 @@ namespace DGLE2
 		//	IDtor(decltype(_deleter) deleter, decltype(_parent) parent): _deleter(deleter), _parent(parent) {}
 		//	virtual ~IDtor() = default;
 		//};
-		class NOVTABLE IDtor
+		struct NOVTABLE IDtor
 		{
-		public:
 			// need const qualifier to allow const object destruction (like conventional dtor)
 			virtual void operator ~() const = 0;
 		protected:
-			//~IDtor() = default;
+			~IDtor() = default;
 		};
 
 		inline void dtor(const IDtor *const object)
@@ -167,9 +166,8 @@ namespace DGLE2
 				} renderTarget[8];
 			};
 
-			class NOVTABLE IBlendState
+			struct NOVTABLE IBlendState
 			{
-			public:
 				virtual operator TBlendStateDesc() const = 0;
 			};
 #pragma endregion
@@ -210,9 +208,8 @@ namespace DGLE2
 				}					frontFace, backFace;
 			};
 
-			class NOVTABLE IDepthStencilState
+			struct NOVTABLE IDepthStencilState
 			{
-			public:
 				virtual operator TDepthStencilDesc() const = 0;
 			};
 #pragma endregion
@@ -285,9 +282,8 @@ namespace DGLE2
 				unsigned int			instanceDataStepRate;
 			};
 
-			class NOVTABLE IInputLayout
+			struct NOVTABLE IInputLayout
 			{
-			public:
 			};
 #pragma endregion
 
@@ -319,9 +315,8 @@ namespace DGLE2
 				bool		antialiasedLineEnable;
 			};
 
-			class NOVTABLE IRasterizerState
+			struct NOVTABLE IRasterizerState
 			{
-			public:
 				virtual operator TRasterizerStateDesc() const = 0;
 			};
 #pragma endregion
@@ -369,19 +364,18 @@ namespace DGLE2
 				float					minLOD, maxLOD;
 			};
 
-			class NOVTABLE ISamplerState
+			struct NOVTABLE ISamplerState
 			{
-			public:
 				virtual operator TSamplerStateDesc() const = 0;
 			};
 #pragma endregion
 #pragma endregion
 
 #pragma region Resources
-			class IDeviceContext;
+			struct IDeviceContext;
 
 			template<class Resource, class Format>
-			class IMapped;
+			struct IMapped;
 
 			enum E_FORMAT
 			{
@@ -393,26 +387,22 @@ namespace DGLE2
 				IBF_32
 			};
 
-			class NOVTABLE IResource
+			struct NOVTABLE IResource
 			{
-			public:
 			protected:
 				//virtual Map(IDeviceContext &context) = 0;
 			};
 
-			class NOVTABLE ICBuffer
+			struct NOVTABLE ICBuffer
 			{
-			public:
 			};
 
-			class NOVTABLE IBuffer: public IResource
+			struct NOVTABLE IBuffer: public IResource
 			{
-			public:
 			};
 
-			class NOVTABLE IStructuredBuffer: public IBuffer
+			struct NOVTABLE IStructuredBuffer: public IBuffer
 			{
-			public:
 			};
 
 			template<class Format>
@@ -435,87 +425,75 @@ namespace DGLE2
 			};
 
 			template<class Format>
-			class NOVTABLE IRow
+			struct NOVTABLE IRow
 			{
-			public:
 				CResData<Format> operator [](unsigned x);
 			};
 
 			template<class Format>
-			class NOVTABLE ISlice
+			struct NOVTABLE ISlice
 			{
-			public:
 				IRow<Format> operator [](unsigned y);
 			};
 
-			class ITexture1D;
+			struct ITexture1D;
 
 			template<class Format>
-			class NOVTABLE IMapped<ITexture1D, Format>: public IRow<Format>
+			struct NOVTABLE IMapped<ITexture1D, Format>: public IRow<Format>
 			{
-			public:
 			};
 
-			class NOVTABLE IResource1D: public IResource
+			struct NOVTABLE IResource1D: public IResource
 			{
-			public:
 				template<class Format>
 				IMapped<ITexture1D, Format> Map(IDeviceContext &context, unsigned int mipSlice, unsigned int arraySlice);
 			};
 
-			class NOVTABLE ITexture1D: public IResource1D
+			struct NOVTABLE ITexture1D: public IResource1D
 			{
-			public:
 				template<class Format>
 				IMapped<ITexture1D, Format> Map(IDeviceContext &context, unsigned int mipSlice, unsigned int arraySlice, unsigned int left, unsigned int right);
 			};
 
-			class NOVTABLE IDepthStencilTexture1D: public IResource1D
+			struct NOVTABLE IDepthStencilTexture1D: public IResource1D
 			{
-			public:
 			};
 
-			class TInitData2D
+			struct TInitData2D
 			{
-				TInitData2D(unsigned int pitch, const void *data): pitch(pitch), data(data) {}
 				unsigned int pitch;
 				const void *data;
 			};
 
-			class ITexture2D;
+			struct ITexture2D;
 
 			template<class Format>
-			class NOVTABLE IMapped<ITexture2D, Format>: public ISlice<Format>
+			struct NOVTABLE IMapped<ITexture2D, Format>: public ISlice<Format>
 			{
-			public:
 			};
 
-			class NOVTABLE ITexture2D: public IResource
+			struct NOVTABLE ITexture2D: public IResource
 			{
-			public:
 				template<class Format>
 				IMapped<ITexture2D, Format> Map(IDeviceContext &context);
 			};
 
-			class TInitData3D
+			struct TInitData3D
 			{
-				TInitData3D(unsigned int pitch, unsigned int slicePitch, const void *data): pitch(pitch), slicePitch(slicePitch), data(data) {}
 				unsigned int pitch, slicePitch;
 				const void *data;
 			};
 
-			class ITexture3D;
+			struct ITexture3D;
 
 			template<class Format>
-			class NOVTABLE IMapped<ITexture3D, Format>
+			struct NOVTABLE IMapped<ITexture3D, Format>
 			{
-			public:
 				ISlice<Format> operator [](unsigned z);
 			};
 
-			class NOVTABLE ITexture3D: public IResource
+			struct NOVTABLE ITexture3D: public IResource
 			{
-			public:
 				template<class Format>
 				IMapped<ITexture3D, Format> Map(IDeviceContext &context);
 			};
@@ -574,9 +552,8 @@ namespace DGLE2
 					} texture2DMSArray;
 				};
 			};
-			class NOVTABLE IDepthStencilView
+			struct NOVTABLE IDepthStencilView
 			{
-			public:
 				virtual operator TDepthStencilViewDesc() const = 0;
 			};
 
@@ -647,9 +624,8 @@ namespace DGLE2
 				};
 			};
 
-			class NOVTABLE IRenderTargetView
+			struct NOVTABLE IRenderTargetView
 			{
-			public:
 				virtual operator TRenderTargetViewDesc() const = 0;
 			};
 #pragma endregion
@@ -743,9 +719,8 @@ namespace DGLE2
 				};
 			};
 
-			class NOVTABLE IShaderResourceView
+			struct NOVTABLE IShaderResourceView
 			{
-			public:
 				virtual operator TShaderResourceViewDesc() const = 0;
 			};
 #pragma endregion
@@ -806,9 +781,8 @@ namespace DGLE2
 				};
 			};
 
-			class NOVTABLE IUnorderedAccessView
+			struct NOVTABLE IUnorderedAccessView
 			{
-			public:
 				virtual operator TUnorderedAccessView() const  = 0;
 			};
 #pragma endregion
@@ -860,9 +834,8 @@ namespace DGLE2
 				PRIMITIVE_TOPOLOGY_32_CONTROL_POINT_PATCHLIST   = 64
 			};
 
-			class NOVTABLE IDeviceContext
+			struct NOVTABLE IDeviceContext
 			{
-			public:
 				//~IDeviceContext() = default;
 
 				// low level IA
@@ -898,9 +871,8 @@ namespace DGLE2
 				virtual void test() = 0;
 			};
 
-			class NOVTABLE IDevice
+			struct NOVTABLE IDevice
 			{
-			public:
 				//~IDevice() = default;
 				virtual RESTRICT IDeviceContext *GetDeviceContext() = 0;
 
@@ -932,9 +904,8 @@ namespace DGLE2
 				virtual RESTRICT IUnorderedAccessView *CreateUnorderedResourceView(IResource &resource, const TUnorderedAccessView *desc = NULL) = 0;
 			};
 
-			class NOVTABLE ICommandList
+			struct NOVTABLE ICommandList
 			{
-			public:
 			};
 		}
 
@@ -942,81 +913,74 @@ namespace DGLE2
 		{
 			namespace Textures
 			{
-				class NOVTABLE ITexture1D: virtual public IDtor
+				struct NOVTABLE ITexture1D: virtual public IDtor
 				{
-				public:
 				protected:
-					//~ITexture1D() = default;
+					~ITexture1D() = default;
 				};
 
-				class NOVTABLE ITexture2D: virtual public IDtor
+				struct NOVTABLE ITexture2D: virtual public IDtor
 				{
-				public:
 				protected:
-					//~ITexture2D() = default;
+					~ITexture2D() = default;
 				};
 
-				class NOVTABLE ITexture3D: virtual public IDtor
+				struct NOVTABLE ITexture3D: virtual public IDtor
 				{
-				public:
 				protected:
-					//~ITexture3D() = default;
+					~ITexture3D() = default;
 				};
 
-				class NOVTABLE ITextureCube: virtual public IDtor
+				struct NOVTABLE ITextureCube: virtual public IDtor
 				{
-				public:
 				protected:
-					//~ITextureCube() = default;
+					~ITextureCube() = default;
 				};
 
-				class NOVTABLE IMatrialTexture: virtual public IDtor
+				struct NOVTABLE IMatrialTexture: virtual public IDtor
 				{
 				protected:
 				protected:
-					//~IMatrialTexture() = default;
+					~IMatrialTexture() = default;
 				};
 
-				class NOVTABLE IMatrialTexture2D: public IMatrialTexture
+				struct NOVTABLE IMatrialTexture2D: public IMatrialTexture
 				{
-				public:
 				protected:
-					//~IMatrialTexture2D() = default;
+					~IMatrialTexture2D() = default;
 				};
 
-				class NOVTABLE IMatrialTexture3D: public IMatrialTexture
+				struct NOVTABLE IMatrialTexture3D: public IMatrialTexture
 				{
-				public:
 				protected:
-					//~IMatrialTexture3D() = default;
+					~IMatrialTexture3D() = default;
 				};
 			}
 
 			namespace Materials
 			{
-				enum /*class*/ E_TEX_MAPPING
+				enum class E_TEX_MAPPING
 				{
-					UV,	// standard 2D tex coords
-					XYZ	// object space
+					UV,		// standard 2D tex coords
+					XYZ,	// object space
 				};
 
-				enum /*class*/ E_NORMAL_TECHNIQUE
+				enum class E_NORMAL_TECHNIQUE
 				{
 					UNPERTURBED			= 0,
 					NORMAL_MAP_XY		= 1,
-					HEIGHT_MAP_HW_DIFF	= 2
+					HEIGHT_MAP_HW_DIFF	= 2,
 				};
 
-				enum /*class*/ E_PARALLAX_TECHNIQUE
+				enum class E_PARALLAX_TECHNIQUE
 				{
 					NONE	= 0,
 					SPHERE	= 1,
-					PLANE	= 2
+					PLANE	= 2,
 				};
 
-				class NOVTABLE IMaterial: virtual public IDtor
+				struct NOVTABLE IMaterial: virtual public IDtor
 				{
-				public:
 					virtual void SetAmbientColor(const float color[3]) = 0;
 					virtual void SetDiffuseColor(const float color[3]) = 0;
 					virtual void SetSpecularColor(const float color[3]) = 0;
@@ -1033,7 +997,7 @@ namespace DGLE2
 					virtual void SetEnvTexture(Textures::IMatrialTexture *texture) = 0;
 					virtual void SetEnvMask(Textures::IMatrialTexture *texture) = 0;
 				protected:
-					//~IMaterial() = default;
+					~IMaterial() = default;
 				};
 			}
 
@@ -1097,15 +1061,8 @@ namespace DGLE2
 
 				template<unsigned dimension>
 				template<class TIterator>
-				AABB<dimension>::AABB(TIterator begin, TIterator end)//: AABB()
+				AABB<dimension>::AABB(TIterator begin, TIterator end): AABB()
 				{
-					// C++11: use delegating ctor
-					for (unsigned i = 0; i < dimension; i++)
-					{
-						_min[i] = +std::numeric_limits<float>::infinity();
-						_max[i] = -std::numeric_limits<float>::infinity();
-					}
-
 					std::for_each(begin, end, [this](const float (&vertex)[dimension]){Refit(vertex, vertex);});
 				}
 
@@ -1116,12 +1073,11 @@ namespace DGLE2
 				}
 #pragma endregion
 
-				class NOVTABLE IMesh: virtual public IDtor
+				struct NOVTABLE IMesh: virtual public IDtor
 				{
-				public:
 					virtual AABB<3> GetAABB() const = 0;
 				protected:
-					//~IMesh() = default;
+					~IMesh() = default;
 				};
 			}
 
@@ -1129,45 +1085,41 @@ namespace DGLE2
 			{
 				namespace _2D
 				{
-					class NOVTABLE IRect: virtual public IDtor
+					struct NOVTABLE IRect: virtual public IDtor
 					{
-					public:
 						virtual void SetPos(float x, float y) = 0;
 						virtual void SetExtents(float x, float y) = 0;
 						virtual void SetColor(uint32_t color) = 0;
 						virtual void SetAngle(float angle) = 0;
 					protected:
-						//~IRect() = default;
+						~IRect() = default;
 					};
 
-					class NOVTABLE IEllipse: virtual public IDtor
+					struct NOVTABLE IEllipse: virtual public IDtor
 					{
-					public:
 						virtual void SetPos(float x, float y) = 0;
 						virtual void SetRadii(float rx, float ry) = 0;
 						virtual void SetColor(uint32_t color) = 0;
 						virtual void SetAngle(float angle) = 0;
 					protected:
-						//~IEllipse() = default;
+						~IEllipse() = default;
 					};
 				}
 
-				class NOVTABLE IInstance: virtual public IDtor
+				struct NOVTABLE IInstance: virtual public IDtor
 				{
-				public:
 				protected:
-					//~IInstance() = default;
+					~IInstance() = default;
 				};
 			}
 
 			namespace DisplayModes
 			{
-				class NOVTABLE IDesc: virtual public IDtor
+				struct NOVTABLE IDesc: virtual public IDtor
 				{
-				public:
 					virtual operator const char *() const = 0;
 				protected:
-					//~IDesc() = default;
+					~IDesc() = default;
 				};
 
 				struct TDispMode
@@ -1176,7 +1128,7 @@ namespace DGLE2
 					const float refreshRate;
 				};
 
-				class NOVTABLE IDisplayModes
+				struct NOVTABLE IDisplayModes
 				{
 					friend struct TDispModeDesc;
 				public:
@@ -1194,7 +1146,7 @@ namespace DGLE2
 				private:
 					virtual TDispModeDesc Get(unsigned idx) const = 0;
 				protected:
-					//~IDisplayModes() = default;
+					~IDisplayModes() = default;
 				};
 
 				struct TDispModeDesc: TDispMode
@@ -1352,9 +1304,8 @@ namespace DGLE2
 				extern "C" const IDisplayModes &GetDisplayModes();
 			}
 
-			class NOVTABLE IRenderer: virtual public IDtor
+			struct NOVTABLE IRenderer: virtual public IDtor
 			{
-			public:
 				virtual void SetMode(unsigned int width, unsigned int height) = 0;
 				virtual void SetMode(unsigned idx) = 0;
 				virtual void ToggleFullscreen(bool fullscreen) = 0;
@@ -1387,7 +1338,7 @@ namespace DGLE2
 				virtual RESTRICT Instances::_2D::IRect *AddRect(bool dynamic, uint16_t layer, float x, float y, float width, float height, uint32_t color, float angle = 0) = 0;
 				virtual RESTRICT Instances::_2D::IEllipse *AddEllipse(bool dynamic, uint16_t layer, float x, float y, float rx, float ry, uint32_t color, bool AA, float angle = 0) = 0;
 			protected:
-				//~IRenderer() = default;
+				~IRenderer() = default;
 			};
 
 			// TODO: replace HWND with engine cross-platform handle

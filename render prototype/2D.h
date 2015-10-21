@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		4.10.2015 (c)Korotkov Andrey
+\date		22.10.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -23,7 +23,7 @@ class RendererImpl::C2D: virtual public CRendererBase
 #pragma pack(push, 4)
 	struct TQuad
 	{
-		TQuad() noexcept {}
+		TQuad() = default;
 		TQuad(float x, float y, float width, float height, uint16_t layer, float angle, uint32_t color):
 			pos(x, y), extents(width, height), layer(layer),
 #ifdef _2D_FLOAT32_TO_FLOAT16
