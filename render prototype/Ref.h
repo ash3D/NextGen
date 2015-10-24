@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		4.10.2015 (c)Korotkov Andrey
+\date		25.10.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -59,24 +59,28 @@ namespace DtorImpl
 		template<class Class>
 		typename std::enable_if<TIsStaticCastPossible<Class>::value, std::shared_ptr<Class>>::type GetRef()
 		{
+			static_assert(std::is_base_of<CRef, Class>::value, "GetRef() with invalid target class");
 			return std::static_pointer_cast<Class>(_externRef);
 		}
 
 		template<class Class>
 		typename std::enable_if<!TIsStaticCastPossible<Class>::value, std::shared_ptr<Class>>::type GetRef()
 		{
+			static_assert(std::is_base_of<CRef, Class>::value, "GetRef() with invalid target class");
 			return std::dynamic_pointer_cast<Class>(_externRef);
 		}
 
 		template<class Class>
 		typename std::enable_if<TIsStaticCastPossible<Class>::value, std::shared_ptr<const Class>>::type GetRef() const
 		{
+			static_assert(std::is_base_of<CRef, Class>::value, "GetRef() with invalid target class");
 			return std::static_pointer_cast<const Class>(_externRef);
 		}
 
 		template<class Class>
 		typename std::enable_if<!TIsStaticCastPossible<Class>::value, std::shared_ptr<const Class>>::type GetRef() const
 		{
+			static_assert(std::is_base_of<CRef, Class>::value, "GetRef() with invalid target class");
 			return std::dynamic_pointer_cast<const Class>(_externRef);
 		}
 	};
