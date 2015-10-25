@@ -27,13 +27,10 @@ namespace DtorImpl
 		}
 
 	protected:
-		/*
-		default shared_ptr's deleter can not access protected dtor
-		dtor called from internal implementation-dependent class => 'friend shared_ptr<CRef>;' does not help
-		*/
-		CRef(): _externRef(this, [](const CRef *dtor){delete dtor;}) {}
+		CRef(): _externRef(this) {}
 		CRef(CRef &) = delete;
 		void operator =(CRef &) = delete;
+	public:
 		virtual ~CRef() = default;
 
 	private:
