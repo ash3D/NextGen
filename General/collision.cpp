@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		26.9.2015 (c)Korotkov Andrey
+\date		17.10.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -353,7 +353,6 @@ static inline void AssertHR(const HRESULT hr)
 {
 	assert(SUCCEEDED(hr));
 }
-
 
 extern void CALLBACK CollisionStat::ProfilerEventHandler(void *pEngineCore, IBaseEvent *pEvent)
 {

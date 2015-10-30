@@ -26,13 +26,14 @@
 #include <list>
 #include <algorithm>
 #include <functional>
+#include <utility>
 #include <type_traits>
 #include <iterator>
 #include <memory>
 #include <new>			// for bad_alloc
 #include <cassert>
-#include <malloc.h>		// for _get_heap_handle
-#include <crtdbg.h>
+#include <crtdbg.h>		// for _CrtSetDbgFlag
+#include "Winerror.h"	// for SUCCEEDED
 
 #include <D3D11.h>
 #include <wrl.h>
@@ -44,6 +45,7 @@
 //#define DISABLE_MATRIX_SWIZZLES
 //#include "vector math.h"
 
-#include "C++11 stub.h"
-
-#define ASSERT_HR(...) {const HRESULT hr = __VA_ARGS__; assert(SUCCEEDED(hr));}
+inline void AssertHR(const HRESULT hr)
+{
+	assert(SUCCEEDED(hr));
+}

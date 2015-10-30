@@ -140,6 +140,7 @@
   <ItemGroup>
     <ClInclude Include="AABB.h" />
     <ClInclude Include="binaryIO.h" />
+    <ClInclude Include="broadcast.h" />
     <ClInclude Include="collision.h" />
     <ClInclude Include="exp.h" />
     <ClInclude Include="gauss.h" />
@@ -155,6 +156,7 @@
     <ClCompile Include="nv_algebra.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="broadcast.inl" />
     <None Include="gauss.inl" />
     <None Include="general math.inl" />
     <None Include="splines.inl" />

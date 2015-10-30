@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		28.8.2015 (c)Andrey Korotkov
+\date		13.10.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -2263,7 +2263,7 @@ inline size_t CCoreRendererDX11::CMSAARendertargetPool::THash::operator ()(const
 	return HashRange(src.width, src.height, src.format);
 }
 
-static inline bool Used(IUnknown *object)
+static inline bool Unused(IUnknown *object)
 {
 	object->AddRef();
 	return object->Release() == 1;
@@ -2276,7 +2276,7 @@ _cleanCallbackHandle(parent._cleanBroadcast.AddCallback([this]
 	const auto end_rt = _pool.cend();
 	while (cur_rt != end_rt)
 	{
-		if (!Used(cur_rt->second.rt.Get()) && ++cur_rt->second.idleTime > _maxIdle && _pool.size() > _maxPoolSize)
+		if (Unused(cur_rt->second.rt.Get()) && ++cur_rt->second.idleTime > _maxIdle && _pool.size() > _maxPoolSize)
 			cur_rt = _pool.erase(cur_rt);
 		else
 			++cur_rt;
@@ -2291,7 +2291,7 @@ const ComPtr<ID3D11Texture2D> &CCoreRendererDX11::CMSAARendertargetPool::GetRend
 	// find unused
 	const auto unused = find_if(range.first, range.second, [](TPool::const_reference rt)
 	{
-		return Used(rt.second.rt.Get());
+		return Unused(rt.second.rt.Get());
 	});
 
 	if (unused != range.second)

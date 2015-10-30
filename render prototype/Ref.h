@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		26.4.2013 (c)Korotkov Andrey
+\date		25.10.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -10,7 +10,7 @@ See "DGLE2.h" for more details.
 #pragma once
 
 #include "stdafx.h"
-#include "Interface\Renderer.h"
+#include "Interface/Renderer.h"
 
 namespace DtorImpl
 {
@@ -22,7 +22,7 @@ namespace DtorImpl
 	public:
 		virtual void operator ~() const override
 		{
-			_ASSERTE(_externRef);
+			assert(_externRef);
 			_externRef.reset();
 		}
 
@@ -32,15 +32,9 @@ namespace DtorImpl
 		dtor called from internal implementation-dependent class => 'friend shared_ptr<CRef>;' does not help
 		*/
 		CRef(): _externRef(this, [](const CRef *dtor){delete dtor;}) {}
-	#ifdef MSVC_LIMITATIONS
-		CRef(CRef &);
-		void operator =(CRef &);
-		virtual ~CRef() {}
-	#else
 		CRef(CRef &) = delete;
 		void operator =(CRef &) = delete;
 		virtual ~CRef() = default;
-	#endif
 
 	private:
 		// use SFINAE to redirect to appropriate pointer cast (dynamic for virtual inheritence; static otherwise)
@@ -49,17 +43,13 @@ namespace DtorImpl
 		{
 		private:
 			template<class Test>
-			static std::true_type test(decltype(static_cast<Test *>(std::declval<CRef *>())) *);
+			static std::true_type test(decltype(static_cast<Test *>(std::declval<CRef *>())));
 
 			template<class>
 			static std::false_type test(...);
 
 		private:
-#ifdef MSVC_LIMITATIONS
-			typedef std::false_type type;
-#else
 			typedef decltype(test<Class>(nullptr)) type;
-#endif
 
 		public:
 			static constexpr bool value = type::value;
@@ -69,24 +59,28 @@ namespace DtorImpl
 		template<class Class>
 		typename std::enable_if<TIsStaticCastPossible<Class>::value, std::shared_ptr<Class>>::type GetRef()
 		{
+			static_assert(std::is_base_of<CRef, Class>::value, "GetRef() with invalid target class");
 			return std::static_pointer_cast<Class>(_externRef);
 		}
 
 		template<class Class>
 		typename std::enable_if<!TIsStaticCastPossible<Class>::value, std::shared_ptr<Class>>::type GetRef()
 		{
+			static_assert(std::is_base_of<CRef, Class>::value, "GetRef() with invalid target class");
 			return std::dynamic_pointer_cast<Class>(_externRef);
 		}
 
 		template<class Class>
 		typename std::enable_if<TIsStaticCastPossible<Class>::value, std::shared_ptr<const Class>>::type GetRef() const
 		{
+			static_assert(std::is_base_of<CRef, Class>::value, "GetRef() with invalid target class");
 			return std::static_pointer_cast<const Class>(_externRef);
 		}
 
 		template<class Class>
 		typename std::enable_if<!TIsStaticCastPossible<Class>::value, std::shared_ptr<const Class>>::type GetRef() const
 		{
+			static_assert(std::is_base_of<CRef, Class>::value, "GetRef() with invalid target class");
 			return std::dynamic_pointer_cast<const Class>(_externRef);
 		}
 	};

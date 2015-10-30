@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.9.2015 (c)Alexey Shaydurov
+\date		4.10.2015 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -31,8 +31,8 @@ apply now have overloads similar to valarray's apply (in order to handle functio
 but it still does not perform as desired (vector<int, ...>.apply(floor) for example)
 consider using preprocessor instead of templates or overloading each target function (floor(const vector<T, ...> &)
 
-no need for '&& = const &&' overloads because '&& = const &' will be used in this case ('&&' can not be converted to non-const '&')
-same applies for 'op='
+'&& = ?' now forbidden
+'&& op= ?' also forbidden but not with MSVC (it does not follows C++ standard in that regard)
 */
 #pragma endregion
 
@@ -849,7 +849,7 @@ same applies for 'op='
 
 				vector<ElementType, SwizzleDesc::TDimension::value> apply(ElementType f(ElementType)) const
 				{
-#ifdef MSVC_LIMITATIONS	// workaround for lack of expression SFINAE in VC
+#if defined _MSC_VER && _MSC_VER <= 1900	// workaround for lack of expression SFINAE in VC
 					return apply<ElementType(ElementType)>(f);
 #else
 					return apply<ElementType>(f);
@@ -858,7 +858,7 @@ same applies for 'op='
 
 				vector<ElementType, SwizzleDesc::TDimension::value> apply(ElementType f(const ElementType &)) const
 				{
-#ifdef MSVC_LIMITATIONS	// workaround for lack of expression SFINAE in VC
+#if defined _MSC_VER && _MSC_VER <= 1900	// workaround for lack of expression SFINAE in VC
 					return apply<ElementType(const ElementType &)>(f);
 #else
 					return apply<ElementType>(f);
@@ -1011,6 +1011,12 @@ same applies for 'op='
 				}
 			};
 
+#if defined _MSC_VER && _MSC_VER <= 1900
+#define RIGHT_WRITE_MASK_DEFAULT , std::integral_constant<bool, RightSwizzleDesc::isWriteMaskValid>
+#else
+#define RIGHT_WRITE_MASK_DEFAULT
+#endif
+
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>
 			class CSwizzleAssign: public CSwizzleCommon<ElementType, rows, columns, SwizzleDesc, odd, namingSet>
 			{
@@ -1033,7 +1039,7 @@ same applies for 'op='
 					typedef void (CSwizzleAssign::*const TAssign)(Arg);
 				public:
 #ifdef MSVC_LIMITATIONS
-					static TAssign Assign;
+					static const TAssign Assign;
 #else
 					static constexpr TAssign Assign = WARHazard ? TAssign(&CSwizzleAssign::AssignCopy) : TAssign(&CSwizzleAssign::AssignDirect);
 #endif
@@ -1041,18 +1047,10 @@ same applies for 'op='
 
 			private:
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
-#ifdef MSVC_LIMITATIONS
-				inline void AssignDirect(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet, std::integral_constant<bool, RightSwizzleDesc::isWriteMaskValid>> &right);
-#else
-				inline void AssignDirect(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right);
-#endif
+				inline void AssignDirect(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet RIGHT_WRITE_MASK_DEFAULT> &right);
 
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
-#ifdef MSVC_LIMITATIONS
-				inline void AssignCopy(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet, std::integral_constant<bool, RightSwizzleDesc::isWriteMaskValid>> &right);
-#else
-				inline void AssignCopy(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right);
-#endif
+				inline void AssignCopy(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet RIGHT_WRITE_MASK_DEFAULT> &right);
 
 			public:
 #ifndef MSVC_LIMITATIONS
@@ -1064,17 +1062,15 @@ same applies for 'op='
 				{
 					return operator =<false>(static_cast<const TSwizzle &>(right));
 				}
-
-#if !(defined MSVC_LIMITATIONS || defined __GNUC__)
-				inline TOperationResult &&operator =(const CSwizzleAssign &right) &&
-				{
-					return operator =<false>(static_cast<const TSwizzle &>(right));
-				}
-#endif
 #endif
 
+				// currently public to allow user specify WAR hazard explixitly if needed
 				template<bool WARHazard, typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
-				TOperationResult &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right)
+#if defined MSVC_LIMITATIONS || defined __GNUC__
+				TOperationResult &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet RIGHT_WRITE_MASK_DEFAULT> &right)
+#else
+				TOperationResult &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet RIGHT_WRITE_MASK_DEFAULT> &right) &
+#endif
 				{
 					constexpr auto Assign = SelectAssign<const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &, WARHazard>::Assign;
 					(this->*Assign)(right);
@@ -1083,9 +1079,9 @@ same applies for 'op='
 
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
 #if defined MSVC_LIMITATIONS || defined __GNUC__
-				TOperationResult &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right)
+				TOperationResult &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet RIGHT_WRITE_MASK_DEFAULT> &right)
 #else
-				TOperationResult &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right) &
+				TOperationResult &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet RIGHT_WRITE_MASK_DEFAULT> &right) &
 #endif
 				{
 					static constexpr auto WARHazard = DetectSwizzleWARHazard
@@ -1097,19 +1093,11 @@ same applies for 'op='
 					return operator =<WARHazard>(right);
 				}
 
-#if !(defined MSVC_LIMITATIONS || defined __GNUC__)
-				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
-				TOperationResult &&operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right) &&
-				{
-					return std::move(operator =<false>(right));
-				}
-#endif
-
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
 #if defined MSVC_LIMITATIONS || defined __GNUC__
-				TOperationResult &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &&right)
+				TOperationResult &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet RIGHT_WRITE_MASK_DEFAULT> &&right)
 #else
-				TOperationResult &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &&right) &
+				TOperationResult &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet RIGHT_WRITE_MASK_DEFAULT> &&right) &
 #endif
 				{
 					return operator =<false>(right);
@@ -1125,14 +1113,6 @@ same applies for 'op='
 					return *this = static_cast<const CSwizzle<RightElementType, 0, rightDimension> &>(right);
 				}
 
-#if !(defined MSVC_LIMITATIONS || defined __GNUC__)
-				template<typename RightElementType, unsigned int rightDimension>
-				TOperationResult &&operator =(const vector<RightElementType, rightDimension> &right) &&
-				{
-					return std::move(*this) = static_cast<const CSwizzle<RightElementType, 0, rightDimension> &>(right);
-				}
-#endif
-
 				template<typename RightElementType, unsigned int rightDimension>
 #if defined MSVC_LIMITATIONS || defined __GNUC__
 				TOperationResult &operator =(const vector<RightElementType, rightDimension> &&right)
@@ -1144,9 +1124,17 @@ same applies for 'op='
 				}
 
 				template<typename RightElementType>
+#if defined MSVC_LIMITATIONS || defined __GNUC__
 				inline TOperationResult &operator =(const RightElementType &scalar);
+#else
+				inline TOperationResult &operator =(const RightElementType &scalar) &;
+#endif
 
+#if defined MSVC_LIMITATIONS || defined __GNUC__
 				inline TOperationResult &operator =(std::initializer_list<CInitListItem<ElementType>> initList);
+#else
+				inline TOperationResult &operator =(std::initializer_list<CInitListItem<ElementType>> initList) &;
+#endif
 			protected:
 				template<unsigned idx>
 				inline void _Init();
@@ -1181,16 +1169,12 @@ same applies for 'op='
 #ifdef MSVC_LIMITATIONS
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>
 			template<typename Arg, bool WARHazard>
-			typename CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, odd, namingSet>::template SelectAssign<Arg, WARHazard>::TAssign CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, odd, namingSet>::SelectAssign<Arg, WARHazard>::Assign = WARHazard ? CSwizzleAssign::SelectAssign<Arg, WARHazard>::TAssign(&CSwizzleAssign::AssignCopy) : CSwizzleAssign::SelectAssign<Arg, WARHazard>::TAssign(&CSwizzleAssign::AssignDirect);
+			const typename CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, odd, namingSet>::template SelectAssign<Arg, WARHazard>::TAssign CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, odd, namingSet>::SelectAssign<Arg, WARHazard>::Assign = WARHazard ? CSwizzleAssign::SelectAssign<Arg, WARHazard>::TAssign(&CSwizzleAssign::AssignCopy) : CSwizzleAssign::SelectAssign<Arg, WARHazard>::TAssign(&CSwizzleAssign::AssignDirect);
 #endif
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>
 			template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
-#ifdef MSVC_LIMITATIONS
-			inline void CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, odd, namingSet>::AssignDirect(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet, std::integral_constant<bool, RightSwizzleDesc::isWriteMaskValid>> &right)
-#else
-			inline void CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, odd, namingSet>::AssignDirect(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right)
-#endif
+			inline void CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, odd, namingSet>::AssignDirect(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet RIGHT_WRITE_MASK_DEFAULT> &right)
 			{
 				/*
 				NOTE: assert should not be triggered if WAR hazard not detected.
@@ -1213,11 +1197,7 @@ same applies for 'op='
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>
 			template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
-#ifdef MSVC_LIMITATIONS
-			inline void CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, odd, namingSet>::AssignCopy(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet, std::integral_constant<bool, RightSwizzleDesc::isWriteMaskValid>> &right)
-#else
-			inline void CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, odd, namingSet>::AssignCopy(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right)
-#endif
+			inline void CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, odd, namingSet>::AssignCopy(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet RIGHT_WRITE_MASK_DEFAULT> &right)
 			{
 				// make copy and call AssignDirect()
 				AssignDirect(vector<RightElementType, RightSwizzleDesc::TDimension::value>(right));
@@ -1225,7 +1205,11 @@ same applies for 'op='
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>
 			template<typename RightElementType>
+#if defined MSVC_LIMITATIONS || defined __GNUC__
 			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, odd, namingSet>::operator =(const RightElementType &scalar) -> TOperationResult &
+#else
+			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, odd, namingSet>::operator =(const RightElementType &scalar) & -> TOperationResult &
+#endif
 			{
 				for (unsigned idx = 0; idx < SwizzleDesc::TDimension::value; idx++)
 					(*this)[idx] = scalar;
@@ -1233,7 +1217,11 @@ same applies for 'op='
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>
+#if defined MSVC_LIMITATIONS || defined __GNUC__
 			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, odd, namingSet>::operator =(std::initializer_list<CInitListItem<ElementType>> initList) -> TOperationResult &
+#else
+			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, odd, namingSet>::operator =(std::initializer_list<CInitListItem<ElementType>> initList) & -> TOperationResult &
+#endif
 			{
 				unsigned dst_idx = 0;
 				for (const auto &item: initList)
@@ -1242,6 +1230,8 @@ same applies for 'op='
 				assert(dst_idx == columns);
 				return *this;
 			}
+
+#undef RIGHT_WRITE_MASK_DEFAULT
 
 			// this specialization used as base class for CDataContainer to eliminate need for various overloads
 			/*
@@ -1288,14 +1278,6 @@ same applies for 'op='
 					return CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(right);
 				}
 
-#if !(defined MSVC_LIMITATIONS || defined __GNUC__)
-				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
-				CSwizzle &&operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right) &&
-				{
-					return std::move(*this).CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(right);
-				}
-#endif
-
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
 #if defined MSVC_LIMITATIONS || defined __GNUC__
 				CSwizzle &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &&right)
@@ -1307,12 +1289,20 @@ same applies for 'op='
 				}
 
 				template<typename RightElementType>
+#if defined MSVC_LIMITATIONS || defined __GNUC__
 				CSwizzle &operator =(const RightElementType &scalar)
+#else
+				CSwizzle &operator =(const RightElementType &scalar) &
+#endif
 				{
 					return CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(scalar);
 				}
 
+#if defined MSVC_LIMITATIONS || defined __GNUC__
 				CSwizzle &operator =(std::initializer_list<CInitListItem<ElementType>> initList)
+#else
+				CSwizzle &operator =(std::initializer_list<CInitListItem<ElementType>> initList) &
+#endif
 				{
 					return CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(initList);
 				}
@@ -1327,14 +1317,6 @@ same applies for 'op='
 					return CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(right);
 				}
 
-#if !(defined MSVC_LIMITATIONS || defined __GNUC__)
-				template<typename RightElementType, unsigned int rightDimension>
-				CSwizzle &&operator =(const vector<RightElementType, rightDimension> &right) &&
-				{
-					return std::move(*this).CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(right);
-				}
-#endif
-
 				template<typename RightElementType, unsigned int rightDimension>
 #if defined MSVC_LIMITATIONS || defined __GNUC__
 				CSwizzle &operator =(const vector<RightElementType, rightDimension> &&right)
@@ -1345,7 +1327,11 @@ same applies for 'op='
 					return CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(std::move(right));
 				}
 #else
+#if defined MSVC_LIMITATIONS || defined __GNUC__
 				CSwizzle &operator =(const CSwizzle &) = default;
+#else
+				CSwizzle &operator =(const CSwizzle &) & = default;
+#endif
 				using CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =;
 #endif
 			protected:
@@ -1473,15 +1459,18 @@ same applies for 'op='
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
 
+				// leftIsWriteMaskValid/rightIsWriteMaskValid is workaround for VS 2015
 #				define OPERATOR_DEFINITION(op)																															\
 					template																																			\
 					<																																					\
 						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc, bool leftOdd, unsigned leftNamingSet,			\
-						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet	\
+						typename leftIsWriteMaskValid,																													\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet,	\
+						typename rightIsWriteMaskValid																													\
 					>																																					\
 					inline typename CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet>::TOperationResult &operator op##=(		\
-					CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet> &left,													\
-					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right)										\
+					CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet, leftIsWriteMaskValid> &left,								\
+					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet, rightIsWriteMaskValid> &right)				\
 					{																																					\
 						static constexpr auto WARHazard = DetectSwizzleWARHazard																						\
 						<																																				\
@@ -1494,30 +1483,18 @@ same applies for 'op='
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
 
+				// leftIsWriteMaskValid/rightIsWriteMaskValid is workaround for VS 2015
 #				define OPERATOR_DEFINITION(op)																															\
 					template																																			\
 					<																																					\
 						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc, bool leftOdd, unsigned leftNamingSet,			\
-						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet	\
-					>																																					\
-					inline typename CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet>::TOperationResult &&operator op##=(		\
-					CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet> &&left,													\
-					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right)										\
-					{																																					\
-						return std::move(operator op##=<false>(left, right));																							\
-					};
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
-#				undef OPERATOR_DEFINITION
-
-#				define OPERATOR_DEFINITION(op)																															\
-					template																																			\
-					<																																					\
-						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc, bool leftOdd, unsigned leftNamingSet,			\
-						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet	\
+						typename leftIsWriteMaskValid,																													\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet,	\
+						typename rightIsWriteMaskValid																													\
 					>																																					\
 					inline typename CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet>::TOperationResult &operator op##=(		\
-					CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet> &left,													\
-					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &&right)										\
+					CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet, leftIsWriteMaskValid> &left,								\
+					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet, rightIsWriteMaskValid> &&right)				\
 					{																																					\
 						return operator op##=<false>(left, right);																										\
 					};
@@ -1539,23 +1516,8 @@ same applies for 'op='
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
 
-#				define OPERATOR_DEFINITION(op)																															\
-					template																																			\
-					<																																					\
-						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc, bool leftOdd, unsigned leftNamingSet,			\
-						typename RightElementType, unsigned int rightDimension																							\
-					>																																					\
-					inline typename CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet>::TOperationResult &&operator op##=(		\
-					CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet> &&left,													\
-					const vector<RightElementType, rightDimension> &right)																								\
-					{																																					\
-						return std::move(left) op##= static_cast<const CSwizzle<RightElementType, 0, rightDimension> &>(right);											\
-					};
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
-#				undef OPERATOR_DEFINITION
-
-				// VS 2013 call 'CSwizzle & op= const CSwizzle &' instead of 'CSwizzle & op= const CSwizzle &&' for variant with static_cast<const CSwizzle &&>
-#ifdef MSVC_LIMITATIONS
+				// VS 2013/2015 call 'CSwizzle & op= const CSwizzle &' instead of 'CSwizzle & op= const CSwizzle &&' for variant with static_cast<const CSwizzle &&>
+#if defined _MSC_VER && _MSC_VER <= 1900
 #				define OPERATOR_DEFINITION(op)																															\
 					template																																			\
 					<																																					\
@@ -1605,58 +1567,14 @@ same applies for 'op='
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
 
+				// leftIsWriteMaskValid/rightIsWriteMaskValid is workaround for VS 2015
 #				define OPERATOR_DEFINITION(op)																															\
 					template																																			\
 					<																																					\
 						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc, bool leftOdd, unsigned leftNamingSet,			\
-						typename RightElementType																														\
-					>																																					\
-					inline typename CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet>::TOperationResult &operator op##=(		\
-					CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet> &&left,													\
-					RightElementType right)																																\
-					{																																					\
-						return left op##= right;																														\
-					};
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
-#				undef OPERATOR_DEFINITION
-
-#ifdef MSVC_LIMITATIONS
-#				define OPERATOR_DEFINITION(op)																															\
-					template																																			\
-					<																																					\
-						typename LeftElementType, unsigned int leftDimension,																							\
-						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet	\
-					>																																					\
-					inline vector<LeftElementType, leftDimension> &&operator op##=(																						\
-					vector<LeftElementType, leftDimension> &&left,																										\
-					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &&right)										\
-					{																																					\
-						return static_cast<CSwizzle<LeftElementType, 0, leftDimension> &&>(left) op##= right;															\
-					};
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
-#				undef OPERATOR_DEFINITION
-
-#				define OPERATOR_DEFINITION(op)																															\
-					template																																			\
-					<																																					\
-						typename LeftElementType, unsigned int leftDimension,																							\
-						typename RightElementType, unsigned int rightDimension																							\
-					>																																					\
-					inline vector<LeftElementType, leftDimension> &&operator op##=(																						\
-					vector<LeftElementType, leftDimension> &&left,																										\
-					const vector<RightElementType, rightDimension> &&right)																								\
-					{																																					\
-						return static_cast<CSwizzle<LeftElementType, 0, leftDimension> &&>(left) op##= right;															\
-					};
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
-#				undef OPERATOR_DEFINITION
-#endif
-
-#				define OPERATOR_DEFINITION(op)																															\
-					template																																			\
-					<																																					\
-						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc, bool leftOdd, unsigned leftNamingSet,			\
-						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet	\
+						typename leftIsWriteMaskValid,																													\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet,	\
+						typename rightIsWriteMaskValid																													\
 					>																																					\
 					inline vector																																		\
 					<																																					\
@@ -1667,8 +1585,8 @@ same applies for 'op='
 							typename RightSwizzleDesc::TDimension																										\
 						>::type::value																																	\
 					> operator op(																																		\
-					const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet> &left,												\
-					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right)										\
+					const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet, leftIsWriteMaskValid> &left,						\
+					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet, rightIsWriteMaskValid> &right)				\
 					{																																					\
 						vector																																			\
 						<																																				\
@@ -1684,11 +1602,14 @@ same applies for 'op='
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
 
+				// leftIsWriteMaskValid/rightIsWriteMaskValid is workaround for VS 2015
 #				define OPERATOR_DEFINITION(op)																															\
 					template																																			\
 					<																																					\
 						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc, bool leftOdd, unsigned leftNamingSet,			\
-						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet	\
+						typename leftIsWriteMaskValid,																													\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet,	\
+						typename rightIsWriteMaskValid																													\
 					>																																					\
 					inline vector																																		\
 					<																																					\
@@ -1699,8 +1620,8 @@ same applies for 'op='
 							typename RightSwizzleDesc::TDimension																										\
 						>::type::value																																	\
 					> operator op(																																		\
-					const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet> &left,												\
-					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right)										\
+					const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet, leftIsWriteMaskValid> &left,						\
+					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet, rightIsWriteMaskValid> &right)				\
 					{																																					\
 						constexpr unsigned int dimension = mpl::min																										\
 						<																																				\
@@ -1913,14 +1834,6 @@ same applies for 'op='
 					return CSwizzleAssign<ElementType, 0, dimension>::operator =(right);
 				}
 
-#if !(defined MSVC_LIMITATIONS || defined __GNUC__)
-				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
-				vector &&operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &right) &&
-				{
-					return std::move(*this).CSwizzleAssign<ElementType, 0, dimension>::operator =(right);
-				}
-#endif
-
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
 #if defined MSVC_LIMITATIONS || defined __GNUC__
 				vector &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &&right)
@@ -1932,12 +1845,20 @@ same applies for 'op='
 				}
 
 				template<typename RightElementType>
+#if defined MSVC_LIMITATIONS || defined __GNUC__
 				vector &operator =(const RightElementType &scalar)
+#else
+				vector &operator =(const RightElementType &scalar) &
+#endif
 				{
 					return CSwizzleAssign<ElementType, 0, dimension>::operator =(scalar);
 				}
 
+#if defined MSVC_LIMITATIONS || defined __GNUC__
 				vector &operator =(std::initializer_list<CInitListItem<ElementType>> initList)
+#else
+				vector &operator =(std::initializer_list<CInitListItem<ElementType>> initList) &
+#endif
 				{
 					return CSwizzleAssign<ElementType, 0, dimension>::operator =(initList);
 				}
@@ -1952,14 +1873,6 @@ same applies for 'op='
 					return CSwizzleAssign<ElementType, 0, dimension>::operator =(right);
 				}
 
-#if !(defined MSVC_LIMITATIONS || defined __GNUC__)
-				template<typename RightElementType, unsigned int rightDimension>
-				vector &&operator =(const vector<RightElementType, rightDimension> &right) &&
-				{
-					return std::move(*this).CSwizzleAssign<ElementType, 0, dimension>::operator =(right);
-				}
-#endif
-
 				template<typename RightElementType, unsigned int rightDimension>
 #if defined MSVC_LIMITATIONS || defined __GNUC__
 				vector &operator =(const vector<RightElementType, rightDimension> &&right)
@@ -1970,6 +1883,11 @@ same applies for 'op='
 					return CSwizzleAssign<ElementType, 0, dimension>::operator =(std::move(right));
 				}
 #else
+#if defined MSVC_LIMITATIONS || defined __GNUC__
+				vector &operator =(const vector &) = default;
+#else
+				vector &operator =(const vector &) & = default;
+#endif
 				using CSwizzleAssign<ElementType, 0, dimension>::operator =;
 #endif
 
@@ -2022,13 +1940,31 @@ same applies for 'op='
 				template<typename SrcElementType>
 				matrix(const SrcElementType (&src)[rows][columns]);
 
+#if defined MSVC_LIMITATIONS || defined __GNUC__
+				matrix &operator =(const matrix &) = default;
+#else
+				matrix &operator =(const matrix &) & = default;
+#endif
+
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns>
+#if defined MSVC_LIMITATIONS || defined __GNUC__
 				matrix &operator =(const matrix<RightElementType, rightRows, rightColumns> &right);
+#else
+				matrix &operator =(const matrix<RightElementType, rightRows, rightColumns> &right) &;
+#endif
 
 				template<typename SrcElementType>
+#if defined MSVC_LIMITATIONS || defined __GNUC__
 				matrix &operator =(const SrcElementType &scalar);
+#else
+				matrix &operator =(const SrcElementType &scalar) &;
+#endif
 
+#if defined MSVC_LIMITATIONS || defined __GNUC__
 				matrix &operator =(std::initializer_list<CInitListItem<ElementType>> initList);
+#else
+				matrix &operator =(std::initializer_list<CInitListItem<ElementType>> initList) &;
+#endif
 
 				const matrix &operator +() const noexcept
 				{
@@ -2075,7 +2011,7 @@ same applies for 'op='
 
 				matrix<ElementType, rows, columns> apply(ElementType f(ElementType)) const
 				{
-#ifdef MSVC_LIMITATIONS	// workaround for lack of expression SFINAE in VC
+#if defined _MSC_VER && _MSC_VER <= 1900	// workaround for lack of expression SFINAE in VC
 					return apply<ElementType(ElementType)>(f);
 #else
 					return apply<ElementType>(f);
@@ -2084,7 +2020,7 @@ same applies for 'op='
 
 				matrix<ElementType, rows, columns> apply(ElementType f(const ElementType &)) const
 				{
-#ifdef MSVC_LIMITATIONS	// workaround for lack of expression SFINAE in VC
+#if defined _MSC_VER && _MSC_VER <= 1900	// workaround for lack of expression SFINAE in VC
 					return apply<ElementType(const ElementType &)>(f);
 #else
 					return apply<ElementType>(f);
@@ -2318,7 +2254,11 @@ same applies for 'op='
 				}
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
+#if defined MSVC_LIMITATIONS || defined __GNUC__
 				inline auto matrix<ElementType, rows, columns>::operator =(std::initializer_list<CInitListItem<ElementType>> initList) -> matrix &
+#else
+				inline auto matrix<ElementType, rows, columns>::operator =(std::initializer_list<CInitListItem<ElementType>> initList) & -> matrix &
+#endif
 				{
 					unsigned dst_idx = 0;
 					for (const auto &item: initList)
@@ -2336,7 +2276,11 @@ same applies for 'op='
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns>
+#if defined MSVC_LIMITATIONS || defined __GNUC__
 				inline auto matrix<ElementType, rows, columns>::operator =(const matrix<RightElementType, rightRows, rightColumns> &right) -> matrix &
+#else
+				inline auto matrix<ElementType, rows, columns>::operator =(const matrix<RightElementType, rightRows, rightColumns> &right) & -> matrix &
+#endif
 				{
 					static_assert(rows <= rightRows, "operator =: too few rows in src");
 					static_assert(columns <= rightColumns, "operator =: too few columns in src");
@@ -2347,7 +2291,11 @@ same applies for 'op='
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				template<typename SrcElementType>
+#if defined MSVC_LIMITATIONS || defined __GNUC__
 				inline auto matrix<ElementType, rows, columns>::operator =(const SrcElementType &scalar) -> matrix &
+#else
+				inline auto matrix<ElementType, rows, columns>::operator =(const SrcElementType &scalar) & -> matrix &
+#endif
 				{
 					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)
 						operator [](rowIdx) = scalar;

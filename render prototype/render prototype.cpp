@@ -64,7 +64,7 @@ void Proc()
 		start_tick = cur_tick;
 #define STR " fps"
 		char str[std::numeric_limits<decltype(fps)>::digits10 + sizeof STR];
-		sprintf_s(str, "%u"STR, fps);
+		sprintf_s(str, "%u" STR, fps);
 #undef STR
 		SetWindowTextA(hWnd, str);
 		fps = 0;
@@ -76,7 +76,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
                      LPTSTR    lpCmdLine,
                      int       nCmdShow)
 {
-#ifdef _DEBUG
+#ifdef _DEBUG	// use _DEBUG here rather than NDEBUG because _CrtSetDbgFlag is MSVC specific like _DEBUG
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 #endif
 	UNREFERENCED_PARAMETER(hPrevInstance);

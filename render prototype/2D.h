@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		11.3.2013 (c)Korotkov Andrey
+\date		22.10.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -10,7 +10,7 @@ See "DGLE2.h" for more details.
 #pragma once
 
 #include "stdafx.h"
-#include "Interface\Renderer.h"
+#include "Interface/Renderer.h"
 #include "RendererBase.h"
 #include "Dtor.h"
 #include "Win32Heap.h"
@@ -23,7 +23,7 @@ class RendererImpl::C2D: virtual public CRendererBase
 #pragma pack(push, 4)
 	struct TQuad
 	{
-		TQuad() noexcept {}
+		TQuad() = default;
 		TQuad(float x, float y, float width, float height, uint16_t layer, float angle, uint32_t color):
 			pos(x, y), extents(width, height), layer(layer),
 #ifdef _2D_FLOAT32_TO_FLOAT16
@@ -55,12 +55,8 @@ class RendererImpl::C2D: virtual public CRendererBase
 	class CQuadFiller;
 
 protected:
-	C2D(const DXGI_MODE_DESC &modeDesc, bool multithreaded);
-#ifdef MSVC_LIMITATIONS
-	~C2D() {}
-#else
+	C2D(const DXGI_MODE_DESC &modeDesc);
 	~C2D() = default;
-#endif
 
 public:
 	virtual void DrawPoint(float x, float y, uint32_t color, float size) const override;
@@ -154,11 +150,7 @@ public:
 		std::shared_ptr<C2D> &&parent, bool dynamic, uint16_t layer,
 		float x, float y, float width, float height, uint32_t color, float angle);
 private:
-#ifdef MSVC_LIMITATIONS
-	virtual ~CRectHandle() {}
-#else
 	virtual ~CRectHandle() = default;
-#endif
 
 public:
 	virtual void SetPos(float x, float y) override
@@ -203,11 +195,7 @@ public:
 		std::shared_ptr<C2D> &&parent, bool dynamic, uint16_t layer,
 		float x, float y, float rx, float ry, uint32_t color, bool AA, float angle);
 private:
-#ifdef MSVC_LIMITATIONS
-	virtual ~CEllipseHandle() {}
-#else
 	virtual ~CEllipseHandle() = default;
-#endif
 
 public:
 	virtual void SetPos(float x, float y) override

@@ -73,43 +73,17 @@ int main()
 	2 + m5x4;
 	cout << vec4.x << '\n' << vec5[4] << "\nsizeof vec3 = " << sizeof vec3 << endl;
 
-	// ok/fail comments for VS 2013 without workaround
-
-	int3(3) += int4(4);			// fail
-	int3(3) += int4(4).xxx;		// fail
-	int3(3) += vec4;			// fail
-	int3(3) += vec4.xxx;		// ok
-	int3(3) += 42;
-
-	int3(3).xy += int4(4);		// ok
-	int3(3).xy += int4(4).xxx;	// ok
-	int3(3).xy += vec4;			// ok
-	int3(3).xy += vec4.xxx;		// ok
-	int3(3).xy += 42;
-
-	vec4 += int4(4);			// ok
-	vec4 += int4(4).xxxx;		// ok
-	vec4 += vec4;				// ok
-	vec4 += vec4.xxxx;			// ok
+	vec4 += int4(4);
+	vec4 += int4(4).xxxx;
+	vec4 += vec4;
+	vec4 += vec4.xxxx;
 	vec4 += 42;
 
-	vec4.xy += int4(4);			// ok
-	vec4.xy += int4(4).xxx;		// ok
-	vec4.xy += vec4;			// ok
-	vec4.xy += vec4.xxx;		// ok
+	vec4.xy += int4(4);
+	vec4.xy += int4(4).xxx;\
+	vec4.xy += vec4;
+	vec4.xy += vec4.xxx;
 	vec4.xy += 42;
-
-	int3(3) = int4(4);
-	int3(3) = int4(4).xxx;
-	int3(3) = vec4;
-	int3(3) = vec4.xxx;
-	int3(3) = 42;
-
-	int3(3).xy = int4(4);
-	int3(3).xy = int4(4).xxx;
-	int3(3).xy = vec4;
-	int3(3).xy = vec4.xxx;
-	int3(3).xy = 42;
 
 	vec4 = int4(4);
 	vec4 = int4(4).xxxx;
