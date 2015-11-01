@@ -182,7 +182,7 @@ consider using preprocessor instead of templates or overloading each target func
 			}																																					\
 			~CDataContainerImpl()																																\
 			{																																					\
-				_data.~CData<ElementType, ROWS, COLUMNS>();																										\
+				/*_data.~CData<ElementType, ROWS, COLUMNS>();*/																										\
 			}																																					\
 			void operator =(const CDataContainerImpl &right)																									\
 			{																																					\

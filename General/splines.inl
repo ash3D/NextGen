@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		30.10.2015 (c)Korotkov Andrey
+\date		1.11.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -69,7 +69,7 @@ namespace Math
 		template<class Pos, class ...Attribs>
 		template<class Functor, size_t ...idx>
 		inline auto CompositePoint<Pos, Attribs...>::OpPoint(std::index_sequence<idx...>) const
-#ifdef MSVC_LIMITATIONS
+#if defined _MSC_VER && _MSC_VER <= 1900
 			-> CompositePoint<Pos, Attribs...>
 #else
 			-> CompositePoint<std::decay_t<decltype(std::declval<Functor>()(pos))>, std::decay_t<decltype(std::declval<Functor>()(std::get<idx>(attribs)))>...>
@@ -83,10 +83,10 @@ namespace Math
 		template<class Pos, class ...Attribs>
 		template<class Functor, size_t ...idx, class RightPos, class ...RightAttribs>
 		inline auto CompositePoint<Pos, Attribs...>::PointOpPoint(std::index_sequence<idx...>, const CompositePoint<Pos, Attribs...> &left, const CompositePoint<RightPos, RightAttribs...> &right)
-#ifdef MSVC_LIMITATIONS
+#if defined _MSC_VER && _MSC_VER <= 1900
 			-> CompositePoint<Pos, Attribs...>
 #else
-			-> CompositePoint<std::decay_t<decltype(std::declval<Functor>()(left.pos, right.pos))>, std::decay_t<decltype(std::declval<Functor>()(std::get<idx>(left.attribs), std::get<idx>(right.attribs)))>...>
+			-> CompositePoint<std::decay_t<decltype(/*std::declval<*/Functor/*>*/()(left.pos, right.pos))>, std::decay_t<decltype(std::declval<Functor>()(std::get<idx>(left.attribs), std::get<idx>(right.attribs)))>...>
 #endif
 		{
 			constexpr Functor op;
@@ -97,7 +97,7 @@ namespace Math
 		template<class Pos, class ...Attribs>
 		template<class Functor, size_t ...idx, typename Scalar>
 		inline auto CompositePoint<Pos, Attribs...>::PointOpScalar(std::index_sequence<idx...>, const CompositePoint<Pos, Attribs...> &left, const Scalar &right)
-#ifdef MSVC_LIMITATIONS
+#if defined _MSC_VER && _MSC_VER <= 1900
 			-> CompositePoint<Pos, Attribs...>
 #else
 			-> CompositePoint<std::decay_t<decltype(std::declval<Functor>()(left.pos, right))>, std::decay_t<decltype(std::declval<Functor>()(std::get<idx>(left.attribs), right))>...>
@@ -111,42 +111,43 @@ namespace Math
 		template<class Pos, class ...Attribs>
 		template<class Functor, size_t ...idx, typename Scalar>
 		inline auto CompositePoint<Pos, Attribs...>::ScalarOpPoint(std::index_sequence<idx...>, const Scalar &left, const CompositePoint<Pos, Attribs...> &right)
-#ifdef MSVC_LIMITATIONS
+#if defined _MSC_VER && _MSC_VER <= 1900
 			-> CompositePoint<Pos, Attribs...>
 #else
 			-> CompositePoint<std::decay_t<decltype(std::declval<Functor>()(left, right.pos))>, std::decay_t<decltype(std::declval<Functor>()(left, std::get<idx>(right.attribs)))>...>
 #endif
 		{
 			constexpr Functor op;
-			return{ op(left, right.pos), op(left, std::get<idx>(right.attribs))... };
+			return { op(left, right.pos), op(left, std::get<idx>(right.attribs))... };
 		}
 
 		// point op= point
 		template<class Pos, class ...Attribs>
 		template<class Functor, size_t idx, class SrcPos, class ...SrcAttribs>
-//#ifdef MSVC_LIMITATIONS
-//		inline auto CompositePoint<Pos, Attribs...>::PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src, std::true_type) -> CompositePoint &
-//#else
+#if defined _MSC_VER && _MSC_VER <= 1900
+		inline auto CompositePoint<Pos, Attribs...>::PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src, std::true_type) -> CompositePoint &
+#else
 		inline auto CompositePoint<Pos, Attribs...>::PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src)
 			-> typename std::enable_if<idx < sizeof...(Attribs), CompositePoint &>::type
-//#endif
+#endif
 		{
 			Functor()(std::get<idx>(attribs), std::get<idx>(src.attribs));
-//#ifdef MSVC_LIMITATIONS
-//			return PointOpPoint<Functor, idx + 1>(src, std::integral_constant<bool, idx < sizeof...(Attribs)>());
-//#else
+#if defined _MSC_VER && _MSC_VER <= 1900
+		constexpr auto nextIdx = idx + 1;
+			return PointOpPoint<Functor, nextIdx>(src, std::integral_constant<bool, nextIdx < sizeof...(Attribs)>());
+#else
 			return PointOpPoint<Functor, idx + 1>(src);
-//#endif
+#endif
 		}
 
 		template<class Pos, class ...Attribs>
 		template<class Functor, size_t idx, class SrcPos, class ...SrcAttribs>
-//#ifdef MSVC_LIMITATIONS
-//		inline auto CompositePoint<Pos, Attribs...>::PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src, std::false_type) -> CompositePoint &
-//#else
+#if defined _MSC_VER && _MSC_VER <= 1900
+		inline auto CompositePoint<Pos, Attribs...>::PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src, std::false_type) -> CompositePoint &
+#else
 		inline auto CompositePoint<Pos, Attribs...>::PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src)
 			-> typename std::enable_if<idx == sizeof...(Attribs), CompositePoint &>::type
-//#endif
+#endif
 		{
 			Functor()(pos, src.pos);
 			return *this;
@@ -155,29 +156,30 @@ namespace Math
 		// point op= scalar
 		template<class Pos, class ...Attribs>
 		template<class Functor, size_t idx, typename Scalar>
-//#ifdef MSVC_LIMITATIONS
-//		inline auto CompositePoint<Pos, Attribs...>::PointOpScalar(const Scalar &src, std::true_type) -> CompositePoint &
-//#else
+#if defined _MSC_VER && _MSC_VER <= 1900
+		inline auto CompositePoint<Pos, Attribs...>::PointOpScalar(const Scalar &src, std::true_type) -> CompositePoint &
+#else
 		inline auto CompositePoint<Pos, Attribs...>::PointOpScalar(const Scalar &src)
 			-> typename std::enable_if<idx < sizeof...(Attribs), CompositePoint &>::type
-//#endif
+#endif
 		{
 			Functor()(std::get<idx>(attribs), src);
-//#ifdef MSVC_LIMITATIONS
-//			return PointOpScalar<Functor, idx + 1>(src, std::integral_constant<bool, idx < sizeof...(Attribs)>());
-//#else
+#if defined _MSC_VER && _MSC_VER <= 1900
+		constexpr auto nextIdx = idx + 1;
+			return PointOpScalar<Functor, nextIdx>(src, std::integral_constant<bool, nextIdx < sizeof...(Attribs)>());
+#else
 			return PointOpScalar<Functor, idx + 1>(src);
-//#endif
+#endif
 		}
 
 		template<class Pos, class ...Attribs>
 		template<class Functor, size_t idx, typename Scalar>
-//#ifdef MSVC_LIMITATIONS
-//		inline auto CompositePoint<Pos, Attribs...>::PointOpScalar(const Scalar &src, std::false_type)->CompositePoint &
-//#else
+#if defined _MSC_VER && _MSC_VER <= 1900
+		inline auto CompositePoint<Pos, Attribs...>::PointOpScalar(const Scalar &src, std::false_type)->CompositePoint &
+#else
 		inline auto CompositePoint<Pos, Attribs...>::PointOpScalar(const Scalar &src)
 			-> typename std::enable_if<idx == sizeof...(Attribs), CompositePoint &>::type
-//#endif
+#endif
 		{
 			Functor()(pos, src);
 			return *this;
@@ -473,7 +475,7 @@ void Math::Splines::Impl::CBesselOverhauser<ScalarType, dimension, Attribs...>::
 			it seems that 'std' namespace used here ('VectorMath::' before 'distance' required)
 			TODO: try with other compilers
 		*/
-		return Impl::CBesselOverhauser<ScalarType, dimension>::Points::value_type(points.back().first + VectorMath::distance(points.back().second, GetPos(curPoint)), curPoint);
+		return Points::value_type(points.back().first + VectorMath::distance(GetPos(points.back().second), GetPos(curPoint)), curPoint);
 	});
 	assert(points.size() >= 4);
 }

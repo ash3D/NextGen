@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		30.10.2015 (c)Korotkov Andrey
+\date		1.11.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -75,7 +75,7 @@ namespace Math
 			// op point
 			template<class Functor, size_t ...idx>
 			inline auto OpPoint(std::index_sequence<idx...>) const
-#ifdef MSVC_LIMITATIONS
+#if defined _MSC_VER && _MSC_VER <= 1900
 				-> CompositePoint<Pos, Attribs...>;
 #else
 				-> CompositePoint<std::decay_t<decltype(std::declval<Functor>()(pos))>, std::decay_t<decltype(std::declval<Functor>()(std::get<idx>(attribs)))>...>;
@@ -84,16 +84,16 @@ namespace Math
 			// point op point
 			template<class Functor, size_t ...idx, class RightPos, class ...RightAttribs>
 			static inline auto PointOpPoint(std::index_sequence<idx...>, const CompositePoint<Pos, Attribs...> &left, const CompositePoint<RightPos, RightAttribs...> &right)
-#ifdef MSVC_LIMITATIONS
+#if defined _MSC_VER && _MSC_VER <= 1900
 				-> CompositePoint<Pos, Attribs...>;
 #else
-				-> CompositePoint<std::decay_t<decltype(std::declval<Functor>()(left.pos, right.pos))>, std::decay_t<decltype(std::declval<Functor>()(std::get<idx>(left.attribs), std::get<idx>(right.attribs)))>...>;
+				-> CompositePoint<std::decay_t<decltype(/*std::declval<*/Functor/*>*/()(left.pos, right.pos))>, std::decay_t<decltype(std::declval<Functor>()(std::get<idx>(left.attribs), std::get<idx>(right.attribs)))>...>;
 #endif
 
 			// point op scalar
 			template<class Functor, size_t ...idx, typename Scalar>
 			static inline auto PointOpScalar(std::index_sequence<idx...>, const CompositePoint<Pos, Attribs...> &left, const Scalar &right)
-#ifdef MSVC_LIMITATIONS
+#if defined _MSC_VER && _MSC_VER <= 1900
 				-> CompositePoint<Pos, Attribs...>;
 #else
 				-> CompositePoint<std::decay_t<decltype(std::declval<Functor>()(left.pos, right))>, std::decay_t<decltype(std::declval<Functor>()(std::get<idx>(left.attribs), right))>...>;
@@ -102,7 +102,7 @@ namespace Math
 			// scalar op point
 			template<class Functor, size_t ...idx, typename Scalar>
 			static inline auto ScalarOpPoint(std::index_sequence<idx...>, const Scalar &left, const CompositePoint<Pos, Attribs...> &right)
-#ifdef MSVC_LIMITATIONS
+#if defined _MSC_VER && _MSC_VER <= 1900
 				-> CompositePoint<Pos, Attribs...>;
 #else
 				-> CompositePoint<std::decay_t<decltype(std::declval<Functor>()(left, right.pos))>, std::decay_t<decltype(std::declval<Functor>()(left, std::get<idx>(right.attribs)))>...>;
@@ -110,33 +110,33 @@ namespace Math
 
 			// point op= point
 			template<class Functor, size_t idx = 0, class SrcPos, class ...SrcAttribs>
-//#ifdef MSVC_LIMITATIONS
-//			inline CompositePoint &PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src, std::true_type = std::true_type());
-//#else
-			inline typename std::enable_if<idx < sizeof...(Attribs), CompositePoint &>::type PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src);
-//#endif
+#if defined _MSC_VER && _MSC_VER <= 1900
+			inline CompositePoint &PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src, std::true_type = std::true_type());
+#else
+			inline auto PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src) -> typename std::enable_if<idx < sizeof...(Attribs), CompositePoint &>::type;
+#endif
 
 			template<class Functor, size_t idx = 0, class SrcPos, class ...SrcAttribs>
-//#ifdef MSVC_LIMITATIONS
-//			inline CompositePoint &PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src, std::false_type);
-//#else
+#if defined _MSC_VER && _MSC_VER <= 1900
+			inline CompositePoint &PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src, std::false_type);
+#else
 			inline typename std::enable_if<idx == sizeof...(Attribs), CompositePoint &>::type PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src);
-//#endif
+#endif
 
 			// point op= scalar
 			template<class Functor, size_t idx = 0, typename Scalar>
-//#ifdef MSVC_LIMITATIONS
-//			inline CompositePoint &PointOpScalar(const Scalar &src, std::true_type = std::true_type());
-//#else
+#if defined _MSC_VER && _MSC_VER <= 1900
+			inline CompositePoint &PointOpScalar(const Scalar &src, std::true_type = std::true_type());
+#else
 			inline typename std::enable_if<idx < sizeof...(Attribs), CompositePoint &>::type PointOpScalar(const Scalar &src);
-//#endif
+#endif
 
 			template<class Functor, size_t idx = 0, typename Scalar>
-//#ifdef MSVC_LIMITATIONS
-//			inline CompositePoint &PointOpScalar(const Scalar &src, std::false_type);
-//#else
+#if defined _MSC_VER && _MSC_VER <= 1900
+			inline CompositePoint &PointOpScalar(const Scalar &src, std::false_type);
+#else
 			inline typename std::enable_if<idx == sizeof...(Attribs), CompositePoint &>::type PointOpScalar(const Scalar &src);
-//#endif
+#endif
 
 		public:
 			CompositePoint() = default;
@@ -224,7 +224,7 @@ namespace Math
 		};
 
 		template<class Point>
-		inline const Point &GetPos(const Point &point)
+		inline auto GetPos(const Point &point) -> decltype(point.pos)
 		{
 			return point.pos;
 		}
@@ -349,10 +349,10 @@ namespace Math
 			// TODO: use C++11 inheriting ctor
 			template<typename Iterator>
 			CCatmullRom(Iterator begin, Iterator end) :
-			CBezierInterpolationCommon<ScalarType, dimension, Impl::CCatmullRom>(begin, end) {}
+			CBezierInterpolationCommon<Impl::CCatmullRom, ScalarType, dimension, Attribs...>(begin, end) {}
 
 			CCatmullRom(std::initializer_list<Point> points) :
-			CBezierInterpolationCommon<ScalarType, dimension, Impl::CCatmullRom>(points) {}
+			CBezierInterpolationCommon<Impl::CCatmullRom, ScalarType, dimension, Attribs...>(points) {}
 #endif
 		};
 
@@ -412,10 +412,10 @@ namespace Math
 			// TODO: use C++11 inheriting ctor
 			template<typename Iterator>
 			CBesselOverhauser(Iterator begin, Iterator end) :
-			CBezierInterpolationCommon<ScalarType, dimension, Impl::CBesselOverhauser>(begin, end) {}
+			CBezierInterpolationCommon<Impl::CBesselOverhauser, ScalarType, dimension, Attribs...>(begin, end) {}
 
 			CBesselOverhauser(std::initializer_list<Point> points) :
-			CBezierInterpolationCommon<ScalarType, dimension, Impl::CBesselOverhauser>(points) {}
+			CBezierInterpolationCommon<Impl::CBesselOverhauser, ScalarType, dimension, Attribs...>(points) {}
 		};
 #endif
 	}
