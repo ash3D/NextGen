@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		2.11.2015 (c)Korotkov Andrey
+\date		3.11.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -127,8 +127,7 @@ namespace Math
 #if defined _MSC_VER && _MSC_VER <= 1900
 		inline auto CompositePoint<Pos, Attribs...>::PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src, std::true_type) -> CompositePoint &
 #else
-		inline auto CompositePoint<Pos, Attribs...>::PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src)
-			-> typename std::enable_if<idx < sizeof...(Attribs), CompositePoint &>::type
+		inline auto CompositePoint<Pos, Attribs...>::PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src) -> std::enable_if_t<idx < sizeof...(Attribs), CompositePoint &>
 #endif
 		{
 			Functor()(std::get<idx>(attribs), std::get<idx>(src.attribs));
@@ -145,8 +144,7 @@ namespace Math
 #if defined _MSC_VER && _MSC_VER <= 1900
 		inline auto CompositePoint<Pos, Attribs...>::PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src, std::false_type) -> CompositePoint &
 #else
-		inline auto CompositePoint<Pos, Attribs...>::PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src)
-			-> typename std::enable_if<idx == sizeof...(Attribs), CompositePoint &>::type
+		inline auto CompositePoint<Pos, Attribs...>::PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src) -> std::enable_if_t<idx == sizeof...(Attribs), CompositePoint &>
 #endif
 		{
 			Functor()(pos, src.pos);
@@ -159,8 +157,7 @@ namespace Math
 #if defined _MSC_VER && _MSC_VER <= 1900
 		inline auto CompositePoint<Pos, Attribs...>::PointOpScalar(const Scalar &src, std::true_type) -> CompositePoint &
 #else
-		inline auto CompositePoint<Pos, Attribs...>::PointOpScalar(const Scalar &src)
-			-> typename std::enable_if<idx < sizeof...(Attribs), CompositePoint &>::type
+		inline auto CompositePoint<Pos, Attribs...>::PointOpScalar(const Scalar &src) -> std::enable_if_t<idx < sizeof...(Attribs), CompositePoint &>
 #endif
 		{
 			Functor()(std::get<idx>(attribs), src);
@@ -177,8 +174,7 @@ namespace Math
 #if defined _MSC_VER && _MSC_VER <= 1900
 		inline auto CompositePoint<Pos, Attribs...>::PointOpScalar(const Scalar &src, std::false_type)->CompositePoint &
 #else
-		inline auto CompositePoint<Pos, Attribs...>::PointOpScalar(const Scalar &src)
-			-> typename std::enable_if<idx == sizeof...(Attribs), CompositePoint &>::type
+		inline auto CompositePoint<Pos, Attribs...>::PointOpScalar(const Scalar &src) -> std::enable_if_t<idx == sizeof...(Attribs), CompositePoint &>
 #endif
 		{
 			Functor()(pos, src);
@@ -315,14 +311,14 @@ namespace Math
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
 Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(const Point (&src)[degree + 1])
 {
-	std::copy_n(controlPoints, std::extent<typename std::remove_reference<decltype(controlPoints)>::type>::value, src);
+	std::copy_n(controlPoints, std::extent<std::remove_reference_t<decltype(controlPoints)>>::value, src);
 }
 
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
 template<unsigned idx>
 inline void Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::Init()
 {
-	constexpr auto count = std::extent<typename std::remove_reference<decltype(controlPoints)>::type>::value;
+	constexpr auto count = std::extent<std::remove_reference_t<decltype(controlPoints)>>::value;
 	static_assert(idx >= count, "too few control point");
 	static_assert(idx <= count, "too many control point");
 }

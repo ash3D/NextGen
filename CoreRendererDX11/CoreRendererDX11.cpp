@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		13.10.2015 (c)Andrey Korotkov
+\date		3.11.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -2435,7 +2435,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX11::GetRenderTarget(ICoreTexture *&prTexture
 
 DGLE_RESULT DGLE_API CCoreRendererDX11::CreateTexture(ICoreTexture *&prTex, const uint8 *pData, uint uiWidth, uint uiHeight, bool bMipmapsPresented, E_CORE_RENDERER_DATA_ALIGNMENT eDataAlignment, E_TEXTURE_DATA_FORMAT eDataFormat, E_TEXTURE_LOAD_FLAGS eLoadFlags)
 {
-	typedef add_lvalue_reference<underlying_type<E_TEXTURE_LOAD_FLAGS>::type>::type TLoadFlags;
+	typedef add_lvalue_reference_t<underlying_type_t<E_TEXTURE_LOAD_FLAGS>> TLoadFlags;
 	try
 	{
 		CHECK_DEVICE(*this);

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		2.11.2015 (c)Korotkov Andrey
+\date		3.11.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -113,14 +113,14 @@ namespace Math
 #if defined _MSC_VER && _MSC_VER <= 1900
 			inline CompositePoint &PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src, std::true_type = std::true_type());
 #else
-			inline auto PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src) -> typename std::enable_if<idx < sizeof...(Attribs), CompositePoint &>::type;
+			inline auto PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src) -> std::enable_if_t<idx < sizeof...(Attribs), CompositePoint &>;
 #endif
 
 			template<class Functor, size_t idx = 0, class SrcPos, class ...SrcAttribs>
 #if defined _MSC_VER && _MSC_VER <= 1900
 			inline CompositePoint &PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src, std::false_type);
 #else
-			inline typename std::enable_if<idx == sizeof...(Attribs), CompositePoint &>::type PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src);
+			inline std::enable_if_t<idx == sizeof...(Attribs), CompositePoint &> PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src);
 #endif
 
 			// point op= scalar
@@ -128,14 +128,14 @@ namespace Math
 #if defined _MSC_VER && _MSC_VER <= 1900
 			inline CompositePoint &PointOpScalar(const Scalar &src, std::true_type = std::true_type());
 #else
-			inline typename std::enable_if<idx < sizeof...(Attribs), CompositePoint &>::type PointOpScalar(const Scalar &src);
+			inline std::enable_if_t<idx < sizeof...(Attribs), CompositePoint &> PointOpScalar(const Scalar &src);
 #endif
 
 			template<class Functor, size_t idx = 0, typename Scalar>
 #if defined _MSC_VER && _MSC_VER <= 1900
 			inline CompositePoint &PointOpScalar(const Scalar &src, std::false_type);
 #else
-			inline typename std::enable_if<idx == sizeof...(Attribs), CompositePoint &>::type PointOpScalar(const Scalar &src);
+			inline std::enable_if_t<idx == sizeof...(Attribs), CompositePoint &> PointOpScalar(const Scalar &src);
 #endif
 
 		public:
@@ -242,7 +242,7 @@ namespace Math
 			static_assert(!std::is_integral<ScalarType>::value, "integral types for bezier control points is not allowed");
 
 		public:
-			typedef typename std::conditional<sizeof...(Attribs) == 0, VectorMath::vector<ScalarType, dimension>, CompositePoint<VectorMath::vector<ScalarType, dimension>, Attribs...>>::type Point;
+			typedef std::conditional_t<sizeof...(Attribs) == 0, VectorMath::vector<ScalarType, dimension>, CompositePoint<VectorMath::vector<ScalarType, dimension>, Attribs...>> Point;
 
 		public:
 			CBezier(const Point (&controlPoints)[degree + 1]);

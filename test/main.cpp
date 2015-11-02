@@ -158,7 +158,7 @@ void DGLE_API Init(void *pParameter)
 
 	stJoys = new TJoystickStates[uiJoyCnt]();
 
-	ppcJoyName = new std::remove_pointer<decltype(ppcJoyName)>::type[uiJoyCnt];
+	ppcJoyName = new std::remove_pointer_t<decltype(ppcJoyName)>[uiJoyCnt];
 
 	for (uint i = 0; i < uiJoyCnt; ++i)
 	{

@@ -115,7 +115,7 @@ consider using preprocessor instead of templates or overloading each target func
 
 #ifdef MSVC_LIMITATIONS
 	template<typename ElementType>
-	class CDataContainer<ElementType, ROWS, COLUMNS>: public std::conditional<ROWS == 0, CSwizzle<ElementType, 0, COLUMNS>, CEmpty>::type
+	class CDataContainer<ElementType, ROWS, COLUMNS>: public std::conditional_t<ROWS == 0, CSwizzle<ElementType, 0, COLUMNS>, CEmpty>
 	{
 	protected:
 		// forward ctors/dtor/= to _data
@@ -167,38 +167,38 @@ consider using preprocessor instead of templates or overloading each target func
 #else
 #	define TRIVIAL_CTOR_FORWARD CDataContainerImpl() = default;
 #	define NONTRIVIAL_CTOR_FORWARD CDataContainerImpl(): _data() {}
-#	define DATA_CONTAINER_IMPL_SPECIALIZATION(trivialCtor)																										\
-		template<typename ElementType>																															\
-		class CDataContainerImpl<ElementType, ROWS, COLUMNS, trivialCtor>: public std::conditional<ROWS == 0, CSwizzle<ElementType, 0, COLUMNS>, CEmpty>::type	\
-		{																																						\
-		protected:																																				\
-			/*forward ctors/dtor/= to _data*/																													\
-			BOOST_PP_IIF(trivialCtor, TRIVIAL_CTOR_FORWARD, NONTRIVIAL_CTOR_FORWARD)																			\
-			CDataContainerImpl(const CDataContainerImpl &src): _data(src._data)																					\
-			{																																					\
-			}																																					\
-			CDataContainerImpl(CDataContainerImpl &&src): _data(std::move(src._data))																			\
-			{																																					\
-			}																																					\
-			~CDataContainerImpl()																																\
-			{																																					\
-				_data.~CData<ElementType, ROWS, COLUMNS>();																										\
-			}																																					\
-			void operator =(const CDataContainerImpl &right)																									\
-			{																																					\
-				_data = right._data;																															\
-			}																																					\
-			void operator =(CDataContainerImpl &&right)																											\
-			{																																					\
-				_data = std::move(right._data);																													\
-			}																																					\
-		public:																																					\
-			union																																				\
-			{																																					\
-				CData<ElementType, ROWS, COLUMNS> _data;																										\
-				/*gcc does not allow class definition inside anonymous union*/																					\
-				GENERATE_SWIZZLES((SWIZZLE_OBJECT))																												\
-			};																																					\
+#	define DATA_CONTAINER_IMPL_SPECIALIZATION(trivialCtor)																									\
+		template<typename ElementType>																														\
+		class CDataContainerImpl<ElementType, ROWS, COLUMNS, trivialCtor>: public std::conditional_t<ROWS == 0, CSwizzle<ElementType, 0, COLUMNS>, CEmpty>	\
+		{																																					\
+		protected:																																			\
+			/*forward ctors/dtor/= to _data*/																												\
+			BOOST_PP_IIF(trivialCtor, TRIVIAL_CTOR_FORWARD, NONTRIVIAL_CTOR_FORWARD)																		\
+			CDataContainerImpl(const CDataContainerImpl &src): _data(src._data)																				\
+			{																																				\
+			}																																				\
+			CDataContainerImpl(CDataContainerImpl &&src): _data(std::move(src._data))																		\
+			{																																				\
+			}																																				\
+			~CDataContainerImpl()																															\
+			{																																				\
+				_data.~CData<ElementType, ROWS, COLUMNS>();																									\
+			}																																				\
+			void operator =(const CDataContainerImpl &right)																								\
+			{																																				\
+				_data = right._data;																														\
+			}																																				\
+			void operator =(CDataContainerImpl &&right)																										\
+			{																																				\
+				_data = std::move(right._data);																												\
+			}																																				\
+		public:																																				\
+			union																																			\
+			{																																				\
+				CData<ElementType, ROWS, COLUMNS> _data;																									\
+				/*gcc does not allow class definition inside anonymous union*/																				\
+				GENERATE_SWIZZLES((SWIZZLE_OBJECT))																											\
+			};																																				\
 		};
 	DATA_CONTAINER_IMPL_SPECIALIZATION(0)
 	DATA_CONTAINER_IMPL_SPECIALIZATION(1)
@@ -483,7 +483,7 @@ consider using preprocessor instead of templates or overloading each target func
 					template<class DstIter = DstIter>
 					struct DstWasModified : mpl::not_equal_to<typename mpl::deref<DstIter>::type, typename mpl::deref<typename FindSrcWrittenToDstIter<>::type>::type> {};
 				public:
-					typedef typename std::conditional<assign && DstWasAlreadyWritten::value, DstWasModified<>, DstWasAlreadyWritten>::type type;
+					typedef std::conditional_t<assign && DstWasAlreadyWritten::value, DstWasModified<>, DstWasAlreadyWritten> type;
 				};
 				typedef typename mpl::iter_fold<CCuttedSrcSwizzleVector, std::false_type, mpl::or_<mpl::_1, Pred<mpl::_2>>>::type Result;
 			public:
@@ -616,7 +616,7 @@ consider using preprocessor instead of templates or overloading each target func
 
 			// generic vector/matrix
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			class CDataContainer : public std::conditional<rows == 0, CSwizzle<ElementType, 0, columns>, CEmpty>::type
+			class CDataContainer : public std::conditional_t<rows == 0, CSwizzle<ElementType, 0, columns>, CEmpty>
 			{
 			protected:
 				CData<ElementType, rows, columns> _data;
@@ -833,7 +833,7 @@ consider using preprocessor instead of templates or overloading each target func
 				//}
 			public:
 				template<typename F>
-				vector<typename std::result_of<F &(ElementType)>::type, SwizzleDesc::TDimension::value> apply(F f) const;
+				vector<std::result_of_t<F &(ElementType)>, SwizzleDesc::TDimension::value> apply(F f) const;
 
 				template<typename TResult>
 				vector<TResult, SwizzleDesc::TDimension::value> apply(TResult f(ElementType)) const
@@ -1353,12 +1353,12 @@ consider using preprocessor instead of templates or overloading each target func
 				~CSwizzleIteratorImpl() = default;
 				// required by stl => public
 			public:
-				typename std::conditional
+				std::conditional_t
 				<
 					sizeof(typename CSwizzleIteratorImpl::value_type) <= sizeof(void *),
 					typename CSwizzleIteratorImpl::value_type,
 					typename CSwizzleIteratorImpl::reference
-				>::type operator *() const
+				> operator *() const
 				{
 					return _swizzle[_i];
 				}
@@ -2080,7 +2080,7 @@ consider using preprocessor instead of templates or overloading each target func
 				TRow &operator [](unsigned int idx) noexcept;
 			public:
 				template<typename F>
-				matrix<typename std::result_of<F &(ElementType)>::type, rows, columns> apply(F f) const;
+				matrix<std::result_of_t<F &(ElementType)>, rows, columns> apply(F f) const;
 
 				template<typename TResult>
 				matrix<TResult, rows, columns> apply(TResult f(ElementType)) const
@@ -2120,11 +2120,11 @@ consider using preprocessor instead of templates or overloading each target func
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>
 			template<typename F>
-			inline vector<typename std::result_of<F &(ElementType)>::type, SwizzleDesc::TDimension::value>
+			inline vector<std::result_of_t<F &(ElementType)>, SwizzleDesc::TDimension::value>
 			CSwizzleBase<ElementType, rows, columns, SwizzleDesc, odd, namingSet>::apply(F f) const
 			{
 				constexpr unsigned int dimension = SwizzleDesc::TDimension::value;
-				vector<typename std::result_of<F &(ElementType)>::type, dimension> result;
+				vector<std::result_of_t<F &(ElementType)>, dimension> result;
 				for (unsigned i = 0; i < dimension; i++)
 					result[i] = f(static_cast<const TSwizzle &>(*this)[i]);
 				return result;
@@ -2571,9 +2571,9 @@ consider using preprocessor instead of templates or overloading each target func
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				template<typename F>
-				inline auto matrix<ElementType, rows, columns>::apply(F f) const -> matrix<typename std::result_of<F &(ElementType)>::type, rows, columns>
+				inline auto matrix<ElementType, rows, columns>::apply(F f) const -> matrix<std::result_of_t<F &(ElementType)>, rows, columns>
 				{
-					matrix<typename std::result_of<F &(ElementType)>::type, rows, columns> result;
+					matrix<std::result_of_t<F &(ElementType)>, rows, columns> result;
 					for (unsigned i = 0; i < rows; i++)
 						result[i] = (*this)[i].apply(f);
 					return result;
@@ -2814,25 +2814,25 @@ consider using preprocessor instead of templates or overloading each target func
 					inline bool f(const CSwizzle<ElementType, rows, columns, SwizzleDesc, odd, namingSet, std::integral_constant<bool, SwizzleDesc::isWriteMaskValid>> &src)	\
 					{																																							\
 						typedef CSwizzleIterator<ElementType, rows, columns, SwizzleDesc, odd, namingSet> TSwizzleIterator;														\
-						return std::f##_of(TSwizzleIterator(src, 0), TSwizzleIterator(src, SwizzleDesc::TDimension::value), [](typename std::conditional						\
+						return std::f##_of(TSwizzleIterator(src, 0), TSwizzleIterator(src, SwizzleDesc::TDimension::value), [](std::conditional_t								\
 						<																																						\
 							sizeof(typename TSwizzleIterator::value_type) <= sizeof(void *),																					\
 							typename TSwizzleIterator::value_type,																												\
 							typename TSwizzleIterator::reference																												\
-						>::type element) -> bool {return element;});																											\
+						> element) -> bool {return element;});																													\
 					};
 #else
-#				define FUNCTION_DEFINITION(f)																												\
-					template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>				\
-					inline bool f(const CSwizzle<ElementType, rows, columns, SwizzleDesc, odd, namingSet> &src)												\
-					{																																		\
-						typedef CSwizzleIterator<ElementType, rows, columns, SwizzleDesc, odd, namingSet> TSwizzleIterator;									\
-						return std::f##_of(TSwizzleIterator(src, 0), TSwizzleIterator(src, SwizzleDesc::TDimension::value), [](typename std::conditional	\
-						<																																	\
-							sizeof(typename TSwizzleIterator::value_type) <= sizeof(void *),																\
-							typename TSwizzleIterator::value_type,																							\
-							typename TSwizzleIterator::reference																							\
-						>::type element) -> bool {return element;});																						\
+#				define FUNCTION_DEFINITION(f)																										\
+					template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>		\
+					inline bool f(const CSwizzle<ElementType, rows, columns, SwizzleDesc, odd, namingSet> &src)										\
+					{																																\
+						typedef CSwizzleIterator<ElementType, rows, columns, SwizzleDesc, odd, namingSet> TSwizzleIterator;							\
+						return std::f##_of(TSwizzleIterator(src, 0), TSwizzleIterator(src, SwizzleDesc::TDimension::value), [](std::conditional_t	\
+						<																															\
+							sizeof(typename TSwizzleIterator::value_type) <= sizeof(void *),														\
+							typename TSwizzleIterator::value_type,																					\
+							typename TSwizzleIterator::reference																					\
+						> element) -> bool {return element;});																						\
 					};
 #endif
 				FUNCTION_DEFINITION(all)

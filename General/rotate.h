@@ -60,7 +60,7 @@ namespace RotImpl
 }
 
 template<unsigned n, typename Value, typename Shift>
-inline auto rotl(Value value, Shift shift) -> typename std::make_unsigned<typename std::common_type<Value, decltype(RotImpl::rotl<n>(value, shift))>::type>::type
+inline auto rotl(Value value, Shift shift) -> std::make_unsigned_t<std::common_type_t<Value, decltype(RotImpl::rotl<n>(value, shift))>>
 {
 	static_assert(std::is_integral<Value>::value && std::is_integral<Shift>::value, "rotate works for integral types only");
 	static_assert(n <= std::numeric_limits<std::uintmax_t>::digits, "too large n");
@@ -68,7 +68,7 @@ inline auto rotl(Value value, Shift shift) -> typename std::make_unsigned<typena
 }
 
 template<typename Value, typename Shift>
-inline auto rotl(Value value, Shift shift) -> decltype(rotl<std::numeric_limits<std::make_unsigned<Value>::type>::digits>(value, shift))
+inline auto rotl(Value value, Shift shift) -> decltype(rotl<std::numeric_limits<std::make_unsigned_t<Value>>::digits>(value, shift))
 {
-	return rotl<std::numeric_limits<std::make_unsigned<Value>::type>::digits>(value, shift);
+	return rotl<std::numeric_limits<std::make_unsigned_t<Value>>::digits>(value, shift);
 }
