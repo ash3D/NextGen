@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		4.10.2015 (c)Alexey Shaydurov
+\date		2.11.2015 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -182,7 +182,7 @@ consider using preprocessor instead of templates or overloading each target func
 			}																																					\
 			~CDataContainerImpl()																																\
 			{																																					\
-				/*_data.~CData<ElementType, ROWS, COLUMNS>();*/																										\
+				_data.~CData<ElementType, ROWS, COLUMNS>();																										\
 			}																																					\
 			void operator =(const CDataContainerImpl &right)																									\
 			{																																					\
