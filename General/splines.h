@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		1.11.2015 (c)Korotkov Andrey
+\date		2.11.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -87,7 +87,7 @@ namespace Math
 #if defined _MSC_VER && _MSC_VER <= 1900
 				-> CompositePoint<Pos, Attribs...>;
 #else
-				-> CompositePoint<std::decay_t<decltype(/*std::declval<*/Functor/*>*/()(left.pos, right.pos))>, std::decay_t<decltype(std::declval<Functor>()(std::get<idx>(left.attribs), std::get<idx>(right.attribs)))>...>;
+				-> CompositePoint<std::decay_t<decltype(std::declval<Functor>()(left.pos, right.pos))>, std::decay_t<decltype(std::declval<Functor>()(std::get<idx>(left.attribs), std::get<idx>(right.attribs)))>...>;
 #endif
 
 			// point op scalar
