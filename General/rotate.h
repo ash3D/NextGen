@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		27.9.2015 (c)Korotkov Andrey
+\date		3.11.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -19,62 +19,52 @@ See "DGLE.h" for more details.
 namespace RotImpl
 {
 	template<unsigned n>
-	struct RotL
-	{
-		static auto apply(typename boost::uint_t<n>::fast value, unsigned int shift) noexcept -> decltype(value);
-	};
-
-	template<unsigned n>
-	auto RotL<n>::apply(typename boost::uint_t<n>::fast value, unsigned int shift) noexcept -> decltype(value)
+	auto rotl(typename boost::uint_t<n>::fast value, unsigned int shift) noexcept -> std::enable_if_t<n != 8 && n != 16 && n != 32 && n != 64, decltype(value)>
 	{
 		shift %= n;
 		const auto mask = (decltype(value)(1) << n) - decltype(value)(1);
 		return value & ~mask | (value << shift | (value & mask) >> n - shift) & mask;
 	}
 
-	template<>
-	struct RotL<8>
+	template<unsigned n>
+	std::enable_if_t<n == 8, typename std::function<decltype(_rotl8)>::result_type> rotl(
+		typename std::function<decltype(_rotl8)>::first_argument_type value,
+		typename std::function<decltype(_rotl8)>::second_argument_type shift)
 	{
-		static std::function<decltype(_rotl8)>::result_type apply(std::function<decltype(_rotl8)>::first_argument_type value, std::function<decltype(_rotl8)>::second_argument_type shift)
-		{
-			return _rotl8(value, shift);
-		}
-	};
+		return _rotl8(value, shift);
+	}
 
-	template<>
-	struct RotL<16>
+	template<unsigned n>
+	std::enable_if_t<n == 16, typename std::function<decltype(_rotl16)>::result_type> rotl(
+		typename std::function<decltype(_rotl16)>::first_argument_type value,
+		typename std::function<decltype(_rotl16)>::second_argument_type shift)
 	{
-		static std::function<decltype(_rotl16)>::result_type apply(std::function<decltype(_rotl16)>::first_argument_type value, std::function<decltype(_rotl16)>::second_argument_type shift)
-		{
-			return _rotl16(value, shift);
-		}
-	};
+		return _rotl16(value, shift);
+	}
 
-	template<>
-	struct RotL<32>
+	template<unsigned n>
+	std::enable_if_t<n == 32, typename std::function<decltype(_rotl)>::result_type> rotl(
+		typename std::function<decltype(_rotl)>::first_argument_type value,
+		typename std::function<decltype(_rotl)>::second_argument_type shift)
 	{
-		static std::function<decltype(_rotl)>::result_type apply(std::function<decltype(_rotl)>::first_argument_type value, std::function<decltype(_rotl)>::second_argument_type shift)
-		{
-			return _rotl(value, shift);
-		}
-	};
+		return _rotl(value, shift);
+	}
 
-	template<>
-	struct RotL<64>
+	template<unsigned n>
+	std::enable_if_t<n == 64, typename std::function<decltype(_rotl64)>::result_type> rotl(
+		typename std::function<decltype(_rotl64)>::first_argument_type value,
+		typename std::function<decltype(_rotl64)>::second_argument_type shift)
 	{
-		static std::function<decltype(_rotl64)>::result_type apply(std::function<decltype(_rotl64)>::first_argument_type value, std::function<decltype(_rotl64)>::second_argument_type shift)
-		{
-			return _rotl64(value, shift);
-		}
-	};
+		return _rotl64(value, shift);
+	}
 }
 
 template<unsigned n, typename Value, typename Shift>
-inline auto rotl(Value value, Shift shift) -> typename std::make_unsigned<typename std::common_type<Value, decltype(RotImpl::RotL<n>::apply(value, shift))>::type>::type
+inline auto rotl(Value value, Shift shift) -> typename std::make_unsigned<typename std::common_type<Value, decltype(RotImpl::rotl<n>(value, shift))>::type>::type
 {
 	static_assert(std::is_integral<Value>::value && std::is_integral<Shift>::value, "rotate works for integral types only");
 	static_assert(n <= std::numeric_limits<std::uintmax_t>::digits, "too large n");
-	return RotImpl::RotL<n>::apply(value, shift);
+	return RotImpl::rotl<n>(value, shift);
 }
 
 template<typename Value, typename Shift>
