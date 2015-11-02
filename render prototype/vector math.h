@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		4.10.2015 (c)Alexey Shaydurov
+\date		2.11.2015 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1483,6 +1483,25 @@ consider using preprocessor instead of templates or overloading each target func
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
 
+#ifdef MSVC_LIMITATIONS
+#				define OPERATOR_DEFINITION(op)																															\
+					template																																			\
+					<																																					\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc, bool leftOdd, unsigned leftNamingSet,			\
+						typename leftIsWriteMaskValid,																													\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet,	\
+						typename rightIsWriteMaskValid																													\
+					>																																					\
+					inline typename CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet>::TOperationResult &&operator op##=(		\
+					CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet, leftIsWriteMaskValid> &&left,								\
+					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet, rightIsWriteMaskValid> &right)				\
+					{																																					\
+						return std::move(operator op##=<false>(left, right));																							\
+					};
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#				undef OPERATOR_DEFINITION
+#endif
+
 				// leftIsWriteMaskValid/rightIsWriteMaskValid is workaround for VS 2015
 #				define OPERATOR_DEFINITION(op)																															\
 					template																																			\
@@ -1515,6 +1534,23 @@ consider using preprocessor instead of templates or overloading each target func
 					};
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
+
+#ifdef MSVC_LIMITATIONS
+#				define OPERATOR_DEFINITION(op)																															\
+					template																																			\
+					<																																					\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc, bool leftOdd, unsigned leftNamingSet,			\
+						typename RightElementType, unsigned int rightDimension																							\
+					>																																					\
+					inline typename CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet>::TOperationResult &&operator op##=(		\
+					CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet> &&left,													\
+					const vector<RightElementType, rightDimension> &right)																								\
+					{																																					\
+						return std::move(left) op##= static_cast<const CSwizzle<RightElementType, 0, rightDimension> &>(right);											\
+					};
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#				undef OPERATOR_DEFINITION
+#endif
 
 				// VS 2013/2015 call 'CSwizzle & op= const CSwizzle &' instead of 'CSwizzle & op= const CSwizzle &&' for variant with static_cast<const CSwizzle &&>
 #if defined _MSC_VER && _MSC_VER <= 1900
@@ -1566,6 +1602,55 @@ consider using preprocessor instead of templates or overloading each target func
 					};
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
+
+#ifdef MSVC_LIMITATIONS
+#				define OPERATOR_DEFINITION(op)																															\
+					template																																			\
+					<																																					\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc, bool leftOdd, unsigned leftNamingSet,			\
+						typename RightElementType																														\
+					>																																					\
+					inline typename CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet>::TOperationResult &&operator op##=(		\
+					CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftOdd, leftNamingSet> &&left,													\
+					RightElementType right)																																\
+					{																																					\
+						return std::move(left op##= right);																												\
+					};
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#				undef OPERATOR_DEFINITION
+
+#ifdef MSVC_LIMITATIONS
+#				define OPERATOR_DEFINITION(op)																															\
+					template																																			\
+					<																																					\
+						typename LeftElementType, unsigned int leftDimension,																							\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet	\
+					>																																					\
+					inline vector<LeftElementType, leftDimension> &&operator op##=(																						\
+					vector<LeftElementType, leftDimension> &&left,																										\
+					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightOdd, rightNamingSet> &&right)										\
+					{																																					\
+						return static_cast<CSwizzle<LeftElementType, 0, leftDimension> &&>(left) op##= right;															\
+					};
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#				undef OPERATOR_DEFINITION
+
+#				define OPERATOR_DEFINITION(op)																															\
+					template																																			\
+					<																																					\
+						typename LeftElementType, unsigned int leftDimension,																							\
+						typename RightElementType, unsigned int rightDimension																							\
+					>																																					\
+					inline vector<LeftElementType, leftDimension> &&operator op##=(																						\
+					vector<LeftElementType, leftDimension> &&left,																										\
+					const vector<RightElementType, rightDimension> &&right)																								\
+					{																																					\
+						return static_cast<CSwizzle<LeftElementType, 0, leftDimension> &&>(left) op##= right;															\
+					};
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#				undef OPERATOR_DEFINITION
+#endif
+#endif
 
 				// leftIsWriteMaskValid/rightIsWriteMaskValid is workaround for VS 2015
 #				define OPERATOR_DEFINITION(op)																															\
