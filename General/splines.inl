@@ -18,6 +18,9 @@ See "DGLE.h" for more details.
 #include <boost/math/special_functions/binomial.hpp>
 #include "general math.h"	// for lerp
 #include "misc.h"			// for Reserve()
+#ifdef MSVC_LIMITATIONS
+#include <cstring>			// for memset
+#endif
 
 #pragma region CompositePoint
 // TODO: use C++17 nested namespace
@@ -381,6 +384,9 @@ auto Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::operator
 	for (signed i = degree - 1; i >= 0; i--)
 		factors2[i] = factors2[i + 1] * (1 - u);
 	auto result = typename ControlPoints::value_type();	// value init
+#ifdef MSVC_LIMITATIONS
+	memset(&result, 0, sizeof(result));
+#endif
 	for (unsigned i = 0; i <= degree; i++, factor1 *= u)
 		result += boost::math::binomial_coefficient<ScalarType>(degree, i) * factor1 * factors2[i] * controlPoints[i];
 	return result;
