@@ -121,6 +121,7 @@ namespace Math
 			return { op(left, right.pos), op(left, std::get<idx>(right.attribs))... };
 		}
 
+#ifndef MSVC_LIMITATIONS
 		// point op= point
 		template<class Pos, class ...Attribs>
 		template<class Functor, size_t idx, class SrcPos, class ...SrcAttribs>
@@ -132,7 +133,7 @@ namespace Math
 		{
 			Functor()(std::get<idx>(attribs), std::get<idx>(src.attribs));
 #if defined _MSC_VER && _MSC_VER <= 1900
-		constexpr auto nextIdx = idx + 1;
+			constexpr auto nextIdx = idx + 1;
 			return PointOpPoint<Functor, nextIdx>(src, std::integral_constant<bool, nextIdx < sizeof...(Attribs)>());
 #else
 			return PointOpPoint<Functor, idx + 1>(src);
@@ -162,7 +163,7 @@ namespace Math
 		{
 			Functor()(std::get<idx>(attribs), src);
 #if defined _MSC_VER && _MSC_VER <= 1900
-		constexpr auto nextIdx = idx + 1;
+			constexpr auto nextIdx = idx + 1;
 			return PointOpScalar<Functor, nextIdx>(src, std::integral_constant<bool, nextIdx < sizeof...(Attribs)>());
 #else
 			return PointOpScalar<Functor, idx + 1>(src);
@@ -180,6 +181,7 @@ namespace Math
 			Functor()(pos, src);
 			return *this;
 		}
+#endif
 
 		template<class Pos, class ...Attribs>
 		template<class SrcPos, class ...SrcAttribs>
@@ -228,7 +230,11 @@ namespace Math
 		template<class SrcPos, class ...SrcAttribs>
 		inline auto CompositePoint<Pos, Attribs...>::operator +=(const CompositePoint<SrcPos, SrcAttribs...> &src) -> CompositePoint &
 		{
+#ifdef MSVC_LIMITATIONS
+			return *this = *this + src;
+#else
 			return PointOpPoint<AddAssign>(src);
+#endif
 		}
 
 		// point -= point
@@ -236,7 +242,11 @@ namespace Math
 		template<class SrcPos, class ...SrcAttribs>
 		inline auto CompositePoint<Pos, Attribs...>::operator -=(const CompositePoint<SrcPos, SrcAttribs...> &src) -> CompositePoint &
 		{
+#ifdef MSVC_LIMITATIONS
+			return *this = *this - src;
+#else
 			return PointOpPoint<SubAssign>(src);
+#endif
 		}
 
 		// point *= scalar
@@ -244,7 +254,11 @@ namespace Math
 		template<typename Scalar>
 		inline auto CompositePoint<Pos, Attribs...>::operator *=(const Scalar &src) -> CompositePoint &
 		{
+#ifdef MSVC_LIMITATIONS
+			return *this = *this * src;
+#else
 			return PointOpScalar<MulAssign>(src);
+#endif
 		}
 
 		// point /= scalar
@@ -252,7 +266,11 @@ namespace Math
 		template<typename Scalar>
 		inline auto CompositePoint<Pos, Attribs...>::operator /=(const Scalar &src) -> CompositePoint &
 		{
+#ifdef MSVC_LIMITATIONS
+			return *this = *this / src;
+#else
 			return PointOpScalar<DivAssign>(src);
+#endif
 		}
 
 		// point + point

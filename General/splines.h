@@ -108,12 +108,13 @@ namespace Math
 				-> CompositePoint<std::decay_t<decltype(std::declval<Functor>()(left, right.pos))>, std::decay_t<decltype(std::declval<Functor>()(left, std::get<idx>(right.attribs)))>...>;
 #endif
 
+#ifndef MSVC_LIMITATIONS
 			// point op= point
 			template<class Functor, size_t idx = 0, class SrcPos, class ...SrcAttribs>
 #if defined _MSC_VER && _MSC_VER <= 1900
 			inline CompositePoint &PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src, std::true_type = std::true_type());
 #else
-			inline auto PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src) -> std::enable_if_t<idx < sizeof...(Attribs), CompositePoint &>;
+			inline std::enable_if_t<idx < sizeof...(Attribs), CompositePoint &> PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src);
 #endif
 
 			template<class Functor, size_t idx = 0, class SrcPos, class ...SrcAttribs>
@@ -137,9 +138,18 @@ namespace Math
 #else
 			inline std::enable_if_t<idx == sizeof...(Attribs), CompositePoint &> PointOpScalar(const Scalar &src);
 #endif
+#endif
 
 		public:
 			CompositePoint() = default;
+
+#ifdef MSVC_LIMITATIONS
+			template<class Src>
+			CompositePoint(Src &&src) : pos(std::forward<Src>(src).pos)
+			{
+				attribs = std::forward<Src>(src).attribs;
+			}
+#endif
 
 			template<class SrcPos, class ...SrcAttribs>
 			CompositePoint(SrcPos &&pos, SrcAttribs &&...attribs);
