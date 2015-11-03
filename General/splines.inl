@@ -327,7 +327,7 @@ namespace Math
 #pragma endregion
 
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
-Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(const Point (&src)[degree + 1])
+Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(const typename ControlPoints::value_type (&src)[degree + 1])
 {
 	std::copy_n(controlPoints.data(), controlPoints.size(), src);
 }
@@ -374,13 +374,13 @@ controlPoints{ std::forward<Points>(controlPoints)... } {}
 
 // consider using variadic template to unroll loop
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
-auto Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::operator ()(ScalarType u) const -> Point
+auto Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::operator ()(ScalarType u) const -> typename ControlPoints::value_type
 {
 	ScalarType factor1 = 1, factors2[degree + 1];
 	factors2[degree] = 1;
 	for (signed i = degree - 1; i >= 0; i--)
 		factors2[i] = factors2[i + 1] * (1 - u);
-	Point result = Point();	// value init
+	auto result = typename ControlPoints::value_type();	// value init
 	for (unsigned i = 0; i <= degree; i++, factor1 *= u)
 		result += boost::math::binomial_coefficient<ScalarType>(degree, i) * factor1 * factors2[i] * controlPoints[i];
 	return result;
@@ -396,14 +396,14 @@ void Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::Tessella
 
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
 template<typename Iterator>
-void Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::Subdiv(Iterator output, ScalarType delta, const Point controlPoints[degree + 1])
+void Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::Subdiv(Iterator output, ScalarType delta, const ControlPoints &controlPoints)
 {
 	// TODO: move to Math
-	const auto point_line_dist = [](const Point &point, const Point &lineBegin, const Point &lineEnd) -> ScalarType
+	const auto point_line_dist = [](typename ControlPoints::const_reference point, typename ControlPoints::const_reference lineBegin, typename ControlPoints::const_reference lineEnd) -> ScalarType
 	{
 		const auto point_dir = GetPos(point) - GetPos(lineBegin), line_dir = GetPos(lineEnd) - GetPos(lineBegin);
 		// project point_dir on line_dir
-		const Point proj = dot(point_dir, line_dir) / dot(line_dir, line_dir) * line_dir;
+		const auto proj = dot(point_dir, line_dir) / dot(line_dir, line_dir) * line_dir;
 		return length(point_dir - proj);
 	};
 
@@ -422,7 +422,7 @@ void Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::Subdiv(I
 	else
 	{
 		constexpr auto intermediate_points_count = (degree + 1) * 2 - 1;
-		Point intermediate_points[intermediate_points_count];	// will hold control points for 2 subdivided curves (with 1 common point)
+		typename ControlPoints::value_type intermediate_points[intermediate_points_count];	// will hold control points for 2 subdivided curves (with 1 common point)
 		for (unsigned i = 0; i <= degree; i++)
 			intermediate_points[i * 2] = controlPoints[i];
 		for (unsigned insert_idx_begin = 1, insert_idx_end = intermediate_points_count; insert_idx_begin <= degree; insert_idx_begin++, insert_idx_end--)
