@@ -329,15 +329,23 @@ namespace Math
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
 Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(const Point (&src)[degree + 1])
 {
-	std::copy_n(controlPoints, std::extent<std::remove_reference_t<decltype(controlPoints)>>::value, src);
+	std::copy_n(controlPoints.data(), controlPoints.size(), src);
 }
+
+template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
+Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(const ControlPoints &controlPoints) :
+controlPoints(controlPoints) {}
+
+template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
+Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(ControlPoints &&controlPoints) :
+controlPoints(std::move(controlPoints)) {}
 
 #ifdef MSVC_LIMITATIONS
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
 template<unsigned idx>
 inline void Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::Init()
 {
-	constexpr auto count = std::extent<std::remove_reference_t<decltype(controlPoints)>>::value;
+	constexpr auto count = ControlPoints::_EEN_SIZE;	// specific for VS
 	static_assert(idx >= count, "too few control point");
 	static_assert(idx <= count, "too many control point");
 }

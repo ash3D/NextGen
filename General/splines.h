@@ -9,6 +9,7 @@ See "DGLE.h" for more details.
 
 #pragma once
 
+#include <array>
 #include <vector>
 #include <initializer_list>
 #include <utility>
@@ -253,9 +254,12 @@ namespace Math
 
 		public:
 			typedef std::conditional_t<sizeof...(Attribs) == 0, VectorMath::vector<ScalarType, dimension>, CompositePoint<VectorMath::vector<ScalarType, dimension>, Attribs...>> Point;
+			typedef std::array<Point, degree + 1> ControlPoints;
 
 		public:
 			CBezier(const Point (&controlPoints)[degree + 1]);
+			CBezier(const ControlPoints &controlPoints);
+			CBezier(ControlPoints &&controlPoints);
 
 			template<class ...Points>
 			CBezier(Points &&...controlPoints);
@@ -280,7 +284,7 @@ namespace Math
 			static void Subdiv(Iterator output, ScalarType delta, const Point controlPoints[degree + 1]);
 
 		private:
-			Point controlPoints[degree + 1];
+			std::array<Point, degree + 1> controlPoints;
 		};
 
 		namespace Impl
