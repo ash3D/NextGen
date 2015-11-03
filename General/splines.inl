@@ -332,6 +332,7 @@ Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(const
 	std::copy_n(controlPoints, std::extent<std::remove_reference_t<decltype(controlPoints)>>::value, src);
 }
 
+#ifdef MSVC_LIMITATIONS
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
 template<unsigned idx>
 inline void Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::Init()
@@ -349,13 +350,19 @@ inline void Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::I
 	controlPoints[idx] = curPoint;
 	Init<idx + 1>(restPoints...);
 }
+#endif
 
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
 template<class ...Points>
+#ifdef MSVC_LIMITATIONS
 Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(const Points &...controlPoints)
 {
 	Init<0>(controlPoints...);
 }
+#else
+Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(const Points &...controlPoints) :
+controlPoints{ controlPoints... } {}
+#endif
 
 // consider using variadic template to unroll loop
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>

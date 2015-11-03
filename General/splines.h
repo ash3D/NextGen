@@ -266,12 +266,14 @@ namespace Math
 			template<typename Iterator>
 			void Tessellate(Iterator output, ScalarType delta, bool emitFirstPoint = true) const;
 
+#ifdef MSVC_LIMITATIONS
 		private:
 			template<unsigned idx>
 			inline void Init();
 
 			template<unsigned idx, class CurPoint, class ...RestPoints>
 			inline void Init(const CurPoint &curPoint, const RestPoints &...restPoints);
+#endif
 
 		private:
 			template<typename Iterator>
