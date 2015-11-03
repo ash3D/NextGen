@@ -354,7 +354,7 @@ template<typename ScalarType, unsigned int dimension, unsigned int degree, class
 template<unsigned idx, class CurPoint, class ...RestPoints>
 inline void Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::Init(CurPoint &&curPoint, RestPoints &&...restPoints)
 {
-	static_assert(std::is_convertible<CurPoint, Point>::value, "invalid control point type");
+	static_assert(std::is_convertible<CurPoint, typename ControlPoints::value_type>::value, "invalid control point type");
 	controlPoints[idx] = std::forward<CurPoint>(curPoint);
 	Init<idx + 1>(std::forward<RestPoints>(restPoints)...);
 }
