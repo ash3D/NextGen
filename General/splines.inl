@@ -344,24 +344,24 @@ inline void Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::I
 
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
 template<unsigned idx, class CurPoint, class ...RestPoints>
-inline void Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::Init(const CurPoint &curPoint, const RestPoints &...restPoints)
+inline void Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::Init(CurPoint &&curPoint, RestPoints &&...restPoints)
 {
 	static_assert(std::is_convertible<CurPoint, Point>::value, "invalid control point type");
-	controlPoints[idx] = curPoint;
-	Init<idx + 1>(restPoints...);
+	controlPoints[idx] = std::forward<CurPoint>(curPoint);
+	Init<idx + 1>(std::forward<RestPoints>(restPoints)...);
 }
 #endif
 
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
 template<class ...Points>
 #ifdef MSVC_LIMITATIONS
-Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(const Points &...controlPoints)
+Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(Points &&...controlPoints)
 {
-	Init<0>(controlPoints...);
+	Init<0>(std::forward<Points>(controlPoints)...);
 }
 #else
-Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(const Points &...controlPoints) :
-controlPoints{ controlPoints... } {}
+Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(Points &&...controlPoints) :
+controlPoints{ std::forward<Points>(controlPoints)... } {}
 #endif
 
 // consider using variadic template to unroll loop

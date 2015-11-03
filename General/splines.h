@@ -258,7 +258,7 @@ namespace Math
 			CBezier(const Point (&controlPoints)[degree + 1]);
 
 			template<class ...Points>
-			CBezier(const Points &...controlPoints);
+			CBezier(Points &&...controlPoints);
 
 		public:
 			Point operator ()(ScalarType u) const;
@@ -272,7 +272,7 @@ namespace Math
 			inline void Init();
 
 			template<unsigned idx, class CurPoint, class ...RestPoints>
-			inline void Init(const CurPoint &curPoint, const RestPoints &...restPoints);
+			inline void Init(CurPoint &&curPoint, RestPoints &&...restPoints);
 #endif
 
 		private:
