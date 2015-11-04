@@ -18,6 +18,9 @@ See "DGLE.h" for more details.
 #include <boost/math/special_functions/binomial.hpp>
 #include "general math.h"	// for lerp
 #include "misc.h"			// for Reserve()
+#ifdef MSVC_LIMITATIONS
+#include <cstring>			// for memset
+#endif
 
 #pragma region CompositePoint
 // TODO: use C++17 nested namespace
@@ -121,6 +124,7 @@ namespace Math
 			return { op(left, right.pos), op(left, std::get<idx>(right.attribs))... };
 		}
 
+#ifndef MSVC_LIMITATIONS
 		// point op= point
 		template<class Pos, class ...Attribs>
 		template<class Functor, size_t idx, class SrcPos, class ...SrcAttribs>
@@ -132,7 +136,7 @@ namespace Math
 		{
 			Functor()(std::get<idx>(attribs), std::get<idx>(src.attribs));
 #if defined _MSC_VER && _MSC_VER <= 1900
-		constexpr auto nextIdx = idx + 1;
+			constexpr auto nextIdx = idx + 1;
 			return PointOpPoint<Functor, nextIdx>(src, std::integral_constant<bool, nextIdx < sizeof...(Attribs)>());
 #else
 			return PointOpPoint<Functor, idx + 1>(src);
@@ -162,7 +166,7 @@ namespace Math
 		{
 			Functor()(std::get<idx>(attribs), src);
 #if defined _MSC_VER && _MSC_VER <= 1900
-		constexpr auto nextIdx = idx + 1;
+			constexpr auto nextIdx = idx + 1;
 			return PointOpScalar<Functor, nextIdx>(src, std::integral_constant<bool, nextIdx < sizeof...(Attribs)>());
 #else
 			return PointOpScalar<Functor, idx + 1>(src);
@@ -180,6 +184,7 @@ namespace Math
 			Functor()(pos, src);
 			return *this;
 		}
+#endif
 
 		template<class Pos, class ...Attribs>
 		template<class SrcPos, class ...SrcAttribs>
@@ -228,7 +233,11 @@ namespace Math
 		template<class SrcPos, class ...SrcAttribs>
 		inline auto CompositePoint<Pos, Attribs...>::operator +=(const CompositePoint<SrcPos, SrcAttribs...> &src) -> CompositePoint &
 		{
+#ifdef MSVC_LIMITATIONS
+			return *this = *this + src;
+#else
 			return PointOpPoint<AddAssign>(src);
+#endif
 		}
 
 		// point -= point
@@ -236,7 +245,11 @@ namespace Math
 		template<class SrcPos, class ...SrcAttribs>
 		inline auto CompositePoint<Pos, Attribs...>::operator -=(const CompositePoint<SrcPos, SrcAttribs...> &src) -> CompositePoint &
 		{
+#ifdef MSVC_LIMITATIONS
+			return *this = *this - src;
+#else
 			return PointOpPoint<SubAssign>(src);
+#endif
 		}
 
 		// point *= scalar
@@ -244,7 +257,11 @@ namespace Math
 		template<typename Scalar>
 		inline auto CompositePoint<Pos, Attribs...>::operator *=(const Scalar &src) -> CompositePoint &
 		{
+#ifdef MSVC_LIMITATIONS
+			return *this = *this * src;
+#else
 			return PointOpScalar<MulAssign>(src);
+#endif
 		}
 
 		// point /= scalar
@@ -252,7 +269,11 @@ namespace Math
 		template<typename Scalar>
 		inline auto CompositePoint<Pos, Attribs...>::operator /=(const Scalar &src) -> CompositePoint &
 		{
+#ifdef MSVC_LIMITATIONS
+			return *this = *this / src;
+#else
 			return PointOpScalar<DivAssign>(src);
+#endif
 		}
 
 		// point + point
@@ -309,45 +330,63 @@ namespace Math
 #pragma endregion
 
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
-Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(const Point (&src)[degree + 1])
+Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(const typename ControlPoints::value_type (&src)[degree + 1])
 {
-	std::copy_n(controlPoints, std::extent<std::remove_reference_t<decltype(controlPoints)>>::value, src);
+	std::copy_n(controlPoints.data(), controlPoints.size(), src);
 }
 
+template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
+Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(const ControlPoints &controlPoints) :
+controlPoints(controlPoints) {}
+
+template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
+Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(ControlPoints &&controlPoints) :
+controlPoints(std::move(controlPoints)) {}
+
+#ifdef MSVC_LIMITATIONS
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
 template<unsigned idx>
 inline void Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::Init()
 {
-	constexpr auto count = std::extent<std::remove_reference_t<decltype(controlPoints)>>::value;
+	constexpr auto count = ControlPoints::_EEN_SIZE;	// specific for VS
 	static_assert(idx >= count, "too few control point");
 	static_assert(idx <= count, "too many control point");
 }
 
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
 template<unsigned idx, class CurPoint, class ...RestPoints>
-inline void Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::Init(const CurPoint &curPoint, const RestPoints &...restPoints)
+inline void Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::Init(CurPoint &&curPoint, RestPoints &&...restPoints)
 {
-	static_assert(std::is_convertible<CurPoint, Point>::value, "invalid control point type");
-	controlPoints[idx] = curPoint;
-	Init<idx + 1>(restPoints...);
+	static_assert(std::is_convertible<CurPoint, typename ControlPoints::value_type>::value, "invalid control point type");
+	controlPoints[idx] = std::forward<CurPoint>(curPoint);
+	Init<idx + 1>(std::forward<RestPoints>(restPoints)...);
 }
+#endif
 
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
 template<class ...Points>
-Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(const Points &...controlPoints)
+#ifdef MSVC_LIMITATIONS
+Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(Points &&...controlPoints)
 {
-	Init<0>(controlPoints...);
+	Init<0>(std::forward<Points>(controlPoints)...);
 }
+#else
+Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(Points &&...controlPoints) :
+controlPoints{ std::forward<Points>(controlPoints)... } {}
+#endif
 
 // consider using variadic template to unroll loop
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
-auto Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::operator ()(ScalarType u) const -> Point
+auto Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::operator ()(ScalarType u) const -> typename ControlPoints::value_type
 {
 	ScalarType factor1 = 1, factors2[degree + 1];
 	factors2[degree] = 1;
 	for (signed i = degree - 1; i >= 0; i--)
 		factors2[i] = factors2[i + 1] * (1 - u);
-	Point result = Point();	// value init
+	auto result = typename ControlPoints::value_type();	// value init
+#ifdef MSVC_LIMITATIONS
+	memset(&result, 0, sizeof(result));
+#endif
 	for (unsigned i = 0; i <= degree; i++, factor1 *= u)
 		result += boost::math::binomial_coefficient<ScalarType>(degree, i) * factor1 * factors2[i] * controlPoints[i];
 	return result;
@@ -363,14 +402,14 @@ void Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::Tessella
 
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
 template<typename Iterator>
-void Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::Subdiv(Iterator output, ScalarType delta, const Point controlPoints[degree + 1])
+void Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::Subdiv(Iterator output, ScalarType delta, const ControlPoints &controlPoints)
 {
 	// TODO: move to Math
-	const auto point_line_dist = [](const Point &point, const Point &lineBegin, const Point &lineEnd) -> ScalarType
+	const auto point_line_dist = [](typename ControlPoints::const_reference point, typename ControlPoints::const_reference lineBegin, typename ControlPoints::const_reference lineEnd) -> ScalarType
 	{
 		const auto point_dir = GetPos(point) - GetPos(lineBegin), line_dir = GetPos(lineEnd) - GetPos(lineBegin);
 		// project point_dir on line_dir
-		const Point proj = dot(point_dir, line_dir) / dot(line_dir, line_dir) * line_dir;
+		const auto proj = dot(point_dir, line_dir) / dot(line_dir, line_dir) * line_dir;
 		return length(point_dir - proj);
 	};
 
@@ -389,7 +428,7 @@ void Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::Subdiv(I
 	else
 	{
 		constexpr auto intermediate_points_count = (degree + 1) * 2 - 1;
-		Point intermediate_points[intermediate_points_count];	// will hold control points for 2 subdivided curves (with 1 common point)
+		typename ControlPoints::value_type intermediate_points[intermediate_points_count];	// will hold control points for 2 subdivided curves (with 1 common point)
 		for (unsigned i = 0; i <= degree; i++)
 			intermediate_points[i * 2] = controlPoints[i];
 		for (unsigned insert_idx_begin = 1, insert_idx_end = intermediate_points_count; insert_idx_begin <= degree; insert_idx_begin++, insert_idx_end--)

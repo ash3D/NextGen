@@ -9,6 +9,7 @@ See "DGLE.h" for more details.
 
 #pragma once
 
+#include <array>
 #include <vector>
 #include <initializer_list>
 #include <utility>
@@ -108,12 +109,13 @@ namespace Math
 				-> CompositePoint<std::decay_t<decltype(std::declval<Functor>()(left, right.pos))>, std::decay_t<decltype(std::declval<Functor>()(left, std::get<idx>(right.attribs)))>...>;
 #endif
 
+#ifndef MSVC_LIMITATIONS
 			// point op= point
 			template<class Functor, size_t idx = 0, class SrcPos, class ...SrcAttribs>
 #if defined _MSC_VER && _MSC_VER <= 1900
 			inline CompositePoint &PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src, std::true_type = std::true_type());
 #else
-			inline auto PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src) -> std::enable_if_t<idx < sizeof...(Attribs), CompositePoint &>;
+			inline std::enable_if_t<idx < sizeof...(Attribs), CompositePoint &> PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src);
 #endif
 
 			template<class Functor, size_t idx = 0, class SrcPos, class ...SrcAttribs>
@@ -137,9 +139,18 @@ namespace Math
 #else
 			inline std::enable_if_t<idx == sizeof...(Attribs), CompositePoint &> PointOpScalar(const Scalar &src);
 #endif
+#endif
 
 		public:
 			CompositePoint() = default;
+
+#ifdef MSVC_LIMITATIONS
+			template<class Src>
+			CompositePoint(Src &&src) : pos(std::forward<Src>(src).pos)
+			{
+				attribs = std::forward<Src>(src).attribs;
+			}
+#endif
 
 			template<class SrcPos, class ...SrcAttribs>
 			CompositePoint(SrcPos &&pos, SrcAttribs &&...attribs);
@@ -242,33 +253,41 @@ namespace Math
 			static_assert(!std::is_integral<ScalarType>::value, "integral types for bezier control points is not allowed");
 
 		public:
-			typedef std::conditional_t<sizeof...(Attribs) == 0, VectorMath::vector<ScalarType, dimension>, CompositePoint<VectorMath::vector<ScalarType, dimension>, Attribs...>> Point;
+			typedef std::array<
+				std::conditional_t<sizeof...(Attribs) == 0,
+					VectorMath::vector<ScalarType, dimension>,
+					CompositePoint<VectorMath::vector<ScalarType, dimension>, Attribs...>>,
+				degree + 1> ControlPoints;
 
 		public:
-			CBezier(const Point (&controlPoints)[degree + 1]);
+			CBezier(const typename ControlPoints::value_type (&controlPoints)[degree + 1]);
+			CBezier(const ControlPoints &controlPoints);
+			CBezier(ControlPoints &&controlPoints);
 
 			template<class ...Points>
-			CBezier(const Points &...controlPoints);
+			CBezier(Points &&...controlPoints);
 
 		public:
-			Point operator ()(ScalarType u) const;
+			typename ControlPoints::value_type operator ()(ScalarType u) const;
 
 			template<typename Iterator>
 			void Tessellate(Iterator output, ScalarType delta, bool emitFirstPoint = true) const;
 
+#ifdef MSVC_LIMITATIONS
 		private:
 			template<unsigned idx>
 			inline void Init();
 
 			template<unsigned idx, class CurPoint, class ...RestPoints>
-			inline void Init(const CurPoint &curPoint, const RestPoints &...restPoints);
+			inline void Init(CurPoint &&curPoint, RestPoints &&...restPoints);
+#endif
 
 		private:
 			template<typename Iterator>
-			static void Subdiv(Iterator output, ScalarType delta, const Point controlPoints[degree + 1]);
+			static void Subdiv(Iterator output, ScalarType delta, const ControlPoints &controlPoints);
 
 		private:
-			Point controlPoints[degree + 1];
+			ControlPoints controlPoints;
 		};
 
 		namespace Impl
@@ -280,7 +299,7 @@ namespace Math
 			protected:
 				typedef CBezier<ScalarType, dimension, 3, Attribs...> Bezier;
 			public:
-				typedef typename Bezier::Point Point;
+				typedef typename Bezier::ControlPoints::value_type Point;
 			};
 
 			template<template<typename ScalarType, unsigned int dimension, class ...Attribs> class CBezierInterpolationImpl, typename ScalarType, unsigned int dimension, class ...Attribs>
