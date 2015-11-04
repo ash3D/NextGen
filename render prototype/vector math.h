@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		2.11.2015 (c)Alexey Shaydurov
+\date		4.11.2015 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -645,7 +645,7 @@ consider using preprocessor instead of templates or overloading each target func
 				{
 					  assert(idx < dimension);
 					  return _scalar;
-			}
+				}
 			public:
 				static constexpr unsigned dimension = 1;
 			};
@@ -663,7 +663,7 @@ consider using preprocessor instead of templates or overloading each target func
 				const ElementType &operator [](unsigned idx) const noexcept
 				{
 					  return _swizzle[idx];
-			}
+				}
 			public:
 				static constexpr unsigned dimension = SwizzleDesc::TDimension::value;
 			};
@@ -688,7 +688,7 @@ consider using preprocessor instead of templates or overloading each target func
 				const ElementType &operator [](unsigned idx) const noexcept
 				{
 					  return _matrix[idx / columns][idx % columns];
-			}
+				}
 			public:
 				static constexpr unsigned dimension = rows * columns;
 			};
