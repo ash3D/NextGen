@@ -649,13 +649,13 @@ consider using preprocessor instead of templates or overloading each target func
 #else
 				inline CData(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet> &src, std::index_sequence<idx...>);
 #endif
-#		endif
 
 				template<typename SrcElementType, size_t ...idx>
 				inline CData(const SrcElementType &scalar, std::index_sequence<idx...>);
 
 				template<typename SrcElementType, size_t ...idx>
 				inline CData(const SrcElementType (&src)[dimension], std::index_sequence<idx...>);
+#		endif
 			private:
 				ElementType _data[dimension];
 			};
