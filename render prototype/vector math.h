@@ -212,10 +212,10 @@ consider using preprocessor instead of templates or overloading each target func
 
 	// specialization for graphics vectors/matrices
 	template<typename ElementType>
-	class CDataContainer<ElementType, ROWS, COLUMNS>: public CDataContainerImpl<ElementType, ROWS, COLUMNS, std::is_trivially_default_constructible<CData<ElementType, ROWS, COLUMNS>>::value>
+	class CDataContainer<ElementType, ROWS, COLUMNS>: public CDataContainerImpl<ElementType, ROWS, COLUMNS, std::is_trivially_default_constructible<ElementType>::value>
 	{
 	protected:
-		using CDataContainerImpl<ElementType, ROWS, COLUMNS, std::is_trivially_default_constructible<CData<ElementType, ROWS, COLUMNS>>::value>::CDataContainerImpl;
+		using CDataContainerImpl<ElementType, ROWS, COLUMNS, std::is_trivially_default_constructible<ElementType>::value>::CDataContainerImpl;
 		CDataContainer() = default;
 		CDataContainer(const CDataContainer &) = default;
 		CDataContainer(CDataContainer &&) = default;
@@ -1323,21 +1323,25 @@ consider using preprocessor instead of templates or overloading each target func
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>
 			class CSwizzle<ElementType, rows, columns, SwizzleDesc, odd, namingSet, std::false_type>: public CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>
 			{
+				friend class CDataContainerImpl<ElementType, rows, columns, false>;
+				friend class CDataContainerImpl<ElementType, rows, columns, true>;
 			public:
 #ifndef MSVC_LIMITATIONS
 				CSwizzle &operator =(const CSwizzle &) = delete;
 #endif
-			protected:
+			private:
 #ifndef MSVC_LIMITATIONS
 				CSwizzle() = default;
 				CSwizzle(const CSwizzle &) = delete;
-				~CSwizzle() = default;
+				~CSwizzle() = delete;
 #endif
 			};
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>
 			class CSwizzle<ElementType, rows, columns, SwizzleDesc, odd, namingSet, std::true_type>: public CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>
 			{
+				friend class CDataContainerImpl<ElementType, rows, columns, false>;
+				friend class CDataContainerImpl<ElementType, rows, columns, true>;
 			public:
 #ifdef MSVC_LIMITATIONS
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
@@ -1406,11 +1410,11 @@ consider using preprocessor instead of templates or overloading each target func
 #endif
 				using CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =;
 #endif
-			protected:
+			private:
 #ifndef MSVC_LIMITATIONS
 				CSwizzle() = default;
 				CSwizzle(const CSwizzle &) = delete;
-				~CSwizzle() = default;
+				~CSwizzle() = delete;
 #endif
 			};
 
