@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		3.11.2015 (c)Korotkov Andrey
+\date		6.11.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -258,6 +258,12 @@ namespace Math
 					VectorMath::vector<ScalarType, dimension>,
 					CompositePoint<VectorMath::vector<ScalarType, dimension>, Attribs...>>,
 				degree + 1> ControlPoints;
+
+#ifndef MSVC_LIMITATIONS
+		private:
+			template<size_t ...idx>
+			inline CBezier(const typename ControlPoints::value_type(&controlPoints)[degree + 1], std::index_sequence<idx...>);
+#endif
 
 		public:
 			CBezier(const typename ControlPoints::value_type (&controlPoints)[degree + 1]);

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		3.11.2015 (c)Korotkov Andrey
+\date		6.11.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -329,19 +329,32 @@ namespace Math
 }
 #pragma endregion
 
+#ifndef MSVC_LIMITATIONS
+template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
+template<size_t ...idx>
+inline Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(const typename ControlPoints::value_type (&src)[degree + 1], std::index_sequence<idx...>) :
+	controlPoints{ typename ControlPoints::value_type(src[idx])... } {}
+#endif
+
+#ifdef MSVC_LIMITATIONS
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
 Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(const typename ControlPoints::value_type (&src)[degree + 1])
 {
 	std::copy_n(controlPoints.data(), controlPoints.size(), src);
 }
+#else
+template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
+Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(const typename ControlPoints::value_type (&src)[degree + 1]) :
+	CBezier(src, std::make_index_sequence<controlPoints.size()>()) {}
+#endif
 
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
 Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(const ControlPoints &controlPoints) :
-controlPoints(controlPoints) {}
+	controlPoints(controlPoints) {}
 
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
 Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(ControlPoints &&controlPoints) :
-controlPoints(std::move(controlPoints)) {}
+	controlPoints(std::move(controlPoints)) {}
 
 #ifdef MSVC_LIMITATIONS
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
