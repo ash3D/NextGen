@@ -212,10 +212,10 @@ consider using preprocessor instead of templates or overloading each target func
 
 	// specialization for graphics vectors/matrices
 	template<typename ElementType>
-	class CDataContainer<ElementType, ROWS, COLUMNS>: public CDataContainerImpl<ElementType, ROWS, COLUMNS, std::is_trivially_default_constructible<ElementType>::value>
+	class CDataContainer<ElementType, ROWS, COLUMNS>: public CDataContainerImpl<ElementType, ROWS, COLUMNS>
 	{
 	protected:
-		using CDataContainerImpl<ElementType, ROWS, COLUMNS, std::is_trivially_default_constructible<ElementType>::value>::CDataContainerImpl;
+		using CDataContainerImpl<ElementType, ROWS, COLUMNS>::CDataContainerImpl;
 		CDataContainer() = default;
 		CDataContainer(const CDataContainer &) = default;
 		CDataContainer(CDataContainer &&) = default;
@@ -525,7 +525,7 @@ consider using preprocessor instead of templates or overloading each target func
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc = CVectorSwizzleDesc<columns>, bool odd = false, unsigned namingSet = 1, typename isWriteMaskValid = std::integral_constant<bool, SwizzleDesc::isWriteMaskValid>>
 			class CSwizzle;
 
-			template<typename ElementType, unsigned int rows, unsigned int columns, bool trivialCtor>
+			template<typename ElementType, unsigned int rows, unsigned int columns, bool trivialCtor = std::is_trivially_default_constructible<ElementType>::value>
 			class CDataContainerImpl;
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
