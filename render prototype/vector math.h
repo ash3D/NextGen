@@ -1231,10 +1231,7 @@ consider using preprocessor instead of templates or overloading each target func
 			{
 				const auto src_accesssor = CreateFlatIdxAccessor(curSrc);
 				for (unsigned i = 0; i < src_accesssor.dimension; i++)
-				{
-					operator [](i + startIdx).~ElementType();
-					new(&operator [](i + startIdx)) ElementType(src_accesssor[i]);
-				}
+					operator [](i + startIdx) = src_accesssor[i];
 				_Init<startIdx + src_accesssor.dimension>(restSrc...);
 			}
 
@@ -2230,10 +2227,7 @@ consider using preprocessor instead of templates or overloading each target func
 				{
 					static_assert(dimension <= SrcSwizzleDesc::TDimension::value, "\"copy\" ctor: too small src dimension");
 					for (unsigned i = 0; i < dimension; i++)
-					{
-						operator [](i).~ElementType();
-						new(&operator [](i)) ElementType(src[i]);
-					}
+						operator [](i) = src[i];
 				}
 #else
 				inline vector<ElementType, dimension>::vector(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet> &src) :
@@ -2331,11 +2325,7 @@ consider using preprocessor instead of templates or overloading each target func
 					static_assert(rows <= srcRows, "\"copy\" ctor: too few rows in src");
 					static_assert(columns <= srcColumns, "\"copy\" ctor: too few columns in src");
 					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)
-					{
-						auto curRow = &operator [](rowIdx);
-						curRow->~TRow();
-						new(curRow) TRow(src[rowIdx]);
-					}
+						operator [](rowIdx) = src[rowIdx];
 				}
 #else
 				inline matrix<ElementType, rows, columns>::matrix(const matrix<SrcElementType, srcRows, srcColumns> &src) :
@@ -2352,11 +2342,7 @@ consider using preprocessor instead of templates or overloading each target func
 				inline matrix<ElementType, rows, columns>::matrix(const SrcElementType &scalar)
 				{
 					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)
-					{
-						auto curRow = &operator [](rowIdx);
-						curRow->~TRow();
-						new(curRow) TRow(scalar);
-					}
+						operator [](rowIdx) = scalar;
 				}
 #else
 				inline matrix<ElementType, rows, columns>::matrix(const SrcElementType &scalar) :
@@ -2380,8 +2366,7 @@ consider using preprocessor instead of templates or overloading each target func
 					for (unsigned i = 0; i < src_accesssor.dimension; i++)
 					{
 						const auto r = (i + startIdx) / columns, c = (i + startIdx) % columns;
-						operator [](r).operator [](c).~ElementType();
-						new(&operator [](r).operator [](c)) ElementType(src_accesssor[i]);
+						operator [](r).operator [](c) = src_accesssor[i];
 					}
 					_Init<startIdx + src_accesssor.dimension>(restSrc...);
 				}
@@ -2416,11 +2401,7 @@ consider using preprocessor instead of templates or overloading each target func
 				//inline matrix<ElementType, rows, columns>::matrix(TIterator src)
 				//{
 				//	for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++, src += columns)
-				//	{
-				//		auto curRow = &operator [](rowIdx);
-				//		curRow->~TRow();
-				//		new(curRow) TRow(src);
-				//	}
+				//		operator [](rowIdx) = src;
 				//}
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
@@ -2429,11 +2410,7 @@ consider using preprocessor instead of templates or overloading each target func
 				inline matrix<ElementType, rows, columns>::matrix(const SrcElementType (&src)[rows][columns])
 				{
 					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)
-					{
-						auto curRow = &operator [](rowIdx);
-						curRow->~TRow();
-						new(curRow) TRow(src[rowIdx]);
-					}
+						operator [](rowIdx) = src[rowIdx];
 				}
 #else
 				inline matrix<ElementType, rows, columns>::matrix(const SrcElementType(&src)[rows][columns]) :
