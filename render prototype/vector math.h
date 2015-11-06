@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		4.11.2015 (c)Alexey Shaydurov
+\date		6.11.2015 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -165,15 +165,19 @@ consider using preprocessor instead of templates or overloading each target func
 		};
 	};
 #else
-#	define TRIVIAL_CTOR_FORWARD CDataContainerImpl() = default;
-#	define NONTRIVIAL_CTOR_FORWARD CDataContainerImpl(): _data() {}
+#if defined _MSC_VER && _MSC_VER <= 1900
+#	define TRIVIAL_CTOR_FORWARD CDataContainerImpl() = default; template<typename TCurSrc, typename ...TRestSrc> CDataContainerImpl(const TCurSrc &curSrc, const TRestSrc &...restSrc): _data(curSrc, restSrc...) {}
+#else
+#	define TRIVIAL_CTOR_FORWARD CDataContainerImpl() = default; NONTRIVIAL_CTOR_FORWARD
+#endif
+#	define NONTRIVIAL_CTOR_FORWARD template<typename ...TSrc> CDataContainerImpl(const TSrc &...src): _data(src...) {}
 #	define DATA_CONTAINER_IMPL_SPECIALIZATION(trivialCtor)																									\
 		template<typename ElementType>																														\
 		class CDataContainerImpl<ElementType, ROWS, COLUMNS, trivialCtor>: public std::conditional_t<ROWS == 0, CSwizzle<ElementType, 0, COLUMNS>, CEmpty>	\
 		{																																					\
 		protected:																																			\
 			/*forward ctors/dtor/= to _data*/																												\
-			BOOST_PP_IIF(trivialCtor, TRIVIAL_CTOR_FORWARD, NONTRIVIAL_CTOR_FORWARD)																		\
+			BOOST_PP_REMOVE_PARENS(BOOST_PP_IIF(trivialCtor, (TRIVIAL_CTOR_FORWARD), (NONTRIVIAL_CTOR_FORWARD)))											\
 			CDataContainerImpl(const CDataContainerImpl &src): _data(src._data)																				\
 			{																																				\
 			}																																				\
@@ -206,10 +210,12 @@ consider using preprocessor instead of templates or overloading each target func
 #	undef NONTRIVIAL_CTOR_FORWARD
 #	undef DATA_CONTAINER_IMPL_SPECIALIZATION
 
+	// specialization for graphics vectors/matrices
 	template<typename ElementType>
 	class CDataContainer<ElementType, ROWS, COLUMNS>: public CDataContainerImpl<ElementType, ROWS, COLUMNS, std::is_trivially_default_constructible<CData<ElementType, ROWS, COLUMNS>>::value>
 	{
 	protected:
+		using CDataContainerImpl<ElementType, ROWS, COLUMNS, std::is_trivially_default_constructible<CData<ElementType, ROWS, COLUMNS>>::value>::CDataContainerImpl;
 		CDataContainer() = default;
 		CDataContainer(const CDataContainer &) = default;
 		CDataContainer(CDataContainer &&) = default;
@@ -367,6 +373,7 @@ consider using preprocessor instead of templates or overloading each target func
 #	include <boost/preprocessor/seq/for_each.hpp>
 #	include <boost/preprocessor/seq/cat.hpp>
 #	include <boost/preprocessor/seq/to_tuple.hpp>
+#	include <boost/preprocessor/punctuation/remove_parens.hpp>
 #	include <boost/mpl/placeholders.hpp>
 #	include <boost/mpl/vector_c.hpp>
 #	include <boost/mpl/range_c.hpp>
@@ -580,6 +587,15 @@ consider using preprocessor instead of templates or overloading each target func
 				~CData() = default;
 				CData &operator =(const CData &) = default;
 				CData &operator =(CData &&) = default;
+			private:	// matrix specific ctors
+				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, size_t ...row>
+				inline CData(const matrix<SrcElementType, srcRows, srcColumns> &src, std::index_sequence<row...>);
+
+				template<typename SrcElementType, size_t ...row>
+				inline CData(const SrcElementType &scalar, std::index_sequence<row...>);
+
+				template<typename SrcElementType, size_t ...row>
+				inline CData(const SrcElementType (&src)[rows][columns], std::index_sequence<row...>);
 #		endif
 			private:
 #		ifdef MSVC_LIMITATIONS
@@ -588,6 +604,23 @@ consider using preprocessor instead of templates or overloading each target func
 				vector<ElementType, columns> _rows[rows];
 #		endif
 			};
+
+#		ifndef MSVC_LIMITATIONS
+			template<typename ElementType, unsigned int rows, unsigned int columns>
+			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, size_t ...row>
+			inline CData<ElementType, rows, columns>::CData(const matrix<SrcElementType, srcRows, srcColumns> &src, std::index_sequence<row...>) :
+				_rows{ src[row]... } {}
+
+			template<typename ElementType, unsigned int rows, unsigned int columns>
+			template<typename SrcElementType, size_t ...row>
+			inline CData<ElementType, rows, columns>::CData(const SrcElementType &scalar, std::index_sequence<row...>) :
+				_rows{ (row, scalar)... } {}
+
+			template<typename ElementType, unsigned int rows, unsigned int columns>
+			template<typename SrcElementType, size_t ...row>
+			inline CData<ElementType, rows, columns>::CData(const SrcElementType (&src)[rows][columns], std::index_sequence<row...>) :
+				_rows{ src[row]... } {}
+#		endif
 
 			// specialization for vector
 			template<typename ElementType, unsigned int dimension>
@@ -609,10 +642,45 @@ consider using preprocessor instead of templates or overloading each target func
 				~CData() = default;
 				CData &operator =(const CData &) = default;
 				CData &operator =(CData &&) = default;
+			private:	// vector specific ctors
+				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, bool srcOdd, unsigned srcNamingSet, size_t ...idx>
+#ifdef MSVC_LIMITATIONS
+				inline CData(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet, std::integral_constant<bool, SrcSwizzleDesc::isWriteMaskValid>> &src, std::index_sequence<idx...>);
+#else
+				inline CData(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet> &src, std::index_sequence<idx...>);
+#endif
 #		endif
+
+				template<typename SrcElementType, size_t ...idx>
+				inline CData(const SrcElementType &scalar, std::index_sequence<idx...>);
+
+				template<typename SrcElementType, size_t ...idx>
+				inline CData(const SrcElementType (&src)[dimension], std::index_sequence<idx...>);
 			private:
 				ElementType _data[dimension];
 			};
+
+#		ifndef MSVC_LIMITATIONS
+			template<typename ElementType, unsigned int dimension>
+			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, bool srcOdd, unsigned srcNamingSet, size_t ...idx>
+#ifdef MSVC_LIMITATIONS
+			inline CData<ElementType, 0, dimension>::CData(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet, std::integral_constant<bool, SrcSwizzleDesc::isWriteMaskValid>> &src, std::index_sequence<idx...>) :
+#else
+			inline CData<ElementType, 0, dimension>::CData(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet> &src, std::index_sequence<idx...>) :
+#endif
+				_data{ ElementType(src[idx])... }
+			{}
+
+			template<typename ElementType, unsigned int dimension>
+			template<typename SrcElementType, size_t ...idx>
+			inline CData<ElementType, 0, dimension>::CData(const SrcElementType &scalar, std::index_sequence<idx...>) :
+				_data{ (idx, ElementType(scalar))... } {}
+
+			template<typename ElementType, unsigned int dimension>
+			template<typename SrcElementType, size_t ...idx>
+			inline CData<ElementType, 0, dimension>::CData(const SrcElementType (&src)[dimension], std::index_sequence<idx...>) :
+				_data{ ElementType(src[idx])... } {}
+#		endif
 
 			// generic vector/matrix
 			template<typename ElementType, unsigned int rows, unsigned int columns>
@@ -624,7 +692,11 @@ consider using preprocessor instead of templates or overloading each target func
 				CDataContainer() = default;
 				CDataContainer(const CDataContainer &) = default;
 				CDataContainer(CDataContainer &&) = default;
-				~CDataContainer() = default;
+#if defined _MSC_VER && _MSC_VER <= 1900
+				template<typename TCurSrc, typename ...TRestSrc> CDataContainer(const TCurSrc &curSrc, const TRestSrc &...restSrc) : _data(curSrc, restSrc...) {}
+#else
+				template<typename ...TSrc> CDataContainer(const TSrc &...src) : _data(src...) {}
+#endif
 				CDataContainer &operator =(const CDataContainer &) = default;
 				CDataContainer &operator =(CDataContainer &&) = default;
 #		endif
@@ -1874,6 +1946,7 @@ consider using preprocessor instead of templates or overloading each target func
 			class vector: public CDataContainer<ElementType_, 0, dimension_>
 			{
 				static_assert(dimension_ > 0, "vector dimension should be positive");
+				typedef CDataContainer<ElementType_, 0, dimension_> DataContainer;
 				//using CDataContainer<ElementType_, 0, dimension_>::_data;
 			public:
 				typedef ElementType_ ElementType;
@@ -1992,6 +2065,7 @@ consider using preprocessor instead of templates or overloading each target func
 				friend bool any<>(const matrix<ElementType_, rows_, columns_> &);
 				friend bool none<>(const matrix<ElementType_, rows_, columns_> &);
 				typedef vector<ElementType_, columns_> TRow;
+				typedef CDataContainer<ElementType_, rows_, columns_> DataContainer;
 			public:
 				typedef ElementType_ ElementType;
 				static constexpr unsigned int rows = rows_, columns = columns_;
@@ -2135,23 +2209,20 @@ consider using preprocessor instead of templates or overloading each target func
 				inline const ElementType &vector<ElementType, dimension>::operator [](unsigned int idx) const noexcept
 				{
 					assert(idx < dimension);
-					return CDataContainer<ElementType, 0, dimension>::_data._data[idx];
+					return DataContainer::_data._data[idx];
 				}
 
 				template<typename ElementType, unsigned int dimension>
 				inline ElementType &vector<ElementType, dimension>::operator [](unsigned int idx) noexcept
 				{
 					assert(idx < dimension);
-					return CDataContainer<ElementType, 0, dimension>::_data._data[idx];
+					return DataContainer::_data._data[idx];
 				}
 
 				template<typename ElementType, unsigned int dimension>
 				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, bool srcOdd, unsigned srcNamingSet>
 #ifdef MSVC_LIMITATIONS
 				inline vector<ElementType, dimension>::vector(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet, std::integral_constant<bool, SrcSwizzleDesc::isWriteMaskValid>> &src)
-#else
-				inline vector<ElementType, dimension>::vector(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet> &src)
-#endif
 				{
 					static_assert(dimension <= SrcSwizzleDesc::TDimension::value, "\"copy\" ctor: too small src dimension");
 					for (unsigned i = 0; i < dimension; i++)
@@ -2160,20 +2231,30 @@ consider using preprocessor instead of templates or overloading each target func
 						new(&operator [](i)) ElementType(src[i]);
 					}
 				}
+#else
+				inline vector<ElementType, dimension>::vector(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet> &src) :
+					DataContainer(src, std::make_index_sequence<dimension>())
+				{
+					static_assert(dimension <= SrcSwizzleDesc::TDimension::value, "\"copy\" ctor: too small src dimension");
+				}
+#endif
 
 				template<typename ElementType, unsigned int dimension>
 				template<typename SrcElementType, unsigned int srcDimenstion>
 				inline vector<ElementType, dimension>::vector(const vector<SrcElementType, srcDimenstion> &src) :
-					vector(static_cast<const CSwizzle<SrcElementType, 0, srcDimenstion> &>(src))
-				{
-				}
+					vector(static_cast<const CSwizzle<SrcElementType, 0, srcDimenstion> &>(src)) {}
 
 				template<typename ElementType, unsigned int dimension>
 				template<typename SrcElementType>
+#ifdef MSVC_LIMITATIONS
 				inline vector<ElementType, dimension>::vector(const SrcElementType &scalar)
 				{
-					std::fill_n(CDataContainer<ElementType, 0, dimension>::_data._data, dimension, scalar);
+					std::fill_n(DataContainer::_data._data, dimension, scalar);
 				}
+#else
+				inline vector<ElementType, dimension>::vector(const SrcElementType &scalar) :
+					DataContainer(scalar, std::make_index_sequence<dimension>()) {}
+#endif
 
 				template<typename ElementType, unsigned int dimension>
 				template<typename First, typename ...Rest>
@@ -2193,15 +2274,20 @@ consider using preprocessor instead of templates or overloading each target func
 				//template<typename TIterator>
 				//inline vector<ElementType, dimension>::vector(TIterator src)
 				//{
-				//	std::copy_n(src, dimension, CDataContainer<ElementType, 0, dimension>::_data._data);
+				//	std::copy_n(src, dimension, DataContainer::_data._data);
 				//}
 
 				template<typename ElementType, unsigned int dimension>
 				template<typename SrcElementType>
+#ifdef MSVC_LIMITATIONS
 				inline vector<ElementType, dimension>::vector(const SrcElementType (&src)[dimension])
 				{
-					std::copy_n(src, dimension, CDataContainer<ElementType, 0, dimension>::_data._data);
+					std::copy_n(src, dimension, DataContainer::_data._data);
 				}
+#else
+				inline vector<ElementType, dimension>::vector(const SrcElementType (&src)[dimension]) :
+					DataContainer(src, std::make_index_sequence<dimension>()) {}
+#endif
 
 				template<typename ElementType, unsigned int dimension>
 				inline vector<ElementType, dimension>::vector(std::initializer_list<CInitListItem<ElementType>> initList)
@@ -2216,9 +2302,9 @@ consider using preprocessor instead of templates or overloading each target func
 				{
 					assert(idx < rows);
 #				ifdef MSVC_LIMITATIONS
-					return reinterpret_cast<const TRow &>(CDataContainer<ElementType, rows, columns>::_data._rows[idx]);
+					return reinterpret_cast<const TRow &>(DataContainer::_data._rows[idx]);
 #				else
-					return CDataContainer<ElementType, rows, columns>::_data._rows[idx];
+					return DataContainer::_data._rows[idx];
 #				endif
 				}
 
@@ -2227,21 +2313,15 @@ consider using preprocessor instead of templates or overloading each target func
 				{
 					assert(idx < rows);
 #				ifdef MSVC_LIMITATIONS
-					return reinterpret_cast<TRow &>(CDataContainer<ElementType, rows, columns>::_data._rows[idx]);
+					return reinterpret_cast<TRow &>(DataContainer::_data._rows[idx]);
 #				else
-					return CDataContainer<ElementType, rows, columns>::_data._rows[idx];
+					return DataContainer::_data._rows[idx];
 #				endif
 				}
 
-				/*
-				note:
-				it is impossible to init array in ctor's init list
-				therefore default ctor for each array element (vector row in our case) called before ctor body
-				it necessitate to call dtor before row ctor
-				*/
-
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
+#ifdef MSVC_LIMITATIONS
 				inline matrix<ElementType, rows, columns>::matrix(const matrix<SrcElementType, srcRows, srcColumns> &src)
 				{
 					static_assert(rows <= srcRows, "\"copy\" ctor: too few rows in src");
@@ -2253,9 +2333,18 @@ consider using preprocessor instead of templates or overloading each target func
 						new(curRow) TRow(src[rowIdx]);
 					}
 				}
+#else
+				inline matrix<ElementType, rows, columns>::matrix(const matrix<SrcElementType, srcRows, srcColumns> &src) :
+					DataContainer(src, std::make_index_sequence<rows>())
+				{
+					static_assert(rows <= srcRows, "\"copy\" ctor: too few rows in src");
+					static_assert(columns <= srcColumns, "\"copy\" ctor: too few columns in src");
+				}
+#endif
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				template<typename SrcElementType>
+#ifdef MSVC_LIMITATIONS
 				inline matrix<ElementType, rows, columns>::matrix(const SrcElementType &scalar)
 				{
 					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)
@@ -2265,6 +2354,10 @@ consider using preprocessor instead of templates or overloading each target func
 						new(curRow) TRow(scalar);
 					}
 				}
+#else
+				inline matrix<ElementType, rows, columns>::matrix(const SrcElementType &scalar) :
+					DataContainer(scalar, std::make_index_sequence<rows>()) {}
+#endif
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				template<unsigned idx>
@@ -2328,6 +2421,7 @@ consider using preprocessor instead of templates or overloading each target func
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				template<typename SrcElementType>
+#ifdef MSVC_LIMITATIONS
 				inline matrix<ElementType, rows, columns>::matrix(const SrcElementType (&src)[rows][columns])
 				{
 					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)
@@ -2337,6 +2431,10 @@ consider using preprocessor instead of templates or overloading each target func
 						new(curRow) TRow(src[rowIdx]);
 					}
 				}
+#else
+				inline matrix<ElementType, rows, columns>::matrix(const SrcElementType(&src)[rows][columns]) :
+					DataContainer(src, std::make_index_sequence<rows>()) {}
+#endif
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 #if defined MSVC_LIMITATIONS || defined __GNUC__
