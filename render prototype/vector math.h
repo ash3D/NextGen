@@ -687,7 +687,7 @@ consider using preprocessor instead of templates or overloading each target func
 				static inline void GetElement() noexcept
 				{
 					// 'idx < 0' required instead of 'false' in order to make dependency on template param and therefore trigger static_assert on instantiation only
-					static_assert(idx < 0, "too few src elements");
+					static_assert(idx < 0, "heterogeneous ctor: too few src elements");
 				}
 #else
 			protected:
@@ -751,7 +751,7 @@ consider using preprocessor instead of templates or overloading each target func
 				static inline void GetElement() noexcept
 				{
 					// 'idx < 0' required instead of 'false' in order to make dependency on template param and therefore trigger static_assert on instantiation only
-					static_assert(idx < 0, "too few src elements");
+					static_assert(idx < 0, "heterogeneous ctor: too few src elements");
 				}
 #endif
 #endif
@@ -787,8 +787,8 @@ consider using preprocessor instead of templates or overloading each target func
 				template<size_t ...row, typename SrcElementType>
 				CData(std::index_sequence<row...>, const SrcElementType &scalar);
 
-				template<size_t ...row, typename SrcElementType>
-				CData(std::index_sequence<row...>, const SrcElementType (&src)[rows][columns]);
+				template<size_t ...row, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
+				CData(std::index_sequence<row...>, const SrcElementType (&src)[srcRows][srcColumns]);
 
 				template<size_t ...row, typename First, typename ...Rest>
 				CData(HeterogeneousInitTag<std::index_sequence<row...>>, const First &first, const Rest &...rest);
@@ -814,12 +814,16 @@ consider using preprocessor instead of templates or overloading each target func
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<size_t ...row, typename SrcElementType>
 			inline CData<ElementType, rows, columns>::CData(std::index_sequence<row...>, const SrcElementType &scalar) :
-				_rows{ (row, scalar)... } {}
+				_rows{ (row, ElementType(scalar))... } {}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			template<size_t ...row, typename SrcElementType>
-			inline CData<ElementType, rows, columns>::CData(std::index_sequence<row...>, const SrcElementType (&src)[rows][columns]) :
-				_rows{ src[row]... } {}
+			template<size_t ...row, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
+			inline CData<ElementType, rows, columns>::CData(std::index_sequence<row...>, const SrcElementType (&src)[srcRows][srcColumns]) :
+				_rows{ vector<ElementType, columns>(HeterogeneousInitTag<std::make_index_sequence<columns>, false>(), src[row])... }
+			{
+				static_assert(rows <= srcRows, "array ctor: too few rows in src");
+				static_assert(columns <= srcColumns, "array ctor: too few columns in src");
+			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<size_t ...row, typename First, typename ...Rest>
@@ -827,9 +831,9 @@ consider using preprocessor instead of templates or overloading each target func
 				_rows{ vector<ElementType, columns>(HeterogeneousInitTag<std::make_index_sequence<columns>, false, row * columns>(), first, rest...)... }
 			{
 #if defined _MSC_VER && _MSC_VER <= 1900
-				static_assert(ElementsCount<First, Rest...>::value <= rows * columns, "too many src elements");
+				static_assert(ElementsCount<First, Rest...>::value <= rows * columns, "heterogeneous ctor: too many src elements");
 #else
-				static_assert(elementsCount<First, Rest...> <= rows * columns, "too many src elements");
+				static_assert(elementsCount<First, Rest...> <= rows * columns, "heterogeneous ctor: too many src elements");
 #endif
 			}
 #		endif
@@ -864,8 +868,11 @@ consider using preprocessor instead of templates or overloading each target func
 				template<size_t ...idx, typename SrcElementType>
 				CData(std::index_sequence<idx...>, const SrcElementType &scalar);
 
-				template<size_t ...idx, typename SrcElementType>
-				CData(std::index_sequence<idx...>, const SrcElementType (&src)[dimension]);
+				template<size_t ...idx, typename SrcElementType, unsigned int srcDimension>
+				CData(HeterogeneousInitTag<std::index_sequence<idx...>, false>, const SrcElementType (&src)[srcDimension]);
+
+				template<size_t ...idx, typename SrcElementType, unsigned int srcDimension>
+				inline CData(HeterogeneousInitTag<std::index_sequence<idx...>, true>, const SrcElementType (&src)[srcDimension]);
 
 				template<size_t ...idx, unsigned offset, typename First, typename ...Rest>
 				CData(HeterogeneousInitTag<std::index_sequence<idx...>, false, offset>, const First &first, const Rest &...rest);
@@ -897,9 +904,17 @@ consider using preprocessor instead of templates or overloading each target func
 				_data{ (idx, ElementType(scalar))... } {}
 
 			template<typename ElementType, unsigned int dimension>
-			template<size_t ...idx, typename SrcElementType>
-			inline CData<ElementType, 0, dimension>::CData(std::index_sequence<idx...>, const SrcElementType (&src)[dimension]) :
+			template<size_t ...idx, typename SrcElementType, unsigned int srcDimension>
+			inline CData<ElementType, 0, dimension>::CData(HeterogeneousInitTag<std::index_sequence<idx...>, false>, const SrcElementType (&src)[srcDimension]) :
 				_data{ ElementType(src[idx])... } {}
+
+			template<typename ElementType, unsigned int dimension>
+			template<size_t ...idx, typename SrcElementType, unsigned int srcDimension>
+			inline CData<ElementType, 0, dimension>::CData(HeterogeneousInitTag<std::index_sequence<idx...>, true>, const SrcElementType (&src)[srcDimension]) :
+				CData(HeterogeneousInitTag<std::index_sequence<idx...>, false>(), src)
+			{
+				static_assert(dimension <= srcDimension, "array ctor: too small src dimension");
+			}
 
 			template<typename ElementType, unsigned int dimension>
 			template<size_t ...idx, unsigned offset, typename First, typename ...Rest>
@@ -912,9 +927,9 @@ consider using preprocessor instead of templates or overloading each target func
 				CData(HeterogeneousInitTag<std::index_sequence<idx...>, false>(), first, rest...)
 			{
 #if defined _MSC_VER && _MSC_VER <= 1900
-				static_assert(ElementsCount<First, Rest...>::value <= dimension, "too many src elements");
+				static_assert(ElementsCount<First, Rest...>::value <= dimension, "heterogeneous ctor: too many src elements");
 #else
-				static_assert(elementsCount<First, Rest...> <= dimension, "too many src elements");
+				static_assert(elementsCount<First, Rest...> <= dimension, "heterogeneous ctor: too many src elements");
 #endif
 			}
 #		endif
@@ -1463,8 +1478,8 @@ consider using preprocessor instead of templates or overloading each target func
 			inline void CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, odd, namingSet>::_Init()
 			{
 				static constexpr auto dimension = SwizzleDesc::TDimension::value;
-				static_assert(idx >= dimension, "too few src elements");
-				static_assert(idx <= dimension, "too many src elements");
+				static_assert(idx >= dimension, "heterogeneous ctor: too few src elements");
+				static_assert(idx <= dimension, "heterogeneous ctor: too many src elements");
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>
@@ -2222,8 +2237,8 @@ consider using preprocessor instead of templates or overloading each target func
 				//template<typename TIterator>
 				//explicit vector(TIterator src);
 
-				template<typename SrcElementType>
-				vector(const SrcElementType (&src)[dimension]);
+				template<typename SrcElementType, unsigned int srcDimension>
+				vector(const SrcElementType (&src)[srcDimension]);
 
 #ifdef MSVC_LIMITATIONS
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc, bool rightOdd, unsigned rightNamingSet>
@@ -2306,6 +2321,9 @@ consider using preprocessor instead of templates or overloading each target func
 
 				template<unsigned offset, typename First, typename ...Rest>
 				vector(typename CData<ElementType, 0, dimension>::template HeterogeneousInitTag<std::make_index_sequence<dimension>, false, offset>, const First &first, const Rest &...rest);
+
+				template<typename SrcElementType, unsigned int srcDimension>
+				vector(typename CData<ElementType, 0, dimension>::template HeterogeneousInitTag<std::make_index_sequence<dimension>, false>, const SrcElementType (&src)[srcDimension]);
 #endif
 			};
 
@@ -2349,8 +2367,8 @@ consider using preprocessor instead of templates or overloading each target func
 				//template<typename TIterator>
 				//explicit matrix(TIterator src);
 
-				template<typename SrcElementType>
-				matrix(const SrcElementType (&src)[rows][columns]);
+				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
+				matrix(const SrcElementType (&src)[srcRows][srcColumns]);
 
 #if defined MSVC_LIMITATIONS || defined __GNUC__
 				matrix &operator =(const matrix &) = default;
@@ -2537,15 +2555,16 @@ consider using preprocessor instead of templates or overloading each target func
 				//}
 
 				template<typename ElementType, unsigned int dimension>
-				template<typename SrcElementType>
+				template<typename SrcElementType, unsigned int srcDimension>
 #ifdef MSVC_LIMITATIONS
-				inline vector<ElementType, dimension>::vector(const SrcElementType (&src)[dimension])
+				inline vector<ElementType, dimension>::vector(const SrcElementType (&src)[srcDimension])
 				{
+					static_assert(dimension <= srcDimension, "array ctor: too small src dimension");
 					std::copy_n(src, dimension, DataContainer::_data._data);
 				}
 #else
-				inline vector<ElementType, dimension>::vector(const SrcElementType (&src)[dimension]) :
-					DataContainer(std::make_index_sequence<dimension>(), src) {}
+				inline vector<ElementType, dimension>::vector(const SrcElementType (&src)[srcDimension]) :
+					DataContainer(CData<ElementType, 0, dimension>::HeterogeneousInitTag<std::make_index_sequence<dimension>>(), src) {}
 #endif
 
 				template<typename ElementType, unsigned int dimension>
@@ -2565,6 +2584,11 @@ consider using preprocessor instead of templates or overloading each target func
 				template<unsigned offset, typename First, typename ...Rest>
 				inline vector<ElementType, dimension>::vector(typename CData<ElementType, 0, dimension>::template HeterogeneousInitTag<std::make_index_sequence<dimension>, false, offset> tag, const First &first, const Rest &...rest) :
 					DataContainer(tag, first, rest...) {}
+
+				template<typename ElementType, unsigned int dimension>
+				template<typename SrcElementType, unsigned int srcDimension>
+				inline vector<ElementType, dimension>::vector(typename CData<ElementType, 0, dimension>::template HeterogeneousInitTag<std::make_index_sequence<dimension>, false> tag, const SrcElementType (&src)[srcDimension]) :
+					DataContainer(tag, src) {}
 #endif
 #			pragma endregion
 
@@ -2625,8 +2649,8 @@ consider using preprocessor instead of templates or overloading each target func
 				inline void matrix<ElementType, rows, columns>::_Init()
 				{
 					constexpr auto dimension = rows * columns;
-					static_assert(idx >= dimension, "too few src elements");
-					static_assert(idx <= dimension, "too many src elements");
+					static_assert(idx >= dimension, "heterogeneous ctor: too few src elements");
+					static_assert(idx <= dimension, "heterogeneous ctor: too many src elements");
 				}
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
@@ -2688,15 +2712,17 @@ consider using preprocessor instead of templates or overloading each target func
 				//}
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
-				template<typename SrcElementType>
+				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
 #ifdef MSVC_LIMITATIONS
-				inline matrix<ElementType, rows, columns>::matrix(const SrcElementType (&src)[rows][columns])
+				inline matrix<ElementType, rows, columns>::matrix(const SrcElementType (&src)[srcRows][srcColumns])
 				{
+					static_assert(rows <= srcRows, "array ctor: too few rows in src");
+					static_assert(columns <= srcColumns, "array ctor: too few columns in src");
 					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)
 						operator [](rowIdx) = src[rowIdx];
 				}
 #else
-				inline matrix<ElementType, rows, columns>::matrix(const SrcElementType (&src)[rows][columns]) :
+				inline matrix<ElementType, rows, columns>::matrix(const SrcElementType (&src)[srcRows][srcColumns]) :
 					DataContainer(std::make_index_sequence<rows>(), src) {}
 #endif
 
