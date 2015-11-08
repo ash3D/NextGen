@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		6.11.2015 (c)Alexey Shaydurov
+\date		8.11.2015 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -564,9 +564,202 @@ consider using preprocessor instead of templates or overloading each target func
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			bool none(const matrix<ElementType, rows, columns> &src);
 
+			class CDataCommon
+			{
+#ifndef MSVC_LIMITATIONS
+			protected:
+				template<class IdxSeq, bool checkLength = true, unsigned offset = 0>
+				class HeterogeneousInitTag {};
+			protected:
+#if defined _MSC_VER && _MSC_VER <= 1900
+				template<typename ...Params>
+				struct ElementsCount
+				{
+					static constexpr unsigned int value = 0u;
+				};
+
+				template<typename SrcElementType, typename ...Rest>
+				struct ElementsCount<const SrcElementType &, Rest...>
+				{
+					static constexpr unsigned int value = 1u + ElementsCount<Rest...>::value;
+				};
+
+				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, bool srcOdd, unsigned srcNamingSet, typename ...Rest>
+				struct ElementsCount<const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet> &, Rest...>
+				{
+					static constexpr unsigned int value = SrcSwizzleDesc::TDimension::value + ElementsCount<Rest...>::value;
+				};
+
+				template<typename SrcElementType, unsigned int srcDimenstion, typename ...Rest>
+				struct ElementsCount<const vector<SrcElementType, srcDimenstion> &, Rest...>
+				{
+					static constexpr unsigned int value = ElementsCount<const CSwizzle<SrcElementType, 0, srcDimenstion> &, Rest...>::value;
+				};
+
+				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, typename ...Rest>
+				struct ElementsCount<const matrix<SrcElementType, srcRows, srcColumns> &, Rest...>
+				{
+					static constexpr unsigned int value = srcRows * srcColumns + ElementsCount<Rest...>::value;
+				};
+#else
+				// maybe wrap with decay_t?
+
+				// terminator
+				template<typename ...Params>
+				static constexpr unsigned int elementsCount = 0u;
+
+				// scalar
+				template<typename SrcElementType, typename ...Rest>
+				static constexpr unsigned int elementsCount<const SrcElementType &, Rest...> = 1u + elementsCount<Rest...>;
+
+				// swizzle
+				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, bool srcOdd, unsigned srcNamingSet, typename ...Rest>
+				static constexpr unsigned int elementsCount<const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet> &, Rest...> = SrcSwizzleDesc::TDimension::value + elementsCount<Rest...>;
+
+				// vector
+				template<typename SrcElementType, unsigned int srcDimenstion, typename ...Rest>
+				static constexpr unsigned int elementsCount<const vector<SrcElementType, srcDimenstion> &, Rest...> = elementsCount<const CSwizzle<SrcElementType, 0, srcDimenstion> &, Rest...>;
+
+				// matrix
+				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, typename ...Rest>
+				static constexpr unsigned int elementsCount<const matrix<SrcElementType, srcRows, srcColumns> &, Rest...> = srcRows * srcColumns + elementsCount<Rest...>;
+#endif
+#if defined _MSC_VER && _MSC_VER <= 1900
+				// SFINAE leads to internal comiler error on VS 2015, use tagging as workaround
+			private:
+				// scalar
+				template<unsigned idx, typename SrcElementType, typename ...Rest>
+				static inline decltype(auto) GetElementImpl(std::true_type, const SrcElementType &scalar, const Rest &...rest) noexcept
+				{
+					return scalar;
+				}
+
+				// next after scalar
+				template<unsigned idx, typename SrcElementType, typename ...Rest>
+				static inline decltype(auto) GetElementImpl(std::false_type, const SrcElementType &scalar, const Rest &...rest) noexcept
+				{
+					return GetElement<idx - 1>(rest...);
+				}
+
+				// swizzle
+				template<unsigned idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, bool srcOdd, unsigned srcNamingSet, typename ...Rest>
+				static inline decltype(auto) GetElementImpl(std::true_type, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet> &src, const Rest &...rest) noexcept
+				{
+					return src[idx];
+				}
+
+				// next after swizzle
+				template<unsigned idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, bool srcOdd, unsigned srcNamingSet, typename ...Rest>
+				static inline decltype(auto) GetElementImpl(std::false_type, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet> &src, const Rest &...rest) noexcept
+				{
+					return GetElement<idx - SrcSwizzleDesc::TDimension::value>(rest...);
+				}
+
+				// matrix
+				template<unsigned idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, typename ...Rest>
+				static inline decltype(auto) GetElementImpl(std::true_type, const matrix<SrcElementType, srcRows, srcColumns> &src, const Rest &...rest) noexcept
+				{
+					return src[idx / srcColumns][idx % srcColumns];
+				}
+
+				// next after matrix
+				template<unsigned idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, typename ...Rest>
+				static inline decltype(auto) GetElementImpl(std::false_type, const matrix<SrcElementType, srcRows, srcColumns> &src, const Rest &...rest) noexcept
+				{
+					return GetElement<idx - srcRows * srcColumns>(rest...);
+				}
+			protected:
+				template<unsigned idx, typename First, typename ...Rest>
+				static inline decltype(auto) GetElement(const First &first, const Rest &...rest) noexcept
+				{
+					return GetElementImpl<idx>(std::integral_constant<bool, idx < ElementsCount<const First &>::value>(), first, rest...);
+				}
+
+				// vector
+				template<unsigned idx, typename SrcElementType, unsigned int srcDimenstion, typename ...Rest>
+				static inline decltype(auto) GetElement(const vector<SrcElementType, srcDimenstion> &src, const Rest &...rest) noexcept
+				{
+					return GetElement<idx>(static_cast<const CSwizzle<SrcElementType, 0, srcDimenstion> &>(src), rest...);
+				}
+
+				// empty check
+				template<unsigned idx>
+				static inline void GetElement() noexcept
+				{
+					// 'idx < 0' required instead of 'false' in order to make dependency on template param and therefore trigger static_assert on instantiation only
+					static_assert(idx < 0, "too few src elements");
+				}
+#else
+			protected:
+				// scalar
+				template<unsigned idx, typename SrcElementType, typename ...Rest>
+				static inline auto GetElement(const SrcElementType &scalar, const Rest &...rest) noexcept
+					-> std::enable_if_t<idx < elementCount<decltype(scalar)>, decltype(scalar)>
+				{
+					return scalar;
+				}
+
+				// next after scalar
+				template<unsigned idx, typename SrcElementType, typename ...Rest>
+				static inline auto GetElement(const SrcElementType &scalar, const Rest &...rest) noexcept
+					-> std::enable_if_t<idx >= elementCount<decltype(scalar)>, decltype(GetElement<idx - 1>(rest...))>
+				{
+					return GetElement<idx - 1>(rest...);
+				}
+
+				// swizzle
+				template<unsigned idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, bool srcOdd, unsigned srcNamingSet, typename ...Rest>
+				static inline auto GetElement(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet> &src, const Rest &...rest) noexcept
+					-> std::enable_if_t<idx < elementCount<decltype(src)>, decltype(src[idx])>
+				{
+					return src[idx];
+				}
+
+				// next after swizzle
+				template<unsigned idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, bool srcOdd, unsigned srcNamingSet, typename ...Rest>
+				static inline auto GetElement(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet> &src, const Rest &...rest) noexcept
+					-> std::enable_if_t<idx >= elementCount<decltype(src)>, decltype(GetElement<idx - SrcSwizzleDesc::TDimension::value>(rest...))>
+				{
+					return GetElement<idx - SrcSwizzleDesc::TDimension::value>(rest...);
+				}
+
+				// vector
+				template<unsigned idx, typename SrcElementType, unsigned int srcDimenstion, typename ...Rest>
+				static inline decltype(auto) GetElement(const vector<SrcElementType, srcDimenstion> &src, const Rest &...rest) noexcept
+				{
+					return GetElement<idx>(static_cast<const CSwizzle<SrcElementType, 0, srcDimenstion> &>(src), rest...);
+				}
+
+				// matrix
+				template<unsigned idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, typename ...Rest>
+				static inline auto GetElement(const matrix<SrcElementType, srcRows, srcColumns> &src, const Rest &...rest) noexcept
+					-> std::enable_if_t<idx < elementCount<decltype(src)>, decltype(src[idx / srcColumns][idx % srcColumns])>
+				{
+					return src[idx / srcColumns][idx % srcColumns];
+				}
+
+				// next after matrix
+				template<unsigned idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, typename ...Rest>
+				static inline auto GetElement(const matrix<SrcElementType, srcRows, srcColumns> &src, const Rest &...rest) noexcept
+					-> std::enable_if_t<idx >= elementCount<decltype(src)>, decltype(GetElement<idx - srcRows * srcColumns>(rest...))>
+				{
+					return GetElement<idx - srcRows * srcColumns>(rest...);
+				}
+
+				// empty check
+				template<unsigned idx>
+				static inline void GetElement() noexcept
+				{
+					// 'idx < 0' required instead of 'false' in order to make dependency on template param and therefore trigger static_assert on instantiation only
+					static_assert(idx < 0, "too few src elements");
+				}
+#endif
+#endif
+			};
+
 			// generic for matrix
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			class CData final
+			class CData final : private CDataCommon
 			{
 				friend class matrix<ElementType, rows, columns>;
 				friend bool all<>(const matrix<ElementType, rows, columns> &);
@@ -588,14 +781,17 @@ consider using preprocessor instead of templates or overloading each target func
 				CData &operator =(const CData &) = default;
 				CData &operator =(CData &&) = default;
 			private:	// matrix specific ctors
-				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, size_t ...row>
-				inline CData(const matrix<SrcElementType, srcRows, srcColumns> &src, std::index_sequence<row...>);
+				template<size_t ...row, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
+				CData(std::index_sequence<row...>, const matrix<SrcElementType, srcRows, srcColumns> &src);
 
-				template<typename SrcElementType, size_t ...row>
-				inline CData(const SrcElementType &scalar, std::index_sequence<row...>);
+				template<size_t ...row, typename SrcElementType>
+				CData(std::index_sequence<row...>, const SrcElementType &scalar);
 
-				template<typename SrcElementType, size_t ...row>
-				inline CData(const SrcElementType (&src)[rows][columns], std::index_sequence<row...>);
+				template<size_t ...row, typename SrcElementType>
+				CData(std::index_sequence<row...>, const SrcElementType (&src)[rows][columns]);
+
+				template<size_t ...row, typename First, typename ...Rest>
+				CData(HeterogeneousInitTag<std::index_sequence<row...>>, const First &first, const Rest &...rest);
 #		endif
 			private:
 #		ifdef MSVC_LIMITATIONS
@@ -607,24 +803,40 @@ consider using preprocessor instead of templates or overloading each target func
 
 #		ifndef MSVC_LIMITATIONS
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, size_t ...row>
-			inline CData<ElementType, rows, columns>::CData(const matrix<SrcElementType, srcRows, srcColumns> &src, std::index_sequence<row...>) :
-				_rows{ src[row]... } {}
+			template<size_t ...row, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
+			inline CData<ElementType, rows, columns>::CData(std::index_sequence<row...>, const matrix<SrcElementType, srcRows, srcColumns> &src) :
+				_rows{ vector<ElementType, columns>(HeterogeneousInitTag<std::make_index_sequence<columns>, false>(), src[row])... }
+			{
+				static_assert(rows <= srcRows, "\"copy\" ctor: too few rows in src");
+				static_assert(columns <= srcColumns, "\"copy\" ctor: too few columns in src");
+			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			template<typename SrcElementType, size_t ...row>
-			inline CData<ElementType, rows, columns>::CData(const SrcElementType &scalar, std::index_sequence<row...>) :
+			template<size_t ...row, typename SrcElementType>
+			inline CData<ElementType, rows, columns>::CData(std::index_sequence<row...>, const SrcElementType &scalar) :
 				_rows{ (row, scalar)... } {}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			template<typename SrcElementType, size_t ...row>
-			inline CData<ElementType, rows, columns>::CData(const SrcElementType (&src)[rows][columns], std::index_sequence<row...>) :
+			template<size_t ...row, typename SrcElementType>
+			inline CData<ElementType, rows, columns>::CData(std::index_sequence<row...>, const SrcElementType (&src)[rows][columns]) :
 				_rows{ src[row]... } {}
+
+			template<typename ElementType, unsigned int rows, unsigned int columns>
+			template<size_t ...row, typename First, typename ...Rest>
+			inline CData<ElementType, rows, columns>::CData(HeterogeneousInitTag<std::index_sequence<row...>>, const First &first, const Rest &...rest) :
+				_rows{ vector<ElementType, columns>(HeterogeneousInitTag<std::make_index_sequence<columns>, false, row * columns>(), first, rest...)... }
+			{
+#if defined _MSC_VER && _MSC_VER <= 1900
+				static_assert(ElementsCount<First, Rest...>::value <= rows * columns, "too many src elements");
+#else
+				static_assert(elementsCount<First, Rest...> <= rows * columns, "too many src elements");
+#endif
+			}
 #		endif
 
 			// specialization for vector
 			template<typename ElementType, unsigned int dimension>
-			class CData<ElementType, 0, dimension> final
+			class CData<ElementType, 0, dimension> final : private CDataCommon
 			{
 				friend class vector<ElementType, dimension>;
 
@@ -643,18 +855,23 @@ consider using preprocessor instead of templates or overloading each target func
 				CData &operator =(const CData &) = default;
 				CData &operator =(CData &&) = default;
 			private:	// vector specific ctors
-				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, bool srcOdd, unsigned srcNamingSet, size_t ...idx>
-#ifdef MSVC_LIMITATIONS
-				inline CData(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet, std::integral_constant<bool, SrcSwizzleDesc::isWriteMaskValid>> &src, std::index_sequence<idx...>);
-#else
-				inline CData(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet> &src, std::index_sequence<idx...>);
-#endif
+				template<size_t ...idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, bool srcOdd, unsigned srcNamingSet>
+				CData(HeterogeneousInitTag<std::index_sequence<idx...>, false>, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet> &src);
 
-				template<typename SrcElementType, size_t ...idx>
-				inline CData(const SrcElementType &scalar, std::index_sequence<idx...>);
+				template<size_t ...idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, bool srcOdd, unsigned srcNamingSet>
+				inline CData(HeterogeneousInitTag<std::index_sequence<idx...>, true>, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet> &src);
 
-				template<typename SrcElementType, size_t ...idx>
-				inline CData(const SrcElementType (&src)[dimension], std::index_sequence<idx...>);
+				template<size_t ...idx, typename SrcElementType>
+				CData(std::index_sequence<idx...>, const SrcElementType &scalar);
+
+				template<size_t ...idx, typename SrcElementType>
+				CData(std::index_sequence<idx...>, const SrcElementType (&src)[dimension]);
+
+				template<size_t ...idx, unsigned offset, typename First, typename ...Rest>
+				CData(HeterogeneousInitTag<std::index_sequence<idx...>, false, offset>, const First &first, const Rest &...rest);
+
+				template<size_t ...idx, typename First, typename ...Rest>
+				inline CData(HeterogeneousInitTag<std::index_sequence<idx...>, true>, const First &first, const Rest &...rest);
 #		endif
 			private:
 				ElementType _data[dimension];
@@ -662,24 +879,44 @@ consider using preprocessor instead of templates or overloading each target func
 
 #		ifndef MSVC_LIMITATIONS
 			template<typename ElementType, unsigned int dimension>
-			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, bool srcOdd, unsigned srcNamingSet, size_t ...idx>
-#ifdef MSVC_LIMITATIONS
-			inline CData<ElementType, 0, dimension>::CData(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet, std::integral_constant<bool, SrcSwizzleDesc::isWriteMaskValid>> &src, std::index_sequence<idx...>) :
-#else
-			inline CData<ElementType, 0, dimension>::CData(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet> &src, std::index_sequence<idx...>) :
-#endif
-				_data{ ElementType(src[idx])... }
-			{}
+			template<size_t ...idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, bool srcOdd, unsigned srcNamingSet>
+			inline CData<ElementType, 0, dimension>::CData(HeterogeneousInitTag<std::index_sequence<idx...>, false>, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet> &src) :
+				_data{ ElementType(src[idx])... } {}
 
 			template<typename ElementType, unsigned int dimension>
-			template<typename SrcElementType, size_t ...idx>
-			inline CData<ElementType, 0, dimension>::CData(const SrcElementType &scalar, std::index_sequence<idx...>) :
+			template<size_t ...idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, bool srcOdd, unsigned srcNamingSet>
+			inline CData<ElementType, 0, dimension>::CData(HeterogeneousInitTag<std::index_sequence<idx...>, true>, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet> &src) :
+				CData(HeterogeneousInitTag<std::index_sequence<idx...>, false>(), src)
+			{
+				static_assert(dimension <= SrcSwizzleDesc::TDimension::value, "\"copy\" ctor: too small src dimension");
+			}
+
+			template<typename ElementType, unsigned int dimension>
+			template<size_t ...idx, typename SrcElementType>
+			inline CData<ElementType, 0, dimension>::CData(std::index_sequence<idx...>, const SrcElementType &scalar) :
 				_data{ (idx, ElementType(scalar))... } {}
 
 			template<typename ElementType, unsigned int dimension>
-			template<typename SrcElementType, size_t ...idx>
-			inline CData<ElementType, 0, dimension>::CData(const SrcElementType (&src)[dimension], std::index_sequence<idx...>) :
+			template<size_t ...idx, typename SrcElementType>
+			inline CData<ElementType, 0, dimension>::CData(std::index_sequence<idx...>, const SrcElementType (&src)[dimension]) :
 				_data{ ElementType(src[idx])... } {}
+
+			template<typename ElementType, unsigned int dimension>
+			template<size_t ...idx, unsigned offset, typename First, typename ...Rest>
+			inline CData<ElementType, 0, dimension>::CData(HeterogeneousInitTag<std::index_sequence<idx...>, false, offset>, const First &first, const Rest &...rest) :
+				_data{ ElementType(GetElement<idx + offset>(first, rest...))... } {}
+
+			template<typename ElementType, unsigned int dimension>
+			template<size_t ...idx, typename First, typename ...Rest>
+			inline CData<ElementType, 0, dimension>::CData(HeterogeneousInitTag<std::index_sequence<idx...>, true>, const First &first, const Rest &...rest) :
+				CData(HeterogeneousInitTag<std::index_sequence<idx...>, false>(), first, rest...)
+			{
+#if defined _MSC_VER && _MSC_VER <= 1900
+				static_assert(ElementsCount<First, Rest...>::value <= dimension, "too many src elements");
+#else
+				static_assert(elementsCount<First, Rest...> <= dimension, "too many src elements");
+#endif
+			}
 #		endif
 
 			// generic vector/matrix
@@ -702,6 +939,7 @@ consider using preprocessor instead of templates or overloading each target func
 #		endif
 			};
 
+#ifdef MSVC_LIMITATIONS
 #			pragma region Flat idx accessors
 			template<typename Src>
 			class CFlatIdxAccessor;
@@ -771,6 +1009,7 @@ consider using preprocessor instead of templates or overloading each target func
 				return CFlatIdxAccessor<Src>(src);
 			}
 #			pragma endregion TODO: move to vector/matrix base class in order to hide from user
+#endif
 
 #			pragma region Initializer list
 			template<typename ElementType>
@@ -1207,15 +1446,18 @@ consider using preprocessor instead of templates or overloading each target func
 #else
 				inline TOperationResult &operator =(std::initializer_list<CInitListItem<ElementType>> initList) &;
 #endif
+#ifdef MSVC_LIMITATIONS
 			protected:
 				template<unsigned idx>
 				inline void _Init();
 				template<unsigned startIdx = 0u, typename TCurSrc, typename ...TRestSrc>
 				inline void _Init(const TCurSrc &curSrc, const TRestSrc &...restSrc);
+#endif
 			public:
 				using CSwizzleCommon<ElementType, rows, columns, SwizzleDesc, odd, namingSet>::operator [];
 			};
 
+#ifdef MSVC_LIMITATIONS
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>
 			template<unsigned idx>
 			inline void CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, odd, namingSet>::_Init()
@@ -1234,6 +1476,7 @@ consider using preprocessor instead of templates or overloading each target func
 					operator [](i + startIdx) = src_accesssor[i];
 				_Init<startIdx + src_accesssor.dimension>(restSrc...);
 			}
+#endif
 
 #ifdef MSVC_LIMITATIONS
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>
@@ -2054,7 +2297,16 @@ consider using preprocessor instead of templates or overloading each target func
 
 				ElementType &operator [](unsigned int idx) noexcept;
 			private:
+#ifdef MSVC_LIMITATIONS
 				using CSwizzleAssign<ElementType, 0, dimension>::_Init;
+#else
+				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, bool srcOdd, unsigned srcNamingSet>
+				vector(typename CData<ElementType, 0, dimension>::template HeterogeneousInitTag<std::make_index_sequence<dimension>, false>,
+					const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet> &src);
+
+				template<unsigned offset, typename First, typename ...Rest>
+				vector(typename CData<ElementType, 0, dimension>::template HeterogeneousInitTag<std::make_index_sequence<dimension>, false, offset>, const First &first, const Rest &...rest);
+#endif
 			};
 
 			template<typename ElementType_, unsigned int rows_, unsigned int columns_>
@@ -2186,11 +2438,13 @@ consider using preprocessor instead of templates or overloading each target func
 					return apply<ElementType>(f);
 #endif
 				}
+#ifdef MSVC_LIMITATIONS
 			private:
 				template<unsigned idx>
 				inline void _Init();
 				template<unsigned startIdx = 0u, typename TCurSrc, typename ...TRestSrc>
 				inline void _Init(const TCurSrc &curSrc, const TRestSrc &...restSrc);
+#endif
 			};
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, bool odd, unsigned namingSet>
@@ -2231,10 +2485,7 @@ consider using preprocessor instead of templates or overloading each target func
 				}
 #else
 				inline vector<ElementType, dimension>::vector(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet> &src) :
-					DataContainer(src, std::make_index_sequence<dimension>())
-				{
-					static_assert(dimension <= SrcSwizzleDesc::TDimension::value, "\"copy\" ctor: too small src dimension");
-				}
+					DataContainer(CData<ElementType, 0, dimension>::HeterogeneousInitTag<std::make_index_sequence<dimension>>(), src) {}
 #endif
 
 				template<typename ElementType, unsigned int dimension>
@@ -2251,22 +2502,32 @@ consider using preprocessor instead of templates or overloading each target func
 				}
 #else
 				inline vector<ElementType, dimension>::vector(const SrcElementType &scalar) :
-					DataContainer(scalar, std::make_index_sequence<dimension>()) {}
+					DataContainer(std::make_index_sequence<dimension>(), scalar) {}
 #endif
 
 				template<typename ElementType, unsigned int dimension>
 				template<typename First, typename ...Rest>
+#ifdef MSVC_LIMITATIONS
 				vector<ElementType, dimension>::vector(const First &first, const Rest &...rest)
 				{
 					_Init(first, rest...);
 				}
+#else
+				inline vector<ElementType, dimension>::vector(const First &first, const Rest &...rest) :
+					DataContainer(CData<ElementType, 0, dimension>::HeterogeneousInitTag<std::make_index_sequence<dimension>>(), first, rest...) {}
+#endif
 
 				template<typename ElementType, unsigned int dimension>
 				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
+#ifdef MSVC_LIMITATIONS
 				vector<ElementType, dimension>::vector(const matrix<SrcElementType, srcRows, srcColumns> &src)
 				{
 					_Init(src);
 				}
+#else
+				inline vector<ElementType, dimension>::vector(const matrix<SrcElementType, srcRows, srcColumns> &src) :
+					DataContainer(CData<ElementType, 0, dimension>::HeterogeneousInitTag<std::make_index_sequence<dimension>>(), src) {}
+#endif
 
 				//template<typename ElementType, unsigned int dimension>
 				//template<typename TIterator>
@@ -2284,7 +2545,7 @@ consider using preprocessor instead of templates or overloading each target func
 				}
 #else
 				inline vector<ElementType, dimension>::vector(const SrcElementType (&src)[dimension]) :
-					DataContainer(src, std::make_index_sequence<dimension>()) {}
+					DataContainer(std::make_index_sequence<dimension>(), src) {}
 #endif
 
 				template<typename ElementType, unsigned int dimension>
@@ -2292,6 +2553,19 @@ consider using preprocessor instead of templates or overloading each target func
 				{
 					operator =(initList);
 				}
+
+#ifndef MSVC_LIMITATIONS
+				template<typename ElementType, unsigned int dimension>
+				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, bool srcOdd, unsigned srcNamingSet>
+				inline vector<ElementType, dimension>::vector(typename CData<ElementType, 0, dimension>::template HeterogeneousInitTag<std::make_index_sequence<dimension>, false> tag,
+					const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet> &src) :
+					DataContainer(tag, src) {}
+
+				template<typename ElementType, unsigned int dimension>
+				template<unsigned offset, typename First, typename ...Rest>
+				inline vector<ElementType, dimension>::vector(typename CData<ElementType, 0, dimension>::template HeterogeneousInitTag<std::make_index_sequence<dimension>, false, offset> tag, const First &first, const Rest &...rest) :
+					DataContainer(tag, first, rest...) {}
+#endif
 #			pragma endregion
 
 #			pragma region matrix impl
@@ -2329,11 +2603,7 @@ consider using preprocessor instead of templates or overloading each target func
 				}
 #else
 				inline matrix<ElementType, rows, columns>::matrix(const matrix<SrcElementType, srcRows, srcColumns> &src) :
-					DataContainer(src, std::make_index_sequence<rows>())
-				{
-					static_assert(rows <= srcRows, "\"copy\" ctor: too few rows in src");
-					static_assert(columns <= srcColumns, "\"copy\" ctor: too few columns in src");
-				}
+					DataContainer(std::make_index_sequence<rows>(), src) {}
 #endif
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
@@ -2346,9 +2616,10 @@ consider using preprocessor instead of templates or overloading each target func
 				}
 #else
 				inline matrix<ElementType, rows, columns>::matrix(const SrcElementType &scalar) :
-					DataContainer(scalar, std::make_index_sequence<rows>()) {}
+					DataContainer(std::make_index_sequence<rows>(), scalar) {}
 #endif
 
+#ifdef MSVC_LIMITATIONS
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				template<unsigned idx>
 				inline void matrix<ElementType, rows, columns>::_Init()
@@ -2370,31 +2641,43 @@ consider using preprocessor instead of templates or overloading each target func
 					}
 					_Init<startIdx + src_accesssor.dimension>(restSrc...);
 				}
+#endif
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				template<typename First, typename ...Rest>
+#ifdef MSVC_LIMITATIONS
 				matrix<ElementType, rows, columns>::matrix(const First &first, const Rest &...rest)
 				{
 					_Init(first, rest...);
 				}
+#else
+				inline matrix<ElementType, rows, columns>::matrix(const First &first, const Rest &...rest) :
+					DataContainer(CData<ElementType, rows, columns>::HeterogeneousInitTag<std::make_index_sequence<rows>>(), first, rest...) {}
+#endif
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, bool srcOdd, unsigned srcNamingSet>
 #ifdef MSVC_LIMITATIONS
 				matrix<ElementType, rows, columns>::matrix(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet, std::integral_constant<bool, SrcSwizzleDesc::isWriteMaskValid>> &src)
-#else
-				matrix<ElementType, rows, columns>::matrix(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet> &src)
-#endif
 				{
 					_Init(src);
 				}
+#else
+				inline matrix<ElementType, rows, columns>::matrix(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet> &src) :
+					DataContainer(CData<ElementType, rows, columns>::HeterogeneousInitTag<std::make_index_sequence<rows>>(), src) {}
+#endif
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				template<typename SrcElementType, unsigned int srcDimenstion>
+#ifdef MSVC_LIMITATIONS
 				matrix<ElementType, rows, columns>::matrix(const vector<SrcElementType, srcDimenstion> &src)
 				{
 					_Init(src);
 				}
+#else
+				inline matrix<ElementType, rows, columns>::matrix(const vector<SrcElementType, srcDimenstion> &src) :
+					DataContainer(CData<ElementType, rows, columns>::HeterogeneousInitTag<std::make_index_sequence<rows>>(), src) {}
+#endif
 
 				//template<typename ElementType, unsigned int rows, unsigned int columns>
 				//template<typename TIterator>
@@ -2413,8 +2696,8 @@ consider using preprocessor instead of templates or overloading each target func
 						operator [](rowIdx) = src[rowIdx];
 				}
 #else
-				inline matrix<ElementType, rows, columns>::matrix(const SrcElementType(&src)[rows][columns]) :
-					DataContainer(src, std::make_index_sequence<rows>()) {}
+				inline matrix<ElementType, rows, columns>::matrix(const SrcElementType (&src)[rows][columns]) :
+					DataContainer(std::make_index_sequence<rows>(), src) {}
 #endif
 
 				template<typename ElementType, unsigned int rows, unsigned int columns>
