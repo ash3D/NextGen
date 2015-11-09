@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		28.7.2015 (c)Andrey Korotkov
+\date		9.11.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -106,7 +106,8 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		void _CreateBufferImpl() override final;
 		void _FillSegmentImpl(const void *data, unsigned int size, DWORD lockFlags) override final;
 		const IDirect3DResource9Ptr _GetBuffer() const override final { return _VB; }
-	} *_immediateVB = nullptr, *_immediatePointsVB = nullptr, *_GetImmediateVB(bool points) const;
+	} *_immediateVB = nullptr, *_immediatePointsVB = nullptr;
+	CDynamicVB *_GetImmediateVB(bool points) const;
 
 	class CDynamicIB : public CDynamicBufferBase
 	{
@@ -132,7 +133,8 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		void _CreateBufferImpl() override final;
 		void _FillSegmentImpl(const void *data, unsigned int size, DWORD lockFlags) override final;
 		const IDirect3DResource9Ptr _GetBuffer() const override final { return _IB; }
-	} *_immediateIB16 = nullptr, *_immediateIB32 = nullptr, *_immediatePointsIB16 = nullptr, *_immediatePointsIB32 = nullptr, *_GetImmediateIB(bool points, bool _32) const;
+	} *_immediateIB16 = nullptr, *_immediateIB32 = nullptr, *_immediatePointsIB16 = nullptr, *_immediatePointsIB32 = nullptr;
+	CDynamicIB *_GetImmediateIB(bool points, bool _32) const;
 
 	class CGeometryProviderBase;
 	class CGeometryProvider;
@@ -203,7 +205,9 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		public:
 			TImage(IDirect3DResource9Ptr &&image) : image(std::move(image)), idleTime() {}
 		};
+	protected:
 		typedef std::unordered_multimap<TImageDesc, TImage, THash> TPool;
+	private:
 		TPool _pool;
 		const CBroadcast<>::CCallbackHandle _clearCallbackHandle, _cleanCallbackHandle;
 		static constexpr size_t _maxPoolSize = 16;
@@ -218,7 +222,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		virtual IDirect3DResource9Ptr _CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const = 0;
 	};
 
-	class CMSAARendertargetPool : public CImagePool
+	class CMSAARendertargetPool : CImagePool
 	{
 	public:
 		explicit CMSAARendertargetPool(CCoreRendererDX9 &parent);
@@ -227,7 +231,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		IDirect3DResource9Ptr _CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const override;
 	} _MSAARendertargetPool{ *this };
 
-	class CTexturePool : public CImagePool
+	class CTexturePool : CImagePool
 	{
 		const bool _managed, _mipmaps;
 	public:
