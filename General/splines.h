@@ -245,14 +245,25 @@ namespace Math
 			template<template<typename ScalarType, unsigned int dimension, class ...Attribs> class CBezierInterpolationImpl, typename ScalarType, unsigned int dimension, class ...Attribs>
 			class CBezierInterpolationCommon : public CBezierInterpolationImpl<ScalarType, dimension, Attribs...>
 			{
+#if defined _MSC_VER && _MSC_VER <= 1900
+#if 0
+				typedef CBezierInterpolationImpl<ScalarType, dimension, Attribs...> Base;
+
 			protected:
-				// TODO: use C++11 inheriting ctor
+				using Base::Base;
+#else
+			public:
 				template<typename Iterator>
 				CBezierInterpolationCommon(Iterator begin, Iterator end) :
-				CBezierInterpolationImpl<ScalarType, dimension, Attribs...>(begin, end) {}
+					CBezierInterpolationImpl<ScalarType, dimension, Attribs...>(begin, end) {}
 
 				CBezierInterpolationCommon(std::initializer_list<typename CBezierInterpolationImpl<ScalarType, dimension, Attribs...>::Point> points) :
-				CBezierInterpolationImpl<ScalarType, dimension, Attribs...>(points) {}
+					CBezierInterpolationImpl<ScalarType, dimension, Attribs...>(points) {}
+#endif
+#else
+				using CBezierInterpolationImpl<ScalarType, dimension, Attribs...>::CBezierInterpolationImpl;
+#endif
+
 			public:
 				template<typename Iterator>
 				void Tessellate(Iterator output, ScalarType delta) const;
@@ -267,7 +278,8 @@ namespace Math
 			public:
 				using typename CBezierInterpolationBase<ScalarType, dimension, Attribs...>::Point;
 
-			protected:
+				// use public rather than protected in order to make it accessible when using inheriting ctor
+			public:
 				template<typename Iterator>
 				CCatmullRom(Iterator begin, Iterator end);
 				CCatmullRom(std::initializer_list<Point> points);
@@ -289,17 +301,13 @@ namespace Math
 		template<typename ScalarType, unsigned int dimension, class ...Attribs>
 		class CCatmullRom : public Impl::CBezierInterpolationCommon<Impl::CCatmullRom, ScalarType, dimension, Attribs...>
 		{
-		public:
-			using typename CBezierInterpolationCommon<Impl::CCatmullRom, ScalarType, dimension, Attribs...>::Point;
+			typedef Impl::CBezierInterpolationCommon<Impl::CCatmullRom, ScalarType, dimension, Attribs...> Base;
 
 		public:
-			// TODO: use C++11 inheriting ctor
-			template<typename Iterator>
-			CCatmullRom(Iterator begin, Iterator end) :
-			CBezierInterpolationCommon<Impl::CCatmullRom, ScalarType, dimension, Attribs...>(begin, end) {}
+			using typename Base::Point;
 
-			CCatmullRom(std::initializer_list<Point> points) :
-			CBezierInterpolationCommon<Impl::CCatmullRom, ScalarType, dimension, Attribs...>(points) {}
+		public:
+			using Base::Base;
 		};
 
 		namespace Impl
@@ -310,10 +318,10 @@ namespace Math
 			public:
 				using typename CBezierInterpolationBase<ScalarType, dimension, Attribs...>::Point;
 
-			protected:
+				// use public rather than protected in order to make it accessible when using inheriting ctor
+			public:
 				template<typename Iterator>
 				CBesselOverhauser(Iterator begin, Iterator end);
-
 				CBesselOverhauser(std::initializer_list<Point> points);
 
 			private:
@@ -337,17 +345,13 @@ namespace Math
 		template<typename ScalarType, unsigned int dimension, class ...Attribs>
 		class CBesselOverhauser : public Impl::CBezierInterpolationCommon<Impl::CBesselOverhauser, ScalarType, dimension, Attribs...>
 		{
-		public:
-			using typename CBezierInterpolationCommon<Impl::CBesselOverhauser, ScalarType, dimension, Attribs...>::Point;
+			typedef Impl::CBezierInterpolationCommon<Impl::CBesselOverhauser, ScalarType, dimension, Attribs...> Base;
 
 		public:
-			// TODO: use C++11 inheriting ctor
-			template<typename Iterator>
-			CBesselOverhauser(Iterator begin, Iterator end) :
-			CBezierInterpolationCommon<Impl::CBesselOverhauser, ScalarType, dimension, Attribs...>(begin, end) {}
+			using typename Base::Point;
 
-			CBesselOverhauser(std::initializer_list<Point> points) :
-			CBezierInterpolationCommon<Impl::CBesselOverhauser, ScalarType, dimension, Attribs...>(points) {}
+		public:
+			using Base::Base;
 		};
 	}
 }
