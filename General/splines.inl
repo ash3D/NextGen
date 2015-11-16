@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		6.11.2015 (c)Korotkov Andrey
+\date		16.11.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -345,7 +345,7 @@ Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(const
 #else
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
 Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(const typename ControlPoints::value_type (&src)[degree + 1]) :
-	CBezier(src, std::make_index_sequence<controlPoints.size()>()) {}
+	CBezier(src, std::make_index_sequence<degree + 1>()) {}
 #endif
 
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
@@ -385,7 +385,12 @@ Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(Point
 }
 #else
 Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(Points &&...controlPoints) :
-controlPoints{ std::forward<Points>(controlPoints)... } {}
+controlPoints{ std::forward<Points>(controlPoints)... }
+{
+	constexpr auto cout = degree + 1;
+	static_assert(sizeof...(Points) >= cout, "too few control points");
+	static_assert(sizeof...(Points) <= cout, "too many control points");
+}
 #endif
 
 // consider using variadic template to unroll loop
