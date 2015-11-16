@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		6.11.2015 (c)Korotkov Andrey
+\date		16.11.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -17,27 +17,6 @@ See "DGLE.h" for more details.
 #include <tuple>
 #define DISABLE_MATRIX_SWIZZLES
 #include "vector math.h"
-#ifdef MSVC_LIMITATIONS
-#include <functional>
-namespace std
-{
-	template<size_t ...seq>
-	struct index_sequence {};
-
-	template<size_t head, size_t ...tail>
-	struct MakeIndexSequence : MakeIndexSequence<head - 1, head - 1, tail...>
-	{};
-
-	template<size_t ...seq>
-	struct MakeIndexSequence<0, seq...>
-	{
-		typedef index_sequence<seq...> type;
-	};
-
-	template<typename ...Types>
-	using index_sequence_for = typename MakeIndexSequence<sizeof...(Types)>::type;
-}
-#endif
 
 namespace Math
 {
@@ -109,7 +88,6 @@ namespace Math
 				-> CompositePoint<std::decay_t<decltype(std::declval<Functor>()(left, right.pos))>, std::decay_t<decltype(std::declval<Functor>()(left, std::get<idx>(right.attribs)))>...>;
 #endif
 
-#ifndef MSVC_LIMITATIONS
 			// point op= point
 			template<class Functor, size_t idx = 0, class SrcPos, class ...SrcAttribs>
 #if defined _MSC_VER && _MSC_VER <= 1900
@@ -139,18 +117,9 @@ namespace Math
 #else
 			inline std::enable_if_t<idx == sizeof...(Attribs), CompositePoint &> PointOpScalar(const Scalar &src);
 #endif
-#endif
 
 		public:
 			CompositePoint() = default;
-
-#ifdef MSVC_LIMITATIONS
-			template<class Src>
-			CompositePoint(Src &&src) : pos(std::forward<Src>(src).pos)
-			{
-				attribs = std::forward<Src>(src).attribs;
-			}
-#endif
 
 			template<class SrcPos, class ...SrcAttribs>
 			CompositePoint(SrcPos &&pos, SrcAttribs &&...attribs);
@@ -170,11 +139,7 @@ namespace Math
 
 		public:
 			const CompositePoint &operator +() const { return *this; }
-			auto operator -() const
-#ifdef MSVC_LIMITATIONS
-				-> decltype(OpPoint<std::negate<>>(std::index_sequence_for<Attribs...>()))
-#endif
-				;
+			auto operator -() const;
 
 		public:
 			// point += point
@@ -195,43 +160,23 @@ namespace Math
 
 			// point + point
 			template<class LeftPos, class ...LeftAttribs, class RightPos, class ...RightAttribs>
-			friend auto operator +(const CompositePoint<LeftPos, LeftAttribs...> &left, const CompositePoint<RightPos, RightAttribs...> &right)
-#ifdef MSVC_LIMITATIONS
-				-> decltype(CompositePoint<LeftPos, LeftAttribs...>::PointOpPoint<std::plus<>>(std::index_sequence_for<LeftAttribs...>(), left, right))
-#endif
-				;
+			friend auto operator +(const CompositePoint<LeftPos, LeftAttribs...> &left, const CompositePoint<RightPos, RightAttribs...> &right);
 
 			// point - point
 			template<class LeftPos, class ...LeftAttribs, class RightPos, class ...RightAttribs>
-			friend auto operator -(const CompositePoint<LeftPos, LeftAttribs...> &left, const CompositePoint<RightPos, RightAttribs...> &right)
-#ifdef MSVC_LIMITATIONS
-				-> decltype(CompositePoint<LeftPos, LeftAttribs...>::PointOpPoint<std::minus<>>(std::index_sequence_for<LeftAttribs...>(), left, right))
-#endif
-				;
+			friend auto operator -(const CompositePoint<LeftPos, LeftAttribs...> &left, const CompositePoint<RightPos, RightAttribs...> &right);
 
 			// point * scalar
 			template<class SrcPos, class ...SrcAttribs, typename Scalar>
-			friend auto operator *(const CompositePoint<SrcPos, SrcAttribs...> &left, const Scalar &right)
-#ifdef MSVC_LIMITATIONS
-				-> decltype(CompositePoint<SrcPos, SrcAttribs...>::PointOpScalar<std::multiplies<>>(std::index_sequence_for<SrcAttribs...>(), left, right))
-#endif
-				;
+			friend auto operator *(const CompositePoint<SrcPos, SrcAttribs...> &left, const Scalar &right);
 
 			// scalar * point
 			template<class SrcPos, class ...SrcAttribs, typename Scalar>
-			friend auto operator *(const Scalar &left, const CompositePoint<SrcPos, SrcAttribs...> &right)
-#ifdef MSVC_LIMITATIONS
-				-> decltype(CompositePoint<SrcPos, SrcAttribs...>::ScalarOpPoint<std::multiplies<>>(std::index_sequence_for<SrcAttribs...>(), left, right))
-#endif
-				;
+			friend auto operator *(const Scalar &left, const CompositePoint<SrcPos, SrcAttribs...> &right);
 
 			// point / scalar
 			template<class SrcPos, class ...SrcAttribs, typename Scalar>
-			friend auto operator /(const CompositePoint<SrcPos, SrcAttribs...> &left, const Scalar &right)
-#ifdef MSVC_LIMITATIONS
-				-> decltype(CompositePoint<SrcPos, SrcAttribs...>::PointOpScalar<std::divides<>>(std::index_sequence_for<SrcAttribs...>(), left, right))
-#endif
-				;
+			friend auto operator /(const CompositePoint<SrcPos, SrcAttribs...> &left, const Scalar &right);
 		};
 
 		template<class Point>
@@ -259,11 +204,9 @@ namespace Math
 					CompositePoint<VectorMath::vector<ScalarType, dimension>, Attribs...>>,
 				degree + 1> ControlPoints;
 
-#ifndef MSVC_LIMITATIONS
 		private:
 			template<size_t ...idx>
 			inline CBezier(const typename ControlPoints::value_type(&controlPoints)[degree + 1], std::index_sequence<idx...>);
-#endif
 
 		public:
 			CBezier(const typename ControlPoints::value_type (&controlPoints)[degree + 1]);
@@ -278,15 +221,6 @@ namespace Math
 
 			template<typename Iterator>
 			void Tessellate(Iterator output, ScalarType delta, bool emitFirstPoint = true) const;
-
-#ifdef MSVC_LIMITATIONS
-		private:
-			template<unsigned idx>
-			inline void Init();
-
-			template<unsigned idx, class CurPoint, class ...RestPoints>
-			inline void Init(CurPoint &&curPoint, RestPoints &&...restPoints);
-#endif
 
 		private:
 			template<typename Iterator>
@@ -355,18 +289,6 @@ namespace Math
 		template<typename ScalarType, unsigned int dimension, class ...Attribs>
 		class CCatmullRom : public Impl::CBezierInterpolationCommon<Impl::CCatmullRom, ScalarType, dimension, Attribs...>
 		{
-#ifdef MSVC_LIMITATIONS
-		public:
-			using typename CBezierInterpolationCommon::Point;
-
-		public:
-			template<typename Iterator>
-			CCatmullRom(Iterator begin, Iterator end) :
-			CBezierInterpolationCommon(begin, end) {}
-
-			CCatmullRom(std::initializer_list<Point> points) :
-			CBezierInterpolationCommon(points) {}
-#else
 		public:
 			using typename CBezierInterpolationCommon<Impl::CCatmullRom, ScalarType, dimension, Attribs...>::Point;
 
@@ -378,7 +300,6 @@ namespace Math
 
 			CCatmullRom(std::initializer_list<Point> points) :
 			CBezierInterpolationCommon<Impl::CCatmullRom, ScalarType, dimension, Attribs...>(points) {}
-#endif
 		};
 
 		namespace Impl
@@ -416,20 +337,6 @@ namespace Math
 		template<typename ScalarType, unsigned int dimension, class ...Attribs>
 		class CBesselOverhauser : public Impl::CBezierInterpolationCommon<Impl::CBesselOverhauser, ScalarType, dimension, Attribs...>
 		{
-#ifdef MSVC_LIMITATIONS
-		public:
-			using typename CBezierInterpolationCommon::Point;
-
-		public:
-			// TODO: use C++11 inheriting ctor
-			template<typename Iterator>
-			CBesselOverhauser(Iterator begin, Iterator end) :
-			CBezierInterpolationCommon(begin, end) {}
-
-			CBesselOverhauser(std::initializer_list<Point> points) :
-			CBezierInterpolationCommon(points) {}
-		};
-#else
 		public:
 			using typename CBezierInterpolationCommon<Impl::CBesselOverhauser, ScalarType, dimension, Attribs...>::Point;
 
@@ -442,7 +349,6 @@ namespace Math
 			CBesselOverhauser(std::initializer_list<Point> points) :
 			CBezierInterpolationCommon<Impl::CBesselOverhauser, ScalarType, dimension, Attribs...>(points) {}
 		};
-#endif
 	}
 }
 
