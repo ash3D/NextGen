@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		8.11.2015 (c)Alexey Shaydurov
+\date		24.11.2015 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -638,7 +638,7 @@ consider using preprocessor instead of templates or overloading each target func
 				template<unsigned idx, typename SrcElementType, typename ...Rest>
 				static inline decltype(auto) GetElementImpl(std::false_type, const SrcElementType &scalar, const Rest &...rest) noexcept
 				{
-					return GetElement<idx - 1>(rest...);
+					return GetElement<idx - ElementsCount<decltype(scalar)>::value>(rest...);
 				}
 
 				// swizzle
@@ -652,7 +652,7 @@ consider using preprocessor instead of templates or overloading each target func
 				template<unsigned idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, bool srcOdd, unsigned srcNamingSet, typename ...Rest>
 				static inline decltype(auto) GetElementImpl(std::false_type, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet> &src, const Rest &...rest) noexcept
 				{
-					return GetElement<idx - SrcSwizzleDesc::TDimension::value>(rest...);
+					return GetElement<idx - ElementsCount<decltype(src)>::value>(rest...);
 				}
 
 				// matrix
@@ -666,13 +666,13 @@ consider using preprocessor instead of templates or overloading each target func
 				template<unsigned idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, typename ...Rest>
 				static inline decltype(auto) GetElementImpl(std::false_type, const matrix<SrcElementType, srcRows, srcColumns> &src, const Rest &...rest) noexcept
 				{
-					return GetElement<idx - srcRows * srcColumns>(rest...);
+					return GetElement<idx - ElementsCount<decltype(src)>::value>(rest...);
 				}
 			protected:
 				template<unsigned idx, typename First, typename ...Rest>
 				static inline decltype(auto) GetElement(const First &first, const Rest &...rest) noexcept
 				{
-					return GetElementImpl<idx>(std::integral_constant<bool, idx < ElementsCount<const First &>::value>(), first, rest...);
+					return GetElementImpl<idx>(std::integral_constant<bool, idx < ElementsCount<decltype(first)>::value>(), first, rest...);
 				}
 
 				// vector
@@ -704,7 +704,7 @@ consider using preprocessor instead of templates or overloading each target func
 				static inline auto GetElement(const SrcElementType &scalar, const Rest &...rest) noexcept
 					-> std::enable_if_t<idx >= elementCount<decltype(scalar)>, decltype(GetElement<idx - 1>(rest...))>
 				{
-					return GetElement<idx - 1>(rest...);
+					return GetElement<idx - elementCount<decltype(scalar)>>(rest...);
 				}
 
 				// swizzle
@@ -720,7 +720,7 @@ consider using preprocessor instead of templates or overloading each target func
 				static inline auto GetElement(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc, srcOdd, srcNamingSet> &src, const Rest &...rest) noexcept
 					-> std::enable_if_t<idx >= elementCount<decltype(src)>, decltype(GetElement<idx - SrcSwizzleDesc::TDimension::value>(rest...))>
 				{
-					return GetElement<idx - SrcSwizzleDesc::TDimension::value>(rest...);
+					return GetElement<idx - elementCount<decltype(src)>>(rest...);
 				}
 
 				// vector
@@ -743,7 +743,7 @@ consider using preprocessor instead of templates or overloading each target func
 				static inline auto GetElement(const matrix<SrcElementType, srcRows, srcColumns> &src, const Rest &...rest) noexcept
 					-> std::enable_if_t<idx >= elementCount<decltype(src)>, decltype(GetElement<idx - srcRows * srcColumns>(rest...))>
 				{
-					return GetElement<idx - srcRows * srcColumns>(rest...);
+					return GetElement<idx - elementCount<decltype(src)>>(rest...);
 				}
 
 				// empty check
