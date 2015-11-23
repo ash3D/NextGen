@@ -80,7 +80,7 @@ int main()
 	vec4 += 42;
 
 	vec4.xy += int4(4);
-	vec4.xy += int4(4).xxx;\
+	vec4.xy += int4(4).xxx;
 	vec4.xy += vec4;
 	vec4.xy += vec4.xxx;
 	vec4.xy += 42;

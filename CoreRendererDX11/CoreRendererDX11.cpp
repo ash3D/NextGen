@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		3.11.2015 (c)Andrey Korotkov
+\date		9.11.2015 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -789,7 +789,7 @@ namespace
 			static inline void(*(*apply(D3DFORMAT d3dFormat))(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
 			{
 				typedef typename TD3DFormatLayoutArray::at<idx> TCurFormatLayout;
-				return d3dFormat == TCurFormatLayout::format ? GetRowConvertion<dgleFormatLayout, TCurFormatLayout::layout>::apply() : IterateD3DRowConvertion<idx + 1>::apply<dgleFormatLayout>(d3dFormat);
+				return d3dFormat == TCurFormatLayout::format ? GetRowConvertion<dgleFormatLayout, TCurFormatLayout::layout>::apply() : IterateD3DRowConvertion<idx + 1>::template apply<dgleFormatLayout>(d3dFormat);
 			}
 		};
 
@@ -1000,7 +1000,7 @@ private:
 	const bool _mipMaps;
 
 public:
-	static struct TInit
+	struct TInit
 	{
 		const bool is_depth;
 
@@ -1015,7 +1015,9 @@ public:
 		inline TInit(bool is_depth, CCoreRendererDX11 &parent, E_TEXTURE_DATA_FORMAT format, D3DFORMAT DXFormat,
 			void(*RowConvertion(bool dgle2d3d))(const void *const src, void *const dst, unsigned length), unsigned int bytesPerPixel);
 		friend class CCoreTexture;
-	} GetInit(CCoreRendererDX11 &parent, E_TEXTURE_DATA_FORMAT format);
+	};
+	
+	static TInit GetInit(CCoreRendererDX11 &parent, E_TEXTURE_DATA_FORMAT format);
 
 private:
 	inline bool _Compressed() const;
@@ -1023,7 +1025,9 @@ private:
 	struct TDataSize
 	{
 		unsigned int w, h, rowSize;
-	} _DataSize(unsigned int width, unsigned int height, unsigned int alignment) const, _DataSize(unsigned int lod, unsigned int alignment = 0) const;
+	};
+	
+	TDataSize _DataSize(unsigned int width, unsigned int height, unsigned int alignment) const, _DataSize(unsigned int lod, unsigned int alignment = 0) const;
 
 public:
 	CCoreTexture(const TInit &init, E_TEXTURE_TYPE type, const uint8_t *data, unsigned int width, unsigned int height, bool mipsPresented, E_CORE_RENDERER_DATA_ALIGNMENT dataAlignment, E_TEXTURE_LOAD_FLAGS loadFlags, DWORD anisoLevel, DGLE_RESULT &ret);
@@ -2217,8 +2221,10 @@ namespace
 }
 
 #pragma region CInputLayoutCache
-inline CCoreRendererDX11::CInputLayoutCache::tag::tag(const TDrawDataDesc &desc) :
-packed(), _2D(desc.bVertices2D), normal(desc.uiNormalOffset != ~0), uv(desc.uiTextureVertexOffset != ~0), color(desc.uiColorOffset != ~0) {}
+inline CCoreRendererDX11::CInputLayoutCache::tag::tag(const TDrawDataDesc &desc) : packed()
+{
+	_2D = desc.bVertices2D, normal = desc.uiNormalOffset != ~0, uv = desc.uiTextureVertexOffset != ~0, color = desc.uiColorOffset != ~0;
+}
 
 auto CCoreRendererDX11::CInputLayoutCache::GetLayout(ID3D11Device2 *device, const TDrawDataDesc &desc) -> const TCache::mapped_type &
 {
@@ -3213,7 +3219,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX11::BindTexture(ICoreTexture *pTex, uint uiT
 	_selectedTexLayer = uiTextureLayer;
 
 	const auto tex = static_cast<CCoreTexture *>(pTex);
-	AssertHR(_device->SetTexture(uiTextureLayer, tex ? tex->GetTex().Get() : NULL));
+	AssertHR(_device->SetTexture(uiTextureLayer, tex ? tex->GetTex().Get() : nullptr));
 	D3DTEXTUREOP colorop, alphaop;
 	if (tex)
 	{

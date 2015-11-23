@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		6.11.2015 (c)Korotkov Andrey
+\date		16.11.2015 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -18,9 +18,6 @@ See "DGLE.h" for more details.
 #include <boost/math/special_functions/binomial.hpp>
 #include "general math.h"	// for lerp
 #include "misc.h"			// for Reserve()
-#ifdef MSVC_LIMITATIONS
-#include <cstring>			// for memset
-#endif
 
 #pragma region CompositePoint
 // TODO: use C++17 nested namespace
@@ -32,40 +29,28 @@ namespace Math
 		struct CompositePoint<Pos, Attribs...>::AddAssign
 		{
 			template<typename Dst, typename Src>
-#ifndef MSVC_LIMITATIONS
-			constexpr
-#endif
-			void operator ()(Dst &dst, const Src &src) const { dst += src; }
+			constexpr void operator ()(Dst &dst, const Src &src) const { dst += src; }
 		};
 
 		template<class Pos, class ...Attribs>
 		struct CompositePoint<Pos, Attribs...>::SubAssign
 		{
 			template<typename Dst, typename Src>
-#ifndef MSVC_LIMITATIONS
-			constexpr
-#endif
-			void operator ()(Dst &dst, const Src &src) const { dst -= src; }
+			constexpr void operator ()(Dst &dst, const Src &src) const { dst -= src; }
 		};
 
 		template<class Pos, class ...Attribs>
 		struct CompositePoint<Pos, Attribs...>::MulAssign
 		{
 			template<typename Dst, typename Src>
-#ifndef MSVC_LIMITATIONS
-			constexpr
-#endif
-			void operator ()(Dst &dst, const Src &src) const { dst *= src; }
+			constexpr void operator ()(Dst &dst, const Src &src) const { dst *= src; }
 		};
 
 		template<class Pos, class ...Attribs>
 		struct CompositePoint<Pos, Attribs...>::DivAssign
 		{
 			template<typename Dst, typename Src>
-#ifndef MSVC_LIMITATIONS
-			constexpr
-#endif
-			void operator ()(Dst &dst, const Src &src) const { dst /= src; }
+			constexpr void operator ()(Dst &dst, const Src &src) const { dst /= src; }
 		};
 
 		// op point
@@ -124,7 +109,6 @@ namespace Math
 			return { op(left, right.pos), op(left, std::get<idx>(right.attribs))... };
 		}
 
-#ifndef MSVC_LIMITATIONS
 		// point op= point
 		template<class Pos, class ...Attribs>
 		template<class Functor, size_t idx, class SrcPos, class ...SrcAttribs>
@@ -184,7 +168,6 @@ namespace Math
 			Functor()(pos, src);
 			return *this;
 		}
-#endif
 
 		template<class Pos, class ...Attribs>
 		template<class SrcPos, class ...SrcAttribs>
@@ -221,9 +204,6 @@ namespace Math
 
 		template<class Pos, class ...Attribs>
 		inline auto CompositePoint<Pos, Attribs...>::operator -() const
-#ifdef MSVC_LIMITATIONS
-			-> decltype(OpPoint<std::negate<>>(std::index_sequence_for<Attribs...>()))
-#endif
 		{
 			return OpPoint<std::negate<>>(std::index_sequence_for<Attribs...>());
 		}
@@ -233,11 +213,7 @@ namespace Math
 		template<class SrcPos, class ...SrcAttribs>
 		inline auto CompositePoint<Pos, Attribs...>::operator +=(const CompositePoint<SrcPos, SrcAttribs...> &src) -> CompositePoint &
 		{
-#ifdef MSVC_LIMITATIONS
-			return *this = *this + src;
-#else
 			return PointOpPoint<AddAssign>(src);
-#endif
 		}
 
 		// point -= point
@@ -245,11 +221,7 @@ namespace Math
 		template<class SrcPos, class ...SrcAttribs>
 		inline auto CompositePoint<Pos, Attribs...>::operator -=(const CompositePoint<SrcPos, SrcAttribs...> &src) -> CompositePoint &
 		{
-#ifdef MSVC_LIMITATIONS
-			return *this = *this - src;
-#else
 			return PointOpPoint<SubAssign>(src);
-#endif
 		}
 
 		// point *= scalar
@@ -257,11 +229,7 @@ namespace Math
 		template<typename Scalar>
 		inline auto CompositePoint<Pos, Attribs...>::operator *=(const Scalar &src) -> CompositePoint &
 		{
-#ifdef MSVC_LIMITATIONS
-			return *this = *this * src;
-#else
 			return PointOpScalar<MulAssign>(src);
-#endif
 		}
 
 		// point /= scalar
@@ -269,19 +237,12 @@ namespace Math
 		template<typename Scalar>
 		inline auto CompositePoint<Pos, Attribs...>::operator /=(const Scalar &src) -> CompositePoint &
 		{
-#ifdef MSVC_LIMITATIONS
-			return *this = *this / src;
-#else
 			return PointOpScalar<DivAssign>(src);
-#endif
 		}
 
 		// point + point
 		template<class LeftPos, class ...LeftAttribs, class RightPos, class ...RightAttribs>
 		inline auto operator +(const CompositePoint<LeftPos, LeftAttribs...> &left, const CompositePoint<RightPos, RightAttribs...> &right)
-#ifdef MSVC_LIMITATIONS
-			-> decltype(CompositePoint<LeftPos, LeftAttribs...>::PointOpPoint<std::plus<>>(std::index_sequence_for<LeftAttribs...>(), left, right))
-#endif
 		{
 			return CompositePoint<LeftPos, LeftAttribs...>::PointOpPoint<std::plus<>>(std::index_sequence_for<LeftAttribs...>(), left, right);
 		}
@@ -289,9 +250,6 @@ namespace Math
 		// point - point
 		template<class LeftPos, class ...LeftAttribs, class RightPos, class ...RightAttribs>
 		inline auto operator -(const CompositePoint<LeftPos, LeftAttribs...> &left, const CompositePoint<RightPos, RightAttribs...> &right)
-#ifdef MSVC_LIMITATIONS
-			-> decltype(CompositePoint<LeftPos, LeftAttribs...>::PointOpPoint<std::minus<>>(std::index_sequence_for<LeftAttribs...>(), left, right))
-#endif
 		{
 			return CompositePoint<LeftPos, LeftAttribs...>::PointOpPoint<std::minus<>>(std::index_sequence_for<LeftAttribs...>(), left, right);
 		}
@@ -299,9 +257,6 @@ namespace Math
 		// point * scalar
 		template<class Pos, class ...Attribs, typename Scalar>
 		inline auto operator *(const CompositePoint<Pos, Attribs...> &left, const Scalar &right)
-#ifdef MSVC_LIMITATIONS
-			-> decltype(CompositePoint<Pos, Attribs...>::PointOpScalar<std::multiplies<>>(std::index_sequence_for<Attribs...>(), left, right))
-#endif
 		{
 			return CompositePoint<Pos, Attribs...>::PointOpScalar<std::multiplies<>>(std::index_sequence_for<Attribs...>(), left, right);
 		}
@@ -309,9 +264,6 @@ namespace Math
 		// scalar * point
 		template<class Pos, class ...Attribs, typename Scalar>
 		inline auto operator *(const Scalar &left, const CompositePoint<Pos, Attribs...> &right)
-#ifdef MSVC_LIMITATIONS
-			-> decltype(CompositePoint<Pos, Attribs...>::ScalarOpPoint<std::multiplies<>>(std::index_sequence_for<Attribs...>(), left, right))
-#endif
 		{
 			return CompositePoint<Pos, Attribs...>::ScalarOpPoint<std::multiplies<>>(std::index_sequence_for<Attribs...>(), left, right);
 		}
@@ -319,9 +271,6 @@ namespace Math
 		// point / scalar
 		template<class Pos, class ...Attribs, typename Scalar>
 		inline auto operator /(const CompositePoint<Pos, Attribs...> &left, const Scalar &right)
-#ifdef MSVC_LIMITATIONS
-			-> decltype(CompositePoint<Pos, Attribs...>::PointOpScalar<std::divides<>>(std::index_sequence_for<Attribs...>(), left, right))
-#endif
 		{
 			return CompositePoint<Pos, Attribs...>::PointOpScalar<std::divides<>>(std::index_sequence_for<Attribs...>(), left, right);
 		}
@@ -329,24 +278,14 @@ namespace Math
 }
 #pragma endregion
 
-#ifndef MSVC_LIMITATIONS
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
 template<size_t ...idx>
 inline Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(const typename ControlPoints::value_type (&src)[degree + 1], std::index_sequence<idx...>) :
 	controlPoints{ typename ControlPoints::value_type(src[idx])... } {}
-#endif
 
-#ifdef MSVC_LIMITATIONS
-template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
-Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(const typename ControlPoints::value_type (&src)[degree + 1])
-{
-	std::copy_n(controlPoints.data(), controlPoints.size(), src);
-}
-#else
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
 Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(const typename ControlPoints::value_type (&src)[degree + 1]) :
-	CBezier(src, std::make_index_sequence<controlPoints.size()>()) {}
-#endif
+	CBezier(src, std::make_index_sequence<degree + 1>()) {}
 
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
 Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(const ControlPoints &controlPoints) :
@@ -356,37 +295,15 @@ template<typename ScalarType, unsigned int dimension, unsigned int degree, class
 Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(ControlPoints &&controlPoints) :
 	controlPoints(std::move(controlPoints)) {}
 
-#ifdef MSVC_LIMITATIONS
-template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
-template<unsigned idx>
-inline void Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::Init()
-{
-	constexpr auto count = ControlPoints::_EEN_SIZE;	// specific for VS
-	static_assert(idx >= count, "too few control point");
-	static_assert(idx <= count, "too many control point");
-}
-
-template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
-template<unsigned idx, class CurPoint, class ...RestPoints>
-inline void Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::Init(CurPoint &&curPoint, RestPoints &&...restPoints)
-{
-	static_assert(std::is_convertible<CurPoint, typename ControlPoints::value_type>::value, "invalid control point type");
-	controlPoints[idx] = std::forward<CurPoint>(curPoint);
-	Init<idx + 1>(std::forward<RestPoints>(restPoints)...);
-}
-#endif
-
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
 template<class ...Points>
-#ifdef MSVC_LIMITATIONS
-Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(Points &&...controlPoints)
-{
-	Init<0>(std::forward<Points>(controlPoints)...);
-}
-#else
 Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(Points &&...controlPoints) :
-controlPoints{ std::forward<Points>(controlPoints)... } {}
-#endif
+controlPoints{ std::forward<Points>(controlPoints)... }
+{
+	constexpr auto cout = degree + 1;
+	static_assert(sizeof...(Points) >= cout, "too few control points");
+	static_assert(sizeof...(Points) <= cout, "too many control points");
+}
 
 // consider using variadic template to unroll loop
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
@@ -397,9 +314,6 @@ auto Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::operator
 	for (signed i = degree - 1; i >= 0; i--)
 		factors2[i] = factors2[i + 1] * (1 - u);
 	auto result = typename ControlPoints::value_type();	// value init
-#ifdef MSVC_LIMITATIONS
-	memset(&result, 0, sizeof(result));
-#endif
 	for (unsigned i = 0; i <= degree; i++, factor1 *= u)
 		result += boost::math::binomial_coefficient<ScalarType>(degree, i) * factor1 * factors2[i] * controlPoints[i];
 	return result;
@@ -565,22 +479,13 @@ auto Math::Splines::Impl::CBesselOverhauser<ScalarType, dimension, Attribs...>::
 	{
 		return (points[j + 1].second - points[j].second) / (points[j + 1].first - points[j].first);
 	};
-#ifdef MSVC_LIMITATIONS
-	const auto offset = [this, &v_segment, i](Points::size_type shift)
-#else
 	const Point segment_vels[3] = {v_segment(i - 1), v_segment(i), v_segment(i + 1)};
 	const auto offset = [this, &segment_vels, i](Points::size_type shift)
-#endif
 	{
 		return
 			(
-#ifdef MSVC_LIMITATIONS
-				(points[i + 1 + shift].first - points[i + shift].first) * v_segment(i - 1 + 0 + shift) +
-				(points[i + shift].first - points[i - 1 + shift].first) * v_segment(i - 1 + 1 + shift)
-#else
 				(points[i + 1 + shift].first - points[i + shift].first) * segment_vels[0 + shift] +
 				(points[i + shift].first - points[i - 1 + shift].first) * segment_vels[1 + shift]
-#endif
 			) /
 			((points[i + 1 + shift].first - points[i - 1 + shift].first) * 3) *
 			(points[i + 1].first - points[i].first);
