@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		8.11.2015 (c)Alexey Shaydurov
+\date		10.12.2015 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1588,7 +1588,7 @@ consider using preprocessor instead of templates or overloading each target func
 #ifndef MSVC_LIMITATIONS
 				CSwizzle() = default;
 				CSwizzle(const CSwizzle &) = delete;
-				~CSwizzle() = delete;
+				~CSwizzle() = default;
 #endif
 			};
 
@@ -1669,7 +1669,7 @@ consider using preprocessor instead of templates or overloading each target func
 #ifndef MSVC_LIMITATIONS
 				CSwizzle() = default;
 				CSwizzle(const CSwizzle &) = delete;
-				~CSwizzle() = delete;
+				~CSwizzle() = default;
 #endif
 			};
 
