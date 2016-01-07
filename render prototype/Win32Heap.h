@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		3.7.2013 (c)Korotkov Andrey
+\date		07.01.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -54,7 +54,7 @@ namespace Win32Heap
 		{
 			typedef CWin32HeapAllocator<Other> other;
 		};
-		CWin32HeapAllocator(HANDLE heap = HANDLE(_get_heap_handle())) noexcept: _heap(heap) {}
+		explicit CWin32HeapAllocator(HANDLE heap = HANDLE(_get_heap_handle())) noexcept: _heap(heap) {}
 		template<typename Other>
 		CWin32HeapAllocator(const CWin32HeapAllocator<Other> &src) noexcept: _heap(src._heap) {}
 		pointer allocate(size_type count, const void * = NULL)

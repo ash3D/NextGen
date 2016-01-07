@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.10.2015 (c)Korotkov Andrey
+\date		07.01.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -78,9 +78,8 @@ private:
 
 private:
 	Win32Heap::CWin32Heap _dedicatedHeap;
-	Win32Heap::CWin32HeapAllocator<TQuad> _staticRectsAllocator, _dynamicRectsAllocator;
-	Win32Heap::CWin32HeapAllocator<TQuad> _staticEllipsesAllocator, _dynamicEllipsesAllocator;
-	Win32Heap::CWin32HeapAllocator<TQuad> _staticEllipsesAAAllocator, _dynamicEllipsesAAAllocator;
+	Win32Heap::CWin32HeapAllocator<TQuad> _staticRectsAllocator, _staticEllipsesAllocator, _staticEllipsesAAAllocator;
+	Win32Heap::CWin32HeapAllocator<TQuad> _dynamicRectsAllocator, _dynamicEllipsesAllocator, _dynamicEllipsesAAAllocator;
 	//class CRect;
 	//class CEllipse;
 	//typedef list<CRect> TRects;
@@ -107,9 +106,8 @@ private:
 	class CQuadHandle;
 	class CRectHandle;
 	class CEllipseHandle;
-	mutable TQuads _staticRects;TQuads _dynamicRects;
-	mutable TQuads _staticEllipses;TQuads _dynamicEllipses;
-	mutable TQuads _staticEllipsesAA;TQuads _dynamicEllipsesAA;
+	mutable TQuads _staticRects, _staticEllipses, _staticEllipsesAA;
+	TQuads _dynamicRects, _dynamicEllipses, _dynamicEllipsesAA;
 	mutable Microsoft::WRL::ComPtr<ID3D11Buffer> _static2DVB, _dynamic2DVB;
 	mutable UINT _dynamic2DVBSize;
 	mutable bool _static2DDirty;

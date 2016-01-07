@@ -16,13 +16,18 @@ namespace Interface = RendererImpl::Interface;
 using namespace Interface::Instances::_2D;
 
 C2D::C2D(const DXGI_MODE_DESC &modeDesc):
+	//_staticRectsAllocator(0),
+	//_staticEllipsesAllocator(0),
+	//_staticEllipsesAAAllocator(0),
 	_dynamicRectsAllocator(_dedicatedHeap),
-	//_staticRectsAllocator(0), _dynamicRectsAllocator(0),
-	//_staticEllipsesAllocator(0), _dynamicEllipsesAllocator(0),
-	//_staticEllipsesAAAllocator(0), _dynamicEllipsesAAAllocator(0),
-	_staticRects(_staticRectsAllocator), _dynamicRects(_dynamicRectsAllocator),
-	_staticEllipses(_staticEllipsesAllocator), _dynamicEllipses(_dynamicEllipsesAllocator),
-	_staticEllipsesAA(_staticEllipsesAAAllocator), _dynamicEllipsesAA(_dynamicEllipsesAAAllocator),
+	//_dynamicEllipsesAllocator(0),
+	//_dynamicEllipsesAAAllocator(0),
+	_staticRects(_staticRectsAllocator),
+	_staticEllipses(_staticEllipsesAllocator),
+	_staticEllipsesAA(_staticEllipsesAAAllocator),
+	_dynamicRects(_dynamicRectsAllocator),
+	_dynamicEllipses(_dynamicEllipsesAllocator),
+	_dynamicEllipsesAA(_dynamicEllipsesAAAllocator),
 	_dynamic2DVBSize(0), _static2DDirty(false),
 	_VBSize(64), _VBStart(0), _VCount(0), _count(0), _curLayer(~0)
 {
@@ -213,16 +218,20 @@ void C2D::_DrawScene() const
 		_immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
 		_immediateContext->IASetInputLayout(_quadLayout.Get());
 		UINT stride = sizeof(TQuad), offset = 0;
-		auto draw = [&](ID3DX11EffectPass *pass, UINT vcount)
+		const auto draw = [&](ID3DX11EffectPass *pass, const TQuads &quads)
 		{
-			AssertHR(pass->Apply(0, _immediateContext.Get()));
-			_immediateContext->IASetVertexBuffers(0, 1, _static2DVB.GetAddressOf(), &stride, &offset);
-			_immediateContext->Draw(vcount, 0);
-			offset += vcount * sizeof(TQuad);
+			if (!quads.empty())
+			{
+				const UINT vcount = quads.size();
+				AssertHR(pass->Apply(0, _immediateContext.Get()));
+				_immediateContext->IASetVertexBuffers(0, 1, _static2DVB.GetAddressOf(), &stride, &offset);
+				_immediateContext->Draw(vcount, 0);
+				offset += vcount * sizeof(TQuad);
+			}
 		};
-		if (!_staticRects.empty()) draw(_rectPass, _staticRects.size());
-		if (!_staticEllipses.empty()) draw(_ellipsePass, _staticEllipses.size());
-		if (!_staticEllipsesAA.empty()) draw(_ellipseAAPass, _staticEllipsesAA.size());
+		draw(_rectPass, _staticRects);
+		draw(_ellipsePass, _staticEllipses);
+		draw(_ellipseAAPass, _staticEllipsesAA);
 	}
 #pragma endregion
 
