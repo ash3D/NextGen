@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		4.10.2015 (c)Korotkov Andrey
+\date		07.01.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -231,7 +231,7 @@ void C2D::_DrawScene() const
 	_immediateContext->IASetInputLayout(_quadLayout.Get());
 	if (!_dynamicRects.empty())
 	{
-		static list<TQuad> vb_shadow;
+		//static list<TQuad> vb_shadow;
 		// (re)create VB if nesessary
 		const auto rects_count = _dynamicRects.size();
 		if (!_dynamic2DVB || _dynamic2DVBSize < rects_count * sizeof(TQuad))
@@ -239,14 +239,14 @@ void C2D::_DrawScene() const
 			const D3D11_BUFFER_DESC VB_desc =
 			{
 				_dynamic2DVBSize = rects_count * sizeof(TQuad),	//ByteWidth
-				D3D11_USAGE_DYNAMIC,										//Usage
-				D3D11_BIND_VERTEX_BUFFER,									//BindFlags
-				D3D11_CPU_ACCESS_WRITE,										//CPUAccessFlags
-				0,															//MiscFlags
-				0															//StructureByteStride
+				D3D11_USAGE_DYNAMIC,							//Usage
+				D3D11_BIND_VERTEX_BUFFER,						//BindFlags
+				D3D11_CPU_ACCESS_WRITE,							//CPUAccessFlags
+				0,												//MiscFlags
+				0												//StructureByteStride
 			};
 			AssertHR(_device->CreateBuffer(&VB_desc, NULL, _dynamic2DVB.GetAddressOf()));
-			vb_shadow.assign(_dynamicRects.begin(), _dynamicRects.end());
+			//vb_shadow.assign(_dynamicRects.begin(), _dynamicRects.end());
 		}
 		D3D11_MAPPED_SUBRESOURCE mapped;
 		AssertHR(_immediateContext->Map(_dynamic2DVB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped));
