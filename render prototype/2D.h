@@ -77,7 +77,7 @@ private:
 	void _DrawScene() const;
 
 private:
-	Win32Heap::CWin32Heap _dedicatedHeap;
+	Win32Heap::CWin32Heap _staticQuadsHeap, _dynamicRectsHeap, _dynamicEllipsesHeap, _dynamicEllipsesAAHeap;
 	Win32Heap::CWin32HeapAllocator<TQuad> _staticRectsAllocator, _staticEllipsesAllocator, _staticEllipsesAAAllocator;
 	Win32Heap::CWin32HeapAllocator<TQuad> _dynamicRectsAllocator, _dynamicEllipsesAllocator, _dynamicEllipsesAAAllocator;
 	//class CRect;

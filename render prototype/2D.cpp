@@ -16,12 +16,12 @@ namespace Interface = RendererImpl::Interface;
 using namespace Interface::Instances::_2D;
 
 C2D::C2D(const DXGI_MODE_DESC &modeDesc):
-	//_staticRectsAllocator(0),
-	//_staticEllipsesAllocator(0),
-	//_staticEllipsesAAAllocator(0),
-	_dynamicRectsAllocator(_dedicatedHeap),
-	//_dynamicEllipsesAllocator(0),
-	//_dynamicEllipsesAAAllocator(0),
+	_staticRectsAllocator(_staticQuadsHeap),
+	_staticEllipsesAllocator(_staticQuadsHeap),
+	_staticEllipsesAAAllocator(_staticQuadsHeap),
+	_dynamicRectsAllocator(_dynamicRectsHeap),
+	_dynamicEllipsesAllocator(_dynamicEllipsesHeap),
+	_dynamicEllipsesAAAllocator(_dynamicEllipsesAAHeap),
 	_staticRects(_staticRectsAllocator),
 	_staticEllipses(_staticEllipsesAllocator),
 	_staticEllipsesAA(_staticEllipsesAAAllocator),
