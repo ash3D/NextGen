@@ -238,36 +238,42 @@ void C2D::_DrawScene() const
 #pragma region dynamic
 	_immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
 	_immediateContext->IASetInputLayout(_quadLayout.Get());
-	if (!_dynamicRects.empty())
+	const auto draw = [&](const TQuads &quads, ID3DX11EffectPass *pass)
 	{
-		//static list<TQuad> vb_shadow;
-		// (re)create VB if nesessary
-		const auto rects_count = _dynamicRects.size();
-		if (!_dynamic2DVB || _dynamic2DVBSize < rects_count * sizeof(TQuad))
+		if (!quads.empty())
 		{
-			const D3D11_BUFFER_DESC VB_desc =
+			//static list<TQuad> vb_shadow;
+			// (re)create VB if nesessary
+			const auto quads_count = quads.size();
+			if (!_dynamic2DVB || _dynamic2DVBSize < quads_count * sizeof(TQuad))
 			{
-				_dynamic2DVBSize = rects_count * sizeof(TQuad),	//ByteWidth
-				D3D11_USAGE_DYNAMIC,							//Usage
-				D3D11_BIND_VERTEX_BUFFER,						//BindFlags
-				D3D11_CPU_ACCESS_WRITE,							//CPUAccessFlags
-				0,												//MiscFlags
-				0												//StructureByteStride
-			};
-			AssertHR(_device->CreateBuffer(&VB_desc, NULL, _dynamic2DVB.GetAddressOf()));
-			//vb_shadow.assign(_dynamicRects.begin(), _dynamicRects.end());
+				const D3D11_BUFFER_DESC VB_desc =
+				{
+					_dynamic2DVBSize = quads_count * sizeof(TQuad),	//ByteWidth
+					D3D11_USAGE_DYNAMIC,							//Usage
+					D3D11_BIND_VERTEX_BUFFER,						//BindFlags
+					D3D11_CPU_ACCESS_WRITE,							//CPUAccessFlags
+					0,												//MiscFlags
+					0												//StructureByteStride
+				};
+				AssertHR(_device->CreateBuffer(&VB_desc, NULL, _dynamic2DVB.GetAddressOf()));
+				//vb_shadow.assign(quads.begin(), quads.end());
+			}
+			D3D11_MAPPED_SUBRESOURCE mapped;
+			AssertHR(_immediateContext->Map(_dynamic2DVB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped));
+			copy(quads.begin(), quads.end(), reinterpret_cast<TQuad *>(mapped.pData));
+			//copy(vb_shadow.begin(), vb_shadow.end(), reinterpret_cast<TQuad *>(mapped.pData));
+			//memcpy(mapped.pData, vb_shadow.data(), _dynamic2DVBSize);
+			_immediateContext->Unmap(_dynamic2DVB.Get(), 0);
+			UINT stride = sizeof(TQuad), offset = 0;
+			AssertHR(pass->Apply(0, _immediateContext.Get()));
+			_immediateContext->IASetVertexBuffers(0, 1, _dynamic2DVB.GetAddressOf(), &stride, &offset);
+			_immediateContext->Draw(quads_count, 0);
 		}
-		D3D11_MAPPED_SUBRESOURCE mapped;
-		AssertHR(_immediateContext->Map(_dynamic2DVB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped));
-		copy(_dynamicRects.begin(), _dynamicRects.end(), reinterpret_cast<TQuad *>(mapped.pData));
-		//copy(vb_shadow.begin(), vb_shadow.end(), reinterpret_cast<TQuad *>(mapped.pData));
-		//memcpy(mapped.pData, vb_shadow.data(), _dynamic2DVBSize);
-		_immediateContext->Unmap(_dynamic2DVB.Get(), 0);
-		UINT stride = sizeof(TQuad), offset = 0;
-		AssertHR(_rectPass->Apply(0, _immediateContext.Get()));
-		_immediateContext->IASetVertexBuffers(0, 1, _dynamic2DVB.GetAddressOf(), &stride, &offset);
-		_immediateContext->Draw(rects_count, 0);
-	}
+	};
+	draw(_dynamicRects, _rectPass);
+	draw(_dynamicEllipses, _ellipsePass);
+	draw(_dynamicEllipsesAA, _ellipseAAPass);
 #pragma endregion
 }
 #pragma endregion
