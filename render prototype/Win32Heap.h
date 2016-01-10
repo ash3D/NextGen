@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		07.01.2016 (c)Korotkov Andrey
+\date		10.01.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -14,9 +14,11 @@ namespace Win32Heap
 	class CWin32Heap
 	{
 	public:
-		CWin32Heap(): _handle(HeapCreate(HEAP_GENERATE_EXCEPTIONS | HEAP_NO_SERIALIZE, 0, 0))
+		CWin32Heap() noexcept : _handle(HeapCreate(HEAP_GENERATE_EXCEPTIONS | HEAP_NO_SERIALIZE, 0, 0))
 		{
-			if (!_handle) throw "fail to create heap";
+			assert(_handle);
+			if (!_handle)
+				_handle = GetProcessHeap();	//"fail to create heap"
 		}
 		CWin32Heap(CWin32Heap &&src) noexcept: _handle(src._handle)
 		{
@@ -31,8 +33,11 @@ namespace Win32Heap
 		}
 		~CWin32Heap()
 		{
-			if (_handle)
-				if (!HeapDestroy(_handle)) throw "fail to destroy heap";
+			if (_handle && _handle != GetProcessHeap())
+			{
+				const bool ok = HeapDestroy(_handle);
+				assert(ok);	//"fail to destroy heap"
+			}
 		}
 	public:
 		operator HANDLE() const noexcept
