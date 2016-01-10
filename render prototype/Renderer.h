@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		4.10.2015 (c)Korotkov Andrey
+\date		10.01.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -14,7 +14,7 @@ See "DGLE2.h" for more details.
 #include "RendererBase.h"
 #include "2D.h"
 
-class RendererImpl::CRenderer: public C2D
+class RendererImpl::CRenderer final: public C2D
 {
 	static DXGI_MODE_DESC _CreateModeDesc(UINT width, UINT height, UINT refreshRate);
 	CRenderer(HWND hwnd, const DXGI_MODE_DESC &modeDesc, bool fullscreen, bool multithreaded);

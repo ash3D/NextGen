@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		4.10.2015 (c)Korotkov Andrey
+\date		10.01.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -69,7 +69,7 @@ namespace DX11
 {
 	using namespace ComPtrs;
 
-	class CRenderer: private CRef<CRenderer>, public IRenderer
+	class CRenderer final: private CRef<CRenderer>, public IRenderer
 	{
 	public:
 		virtual Materials::IMaterial *CreateMaterial() override;
@@ -142,7 +142,7 @@ namespace DX11
 //		const TEllipses::const_iterator _thisIter;
 //	};
 
-	class CMesh: public CRef<CMesh>, public Geometry::IMesh
+	class CMesh final: public CRef<CMesh>, public Geometry::IMesh
 	{
 		friend IMesh *CRenderer::CreateMesh(uint icount, _In_count_(icount) const uint32 *idx, uint vcount, _In_count_(vcount) const float *coords);
 		virtual AABB<3> GetAABB() const override;
@@ -202,7 +202,7 @@ namespace DX11
 		AssertHR(device->CreateBuffer(&desc, &data, &_geometry));
 	}
 
-	class CMaterial: public CRef<CMaterial>, public Materials::IMaterial
+	class CMaterial final: public CRef<CMaterial>, public Materials::IMaterial
 	{
 		friend IMaterial *CRenderer::CreateMaterial();
 		virtual void SetAmbientColor(const float color[3]) override;

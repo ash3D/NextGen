@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.10.2015 (c)Korotkov Andrey
+\date		10.01.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -20,7 +20,7 @@ namespace DtorImpl
 		mutable std::shared_ptr<CRef> _externRef;	// reference from lib user
 
 	public:
-		virtual void operator ~() const override
+		virtual void operator ~() const override final
 		{
 			assert(_externRef);
 			_externRef.reset();
