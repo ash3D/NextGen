@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		07.01.2016 (c)Korotkov Andrey
+\date		10.01.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1183,7 +1183,7 @@ namespace DGLE2
 
 				class IDisplayModes::CIterator: public std::iterator<std::random_access_iterator_tag, const DisplayModes::TDispModeDesc, unsigned>
 				{
-					friend class IDisplayModes;
+					friend struct IDisplayModes;
 				public:
 					inline DisplayModes::TDispModeDesc operator *() const;
 					inline bool operator ==(CIterator cmp) const;
