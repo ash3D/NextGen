@@ -14,7 +14,9 @@ See "DGLE.h" for more details.
 #include <functional>
 #include <cstdint>
 #include <boost/integer.hpp>
+#ifdef _MSC_VER
 #include <intrin.h>
+#endif
 
 namespace RotImpl
 {
@@ -26,6 +28,7 @@ namespace RotImpl
 		return value & ~mask | (value << shift | (value & mask) >> n - shift) & mask;
 	}
 
+#ifdef _MSC_VER
 	template<unsigned n>
 	std::enable_if_t<n == 8, typename std::function<decltype(_rotl8)>::result_type> rol(
 		typename std::function<decltype(_rotl8)>::first_argument_type value,
@@ -57,6 +60,7 @@ namespace RotImpl
 	{
 		return _rotl64(value, shift);
 	}
+#endif
 }
 
 template<unsigned n, typename Value, typename Shift>
