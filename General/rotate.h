@@ -20,7 +20,7 @@ See "DGLE.h" for more details.
 
 namespace RotImpl
 {
-	using std::enable_if_t;
+	using namespace std;
 
 	template<unsigned n>
 	inline auto rol(typename boost::uint_t<n>::fast value, unsigned int shift) noexcept -> enable_if_t<n != 8 && n != 16 && n != 32 && n != 64, decltype(value)>
@@ -31,8 +31,6 @@ namespace RotImpl
 	}
 
 #ifdef _MSC_VER
-	using std::function;
-
 	template<unsigned n>
 	inline enable_if_t<n == 8, typename function<decltype(_rotl8)>::result_type> rol(
 		typename function<decltype(_rotl8)>::first_argument_type value,
@@ -65,14 +63,20 @@ namespace RotImpl
 		return _rotl64(value, shift);
 	}
 #endif
+
+	template<unsigned n, typename Value, typename Shift>
+	inline auto rot(Value value, Shift shift) -> make_unsigned_t<common_type_t<Value, decltype(rol<n>(value, shift))>>
+	{
+		return RotImpl::rol<n>(value, shift);
+	}
 }
 
 template<unsigned n, typename Value, typename Shift>
-inline auto rol(Value value, Shift shift) -> std::make_unsigned_t<std::common_type_t<Value, decltype(RotImpl::rol<n>(value, shift))>>
+inline auto rol(Value value, Shift shift)
 {
 	static_assert(std::is_integral<Value>::value && std::is_integral<Shift>::value, "rotate feasible for integral types only");
 	static_assert(n <= std::numeric_limits<std::uintmax_t>::digits, "too large n");
-	return RotImpl::rol<n>(value, shift);
+	return RotImpl::rot<n>(value, shift);
 }
 
 template<typename Value, typename Shift>
