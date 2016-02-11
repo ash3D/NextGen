@@ -79,7 +79,7 @@ namespace RotImpl
 template<unsigned n, typename Value, typename Shift>
 inline auto rol(Value value, Shift shift)
 {
-	static_assert(std::is_integral<Value>::value && std::is_integral<Shift>::value, "rotate feasible for integral types only");
+	static_assert(std::is_integral<Value>::value && std::is_integral<Shift>::value, "rotate is feasible for integral types only");
 	static_assert(n <= std::numeric_limits<std::uintmax_t>::digits, "too large n");
 	return RotImpl::rot<n>(value, shift);
 }
