@@ -23,7 +23,7 @@ namespace RotImpl
 	using std::enable_if_t;
 
 	template<unsigned n>
-	auto rol(typename boost::uint_t<n>::fast value, unsigned int shift) noexcept -> enable_if_t<n != 8 && n != 16 && n != 32 && n != 64, decltype(value)>
+	inline auto rol(typename boost::uint_t<n>::fast value, unsigned int shift) noexcept -> enable_if_t<n != 8 && n != 16 && n != 32 && n != 64, decltype(value)>
 	{
 		shift %= n;
 		const auto mask = (decltype(value)(1) << n) - decltype(value)(1);
