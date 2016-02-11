@@ -34,7 +34,7 @@ namespace RotImpl
 	using std::function;
 
 	template<unsigned n>
-	enable_if_t<n == 8, typename function<decltype(_rotl8)>::result_type> rol(
+	inline enable_if_t<n == 8, typename function<decltype(_rotl8)>::result_type> rol(
 		typename function<decltype(_rotl8)>::first_argument_type value,
 		typename function<decltype(_rotl8)>::second_argument_type shift)
 	{
@@ -42,7 +42,7 @@ namespace RotImpl
 	}
 
 	template<unsigned n>
-	enable_if_t<n == 16, typename function<decltype(_rotl16)>::result_type> rol(
+	inline enable_if_t<n == 16, typename function<decltype(_rotl16)>::result_type> rol(
 		typename function<decltype(_rotl16)>::first_argument_type value,
 		typename function<decltype(_rotl16)>::second_argument_type shift)
 	{
@@ -50,7 +50,7 @@ namespace RotImpl
 	}
 
 	template<unsigned n>
-	enable_if_t<n == 32, typename function<decltype(_rotl)>::result_type> rol(
+	inline enable_if_t<n == 32, typename function<decltype(_rotl)>::result_type> rol(
 		typename function<decltype(_rotl)>::first_argument_type value,
 		typename function<decltype(_rotl)>::second_argument_type shift)
 	{
@@ -58,7 +58,7 @@ namespace RotImpl
 	}
 
 	template<unsigned n>
-	enable_if_t<n == 64, typename function<decltype(_rotl64)>::result_type> rol(
+	inline enable_if_t<n == 64, typename function<decltype(_rotl64)>::result_type> rol(
 		typename function<decltype(_rotl64)>::first_argument_type value,
 		typename function<decltype(_rotl64)>::second_argument_type shift)
 	{
