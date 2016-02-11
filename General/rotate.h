@@ -76,7 +76,7 @@ inline auto rol(Value value, Shift shift) -> std::make_unsigned_t<std::common_ty
 }
 
 template<typename Value, typename Shift>
-inline auto rol(Value value, Shift shift) -> decltype(rol<std::numeric_limits<std::make_unsigned_t<Value>>::digits>(value, shift))
+inline auto rol(Value value, Shift shift)
 {
 	return rol<std::numeric_limits<std::make_unsigned_t<Value>>::digits>(value, shift);
 }
