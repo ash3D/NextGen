@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		15.02.2016 (c)Korotkov Andrey
+\date		18.02.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -31,13 +31,19 @@ namespace RotImpl
 	constexpr static auto Mask = (Value(1) << width) - Value(1);
 #endif
 
+	template<typename T, typename = void>
+	struct Has_exact : false_type {};
+
+	template<typename T>
+	struct Has_exact<T, void_t<typename T::exact>> : true_type {};
+
 	template<unsigned width>
 	inline auto rol(typename boost::uint_t<width>::fast value, unsigned int shift) noexcept ->
+		enable_if_t<
 #ifdef _MSC_VER
-		enable_if_t<width != 8 && width != 16 && width != 32 && width != 64, decltype(value)>
-#else
-		decltype(value)
+			width != 8 && width != 16 && width != 32 && width != 64 &&
 #endif
+			!Has_exact<typename boost::uint_t<width>>::value, decltype(value)>
 	{
 		shift %= width;
 		constexpr auto mask = Mask<width, decltype(value)>::value;
@@ -45,7 +51,7 @@ namespace RotImpl
 	}
 
 	template<unsigned width>
-	inline auto ror(typename boost::uint_t<width>::fast value, unsigned int shift) noexcept ->
+	inline auto rol(typename boost::uint_t<width>::exact value, unsigned int shift) noexcept ->
 #ifdef _MSC_VER
 		enable_if_t<width != 8 && width != 16 && width != 32 && width != 64, decltype(value)>
 #else
@@ -53,8 +59,32 @@ namespace RotImpl
 #endif
 	{
 		shift %= width;
+		return value << shift | value >> width - shift;
+	}
+
+	template<unsigned width>
+	inline auto ror(typename boost::uint_t<width>::fast value, unsigned int shift) noexcept ->
+		enable_if_t<
+#ifdef _MSC_VER
+			width != 8 && width != 16 && width != 32 && width != 64 &&
+#endif
+			!Has_exact<typename boost::uint_t<width>>::value, decltype(value)>
+	{
+		shift %= width;
 		constexpr auto mask = Mask<width, decltype(value)>::value;
 		return value & ~mask | ((value & mask) >> shift | value << width - shift) & mask;
+	}
+
+	template<unsigned width>
+	inline auto ror(typename boost::uint_t<width>::exact value, unsigned int shift) noexcept ->
+#ifdef _MSC_VER
+		enable_if_t<width != 8 && width != 16 && width != 32 && width != 64, decltype(value)>
+#else
+		decltype(value)
+#endif
+	{
+		shift %= width;
+		return value >> shift | value << width - shift;
 	}
 
 #ifdef _MSC_VER
