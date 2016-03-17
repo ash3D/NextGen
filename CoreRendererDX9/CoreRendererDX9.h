@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		9.11.2015 (c)Andrey Korotkov
+\date		17.03.2016 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -293,11 +293,11 @@ class CCoreRendererDX9 final : public ICoreRenderer
 
 	struct TStates
 	{
-		std::array<DWORD, std::extent<decltype(_rederStateTypes)>::value> renderStates;
+		std::array<DWORD, std::size(_rederStateTypes)> renderStates;
 		struct TTextureStates
 		{
-			std::array<DWORD, std::extent<decltype(_samplerStateTypes)>::value> samplerStates;
-			std::array<DWORD, std::extent<decltype(_stageStateTypes)>::value> stageStates;
+			std::array<DWORD, std::size(_samplerStateTypes)> samplerStates;
+			std::array<DWORD, std::size(_stageStateTypes)> stageStates;
 			IDirect3DBaseTexture9Ptr texture;
 		};
 		std::unique_ptr<TTextureStates []> textureStates;

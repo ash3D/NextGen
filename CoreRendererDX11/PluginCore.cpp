@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		9.7.2015 (c)Korotkov Andrey
+\date		17.03.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -33,12 +33,12 @@ CPluginCore::~CPluginCore() = default;
 
 DGLE_RESULT DGLE_API CPluginCore::GetPluginInfo(TPluginInfo &stInfo)
 {
-	using std::extent;	// sizeof or C++17 std::size can be used a well
+	using std::size;
 	// ' - 1' for terminator
-	strncpy(stInfo.cName, PLUGIN_NAME, extent<decltype(stInfo.cName)>::value - 1);
-	strncpy(stInfo.cVersion, PLUGIN_VERSION, extent<decltype(stInfo.cVersion)>::value - 1);
-	strncpy(stInfo.cVendor, PLUGIN_VENDOR, extent<decltype(stInfo.cVendor)>::value - 1);
-	strncpy(stInfo.cDescription, PLUGIN_DESCRIPTION, extent<decltype(stInfo.cDescription)>::value - 1);
+	strncpy(stInfo.cName, PLUGIN_NAME, size(stInfo.cName) - 1);
+	strncpy(stInfo.cVersion, PLUGIN_VERSION, size(stInfo.cVersion) - 1);
+	strncpy(stInfo.cVendor, PLUGIN_VENDOR, size(stInfo.cVendor) - 1);
+	strncpy(stInfo.cDescription, PLUGIN_DESCRIPTION, size(stInfo.cDescription) - 1);
 	stInfo.ui8PluginSDKVersion = _DGLE_PLUGIN_SDK_VER_;
 
 	return S_OK;

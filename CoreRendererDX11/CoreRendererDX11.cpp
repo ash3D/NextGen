@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		9.11.2015 (c)Andrey Korotkov
+\date		17.03.2016 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -845,7 +845,7 @@ namespace
 			//DECL_FORMAT_LAYOUT(TDF_RGBA8, 0, 1, 2, 3)
 #		undef DECL_FORMAT_TRAITS
 
-			template<class SrcLayout, class DstLayout, unsigned dstIdx, unsigned srcIdx = 0, unsigned srcSize = extent<decltype(SrcLayout::value)>::value>
+			template<class SrcLayout, class DstLayout, unsigned dstIdx, unsigned srcIdx = 0, unsigned srcSize = size(SrcLayout::value)>
 		struct FindSrcIdx
 		{
 			//static constexpr unsigned value = SrcLayout::value[srcIdx] == DstLayout::value[dstIdx] ? srcIdx : FindSrcIdx<SrcLayout, DstLayout, dstIdx, srcIdx + 1>::value;
@@ -865,7 +865,7 @@ namespace
 			}
 		};
 
-		template<class SrcLayout, class DstLayout, unsigned dstIdx = 0, unsigned dstSize = extent<decltype(DstLayout::value)>::value>
+		template<class SrcLayout, class DstLayout, unsigned dstIdx = 0, unsigned dstSize = size(DstLayout::value)>
 		struct FillTexel
 		{
 			template<class TSource, class TDest>
@@ -894,7 +894,7 @@ namespace
 		template<class SrcLayout, class DstLayout>
 		inline void TransformRow(const void *const src, void *const dst, unsigned width)
 		{
-			constexpr auto src_len = extent<decltype(SrcLayout::value)>::value, dst_len = extent<decltype(DstLayout::value)>::value;
+			constexpr auto src_len = size(SrcLayout::value), dst_len = size(DstLayout::value);
 			static_assert(src_len, "zero SrcLayout");
 			static_assert(dst_len, "zero DstLayout");
 			typedef const array<uint8_t, src_len> TSource;
@@ -2189,7 +2189,7 @@ void CCoreRendererDX11::CStreamBuffer::_OnFrameEnd()
 
 namespace
 {
-	typedef D3DVERTEXELEMENT9 TVertexDecl[extent<decltype(vertexElementLUT)>::value + 2];	// +2 for position and D3DDECL_END()
+	typedef D3DVERTEXELEMENT9 TVertexDecl[size(vertexElementLUT) + 2];	// +2 for position and D3DDECL_END()
 
 	inline void SetVertexElement(TVertexDecl &elements, WORD stream, BYTE type, BYTE usage)
 	{
@@ -2213,7 +2213,7 @@ namespace
 	}
 
 	template<>
-	inline void FillVertexDecl<extent<decltype(vertexElementLUT)>::value>(const TDrawDataDesc &drawDesc, TVertexDecl &elements, UINT stream)
+	inline void FillVertexDecl<size(vertexElementLUT)>(const TDrawDataDesc &drawDesc, TVertexDecl &elements, UINT stream)
 	{
 		SetVertexElement(elements, stream, drawDesc.bVertices2D ? D3DDECLTYPE_FLOAT2 : D3DDECLTYPE_FLOAT3, D3DDECLUSAGE_POSITION);
 		elements[++stream] = D3DDECL_END();
@@ -2780,11 +2780,11 @@ void CCoreRendererDX11::_PushStates()
 	typedef decltype(cur_state.VSFloatConsts) TVSFloatConsts;
 	cur_state.VSFloatConsts = make_unique<TVSFloatConsts::element_type[]>(_maxVSFloatConsts);
 	AssertHR(_device->GetVertexShaderConstantF(0, (float *)cur_state.VSFloatConsts.get(), _maxVSFloatConsts));
-	AssertHR(_device->GetPixelShaderConstantF(0, (float *)cur_state.PSFloatConsts, extent<decltype(cur_state.PSFloatConsts), 0>::value));
-	AssertHR(_device->GetVertexShaderConstantI(0, (int *)cur_state.VSIntConsts, extent<decltype(cur_state.VSIntConsts), 0>::value));
-	AssertHR(_device->GetPixelShaderConstantI(0, (int *)cur_state.PSIntConsts, extent<decltype(cur_state.PSIntConsts), 0>::value));
-	AssertHR(_device->GetVertexShaderConstantB(0, (BOOL *)cur_state.VSBoolConsts, extent<decltype(cur_state.VSBoolConsts), 0>::value));
-	AssertHR(_device->GetPixelShaderConstantB(0, (BOOL *)cur_state.PSIntConsts, extent<decltype(cur_state.PSIntConsts), 0>::value));
+	AssertHR(_device->GetPixelShaderConstantF(0, (float *)cur_state.PSFloatConsts, size(cur_state.PSFloatConsts)));
+	AssertHR(_device->GetVertexShaderConstantI(0, (int *)cur_state.VSIntConsts, size(cur_state.VSIntConsts)));
+	AssertHR(_device->GetPixelShaderConstantI(0, (int *)cur_state.PSIntConsts, size(cur_state.PSIntConsts)));
+	AssertHR(_device->GetVertexShaderConstantB(0, (BOOL *)cur_state.VSBoolConsts, size(cur_state.VSBoolConsts)));
+	AssertHR(_device->GetPixelShaderConstantB(0, (BOOL *)cur_state.PSIntConsts, size(cur_state.PSIntConsts)));
 #endif
 
 	AssertHR(_device->GetMaterial(&cur_state.material));
@@ -2829,11 +2829,11 @@ void CCoreRendererDX11::_PopStates()
 	AssertHR(_device->SetPixelShader(saved_state.PS.Get()));
 
 	AssertHR(_device->SetVertexShaderConstantF(0, (const float *)saved_state.VSFloatConsts.get(), _maxVSFloatConsts));
-	AssertHR(_device->SetPixelShaderConstantF(0, (const float *)saved_state.PSFloatConsts, extent<decltype(saved_state.PSFloatConsts), 0>::value));
-	AssertHR(_device->SetVertexShaderConstantI(0, (const int *)saved_state.VSIntConsts, extent<decltype(saved_state.VSIntConsts), 0>::value));
-	AssertHR(_device->SetPixelShaderConstantI(0, (const int *)saved_state.PSIntConsts, extent<decltype(saved_state.PSIntConsts), 0>::value));
-	AssertHR(_device->SetVertexShaderConstantB(0, (const BOOL *)saved_state.VSBoolConsts, extent<decltype(saved_state.VSBoolConsts), 0>::value));
-	AssertHR(_device->SetPixelShaderConstantB(0, (const BOOL *)saved_state.PSIntConsts, extent<decltype(saved_state.PSIntConsts), 0>::value));
+	AssertHR(_device->SetPixelShaderConstantF(0, (const float *)saved_state.PSFloatConsts, size(saved_state.PSFloatConsts)));
+	AssertHR(_device->SetVertexShaderConstantI(0, (const int *)saved_state.VSIntConsts, size(saved_state.VSIntConsts)));
+	AssertHR(_device->SetPixelShaderConstantI(0, (const int *)saved_state.PSIntConsts, size(saved_state.PSIntConsts)));
+	AssertHR(_device->SetVertexShaderConstantB(0, (const BOOL *)saved_state.VSBoolConsts, size(saved_state.VSBoolConsts)));
+	AssertHR(_device->SetPixelShaderConstantB(0, (const BOOL *)saved_state.PSIntConsts, size(saved_state.PSIntConsts)));
 #endif
 
 	AssertHR(_device->SetMaterial(&saved_state.material));
@@ -3022,7 +3022,7 @@ inline void CCoreRendererDX11::_BindVB(const TDrawDataDesc &drawDesc, const ComP
 }
 
 template<>
-inline void CCoreRendererDX11::_BindVB<extent<decltype(vertexElementLUT)>::value>(const TDrawDataDesc &drawDesc, const ComPtr<IDirect3DVertexBuffer9> &VB, unsigned int baseOffset, UINT stream) const
+inline void CCoreRendererDX11::_BindVB<size(vertexElementLUT)>(const TDrawDataDesc &drawDesc, const ComPtr<IDirect3DVertexBuffer9> &VB, unsigned int baseOffset, UINT stream) const
 {
 	const auto stride = drawDesc.uiVertexStride ? drawDesc.uiVertexStride : GetVertexElementStride(drawDesc.bVertices2D ? D3DDECLTYPE_FLOAT2 : D3DDECLTYPE_FLOAT3);
 	AssertHR(_device->SetStreamSource(stream, VB.Get(), baseOffset, stride));

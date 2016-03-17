@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.10.2015 (c)Korotkov Andrey
+\date		17.03.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -40,7 +40,7 @@ Collision::CCollisionEdges<IB_format>::CCollisionEdges(Iterator begin, Iterator 
 			IB_format
 				left_sorted[] = { min(v0, v1), max(v0, v1) },
 				right_sorted[] = { min(right.v0, right.v1), max(right.v0, right.v1) };
-			return lexicographical_compare(left_sorted, left_sorted + std::extent<decltype(left_sorted)>::value, right_sorted, right_sorted + std::extent<decltype(right_sorted)>::value);
+			return lexicographical_compare(left_sorted, left_sorted + std::size(left_sorted), right_sorted, right_sorted + std::size(right_sorted));
 		}
 		iterator_traits<Iterator>::reference tri;
 	};
