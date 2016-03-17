@@ -10,7 +10,7 @@ See "DGLE.h" for more details.
 #include "PluginCore.h"
 
 #define PLUGIN_NAME				"CoreRendererDX9"
-#define PLUGIN_VERSION			("0.1 (" + std::string(__DATE__) + ")").c_str()
+#define PLUGIN_VERSION			"0.1 (" __DATE__ ")"
 #define PLUGIN_VENDOR			"DGLE Team"
 #define PLUGIN_DESCRIPTION		"ICoreRendererInterface DirectX 9 implementation"
 #define PLUGIN_INTERFACE_NAME	"ISubSystemPlugin"
@@ -22,7 +22,7 @@ static inline uint GetInstanceIndex(IEngineCore *pEngineCore)
 	return inst_idx;
 }
 
-CPluginCore::CPluginCore(IEngineCore *pEngineCore):
+CPluginCore::CPluginCore(IEngineCore *pEngineCore) :
 _instIdx(GetInstanceIndex(pEngineCore)),
 _pEngineCore(pEngineCore), _renderer(*pEngineCore)
 {

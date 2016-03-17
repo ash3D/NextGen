@@ -1,6 +1,6 @@
 /*
 \author		Arseny Lezin aka SleepWalk
-\date		2.8.2015 (c)Arseny Lezin
+\date		17.03.2016 (c)Arseny Lezin
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -32,7 +32,7 @@ See "DGLE.h" for more details.
 using namespace DGLE;
 
 #define PLUGIN_NAME				"DirectInput plugin"
-#define PLUGIN_VERSION			("1.0 (" + std::string(__DATE__) + ")").c_str()
+#define PLUGIN_VERSION			"1.0 (" __DATE__ ")"
 #define PLUGIN_VENDOR			"DeeProSoft"
 #define PLUGIN_DISCRIPTION		"Change input subsystem on DirectInput."
 #define PLUGIN_INTERFACE_NAME	"ISubSystemPlugin"

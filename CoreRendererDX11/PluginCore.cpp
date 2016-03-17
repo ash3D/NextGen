@@ -10,7 +10,7 @@ See "DGLE.h" for more details.
 #include "PluginCore.h"
 
 #define PLUGIN_NAME				"CoreRendererDX11"
-#define PLUGIN_VERSION			("0.1 (" + std::string(__DATE__) + ")").c_str()
+#define PLUGIN_VERSION			"0.1 (" __DATE__ ")"
 #define PLUGIN_VENDOR			"DGLE Team"
 #define PLUGIN_DESCRIPTION		"ICoreRendererInterface DirectX 11 implementation"
 #define PLUGIN_INTERFACE_NAME	"ISubSystemPlugin"
