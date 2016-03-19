@@ -39,23 +39,11 @@ uint uiJoyCnt;
 
 std::unique_ptr<char []> *ppcJoyName;
 
+using std::to_string;
+
 #ifdef FORCE_NVIDIA_GPU
 extern "C" _declspec(dllexport) const DWORD NvOptimusEnablement = 0x00000001;
 #endif
-
-std::string IntToStr(int val)
-{
-	char res[16];
-	sprintf_s(res, "%d", val);
-	return std::string(res);
-}
-
-std::string UIntToStr(uint val)
-{
-	char res[32];
-	sprintf_s(res, "%u", val);
-	return std::string(res);
-}
 
 void KeyboardTest()
 {
@@ -65,14 +53,14 @@ void KeyboardTest()
 
 	for (uint i = 0; i < 256; ++i)
 		if (bPressed[i])
-			pFnt->Draw2DSimple(SCREEN_X - 100, y += 12, (IntToStr(i) + " pressed").c_str(), TColor4());
+			pFnt->Draw2DSimple(SCREEN_X - 100, y += 12, (to_string(i) + " pressed").c_str(), TColor4());
 }
 
 void MouseTest()
 {
 	uint y = 0;
 	
-	std::string strTemp = "Mouse coordinate X:" + IntToStr(stMouse.iX) + " Y: " + IntToStr(stMouse.iY);
+	std::string strTemp = "Mouse coordinate X:" + to_string(stMouse.iX) + " Y: " + to_string(stMouse.iY);
 	
 	pFnt->Draw2DSimple(0 , 0, strTemp.c_str(), TColor4());
 
@@ -108,36 +96,36 @@ void JoystickTest()
 	
 		std::string strJoyParam;
 
-		strJoyParam = "iPOV: " + IntToStr(stJoys[i].iPOV);
+		strJoyParam = "iPOV: " + to_string(stJoys[i].iPOV);
 		pFnt->Draw2DSimple(x, y -= 12, strJoyParam.c_str(), TColor4());
 
-		strJoyParam = "iZAxes: " + IntToStr(stJoys[i].iZAxis);
+		strJoyParam = "iZAxes: " + to_string(stJoys[i].iZAxis);
 		pFnt->Draw2DSimple(x, y -= 12, strJoyParam.c_str(), TColor4());
 
-		strJoyParam = "iYAxes: " + IntToStr(stJoys[i].iYAxis);
+		strJoyParam = "iYAxes: " + to_string(stJoys[i].iYAxis);
 		pFnt->Draw2DSimple(x, y -= 12, strJoyParam.c_str(), TColor4());
 
-		strJoyParam = "iXAxes: " + IntToStr(stJoys[i].iXAxis);
+		strJoyParam = "iXAxes: " + to_string(stJoys[i].iXAxis);
 		pFnt->Draw2DSimple(x, y -= 12, strJoyParam.c_str(), TColor4());
 
-		strJoyParam = "iRAxes: " + IntToStr(stJoys[i].iRAxis);
+		strJoyParam = "iRAxes: " + to_string(stJoys[i].iRAxis);
 		pFnt->Draw2DSimple(x, y -= 12, strJoyParam.c_str(), TColor4());
 
-		strJoyParam = "iUAxes: " + IntToStr(stJoys[i].iUAxis);
+		strJoyParam = "iUAxes: " + to_string(stJoys[i].iUAxis);
 		pFnt->Draw2DSimple(x, y -= 12, strJoyParam.c_str(), TColor4());
 
-		strJoyParam = "iVAxes: " + IntToStr(stJoys[i].iVAxis);
+		strJoyParam = "iVAxes: " + to_string(stJoys[i].iVAxis);
 		pFnt->Draw2DSimple(x, y -= 12, strJoyParam.c_str(), TColor4());
 
-		strJoyParam = "uiBtnsCount: " + IntToStr(stJoys[i].uiButtonsCount);
+		strJoyParam = "uiBtnsCount: " + to_string(stJoys[i].uiButtonsCount);
 		pFnt->Draw2DSimple(x, y -= 12, strJoyParam.c_str(), TColor4());
 
 		for(uint j = 0; j < stJoys[i].uiButtonsCount; j++)
 		{
 			if(stJoys[i].bButtons[j])
-				strJoyParam = "Button: " + IntToStr(j + 1) + " is pressed"; 
+				strJoyParam = "Button: " + to_string(j + 1) + " is pressed"; 
 			else
-				strJoyParam = "Button: " + IntToStr(j + 1) + " is not pressed"; 
+				strJoyParam = "Button: " + to_string(j + 1) + " is not pressed"; 
 
 			pFnt->Draw2DSimple(x, y -= 12, strJoyParam.c_str(), TColor4());
 		}
