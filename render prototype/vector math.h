@@ -445,7 +445,7 @@ consider using preprocessor instead of templates or overloading each target func
 			class CSwizzleAssign;
 
 			// rows = 0 for vectors
-			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc = CVectorSwizzleDesc<columns>, typename isWriteMaskValid = std::integral_constant<bool, SwizzleDesc::isWriteMaskValid>>
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc = CVectorSwizzleDesc<columns>, typename isWriteMaskValid = std::bool_constant<SwizzleDesc::isWriteMaskValid>>
 			class CSwizzle;
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, bool trivialCtor = std::is_trivially_default_constructible<ElementType>::value>
@@ -582,7 +582,7 @@ consider using preprocessor instead of templates or overloading each target func
 				template<unsigned idx, typename First, typename ...Rest>
 				static inline decltype(auto) GetElement(const First &first, const Rest &...rest) noexcept
 				{
-					return GetElementImpl<idx>(std::integral_constant<bool, idx < ElementsCount<decltype(first)>::value>(), first, rest...);
+					return GetElementImpl<idx>(std::bool_constant<idx < ElementsCount<decltype(first)>::value>(), first, rest...);
 				}
 
 				// vector
@@ -1153,7 +1153,7 @@ consider using preprocessor instead of templates or overloading each target func
 			};
 
 #if defined _MSC_VER && _MSC_VER <= 1900
-#define RIGHT_WRITE_MASK_DEFAULT , std::integral_constant<bool, RightSwizzleDesc::isWriteMaskValid>
+#define RIGHT_WRITE_MASK_DEFAULT , std::bool_constant<RightSwizzleDesc::isWriteMaskValid>
 #else
 #define RIGHT_WRITE_MASK_DEFAULT
 #endif

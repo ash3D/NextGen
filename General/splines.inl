@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		16.11.2015 (c)Korotkov Andrey
+\date		21.03.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -121,7 +121,7 @@ namespace Math
 			Functor()(std::get<idx>(attribs), std::get<idx>(src.attribs));
 #if defined _MSC_VER && _MSC_VER <= 1900
 			constexpr auto nextIdx = idx + 1;
-			return PointOpPoint<Functor, nextIdx>(src, std::integral_constant<bool, nextIdx < sizeof...(Attribs)>());
+			return PointOpPoint<Functor, nextIdx>(src, std::bool_constant<nextIdx < sizeof...(Attribs)>());
 #else
 			return PointOpPoint<Functor, idx + 1>(src);
 #endif
@@ -151,7 +151,7 @@ namespace Math
 			Functor()(std::get<idx>(attribs), src);
 #if defined _MSC_VER && _MSC_VER <= 1900
 			constexpr auto nextIdx = idx + 1;
-			return PointOpScalar<Functor, nextIdx>(src, std::integral_constant<bool, nextIdx < sizeof...(Attribs)>());
+			return PointOpScalar<Functor, nextIdx>(src, std::bool_constant<nextIdx < sizeof...(Attribs)>());
 #else
 			return PointOpScalar<Functor, idx + 1>(src);
 #endif
