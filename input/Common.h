@@ -1,6 +1,6 @@
 /*
 \author		Arseny Lezin aka SleepWalk
-\date		17.03.2016 (c)Arseny Lezin
+\date		23.03.2016 (c)Arseny Lezin
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -43,27 +43,4 @@ inline void LogWrite(uint uiInstIdx, const std::string &str, E_LOG_TYPE eType, c
 	LogWrite(uiInstIdx, str.c_str(), eType, pcSrcFileName, iSrcLineNumber);
 }
 
-namespace detail
-{
-	template<size_t offset>
-	inline constexpr const char *const FindFilename(const char path[])
-	{
-		return path[offset] == '\\' || path[offset] == '/' ? path + offset + 1 : FindFilename<offset - 1>(path);
-	}
-
-	template<>
-	inline constexpr const char *const FindFilename<0>(const char path[])
-	{
-		return path;
-	}
-}
-
-// use C++14 extended constexpr
-template<size_t length>
-inline constexpr const char *const ExtractFilename(const char(&path)[length])
-{
-	static_assert(length > 0, "path must be null-terminated string");
-	return detail::FindFilename<length - 1>(path);
-}
-
-#define LOG(txt, type) LogWrite(_uiInstIdx, txt, type, __FILE__, __LINE__)
+#define LOG(txt, type) LogWrite(_uiInstIdx, txt, type, ExtractFilename(__FILE__), __LINE__)
