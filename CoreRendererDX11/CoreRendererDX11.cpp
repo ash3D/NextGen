@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.03.2016 (c)Andrey Korotkov
+\date		23.03.2016 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1729,7 +1729,7 @@ void CCoreRendererDX11::_ConfigureWindow(const TEngineWindow &wnd, DGLE_RESULT &
 			ReleaseDC(GetDesktopWindow(), desktop_dc);
 		}
 
-		LOG("Desktop resolution: " + to_string(desktop_width) + "X" + to_string(desktop_height), LT_INFO);
+		LOG("Desktop resolution: " + to_string(desktop_width) + 'X' + to_string(desktop_height), LT_INFO);
 
 		if (IsIconic(hwnd) == FALSE && (desktop_width < (uint)(rc.right - rc.left) || desktop_height < (uint)(rc.bottom - rc.top)))
 			LOG("Window rectangle is beyound screen.", LT_WARNING);
