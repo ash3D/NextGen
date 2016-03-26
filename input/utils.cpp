@@ -1,6 +1,6 @@
 ﻿/**
 \author		Korotkov Andrey aka DRON
-\date		19.03.2016 (c)Korotkov Andrey
+\date		25.03.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -66,76 +66,6 @@ string ToStrExp(double val)
 string BoolToStr(bool val)
 {
 	return val ? "true" : "false";
-}
-
-string GetFilePath(const char *name)
-{
-	string path(name);
-	
-	if (path.empty()) 
-		return path;
-	
-	switch (path[path.length() - 1])
-	{
-	case '\\':
-	case '/':
-		path.pop_back();
-	}
-
-	const string::size_type pos = path.find_last_of("\\/");
-	
-	if (pos != string::npos)
-	{
-		path.erase(pos).shrink_to_fit();
-		return path;
-	}
-	else 
-		return "";
-}
-
-string GetFileName(const char *name)
-{
-	string path(name);
-	
-	if (path.empty())
-		return path;
-	
-	switch (path[path.length() - 1])
-	{
-	case '\\':
-	case '/':
-		path.pop_back();
-	}
-
-	const string::size_type pos = path.find_last_of("\\/");
-	
-	if (pos != string::npos)
-		path.erase(0, pos + 1).shrink_to_fit();
-	
-	return path;
-}
-
-string GetFileExt(const char *name)
-{
-	string path(name);
-	const string::size_type pos = path.find_last_of('.');
-	if (pos != string::npos)
-		path.erase(0, pos + 1).shrink_to_fit();
-	return path;
-}
-
-string GetOnlyFileName(const char *name)
-{
-	string path(GetFileName(name));
-	const string::size_type pos = path.find_last_of('.');
-	if (pos != string::npos)
-		path.erase(pos).shrink_to_fit();
-	/*
-		Shrinking can non-beneficial for short extensions
-		but shrink_to_fit() is non-binding anyway.
-		Leave the decision concerning shrinking to the stdlib implementation.
-	*/
-	return path;
 }
 
 uchar EngKeyToASCIIKey(const uint8 key)

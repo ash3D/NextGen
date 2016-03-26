@@ -1,6 +1,6 @@
 /**
 \author		Korotkov Andrey aka DRON
-\date		23.03.2016 (c)Korotkov Andrey
+\date		25.03.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -44,11 +44,6 @@ std::string ToStrX(DGLE::uint val);
 std::string ToStrFmt(double val);
 std::string ToStrExp(double val);
 std::string BoolToStr(bool val);
-
-std::string GetFilePath(const char *name);
-std::string GetFileName(const char *name);
-std::string GetFileExt(const char *name);
-std::string GetOnlyFileName(const char *name);
 
 DGLE::uchar EngKeyToASCIIKey(const DGLE::uint8 key);
 DGLE::uint8 ASCIIKeyToEngKey(const DGLE::uchar key);
