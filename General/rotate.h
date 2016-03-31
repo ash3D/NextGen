@@ -9,6 +9,10 @@ See "DGLE.h" for more details.
 
 #pragma once
 
+#if !defined  __clang__  && defined _MSC_FULL_VER && _MSC_FULL_VER < 190023918
+#error Old MSVC compiler version. Visual Studio 2015 Update 2 or later required.
+#endif
+
 #include <type_traits>
 #include <limits>
 #include <functional>
@@ -22,14 +26,8 @@ namespace RotImpl
 {
 	using namespace std;
 
-	// TODO: use C++14 variable template when VS will support it
-#if 1
 	template<unsigned width, typename Value>
-	using Mask = integral_constant<decltype((Value(1) << width) - Value(1)), (Value(1) << width) - Value(1)>;
-#else
-	template<unsigned width, typename Value>
-	constexpr static auto Mask = (Value(1) << width) - Value(1);
-#endif
+	static constexpr auto Mask = (Value(1) << width) - Value(1);
 
 	template<typename T, typename = void>
 	struct Has_exact : false_type {};
@@ -46,7 +44,7 @@ namespace RotImpl
 			!Has_exact<typename boost::uint_t<width>>::value, decltype(value)>
 	{
 		shift %= width;
-		constexpr auto mask = Mask<width, decltype(value)>::value;
+		constexpr auto mask = Mask<width, decltype(value)>;
 		return value & ~mask | (value << shift | (value & mask) >> width - shift) & mask;
 	}
 
@@ -71,7 +69,7 @@ namespace RotImpl
 			!Has_exact<typename boost::uint_t<width>>::value, decltype(value)>
 	{
 		shift %= width;
-		constexpr auto mask = Mask<width, decltype(value)>::value;
+		constexpr auto mask = Mask<width, decltype(value)>;
 		return value & ~mask | ((value & mask) >> shift | value << width - shift) & mask;
 	}
 
@@ -153,14 +151,9 @@ namespace RotImpl
 		return rot_dispatch<dir, width>(value, shift);
 	}
 
-	// TODO: use C++14 variable template when VS will support it
-#if 1
+	// auto does not work with VS 2015 Update 2 in cases such as 'const auto i = rol(1, 2);'
 	template<typename Value>
-	using Width = integral_constant<size_t, numeric_limits<make_unsigned_t<Value>>::digits>;
-#else
-	template<typename Value>
-	constexpr static auto Width = numeric_limits<make_unsigned_t<Value>>::digits;
-#endif
+	static constexpr /*auto*/size_t Width = numeric_limits<make_unsigned_t<Value>>::digits;
 }
 
 template<unsigned width, typename Value, typename Shift>
@@ -178,11 +171,11 @@ inline auto ror(Value value, Shift shift)
 template<typename Value, typename Shift>
 inline auto rol(Value value, Shift shift)
 {
-	return rol<RotImpl::Width<Value>::value>(value, shift);
+	return rol<RotImpl::Width<Value>>(value, shift);
 }
 
 template<typename Value, typename Shift>
 inline auto ror(Value value, Shift shift)
 {
-	return ror<RotImpl::Width<Value>::value>(value, shift);
+	return ror<RotImpl::Width<Value>>(value, shift);
 }
