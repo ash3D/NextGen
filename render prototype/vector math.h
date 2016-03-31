@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		31.12.2015 (c)Alexey Shaydurov
+\date		31.03.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1868,15 +1868,17 @@ consider using preprocessor instead of templates or overloading each target func
 
 				ElementType &operator [](unsigned int idx) noexcept;
 			private:
+				// workaround for bug in VS 2015 Update 2
+				typedef std::make_index_sequence<dimension> IdxSeq;
+
 				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-				vector(typename CData<ElementType, 0, dimension>::template HeterogeneousInitTag<std::make_index_sequence<dimension>, false>,
-					const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
+				vector(typename CData<ElementType, 0, dimension>::template HeterogeneousInitTag<IdxSeq, false>, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
 
 				template<unsigned offset, typename First, typename ...Rest>
-				vector(typename CData<ElementType, 0, dimension>::template HeterogeneousInitTag<std::make_index_sequence<dimension>, false, offset>, const First &first, const Rest &...rest);
+				vector(typename CData<ElementType, 0, dimension>::template HeterogeneousInitTag<IdxSeq, false, offset>, const First &first, const Rest &...rest);
 
 				template<typename SrcElementType, unsigned int srcDimension>
-				vector(typename CData<ElementType, 0, dimension>::template HeterogeneousInitTag<std::make_index_sequence<dimension>, false>, const SrcElementType (&src)[srcDimension]);
+				vector(typename CData<ElementType, 0, dimension>::template HeterogeneousInitTag<IdxSeq, false>, const SrcElementType (&src)[srcDimension]);
 			};
 
 			template<typename ElementType_, unsigned int rows_, unsigned int columns_>
@@ -2036,7 +2038,7 @@ consider using preprocessor instead of templates or overloading each target func
 				template<typename ElementType, unsigned int dimension>
 				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
 				inline vector<ElementType, dimension>::vector(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) :
-					DataContainer(CData<ElementType, 0, dimension>::HeterogeneousInitTag<std::make_index_sequence<dimension>>(), src) {}
+					DataContainer(CData<ElementType, 0, dimension>::HeterogeneousInitTag<IdxSeq>(), src) {}
 
 				template<typename ElementType, unsigned int dimension>
 				template<typename SrcElementType, unsigned int srcDimenstion>
@@ -2046,17 +2048,17 @@ consider using preprocessor instead of templates or overloading each target func
 				template<typename ElementType, unsigned int dimension>
 				template<typename SrcElementType>
 				inline vector<ElementType, dimension>::vector(const SrcElementType &scalar) :
-					DataContainer(std::make_index_sequence<dimension>(), scalar) {}
+					DataContainer(IdxSeq(), scalar) {}
 
 				template<typename ElementType, unsigned int dimension>
 				template<typename First, typename ...Rest>
 				inline vector<ElementType, dimension>::vector(const First &first, const Rest &...rest) :
-					DataContainer(CData<ElementType, 0, dimension>::HeterogeneousInitTag<std::make_index_sequence<dimension>>(), first, rest...) {}
+					DataContainer(CData<ElementType, 0, dimension>::HeterogeneousInitTag<IdxSeq>(), first, rest...) {}
 
 				template<typename ElementType, unsigned int dimension>
 				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
 				inline vector<ElementType, dimension>::vector(const matrix<SrcElementType, srcRows, srcColumns> &src) :
-					DataContainer(CData<ElementType, 0, dimension>::HeterogeneousInitTag<std::make_index_sequence<dimension>>(), src) {}
+					DataContainer(CData<ElementType, 0, dimension>::HeterogeneousInitTag<IdxSeq>(), src) {}
 
 				//template<typename ElementType, unsigned int dimension>
 				//template<typename TIterator>
@@ -2068,7 +2070,7 @@ consider using preprocessor instead of templates or overloading each target func
 				template<typename ElementType, unsigned int dimension>
 				template<typename SrcElementType, unsigned int srcDimension>
 				inline vector<ElementType, dimension>::vector(const SrcElementType (&src)[srcDimension]) :
-					DataContainer(CData<ElementType, 0, dimension>::HeterogeneousInitTag<std::make_index_sequence<dimension>>(), src) {}
+					DataContainer(CData<ElementType, 0, dimension>::HeterogeneousInitTag<IdxSeq>(), src) {}
 
 				template<typename ElementType, unsigned int dimension>
 				inline vector<ElementType, dimension>::vector(std::initializer_list<CInitListItem<ElementType>> initList)
@@ -2078,18 +2080,17 @@ consider using preprocessor instead of templates or overloading each target func
 
 				template<typename ElementType, unsigned int dimension>
 				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-				inline vector<ElementType, dimension>::vector(typename CData<ElementType, 0, dimension>::template HeterogeneousInitTag<std::make_index_sequence<dimension>, false> tag,
-					const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) :
+				inline vector<ElementType, dimension>::vector(typename CData<ElementType, 0, dimension>::template HeterogeneousInitTag<IdxSeq, false> tag, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) :
 					DataContainer(tag, src) {}
 
 				template<typename ElementType, unsigned int dimension>
 				template<unsigned offset, typename First, typename ...Rest>
-				inline vector<ElementType, dimension>::vector(typename CData<ElementType, 0, dimension>::template HeterogeneousInitTag<std::make_index_sequence<dimension>, false, offset> tag, const First &first, const Rest &...rest) :
+				inline vector<ElementType, dimension>::vector(typename CData<ElementType, 0, dimension>::template HeterogeneousInitTag<IdxSeq, false, offset> tag, const First &first, const Rest &...rest) :
 					DataContainer(tag, first, rest...) {}
 
 				template<typename ElementType, unsigned int dimension>
 				template<typename SrcElementType, unsigned int srcDimension>
-				inline vector<ElementType, dimension>::vector(typename CData<ElementType, 0, dimension>::template HeterogeneousInitTag<std::make_index_sequence<dimension>, false> tag, const SrcElementType (&src)[srcDimension]) :
+				inline vector<ElementType, dimension>::vector(typename CData<ElementType, 0, dimension>::template HeterogeneousInitTag<IdxSeq, false> tag, const SrcElementType (&src)[srcDimension]) :
 					DataContainer(tag, src) {}
 #			pragma endregion
 
