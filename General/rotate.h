@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.02.2016 (c)Korotkov Andrey
+\date		01.04.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -178,11 +178,11 @@ inline auto ror(Value value, Shift shift)
 template<typename Value, typename Shift>
 inline auto rol(Value value, Shift shift)
 {
-	return rol<RotImpl::Width<Value>value>(value, shift);
+	return rol<RotImpl::Width<Value>::value>(value, shift);
 }
 
 template<typename Value, typename Shift>
 inline auto ror(Value value, Shift shift)
 {
-	return ror<RotImpl::Width<Value>value>(value, shift);
+	return ror<RotImpl::Width<Value>::value>(value, shift);
 }
