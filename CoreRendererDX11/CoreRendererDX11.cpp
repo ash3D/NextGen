@@ -684,17 +684,23 @@ namespace
 
 #		undef DECL_FORMAT_LAYOUT
 
-		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx, unsigned srcIdx = 0, unsigned srcSize = LayoutLength<srcLayout>>
-		struct FindSrcIdx
-		{
-			static constexpr unsigned value = UnpackLayout<srcLayout, srcIdx> == UnpackLayout<dstLayout, dstIdx> ? srcIdx : FindSrcIdx<srcLayout, dstLayout, dstIdx, srcIdx + 1>::value;
-		};
+		// workoround for VS 2015 Update 2 bug
+#if defined _MSC_VER && _MSC_VER <= 1900
+		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx, unsigned srcSize = LayoutLength<srcLayout>, unsigned srcIdx = 0>
+		static constexpr unsigned FindSrcIdxImpl = UnpackLayout<srcLayout, srcIdx> == UnpackLayout<dstLayout, dstIdx> ? srcIdx : FindSrcIdxImpl<srcLayout, dstLayout, dstIdx, LayoutLength<srcLayout>, srcIdx + 1>;
 
 		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx, unsigned srcSize>
-		struct FindSrcIdx < srcLayout, dstLayout, dstIdx, srcSize, srcSize >
-		{
-			static constexpr unsigned value = ~0u;
-		};
+		static constexpr unsigned FindSrcIdxImpl<srcLayout, dstLayout, dstIdx, srcSize, srcSize> = ~0u;
+
+		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx>
+		static constexpr unsigned FindSrcIdx = FindSrcIdxImpl<srcLayout, dstLayout, dstIdx, LayoutLength<srcLayout>>;
+#else
+		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx, unsigned srcIdx = 0, unsigned srcSize = LayoutLength<srcLayout>>
+		static constexpr unsigned FindSrcIdx = UnpackLayout<srcLayout, srcIdx> == UnpackLayout<dstLayout, dstIdx> ? srcIdx : FindSrcIdx<srcLayout, dstLayout, dstIdx, srcIdx + 1>;
+
+		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx, unsigned srcSize>
+		static constexpr unsigned FindSrcIdx<srcLayout, dstLayout, dstIdx, srcSize, srcSize> = ~0u;
+#endif
 
 		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx = 0, unsigned dstSize = LayoutLength<dstLayout>>
 		struct FillTexel
@@ -709,7 +715,7 @@ namespace
 		{
 			if (UnpackLayout<dstLayout, dstIdx> != 7u)
 			{
-				constexpr unsigned src_idx = FindSrcIdx<srcLayout, dstLayout, dstIdx>::value;
+				constexpr unsigned src_idx = FindSrcIdx<srcLayout, dstLayout, dstIdx>;
 				dest[dstIdx] = src_idx == ~0u ? ~0u : source[src_idx];
 			}
 			FillTexel<srcLayout, dstLayout, dstIdx + 1, dstSize>::apply(source, dest);
