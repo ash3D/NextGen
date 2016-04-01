@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		23.03.2016 (c)Korotkov Andrey
+\date		01.04.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -54,8 +54,7 @@ Collision::CCollisionEdges<IB_format>::CCollisionEdges(Iterator begin, Iterator 
 			unsigned int v0 = 0, v1 = 1;
 			do
 			{
-				// TODO: use C++ 0x auto
-				pair<TEdges::const_iterator, bool> inserted = _edges.insert(TEdge(tri[v0], tri[v1], tri));
+				const auto inserted = _edges.insert(TEdge(tri[v0], tri[v1], tri));
 				if (!inserted.second)	// this edge was already inserted
 				{
 					// remove edge if angle <= pi
