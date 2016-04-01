@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		26.9.2015 (c)Korotkov Andrey
+\date		01.04.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -26,7 +26,7 @@ public:
 	template<typename T>
 	CBinaryOstream &operator <<(const T &data)
 	{
-		static_assert(std::is_standard_layout<T>::value, "try to write non-standard layout data");
+		static_assert(std::is_standard_layout_v<T>, "try to write non-standard layout data");
 		_out.write((const char *)&data, sizeof data);
 		return *this;
 	}

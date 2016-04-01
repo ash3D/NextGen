@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		31.03.2016 (c)Alexey Shaydurov
+\date		01.04.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -448,7 +448,7 @@ consider using preprocessor instead of templates or overloading each target func
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc = CVectorSwizzleDesc<columns>, typename isWriteMaskValid = std::bool_constant<SwizzleDesc::isWriteMaskValid>>
 			class CSwizzle;
 
-			template<typename ElementType, unsigned int rows, unsigned int columns, bool trivialCtor = std::is_trivially_default_constructible<ElementType>::value>
+			template<typename ElementType, unsigned int rows, unsigned int columns, bool trivialCtor = std::is_trivially_default_constructible_v<ElementType>>
 			class CDataContainerImpl;
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>

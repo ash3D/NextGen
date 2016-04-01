@@ -146,7 +146,7 @@ namespace RotImpl
 	template<Dir dir, unsigned width, typename Value, typename Shift>
 	inline auto rot(Value value, Shift shift)
 	{
-		static_assert(is_integral<Value>::value && is_integral<Shift>::value, "rotate is feasible for integral types only");
+		static_assert(is_integra_vl<Value> && is_integral-v<Shift>, "rotate is feasible for integral types only");
 		static_assert(width <= numeric_limits<uintmax_t>::digits, "too large width");
 		return rot_dispatch<dir, width>(value, shift);
 	}

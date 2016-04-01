@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		10.12.2015 (c)Korotkov Andrey
+\date		01.04.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -195,7 +195,7 @@ namespace Math
 		template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
 		class CBezier
 		{
-			static_assert(!std::is_integral<ScalarType>::value, "integral types for bezier control points is not allowed");
+			static_assert(!std::is_integral_v<ScalarType>, "integral types for bezier control points is not allowed");
 
 		public:
 			typedef std::array<
@@ -235,7 +235,7 @@ namespace Math
 			template<typename ScalarType, unsigned int dimension, class ...Attribs>
 			class CBezierInterpolationBase
 			{
-				static_assert(!std::is_integral<ScalarType>::value, "integral types for spline interpolation points is not allowed");
+				static_assert(!std::is_integral_v<ScalarType>, "integral types for spline interpolation points is not allowed");
 			protected:
 				typedef CBezier<ScalarType, dimension, 3, Attribs...> Bezier;
 			public:

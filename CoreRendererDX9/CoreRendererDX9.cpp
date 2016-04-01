@@ -3082,7 +3082,7 @@ namespace
 	template<typename IdxType>
 	uint GetVCount(const IdxType *IB, uint iCount)
 	{
-		static_assert(is_same<IdxType, uint16>::value || is_same<IdxType, uint32>::value, "invalid IB format");
+		static_assert(is_same_v<IdxType, uint16> || is_same_v<IdxType, uint32>, "invalid IB format");
 		assert(iCount > 0);
 		return *max_element(IB, IB + iCount) + 1;
 	}
