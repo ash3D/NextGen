@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		01.04.2016 (c)Andrey Korotkov
+\date		05.04.2016 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -2785,11 +2785,6 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::InvalidateStateFilter()
 	return S_FALSE;
 }
 
-/*
-	current push/pop implementation propably very slow
-	possily not all states being saved/restored
-*/
-
 void CCoreRendererDX9::_SetProjXform()
 {
 	D3DSURFACE_DESC rt_desc;
@@ -2808,6 +2803,15 @@ void CCoreRendererDX9::_SetProjXform()
 	patched_xform._2D[3][1] += 1.f / rt_desc.Height;
 	AssertHR(_device->SetTransform(D3DTS_PROJECTION, reinterpret_cast<const D3DMATRIX *>(patched_xform._2D)));
 }
+
+/*
+	current push/pop implementation propably very slow
+	possily not all states being saved/restored
+*/
+
+constexpr D3DRENDERSTATETYPE CCoreRendererDX9::_rederStateTypes[];
+constexpr D3DSAMPLERSTATETYPE CCoreRendererDX9::_samplerStateTypes[];
+constexpr D3DTEXTURESTAGESTATETYPE CCoreRendererDX9::_stageStateTypes[];
 
 void CCoreRendererDX9::_PushStates()
 {
