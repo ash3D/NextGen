@@ -2809,9 +2809,11 @@ void CCoreRendererDX9::_SetProjXform()
 	possily not all states being saved/restored
 */
 
+#if !defined _MSC_VER || __clang__	// workaround for VS 2015
 constexpr D3DRENDERSTATETYPE CCoreRendererDX9::_rederStateTypes[];
 constexpr D3DSAMPLERSTATETYPE CCoreRendererDX9::_samplerStateTypes[];
 constexpr D3DTEXTURESTAGESTATETYPE CCoreRendererDX9::_stageStateTypes[];
+#endif
 
 void CCoreRendererDX9::_PushStates()
 {
