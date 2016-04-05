@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.10.2015 (c)Korotkov Andrey
+\date		10.01.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -59,16 +59,16 @@ protected:
 	~C2D() = default;
 
 public:
-	virtual void DrawPoint(float x, float y, uint32_t color, float size) const override;
-	virtual void DrawLine(unsigned int vcount, _In_count_(vcount) const float coords[][2], _In_count_(vcount) const uint32_t colors[], bool closed, float width) const override;
-	virtual void DrawRect(float x, float y, float width, float height, uint32_t color, Interface::Textures::ITexture2D *texture, float angle) const override;
-	virtual void DrawRect(float x, float y, float width, float height, uint32_t (&colors)[4], Interface::Textures::ITexture2D *texture, float angle) const override;
-	virtual void DrawPolygon(unsigned int vcount, _In_count_(vcount) const float coords[][2], uint32_t color) const override;
-	virtual void DrawCircle(float x, float y, float r, uint32_t color) const override;
-	virtual void DrawEllipse(float x, float y, float rx, float ry, uint32_t color, bool AA, float angle) const override;
+	virtual void DrawPoint(float x, float y, uint32_t color, float size) const override final;
+	virtual void DrawLine(unsigned int vcount, _In_count_(vcount) const float coords[][2], _In_count_(vcount) const uint32_t colors[], bool closed, float width) const override final;
+	virtual void DrawRect(float x, float y, float width, float height, uint32_t color, Interface::Textures::ITexture2D *texture, float angle) const override final;
+	virtual void DrawRect(float x, float y, float width, float height, uint32_t (&colors)[4], Interface::Textures::ITexture2D *texture, float angle) const override final;
+	virtual void DrawPolygon(unsigned int vcount, _In_count_(vcount) const float coords[][2], uint32_t color) const override final;
+	virtual void DrawCircle(float x, float y, float r, uint32_t color) const override final;
+	virtual void DrawEllipse(float x, float y, float rx, float ry, uint32_t color, bool AA, float angle) const override final;
 
-	virtual Interface::Instances::_2D::IRect *AddRect(bool dynamic, uint16_t layer, float x, float y, float width, float height, uint32_t color, float angle) override;
-	virtual Interface::Instances::_2D::IEllipse *AddEllipse(bool dynamic, uint16_t layer, float x, float y, float rx, float ry, uint32_t color, bool AA, float angle) override;
+	virtual Interface::Instances::_2D::IRect *AddRect(bool dynamic, uint16_t layer, float x, float y, float width, float height, uint32_t color, float angle) override final;
+	virtual Interface::Instances::_2D::IEllipse *AddEllipse(bool dynamic, uint16_t layer, float x, float y, float rx, float ry, uint32_t color, bool AA, float angle) override final;
 
 protected:
 	void _NextFrame() const;
@@ -77,10 +77,9 @@ private:
 	void _DrawScene() const;
 
 private:
-	Win32Heap::CWin32Heap _dedicatedHeap;
-	Win32Heap::CWin32HeapAllocator<TQuad> _staticRectsAllocator, _dynamicRectsAllocator;
-	Win32Heap::CWin32HeapAllocator<TQuad> _staticEllipsesAllocator, _dynamicEllipsesAllocator;
-	Win32Heap::CWin32HeapAllocator<TQuad> _staticEllipsesAAAllocator, _dynamicEllipsesAAAllocator;
+	Win32Heap::CWin32Heap _staticQuadsHeap, _dynamicRectsHeap, _dynamicEllipsesHeap, _dynamicEllipsesAAHeap;
+	Win32Heap::CWin32HeapAllocator<TQuad> _staticRectsAllocator, _staticEllipsesAllocator, _staticEllipsesAAAllocator;
+	Win32Heap::CWin32HeapAllocator<TQuad> _dynamicRectsAllocator, _dynamicEllipsesAllocator, _dynamicEllipsesAAAllocator;
 	//class CRect;
 	//class CEllipse;
 	//typedef list<CRect> TRects;
@@ -107,9 +106,8 @@ private:
 	class CQuadHandle;
 	class CRectHandle;
 	class CEllipseHandle;
-	mutable TQuads _staticRects;TQuads _dynamicRects;
-	mutable TQuads _staticEllipses;TQuads _dynamicEllipses;
-	mutable TQuads _staticEllipsesAA;TQuads _dynamicEllipsesAA;
+	mutable TQuads _staticRects, _staticEllipses, _staticEllipsesAA;
+	TQuads _dynamicRects, _dynamicEllipses, _dynamicEllipsesAA;
 	mutable Microsoft::WRL::ComPtr<ID3D11Buffer> _static2DVB, _dynamic2DVB;
 	mutable UINT _dynamic2DVBSize;
 	mutable bool _static2DDirty;
@@ -143,7 +141,7 @@ protected:
 	const TQuads::iterator _quad;
 };
 
-class RendererImpl::C2D::CRectHandle: private CQuadHandle, public Interface::Instances::_2D::IRect
+class RendererImpl::C2D::CRectHandle final: private CQuadHandle, public Interface::Instances::_2D::IRect
 {
 public:
 	CRectHandle(
@@ -188,7 +186,7 @@ public:
 	}
 };
 
-class RendererImpl::C2D::CEllipseHandle: private CQuadHandle, public Interface::Instances::_2D::IEllipse
+class RendererImpl::C2D::CEllipseHandle final: private CQuadHandle, public Interface::Instances::_2D::IEllipse
 {
 public:
 	CEllipseHandle(

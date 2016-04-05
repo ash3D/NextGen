@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		4.10.2015 (c)Korotkov Andrey
+\date		07.01.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -16,13 +16,18 @@ namespace Interface = RendererImpl::Interface;
 using namespace Interface::Instances::_2D;
 
 C2D::C2D(const DXGI_MODE_DESC &modeDesc):
-	_dynamicRectsAllocator(_dedicatedHeap),
-	//_staticRectsAllocator(0), _dynamicRectsAllocator(0),
-	//_staticEllipsesAllocator(0), _dynamicEllipsesAllocator(0),
-	//_staticEllipsesAAAllocator(0), _dynamicEllipsesAAAllocator(0),
-	_staticRects(_staticRectsAllocator), _dynamicRects(_dynamicRectsAllocator),
-	_staticEllipses(_staticEllipsesAllocator), _dynamicEllipses(_dynamicEllipsesAllocator),
-	_staticEllipsesAA(_staticEllipsesAAAllocator), _dynamicEllipsesAA(_dynamicEllipsesAAAllocator),
+	_staticRectsAllocator(_staticQuadsHeap),
+	_staticEllipsesAllocator(_staticQuadsHeap),
+	_staticEllipsesAAAllocator(_staticQuadsHeap),
+	_dynamicRectsAllocator(_dynamicRectsHeap),
+	_dynamicEllipsesAllocator(_dynamicEllipsesHeap),
+	_dynamicEllipsesAAAllocator(_dynamicEllipsesAAHeap),
+	_staticRects(_staticRectsAllocator),
+	_staticEllipses(_staticEllipsesAllocator),
+	_staticEllipsesAA(_staticEllipsesAAAllocator),
+	_dynamicRects(_dynamicRectsAllocator),
+	_dynamicEllipses(_dynamicEllipsesAllocator),
+	_dynamicEllipsesAA(_dynamicEllipsesAAAllocator),
 	_dynamic2DVBSize(0), _static2DDirty(false),
 	_VBSize(64), _VBStart(0), _VCount(0), _count(0), _curLayer(~0)
 {
@@ -213,52 +218,62 @@ void C2D::_DrawScene() const
 		_immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
 		_immediateContext->IASetInputLayout(_quadLayout.Get());
 		UINT stride = sizeof(TQuad), offset = 0;
-		auto draw = [&](ID3DX11EffectPass *pass, UINT vcount)
+		const auto draw = [&](ID3DX11EffectPass *pass, const TQuads &quads)
 		{
-			AssertHR(pass->Apply(0, _immediateContext.Get()));
-			_immediateContext->IASetVertexBuffers(0, 1, _static2DVB.GetAddressOf(), &stride, &offset);
-			_immediateContext->Draw(vcount, 0);
-			offset += vcount * sizeof(TQuad);
+			if (!quads.empty())
+			{
+				const UINT vcount = quads.size();
+				AssertHR(pass->Apply(0, _immediateContext.Get()));
+				_immediateContext->IASetVertexBuffers(0, 1, _static2DVB.GetAddressOf(), &stride, &offset);
+				_immediateContext->Draw(vcount, 0);
+				offset += vcount * sizeof(TQuad);
+			}
 		};
-		if (!_staticRects.empty()) draw(_rectPass, _staticRects.size());
-		if (!_staticEllipses.empty()) draw(_ellipsePass, _staticEllipses.size());
-		if (!_staticEllipsesAA.empty()) draw(_ellipseAAPass, _staticEllipsesAA.size());
+		draw(_rectPass, _staticRects);
+		draw(_ellipsePass, _staticEllipses);
+		draw(_ellipseAAPass, _staticEllipsesAA);
 	}
 #pragma endregion
 
 #pragma region dynamic
 	_immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
 	_immediateContext->IASetInputLayout(_quadLayout.Get());
-	if (!_dynamicRects.empty())
+	const auto draw = [&](const TQuads &quads, ID3DX11EffectPass *pass)
 	{
-		static list<TQuad> vb_shadow;
-		// (re)create VB if nesessary
-		const auto rects_count = _dynamicRects.size();
-		if (!_dynamic2DVB || _dynamic2DVBSize < rects_count * sizeof(TQuad))
+		if (!quads.empty())
 		{
-			const D3D11_BUFFER_DESC VB_desc =
+			//static list<TQuad> vb_shadow;
+			// (re)create VB if nesessary
+			const auto quads_count = quads.size();
+			if (!_dynamic2DVB || _dynamic2DVBSize < quads_count * sizeof(TQuad))
 			{
-				_dynamic2DVBSize = rects_count * sizeof(TQuad),	//ByteWidth
-				D3D11_USAGE_DYNAMIC,										//Usage
-				D3D11_BIND_VERTEX_BUFFER,									//BindFlags
-				D3D11_CPU_ACCESS_WRITE,										//CPUAccessFlags
-				0,															//MiscFlags
-				0															//StructureByteStride
-			};
-			AssertHR(_device->CreateBuffer(&VB_desc, NULL, _dynamic2DVB.GetAddressOf()));
-			vb_shadow.assign(_dynamicRects.begin(), _dynamicRects.end());
+				const D3D11_BUFFER_DESC VB_desc =
+				{
+					_dynamic2DVBSize = quads_count * sizeof(TQuad),	//ByteWidth
+					D3D11_USAGE_DYNAMIC,							//Usage
+					D3D11_BIND_VERTEX_BUFFER,						//BindFlags
+					D3D11_CPU_ACCESS_WRITE,							//CPUAccessFlags
+					0,												//MiscFlags
+					0												//StructureByteStride
+				};
+				AssertHR(_device->CreateBuffer(&VB_desc, NULL, _dynamic2DVB.GetAddressOf()));
+				//vb_shadow.assign(quads.begin(), quads.end());
+			}
+			D3D11_MAPPED_SUBRESOURCE mapped;
+			AssertHR(_immediateContext->Map(_dynamic2DVB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped));
+			copy(quads.begin(), quads.end(), reinterpret_cast<TQuad *>(mapped.pData));
+			//copy(vb_shadow.begin(), vb_shadow.end(), reinterpret_cast<TQuad *>(mapped.pData));
+			//memcpy(mapped.pData, vb_shadow.data(), _dynamic2DVBSize);
+			_immediateContext->Unmap(_dynamic2DVB.Get(), 0);
+			UINT stride = sizeof(TQuad), offset = 0;
+			AssertHR(pass->Apply(0, _immediateContext.Get()));
+			_immediateContext->IASetVertexBuffers(0, 1, _dynamic2DVB.GetAddressOf(), &stride, &offset);
+			_immediateContext->Draw(quads_count, 0);
 		}
-		D3D11_MAPPED_SUBRESOURCE mapped;
-		AssertHR(_immediateContext->Map(_dynamic2DVB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped));
-		copy(_dynamicRects.begin(), _dynamicRects.end(), reinterpret_cast<TQuad *>(mapped.pData));
-		//copy(vb_shadow.begin(), vb_shadow.end(), reinterpret_cast<TQuad *>(mapped.pData));
-		//memcpy(mapped.pData, vb_shadow.data(), _dynamic2DVBSize);
-		_immediateContext->Unmap(_dynamic2DVB.Get(), 0);
-		UINT stride = sizeof(TQuad), offset = 0;
-		AssertHR(_rectPass->Apply(0, _immediateContext.Get()));
-		_immediateContext->IASetVertexBuffers(0, 1, _dynamic2DVB.GetAddressOf(), &stride, &offset);
-		_immediateContext->Draw(rects_count, 0);
-	}
+	};
+	draw(_dynamicRects, _rectPass);
+	draw(_dynamicEllipses, _ellipsePass);
+	draw(_dynamicEllipsesAA, _ellipseAAPass);
 #pragma endregion
 }
 #pragma endregion

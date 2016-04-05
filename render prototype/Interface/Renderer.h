@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.10.2015 (c)Korotkov Andrey
+\date		10.01.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -9,7 +9,7 @@ See "DGLE2.h" for more details.
 
 #pragma once
 
-#if defined _MSC_VER && _MSC_VER < 1800
+#if defined _MSC_VER && _MSC_VER < 1900
 #error old compiler version
 #endif
 
@@ -47,7 +47,6 @@ template for format (especially for structured buffer)
 
 //#define DISABLE_MATRIX_SWIZZLES
 //#include "vector math.h"
-#include "C++11 stub.h"
 
 #include <cstdint>
 #include <memory>		// for shared_ptr
@@ -1184,7 +1183,7 @@ namespace DGLE2
 
 				class IDisplayModes::CIterator: public std::iterator<std::random_access_iterator_tag, const DisplayModes::TDispModeDesc, unsigned>
 				{
-					friend class IDisplayModes;
+					friend struct IDisplayModes;
 				public:
 					inline DisplayModes::TDispModeDesc operator *() const;
 					inline bool operator ==(CIterator cmp) const;

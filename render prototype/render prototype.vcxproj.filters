@@ -60,9 +60,6 @@
     <ClInclude Include="vector math.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C++11 stub.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="RendererBase.h">
       <Filter>Header Files</Filter>
     </ClInclude>

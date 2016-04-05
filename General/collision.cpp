@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.10.2015 (c)Korotkov Andrey
+\date		01.04.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -8,8 +8,6 @@ See "DGLE.h" for more details.
 */
 
 #include "collision.h"
-#undef min
-#undef max
 #include <algorithm>
 #include <iterator>
 #include <set>
@@ -40,7 +38,7 @@ Collision::CCollisionEdges<IB_format>::CCollisionEdges(Iterator begin, Iterator 
 			IB_format
 				left_sorted[] = { min(v0, v1), max(v0, v1) },
 				right_sorted[] = { min(right.v0, right.v1), max(right.v0, right.v1) };
-			return lexicographical_compare(left_sorted, left_sorted + std::extent<decltype(left_sorted)>::value, right_sorted, right_sorted + std::extent<decltype(right_sorted)>::value);
+			return lexicographical_compare(left_sorted, left_sorted + size(left_sorted), right_sorted, right_sorted + size(right_sorted));
 		}
 		iterator_traits<Iterator>::reference tri;
 	};
@@ -56,8 +54,7 @@ Collision::CCollisionEdges<IB_format>::CCollisionEdges(Iterator begin, Iterator 
 			unsigned int v0 = 0, v1 = 1;
 			do
 			{
-				// TODO: use C++ 0x auto
-				pair<TEdges::const_iterator, bool> inserted = _edges.insert(TEdge(tri[v0], tri[v1], tri));
+				const auto inserted = _edges.insert(TEdge(tri[v0], tri[v1], tri));
 				if (!inserted.second)	// this edge was already inserted
 				{
 					// remove edge if angle <= pi
@@ -185,8 +182,8 @@ static bool __fastcall TestPlane(nv_scalar dir_dot_n_inv, nv_scalar orig_dot_n, 
 
 extern nv_scalar Collision::RayAABBIntersect(const vec3 &rayOrig, const vec3 &rayDir, const vec3 &AABBCenter, const vec3 &AABBExtents) throw()
 {
-	fMax = -std::numeric_limits<nv_scalar>::infinity();
-	bMin = +std::numeric_limits<nv_scalar>::infinity();
+	fMax = -numeric_limits<nv_scalar>::infinity();
+	bMin = +numeric_limits<nv_scalar>::infinity();
 	static nv_scalar(__fastcall *AABBnormals[3])(const vec3 &) throw() = { dotX, dotY, dotZ };
 	vec3
 		AABBdist_pos = AABBExtents + AABBCenter,
@@ -200,11 +197,11 @@ extern nv_scalar Collision::RayAABBIntersect(const vec3 &rayOrig, const vec3 &ra
 		{
 			nv_scalar dir_dot_n_inv = nv_one / dir_dot_n;
 			if (!TestPlane(dir_dot_n_inv, orig_dot_n, AABBdist_pos[i]) || !TestPlane(-dir_dot_n_inv, -orig_dot_n, AABBdist_neg[i]))
-				return std::numeric_limits<nv_scalar>::quiet_NaN();
+				return numeric_limits<nv_scalar>::quiet_NaN();
 		}
 		else	// || plane
 			if (orig_dot_n > AABBdist_pos[i] || -orig_dot_n > AABBdist_neg[i])
-				return std::numeric_limits<nv_scalar>::quiet_NaN();
+				return numeric_limits<nv_scalar>::quiet_NaN();
 	}
 
 	return fMax > 0 ? fMax : bMin;
@@ -213,8 +210,8 @@ extern nv_scalar Collision::RayAABBIntersect(const vec3 &rayOrig, const vec3 &ra
 template<unsigned int k>
 extern vec2 Collision::RayKDOPIntersect(const vec3 &rayOrig, const vec3 &rayDir, const PlanePair(&planes)[k]) throw()
 {
-	fMax = -std::numeric_limits<nv_scalar>::infinity();
-	bMin = +std::numeric_limits<nv_scalar>::infinity();
+	fMax = -numeric_limits<nv_scalar>::infinity();
+	bMin = +numeric_limits<nv_scalar>::infinity();
 	for (unsigned i = 0; i < k; i++)
 	{
 		nv_scalar dir_dot_n, orig_dot_n;
@@ -224,11 +221,11 @@ extern vec2 Collision::RayKDOPIntersect(const vec3 &rayOrig, const vec3 &rayDir,
 		{
 			nv_scalar dir_dot_n_inv = nv_one / dir_dot_n;
 			if (!TestPlane(dir_dot_n_inv, orig_dot_n, planes[i].dist[0]) || !TestPlane(-dir_dot_n_inv, -orig_dot_n, planes[i].dist[1]))
-				return vec2(std::numeric_limits<nv_scalar>::quiet_NaN(), std::numeric_limits<nv_scalar>::quiet_NaN());//return std::numeric_limits<nv_scalar>::quiet_NaN();
+				return vec2(numeric_limits<nv_scalar>::quiet_NaN(), numeric_limits<nv_scalar>::quiet_NaN());//return numeric_limits<nv_scalar>::quiet_NaN();
 		}
 		else	// || plane
 			if (orig_dot_n > planes[i].dist[0] || -orig_dot_n > planes[i].dist[1])
-				return vec2(std::numeric_limits<nv_scalar>::quiet_NaN(), std::numeric_limits<nv_scalar>::quiet_NaN());//return std::numeric_limits<nv_scalar>::quiet_NaN();
+				return vec2(numeric_limits<nv_scalar>::quiet_NaN(), numeric_limits<nv_scalar>::quiet_NaN());//return numeric_limits<nv_scalar>::quiet_NaN();
 	}
 
 	//return fMax > 0 ? fMax : bMin;
@@ -241,7 +238,7 @@ static inline nv_scalar RayPlaneIntersect(const vec3 &rayOrig, const vec3 &rayDi
 {
 	nv_scalar dir_dot_n;
 	if (dot(dir_dot_n, rayDir, n) == 0)
-		return std::numeric_limits<nv_scalar>::quiet_NaN();
+		return numeric_limits<nv_scalar>::quiet_NaN();
 	nv_scalar dirv_dot_n;
 	dot(dirv_dot_n, v - rayOrig, n);
 	return dirv_dot_n / dir_dot_n;
@@ -285,27 +282,27 @@ extern nv_scalar Collision::RayTriIntersect(const vec3 &rayOrig, const vec3 &ray
 	vec3 intersection = rayOrig + dist * rayDir;
 
 	// determine if intersection inside tri
-	return PointInsideTri(e1, e2, intersection - v0) ? dist : std::numeric_limits<nv_scalar>::quiet_NaN();
+	return PointInsideTri(e1, e2, intersection - v0) ? dist : numeric_limits<nv_scalar>::quiet_NaN();
 }
 
 // returns point closer to -inf along V
 extern nv_scalar Collision::RaySphereIntersect(vec3 S, const vec3 &V, const vec3 &C, nv_scalar r2) throw()
 {
-	if (V.sq_norm() == nv_zero) return std::numeric_limits<nv_scalar>::quiet_NaN();
+	if (V.sq_norm() == nv_zero) return numeric_limits<nv_scalar>::quiet_NaN();
 	// move coord origin to sphere center
 	S -= C;
 
 	nv_scalar S_dot_V;
 	dot(S_dot_V, S, V);
 	nv_scalar D_div_4 = S_dot_V * S_dot_V - V.sq_norm() * (S.sq_norm() - r2);
-	if (D_div_4 < 0) return std::numeric_limits<nv_scalar>::quiet_NaN();
+	if (D_div_4 < 0) return numeric_limits<nv_scalar>::quiet_NaN();
 	return (-S_dot_V - sqrt(D_div_4)) / V.sq_norm();
 }
 
 // returns point closer to -inf along V
 extern nv_scalar Collision::RayCilinderIntersect(vec3 R0, const vec3 &R0R1, const vec3 &C0, const vec3 &C0C1, nv_scalar r2) throw()
 {
-	if (C0C1.sq_norm() == nv_zero) return std::numeric_limits<nv_scalar>::quiet_NaN();
+	if (C0C1.sq_norm() == nv_zero) return numeric_limits<nv_scalar>::quiet_NaN();
 	R0 -= C0;
 	nv_scalar R0R1_dot_C0C1, R0_dot_C0C1, R0_dot_R0R1;
 	dot(R0R1_dot_C0C1, R0R1, C0C1);
@@ -313,16 +310,16 @@ extern nv_scalar Collision::RayCilinderIntersect(vec3 R0, const vec3 &R0R1, cons
 	dot(R0_dot_R0R1, R0, R0R1);
 	nv_scalar rcpsqCOC1 = nv_one / C0C1.sq_norm();
 	nv_scalar a = R0R1.sq_norm() - R0R1_dot_C0C1 * R0R1_dot_C0C1 * rcpsqCOC1;
-	if (a == nv_zero) return std::numeric_limits<nv_scalar>::quiet_NaN();
+	if (a == nv_zero) return numeric_limits<nv_scalar>::quiet_NaN();
 	nv_scalar b_div_2 = R0_dot_R0R1 - R0_dot_C0C1 * R0R1_dot_C0C1 * rcpsqCOC1;
 	nv_scalar c = R0.sq_norm() - r2 - R0_dot_C0C1 * R0_dot_C0C1 * rcpsqCOC1;
 	nv_scalar D_div_4 = b_div_2 * b_div_2 - a * c;
-	if (D_div_4 < 0) return std::numeric_limits<nv_scalar>::quiet_NaN();
+	if (D_div_4 < 0) return numeric_limits<nv_scalar>::quiet_NaN();
 	nv_scalar dist = (-b_div_2 - sqrt(D_div_4)) / a;
 	vec3 P = R0 + dist * R0R1;
 	nv_scalar P_dot_C0C1;
 	dot(P_dot_C0C1, P, C0C1);
-	if (P_dot_C0C1 < nv_zero || P_dot_C0C1 > C0C1.sq_norm()) return std::numeric_limits<nv_scalar>::quiet_NaN();
+	if (P_dot_C0C1 < nv_zero || P_dot_C0C1 > C0C1.sq_norm()) return numeric_limits<nv_scalar>::quiet_NaN();
 	return dist;
 }
 
@@ -496,7 +493,7 @@ extern auto Collision::SphereCollide(const IGeometryProvider &geometryProvider, 
 	TCollideResult result;
 	if (dir.sq_norm() == nv_zero)
 	{
-		result.dist = std::numeric_limits<nv_scalar>::quiet_NaN();
+		result.dist = numeric_limits<nv_scalar>::quiet_NaN();
 		return result;
 	}
 

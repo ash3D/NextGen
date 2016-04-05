@@ -1,6 +1,6 @@
 ﻿/**
 \author		Korotkov Andrey aka DRON
-\date		07.10.2012 (c)Korotkov Andrey
+\date		25.03.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -10,302 +10,181 @@ See "DGLE.h" for more details.
 #include "Utils.h"
 
 #include <cctype>
+#include <cstdio>
 #include <algorithm>
+#include <utility>
+#include <limits>
 
 using namespace DGLE;
 using namespace std;
 
-string ToLowerCase(const string &inString)
+string ToLowerCase(string str)
 {
-	string res(inString);
-	transform(inString.begin(), inString.end(), res.begin(), std::tolower);
+	transform(str.begin(), str.end(), str.begin(), tolower);
+	return str;
+}
+
+string ToUpperCase(string str)
+{
+	transform(str.begin(), str.end(), str.begin(), toupper);
+	return str;
+}
+
+bool StrToBool(string str)
+{
+	const string val = ToLowerCase(move(str));
+
+	return
+		val == "true"		||
+		val == "on"			||
+		val == "enabled"	||
+		val == "1"			||
+		val == "active";
+}
+
+string ToStrX(uint val)
+{
+	char res[2/*0x*/ + numeric_limits<decltype(val)>::digits10 + 1/*correction for digits10*/ + 1/*terminator*/];
+	sprintf(res, "0x%x", val);
 	return res;
 }
 
-string ToUpperCase(const string &inString)
+string ToStrFmt(double val)
 {
-	string res(inString);
-	transform(inString.begin(), inString.end(), res.begin(), std::toupper);
+	char res[16];
+	snprintf(res, size(res), "% .4f", val);
 	return res;
 }
 
-int StrToInt(const string &str)
+string ToStrExp(double val)
 {
-	int res = 0;
-	sscanf(str.c_str(), "%d", &res);
+	char res[16];
+	snprintf(res, size(res), "%e", val);
 	return res;
-}
-
-uint StrToUInt(const string &str)
-{
-	unsigned int res = 0;
-	
-	if (ToLowerCase(string(str)).find("x") == string::npos)
-		sscanf(str.c_str(), "%u", &res);
-	else
-		sscanf(str.c_str(), "%x", &res);
-
-	return res;
-}
-
-float StrToFloat(const string &str)
-{
-	float res = 0;
-	sscanf(str.c_str(), "%f", &res);
-	return res;
-}
-
-bool StrToBool(const string &str)
-{
-	string val = ToLowerCase(str);
-
-	if (val == string("true") ||
-		val == string("on") ||
-		val == string("enabled") ||
-		val == string("1") ||
-		val == string("active"))
-		return true;
-	else
-		return false;
-}
-
-string Int64ToStr(int64 val)
-{
-	char res[16];
-	sprintf_s(res, "%I64d", val);
-	return string(res);
-}
-
-string IntToStr(int val)
-{
-	char res[16];
-	sprintf_s(res, "%d", val);
-	return string(res);
-}
-
-string UInt64ToStr(uint64 val)
-{
-	char res[16];
-	sprintf_s(res, "%I64u", val);
-	return string(res);
-}
-
-string UIntToStr(uint val)
-{
-	char res[32];
-	sprintf_s(res, "%u", val);
-	return string(res);
-}
-
-string UIntToStrX(uint val)
-{
-	char res[32];
-	sprintf_s(res, "%x", val);
-	return string("0x") + res;
-}
-
-string FloatToStr(float val)
-{
-	char res[16];
-	sprintf_s(res, "%f", val);
-	return string(res);
-}
-
-string FloatToStrFmt(float val)
-{
-	char res[16];
-	sprintf_s(res, "%.4f", val);
-	return res[0] == '-' ? string(res) : " " + string(res);
-}
-
-string DoubleToStr(double val)
-{
-	char res[16];
-	sprintf_s(res, "%e", val);
-	return string(res);
 }
 
 string BoolToStr(bool val)
 {
-	if (val)
-		return string("true");
-	else
-		return string("false");
-}
-
-string GetFilePath(const char *name)
-{
-	string path(name);
-	
-	if (path.empty()) 
-		return string("");
-	
-	if (path[path.length() - 1] == '\\' || path[path.length() - 1] == '/') 
-		path.erase(path.length() - 1);
-
-	string::size_type pos = path.find_last_of("\\/");
-	
-	if (pos != string::npos)
-	{
-		path.erase(pos);
-		return path;
-	}
-	else 
-		return string("");
-}
-
-string GetFileName(const char *name)
-{
-	string path(name);
-	
-	if (path.empty())
-		return path.c_str();
-	
-	if (path[path.length() - 1] == '\\' || path[path.length() - 1] == '/')
-		path.erase(path.length() - 1);
-	
-	string::size_type pos = path.find_last_of("\\/");
-	
-	if (pos != string::npos)
-		path.erase(0, pos + 1);
-	
-	return path;
-}
-
-string GetFileExt(const char *name)
-{
-	string path(name);
-	string::size_type pos = path.find_last_of('.');
-	path.erase(0, pos + 1);
-	return path;
-}
-
-string GetOnlyFileName(const char *name)
-{
-	string path(GetFileName(name));
-	string::size_type pos = path.find_last_of('.');
-	if (pos != string::npos)
-		path.erase(pos);
-	return path;
+	return val ? "true" : "false";
 }
 
 uchar EngKeyToASCIIKey(const uint8 key)
 {
 	switch(key)
 	{
-		case KEY_ESCAPE        : return 27;
-		case KEY_TAB           : return 9;
-		case KEY_GRAVE         : return 192;
-		case KEY_CAPSLOCK	   : return 20;
-		case KEY_BACKSPACE	   : return 8;
-		case KEY_RETURN        : return 13;	
-		case KEY_SPACE         : return 32;
-		case KEY_SLASH         : return 191;
-		case KEY_BACKSLASH     : return 220; 
+		case KEY_ESCAPE			: return 27;
+		case KEY_TAB			: return 9;
+		case KEY_GRAVE			: return 192;
+		case KEY_CAPSLOCK		: return 20;
+		case KEY_BACKSPACE		: return 8;
+		case KEY_RETURN			: return 13;
+		case KEY_SPACE			: return 32;
+		case KEY_SLASH			: return 191;
+		case KEY_BACKSLASH		: return 220; 
 
-		case KEY_SYSRQ         : return 44;
-		case KEY_SCROLL        : return 145;
-		case KEY_PAUSE         : return 19;
+		case KEY_SYSRQ			: return 44;
+		case KEY_SCROLL			: return 145;
+		case KEY_PAUSE			: return 19;
 
-		case KEY_INSERT        : return 45;
-		case KEY_DELETE        : return 46;
-		case KEY_HOME          : return 36;
-		case KEY_END           : return 35;
-		case KEY_PGUP          : return 33;
-		case KEY_PGDN          : return 34;
+		case KEY_INSERT			: return 45;
+		case KEY_DELETE			: return 46;
+		case KEY_HOME			: return 36;
+		case KEY_END			: return 35;
+		case KEY_PGUP			: return 33;
+		case KEY_PGDN			: return 34;
 
-		case KEY_LSHIFT        : return 16; 
-		case KEY_RSHIFT        : return 16;
-		case KEY_LALT		   : return 18;
-		case KEY_RALT          : return 18; 
-		case KEY_LCONTROL      : return 17;
-		case KEY_RCONTROL      : return 17;
+		case KEY_LSHIFT			: return 16;
+		case KEY_RSHIFT			: return 16;
+		case KEY_LALT			: return 18;
+		case KEY_RALT			: return 18; 
+		case KEY_LCONTROL		: return 17;
+		case KEY_RCONTROL		: return 17;
 
-		case KEY_UP            : return 38;
-		case KEY_RIGHT         : return 39;
-		case KEY_LEFT          : return 37;
-		case KEY_DOWN          : return 40;
+		case KEY_UP				: return 38;
+		case KEY_RIGHT			: return 39;
+		case KEY_LEFT			: return 37;
+		case KEY_DOWN			: return 40;
 
-		case KEY_0			   : return 48;
-		case KEY_1             : return 49;
-		case KEY_2             : return 50;
-		case KEY_3             : return 51;
-		case KEY_4             : return 52;
-		case KEY_5             : return 53;
-		case KEY_6             : return 54;
-		case KEY_7             : return 55;
-		case KEY_8             : return 56;
-		case KEY_9             : return 57;
+		case KEY_0				: return 48;
+		case KEY_1				: return 49;
+		case KEY_2				: return 50;
+		case KEY_3				: return 51;
+		case KEY_4				: return 52;
+		case KEY_5				: return 53;
+		case KEY_6				: return 54;
+		case KEY_7				: return 55;
+		case KEY_8				: return 56;
+		case KEY_9				: return 57;
 
-		case KEY_F1			   : return 112;
-		case KEY_F2            : return 113;
-		case KEY_F3            : return 114;
-		case KEY_F4            : return 115;
-		case KEY_F5            : return 116;
-		case KEY_F6            : return 117;
-		case KEY_F7            : return 118;
-		case KEY_F8            : return 119;
-		case KEY_F9            : return 120;
-		case KEY_F10           : return 121;
-		case KEY_F11           : return 122;
-		case KEY_F12           : return 123;
+		case KEY_F1				: return 112;
+		case KEY_F2				: return 113;
+		case KEY_F3				: return 114;
+		case KEY_F4				: return 115;
+		case KEY_F5				: return 116;
+		case KEY_F6				: return 117;
+		case KEY_F7				: return 118;
+		case KEY_F8				: return 119;
+		case KEY_F9				: return 120;
+		case KEY_F10			: return 121;
+		case KEY_F11			: return 122;
+		case KEY_F12			: return 123;
 
-		case KEY_Q             : return 81;
-		case KEY_W             : return 87;
-		case KEY_E             : return 69;
-		case KEY_R             : return 82;
-		case KEY_T             : return 84;
-		case KEY_Y             : return 89;
-		case KEY_U             : return 85;
-		case KEY_I             : return 73;
-		case KEY_O             : return 79;
-		case KEY_P             : return 80; 
-		case KEY_A             : return 65;
-		case KEY_S             : return 83;
-		case KEY_D             : return 68;
-		case KEY_F             : return 70;
-		case KEY_G             : return 71;
-		case KEY_H             : return 72;
-		case KEY_J             : return 74;
-		case KEY_K             : return 75;
-		case KEY_L             : return 76;
-		case KEY_Z             : return 90;
-		case KEY_X             : return 88;
-		case KEY_C             : return 67;
-		case KEY_V             : return 86;
-		case KEY_B             : return 66;
-		case KEY_N             : return 78;
-		case KEY_M             : return 77;
+		case KEY_Q				: return 81;
+		case KEY_W				: return 87;
+		case KEY_E				: return 69;
+		case KEY_R				: return 82;
+		case KEY_T				: return 84;
+		case KEY_Y				: return 89;
+		case KEY_U				: return 85;
+		case KEY_I				: return 73;
+		case KEY_O				: return 79;
+		case KEY_P				: return 80; 
+		case KEY_A				: return 65;
+		case KEY_S				: return 83;
+		case KEY_D				: return 68;
+		case KEY_F				: return 70;
+		case KEY_G				: return 71;
+		case KEY_H				: return 72;
+		case KEY_J				: return 74;
+		case KEY_K				: return 75;
+		case KEY_L				: return 76;
+		case KEY_Z				: return 90;
+		case KEY_X				: return 88;
+		case KEY_C				: return 67;
+		case KEY_V				: return 86;
+		case KEY_B				: return 66;
+		case KEY_N				: return 78;
+		case KEY_M				: return 77;
 
-		case KEY_MINUS         : return 189;
-		case KEY_PLUS          : return 187;
-		case KEY_LBRACKET      : return 219;
-		case KEY_RBRACKET      : return 221; 
+		case KEY_MINUS			: return 189;
+		case KEY_PLUS			: return 187;
+		case KEY_LBRACKET		: return 219;
+		case KEY_RBRACKET		: return 221; 
 
-		case KEY_SEMICOLON     : return 186;
-		case KEY_APOSTROPHE    : return 222; 
+		case KEY_SEMICOLON		: return 186;
+		case KEY_APOSTROPHE		: return 222; 
 
-		case KEY_COMMA         : return 188;
-		case KEY_PERIOD        : return 190;
+		case KEY_COMMA			: return 188;
+		case KEY_PERIOD			: return 190;
 
-		case KEY_NUMPAD0       : return 96;
-		case KEY_NUMPAD1       : return 97;
-		case KEY_NUMPAD2       : return 98;
-		case KEY_NUMPAD3       : return 99;
-		case KEY_NUMPAD4       : return 100;
-		case KEY_NUMPAD5       : return 101;
-		case KEY_NUMPAD6       : return 102;
-		case KEY_NUMPAD7       : return 103;
-		case KEY_NUMPAD8       : return 104;
-		case KEY_NUMPAD9       : return 105;
-		case KEY_NUMPADPERIOD  : return 110;
-		case KEY_NUMPADSTAR    : return 106;
-		case KEY_NUMPADPLUS    : return 107;
-		case KEY_NUMPADMINUS   : return 109;
-		case KEY_NUMPADSLASH   : return 111;
-		case KEY_NUMLOCK       : return 144;
+		case KEY_NUMPAD0		: return 96;
+		case KEY_NUMPAD1		: return 97;
+		case KEY_NUMPAD2		: return 98;
+		case KEY_NUMPAD3		: return 99;
+		case KEY_NUMPAD4		: return 100;
+		case KEY_NUMPAD5		: return 101;
+		case KEY_NUMPAD6		: return 102;
+		case KEY_NUMPAD7		: return 103;
+		case KEY_NUMPAD8		: return 104;
+		case KEY_NUMPAD9		: return 105;
+		case KEY_NUMPADPERIOD	: return 110;
+		case KEY_NUMPADSTAR		: return 106;
+		case KEY_NUMPADPLUS		: return 107;
+		case KEY_NUMPADMINUS	: return 109;
+		case KEY_NUMPADSLASH	: return 111;
+		case KEY_NUMLOCK		: return 144;
 		default : return 0;
-	}	
+	}
 }
 
 uint8 ASCIIKeyToEngKey(const uchar key)
@@ -317,7 +196,7 @@ uint8 ASCIIKeyToEngKey(const uchar key)
 		case 192            : return KEY_GRAVE;
 		case 20	            : return KEY_CAPSLOCK;
 		case 8	            : return KEY_BACKSPACE;
-		case 13             : return KEY_RETURN;	
+		case 13             : return KEY_RETURN;
 		case 32             : return KEY_SPACE;
 		case 191            : return KEY_SLASH;
 		case 220            : return KEY_BACKSLASH; 

@@ -1,6 +1,6 @@
 /*
 \author		Arseny Lezin aka SleepWalk
-\date		25.10.2012 (c)Arseny Lezin
+\date		19.03.2016 (c)Arseny Lezin
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -547,12 +547,12 @@ BOOL CDirectInput::_EnumJoysticks(LPCDIDEVICEINSTANCE pdInst, LPVOID pvRef)
 
 	if (_pDirectInput->CreateDevice(pdInst->guidInstance, &_clJoystick[_uiJoyCount], NULL) != DI_OK)
 	{
-		LOG("Can't create joystick" + IntToStr(_uiJoyCount) + " device.", LT_INFO);
+		LOG("Can't create joystick" + std::to_string(_uiJoyCount) + " device.", LT_INFO);
 
 		return DIENUM_STOP;
 	}
 
-	LOG("Joystick " + IntToStr(_uiJoyCount) + " found.", LT_INFO);
+	LOG("Joystick " + std::to_string(_uiJoyCount) + " found.", LT_INFO);
 	LOG(pdInst->tszInstanceName, LT_INFO);
 
 	_uiJoyCount++;

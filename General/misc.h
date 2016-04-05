@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		26.9.2015 (c)Korotkov Andrey
+\date		01.04.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -46,7 +46,7 @@ private:
 template<class Container, typename Iterator>
 inline void Reserve(Container &container, Iterator begin, Iterator end)
 {
-	TReserveImpl<std::is_base_of<std::random_access_iterator_tag, typename std::iterator_traits<Iterator>::iterator_category>::value>::apply(container, begin, end);
+	TReserveImpl<std::is_base_of_v<std::random_access_iterator_tag, typename std::iterator_traits<Iterator>::iterator_category>>::apply(container, begin, end);
 }
 #pragma endregion
 

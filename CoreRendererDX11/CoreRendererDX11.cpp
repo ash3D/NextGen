@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		9.11.2015 (c)Andrey Korotkov
+\date		01.04.2016 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -615,36 +615,23 @@ namespace
 		// TODO: redesign for constexpr
 		typedef uint_fast16_t TPackedLayout;
 
-		// use C++14 constexpr variable template
-		template<unsigned int ...layoutIdx>
-		class PackedLayout
+		namespace PackedLayoutImpl
 		{
 			template<unsigned int idx, unsigned int ...rest>
-			struct PackIdx
-			{
-				static constexpr TPackedLayout value = (idx & 7u) << sizeof...(rest) * 3u | PackIdx<rest...>::value;
-			};
+			static constexpr TPackedLayout PackIdx = (idx & 7u) << sizeof...(rest) * 3u | PackIdx<rest...>;
 
 			template<unsigned int idx>
-			struct PackIdx<idx>
-			{
-				static constexpr TPackedLayout value = idx & 7u;
-			};
-		public:
-			static constexpr TPackedLayout value = sizeof...(layoutIdx) << 12u | PackIdx<layoutIdx...>::value;
-		};
+			static constexpr TPackedLayout PackIdx<idx> = idx & 7u;
+		}
+
+		template<unsigned int ...layoutIdx>
+		static constexpr TPackedLayout PackedLayout = sizeof...(layoutIdx) << 12u | PackedLayoutImpl::PackIdx<layoutIdx...>;
 
 		template<TPackedLayout packedLayout>
-		struct LayoutLength
-		{
-			static constexpr auto value = packedLayout >> 12u;
-		};
+		static constexpr auto LayoutLength = packedLayout >> 12u;
 
 		template<TPackedLayout packedLayout, unsigned idx>
-		struct UnpackLayout
-		{
-			static constexpr auto value = packedLayout >> (LayoutLength<packedLayout>::value - 1u - idx) * 3u & 7u;
-		};
+		static constexpr auto UnpackLayout = packedLayout >> (LayoutLength<packedLayout> - 1u - idx) * 3u & 7u;
 
 		template<typename ...FormatLayouts>
 		class CFormatLayoutArray
@@ -674,7 +661,7 @@ namespace
 			static constexpr TPackedLayout layout = inputLayout;
 		};
 
-#		define DECL_FORMAT_LAYOUT(format, ...) TFormatLayout<decltype(format), format, PackedLayout<__VA_ARGS__>::value>
+#		define DECL_FORMAT_LAYOUT(format, ...) TFormatLayout<decltype(format), format, PackedLayout<__VA_ARGS__>>
 
 		typedef CFormatLayoutArray
 			<
@@ -697,19 +684,25 @@ namespace
 
 #		undef DECL_FORMAT_LAYOUT
 
-		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx, unsigned srcIdx = 0, unsigned srcSize = LayoutLength<srcLayout>::value>
-		struct FindSrcIdx
-		{
-			static constexpr unsigned value = UnpackLayout<srcLayout, srcIdx>::value == UnpackLayout<dstLayout, dstIdx>::value ? srcIdx : FindSrcIdx<srcLayout, dstLayout, dstIdx, srcIdx + 1>::value;
-		};
+		// workoround for VS 2015 Update 2 bug
+#if defined _MSC_VER && _MSC_VER <= 1900
+		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx, unsigned srcSize = LayoutLength<srcLayout>, unsigned srcIdx = 0>
+		static constexpr unsigned FindSrcIdxImpl = UnpackLayout<srcLayout, srcIdx> == UnpackLayout<dstLayout, dstIdx> ? srcIdx : FindSrcIdxImpl<srcLayout, dstLayout, dstIdx, LayoutLength<srcLayout>, srcIdx + 1>;
 
 		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx, unsigned srcSize>
-		struct FindSrcIdx < srcLayout, dstLayout, dstIdx, srcSize, srcSize >
-		{
-			static constexpr unsigned value = ~0u;
-		};
+		static constexpr unsigned FindSrcIdxImpl<srcLayout, dstLayout, dstIdx, srcSize, srcSize> = ~0u;
 
-		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx = 0, unsigned dstSize = LayoutLength<dstLayout>::value>
+		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx>
+		static constexpr unsigned FindSrcIdx = FindSrcIdxImpl<srcLayout, dstLayout, dstIdx, LayoutLength<srcLayout>>;
+#else
+		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx, unsigned srcIdx = 0, unsigned srcSize = LayoutLength<srcLayout>>
+		static constexpr unsigned FindSrcIdx = UnpackLayout<srcLayout, srcIdx> == UnpackLayout<dstLayout, dstIdx> ? srcIdx : FindSrcIdx<srcLayout, dstLayout, dstIdx, srcIdx + 1>;
+
+		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx, unsigned srcSize>
+		static constexpr unsigned FindSrcIdx<srcLayout, dstLayout, dstIdx, srcSize, srcSize> = ~0u;
+#endif
+
+		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx = 0, unsigned dstSize = LayoutLength<dstLayout>>
 		struct FillTexel
 		{
 			template<class TSource, class TDest>
@@ -720,9 +713,9 @@ namespace
 		template<class TSource, class TDest>
 		inline void FillTexel<srcLayout, dstLayout, dstIdx, dstSize>::apply(TSource &source, TDest &dest)
 		{
-			if (UnpackLayout<dstLayout, dstIdx>::value != 7u)
+			if (UnpackLayout<dstLayout, dstIdx> != 7u)
 			{
-				constexpr unsigned src_idx = FindSrcIdx<srcLayout, dstLayout, dstIdx>::value;
+				constexpr unsigned src_idx = FindSrcIdx<srcLayout, dstLayout, dstIdx>;
 				dest[dstIdx] = src_idx == ~0u ? ~0u : source[src_idx];
 			}
 			FillTexel<srcLayout, dstLayout, dstIdx + 1, dstSize>::apply(source, dest);
@@ -738,7 +731,7 @@ namespace
 		template<TPackedLayout srcLayout, TPackedLayout dstLayout>
 		inline void TransformRow(const void *const src, void *const dst, unsigned width)
 		{
-			constexpr auto src_len = LayoutLength<srcLayout>::value, dst_len = LayoutLength<dstLayout>::value;
+			constexpr auto src_len = LayoutLength<srcLayout>, dst_len = LayoutLength<dstLayout>;
 			static_assert(src_len, "zero SrcLayout");
 			static_assert(dst_len, "zero DstLayout");
 			typedef const array<uint8_t, src_len> TSource;
@@ -845,7 +838,7 @@ namespace
 			//DECL_FORMAT_LAYOUT(TDF_RGBA8, 0, 1, 2, 3)
 #		undef DECL_FORMAT_TRAITS
 
-			template<class SrcLayout, class DstLayout, unsigned dstIdx, unsigned srcIdx = 0, unsigned srcSize = extent<decltype(SrcLayout::value)>::value>
+			template<class SrcLayout, class DstLayout, unsigned dstIdx, unsigned srcIdx = 0, unsigned srcSize = size(SrcLayout::value)>
 		struct FindSrcIdx
 		{
 			//static constexpr unsigned value = SrcLayout::value[srcIdx] == DstLayout::value[dstIdx] ? srcIdx : FindSrcIdx<SrcLayout, DstLayout, dstIdx, srcIdx + 1>::value;
@@ -865,7 +858,7 @@ namespace
 			}
 		};
 
-		template<class SrcLayout, class DstLayout, unsigned dstIdx = 0, unsigned dstSize = extent<decltype(DstLayout::value)>::value>
+		template<class SrcLayout, class DstLayout, unsigned dstIdx = 0, unsigned dstSize = size(DstLayout::value)>
 		struct FillTexel
 		{
 			template<class TSource, class TDest>
@@ -894,7 +887,7 @@ namespace
 		template<class SrcLayout, class DstLayout>
 		inline void TransformRow(const void *const src, void *const dst, unsigned width)
 		{
-			constexpr auto src_len = extent<decltype(SrcLayout::value)>::value, dst_len = extent<decltype(DstLayout::value)>::value;
+			constexpr auto src_len = size(SrcLayout::value), dst_len = size(DstLayout::value);
 			static_assert(src_len, "zero SrcLayout");
 			static_assert(dst_len, "zero DstLayout");
 			typedef const array<uint8_t, src_len> TSource;
@@ -1729,7 +1722,7 @@ void CCoreRendererDX11::_ConfigureWindow(const TEngineWindow &wnd, DGLE_RESULT &
 			ReleaseDC(GetDesktopWindow(), desktop_dc);
 		}
 
-		LOG("Desktop resolution: " + to_string(desktop_width) + "X" + to_string(desktop_height), LT_INFO);
+		LOG("Desktop resolution: " + to_string(desktop_width) + 'X' + to_string(desktop_height), LT_INFO);
 
 		if (IsIconic(hwnd) == FALSE && (desktop_width < (uint)(rc.right - rc.left) || desktop_height < (uint)(rc.bottom - rc.top)))
 			LOG("Window rectangle is beyound screen.", LT_WARNING);
@@ -2189,7 +2182,7 @@ void CCoreRendererDX11::CStreamBuffer::_OnFrameEnd()
 
 namespace
 {
-	typedef D3DVERTEXELEMENT9 TVertexDecl[extent<decltype(vertexElementLUT)>::value + 2];	// +2 for position and D3DDECL_END()
+	typedef D3DVERTEXELEMENT9 TVertexDecl[size(vertexElementLUT) + 2];	// +2 for position and D3DDECL_END()
 
 	inline void SetVertexElement(TVertexDecl &elements, WORD stream, BYTE type, BYTE usage)
 	{
@@ -2213,7 +2206,7 @@ namespace
 	}
 
 	template<>
-	inline void FillVertexDecl<extent<decltype(vertexElementLUT)>::value>(const TDrawDataDesc &drawDesc, TVertexDecl &elements, UINT stream)
+	inline void FillVertexDecl<size(vertexElementLUT)>(const TDrawDataDesc &drawDesc, TVertexDecl &elements, UINT stream)
 	{
 		SetVertexElement(elements, stream, drawDesc.bVertices2D ? D3DDECLTYPE_FLOAT2 : D3DDECLTYPE_FLOAT3, D3DDECLUSAGE_POSITION);
 		elements[++stream] = D3DDECL_END();
@@ -2780,11 +2773,11 @@ void CCoreRendererDX11::_PushStates()
 	typedef decltype(cur_state.VSFloatConsts) TVSFloatConsts;
 	cur_state.VSFloatConsts = make_unique<TVSFloatConsts::element_type[]>(_maxVSFloatConsts);
 	AssertHR(_device->GetVertexShaderConstantF(0, (float *)cur_state.VSFloatConsts.get(), _maxVSFloatConsts));
-	AssertHR(_device->GetPixelShaderConstantF(0, (float *)cur_state.PSFloatConsts, extent<decltype(cur_state.PSFloatConsts), 0>::value));
-	AssertHR(_device->GetVertexShaderConstantI(0, (int *)cur_state.VSIntConsts, extent<decltype(cur_state.VSIntConsts), 0>::value));
-	AssertHR(_device->GetPixelShaderConstantI(0, (int *)cur_state.PSIntConsts, extent<decltype(cur_state.PSIntConsts), 0>::value));
-	AssertHR(_device->GetVertexShaderConstantB(0, (BOOL *)cur_state.VSBoolConsts, extent<decltype(cur_state.VSBoolConsts), 0>::value));
-	AssertHR(_device->GetPixelShaderConstantB(0, (BOOL *)cur_state.PSIntConsts, extent<decltype(cur_state.PSIntConsts), 0>::value));
+	AssertHR(_device->GetPixelShaderConstantF(0, (float *)cur_state.PSFloatConsts, size(cur_state.PSFloatConsts)));
+	AssertHR(_device->GetVertexShaderConstantI(0, (int *)cur_state.VSIntConsts, size(cur_state.VSIntConsts)));
+	AssertHR(_device->GetPixelShaderConstantI(0, (int *)cur_state.PSIntConsts, size(cur_state.PSIntConsts)));
+	AssertHR(_device->GetVertexShaderConstantB(0, (BOOL *)cur_state.VSBoolConsts, size(cur_state.VSBoolConsts)));
+	AssertHR(_device->GetPixelShaderConstantB(0, (BOOL *)cur_state.PSIntConsts, size(cur_state.PSIntConsts)));
 #endif
 
 	AssertHR(_device->GetMaterial(&cur_state.material));
@@ -2829,11 +2822,11 @@ void CCoreRendererDX11::_PopStates()
 	AssertHR(_device->SetPixelShader(saved_state.PS.Get()));
 
 	AssertHR(_device->SetVertexShaderConstantF(0, (const float *)saved_state.VSFloatConsts.get(), _maxVSFloatConsts));
-	AssertHR(_device->SetPixelShaderConstantF(0, (const float *)saved_state.PSFloatConsts, extent<decltype(saved_state.PSFloatConsts), 0>::value));
-	AssertHR(_device->SetVertexShaderConstantI(0, (const int *)saved_state.VSIntConsts, extent<decltype(saved_state.VSIntConsts), 0>::value));
-	AssertHR(_device->SetPixelShaderConstantI(0, (const int *)saved_state.PSIntConsts, extent<decltype(saved_state.PSIntConsts), 0>::value));
-	AssertHR(_device->SetVertexShaderConstantB(0, (const BOOL *)saved_state.VSBoolConsts, extent<decltype(saved_state.VSBoolConsts), 0>::value));
-	AssertHR(_device->SetPixelShaderConstantB(0, (const BOOL *)saved_state.PSIntConsts, extent<decltype(saved_state.PSIntConsts), 0>::value));
+	AssertHR(_device->SetPixelShaderConstantF(0, (const float *)saved_state.PSFloatConsts, size(saved_state.PSFloatConsts)));
+	AssertHR(_device->SetVertexShaderConstantI(0, (const int *)saved_state.VSIntConsts, size(saved_state.VSIntConsts)));
+	AssertHR(_device->SetPixelShaderConstantI(0, (const int *)saved_state.PSIntConsts, size(saved_state.PSIntConsts)));
+	AssertHR(_device->SetVertexShaderConstantB(0, (const BOOL *)saved_state.VSBoolConsts, size(saved_state.VSBoolConsts)));
+	AssertHR(_device->SetPixelShaderConstantB(0, (const BOOL *)saved_state.PSIntConsts, size(saved_state.PSIntConsts)));
 #endif
 
 	AssertHR(_device->SetMaterial(&saved_state.material));
@@ -3003,7 +2996,7 @@ namespace
 	template<typename IdxType>
 	uint GetVCount(const IdxType *IB, uint iCount)
 	{
-		static_assert(is_same<IdxType, uint16>::value || is_same<IdxType, uint32>::value, "invalid IB format");
+		static_assert(is_same_v<IdxType, uint16> || is_same_v<IdxType, uint32>, "invalid IB format");
 		assert(iCount > 0);
 		return *max_element(IB, IB + iCount) + 1;
 	}
@@ -3022,7 +3015,7 @@ inline void CCoreRendererDX11::_BindVB(const TDrawDataDesc &drawDesc, const ComP
 }
 
 template<>
-inline void CCoreRendererDX11::_BindVB<extent<decltype(vertexElementLUT)>::value>(const TDrawDataDesc &drawDesc, const ComPtr<IDirect3DVertexBuffer9> &VB, unsigned int baseOffset, UINT stream) const
+inline void CCoreRendererDX11::_BindVB<size(vertexElementLUT)>(const TDrawDataDesc &drawDesc, const ComPtr<IDirect3DVertexBuffer9> &VB, unsigned int baseOffset, UINT stream) const
 {
 	const auto stride = drawDesc.uiVertexStride ? drawDesc.uiVertexStride : GetVertexElementStride(drawDesc.bVertices2D ? D3DDECLTYPE_FLOAT2 : D3DDECLTYPE_FLOAT3);
 	AssertHR(_device->SetStreamSource(stream, VB.Get(), baseOffset, stride));
