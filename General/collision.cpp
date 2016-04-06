@@ -22,6 +22,8 @@ using namespace DGLE;
 namespace Collision = Math::Collision;
 namespace CollisionStat = Collision::CollisionStat;
 
+static_assert(numeric_limits<nv_scalar>::has_quiet_NaN, "quiet NaN support required");
+
 template<typename IB_format>
 template<typename Iterator>
 Collision::CCollisionEdges<IB_format>::CCollisionEdges(Iterator begin, Iterator end, const vec3 *__restrict VB) noexcept
