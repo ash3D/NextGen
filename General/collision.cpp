@@ -24,7 +24,7 @@ namespace CollisionStat = Collision::CollisionStat;
 
 template<typename IB_format>
 template<typename Iterator>
-Collision::CCollisionEdges<IB_format>::CCollisionEdges(Iterator begin, Iterator end, const vec3 *__restrict VB)
+Collision::CCollisionEdges<IB_format>::CCollisionEdges(Iterator begin, Iterator end, const vec3 *__restrict VB) noexcept
 {
 	struct TEdge : CCollisionEdges<IB_format>::TEdge
 	{
@@ -84,7 +84,7 @@ Collision::CCollisionEdges<IB_format>::CCollisionEdges(Iterator begin, Iterator 
 }
 
 template<typename IB_format>
-Collision::CCollisionEdges<IB_format>::CCollisionEdges(const void *__restrict &data)
+Collision::CCollisionEdges<IB_format>::CCollisionEdges(const void *__restrict &data) noexcept
 {
 	if (!data) return;
 
@@ -96,7 +96,7 @@ Collision::CCollisionEdges<IB_format>::CCollisionEdges(const void *__restrict &d
 }
 
 template<typename IB_format>
-Collision::CCollisionEdges<IB_format>::CCollisionEdges(IFile *pFile)
+Collision::CCollisionEdges<IB_format>::CCollisionEdges(IFile *pFile) noexcept
 {
 	if (!pFile) return;
 
@@ -113,7 +113,7 @@ Collision::CCollisionEdges<IB_format>::CCollisionEdges(IFile *pFile)
 }
 
 template<typename IB_format>
-uint Collision::CCollisionEdges<IB_format>::SaveToFile(IFile *pFile) const
+uint Collision::CCollisionEdges<IB_format>::SaveToFile(IFile *pFile) const noexcept
 {
 	uint res = 0;
 
@@ -138,29 +138,29 @@ uint Collision::CCollisionEdges<IB_format>::SaveToFile(IFile *pFile) const
 
 template Collision::CCollisionEdges<uint16_t>;
 template Collision::CCollisionEdges<uint32_t>;
-template Collision::CCollisionEdges<uint16_t>::CCollisionEdges(const uint16_t(*begin)[3], const uint16_t(*end)[3], const vec3 *__restrict VB);
-template Collision::CCollisionEdges<uint32_t>::CCollisionEdges(const uint32_t(*begin)[3], const uint32_t(*end)[3], const vec3 *__restrict VB);
+template Collision::CCollisionEdges<uint16_t>::CCollisionEdges(const uint16_t(*begin)[3], const uint16_t(*end)[3], const vec3 *__restrict VB) noexcept;
+template Collision::CCollisionEdges<uint32_t>::CCollisionEdges(const uint32_t(*begin)[3], const uint32_t(*end)[3], const vec3 *__restrict VB) noexcept;
 
 // (?) check for 0 that avoids NaN improves perf for x87 and SSE1 modes
 
-static nv_scalar __fastcall dotX(const vec3 &vec)
+static nv_scalar __fastcall dotX(const vec3 &vec) noexcept
 {
 	return vec.x;
 }
 
-static nv_scalar __fastcall dotY(const vec3 &vec)
+static nv_scalar __fastcall dotY(const vec3 &vec) noexcept
 {
 	return vec.y;
 }
 
-static nv_scalar __fastcall dotZ(const vec3 &vec)
+static nv_scalar __fastcall dotZ(const vec3 &vec) noexcept
 {
 	return vec.z;
 }
 
 static nv_scalar fMax, bMin;
 
-static bool __fastcall TestPlane(nv_scalar dir_dot_n_inv, nv_scalar orig_dot_n, nv_scalar plane_dist) throw()
+static bool __fastcall TestPlane(nv_scalar dir_dot_n_inv, nv_scalar orig_dot_n, nv_scalar plane_dist) noexcept
 {
 	nv_scalar ray_dist = (plane_dist - orig_dot_n) * dir_dot_n_inv;
 	if (dir_dot_n_inv < 0)	// front face
@@ -182,11 +182,11 @@ static bool __fastcall TestPlane(nv_scalar dir_dot_n_inv, nv_scalar orig_dot_n, 
 	return true;
 }
 
-extern nv_scalar Collision::RayAABBIntersect(const vec3 &rayOrig, const vec3 &rayDir, const vec3 &AABBCenter, const vec3 &AABBExtents) throw()
+extern nv_scalar Collision::RayAABBIntersect(const vec3 &rayOrig, const vec3 &rayDir, const vec3 &AABBCenter, const vec3 &AABBExtents) noexcept
 {
 	fMax = -numeric_limits<nv_scalar>::infinity();
 	bMin = +numeric_limits<nv_scalar>::infinity();
-	static nv_scalar(__fastcall *AABBnormals[3])(const vec3 &) throw() = { dotX, dotY, dotZ };
+	static nv_scalar(__fastcall *AABBnormals[3])(const vec3 &) noexcept = { dotX, dotY, dotZ };
 	vec3
 		AABBdist_pos = AABBExtents + AABBCenter,
 		AABBdist_neg = AABBExtents - AABBCenter;
@@ -210,7 +210,7 @@ extern nv_scalar Collision::RayAABBIntersect(const vec3 &rayOrig, const vec3 &ra
 }
 
 template<unsigned int k>
-extern vec2 Collision::RayKDOPIntersect(const vec3 &rayOrig, const vec3 &rayDir, const PlanePair(&planes)[k]) throw()
+extern vec2 Collision::RayKDOPIntersect(const vec3 &rayOrig, const vec3 &rayDir, const PlanePair(&planes)[k]) noexcept
 {
 	fMax = -numeric_limits<nv_scalar>::infinity();
 	bMin = +numeric_limits<nv_scalar>::infinity();
@@ -234,9 +234,9 @@ extern vec2 Collision::RayKDOPIntersect(const vec3 &rayOrig, const vec3 &rayDir,
 	return vec2(fMax, bMin);
 }
 
-template vec2 Collision::RayKDOPIntersect<>(const vec3 &rayOrig, const vec3 &rayDir, const PlanePair(&planes)[3]) throw();
+template vec2 Collision::RayKDOPIntersect<>(const vec3 &rayOrig, const vec3 &rayDir, const PlanePair(&planes)[3]) noexcept;
 
-static inline nv_scalar RayPlaneIntersect(const vec3 &rayOrig, const vec3 &rayDir, const vec3 &n, const vec3 &v) throw()
+static inline nv_scalar RayPlaneIntersect(const vec3 &rayOrig, const vec3 &rayDir, const vec3 &n, const vec3 &v) noexcept
 {
 	nv_scalar dir_dot_n;
 	if (dot(dir_dot_n, rayDir, n) == 0)
@@ -246,7 +246,7 @@ static inline nv_scalar RayPlaneIntersect(const vec3 &rayOrig, const vec3 &rayDi
 	return dirv_dot_n / dir_dot_n;
 }
 
-static inline bool PointInsideTri(const vec3 &e1, const vec3 &e2, const vec3 &f) throw()
+static inline bool PointInsideTri(const vec3 &e1, const vec3 &e2, const vec3 &f) noexcept
 {
 	nv_scalar e1_dot_e1, e1_dot_e2, e2_dot_e2;
 	dot(e1_dot_e1, e1, e1);
@@ -266,7 +266,7 @@ static inline bool PointInsideTri(const vec3 &e1, const vec3 &e2, const vec3 &f)
 	return bary.x >= 0;
 }
 
-extern nv_scalar Collision::RayTriIntersect(const vec3 &rayOrig, const vec3 &rayDir, const vec3 &v0, const vec3 &v1, const vec3 &v2) throw()
+extern nv_scalar Collision::RayTriIntersect(const vec3 &rayOrig, const vec3 &rayDir, const vec3 &v0, const vec3 &v1, const vec3 &v2) noexcept
 {
 	// compute tri edges
 	vec3
@@ -288,7 +288,7 @@ extern nv_scalar Collision::RayTriIntersect(const vec3 &rayOrig, const vec3 &ray
 }
 
 // returns point closer to -inf along V
-extern nv_scalar Collision::RaySphereIntersect(vec3 S, const vec3 &V, const vec3 &C, nv_scalar r2) throw()
+extern nv_scalar Collision::RaySphereIntersect(vec3 S, const vec3 &V, const vec3 &C, nv_scalar r2) noexcept
 {
 	if (V.sq_norm() == nv_zero) return numeric_limits<nv_scalar>::quiet_NaN();
 	// move coord origin to sphere center
@@ -302,7 +302,7 @@ extern nv_scalar Collision::RaySphereIntersect(vec3 S, const vec3 &V, const vec3
 }
 
 // returns point closer to -inf along V
-extern nv_scalar Collision::RayCilinderIntersect(vec3 R0, const vec3 &R0R1, const vec3 &C0, const vec3 &C0C1, nv_scalar r2) throw()
+extern nv_scalar Collision::RayCilinderIntersect(vec3 R0, const vec3 &R0R1, const vec3 &C0, const vec3 &C0C1, nv_scalar r2) noexcept
 {
 	if (C0C1.sq_norm() == nv_zero) return numeric_limits<nv_scalar>::quiet_NaN();
 	R0 -= C0;
@@ -341,7 +341,7 @@ namespace
 		vertexColliderInvokeCount;
 }
 
-extern void CollisionStat::StartProfiling()
+extern void CollisionStat::StartProfiling() noexcept
 {
 	// clear counters
 	collideAndSlideInvokeCount = collideAndSlideIterationCount = cullerInvokeCount = cullerRejectCount = triColliderInvokeCount = edgeColliderInvokeCount = vertexColliderInvokeCount = 0;
@@ -490,7 +490,7 @@ void Collision::CVertexCollider::operator ()(const CSphereXformHandler &sphereXf
 // finite param:
 // true - segment intersection [0, 1)
 // false - ray intersection (-inf, +1)
-extern auto Collision::SphereCollide(const IGeometryProvider &geometryProvider, const vec3 &c, nv_scalar r2, const vec3 &dir, nv_scalar skinWidth, bool doubleSide, bool finite) throw() -> TCollideResult
+extern auto Collision::SphereCollide(const IGeometryProvider &geometryProvider, const vec3 &c, nv_scalar r2, const vec3 &dir, nv_scalar skinWidth, bool doubleSide, bool finite) noexcept -> TCollideResult
 {
 	TCollideResult result;
 	if (dir.sq_norm() == nv_zero)
@@ -517,7 +517,7 @@ extern auto Collision::SphereCollide(const IGeometryProvider &geometryProvider, 
 	return result;
 }
 
-extern vec3 Collision::SphereCollideAndSlide(const IGeometryProvider &geometryProvider, vec3 c, nv_scalar r2, vec3 dir, nv_scalar skinWidth, nv_scalar minDist, unsigned int maxSlides) throw()
+extern vec3 Collision::SphereCollideAndSlide(const IGeometryProvider &geometryProvider, vec3 c, nv_scalar r2, vec3 dir, nv_scalar skinWidth, nv_scalar minDist, unsigned int maxSlides) noexcept
 {
 	++collideAndSlideInvokeCount;
 

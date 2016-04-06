@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		23.03.2016 (c)Korotkov Andrey
+\date		06.04.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -30,17 +30,17 @@ namespace Math
 			TEdges _edges;
 
 		public:
-			CCollisionEdges() throw() {}
+			CCollisionEdges() noexcept {}
 			template<typename Iterator>
-			CCollisionEdges(Iterator begin, Iterator end, const vec3 *__restrict VB) throw();
-			CCollisionEdges(const void *__restrict &data) throw();
-			CCollisionEdges(DGLE::IFile *pFile) throw();
-			typename TEdges::const_iterator Begin() const throw() { return _edges.begin(); }
-			typename TEdges::const_iterator End() const throw() { return _edges.end(); }
-			DGLE::uint SaveToFile(DGLE::IFile *pFile) const throw();
+			CCollisionEdges(Iterator begin, Iterator end, const vec3 *__restrict VB) noexcept;
+			CCollisionEdges(const void *__restrict &data) noexcept;
+			CCollisionEdges(DGLE::IFile *pFile) noexcept;
+			typename TEdges::const_iterator Begin() const noexcept { return _edges.begin(); }
+			typename TEdges::const_iterator End() const noexcept { return _edges.end(); }
+			DGLE::uint SaveToFile(DGLE::IFile *pFile) const noexcept;
 		};
 
-		extern nv_scalar RayAABBIntersect(const vec3 &rayOrig, const vec3 &rayDir, const vec3 &AABBCenter, const vec3 &AABBExtents) throw();
+		extern nv_scalar RayAABBIntersect(const vec3 &rayOrig, const vec3 &rayDir, const vec3 &AABBCenter, const vec3 &AABBExtents) noexcept;
 
 		struct PlanePair
 		{
@@ -49,14 +49,14 @@ namespace Math
 		};
 
 		template<unsigned int k>
-		extern vec2 RayKDOPIntersect(const vec3 &rayOrig, const vec3 &rayDir, const PlanePair(&planes)[k]) throw();
-		extern nv_scalar RayTriIntersect(const vec3 &rayOrig, const vec3 &rayDir, const vec3 &v0, const vec3 &v1, const vec3 &v2) throw();
-		extern nv_scalar RaySphereIntersect(vec3 rayOrig, const vec3 &rayDir, const vec3 &sphereCenter, nv_scalar sphereRadius2) throw();
-		extern nv_scalar RayCilinderIntersect(vec3 rayOrig, const vec3 &rayDir, const vec3 &cilinderOrig, const vec3 &cilinderDir, nv_scalar cilinderRadius2) throw();
+		extern vec2 RayKDOPIntersect(const vec3 &rayOrig, const vec3 &rayDir, const PlanePair(&planes)[k]) noexcept;
+		extern nv_scalar RayTriIntersect(const vec3 &rayOrig, const vec3 &rayDir, const vec3 &v0, const vec3 &v1, const vec3 &v2) noexcept;
+		extern nv_scalar RaySphereIntersect(vec3 rayOrig, const vec3 &rayDir, const vec3 &sphereCenter, nv_scalar sphereRadius2) noexcept;
+		extern nv_scalar RayCilinderIntersect(vec3 rayOrig, const vec3 &rayDir, const vec3 &cilinderOrig, const vec3 &cilinderDir, nv_scalar cilinderRadius2) noexcept;
 
 		namespace CollisionStat
 		{
-			extern void StartProfiling() throw();
+			extern void StartProfiling() noexcept;
 			extern void CALLBACK ProfilerEventHandler(void *pEngineCore, DGLE::IBaseEvent *pEvent);
 		}
 
@@ -171,10 +171,10 @@ namespace Math
 		class IGeometryProvider
 		{
 		public:
-			virtual void operator ()(CTriCollider &triHandler, CEdgeCollider &edgeHandler, CVertexCollider &vertexHandler, const CCuller &culler, CSphereXformHandler &xformHandler) const throw(...) = 0;
+			virtual void operator ()(CTriCollider &triHandler, CEdgeCollider &edgeHandler, CVertexCollider &vertexHandler, const CCuller &culler, CSphereXformHandler &xformHandler) const = 0;
 		};
 
-		extern TCollideResult SphereCollide(const IGeometryProvider &geometryProvider, const vec3 &c, nv_scalar r2, const vec3 &dir, nv_scalar skinWidth, bool doubleSide, bool finite) throw();
-		extern vec3 SphereCollideAndSlide(const IGeometryProvider &geometryProvider, vec3 c, nv_scalar r2, vec3 dir, nv_scalar skinWidth, nv_scalar minDist, unsigned int maxSlides) throw();
+		extern TCollideResult SphereCollide(const IGeometryProvider &geometryProvider, const vec3 &c, nv_scalar r2, const vec3 &dir, nv_scalar skinWidth, bool doubleSide, bool finite) noexcept;
+		extern vec3 SphereCollideAndSlide(const IGeometryProvider &geometryProvider, vec3 c, nv_scalar r2, vec3 dir, nv_scalar skinWidth, nv_scalar minDist, unsigned int maxSlides) noexcept;
 	}
 }
