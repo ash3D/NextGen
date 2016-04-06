@@ -14,6 +14,7 @@ See "DGLE.h" for more details.
 #include <string>
 #include <type_traits>
 #include <cstdint>
+#include <cfenv>
 #include <cstring>	// for memcpy
 #include <cassert>
 
@@ -492,6 +493,11 @@ void Collision::CVertexCollider::operator ()(const CSphereXformHandler &sphereXf
 // finite param:
 // true - segment intersection [0, 1)
 // false - ray intersection (-inf, +1)
+#if defined _MSC_VER && _MSC_VER <= 1900 && !__clang__
+#pragma fenv_access(on)
+#else
+#pragma STDC FENV_ACCESS ON
+#endif
 extern auto Collision::SphereCollide(const IGeometryProvider &geometryProvider, const vec3 &c, nv_scalar r2, const vec3 &dir, nv_scalar skinWidth, bool doubleSide, bool finite) noexcept -> TCollideResult
 {
 	TCollideResult result;
@@ -502,7 +508,10 @@ extern auto Collision::SphereCollide(const IGeometryProvider &geometryProvider, 
 	}
 
 	// ensure result.dist >= 1 after += then -= dir_scaled_skin_width
-	const auto fp_state = _controlfp(_RC_UP, _MCW_RC);
+	const auto default_rounddir = fegetround();
+	// uncomment upon C++17 support is appeared
+	/*[[maybe_unused]*/ int status = fesetround(FE_UPWARD);
+	assert(status == 0);
 
 	const nv_scalar dir_scaled_skin_width = skinWidth / dir.norm();
 	result.dist = nv_one + dir_scaled_skin_width;
@@ -515,9 +524,15 @@ extern auto Collision::SphereCollide(const IGeometryProvider &geometryProvider, 
 
 	result.dist -= dir_scaled_skin_width;
 	if (finite && result.dist < nv_zero) result.dist = nv_zero;
-	_controlfp(fp_state, _MCW_RC);
+	status = fesetround(default_rounddir);
+	assert(status == 0);
 	return result;
 }
+#if defined _MSC_VER && _MSC_VER <= 1900 && !__clang__
+#pragma fenv_access(off)
+#else
+#pragma STDC FENV_ACCESS DEFAULT
+#endif
 
 extern vec3 Collision::SphereCollideAndSlide(const IGeometryProvider &geometryProvider, vec3 c, nv_scalar r2, vec3 dir, nv_scalar skinWidth, nv_scalar minDist, unsigned int maxSlides) noexcept
 {
