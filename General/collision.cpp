@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		01.04.2016 (c)Korotkov Andrey
+\date		06.04.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -28,7 +28,7 @@ Collision::CCollisionEdges<IB_format>::CCollisionEdges(Iterator begin, Iterator 
 {
 	struct TEdge : CCollisionEdges<IB_format>::TEdge
 	{
-		TEdge(IB_format v0, IB_format v1, iterator_traits<Iterator>::reference tri) : tri(tri)
+		TEdge(IB_format v0, IB_format v1, typename iterator_traits<Iterator>::reference tri) : tri(tri)
 		{
 			TEdge::v0 = v0;
 			TEdge::v1 = v1;
@@ -40,14 +40,16 @@ Collision::CCollisionEdges<IB_format>::CCollisionEdges(Iterator begin, Iterator 
 				right_sorted[] = { min(right.v0, right.v1), max(right.v0, right.v1) };
 			return lexicographical_compare(left_sorted, left_sorted + size(left_sorted), right_sorted, right_sorted + size(right_sorted));
 		}
-		iterator_traits<Iterator>::reference tri;
+		using CCollisionEdges::TEdge::v0;
+		using CCollisionEdges::TEdge::v1;
+		typename iterator_traits<Iterator>::reference tri;
 	};
 	typedef set<TEdge> TEdges;
 	class CEdgeGenerator
 	{
 	public:
 		CEdgeGenerator(TEdges &edges, const vec3 *__restrict VB) : _edges(edges), _VB(VB) {}
-		void operator ()(iterator_traits<Iterator>::reference tri)
+		void operator ()(typename iterator_traits<Iterator>::reference tri)
 		{
 			vec3 n2;
 			cross(n2, _VB[tri[1]] - _VB[tri[0]], _VB[tri[2]] - _VB[tri[0]]);
@@ -158,7 +160,7 @@ static nv_scalar __fastcall dotZ(const vec3 &vec)
 
 static nv_scalar fMax, bMin;
 
-static bool __fastcall TestPlane(nv_scalar dir_dot_n_inv, nv_scalar orig_dot_n, nv_scalar plane_dist)throw()
+static bool __fastcall TestPlane(nv_scalar dir_dot_n_inv, nv_scalar orig_dot_n, nv_scalar plane_dist) throw()
 {
 	nv_scalar ray_dist = (plane_dist - orig_dot_n) * dir_dot_n_inv;
 	if (dir_dot_n_inv < 0)	// front face
@@ -503,7 +505,11 @@ extern auto Collision::SphereCollide(const IGeometryProvider &geometryProvider, 
 	const nv_scalar dir_scaled_skin_width = skinWidth / dir.norm();
 	result.dist = nv_one + dir_scaled_skin_width;
 
-	geometryProvider(CTriCollider(result, doubleSide, finite), CEdgeCollider(result, finite), CVertexCollider(result, finite), CCuller(result.dist, finite), CSphereXformHandler(c, r2, dir));
+	CTriCollider tri_handler(result, doubleSide, finite);
+	CEdgeCollider edge_handler(result, finite);
+	CVertexCollider vertex_handler(result, finite);
+	CSphereXformHandler xform_handler(c, r2, dir);
+	geometryProvider(tri_handler, edge_handler, vertex_handler, CCuller(result.dist, finite), xform_handler);
 
 	result.dist -= dir_scaled_skin_width;
 	if (finite && result.dist < nv_zero) result.dist = nv_zero;
