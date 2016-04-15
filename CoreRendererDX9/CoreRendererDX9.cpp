@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		05.04.2016 (c)Andrey Korotkov
+\date		15.04.2016 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1787,7 +1787,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Initialize(TCrRndrInitResults &stResults,
 	__cpuid(cpu_info, 0x00000001);
 	if (!(cpu_info[2] & 1 << 23))
 	{
-		LOG("POPCNT instruction does not supported", LT_FATAL);
+		LOG("POPCNT instruction is not supported", LT_FATAL);
 		return E_FAIL;
 	}
 
@@ -1798,9 +1798,8 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Initialize(TCrRndrInitResults &stResults,
 	D3DPRESENT_PARAMETERS present_params = _GetPresentParams(stWin);
 	if (FAILED(d3d->CreateDevice(D3DADAPTER_DEFAULT, DEVTYPE, present_params.hDeviceWindow, D3DCREATE_HARDWARE_VERTEXPROCESSING, &present_params, &_device)))
 	{
-		AssertHR(Finalize());
-		LOG("Can't create Direct3D Device.", LT_FATAL);
 		stResults = false;
+		LOG("Can't create Direct3D Device.", LT_FATAL);
 		return E_ABORT;
 	}
 	DGLE_RESULT res = S_OK;
