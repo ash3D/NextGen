@@ -17,27 +17,25 @@ using namespace DGLE;
 DGLE_DYNAMIC_FUNC
 
 #define DLL_PATH "DGLE.dll"
-#define APP_CAPTION "DevTest"
-#define SCREEN_X 800
-#define SCREEN_Y 600
+static constexpr const char appCaption[] = "DevTest";
+static constexpr unsigned int screenRes[2] = { 800, 600 };
 
-#define INPUT_PLUGIN_PATH "..\\bin\\DirectInput.dll"
-#define RENDER_PLUGIN_PATH "..\\bin\\CoreRendererDX9.dll"
+static constexpr const char inputPluginPath[] = "..\\bin\\DirectInput.dll", renderPluginPath[] = "..\\bin\\CoreRendererDX9.dll";
 
-IEngineCore *pEngineCore = NULL;
-IInput *pInput = NULL;
-IBitmapFont *pFnt = NULL;
+static IEngineCore *pEngineCore;
+static IInput *pInput;
+static IBitmapFont *pFnt;
 
-TMouseStates stMouse;
-TJoystickStates *stJoys;
+static TMouseStates stMouse;
+static TJoystickStates *stJoys;
 
-bool bPressed[256];
-bool bPressedEsc;
-bool bPressedSpace;
+static bool bPressed[256];
+static bool bPressedEsc;
+static bool bPressedSpace;
 
-uint uiJoyCnt;
+static uint uiJoyCnt;
 
-std::unique_ptr<char []> *ppcJoyName;
+static std::unique_ptr<char []> *ppcJoyName;
 
 using std::to_string;
 
@@ -49,11 +47,11 @@ void KeyboardTest()
 {
 	uint y = 0;
 
-	pFnt->Draw2DSimple(SCREEN_X - 100, 0, "Keyboard test: ", TColor4());
+	pFnt->Draw2DSimple(screenRes[0] - 100, 0, "Keyboard test: ");
 
 	for (uint i = 0; i < 256; ++i)
 		if (bPressed[i])
-			pFnt->Draw2DSimple(SCREEN_X - 100, y += 12, (to_string(i) + " pressed").c_str(), TColor4());
+			pFnt->Draw2DSimple(screenRes[0] - 100, y += 12, (to_string(i) + " pressed").c_str());
 }
 
 void MouseTest()
@@ -62,75 +60,75 @@ void MouseTest()
 	
 	std::string strTemp = "Mouse coordinate X:" + to_string(stMouse.iX) + " Y: " + to_string(stMouse.iY);
 	
-	pFnt->Draw2DSimple(0 , 0, strTemp.c_str(), TColor4());
+	pFnt->Draw2DSimple(0 , 0, strTemp.c_str());
 
 	if(stMouse.bLeftButton)
-		pFnt->Draw2DSimple(0 , y += 12, "LeftButton mouse is pressed", TColor4());
+		pFnt->Draw2DSimple(0 , y += 12, "LeftButton mouse is pressed");
 	else
-		pFnt->Draw2DSimple(0 , y += 12, "LeftButton mouse is not pressed", TColor4());
+		pFnt->Draw2DSimple(0 , y += 12, "LeftButton mouse is not pressed");
 
 	if(stMouse.bRightButton)
-		pFnt->Draw2DSimple(0 , y += 12, "RightButton mouse is pressed", TColor4());
+		pFnt->Draw2DSimple(0 , y += 12, "RightButton mouse is pressed");
 	else
-		pFnt->Draw2DSimple(0 , y += 12, "RightButton mouse is not pressed", TColor4());
+		pFnt->Draw2DSimple(0 , y += 12, "RightButton mouse is not pressed");
 
 	if(stMouse.bMiddleButton)
-		pFnt->Draw2DSimple(0 , y += 12, "MiddleButton mouse is pressed", TColor4());
+		pFnt->Draw2DSimple(0 , y += 12, "MiddleButton mouse is pressed");
 	else
-		pFnt->Draw2DSimple(0 , y += 12, "MiddleButton mouse is not pressed", TColor4());
+		pFnt->Draw2DSimple(0 , y += 12, "MiddleButton mouse is not pressed");
 
 	if(stMouse.iDeltaWheel > 0)
-		pFnt->Draw2DSimple(0 , y += 12, "Wheel up", TColor4());
+		pFnt->Draw2DSimple(0 , y += 12, "Wheel up");
 	else
 		if(stMouse.iDeltaWheel < 0)
-			pFnt->Draw2DSimple(0 , y += 12, "Wheel down", TColor4());
+			pFnt->Draw2DSimple(0 , y += 12, "Wheel down");
 		else
-			pFnt->Draw2DSimple(0 , y += 12, "Wheel static", TColor4());
+			pFnt->Draw2DSimple(0 , y += 12, "Wheel static");
 }
 
 void JoystickTest()
 {
 	for (uint i = 0; i < uiJoyCnt; ++i)
 	{
-		uint x = i * 200, y = SCREEN_Y - 10;
+		uint x = i * 200, y = screenRes[1] - 10;
 	
 		std::string strJoyParam;
 
 		strJoyParam = "iPOV: " + to_string(stJoys[i].iPOV);
-		pFnt->Draw2DSimple(x, y -= 12, strJoyParam.c_str(), TColor4());
+		pFnt->Draw2DSimple(x, y -= 12, strJoyParam.c_str());
 
 		strJoyParam = "iZAxes: " + to_string(stJoys[i].iZAxis);
-		pFnt->Draw2DSimple(x, y -= 12, strJoyParam.c_str(), TColor4());
+		pFnt->Draw2DSimple(x, y -= 12, strJoyParam.c_str());
 
 		strJoyParam = "iYAxes: " + to_string(stJoys[i].iYAxis);
-		pFnt->Draw2DSimple(x, y -= 12, strJoyParam.c_str(), TColor4());
+		pFnt->Draw2DSimple(x, y -= 12, strJoyParam.c_str());
 
 		strJoyParam = "iXAxes: " + to_string(stJoys[i].iXAxis);
-		pFnt->Draw2DSimple(x, y -= 12, strJoyParam.c_str(), TColor4());
+		pFnt->Draw2DSimple(x, y -= 12, strJoyParam.c_str());
 
 		strJoyParam = "iRAxes: " + to_string(stJoys[i].iRAxis);
-		pFnt->Draw2DSimple(x, y -= 12, strJoyParam.c_str(), TColor4());
+		pFnt->Draw2DSimple(x, y -= 12, strJoyParam.c_str());
 
 		strJoyParam = "iUAxes: " + to_string(stJoys[i].iUAxis);
-		pFnt->Draw2DSimple(x, y -= 12, strJoyParam.c_str(), TColor4());
+		pFnt->Draw2DSimple(x, y -= 12, strJoyParam.c_str());
 
 		strJoyParam = "iVAxes: " + to_string(stJoys[i].iVAxis);
-		pFnt->Draw2DSimple(x, y -= 12, strJoyParam.c_str(), TColor4());
+		pFnt->Draw2DSimple(x, y -= 12, strJoyParam.c_str());
 
 		strJoyParam = "uiBtnsCount: " + to_string(stJoys[i].uiButtonsCount);
-		pFnt->Draw2DSimple(x, y -= 12, strJoyParam.c_str(), TColor4());
+		pFnt->Draw2DSimple(x, y -= 12, strJoyParam.c_str());
 
-		for(uint j = 0; j < stJoys[i].uiButtonsCount; j++)
+		for (uint j = 0; j < stJoys[i].uiButtonsCount; j++)
 		{
-			if(stJoys[i].bButtons[j])
+			if (stJoys[i].bButtons[j])
 				strJoyParam = "Button: " + to_string(j + 1) + " is pressed"; 
 			else
 				strJoyParam = "Button: " + to_string(j + 1) + " is not pressed"; 
 
-			pFnt->Draw2DSimple(x, y -= 12, strJoyParam.c_str(), TColor4());
+			pFnt->Draw2DSimple(x, y -= 12, strJoyParam.c_str());
 		}
 
-		pFnt->Draw2DSimple(x, y -= 24, ppcJoyName[i].get(), TColor4());
+		pFnt->Draw2DSimple(x, y -= 24, ppcJoyName[i].get());
 	}	
 }
 
@@ -177,19 +175,19 @@ void DGLE_API Update(void *pParameter)
 	for (uint i = 0; i < uiJoyCnt; ++i)
 		pInput->GetJoystickStates(i, stJoys[i]);
 
-	if(bPressedEsc)
+	if (bPressedEsc)
 		pEngineCore->QuitEngine();
 
-	if(bPressed[2])
+	if (bPressed[2])
 		pInput->Configure(ICF_DEFAULT);
 
-	if(bPressed[3])
+	if (bPressed[3])
 		pInput->Configure(ICF_EXCLUSIVE);
 
-	if(bPressed[4])
+	if (bPressed[4])
 		pInput->Configure(ICF_HIDE_CURSOR);
 
-	if(bPressed[5])
+	if (bPressed[5])
 		pInput->Configure(ICF_CURSOR_BEYOND_SCREEN);
 }
 
@@ -204,10 +202,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 {
 	if (GetEngine(DLL_PATH, pEngineCore))
 	{
-		pEngineCore->AddPluginToInitializationList(INPUT_PLUGIN_PATH);
-		pEngineCore->AddPluginToInitializationList(RENDER_PLUGIN_PATH);
+		pEngineCore->AddPluginToInitializationList(inputPluginPath);
+		pEngineCore->AddPluginToInitializationList(renderPluginPath);
 
-		if (SUCCEEDED(pEngineCore->InitializeEngine(NULL, APP_CAPTION, TEngineWindow(SCREEN_X, SCREEN_Y, false, false, MM_NONE, EWF_ALLOW_SIZEING), 33)))
+		if (SUCCEEDED(pEngineCore->InitializeEngine(NULL, appCaption, TEngineWindow(screenRes[0], screenRes[1], false, false, MM_NONE, EWF_ALLOW_SIZEING), 33)))
 		{
 			pEngineCore->ConsoleVisible(true);
 			pEngineCore->ConsoleExecute("core_fps_in_caption 1");
@@ -223,7 +221,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		FreeEngine();
 	}
 	else
-		MessageBox(NULL, "Couldn't load \"" DLL_PATH "\"!", APP_CAPTION, MB_OK | MB_ICONERROR | MB_SETFOREGROUND);
+		MessageBox(NULL, "Couldn't load \"" DLL_PATH "\"!", appCaption, MB_OK | MB_ICONERROR | MB_SETFOREGROUND);
 
 	return 0;
 }
