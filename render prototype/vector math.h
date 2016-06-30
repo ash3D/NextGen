@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		01.04.2016 (c)Alexey Shaydurov
+\date		01.07.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -267,8 +267,10 @@ consider using preprocessor instead of templates or overloading each target func
 #	ifndef __VECTOR_MATH_H__
 #	define __VECTOR_MATH_H__
 
-#	if defined _MSC_VER && _MSC_VER < 1900 || defined __GNUC__ && (__GNUC__ < 4 || (__GNUC__ >= 4 && __GNUC_MINOR__ < 7))
-#	error old compiler version
+#	if !defined  __clang__  && defined _MSC_FULL_VER && _MSC_FULL_VER < 190024210
+#	error Old MSVC compiler version. Visual Studio 2015 Update 3 or later required.
+#	elif defined __GNUC__ && (__GNUC__ < 4 || (__GNUC__ >= 4 && __GNUC_MINOR__ < 7))
+#	error Old GCC compiler version. GCC 4.7 or later required.	// need to be clarified
 #	endif
 
 #	pragma warning(push)
@@ -481,37 +483,6 @@ consider using preprocessor instead of templates or overloading each target func
 				template<class IdxSeq, bool checkLength = true, unsigned offset = 0>
 				class HeterogeneousInitTag {};
 			protected:
-#if defined _MSC_VER && _MSC_VER <= 1900
-				template<typename ...Params>
-				struct ElementsCount
-				{
-					static constexpr unsigned int value = 0u;
-				};
-
-				template<typename SrcElementType, typename ...Rest>
-				struct ElementsCount<const SrcElementType &, Rest...>
-				{
-					static constexpr unsigned int value = 1u + ElementsCount<Rest...>::value;
-				};
-
-				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, typename ...Rest>
-				struct ElementsCount<const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &, Rest...>
-				{
-					static constexpr unsigned int value = SrcSwizzleDesc::TDimension::value + ElementsCount<Rest...>::value;
-				};
-
-				template<typename SrcElementType, unsigned int srcDimenstion, typename ...Rest>
-				struct ElementsCount<const vector<SrcElementType, srcDimenstion> &, Rest...>
-				{
-					static constexpr unsigned int value = ElementsCount<const CSwizzle<SrcElementType, 0, srcDimenstion> &, Rest...>::value;
-				};
-
-				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, typename ...Rest>
-				struct ElementsCount<const matrix<SrcElementType, srcRows, srcColumns> &, Rest...>
-				{
-					static constexpr unsigned int value = srcRows * srcColumns + ElementsCount<Rest...>::value;
-				};
-#else
 				// maybe wrap with decay_t?
 
 				// terminator
@@ -533,7 +504,6 @@ consider using preprocessor instead of templates or overloading each target func
 				// matrix
 				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, typename ...Rest>
 				static constexpr unsigned int elementsCount<const matrix<SrcElementType, srcRows, srcColumns> &, Rest...> = srcRows * srcColumns + elementsCount<Rest...>;
-#endif
 #if defined _MSC_VER && _MSC_VER <= 1900
 				// SFINAE leads to internal comiler error on VS 2015, use tagging as workaround
 			private:
@@ -548,7 +518,7 @@ consider using preprocessor instead of templates or overloading each target func
 				template<unsigned idx, typename SrcElementType, typename ...Rest>
 				static inline decltype(auto) GetElementImpl(std::false_type, const SrcElementType &scalar, const Rest &...rest) noexcept
 				{
-					return GetElement<idx - ElementsCount<decltype(scalar)>::value>(rest...);
+					return GetElement<idx - elementsCount<decltype(scalar)>>(rest...);
 				}
 
 				// swizzle
@@ -562,7 +532,7 @@ consider using preprocessor instead of templates or overloading each target func
 				template<unsigned idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, typename ...Rest>
 				static inline decltype(auto) GetElementImpl(std::false_type, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src, const Rest &...rest) noexcept
 				{
-					return GetElement<idx - ElementsCount<decltype(src)>::value>(rest...);
+					return GetElement<idx - elementsCount<decltype(src)>>(rest...);
 				}
 
 				// matrix
@@ -576,13 +546,13 @@ consider using preprocessor instead of templates or overloading each target func
 				template<unsigned idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, typename ...Rest>
 				static inline decltype(auto) GetElementImpl(std::false_type, const matrix<SrcElementType, srcRows, srcColumns> &src, const Rest &...rest) noexcept
 				{
-					return GetElement<idx - ElementsCount<decltype(src)>::value>(rest...);
+					return GetElement<idx - elementsCount<decltype(src)>>(rest...);
 				}
 			protected:
 				template<unsigned idx, typename First, typename ...Rest>
 				static inline decltype(auto) GetElement(const First &first, const Rest &...rest) noexcept
 				{
-					return GetElementImpl<idx>(std::bool_constant<idx < ElementsCount<decltype(first)>::value>(), first, rest...);
+					return GetElementImpl<idx>(std::bool_constant<idx < elementsCount<decltype(first)>>(), first, rest...);
 				}
 
 				// vector
@@ -604,7 +574,7 @@ consider using preprocessor instead of templates or overloading each target func
 				// scalar
 				template<unsigned idx, typename SrcElementType, typename ...Rest>
 				static inline auto GetElement(const SrcElementType &scalar, const Rest &...rest) noexcept
-					-> std::enable_if_t<idx < elementCount<decltype(scalar)>, decltype(scalar)>
+					-> std::enable_if_t<idx < elementsCount<decltype(scalar)>, decltype(scalar)>
 				{
 					return scalar;
 				}
@@ -612,15 +582,15 @@ consider using preprocessor instead of templates or overloading each target func
 				// next after scalar
 				template<unsigned idx, typename SrcElementType, typename ...Rest>
 				static inline auto GetElement(const SrcElementType &scalar, const Rest &...rest) noexcept
-					-> std::enable_if_t<idx >= elementCount<decltype(scalar)>, decltype(GetElement<idx - 1>(rest...))>
+					-> std::enable_if_t<idx >= elementsCount<decltype(scalar)>, decltype(GetElement<idx - 1>(rest...))>
 				{
-					return GetElement<idx - elementCount<decltype(scalar)>>(rest...);
+					return GetElement<idx - elementsCount<decltype(scalar)>>(rest...);
 				}
 
 				// swizzle
 				template<unsigned idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, typename ...Rest>
 				static inline auto GetElement(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src, const Rest &...rest) noexcept
-					-> std::enable_if_t<idx < elementCount<decltype(src)>, decltype(src[idx])>
+					-> std::enable_if_t<idx < elementsCount<decltype(src)>, decltype(src[idx])>
 				{
 					return src[idx];
 				}
@@ -628,9 +598,9 @@ consider using preprocessor instead of templates or overloading each target func
 				// next after swizzle
 				template<unsigned idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, typename ...Rest>
 				static inline auto GetElement(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src, const Rest &...rest) noexcept
-					-> std::enable_if_t<idx >= elementCount<decltype(src)>, decltype(GetElement<idx - SrcSwizzleDesc::TDimension::value>(rest...))>
+					-> std::enable_if_t<idx >= elementsCount<decltype(src)>, decltype(GetElement<idx - SrcSwizzleDesc::TDimension::value>(rest...))>
 				{
-					return GetElement<idx - elementCount<decltype(src)>>(rest...);
+					return GetElement<idx - elementsCount<decltype(src)>>(rest...);
 				}
 
 				// vector
@@ -643,7 +613,7 @@ consider using preprocessor instead of templates or overloading each target func
 				// matrix
 				template<unsigned idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, typename ...Rest>
 				static inline auto GetElement(const matrix<SrcElementType, srcRows, srcColumns> &src, const Rest &...rest) noexcept
-					-> std::enable_if_t<idx < elementCount<decltype(src)>, decltype(src[idx / srcColumns][idx % srcColumns])>
+					-> std::enable_if_t<idx < elementsCount<decltype(src)>, decltype(src[idx / srcColumns][idx % srcColumns])>
 				{
 					return src[idx / srcColumns][idx % srcColumns];
 				}
@@ -651,9 +621,9 @@ consider using preprocessor instead of templates or overloading each target func
 				// next after matrix
 				template<unsigned idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, typename ...Rest>
 				static inline auto GetElement(const matrix<SrcElementType, srcRows, srcColumns> &src, const Rest &...rest) noexcept
-					-> std::enable_if_t<idx >= elementCount<decltype(src)>, decltype(GetElement<idx - srcRows * srcColumns>(rest...))>
+					-> std::enable_if_t<idx >= elementsCount<decltype(src)>, decltype(GetElement<idx - srcRows * srcColumns>(rest...))>
 				{
-					return GetElement<idx - elementCount<decltype(src)>>(rest...);
+					return GetElement<idx - elementsCount<decltype(src)>>(rest...);
 				}
 
 				// empty check
@@ -732,11 +702,7 @@ consider using preprocessor instead of templates or overloading each target func
 			inline CData<ElementType, rows, columns>::CData(HeterogeneousInitTag<std::index_sequence<row...>>, const First &first, const Rest &...rest) :
 				_rows{ vector<ElementType, columns>(HeterogeneousInitTag<std::make_index_sequence<columns>, false, row * columns>(), first, rest...)... }
 			{
-#if defined _MSC_VER && _MSC_VER <= 1900
-				static_assert(ElementsCount<First, Rest...>::value <= rows * columns, "heterogeneous ctor: too many src elements");
-#else
 				static_assert(elementsCount<First, Rest...> <= rows * columns, "heterogeneous ctor: too many src elements");
-#endif
 			}
 
 			// specialization for vector
@@ -824,11 +790,7 @@ consider using preprocessor instead of templates or overloading each target func
 			inline CData<ElementType, 0, dimension>::CData(HeterogeneousInitTag<std::index_sequence<idx...>, true>, const First &first, const Rest &...rest) :
 				CData(HeterogeneousInitTag<std::index_sequence<idx...>, false>(), first, rest...)
 			{
-#if defined _MSC_VER && _MSC_VER <= 1900
-				static_assert(ElementsCount<First, Rest...>::value <= dimension, "heterogeneous ctor: too many src elements");
-#else
 				static_assert(elementsCount<First, Rest...> <= dimension, "heterogeneous ctor: too many src elements");
-#endif
 			}
 
 			// generic vector/matrix
@@ -996,20 +958,12 @@ consider using preprocessor instead of templates or overloading each target func
 
 				vector<ElementType, SwizzleDesc::TDimension::value> apply(ElementType f(ElementType)) const
 				{
-#if defined _MSC_VER && _MSC_VER <= 1900	// workaround for lack of expression SFINAE in VC
-					return apply<ElementType(ElementType)>(f);
-#else
 					return apply<ElementType>(f);
-#endif
 				}
 
 				vector<ElementType, SwizzleDesc::TDimension::value> apply(ElementType f(const ElementType &)) const
 				{
-#if defined _MSC_VER && _MSC_VER <= 1900	// workaround for lack of expression SFINAE in VC
-					return apply<ElementType(const ElementType &)>(f);
-#else
 					return apply<ElementType>(f);
-#endif
 				}
 			};
 
@@ -1104,7 +1058,7 @@ consider using preprocessor instead of templates or overloading each target func
 			};
 
 			/*
-			CVectorSwizzleDesc<vectorDimension> required for VS 2013
+			CVectorSwizzleDesc<vectorDimension> required for VS 2013/2015
 			TODO: try with newer version
 			*/
 			template<typename ElementType, unsigned int vectorDimension>
@@ -1152,12 +1106,6 @@ consider using preprocessor instead of templates or overloading each target func
 				}
 			};
 
-#if defined _MSC_VER && _MSC_VER <= 1900
-#define RIGHT_WRITE_MASK_DEFAULT , std::bool_constant<RightSwizzleDesc::isWriteMaskValid>
-#else
-#define RIGHT_WRITE_MASK_DEFAULT
-#endif
-
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			class CSwizzleAssign: public CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>
 			{
@@ -1182,10 +1130,10 @@ consider using preprocessor instead of templates or overloading each target func
 
 			private:
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc>
-				inline void AssignDirect(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc RIGHT_WRITE_MASK_DEFAULT> &right);
+				inline void AssignDirect(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right);
 
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc>
-				inline void AssignCopy(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc RIGHT_WRITE_MASK_DEFAULT> &right);
+				inline void AssignCopy(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right);
 
 			public:
 #ifdef __GNUC__
@@ -1200,9 +1148,9 @@ consider using preprocessor instead of templates or overloading each target func
 				// currently public to allow user specify WAR hazard explixitly if needed
 				template<bool WARHazard, typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc>
 #ifdef __GNUC__
-				TOperationResult &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc RIGHT_WRITE_MASK_DEFAULT> &right)
+				TOperationResult &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)
 #else
-				TOperationResult &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc RIGHT_WRITE_MASK_DEFAULT> &right) &
+				TOperationResult &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right) &
 #endif
 				{
 					constexpr auto Assign = SelectAssign<const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &, WARHazard>::Assign;
@@ -1212,9 +1160,9 @@ consider using preprocessor instead of templates or overloading each target func
 
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc>
 #ifdef __GNUC__
-				TOperationResult &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc RIGHT_WRITE_MASK_DEFAULT> &right)
+				TOperationResult &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)
 #else
-				TOperationResult &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc RIGHT_WRITE_MASK_DEFAULT> &right) &
+				TOperationResult &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right) &
 #endif
 				{
 					static constexpr auto WARHazard = DetectSwizzleWARHazard
@@ -1228,9 +1176,9 @@ consider using preprocessor instead of templates or overloading each target func
 
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc>
 #ifdef __GNUC__
-				TOperationResult &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc RIGHT_WRITE_MASK_DEFAULT> &&right)
+				TOperationResult &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &&right)
 #else
-				TOperationResult &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc RIGHT_WRITE_MASK_DEFAULT> &&right) &
+				TOperationResult &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &&right) &
 #endif
 				{
 					return operator =<false>(right);
@@ -1274,7 +1222,7 @@ consider using preprocessor instead of templates or overloading each target func
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc>
-			inline void CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::AssignDirect(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc RIGHT_WRITE_MASK_DEFAULT> &right)
+			inline void CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::AssignDirect(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)
 			{
 				/*
 				NOTE: assert should not be triggered if WAR hazard not detected.
@@ -1297,7 +1245,7 @@ consider using preprocessor instead of templates or overloading each target func
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc>
-			inline void CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::AssignCopy(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc RIGHT_WRITE_MASK_DEFAULT> &right)
+			inline void CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::AssignCopy(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)
 			{
 				// make copy and call AssignDirect()
 				AssignDirect(vector<RightElementType, RightSwizzleDesc::TDimension::value>(right));
@@ -1331,11 +1279,9 @@ consider using preprocessor instead of templates or overloading each target func
 				return *this;
 			}
 
-#undef RIGHT_WRITE_MASK_DEFAULT
-
 			// this specialization used as base class for CDataContainer to eliminate need for various overloads
 			/*
-			CVectorSwizzleDesc<vectorDimension> required for VS 2013
+			CVectorSwizzleDesc<vectorDimension> required for VS 2013/2015
 			TODO: try with newer version
 			*/
 			template<typename ElementType, unsigned int vectorDimension>
@@ -1496,18 +1442,15 @@ consider using preprocessor instead of templates or overloading each target func
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
 
-				// leftIsWriteMaskValid/rightIsWriteMaskValid is workaround for VS 2015
 #				define OPERATOR_DEFINITION(op)																														\
 					template																																		\
 					<																																				\
 						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,											\
-						typename leftIsWriteMaskValid,																												\
-						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc,										\
-						typename rightIsWriteMaskValid																												\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc										\
 					>																																				\
 					inline typename CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &operator op##=(							\
-					CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftIsWriteMaskValid> &left,													\
-					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightIsWriteMaskValid> &right)										\
+					CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,																		\
+					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)																\
 					{																																				\
 						static constexpr auto WARHazard = DetectSwizzleWARHazard																					\
 						<																																			\
@@ -1520,18 +1463,15 @@ consider using preprocessor instead of templates or overloading each target func
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
 
-				// leftIsWriteMaskValid/rightIsWriteMaskValid is workaround for VS 2015
 #				define OPERATOR_DEFINITION(op)																														\
 					template																																		\
 					<																																				\
 						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,											\
-						typename leftIsWriteMaskValid,																												\
-						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc,										\
-						typename rightIsWriteMaskValid																												\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc										\
 					>																																				\
 					inline typename CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &operator op##=(							\
-					CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftIsWriteMaskValid> &left,													\
-					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightIsWriteMaskValid> &&right)										\
+					CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,																		\
+					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &&right)															\
 					{																																				\
 						return operator op##=<false>(left, right);																									\
 					};
@@ -1604,14 +1544,11 @@ consider using preprocessor instead of templates or overloading each target func
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
 
-				// leftIsWriteMaskValid/rightIsWriteMaskValid is workaround for VS 2015
 #				define OPERATOR_DEFINITION(op)																														\
 					template																																		\
 					<																																				\
 						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,											\
-						typename leftIsWriteMaskValid,																												\
-						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc,										\
-						typename rightIsWriteMaskValid																												\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc										\
 					>																																				\
 					inline vector																																	\
 					<																																				\
@@ -1622,8 +1559,8 @@ consider using preprocessor instead of templates or overloading each target func
 							typename RightSwizzleDesc::TDimension																									\
 						>::type::value																																\
 					> operator op(																																	\
-					const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftIsWriteMaskValid> &left,											\
-					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightIsWriteMaskValid> &right)										\
+					const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,																	\
+					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)																\
 					{																																				\
 						vector																																		\
 						<																																			\
@@ -1639,14 +1576,11 @@ consider using preprocessor instead of templates or overloading each target func
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
 
-				// leftIsWriteMaskValid/rightIsWriteMaskValid is workaround for VS 2015
 #				define OPERATOR_DEFINITION(op)																														\
 					template																																		\
 					<																																				\
 						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,											\
-						typename leftIsWriteMaskValid,																												\
-						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc,										\
-						typename rightIsWriteMaskValid																												\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc										\
 					>																																				\
 					inline vector																																	\
 					<																																				\
@@ -1657,8 +1591,8 @@ consider using preprocessor instead of templates or overloading each target func
 							typename RightSwizzleDesc::TDimension																									\
 						>::type::value																																\
 					> operator op(																																	\
-					const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, leftIsWriteMaskValid> &left,											\
-					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc, rightIsWriteMaskValid> &right)										\
+					const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,																	\
+					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)																\
 					{																																				\
 						constexpr unsigned int dimension = mpl::min																									\
 						<																																			\
@@ -1991,20 +1925,12 @@ consider using preprocessor instead of templates or overloading each target func
 
 				matrix<ElementType, rows, columns> apply(ElementType f(ElementType)) const
 				{
-#if defined _MSC_VER && _MSC_VER <= 1900	// workaround for lack of expression SFINAE in VC
-					return apply<ElementType(ElementType)>(f);
-#else
 					return apply<ElementType>(f);
-#endif
 				}
 
 				matrix<ElementType, rows, columns> apply(ElementType f(const ElementType &)) const
 				{
-#if defined _MSC_VER && _MSC_VER <= 1900	// workaround for lack of expression SFINAE in VC
-					return apply<ElementType(const ElementType &)>(f);
-#else
 					return apply<ElementType>(f);
-#endif
 				}
 			};
 
