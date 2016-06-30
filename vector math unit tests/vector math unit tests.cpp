@@ -141,6 +141,22 @@ namespace vectormathunittests
 			//
 			vec4.xy = vec4.zw;
 			AreEqual(78, vec4);
+
+			vec4.xy = int4(4);
+			vec4.yz += vec4.zy;
+			Assert::AreEqual(4, vec4[0]);
+			Assert::AreEqual(82, vec4[1]);
+			Assert::AreEqual(82, vec4[2]);
+			Assert::AreEqual(78, vec4[3]);
+
+			vec4.xyz = { 1, 2, 3 };
+			Assert::AreEqual(1, vec4[0]);
+			Assert::AreEqual(2, vec4[1]);
+			Assert::AreEqual(3, vec4[2]);
+			vec4.xyz += vec4.xxy;
+			Assert::AreEqual(2, vec4[0]);
+			Assert::AreEqual(3, vec4[1]);
+			Assert::AreEqual(5, vec4[2]);
 		}
 
 		TEST_METHOD(Addition)
