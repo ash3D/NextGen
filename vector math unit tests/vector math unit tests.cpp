@@ -92,6 +92,15 @@ namespace vectormathunittests
 			Assert::AreEqual(42, vec4[1]);
 			Assert::AreEqual(4, vec4[2]);
 			Assert::AreEqual(42, vec4[3]);
+
+			vec4.xyz = { 0, 1, 2 };
+			Assert::AreEqual(0, vec4[0]);
+			Assert::AreEqual(1, vec4[1]);
+			Assert::AreEqual(2, vec4[2]);
+			vec4.xyz = vec4.xxy;
+			Assert::AreEqual(0, vec4[0]);
+			Assert::AreEqual(0, vec4[1]);
+			Assert::AreEqual(1, vec4[2]);
 		}
 
 		TEST_METHOD(AdditionAssignment)
@@ -179,7 +188,7 @@ namespace vectormathunittests
 			i += vec4;
 			Assert::AreEqual(2, i);
 
-			vec1 = i;			
+			vec1 = i;
 			vec4 = vec1.xxxx;
 			AreEqual(2, vec4);
 		}
