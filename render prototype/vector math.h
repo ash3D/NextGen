@@ -1275,7 +1275,7 @@ consider using preprocessor instead of templates or overloading each target func
 				for (const auto &item: initList)
 					for (unsigned item_element_idx = 0; item_element_idx < item.GetItemSize(); item_element_idx++)
 						(*this)[dst_idx++] = item[item_element_idx];
-				assert(dst_idx == columns);
+				assert(dst_idx == SwizzleDesc::TDimension::value);
 				return *this;
 			}
 
