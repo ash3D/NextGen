@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		01.04.2016 (c)Korotkov Andrey
+\date		09.08.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -146,7 +146,7 @@ namespace RotImpl
 	template<Dir dir, unsigned width, typename Value, typename Shift>
 	inline auto rot(Value value, Shift shift)
 	{
-		static_assert(is_integra_vl<Value> && is_integral-v<Shift>, "rotate is feasible for integral types only");
+		static_assert(is_integral_v<Value> && is_integral_v<Shift>, "rotate is feasible for integral types only");
 		static_assert(width <= numeric_limits<uintmax_t>::digits, "too large width");
 		return rot_dispatch<dir, width>(value, shift);
 	}
