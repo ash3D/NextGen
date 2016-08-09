@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		21.03.2016 (c)Korotkov Andrey
+\date		09.08.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -20,260 +20,256 @@ See "DGLE.h" for more details.
 #include "misc.h"			// for Reserve()
 
 #pragma region CompositePoint
-// TODO: use C++17 nested namespace
-namespace Math
+namespace Math::Splines
 {
-	namespace Splines
+	template<class Pos, class ...Attribs>
+	struct CompositePoint<Pos, Attribs...>::AddAssign
 	{
-		template<class Pos, class ...Attribs>
-		struct CompositePoint<Pos, Attribs...>::AddAssign
-		{
-			template<typename Dst, typename Src>
-			constexpr void operator ()(Dst &dst, const Src &src) const { dst += src; }
-		};
+		template<typename Dst, typename Src>
+		constexpr void operator ()(Dst &dst, const Src &src) const { dst += src; }
+	};
 
-		template<class Pos, class ...Attribs>
-		struct CompositePoint<Pos, Attribs...>::SubAssign
-		{
-			template<typename Dst, typename Src>
-			constexpr void operator ()(Dst &dst, const Src &src) const { dst -= src; }
-		};
+	template<class Pos, class ...Attribs>
+	struct CompositePoint<Pos, Attribs...>::SubAssign
+	{
+		template<typename Dst, typename Src>
+		constexpr void operator ()(Dst &dst, const Src &src) const { dst -= src; }
+	};
 
-		template<class Pos, class ...Attribs>
-		struct CompositePoint<Pos, Attribs...>::MulAssign
-		{
-			template<typename Dst, typename Src>
-			constexpr void operator ()(Dst &dst, const Src &src) const { dst *= src; }
-		};
+	template<class Pos, class ...Attribs>
+	struct CompositePoint<Pos, Attribs...>::MulAssign
+	{
+		template<typename Dst, typename Src>
+		constexpr void operator ()(Dst &dst, const Src &src) const { dst *= src; }
+	};
 
-		template<class Pos, class ...Attribs>
-		struct CompositePoint<Pos, Attribs...>::DivAssign
-		{
-			template<typename Dst, typename Src>
-			constexpr void operator ()(Dst &dst, const Src &src) const { dst /= src; }
-		};
+	template<class Pos, class ...Attribs>
+	struct CompositePoint<Pos, Attribs...>::DivAssign
+	{
+		template<typename Dst, typename Src>
+		constexpr void operator ()(Dst &dst, const Src &src) const { dst /= src; }
+	};
 
-		// op point
-		template<class Pos, class ...Attribs>
-		template<class Functor, size_t ...idx>
-		inline auto CompositePoint<Pos, Attribs...>::OpPoint(std::index_sequence<idx...>) const
+	// op point
+	template<class Pos, class ...Attribs>
+	template<class Functor, size_t ...idx>
+	inline auto CompositePoint<Pos, Attribs...>::OpPoint(std::index_sequence<idx...>) const
 #if defined _MSC_VER && _MSC_VER <= 1900
-			-> CompositePoint<Pos, Attribs...>
+		-> CompositePoint<Pos, Attribs...>
 #else
-			-> CompositePoint<std::decay_t<decltype(std::declval<Functor>()(pos))>, std::decay_t<decltype(std::declval<Functor>()(std::get<idx>(attribs)))>...>
+		-> CompositePoint<std::decay_t<decltype(std::declval<Functor>()(pos))>, std::decay_t<decltype(std::declval<Functor>()(std::get<idx>(attribs)))>...>
 #endif
-		{
-			constexpr Functor op;
-			return{ op(pos), op(std::get<idx>(attribs))... };
-		}
+	{
+		constexpr Functor op;
+		return{ op(pos), op(std::get<idx>(attribs))... };
+	}
 
-		// point op point
-		template<class Pos, class ...Attribs>
-		template<class Functor, size_t ...idx, class RightPos, class ...RightAttribs>
-		inline auto CompositePoint<Pos, Attribs...>::PointOpPoint(std::index_sequence<idx...>, const CompositePoint<Pos, Attribs...> &left, const CompositePoint<RightPos, RightAttribs...> &right)
+	// point op point
+	template<class Pos, class ...Attribs>
+	template<class Functor, size_t ...idx, class RightPos, class ...RightAttribs>
+	inline auto CompositePoint<Pos, Attribs...>::PointOpPoint(std::index_sequence<idx...>, const CompositePoint<Pos, Attribs...> &left, const CompositePoint<RightPos, RightAttribs...> &right)
 #if defined _MSC_VER && _MSC_VER <= 1900
-			-> CompositePoint<Pos, Attribs...>
+		-> CompositePoint<Pos, Attribs...>
 #else
-			-> CompositePoint<std::decay_t<decltype(std::declval<Functor>()(left.pos, right.pos))>, std::decay_t<decltype(std::declval<Functor>()(std::get<idx>(left.attribs), std::get<idx>(right.attribs)))>...>
+		-> CompositePoint<std::decay_t<decltype(std::declval<Functor>()(left.pos, right.pos))>, std::decay_t<decltype(std::declval<Functor>()(std::get<idx>(left.attribs), std::get<idx>(right.attribs)))>...>
 #endif
-		{
-			constexpr Functor op;
-			return{ op(left.pos, right.pos), op(std::get<idx>(left.attribs), std::get<idx>(right.attribs))... };
-		}
+	{
+		constexpr Functor op;
+		return{ op(left.pos, right.pos), op(std::get<idx>(left.attribs), std::get<idx>(right.attribs))... };
+	}
 
-		// point op scalar
-		template<class Pos, class ...Attribs>
-		template<class Functor, size_t ...idx, typename Scalar>
-		inline auto CompositePoint<Pos, Attribs...>::PointOpScalar(std::index_sequence<idx...>, const CompositePoint<Pos, Attribs...> &left, const Scalar &right)
+	// point op scalar
+	template<class Pos, class ...Attribs>
+	template<class Functor, size_t ...idx, typename Scalar>
+	inline auto CompositePoint<Pos, Attribs...>::PointOpScalar(std::index_sequence<idx...>, const CompositePoint<Pos, Attribs...> &left, const Scalar &right)
 #if defined _MSC_VER && _MSC_VER <= 1900
-			-> CompositePoint<Pos, Attribs...>
+		-> CompositePoint<Pos, Attribs...>
 #else
-			-> CompositePoint<std::decay_t<decltype(std::declval<Functor>()(left.pos, right))>, std::decay_t<decltype(std::declval<Functor>()(std::get<idx>(left.attribs), right))>...>
+		-> CompositePoint<std::decay_t<decltype(std::declval<Functor>()(left.pos, right))>, std::decay_t<decltype(std::declval<Functor>()(std::get<idx>(left.attribs), right))>...>
 #endif
-		{
-			constexpr Functor op;
-			return{ op(left.pos, right), op(std::get<idx>(left.attribs), right)... };
-		}
+	{
+		constexpr Functor op;
+		return{ op(left.pos, right), op(std::get<idx>(left.attribs), right)... };
+	}
 
-		// scalar op point
-		template<class Pos, class ...Attribs>
-		template<class Functor, size_t ...idx, typename Scalar>
-		inline auto CompositePoint<Pos, Attribs...>::ScalarOpPoint(std::index_sequence<idx...>, const Scalar &left, const CompositePoint<Pos, Attribs...> &right)
+	// scalar op point
+	template<class Pos, class ...Attribs>
+	template<class Functor, size_t ...idx, typename Scalar>
+	inline auto CompositePoint<Pos, Attribs...>::ScalarOpPoint(std::index_sequence<idx...>, const Scalar &left, const CompositePoint<Pos, Attribs...> &right)
 #if defined _MSC_VER && _MSC_VER <= 1900
-			-> CompositePoint<Pos, Attribs...>
+		-> CompositePoint<Pos, Attribs...>
 #else
-			-> CompositePoint<std::decay_t<decltype(std::declval<Functor>()(left, right.pos))>, std::decay_t<decltype(std::declval<Functor>()(left, std::get<idx>(right.attribs)))>...>
+		-> CompositePoint<std::decay_t<decltype(std::declval<Functor>()(left, right.pos))>, std::decay_t<decltype(std::declval<Functor>()(left, std::get<idx>(right.attribs)))>...>
 #endif
-		{
-			constexpr Functor op;
-			return { op(left, right.pos), op(left, std::get<idx>(right.attribs))... };
-		}
+	{
+		constexpr Functor op;
+		return { op(left, right.pos), op(left, std::get<idx>(right.attribs))... };
+	}
 
-		// point op= point
-		template<class Pos, class ...Attribs>
-		template<class Functor, size_t idx, class SrcPos, class ...SrcAttribs>
+	// point op= point
+	template<class Pos, class ...Attribs>
+	template<class Functor, size_t idx, class SrcPos, class ...SrcAttribs>
 #if defined _MSC_VER && _MSC_VER <= 1900
-		inline auto CompositePoint<Pos, Attribs...>::PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src, std::true_type) -> CompositePoint &
+	inline auto CompositePoint<Pos, Attribs...>::PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src, std::true_type) -> CompositePoint &
 #else
-		inline auto CompositePoint<Pos, Attribs...>::PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src) -> std::enable_if_t<idx < sizeof...(Attribs), CompositePoint &>
+	inline auto CompositePoint<Pos, Attribs...>::PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src) -> std::enable_if_t<idx < sizeof...(Attribs), CompositePoint &>
 #endif
-		{
-			Functor()(std::get<idx>(attribs), std::get<idx>(src.attribs));
+	{
+		Functor()(std::get<idx>(attribs), std::get<idx>(src.attribs));
 #if defined _MSC_VER && _MSC_VER <= 1900
-			constexpr auto nextIdx = idx + 1;
-			return PointOpPoint<Functor, nextIdx>(src, std::bool_constant<nextIdx < sizeof...(Attribs)>());
+		constexpr auto nextIdx = idx + 1;
+		return PointOpPoint<Functor, nextIdx>(src, std::bool_constant<nextIdx < sizeof...(Attribs)>());
 #else
-			return PointOpPoint<Functor, idx + 1>(src);
+		return PointOpPoint<Functor, idx + 1>(src);
 #endif
-		}
+	}
 
-		template<class Pos, class ...Attribs>
-		template<class Functor, size_t idx, class SrcPos, class ...SrcAttribs>
+	template<class Pos, class ...Attribs>
+	template<class Functor, size_t idx, class SrcPos, class ...SrcAttribs>
 #if defined _MSC_VER && _MSC_VER <= 1900
-		inline auto CompositePoint<Pos, Attribs...>::PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src, std::false_type) -> CompositePoint &
+	inline auto CompositePoint<Pos, Attribs...>::PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src, std::false_type) -> CompositePoint &
 #else
-		inline auto CompositePoint<Pos, Attribs...>::PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src) -> std::enable_if_t<idx == sizeof...(Attribs), CompositePoint &>
+	inline auto CompositePoint<Pos, Attribs...>::PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src) -> std::enable_if_t<idx == sizeof...(Attribs), CompositePoint &>
 #endif
-		{
-			Functor()(pos, src.pos);
-			return *this;
-		}
+	{
+		Functor()(pos, src.pos);
+		return *this;
+	}
 
-		// point op= scalar
-		template<class Pos, class ...Attribs>
-		template<class Functor, size_t idx, typename Scalar>
+	// point op= scalar
+	template<class Pos, class ...Attribs>
+	template<class Functor, size_t idx, typename Scalar>
 #if defined _MSC_VER && _MSC_VER <= 1900
-		inline auto CompositePoint<Pos, Attribs...>::PointOpScalar(const Scalar &src, std::true_type) -> CompositePoint &
+	inline auto CompositePoint<Pos, Attribs...>::PointOpScalar(const Scalar &src, std::true_type) -> CompositePoint &
 #else
-		inline auto CompositePoint<Pos, Attribs...>::PointOpScalar(const Scalar &src) -> std::enable_if_t<idx < sizeof...(Attribs), CompositePoint &>
+	inline auto CompositePoint<Pos, Attribs...>::PointOpScalar(const Scalar &src) -> std::enable_if_t<idx < sizeof...(Attribs), CompositePoint &>
 #endif
-		{
-			Functor()(std::get<idx>(attribs), src);
+	{
+		Functor()(std::get<idx>(attribs), src);
 #if defined _MSC_VER && _MSC_VER <= 1900
-			constexpr auto nextIdx = idx + 1;
-			return PointOpScalar<Functor, nextIdx>(src, std::bool_constant<nextIdx < sizeof...(Attribs)>());
+		constexpr auto nextIdx = idx + 1;
+		return PointOpScalar<Functor, nextIdx>(src, std::bool_constant<nextIdx < sizeof...(Attribs)>());
 #else
-			return PointOpScalar<Functor, idx + 1>(src);
+		return PointOpScalar<Functor, idx + 1>(src);
 #endif
-		}
+	}
 
-		template<class Pos, class ...Attribs>
-		template<class Functor, size_t idx, typename Scalar>
+	template<class Pos, class ...Attribs>
+	template<class Functor, size_t idx, typename Scalar>
 #if defined _MSC_VER && _MSC_VER <= 1900
-		inline auto CompositePoint<Pos, Attribs...>::PointOpScalar(const Scalar &src, std::false_type)->CompositePoint &
+	inline auto CompositePoint<Pos, Attribs...>::PointOpScalar(const Scalar &src, std::false_type)->CompositePoint &
 #else
-		inline auto CompositePoint<Pos, Attribs...>::PointOpScalar(const Scalar &src) -> std::enable_if_t<idx == sizeof...(Attribs), CompositePoint &>
+	inline auto CompositePoint<Pos, Attribs...>::PointOpScalar(const Scalar &src) -> std::enable_if_t<idx == sizeof...(Attribs), CompositePoint &>
 #endif
-		{
-			Functor()(pos, src);
-			return *this;
-		}
+	{
+		Functor()(pos, src);
+		return *this;
+	}
 
-		template<class Pos, class ...Attribs>
-		template<class SrcPos, class ...SrcAttribs>
-		inline CompositePoint<Pos, Attribs...>::CompositePoint(SrcPos &&pos, SrcAttribs &&...attribs) :
-		pos(std::forward<SrcPos>(pos)), attribs(std::forward<SrcAttribs>(attribs)...) {}
+	template<class Pos, class ...Attribs>
+	template<class SrcPos, class ...SrcAttribs>
+	inline CompositePoint<Pos, Attribs...>::CompositePoint(SrcPos &&pos, SrcAttribs &&...attribs) :
+	pos(std::forward<SrcPos>(pos)), attribs(std::forward<SrcAttribs>(attribs)...) {}
 
-		template<class Pos, class ...Attribs>
-		template<class SrcPos, class ...SrcAttribs>
-		inline CompositePoint<Pos, Attribs...>::CompositePoint(const CompositePoint<SrcPos, SrcAttribs...> &src) :
-		pos(src.pos), attribs(src.attribs) {}
+	template<class Pos, class ...Attribs>
+	template<class SrcPos, class ...SrcAttribs>
+	inline CompositePoint<Pos, Attribs...>::CompositePoint(const CompositePoint<SrcPos, SrcAttribs...> &src) :
+	pos(src.pos), attribs(src.attribs) {}
 
-		template<class Pos, class ...Attribs>
-		template<class SrcPos, class ...SrcAttribs>
-		inline CompositePoint<Pos, Attribs...>::CompositePoint(CompositePoint<SrcPos, SrcAttribs...> &&src) :
-		pos(std::move(src.pos)), attribs(std::move(src.attribs)) {}
+	template<class Pos, class ...Attribs>
+	template<class SrcPos, class ...SrcAttribs>
+	inline CompositePoint<Pos, Attribs...>::CompositePoint(CompositePoint<SrcPos, SrcAttribs...> &&src) :
+	pos(std::move(src.pos)), attribs(std::move(src.attribs)) {}
 
-		template<class Pos, class ...Attribs>
-		template<class SrcPos, class ...SrcAttribs>
-		inline auto CompositePoint<Pos, Attribs...>::operator =(const CompositePoint<SrcPos, SrcAttribs...> &src) -> CompositePoint &
-		{
-			pos = src.pos;
-			attribs = src.attribs;
-			return *this;
-		}
+	template<class Pos, class ...Attribs>
+	template<class SrcPos, class ...SrcAttribs>
+	inline auto CompositePoint<Pos, Attribs...>::operator =(const CompositePoint<SrcPos, SrcAttribs...> &src) -> CompositePoint &
+	{
+		pos = src.pos;
+		attribs = src.attribs;
+		return *this;
+	}
 
-		template<class Pos, class ...Attribs>
-		template<class SrcPos, class ...SrcAttribs>
-		inline auto CompositePoint<Pos, Attribs...>::operator =(CompositePoint<SrcPos, SrcAttribs...> &&src) -> CompositePoint &
-		{
-			pos = std::move(src.pos);
-			attribs = std::move(src.attribs);
-			return *this;
-		}
+	template<class Pos, class ...Attribs>
+	template<class SrcPos, class ...SrcAttribs>
+	inline auto CompositePoint<Pos, Attribs...>::operator =(CompositePoint<SrcPos, SrcAttribs...> &&src) -> CompositePoint &
+	{
+		pos = std::move(src.pos);
+		attribs = std::move(src.attribs);
+		return *this;
+	}
 
-		template<class Pos, class ...Attribs>
-		inline auto CompositePoint<Pos, Attribs...>::operator -() const
-		{
-			return OpPoint<std::negate<>>(std::index_sequence_for<Attribs...>());
-		}
+	template<class Pos, class ...Attribs>
+	inline auto CompositePoint<Pos, Attribs...>::operator -() const
+	{
+		return OpPoint<std::negate<>>(std::index_sequence_for<Attribs...>());
+	}
 
-		// point += point
-		template<class Pos, class ...Attribs>
-		template<class SrcPos, class ...SrcAttribs>
-		inline auto CompositePoint<Pos, Attribs...>::operator +=(const CompositePoint<SrcPos, SrcAttribs...> &src) -> CompositePoint &
-		{
-			return PointOpPoint<AddAssign>(src);
-		}
+	// point += point
+	template<class Pos, class ...Attribs>
+	template<class SrcPos, class ...SrcAttribs>
+	inline auto CompositePoint<Pos, Attribs...>::operator +=(const CompositePoint<SrcPos, SrcAttribs...> &src) -> CompositePoint &
+	{
+		return PointOpPoint<AddAssign>(src);
+	}
 
-		// point -= point
-		template<class Pos, class ...Attribs>
-		template<class SrcPos, class ...SrcAttribs>
-		inline auto CompositePoint<Pos, Attribs...>::operator -=(const CompositePoint<SrcPos, SrcAttribs...> &src) -> CompositePoint &
-		{
-			return PointOpPoint<SubAssign>(src);
-		}
+	// point -= point
+	template<class Pos, class ...Attribs>
+	template<class SrcPos, class ...SrcAttribs>
+	inline auto CompositePoint<Pos, Attribs...>::operator -=(const CompositePoint<SrcPos, SrcAttribs...> &src) -> CompositePoint &
+	{
+		return PointOpPoint<SubAssign>(src);
+	}
 
-		// point *= scalar
-		template<class Pos, class ...Attribs>
-		template<typename Scalar>
-		inline auto CompositePoint<Pos, Attribs...>::operator *=(const Scalar &src) -> CompositePoint &
-		{
-			return PointOpScalar<MulAssign>(src);
-		}
+	// point *= scalar
+	template<class Pos, class ...Attribs>
+	template<typename Scalar>
+	inline auto CompositePoint<Pos, Attribs...>::operator *=(const Scalar &src) -> CompositePoint &
+	{
+		return PointOpScalar<MulAssign>(src);
+	}
 
-		// point /= scalar
-		template<class Pos, class ...Attribs>
-		template<typename Scalar>
-		inline auto CompositePoint<Pos, Attribs...>::operator /=(const Scalar &src) -> CompositePoint &
-		{
-			return PointOpScalar<DivAssign>(src);
-		}
+	// point /= scalar
+	template<class Pos, class ...Attribs>
+	template<typename Scalar>
+	inline auto CompositePoint<Pos, Attribs...>::operator /=(const Scalar &src) -> CompositePoint &
+	{
+		return PointOpScalar<DivAssign>(src);
+	}
 
-		// point + point
-		template<class LeftPos, class ...LeftAttribs, class RightPos, class ...RightAttribs>
-		inline auto operator +(const CompositePoint<LeftPos, LeftAttribs...> &left, const CompositePoint<RightPos, RightAttribs...> &right)
-		{
-			return CompositePoint<LeftPos, LeftAttribs...>::PointOpPoint<std::plus<>>(std::index_sequence_for<LeftAttribs...>(), left, right);
-		}
+	// point + point
+	template<class LeftPos, class ...LeftAttribs, class RightPos, class ...RightAttribs>
+	inline auto operator +(const CompositePoint<LeftPos, LeftAttribs...> &left, const CompositePoint<RightPos, RightAttribs...> &right)
+	{
+		return CompositePoint<LeftPos, LeftAttribs...>::PointOpPoint<std::plus<>>(std::index_sequence_for<LeftAttribs...>(), left, right);
+	}
 
-		// point - point
-		template<class LeftPos, class ...LeftAttribs, class RightPos, class ...RightAttribs>
-		inline auto operator -(const CompositePoint<LeftPos, LeftAttribs...> &left, const CompositePoint<RightPos, RightAttribs...> &right)
-		{
-			return CompositePoint<LeftPos, LeftAttribs...>::PointOpPoint<std::minus<>>(std::index_sequence_for<LeftAttribs...>(), left, right);
-		}
+	// point - point
+	template<class LeftPos, class ...LeftAttribs, class RightPos, class ...RightAttribs>
+	inline auto operator -(const CompositePoint<LeftPos, LeftAttribs...> &left, const CompositePoint<RightPos, RightAttribs...> &right)
+	{
+		return CompositePoint<LeftPos, LeftAttribs...>::PointOpPoint<std::minus<>>(std::index_sequence_for<LeftAttribs...>(), left, right);
+	}
 
-		// point * scalar
-		template<class Pos, class ...Attribs, typename Scalar>
-		inline auto operator *(const CompositePoint<Pos, Attribs...> &left, const Scalar &right)
-		{
-			return CompositePoint<Pos, Attribs...>::PointOpScalar<std::multiplies<>>(std::index_sequence_for<Attribs...>(), left, right);
-		}
+	// point * scalar
+	template<class Pos, class ...Attribs, typename Scalar>
+	inline auto operator *(const CompositePoint<Pos, Attribs...> &left, const Scalar &right)
+	{
+		return CompositePoint<Pos, Attribs...>::PointOpScalar<std::multiplies<>>(std::index_sequence_for<Attribs...>(), left, right);
+	}
 
-		// scalar * point
-		template<class Pos, class ...Attribs, typename Scalar>
-		inline auto operator *(const Scalar &left, const CompositePoint<Pos, Attribs...> &right)
-		{
-			return CompositePoint<Pos, Attribs...>::ScalarOpPoint<std::multiplies<>>(std::index_sequence_for<Attribs...>(), left, right);
-		}
+	// scalar * point
+	template<class Pos, class ...Attribs, typename Scalar>
+	inline auto operator *(const Scalar &left, const CompositePoint<Pos, Attribs...> &right)
+	{
+		return CompositePoint<Pos, Attribs...>::ScalarOpPoint<std::multiplies<>>(std::index_sequence_for<Attribs...>(), left, right);
+	}
 
-		// point / scalar
-		template<class Pos, class ...Attribs, typename Scalar>
-		inline auto operator /(const CompositePoint<Pos, Attribs...> &left, const Scalar &right)
-		{
-			return CompositePoint<Pos, Attribs...>::PointOpScalar<std::divides<>>(std::index_sequence_for<Attribs...>(), left, right);
-		}
+	// point / scalar
+	template<class Pos, class ...Attribs, typename Scalar>
+	inline auto operator /(const CompositePoint<Pos, Attribs...> &left, const Scalar &right)
+	{
+		return CompositePoint<Pos, Attribs...>::PointOpScalar<std::divides<>>(std::index_sequence_for<Attribs...>(), left, right);
 	}
 }
 #pragma endregion
