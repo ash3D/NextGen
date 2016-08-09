@@ -335,16 +335,13 @@ extern nv_scalar Collision::RayCilinderIntersect(vec3 R0, const vec3 &R0R1, cons
 }
 
 #if INCLUDE_DGLE_EXTENSIONS
-namespace
-{
-	static unsigned int
-		collideAndSlideInvokeCount,
-		collideAndSlideIterationCount,
-		cullerInvokeCount, cullerRejectCount,
-		triColliderInvokeCount,
-		edgeColliderInvokeCount,
-		vertexColliderInvokeCount;
-}
+static unsigned int
+	collideAndSlideInvokeCount,
+	collideAndSlideIterationCount,
+	cullerInvokeCount, cullerRejectCount,
+	triColliderInvokeCount,
+	edgeColliderInvokeCount,
+	vertexColliderInvokeCount;
 
 extern void CollisionStat::StartProfiling() noexcept
 {
