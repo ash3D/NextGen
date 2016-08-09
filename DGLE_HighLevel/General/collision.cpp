@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		06.04.2016 (c)Korotkov Andrey
+\date		09.08.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -19,9 +19,13 @@ See "DGLE.h" for more details.
 #include <cassert>
 
 using namespace std;
+#if INCLUDE_DGLE_EXTENSIONS
 using namespace DGLE;
+#endif
 namespace Collision = Math::Collision;
+#if INCLUDE_DGLE_EXTENSIONS
 namespace CollisionStat = Collision::CollisionStat;
+#endif
 
 static_assert(numeric_limits<nv_scalar>::has_quiet_NaN, "quiet NaN support required");
 
@@ -91,13 +95,14 @@ Collision::CCollisionEdges<IB_format>::CCollisionEdges(const void *__restrict &d
 {
 	if (!data) return;
 
-	const uint32 &size = *reinterpret_cast<const uint32 *>(data);
+	const uint32_t &size = *reinterpret_cast<const uint32_t *>(data);
 	auto &buffer = reinterpret_cast<const uint8_t *__restrict &>(data);
 	_edges.resize(size);
 	memcpy(_edges.data(), buffer += sizeof size, sizeof(TEdges::value_type) * size);
 	buffer += sizeof(TEdges::value_type) * size;
 }
 
+#if INCLUDE_DGLE_EXTENSIONS
 template<typename IB_format>
 Collision::CCollisionEdges<IB_format>::CCollisionEdges(IFile *pFile) noexcept
 {
@@ -138,6 +143,7 @@ uint Collision::CCollisionEdges<IB_format>::SaveToFile(IFile *pFile) const noexc
 
 	return res;
 }
+#endif
 
 template Collision::CCollisionEdges<uint16_t>;
 template Collision::CCollisionEdges<uint32_t>;
@@ -333,6 +339,7 @@ static inline bool False(...)
 	return false;
 }
 
+#if INCLUDE_DGLE_EXTENSIONS
 namespace
 {
 	static unsigned int
@@ -376,6 +383,7 @@ extern void CALLBACK CollisionStat::ProfilerEventHandler(void *pEngineCore, IBas
 		break;
 	}
 }
+#endif
 
 void Collision::CSphereXformHandler::SetXform(const mat4 &xform)
 {
@@ -395,7 +403,9 @@ void Collision::CSphereXformHandler::SetXform(const mat4 &xform)
 
 bool Collision::CCuller::operator ()(const CSphereXformHandler &sphereXformHandler, const vec3 &center, const vec3 &extents) const
 {
+#if INCLUDE_DGLE_EXTENSIONS
 	++cullerInvokeCount;
+#endif
 
 	const CSphereXformHandler::TMovingSphere &xformed_sphere = sphereXformHandler;
 	const mat4 xform(mat4_id);
@@ -419,14 +429,18 @@ bool Collision::CCuller::operator ()(const CSphereXformHandler &sphereXformHandl
 	vec2 intersection = RayKDOPIntersect(xformed_sphere.c, xformed_sphere.dir, planes);
 	bool cull = !(intersection.x <= nv_zero && intersection.y >= nv_zero || intersection.x <= intersection.y && (!_finite || intersection.x >= nv_zero) && intersection.x < _dist);
 
+#if INCLUDE_DGLE_EXTENSIONS
 	if (cull) ++cullerRejectCount;
+#endif
 
 	return cull;
 }
 
 void Collision::CTriCollider::operator ()(const CSphereXformHandler &sphereXformHandler, const vec3 &v0, const vec3 &v1, const vec3 &v2)
 {
+#if INCLUDE_DGLE_EXTENSIONS
 	++triColliderInvokeCount;
+#endif
 
 	const CSphereXformHandler::TMovingSphere &xformed_sphere = sphereXformHandler;
 
@@ -459,7 +473,9 @@ void Collision::CTriCollider::operator ()(const CSphereXformHandler &sphereXform
 
 void Collision::CEdgeCollider::operator ()(const CSphereXformHandler &sphereXformHandler, const vec3 &v0, const vec3 &v1)
 {
+#if INCLUDE_DGLE_EXTENSIONS
 	++edgeColliderInvokeCount;
+#endif
 
 	const CSphereXformHandler::TMovingSphere &xformed_sphere = sphereXformHandler;
 	vec3 e = v1 - v0;
@@ -479,7 +495,9 @@ void Collision::CEdgeCollider::operator ()(const CSphereXformHandler &sphereXfor
 
 void Collision::CVertexCollider::operator ()(const CSphereXformHandler &sphereXformHandler, const vec3 &v)
 {
+#if INCLUDE_DGLE_EXTENSIONS
 	++vertexColliderInvokeCount;
+#endif
 
 	const CSphereXformHandler::TMovingSphere &xformed_sphere = sphereXformHandler;
 	nv_scalar cur_dist = RaySphereIntersect(xformed_sphere.c, xformed_sphere.dir, v, xformed_sphere.r2);
@@ -536,11 +554,15 @@ extern auto Collision::SphereCollide(const IGeometryProvider &geometryProvider, 
 
 extern vec3 Collision::SphereCollideAndSlide(const IGeometryProvider &geometryProvider, vec3 c, nv_scalar r2, vec3 dir, nv_scalar skinWidth, nv_scalar minDist, unsigned int maxSlides) noexcept
 {
+#if INCLUDE_DGLE_EXTENSIONS
 	++collideAndSlideInvokeCount;
+#endif
 
 	do
 	{
+#if INCLUDE_DGLE_EXTENSIONS
 		++collideAndSlideIterationCount;
+#endif
 
 		TCollideResult collision = SphereCollide(geometryProvider, c, r2, dir, skinWidth, false, true);
 		if (collision.dist < nv_one)

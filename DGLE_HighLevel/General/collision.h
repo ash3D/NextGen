@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		06.04.2016 (c)Korotkov Andrey
+\date		09.08.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -9,7 +9,11 @@ See "DGLE.h" for more details.
 
 #pragma once
 
+#define INCLUDE_DGLE_EXTENSIONS	0
+
+#if INCLUDE_DGLE_EXTENSIONS
 #include "DGLE.h"
+#endif
 #include "nv_algebra.h"
 #include <vector>
 
@@ -34,10 +38,14 @@ namespace Math
 			template<typename Iterator>
 			CCollisionEdges(Iterator begin, Iterator end, const vec3 *__restrict VB) noexcept;
 			CCollisionEdges(const void *__restrict &data) noexcept;
+#if INCLUDE_DGLE_EXTENSIONS
 			CCollisionEdges(DGLE::IFile *pFile) noexcept;
+#endif
 			typename TEdges::const_iterator Begin() const noexcept { return _edges.begin(); }
 			typename TEdges::const_iterator End() const noexcept { return _edges.end(); }
+#if INCLUDE_DGLE_EXTENSIONS
 			DGLE::uint SaveToFile(DGLE::IFile *pFile) const noexcept;
+#endif
 		};
 
 		extern nv_scalar RayAABBIntersect(const vec3 &rayOrig, const vec3 &rayDir, const vec3 &AABBCenter, const vec3 &AABBExtents) noexcept;
@@ -54,11 +62,13 @@ namespace Math
 		extern nv_scalar RaySphereIntersect(vec3 rayOrig, const vec3 &rayDir, const vec3 &sphereCenter, nv_scalar sphereRadius2) noexcept;
 		extern nv_scalar RayCilinderIntersect(vec3 rayOrig, const vec3 &rayDir, const vec3 &cilinderOrig, const vec3 &cilinderDir, nv_scalar cilinderRadius2) noexcept;
 
+#if INCLUDE_DGLE_EXTENSIONS
 		namespace CollisionStat
 		{
 			extern void StartProfiling() noexcept;
 			extern void CALLBACK ProfilerEventHandler(void *pEngineCore, DGLE::IBaseEvent *pEvent);
 		}
+#endif
 
 		struct TCollideResult
 		{
