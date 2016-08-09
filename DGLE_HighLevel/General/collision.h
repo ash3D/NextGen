@@ -34,7 +34,7 @@ namespace Math
 			TEdges _edges;
 
 		public:
-			CCollisionEdges() noexcept {}
+			CCollisionEdges() noexcept = default;
 			template<typename Iterator>
 			CCollisionEdges(Iterator begin, Iterator end, const vec3 *__restrict VB) noexcept;
 			CCollisionEdges(const void *__restrict &data) noexcept;
