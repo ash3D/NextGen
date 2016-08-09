@@ -9,6 +9,8 @@ See "DGLE.h" for more details.
 
 #pragma once
 
+#include "CompilerCheck.h"
+
 namespace Math::Hermite
 {
 	#pragma region Hermite polynomials

@@ -147,6 +147,7 @@
     <ClInclude Include="AABB.h" />
     <ClInclude Include="binaryIO.h" />
     <ClInclude Include="collision.h" />
+    <ClInclude Include="CompilerCheck.h" />
     <ClInclude Include="exp.h" />
     <ClInclude Include="gauss.h" />
     <ClInclude Include="general math.h" />

@@ -9,10 +9,7 @@ See "DGLE.h" for more details.
 
 #pragma once
 
-#if !defined  __clang__  && defined _MSC_FULL_VER && _MSC_FULL_VER < 190024210
-#error Old MSVC compiler version. Visual Studio 2015 Update 3 or later required.
-#endif
-
+#include "CompilerCheck.h"
 #include <array>
 #include <vector>
 #include <initializer_list>

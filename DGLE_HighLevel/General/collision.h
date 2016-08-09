@@ -11,10 +11,7 @@ See "DGLE.h" for more details.
 
 #define INCLUDE_DGLE_EXTENSIONS	0
 
-#if !defined  __clang__  && defined _MSC_FULL_VER && _MSC_FULL_VER < 190024210
-#error Old MSVC compiler version. Visual Studio 2015 Update 3 or later required.
-#endif
-
+#include "CompilerCheck.h"
 #if INCLUDE_DGLE_EXTENSIONS
 #include "DGLE.h"
 #endif
