@@ -51,9 +51,6 @@
     <ClInclude Include="binaryIO.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="broadcast.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="vector math.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -74,9 +71,6 @@
       <Filter>Header Files</Filter>
     </None>
     <None Include="splines.inl">
-      <Filter>Header Files</Filter>
-    </None>
-    <None Include="broadcast.inl">
       <Filter>Header Files</Filter>
     </None>
   </ItemGroup>
