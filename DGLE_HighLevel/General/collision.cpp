@@ -334,11 +334,6 @@ extern nv_scalar Collision::RayCilinderIntersect(vec3 R0, const vec3 &R0R1, cons
 	return dist;
 }
 
-static inline bool False(...)
-{
-	return false;
-}
-
 #if INCLUDE_DGLE_EXTENSIONS
 namespace
 {
