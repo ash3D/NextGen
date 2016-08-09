@@ -13,6 +13,10 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Header Files\Shared">
+      <UniqueIdentifier>{24715a96-d3c9-4826-b334-ed38e07f9615}</UniqueIdentifier>
+      <Extensions>h;inl</Extensions>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CoreRendererDX9.cpp">
@@ -41,11 +45,11 @@
     <ClInclude Include="PluginCore.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\Shared\broadcast.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\Shared\Shared.h">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\Shared</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Shared\broadcast.h">
+      <Filter>Header Files\Shared</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -53,7 +57,7 @@
       <Filter>Source Files</Filter>
     </None>
     <None Include="..\Shared\broadcast.inl">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\Shared</Filter>
     </None>
   </ItemGroup>
 </Project>
