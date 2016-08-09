@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		28.8.2015 (c)Korotkov Andrey
+\date		09.08.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -10,7 +10,7 @@ See "DGLE.h" for more details.
 #pragma once
 
 #define ALLOW_CALLBACK_ERASE_DURING_CALL
-#include "../Shared.h"
+#include "Shared.h"
 
 #include <memory>
 #include <string>

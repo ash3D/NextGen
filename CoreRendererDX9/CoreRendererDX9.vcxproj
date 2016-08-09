@@ -59,7 +59,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>DX9_LEGACY_BASE_OBJECTS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;WIN32;_DEBUG;_WINDOWS;_USRDLL;CORERENDERERDX9_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\dgle;..\General</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\dgle;..\Shared</AdditionalIncludeDirectories>
       <AdditionalOptions>/std:c++latest /wd4800 %(AdditionalOptions)</AdditionalOptions>
       <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
     </ClCompile>
@@ -79,7 +79,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>DX9_LEGACY_BASE_OBJECTS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;WIN32;NDEBUG;_WINDOWS;_USRDLL;CORERENDERERDX9_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\dgle;..\General</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\dgle;..\Shared</AdditionalIncludeDirectories>
       <AdditionalOptions>/std:c++latest /wd4800 %(AdditionalOptions)</AdditionalOptions>
       <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
     </ClCompile>
@@ -99,13 +99,15 @@
     <ClCompile Include="PluginCore.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\Shared.h" />
+    <ClInclude Include="..\Shared\broadcast.h" />
+    <ClInclude Include="..\Shared\Shared.h" />
     <ClInclude Include="Common.h" />
     <ClInclude Include="CoreRendererDX9.h" />
     <ClInclude Include="FixedFunctionPipelineDX9.h" />
     <ClInclude Include="PluginCore.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\Shared\broadcast.inl" />
     <None Include="exports.def" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

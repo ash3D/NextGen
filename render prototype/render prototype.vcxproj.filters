@@ -57,9 +57,6 @@
     <ClInclude Include="targetver.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="vector math.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="RendererBase.h">
       <Filter>Header Files</Filter>
     </ClInclude>

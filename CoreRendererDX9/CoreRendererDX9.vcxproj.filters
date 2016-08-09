@@ -41,13 +41,19 @@
     <ClInclude Include="PluginCore.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\Shared.h">
+    <ClInclude Include="..\Shared\broadcast.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Shared\Shared.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="exports.def">
       <Filter>Source Files</Filter>
+    </None>
+    <None Include="..\Shared\broadcast.inl">
+      <Filter>Header Files</Filter>
     </None>
   </ItemGroup>
 </Project>

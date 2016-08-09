@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
-VisualStudioVersion = 14.0.23107.0
+VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DirectInput", "input\DirectInput.vcxproj", "{B31EFA24-913C-4B5C-AD21-2296226E1347}"
 EndProject
@@ -14,12 +14,6 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CoreRendererDX9", "CoreRendererDX9\CoreRendererDX9.vcxproj", "{19823387-A221-4E2F-929F-DF5C33983B9A}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CoreRendererDX11", "CoreRendererDX11\CoreRendererDX11.vcxproj", "{AD262CD6-1814-4E2A-B4DD-7F81EFA0DBDE}"
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vector math benchmark", "vector math benchmark\vector math benchmark.vcxproj", "{298AE0A1-CE47-4233-B06C-945E6FB9D260}"
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "General", "General\General.vcxproj", "{9E10BAC6-2AEB-4A56-A500-2ABC22A4EC70}"
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vector math unit tests", "vector math unit tests\vector math unit tests.vcxproj", "{3AFE0214-CF91-4292-B567-5F864622E52B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -53,30 +47,6 @@ Global
 		{AD262CD6-1814-4E2A-B4DD-7F81EFA0DBDE}.Release|Win32.ActiveCfg = Release|Win32
 		{AD262CD6-1814-4E2A-B4DD-7F81EFA0DBDE}.Release|Win32.Build.0 = Release|Win32
 		{AD262CD6-1814-4E2A-B4DD-7F81EFA0DBDE}.Release|x64.ActiveCfg = Release|Win32
-		{298AE0A1-CE47-4233-B06C-945E6FB9D260}.Debug|Win32.ActiveCfg = Debug|Win32
-		{298AE0A1-CE47-4233-B06C-945E6FB9D260}.Debug|Win32.Build.0 = Debug|Win32
-		{298AE0A1-CE47-4233-B06C-945E6FB9D260}.Debug|x64.ActiveCfg = Debug|x64
-		{298AE0A1-CE47-4233-B06C-945E6FB9D260}.Debug|x64.Build.0 = Debug|x64
-		{298AE0A1-CE47-4233-B06C-945E6FB9D260}.Release|Win32.ActiveCfg = Release|Win32
-		{298AE0A1-CE47-4233-B06C-945E6FB9D260}.Release|Win32.Build.0 = Release|Win32
-		{298AE0A1-CE47-4233-B06C-945E6FB9D260}.Release|x64.ActiveCfg = Release|x64
-		{298AE0A1-CE47-4233-B06C-945E6FB9D260}.Release|x64.Build.0 = Release|x64
-		{9E10BAC6-2AEB-4A56-A500-2ABC22A4EC70}.Debug|Win32.ActiveCfg = Debug|Win32
-		{9E10BAC6-2AEB-4A56-A500-2ABC22A4EC70}.Debug|Win32.Build.0 = Debug|Win32
-		{9E10BAC6-2AEB-4A56-A500-2ABC22A4EC70}.Debug|x64.ActiveCfg = Debug|x64
-		{9E10BAC6-2AEB-4A56-A500-2ABC22A4EC70}.Debug|x64.Build.0 = Debug|x64
-		{9E10BAC6-2AEB-4A56-A500-2ABC22A4EC70}.Release|Win32.ActiveCfg = Release|Win32
-		{9E10BAC6-2AEB-4A56-A500-2ABC22A4EC70}.Release|Win32.Build.0 = Release|Win32
-		{9E10BAC6-2AEB-4A56-A500-2ABC22A4EC70}.Release|x64.ActiveCfg = Release|x64
-		{9E10BAC6-2AEB-4A56-A500-2ABC22A4EC70}.Release|x64.Build.0 = Release|x64
-		{3AFE0214-CF91-4292-B567-5F864622E52B}.Debug|Win32.ActiveCfg = Debug|Win32
-		{3AFE0214-CF91-4292-B567-5F864622E52B}.Debug|Win32.Build.0 = Debug|Win32
-		{3AFE0214-CF91-4292-B567-5F864622E52B}.Debug|x64.ActiveCfg = Debug|x64
-		{3AFE0214-CF91-4292-B567-5F864622E52B}.Debug|x64.Build.0 = Debug|x64
-		{3AFE0214-CF91-4292-B567-5F864622E52B}.Release|Win32.ActiveCfg = Release|Win32
-		{3AFE0214-CF91-4292-B567-5F864622E52B}.Release|Win32.Build.0 = Release|Win32
-		{3AFE0214-CF91-4292-B567-5F864622E52B}.Release|x64.ActiveCfg = Release|x64
-		{3AFE0214-CF91-4292-B567-5F864622E52B}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
