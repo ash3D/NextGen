@@ -1,0 +1,100 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" InitialTargets="fx11_desktop_2015_init_targets_0;fx11_desktop_2015_init_targets_1">
+  <PropertyGroup Label="Default initializers for properties">
+    <CallingConventions-fx11_desktop_2015 Condition="'$(CallingConventions-fx11_desktop_2015)' == ''">cdecl</CallingConventions-fx11_desktop_2015>
+    <Linkages-fx11_desktop_2015 Condition="'$(Linkages-fx11_desktop_2015)' == ''">dynamic</Linkages-fx11_desktop_2015>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PreprocessorDefinitions>HAS_FX11;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)../../build/native/include/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ResourceCompile>
+      <AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)../../build/native/include/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Label="x64 and Debug" Condition="'$(Platform.ToLower())' == 'x64' And ( $(Configuration.ToLower().IndexOf('debug')) &gt; -1 )">
+    <Link>
+      <AdditionalDependencies>$(MSBuildThisFileDirectory)../../build/native/lib/x64/Debug/Effects11d.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Label="Win32 and Release" Condition="'$(Platform.ToLower())' == 'win32' And ( $(Configuration.ToLower().IndexOf('debug')) == -1 )">
+    <Link>
+      <AdditionalDependencies>$(MSBuildThisFileDirectory)../../build/native/lib/Win32/Release/Effects11.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Label="Win32 and Debug" Condition="'$(Platform.ToLower())' == 'win32' And ( $(Configuration.ToLower().IndexOf('debug')) &gt; -1 )">
+    <Link>
+      <AdditionalDependencies>$(MSBuildThisFileDirectory)../../build/native/lib/Win32/Debug/Effects11d.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Label="x64 and Release" Condition="'$(Platform.ToLower())' == 'x64' And ( $(Configuration.ToLower().IndexOf('debug')) == -1 )">
+    <Link>
+      <AdditionalDependencies>$(MSBuildThisFileDirectory)../../build/native/lib/x64/Release/Effects11.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <Target Name="fx11_desktop_2015_BeforeLink" AfterTargets="BeforeLink">
+    <CheckRuntimeLibrary RuntimeLibrary="%(ClCompile.RuntimeLibrary)" ExpectedRuntimeLibrary="none" LibraryName="fx11_desktop_2015" />
+  </Target>
+  <Target Name="fx11_desktop_2015_BeforeLink_Release_and_static" Label="Release and static" Condition="( $(Configuration.ToLower().IndexOf('debug')) == -1 ) And '$(Linkages-fx11_desktop_2015.ToLower())' == 'static'" AfterTargets="fx11_desktop_2015_BeforeLink">
+    <CheckRuntimeLibrary RuntimeLibrary="%(ClCompile.RuntimeLibrary)" ExpectedRuntimeLibrary="MultiThreaded" LibraryName="fx11_desktop_2015" />
+  </Target>
+  <Target Name="fx11_desktop_2015_BeforeLink_Debug_and_static" Label="Debug and static" Condition="( $(Configuration.ToLower().IndexOf('debug')) &gt; -1 ) And '$(Linkages-fx11_desktop_2015.ToLower())' == 'static'" AfterTargets="fx11_desktop_2015_BeforeLink">
+    <CheckRuntimeLibrary RuntimeLibrary="%(ClCompile.RuntimeLibrary)" ExpectedRuntimeLibrary="MultiThreadedDebug" LibraryName="fx11_desktop_2015" />
+  </Target>
+  <Target Name="fx11_desktop_2015_AfterBuild" AfterTargets="AfterBuild">
+    <Copy DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" UseHardlinksIfPossible="true" SourceFiles="@(CopyToOutput)">
+      <Output TaskParameter="DestinationFiles" PropertyName="DestinationFiles" />
+      <Output TaskParameter="DestinationFiles" ItemName="DestinationFiles" />
+      <Output TaskParameter="CopiedFiles" PropertyName="CopiedFiles" />
+      <Output TaskParameter="CopiedFiles" ItemName="CopiedFiles" />
+    </Copy>
+  </Target>
+  <ItemGroup>
+    <PropertyPageSchema Include="$(MSBuildThisFileDirectory)\default-propertiesui.xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <PropertyPageSchema Include="$(MSBuildThisFileDirectory)\fx11_desktop_2015-propertiesui-1c52f30d-0c16-47f1-baca-607dba5c389a.xml" />
+  </ItemGroup>
+  <UsingTask TaskName="NuGetPackageOverlay" AssemblyFile="$(NuGet-NativeExtensionPath)\coapp.NuGetNativeMSBuildTasks.dll" Condition="'$(DesignTimeBuild)' != 'true' AND ('$(NugetMsBuildExtensionLoaded)' == '' OR '$(NugetMsBuildExtensionLoaded)' == 'false')" />
+  <UsingTask TaskName="CheckRuntimeLibrary" AssemblyFile="$(NuGet-NativeExtensionPath)\coapp.NuGetNativeMSBuildTasks.dll" Condition="'$(DesignTimeBuild)' != 'true' AND ('$(NugetMsBuildExtensionLoaded)' == '' OR '$(NugetMsBuildExtensionLoaded)' == 'false')" />
+  <UsingTask TaskName="StringContains" AssemblyFile="$(NuGet-NativeExtensionPath)\coapp.NuGetNativeMSBuildTasks.dll" Condition="'$(DesignTimeBuild)' != 'true' AND ('$(NugetMsBuildExtensionLoaded)' == '' OR '$(NugetMsBuildExtensionLoaded)' == 'false')" />
+  <Target Name="fx11_desktop_2015_init_targets_0">
+    <Copy SkipUnchangedFiles="true" SourceFiles="$(NuGet-NativeExtensionPath)\coapp.NuGetNativeMSBuildTasks.dll.orig" DestinationFiles="$(NuGet-NativeExtensionPath)\coapp.NuGetNativeMSBuildTasks.dll" />
+    <PropertyGroup>
+      <NugetMsBuildExtensionLoaded Condition="'$(NugetMsBuildExtensionLoaded)' == '' OR '$(NuGet-OverlayLoaded)' == 'false'">true</NugetMsBuildExtensionLoaded>
+    </PropertyGroup>
+  </Target>
+  <Target Name="fx11_desktop_2015_init_targets_1">
+    <StringContains Text="CallingConventions-cdecl" Library="fx11_desktop_2015" Value="cdecl" Condition="'$(CallingConventions-fx11_desktop_2015)'==''">
+      <Output TaskParameter="Result" PropertyName="CallingConventions-fx11_desktop_2015" />
+    </StringContains>
+    <StringContains Text="CallingConventions-stdcall" Library="fx11_desktop_2015" Value="stdcall" Condition="'$(CallingConventions-fx11_desktop_2015)'==''">
+      <Output TaskParameter="Result" PropertyName="CallingConventions-fx11_desktop_2015" />
+    </StringContains>
+    <StringContains Text="CallingConventions-fastcall" Library="fx11_desktop_2015" Value="fastcall" Condition="'$(CallingConventions-fx11_desktop_2015)'==''">
+      <Output TaskParameter="Result" PropertyName="CallingConventions-fx11_desktop_2015" />
+    </StringContains>
+    <StringContains Text="CallingConventions-thiscall" Library="fx11_desktop_2015" Value="thiscall" Condition="'$(CallingConventions-fx11_desktop_2015)'==''">
+      <Output TaskParameter="Result" PropertyName="CallingConventions-fx11_desktop_2015" />
+    </StringContains>
+    <StringContains Text="CallingConventions-clrcall" Library="fx11_desktop_2015" Value="clrcall" Condition="'$(CallingConventions-fx11_desktop_2015)'==''">
+      <Output TaskParameter="Result" PropertyName="CallingConventions-fx11_desktop_2015" />
+    </StringContains>
+    <StringContains Text="CallingConventions-vectorcall" Library="fx11_desktop_2015" Value="vectorcall" Condition="'$(CallingConventions-fx11_desktop_2015)'==''">
+      <Output TaskParameter="Result" PropertyName="CallingConventions-fx11_desktop_2015" />
+    </StringContains>
+    <StringContains Text="Linkages-dynamic" Library="fx11_desktop_2015" Value="dynamic" Condition="'$(Linkages-fx11_desktop_2015)'==''">
+      <Output TaskParameter="Result" PropertyName="Linkages-fx11_desktop_2015" />
+    </StringContains>
+    <StringContains Text="Linkages-static" Library="fx11_desktop_2015" Value="static" Condition="'$(Linkages-fx11_desktop_2015)'==''">
+      <Output TaskParameter="Result" PropertyName="Linkages-fx11_desktop_2015" />
+    </StringContains>
+    <StringContains Text="Linkages-ltcg" Library="fx11_desktop_2015" Value="ltcg" Condition="'$(Linkages-fx11_desktop_2015)'==''">
+      <Output TaskParameter="Result" PropertyName="Linkages-fx11_desktop_2015" />
+    </StringContains>
+    <StringContains Text="Linkages-sxs" Library="fx11_desktop_2015" Value="sxs" Condition="'$(Linkages-fx11_desktop_2015)'==''">
+      <Output TaskParameter="Result" PropertyName="Linkages-fx11_desktop_2015" />
+    </StringContains>
+  </Target>
+</Project>
