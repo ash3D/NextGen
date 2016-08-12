@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		09.08.2016 (c)Korotkov Andrey
+\date		12.08.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -25,7 +25,7 @@ namespace Math::Splines
 		Scalar args currently passed by const reference.
 		For common types (float, double) pass by value can be more efficient
 		but many of functions are inlined so there should not be performance difference.
-		For more complicated scalar types (complex or user defined high precision types for examle)
+		For more complicated scalar types (complex or user defined high precision types for example)
 		pass by const reference can be more efficient.
 		Similar approach used in STL (functions like min/max always accepts refs regardless of type complexity).
 	*/
