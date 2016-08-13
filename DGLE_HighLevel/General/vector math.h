@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		13.08.2016 (c)Alexey Shaydurov
+\date		14.08.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1569,7 +1569,7 @@ consider using preprocessor instead of templates or overloading each target func
 							typename RightSwizzleDesc::TDimension																								\
 						>::type::value																															\
 					> result(left);																																\
-					return std::move(result) op##= right;																										\
+					return operator op##=<false>(result, right);																								\
 				};
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #			undef OPERATOR_DEFINITION
@@ -1624,7 +1624,7 @@ consider using preprocessor instead of templates or overloading each target func
 						decltype(std::declval<LeftElementType>() op std::declval<RightElementType>()),															\
 						LeftSwizzleDesc::TDimension::value																										\
 					> result(left);																																\
-					return std::move(result) op##= right;																										\
+					return result op##= right;																													\
 				};
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #			undef OPERATOR_DEFINITION
@@ -1671,7 +1671,7 @@ consider using preprocessor instead of templates or overloading each target func
 						decltype(std::declval<LeftElementType>() op std::declval<RightElementType>()),															\
 						RightSwizzleDesc::TDimension::value																										\
 					> result(left);																																\
-					return std::move(result) op##= right;																										\
+					return operator op##=<false>(result, right);																								\
 				};
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #			undef OPERATOR_DEFINITION
