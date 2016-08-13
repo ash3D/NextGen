@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		5.3.2013 (c)Alexey Shaydurov
+\date		14.08.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -275,10 +275,15 @@ tbuffer cb
 	uint4 data[128];
 }
 
+void f(uint i) {}
+void f(uint i, out uint j) {}
+
 [numthreads(512, 1, 1)]
 void CS(uint3 id: SV_DispatchThreadID)
 {
 	uint adr = 0;id.x << 2;
+	f(adr.xxx.zy);
+	buff.Load4(uint(0) + float1x1(0));
 	uint4 val = buff.Load4(0);
 	[unroll]
 	for (uint i = 0; i < 128; i++)
@@ -294,6 +299,11 @@ void CS(uint3 id: SV_DispatchThreadID)
 	float3x2(test);
 	test._m11_m12_m11_m11;
 	float4x2 m={test, test._12_21};
+	int1 x = m;
+	float3 z = (float1x1)0 + (float4)0 + (float1x3)0;
+	transpose((float4)0 + (float1x3)0);
+	float2x2 M = (float4)0;
+	M += z.xxxx;
 	test[id.x];
 	determinant(m);
 }
