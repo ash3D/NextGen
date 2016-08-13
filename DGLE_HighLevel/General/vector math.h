@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		09.08.2016 (c)Alexey Shaydurov
+\date		13.08.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -914,9 +914,9 @@ consider using preprocessor instead of templates or overloading each target func
 		class CSwizzleBase
 		{
 			/*
-						static
-							^
-							|
+					  static
+						 ^
+						 |
 			CSwizzleBase -> CSwizzle
 			*/
 			typedef CSwizzle<ElementType, rows, columns, SwizzleDesc> TSwizzle;
@@ -991,8 +991,8 @@ consider using preprocessor instead of templates or overloading each target func
 				const auto row = idx >> 2 & 3u, column = idx & 3u;
 				/*
 							static	  reinterpret
-								^		   ^
-								|		   |
+							   ^		   ^
+							   |		   |
 				CSwizzleCommon -> CSwizzle -> CData
 				*/
 				typedef CData<ElementType, rows, columns> CData;
@@ -1042,8 +1042,8 @@ consider using preprocessor instead of templates or overloading each target func
 				idx = SwizzleDesc::packedSwizzle >> idx * 4u & (1u << 4u) - 1u;
 				/*
 							static	  reinterpret
-								^		   ^
-								|		   |
+							   ^		   ^
+							   |		   |
 				CSwizzleCommon -> CSwizzle -> CData
 				*/
 				typedef CData<ElementType, 0, vectorDimension> CData;
@@ -1076,8 +1076,8 @@ consider using preprocessor instead of templates or overloading each target func
 			{
 				/*
 							static
-								^
-								|
+							   ^
+							   |
 				CSwizzleCommon -> vector
 				*/
 				return static_cast<const Tvector &>(*this);
