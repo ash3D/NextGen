@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		14.08.2016 (c)Alexey Shaydurov
+\date		17.08.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -119,38 +119,38 @@ consider using preprocessor instead of templates or overloading each target func
 #	define TRIVIAL_CTOR_FORWARD CDataContainerImpl() = default; NONTRIVIAL_CTOR_FORWARD
 #endif
 #	define NONTRIVIAL_CTOR_FORWARD template<typename ...TSrc> CDataContainerImpl(const TSrc &...src): _data(src...) {}
-#	define DATA_CONTAINER_IMPL_SPECIALIZATION(trivialCtor)																									\
-		template<typename ElementType>																														\
-		class CDataContainerImpl<ElementType, ROWS, COLUMNS, trivialCtor>: public std::conditional_t<ROWS == 0, CSwizzle<ElementType, 0, COLUMNS>, CEmpty>	\
-		{																																					\
-		protected:																																			\
-			/*forward ctors/dtor/= to _data*/																												\
-			BOOST_PP_REMOVE_PARENS(BOOST_PP_IIF(trivialCtor, (TRIVIAL_CTOR_FORWARD), (NONTRIVIAL_CTOR_FORWARD)))											\
-			CDataContainerImpl(const CDataContainerImpl &src): _data(src._data)																				\
-			{																																				\
-			}																																				\
-			CDataContainerImpl(CDataContainerImpl &&src): _data(std::move(src._data))																		\
-			{																																				\
-			}																																				\
-			~CDataContainerImpl()																															\
-			{																																				\
-				_data.~CData<ElementType, ROWS, COLUMNS>();																									\
-			}																																				\
-			void operator =(const CDataContainerImpl &right)																								\
-			{																																				\
-				_data = right._data;																														\
-			}																																				\
-			void operator =(CDataContainerImpl &&right)																										\
-			{																																				\
-				_data = std::move(right._data);																												\
-			}																																				\
-		public:																																				\
-			union																																			\
-			{																																				\
-				CData<ElementType, ROWS, COLUMNS> _data;																									\
-				/*gcc does not allow class definition inside anonymous union*/																				\
-				GENERATE_SWIZZLES((SWIZZLE_OBJECT))																											\
-			};																																				\
+#	define DATA_CONTAINER_IMPL_SPECIALIZATION(trivialCtor)																										\
+		template<typename ElementType>																															\
+		class CDataContainerImpl<ElementType, ROWS, COLUMNS, trivialCtor> : public std::conditional_t<ROWS == 0, CSwizzle<ElementType, 0, COLUMNS>, MatrixTag>	\
+		{																																						\
+		protected:																																				\
+			/*forward ctors/dtor/= to _data*/																													\
+			BOOST_PP_REMOVE_PARENS(BOOST_PP_IIF(trivialCtor, (TRIVIAL_CTOR_FORWARD), (NONTRIVIAL_CTOR_FORWARD)))												\
+			CDataContainerImpl(const CDataContainerImpl &src): _data(src._data)																					\
+			{																																					\
+			}																																					\
+			CDataContainerImpl(CDataContainerImpl &&src): _data(std::move(src._data))																			\
+			{																																					\
+			}																																					\
+			~CDataContainerImpl()																																\
+			{																																					\
+				_data.~CData<ElementType, ROWS, COLUMNS>();																										\
+			}																																					\
+			void operator =(const CDataContainerImpl &right)																									\
+			{																																					\
+				_data = right._data;																															\
+			}																																					\
+			void operator =(CDataContainerImpl &&right)																											\
+			{																																					\
+				_data = std::move(right._data);																													\
+			}																																					\
+		public:																																					\
+			union																																				\
+			{																																					\
+				CData<ElementType, ROWS, COLUMNS> _data;																										\
+				/*gcc does not allow class definition inside anonymous union*/																					\
+				GENERATE_SWIZZLES((SWIZZLE_OBJECT))																												\
+			};																																					\
 		};
 	DATA_CONTAINER_IMPL_SPECIALIZATION(0)
 	DATA_CONTAINER_IMPL_SPECIALIZATION(1)
@@ -356,7 +356,45 @@ consider using preprocessor instead of templates or overloading each target func
 
 		namespace mpl = boost::mpl;
 
-		class CEmpty {};
+		enum class TagName
+		{
+			Swizzle,
+			Matrix,
+		};
+
+		template<TagName name>
+		class Tag
+		{
+		protected:
+			Tag() = default;
+			Tag(const Tag &) = default;
+			Tag &operator =(const Tag &) = default;
+			~Tag() = default;
+		};
+
+		typedef Tag<TagName::Swizzle> SwizzleTag;
+		typedef Tag<TagName::Matrix> MatrixTag;
+
+		template<typename Src, typename Tag>
+		class CheckTag
+		{
+			template<template<typename, typename> class F, typename Var, typename Fixed>
+			using Iterate = std::bool_constant<F<Var &, Fixed>::value || F<const Var &, Fixed>::value || F<Var &&, Fixed>::value || F<const Var &&, Fixed>::value>;
+
+			template<typename FixedTag, typename VarSrc>
+			using IterateSrc = Iterate<std::is_convertible, VarSrc, FixedTag>;
+		public:
+			static constexpr bool value = Iterate<IterateSrc, Tag, Src>::value;
+		};
+
+		template<typename Src>
+		static constexpr bool IsSwizzle = CheckTag<Src, SwizzleTag>::value;
+
+		template<typename Src>
+		static constexpr bool IsMatrix = CheckTag<Src, MatrixTag>::value;
+
+		template<typename Src>
+		static constexpr bool IsScalar = !(IsSwizzle<Src> || IsMatrix<Src>);
 
 		template<class CSwizzleVector_>
 		class CSwizzleDesc
@@ -793,7 +831,7 @@ consider using preprocessor instead of templates or overloading each target func
 
 		// generic vector/matrix
 		template<typename ElementType, unsigned int rows, unsigned int columns>
-		class CDataContainer : public std::conditional_t<rows == 0, CSwizzle<ElementType, 0, columns>, CEmpty>
+		class CDataContainer : public std::conditional_t<rows == 0, CSwizzle<ElementType, 0, columns>, MatrixTag>
 		{
 		protected:
 			CData<ElementType, rows, columns> _data;
@@ -911,7 +949,7 @@ consider using preprocessor instead of templates or overloading each target func
 #		include BOOST_PP_ITERATE()
 
 		template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc = CVectorSwizzleDesc<columns>>
-		class CSwizzleBase
+		class CSwizzleBase : public SwizzleTag
 		{
 			/*
 					  static
@@ -1182,31 +1220,18 @@ consider using preprocessor instead of templates or overloading each target func
 				return operator =<false>(right);
 			}
 
-			template<typename RightElementType, unsigned int rightDimension>
+			template<typename RightType>
 #ifdef __GNUC__
-			TOperationResult &operator =(const vector<RightElementType, rightDimension> &right)
-#else
-			TOperationResult &operator =(const vector<RightElementType, rightDimension> &right) &
-#endif
+			inline std::enable_if_t<IsScalar<RightType>, TOperationResult &> operator =(const RightType &scalar);
+#elif defined _MSC_VER && _MSC_VER <= 1900
+			inline std::enable_if_t<IsScalar<RightType>, TOperationResult &> operator =(const RightType &scalar) &
 			{
-				return *this = static_cast<const CSwizzle<RightElementType, 0, rightDimension> &>(right);
+				for (unsigned idx = 0; idx < SwizzleDesc::TDimension::value; idx++)
+					(*this)[idx] = scalar;
+				return *this;
 			}
-
-			template<typename RightElementType, unsigned int rightDimension>
-#ifdef __GNUC__
-			TOperationResult &operator =(const vector<RightElementType, rightDimension> &&right)
 #else
-			TOperationResult &operator =(const vector<RightElementType, rightDimension> &&right) &
-#endif
-			{
-				return *this = static_cast<const CSwizzle<RightElementType, 0, rightDimension> &&>(right);
-			}
-
-			template<typename RightElementType>
-#ifdef __GNUC__
-			inline TOperationResult &operator =(const RightElementType &scalar);
-#else
-			inline TOperationResult &operator =(const RightElementType &scalar) &;
+			inline std::enable_if_t<IsScalar<RightType>, TOperationResult &> operator =(const RightType &scalar) &;
 #endif
 
 #ifdef __GNUC__
@@ -1249,18 +1274,20 @@ consider using preprocessor instead of templates or overloading each target func
 			AssignDirect(vector<RightElementType, RightSwizzleDesc::TDimension::value>(right));
 		}
 
+#if !(defined _MSC_VER && _MSC_VER <= 1900)
 		template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-		template<typename RightElementType>
+		template<typename RightType>
 #ifdef __GNUC__
-		inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(const RightElementType &scalar) -> TOperationResult &
+		inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(const RightType &scalar) -> std::enable_if_t<IsScalar<RightType>, TOperationResult &>
 #else
-		inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(const RightElementType &scalar) & -> TOperationResult &
+		inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(const RightType &scalar) & -> std::enable_if_t<IsScalar<RightType>, TOperationResult &>
 #endif
 		{
 			for (unsigned idx = 0; idx < SwizzleDesc::TDimension::value; idx++)
 				(*this)[idx] = scalar;
 			return *this;
 		}
+#endif
 
 		template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 #ifdef __GNUC__
@@ -1480,59 +1507,12 @@ consider using preprocessor instead of templates or overloading each target func
 				template																																		\
 				<																																				\
 					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,											\
-					typename RightElementType, unsigned int rightDimension																						\
+					typename RightType																															\
 				>																																				\
-				inline typename CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &operator op##=(							\
+				inline std::enable_if_t<IsScalar<RightType>,																									\
+				typename CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &> operator op##=(									\
 				CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,																		\
-				const vector<RightElementType, rightDimension> &right)																							\
-				{																																				\
-					return left op##= static_cast<const CSwizzle<RightElementType, 0, rightDimension> &>(right);												\
-				};
-			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
-#			undef OPERATOR_DEFINITION
-
-			// VS 2013/2015 call 'CSwizzle & op= const CSwizzle &' instead of 'CSwizzle & op= const CSwizzle &&' for variant with static_cast<const CSwizzle &&>
-#if defined _MSC_VER && _MSC_VER <= 1900
-#			define OPERATOR_DEFINITION(op)																														\
-				template																																		\
-				<																																				\
-					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,											\
-					typename RightElementType, unsigned int rightDimension																						\
-				>																																				\
-				inline typename CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &operator op##=(							\
-				CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,																		\
-				const vector<RightElementType, rightDimension> &&right)																							\
-				{																																				\
-					return operator op##=<false>(left, right);																									\
-				};
-			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
-#			undef OPERATOR_DEFINITION
-#else
-#			define OPERATOR_DEFINITION(op)																														\
-				template																																		\
-				<																																				\
-					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,											\
-					typename RightElementType, unsigned int rightDimension																						\
-				>																																				\
-				inline typename CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &operator op##=(							\
-				CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,																		\
-				const vector<RightElementType, rightDimension> &&right)																							\
-				{																																				\
-					return left op##= static_cast<const CSwizzle<RightElementType, 0, rightDimension> &&>(right);												\
-				};
-			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
-#			undef OPERATOR_DEFINITION
-#endif
-
-#			define OPERATOR_DEFINITION(op)																														\
-				template																																		\
-				<																																				\
-					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,											\
-					typename RightElementType																													\
-				>																																				\
-				inline typename CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &operator op##=(							\
-				CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,																		\
-				RightElementType right)																															\
+				RightType right)																																\
 				{																																				\
 					static_assert(LeftSwizzleDesc::isWriteMaskValid, "operator "#op"=: invalid write mask");													\
 					for (typename LeftSwizzleDesc::TDimension::value_type i = 0; i < LeftSwizzleDesc::TDimension::value; i++)									\
@@ -1609,19 +1589,19 @@ consider using preprocessor instead of templates or overloading each target func
 				template																																		\
 				<																																				\
 					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,											\
-					typename RightElementType																													\
+					typename RightType																															\
 				>																																				\
-				inline vector																																	\
+				inline std::enable_if_t<IsScalar<RightType>, vector																								\
 				<																																				\
-					decltype(std::declval<LeftElementType>() op std::declval<RightElementType>()),																\
+					decltype(std::declval<LeftElementType>() op std::declval<RightType>()),																		\
 					LeftSwizzleDesc::TDimension::value																											\
-				> operator op(																																	\
+				>> operator op(																																	\
 				const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,																	\
-				const RightElementType &right)																													\
+				const RightType &right)																															\
 				{																																				\
 					vector																																		\
 					<																																			\
-						decltype(std::declval<LeftElementType>() op std::declval<RightElementType>()),															\
+						decltype(std::declval<LeftElementType>() op std::declval<RightType>()),																	\
 						LeftSwizzleDesc::TDimension::value																										\
 					> result(left);																																\
 					return result op##= right;																													\
@@ -1633,15 +1613,15 @@ consider using preprocessor instead of templates or overloading each target func
 				template																																		\
 				<																																				\
 					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,											\
-					typename RightElementType																													\
+					typename RightType																															\
 				>																																				\
-				inline vector																																	\
+				inline std::enable_if_t<IsScalar<RightType>, vector																								\
 				<																																				\
 					bool,																																		\
 					LeftSwizzleDesc::TDimension::value																											\
-				> operator op(																																	\
+				>> operator op(																																	\
 				const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,																	\
-				const RightElementType &right)																													\
+				const RightType &right)																															\
 				{																																				\
 					constexpr unsigned int dimension = LeftSwizzleDesc::TDimension::value;																		\
 					vector<bool, dimension> result;																												\
@@ -1655,20 +1635,20 @@ consider using preprocessor instead of templates or overloading each target func
 #			define OPERATOR_DEFINITION(op)																														\
 				template																																		\
 				<																																				\
-					typename LeftElementType,																													\
+					typename LeftType,																															\
 					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc										\
 				>																																				\
-				inline vector																																	\
+				inline std::enable_if_t<IsScalar<LeftType>, vector																								\
 				<																																				\
-					decltype(std::declval<LeftElementType>() op std::declval<RightElementType>()),																\
+					decltype(std::declval<LeftType>() op std::declval<RightElementType>()),																		\
 					RightSwizzleDesc::TDimension::value																											\
-				> operator op(																																	\
-				const LeftElementType &left,																													\
+				>> operator op(																																	\
+				const LeftType &left,																															\
 				const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)																\
 				{																																				\
 					vector																																		\
 					<																																			\
-						decltype(std::declval<LeftElementType>() op std::declval<RightElementType>()),															\
+						decltype(std::declval<LeftType>() op std::declval<RightElementType>()),																	\
 						RightSwizzleDesc::TDimension::value																										\
 					> result(left);																																\
 					return operator op##=<false>(result, right);																								\
@@ -1679,15 +1659,15 @@ consider using preprocessor instead of templates or overloading each target func
 #			define OPERATOR_DEFINITION(op)																														\
 				template																																		\
 				<																																				\
-					typename LeftElementType,																													\
+					typename LeftType,																															\
 					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc										\
 				>																																				\
-				inline vector																																	\
+				inline std::enable_if_t<IsScalar<LeftType>, vector																								\
 				<																																				\
 					bool,																																		\
 					RightSwizzleDesc::TDimension::value																											\
-				> operator op(																																	\
-				const LeftElementType &left,																													\
+				>> operator op(																																	\
+				const LeftType &left,																															\
 				const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)																\
 				{																																				\
 					constexpr unsigned int dimension = RightSwizzleDesc::TDimension::value;																		\
@@ -1696,60 +1676,6 @@ consider using preprocessor instead of templates or overloading each target func
 						result[i] = left op right[i];																											\
 					return result;																																\
 				};
-			GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
-#			undef OPERATOR_DEFINITION
-
-#			define OPERATOR_DEFINITION(op)																														\
-				template																																		\
-				<																																				\
-					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,											\
-					typename RightElementType, unsigned int rightDimension																						\
-				>																																				\
-				inline auto operator op(																														\
-				const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,																	\
-				const vector<RightElementType, rightDimension> &right)																							\
-				-> decltype(left op static_cast<const CSwizzle<RightElementType, 0, rightDimension> &>(right))													\
-				{																																				\
-					return left op static_cast<const CSwizzle<RightElementType, 0, rightDimension> &>(right);													\
-				};
-			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
-			GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
-#			undef OPERATOR_DEFINITION
-
-#			define OPERATOR_DEFINITION(op)																														\
-				template																																		\
-				<																																				\
-					typename LeftElementType, unsigned int leftDimension,																						\
-					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc										\
-				>																																				\
-				inline auto operator op(																														\
-				const vector<LeftElementType, leftDimension> &left,																								\
-				const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)																\
-				-> decltype(static_cast<const CSwizzle<LeftElementType, 0, leftDimension> &>(left) op right)													\
-				{																																				\
-					return static_cast<const CSwizzle<LeftElementType, 0, leftDimension> &>(left) op right;														\
-				};
-			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
-			GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
-#			undef OPERATOR_DEFINITION
-
-#			define OPERATOR_DEFINITION(op)																														\
-				template																																		\
-				<																																				\
-					typename LeftElementType, unsigned int leftDimension,																						\
-					typename RightElementType, unsigned int rightDimension																						\
-				>																																				\
-				inline auto operator op(																														\
-				const vector<LeftElementType, leftDimension> &left,																								\
-				const vector<RightElementType, rightDimension> &right) -> decltype(																				\
-				static_cast<const CSwizzle<LeftElementType, 0, leftDimension> &>(left) op																		\
-				static_cast<const CSwizzle<RightElementType, 0, rightDimension> &>(right))																		\
-				{																																				\
-					return																																		\
-						static_cast<const CSwizzle<LeftElementType, 0, leftDimension> &>(left) op																\
-						static_cast<const CSwizzle<RightElementType, 0, rightDimension> &>(right);																\
-				};
-			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
 #			undef OPERATOR_DEFINITION
 #		pragma endregion
@@ -1769,17 +1695,11 @@ consider using preprocessor instead of templates or overloading each target func
 			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
 			vector(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
 
-			template<typename SrcElementType, unsigned int srcDimenstion>
-			vector(const vector<SrcElementType, srcDimenstion> &src);
+			template<typename SrcType, typename = std::enable_if_t<IsScalar<SrcType>>>
+			vector(const SrcType &scalar);
 
-			template<typename SrcElementType>
-			vector(const SrcElementType &scalar);
-
-			template<typename First, typename ...Rest>
+			template<typename First, typename ...Rest, typename = std::enable_if_t<(sizeof...(Rest) > 0) || IsMatrix<First>>>
 			vector(const First &first, const Rest &...rest);
-
-			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
-			vector(const matrix<SrcElementType, srcRows, srcColumns> &src);
 
 			vector(std::initializer_list<CInitListItem<ElementType>> initList);
 
@@ -1832,17 +1752,11 @@ consider using preprocessor instead of templates or overloading each target func
 			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
 			matrix(const matrix<SrcElementType, srcRows, srcColumns> &src);
 
-			template<typename SrcElementType>
-			matrix(const SrcElementType &scalar);
+			template<typename SrcType, typename = std::enable_if_t<IsScalar<SrcType>>>
+			matrix(const SrcType &scalar);
 
-			template<typename First, typename ...Rest>
+			template<typename First, typename ...Rest, typename = std::enable_if_t<(sizeof...(Rest) > 0) || IsSwizzle<First>>>
 			matrix(const First &first, const Rest &...rest);
-
-			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-			matrix(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
-
-			template<typename SrcElementType, unsigned int srcDimenstion>
-			matrix(const vector<SrcElementType, srcDimenstion> &src);
 
 			matrix(std::initializer_list<CInitListItem<ElementType>> initList);
 
@@ -1865,11 +1779,18 @@ consider using preprocessor instead of templates or overloading each target func
 			matrix &operator =(const matrix<RightElementType, rightRows, rightColumns> &right) &;
 #endif
 
-			template<typename SrcElementType>
+			template<typename SrcType>
 #ifdef __GNUC__
-			matrix &operator =(const SrcElementType &scalar);
+			std::enable_if_t<IsScalar<SrcType>, matrix &> operator =(const SrcType &scalar);
+#elif defined _MSC_VER && _MSC_VER <= 1900
+			std::enable_if_t<IsScalar<SrcType>, matrix &> operator =(const SrcType &scalar) &
+			{
+				for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)
+					operator [](rowIdx) = scalar;
+				return *this;
+			}
 #else
-			matrix &operator =(const SrcElementType &scalar) &;
+			std::enable_if_t<IsScalar<SrcType>, matrix &> operator =(const SrcType &scalar) &;
 #endif
 
 #ifdef __GNUC__
@@ -1896,11 +1817,24 @@ consider using preprocessor instead of templates or overloading each target func
 			GENERATE_OPERATORS(OPERATOR_DECLARATION, ARITHMETIC_OPS)
 #			undef OPERATOR_DECLARATION
 
-#			define OPERATOR_DECLARATION(op)						\
-				template<typename RightElementType>				\
-				matrix &operator op##=(RightElementType right);
+#if defined _MSC_VER && _MSC_VER <= 1900
+#			define OPERATOR_DEFINITION(op)																\
+				template<typename RightType>															\
+				inline std::enable_if_t<IsScalar<RightType>, matrix &> operator op##=(RightType right)	\
+				{																						\
+					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)									\
+						operator [](rowIdx) op##= right;												\
+					return *this;																		\
+				}
+			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#			undef OPERATOR_DEFINITION
+#else
+#			define OPERATOR_DECLARATION(op)																\
+				template<typename RightType>															\
+				std::enable_if_t<IsScalar<RightType>, matrix &> operator op##=(RightType right);
 			GENERATE_OPERATORS(OPERATOR_DECLARATION, ARITHMETIC_OPS)
 #			undef OPERATOR_DECLARATION
+#endif
 
 			const TRow &operator [](unsigned int idx) const noexcept;
 
@@ -1965,24 +1899,14 @@ consider using preprocessor instead of templates or overloading each target func
 				DataContainer(CData<ElementType, 0, dimension>::HeterogeneousInitTag<IdxSeq>(), src) {}
 
 			template<typename ElementType, unsigned int dimension>
-			template<typename SrcElementType, unsigned int srcDimenstion>
-			inline vector<ElementType, dimension>::vector(const vector<SrcElementType, srcDimenstion> &src) :
-				vector(static_cast<const CSwizzle<SrcElementType, 0, srcDimenstion> &>(src)) {}
-
-			template<typename ElementType, unsigned int dimension>
-			template<typename SrcElementType>
-			inline vector<ElementType, dimension>::vector(const SrcElementType &scalar) :
+			template<typename SrcType, typename = std::enable_if_t<IsScalar<SrcType>>>
+			inline vector<ElementType, dimension>::vector(const SrcType &scalar) :
 				DataContainer(IdxSeq(), scalar) {}
 
 			template<typename ElementType, unsigned int dimension>
-			template<typename First, typename ...Rest>
+			template<typename First, typename ...Rest, typename = std::enable_if_t<(sizeof...(Rest) > 0) || IsMatrix<First>>>
 			inline vector<ElementType, dimension>::vector(const First &first, const Rest &...rest) :
 				DataContainer(CData<ElementType, 0, dimension>::HeterogeneousInitTag<IdxSeq>(), first, rest...) {}
-
-			template<typename ElementType, unsigned int dimension>
-			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
-			inline vector<ElementType, dimension>::vector(const matrix<SrcElementType, srcRows, srcColumns> &src) :
-				DataContainer(CData<ElementType, 0, dimension>::HeterogeneousInitTag<IdxSeq>(), src) {}
 
 			//template<typename ElementType, unsigned int dimension>
 			//template<typename TIterator>
@@ -2039,24 +1963,14 @@ consider using preprocessor instead of templates or overloading each target func
 				DataContainer(std::make_index_sequence<rows>(), src) {}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			template<typename SrcElementType>
-			inline matrix<ElementType, rows, columns>::matrix(const SrcElementType &scalar) :
+			template<typename SrcType, typename = std::enable_if_t<IsScalar<SrcType>>>
+			inline matrix<ElementType, rows, columns>::matrix(const SrcType &scalar) :
 				DataContainer(std::make_index_sequence<rows>(), scalar) {}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			template<typename First, typename ...Rest>
+			template<typename First, typename ...Rest, typename = std::enable_if_t<(sizeof...(Rest) > 0) || IsSwizzle<First>>>
 			inline matrix<ElementType, rows, columns>::matrix(const First &first, const Rest &...rest) :
 				DataContainer(CData<ElementType, rows, columns>::HeterogeneousInitTag<std::make_index_sequence<rows>>(), first, rest...) {}
-
-			template<typename ElementType, unsigned int rows, unsigned int columns>
-			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-			inline matrix<ElementType, rows, columns>::matrix(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) :
-				DataContainer(CData<ElementType, rows, columns>::HeterogeneousInitTag<std::make_index_sequence<rows>>(), src) {}
-
-			template<typename ElementType, unsigned int rows, unsigned int columns>
-			template<typename SrcElementType, unsigned int srcDimenstion>
-			inline matrix<ElementType, rows, columns>::matrix(const vector<SrcElementType, srcDimenstion> &src) :
-				DataContainer(CData<ElementType, rows, columns>::HeterogeneousInitTag<std::make_index_sequence<rows>>(), src) {}
 
 			//template<typename ElementType, unsigned int rows, unsigned int columns>
 			//template<typename TIterator>
@@ -2107,18 +2021,20 @@ consider using preprocessor instead of templates or overloading each target func
 				return *this;
 			}
 
+#if !(defined _MSC_VER && _MSC_VER <= 1900)
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			template<typename SrcElementType>
+			template<typename SrcType>
 #ifdef __GNUC__
-			inline auto matrix<ElementType, rows, columns>::operator =(const SrcElementType &scalar) -> matrix &
+			inline auto matrix<ElementType, rows, columns>::operator =(const SrcType &scalar) -> std::enable_if_t<IsScalar<SrcType>, matrix &>
 #else
-			inline auto matrix<ElementType, rows, columns>::operator =(const SrcElementType &scalar) & -> matrix &
+			inline auto matrix<ElementType, rows, columns>::operator =(const SrcType &scalar) & -> std::enable_if_t<IsScalar<SrcType>, matrix &>
 #endif
 			{
 				for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)
 					operator [](rowIdx) = scalar;
 				return *this;
 			}
+#endif
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			inline auto matrix<ElementType, rows, columns>::operator -() const -> matrix
@@ -2143,17 +2059,19 @@ consider using preprocessor instead of templates or overloading each target func
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #			undef OPERATOR_DEFINITION
 
-#			define OPERATOR_DEFINITION(op)																			\
-				template<typename ElementType, unsigned int rows, unsigned int columns>								\
-				template<typename RightElementType>																	\
-				inline auto matrix<ElementType, rows, columns>::operator op##=(RightElementType right) -> matrix &	\
-				{																									\
-					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)												\
-						operator [](rowIdx) op##= right;															\
-					return *this;																					\
+#if !(defined _MSC_VER && _MSC_VER <= 1900)
+#			define OPERATOR_DEFINITION(op)																											\
+				template<typename ElementType, unsigned int rows, unsigned int columns>																\
+				template<typename RightType>																										\
+				inline auto matrix<ElementType, rows, columns>::operator op##=(RightType right) -> std::enable_if_t<IsScalar<RightType>, matrix &>	\
+				{																																	\
+					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)																				\
+						operator [](rowIdx) op##= right;																							\
+					return *this;																													\
 				}
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #			undef OPERATOR_DEFINITION
+#endif
 
 #			define OPERATOR_DEFINITION(op)																						\
 				template																										\
@@ -2208,27 +2126,27 @@ consider using preprocessor instead of templates or overloading each target func
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
 #			undef OPERATOR_DEFINITION
 
-#			define OPERATOR_DEFINITION(op)																\
-				template																				\
-				<																						\
-					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,			\
-					typename RightElementType															\
-				>																						\
-				inline matrix																			\
-				<																						\
-					decltype(std::declval<LeftElementType>() op std::declval<RightElementType>()),		\
-					leftRows, leftColumns																\
-				> operator op(																			\
-				const matrix<LeftElementType, leftRows, leftColumns> &left,								\
-				const RightElementType &right)															\
-				{																						\
-					matrix																				\
-					<																					\
-						decltype(std::declval<LeftElementType>() op std::declval<RightElementType>()),	\
-						leftRows, leftColumns															\
-					>																					\
-					result(left);																		\
-					return result op##= right;															\
+#			define OPERATOR_DEFINITION(op)														\
+				template																		\
+				<																				\
+					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,	\
+					typename RightType															\
+				>																				\
+				inline std::enable_if_t<IsScalar<RightType>, matrix								\
+				<																				\
+					decltype(std::declval<LeftElementType>() op std::declval<RightType>()),		\
+					leftRows, leftColumns														\
+				>> operator op(																	\
+				const matrix<LeftElementType, leftRows, leftColumns> &left,						\
+				const RightType &right)															\
+				{																				\
+					matrix																		\
+					<																			\
+						decltype(std::declval<LeftElementType>() op std::declval<RightType>()),	\
+						leftRows, leftColumns													\
+					>																			\
+					result(left);																\
+					return result op##= right;													\
 				}
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #			undef OPERATOR_DEFINITION
@@ -2237,15 +2155,15 @@ consider using preprocessor instead of templates or overloading each target func
 				template																		\
 				<																				\
 					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,	\
-					typename RightElementType													\
+					typename RightType															\
 				>																				\
-				inline matrix																	\
+				inline std::enable_if_t<IsScalar<RightType>, matrix								\
 				<																				\
 					bool,																		\
 					leftRows, leftColumns														\
-				> operator op(																	\
+				>> operator op(																	\
 				const matrix<LeftElementType, leftRows, leftColumns> &left,						\
-				const RightElementType &right)													\
+				const RightType &right)															\
 				{																				\
 					matrix<bool, leftRows, leftColumns> result;									\
 					for (unsigned i = 0; i < leftRows; i++)										\
@@ -2255,27 +2173,27 @@ consider using preprocessor instead of templates or overloading each target func
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
 #			undef OPERATOR_DEFINITION
 
-#			define OPERATOR_DEFINITION(op)																\
-				template																				\
-				<																						\
-					typename LeftElementType,															\
-					typename RightElementType, unsigned int rightRows, unsigned int rightColumns		\
-				>																						\
-				inline matrix																			\
-				<																						\
-					decltype(std::declval<LeftElementType>() op std::declval<RightElementType>()),		\
-					rightRows, rightColumns																\
-				> operator op(																			\
-				const LeftElementType &left,															\
-				const matrix<RightElementType, rightRows, rightColumns> &right)							\
-				{																						\
-					matrix																				\
-					<																					\
-						decltype(std::declval<LeftElementType>() op std::declval<RightElementType>()),	\
-						rightRows, rightColumns															\
-					>																					\
-					result(left);																		\
-					return result op##= right;															\
+#			define OPERATOR_DEFINITION(op)															\
+				template																			\
+				<																					\
+					typename LeftType,																\
+					typename RightElementType, unsigned int rightRows, unsigned int rightColumns	\
+				>																					\
+				inline std::enable_if_t<IsScalar<LeftType>, matrix									\
+				<																					\
+					decltype(std::declval<LeftType>() op std::declval<RightElementType>()),			\
+					rightRows, rightColumns															\
+				>> operator op(																		\
+				const LeftType &left,																\
+				const matrix<RightElementType, rightRows, rightColumns> &right)						\
+				{																					\
+					matrix																			\
+					<																				\
+						decltype(std::declval<LeftType>() op std::declval<RightElementType>()),		\
+						rightRows, rightColumns														\
+					>																				\
+					result(left);																	\
+					return result op##= right;														\
 				}
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #			undef OPERATOR_DEFINITION
@@ -2283,15 +2201,15 @@ consider using preprocessor instead of templates or overloading each target func
 #			define OPERATOR_DEFINITION(op)															\
 				template																			\
 				<																					\
-					typename LeftElementType,														\
+					typename LeftType,																\
 					typename RightElementType, unsigned int rightRows, unsigned int rightColumns	\
 				>																					\
-				inline matrix																		\
+				inline std::enable_if_t<IsScalar<LeftType>, matrix									\
 				<																					\
 					bool,																			\
 					rightRows, rightColumns															\
-				> operator op(																		\
-				const LeftElementType &left,														\
+				>> operator op(																		\
+				const LeftType &left,																\
 				const matrix<RightElementType, rightRows, rightColumns> &right)						\
 				{																					\
 					matrix<bool, rightRows, rightColumns> result;									\
@@ -2315,225 +2233,137 @@ consider using preprocessor instead of templates or overloading each target func
 
 #		pragma region min/max functions
 			// std::min/max requires explicit template param if used for different types => provide scalar version
-#			define FUNCTION_DEFINITION(f)																			\
-				template<typename LeftElementType, typename RightElementType>										\
-				inline auto f(const LeftElementType &left, const RightElementType &right) -> decltype(left - right)	\
-				{																									\
-					return std::f<decltype(left - right)>(left, right);												\
+#			define FUNCTION_DEFINITION(f)																					\
+				template<typename LeftElementType, typename RightElementType>												\
+				inline auto f(const LeftElementType &left, const RightElementType &right) -> decltype(left - right)			\
+				{																											\
+					return std::f<decltype(left - right)>(left, right);														\
 				};
 			FUNCTION_DEFINITION(min)
 			FUNCTION_DEFINITION(max)
 #			undef FUNCTION_DEFINITION
 
-#			define FUNCTION_DEFINITION(f)																														\
-				template																																		\
-				<																																				\
-					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,											\
-					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc										\
-				>																																				\
-				inline auto f(																																	\
-				const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,																	\
-				const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)																\
-				-> decltype(left - right)																														\
-				{																																				\
-					typedef decltype(left - right) TResult;																										\
-					TResult result;																																\
-					for (unsigned i = 0; i < TResult::dimension; i++)																							\
-						result[i] = std::f<typename TResult::ElementType>(left[i], right[i]);																	\
-					return result;																																\
+#			define FUNCTION_DEFINITION(f)																					\
+				template																									\
+				<																											\
+					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,		\
+					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc	\
+				>																											\
+				inline auto f(																								\
+				const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,								\
+				const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)							\
+				-> decltype(left - right)																					\
+				{																											\
+					typedef decltype(left - right) TResult;																	\
+					TResult result;																							\
+					for (unsigned i = 0; i < TResult::dimension; i++)														\
+						result[i] = std::f<typename TResult::ElementType>(left[i], right[i]);								\
+					return result;																							\
 				};
 			FUNCTION_DEFINITION(min)
 			FUNCTION_DEFINITION(max)
 #			undef FUNCTION_DEFINITION
 
-#			define FUNCTION_DEFINITION(f)																														\
-				template																																		\
-				<																																				\
-					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,											\
-					typename RightElementType																													\
-				>																																				\
-				inline auto f(																																	\
-				const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,																	\
-				const RightElementType &right)																													\
-				-> decltype(left - right)																														\
-				{																																				\
-					typedef decltype(left - right) TResult;																										\
-					TResult result;																																\
-					for (unsigned i = 0; i < TResult::dimension; i++)																							\
-						result[i] = std::f<typename TResult::ElementType>(left[i], right);																		\
-					return result;																																\
+#			define FUNCTION_DEFINITION(f)																					\
+				template																									\
+				<																											\
+					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,		\
+					typename RightType																						\
+				>																											\
+				inline auto f(																								\
+				const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,								\
+				const RightType &right)																						\
+				-> std::enable_if_t<IsScalar<RightType>, decltype(left - right)>											\
+				{																											\
+					typedef decltype(left - right) TResult;																	\
+					TResult result;																							\
+					for (unsigned i = 0; i < TResult::dimension; i++)														\
+						result[i] = std::f<typename TResult::ElementType>(left[i], right);									\
+					return result;																							\
 				};
 			FUNCTION_DEFINITION(min)
 			FUNCTION_DEFINITION(max)
 #			undef FUNCTION_DEFINITION
 
-#			define FUNCTION_DEFINITION(f)																														\
-				template																																		\
-				<																																				\
-					typename LeftElementType,																													\
-					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc										\
-				>																																				\
-				inline auto f(																																	\
-				const LeftElementType &left,																													\
-				const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)																\
-				-> decltype(left - right)																														\
-				{																																				\
-					typedef decltype(left - right) TResult;																										\
-					TResult result;																																\
-					for (unsigned i = 0; i < TResult::dimension; i++)																							\
-						result[i] = std::f<typename TResult::ElementType>(left, right[i]);																		\
-					return result;																																\
+#			define FUNCTION_DEFINITION(f)																					\
+				template																									\
+				<																											\
+					typename Leftype,																						\
+					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc	\
+				>																											\
+				inline auto f(																								\
+				const Leftype &left,																						\
+				const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)							\
+				-> std::enable_if_t<IsScalar<Leftype>, decltype(left - right)>												\
+				{																											\
+					typedef decltype(left - right) TResult;																	\
+					TResult result;																							\
+					for (unsigned i = 0; i < TResult::dimension; i++)														\
+						result[i] = std::f<typename TResult::ElementType>(left, right[i]);									\
+					return result;																							\
 				};
 			FUNCTION_DEFINITION(min)
 			FUNCTION_DEFINITION(max)
 #			undef FUNCTION_DEFINITION
 
-#			define FUNCTION_DEFINITION(f)																														\
-				template																																		\
-				<																																				\
-					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,											\
-					typename RightElementType, unsigned int rightDimension																						\
-				>																																				\
-				inline auto f(																																	\
-				const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,																	\
-				const vector<RightElementType, rightDimension> &right)																							\
-				-> decltype(VectorMath::f(left, static_cast<const CSwizzle<RightElementType, 0, rightDimension> &>(right)))										\
-				{																																				\
-					return VectorMath::f(left, static_cast<const CSwizzle<RightElementType, 0, rightDimension> &>(right));										\
-				};
-			FUNCTION_DEFINITION(min)
-			FUNCTION_DEFINITION(max)
-#			undef FUNCTION_DEFINITION
-
-#			define FUNCTION_DEFINITION(f)																														\
-				template																																		\
-				<																																				\
-					typename LeftElementType, unsigned int leftDimension,																						\
-					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc										\
-				>																																				\
-				inline auto f(																																	\
-				const vector<LeftElementType, leftDimension> &left,																								\
-				const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)																\
-				-> decltype(VectorMath::f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension> &>(left), right))										\
-				{																																				\
-					return VectorMath::f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension> &>(left), right);										\
-				};
-			FUNCTION_DEFINITION(min)
-			FUNCTION_DEFINITION(max)
-#			undef FUNCTION_DEFINITION
-
-#			define FUNCTION_DEFINITION(f)																														\
-				template																																		\
-				<																																				\
-					typename LeftElementType, unsigned int leftDimension,																						\
-					typename RightElementType, unsigned int rightDimension																						\
-				>																																				\
-				inline auto f(																																	\
-				const vector<LeftElementType, leftDimension> &left,																								\
-				const vector<RightElementType, rightDimension> &right) -> decltype(VectorMath::f(																\
-				static_cast<const CSwizzle<LeftElementType, 0, leftDimension> &>(left),																			\
-				static_cast<const CSwizzle<RightElementType, 0, rightDimension> &>(right)))																		\
-				{																																				\
-					return VectorMath::f(																														\
-						static_cast<const CSwizzle<LeftElementType, 0, leftDimension> &>(left),																	\
-						static_cast<const CSwizzle<RightElementType, 0, rightDimension> &>(right));																\
-				};
-			FUNCTION_DEFINITION(min)
-			FUNCTION_DEFINITION(max)
-#			undef FUNCTION_DEFINITION
-
-#			define FUNCTION_DEFINITION(f)																														\
-				template																																		\
-				<																																				\
-					typename LeftElementType, unsigned int leftDimension,																						\
-					typename RightElementType																													\
-				>																																				\
-				inline auto f(																																	\
-				const vector<LeftElementType, leftDimension> &left,																								\
-				const RightElementType &right)																													\
-				-> decltype(VectorMath::f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension> &>(left), right))										\
-				{																																				\
-					return VectorMath::f(static_cast<const CSwizzle<LeftElementType, 0, leftDimension> &>(left), right);										\
-				};
-			FUNCTION_DEFINITION(min)
-			FUNCTION_DEFINITION(max)
-#			undef FUNCTION_DEFINITION
-
-#			define FUNCTION_DEFINITION(f)																														\
-				template																																		\
-				<																																				\
-					typename LeftElementType,																													\
-					typename RightElementType, unsigned int rightDimension																						\
-				>																																				\
-				inline auto f(																																	\
-				const LeftElementType &left,																													\
-				const vector<RightElementType, rightDimension> &right)																							\
-				-> decltype(VectorMath::f(left, static_cast<const CSwizzle<RightElementType, 0, rightDimension> &>(right)))										\
-				{																																				\
-					return VectorMath::f(left, static_cast<const CSwizzle<RightElementType, 0, rightDimension> &>(right));										\
-				};
-			FUNCTION_DEFINITION(min)
-			FUNCTION_DEFINITION(max)
-#			undef FUNCTION_DEFINITION
-
-#			define FUNCTION_DEFINITION(f)															\
-				template																			\
-				<																					\
-					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,		\
-					typename RightElementType, unsigned int rightRows, unsigned int rightColumns	\
-				>																					\
-				auto f(																				\
-				const matrix<LeftElementType, leftRows, leftColumns> &left,							\
-				const matrix<RightElementType, rightRows, rightColumns> &right)						\
-				-> decltype(left - right)															\
-				{																					\
-					typedef decltype(left - right) TResult;											\
-					TResult result;																	\
-					for (unsigned i = 0; i < TResult::rows; i++)									\
-						result[i] = VectorMath::f(left[i], right[i]);								\
-					return result;																	\
+#			define FUNCTION_DEFINITION(f)																					\
+				template																									\
+				<																											\
+					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,								\
+					typename RightElementType, unsigned int rightRows, unsigned int rightColumns							\
+				>																											\
+				auto f(																										\
+				const matrix<LeftElementType, leftRows, leftColumns> &left,													\
+				const matrix<RightElementType, rightRows, rightColumns> &right)												\
+				-> decltype(left - right)																					\
+				{																											\
+					typedef decltype(left - right) TResult;																	\
+					TResult result;																							\
+					for (unsigned i = 0; i < TResult::rows; i++)															\
+						result[i] = VectorMath::f(left[i], right[i]);														\
+					return result;																							\
 				}
 			FUNCTION_DEFINITION(min)
 			FUNCTION_DEFINITION(max)
 #			undef FUNCTION_DEFINITION
 
-#			define FUNCTION_DEFINITION(f)															\
-				template																			\
-				<																					\
-					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,		\
-					typename RightElementType														\
-				>																					\
-				auto f(																				\
-				const matrix<LeftElementType, leftRows, leftColumns> &left,							\
-				const RightElementType &right)														\
-				-> decltype(left - right)															\
-				{																					\
-					typedef decltype(left - right) TResult;											\
-					TResult result;																	\
-					for (unsigned i = 0; i < TResult::rows; i++)									\
-						result[i] = VectorMath::f(left[i], right);									\
-					return result;																	\
+#			define FUNCTION_DEFINITION(f)																					\
+				template																									\
+				<																											\
+					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,								\
+					typename RightType																						\
+				>																											\
+				auto f(																										\
+				const matrix<LeftElementType, leftRows, leftColumns> &left,													\
+				const RightType &right)																						\
+				-> std::enable_if_t<IsScalar<RightType>, decltype(left - right)>											\
+				{																											\
+					typedef decltype(left - right) TResult;																	\
+					TResult result;																							\
+					for (unsigned i = 0; i < TResult::rows; i++)															\
+						result[i] = VectorMath::f(left[i], right);															\
+					return result;																							\
 				}
 			FUNCTION_DEFINITION(min)
 			FUNCTION_DEFINITION(max)
 #			undef FUNCTION_DEFINITION
 
-#			define FUNCTION_DEFINITION(f)															\
-				template																			\
-				<																					\
-					typename LeftElementType,														\
-					typename RightElementType, unsigned int rightRows, unsigned int rightColumns	\
-				>																					\
-				auto f(																				\
-				const LeftElementType &left,														\
-				const matrix<RightElementType, rightRows, rightColumns> &right)						\
-				-> decltype(left - right)															\
-				{																					\
-					typedef decltype(left - right) TResult;											\
-					TResult result;																	\
-					for (unsigned i = 0; i < TResult::rows; i++)									\
-						result[i] = VectorMath::f(left, right[i]);									\
-					return result;																	\
+#			define FUNCTION_DEFINITION(f)																					\
+				template																									\
+				<																											\
+					typename Leftype,																						\
+					typename RightElementType, unsigned int rightRows, unsigned int rightColumns							\
+				>																											\
+				auto f(																										\
+				const Leftype &left,																						\
+				const matrix<RightElementType, rightRows, rightColumns> &right)												\
+				-> std::enable_if_t<IsScalar<Leftype>, decltype(left - right)>												\
+				{																											\
+					typedef decltype(left - right) TResult;																	\
+					TResult result;																							\
+					for (unsigned i = 0; i < TResult::rows; i++)															\
+						result[i] = VectorMath::f(left, right[i]);															\
+					return result;																							\
 				}
 			FUNCTION_DEFINITION(min)
 			FUNCTION_DEFINITION(max)
@@ -2559,11 +2389,11 @@ consider using preprocessor instead of templates or overloading each target func
 #			undef FUNCTION_DEFINITION
 
 #			define FUNCTION_DEFINITION1(f) FUNCTION_DEFINITION2(f, f)
-#			define FUNCTION_DEFINITION2(f1, f2)																								\
-				template<typename ElementType, unsigned int rows, unsigned int columns>														\
-				bool f1(const matrix<ElementType, rows, columns> &src)																		\
-				{																															\
-					return std::f2##_of(src._data._rows, src._data._rows + rows, f1<ElementType, 0, columns, CVectorSwizzleDesc<columns>>);	\
+#			define FUNCTION_DEFINITION2(f1, f2)																									\
+				template<typename ElementType, unsigned int rows, unsigned int columns>															\
+				bool f1(const matrix<ElementType, rows, columns> &src)																			\
+				{																																\
+					return std::f2##_of(src._data._rows, src._data._rows + rows, f1<ElementType, 0, columns, CVectorSwizzleDesc<columns>>);		\
 				};
 			FUNCTION_DEFINITION1(all)
 			FUNCTION_DEFINITION1(any)

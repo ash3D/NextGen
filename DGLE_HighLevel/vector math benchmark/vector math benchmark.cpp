@@ -24,7 +24,7 @@ constexpr auto iters = 8ull * 1024 * 1024 * 1024;
 int main()
 {
 #pragma region(test)
-	VectorMath::HLSL::int4 vec4;
+	VectorMath::HLSL::int4 vec4(float2x2{});
 	VectorMath::GLSL::vec3 vec3(vec4);
 	vec3.apply(floor);
 	min(vec4, 0);
