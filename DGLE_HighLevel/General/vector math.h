@@ -912,7 +912,7 @@ consider using preprocessor instead of templates or overloading each target func
 			}
 
 			template<typename ItemElementType, unsigned int itemRows, unsigned int itemColumns, class ItemSwizzleDesc>
-			CInitListItem(const CSwizzle<ItemElementType, itemRows, itemColumns, ItemSwizzleDesc> &item) noexcept:
+			CInitListItem(const CSwizzle<ItemElementType, itemRows, itemColumns, ItemSwizzleDesc> &item) :
 			_getItemElement(_GetItemElement<ItemSwizzleDesc::TDimension::value>),
 				_item(new vector<ElementType, ItemSwizzleDesc::TDimension::value>(item), CDeleter(_Delete<ItemSwizzleDesc::TDimension::value>)),
 				_itemSize(ItemSwizzleDesc::TDimension::value)
@@ -920,7 +920,7 @@ consider using preprocessor instead of templates or overloading each target func
 			}
 
 			template<typename ItemElementType, unsigned int itemRows, unsigned int itemColumns>
-			CInitListItem(const matrix<ItemElementType, itemRows, itemColumns> &item) noexcept:
+			CInitListItem(const matrix<ItemElementType, itemRows, itemColumns> &item) :
 			_getItemElement(_GetItemElement<itemRows, itemColumns>),
 				_item(new matrix<ElementType, itemRows, itemColumns>(item), CDeleter(_Delete<itemRows, itemColumns>)),
 				_itemSize(itemRows * itemColumns)
