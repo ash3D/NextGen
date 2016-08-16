@@ -847,7 +847,7 @@ consider using preprocessor instead of templates or overloading each target func
 			CDataContainer &operator =(CDataContainer &&) = default;
 		};
 
-#			pragma region Initializer list
+#		pragma region Initializer list
 		template<typename ElementType>
 		class CInitListItem final
 		{
