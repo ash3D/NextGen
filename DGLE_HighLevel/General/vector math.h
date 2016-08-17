@@ -713,7 +713,7 @@ consider using preprocessor instead of templates or overloading each target func
 		template<typename ElementType, unsigned int rows, unsigned int columns>
 		template<size_t ...row, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
 		inline CData<ElementType, rows, columns>::CData(std::index_sequence<row...>, const matrix<SrcElementType, srcRows, srcColumns> &src) :
-			_rows{ vector<ElementType, columns>(HeterogeneousInitTag<std::make_index_sequence<columns>, false>(), src[row])... }
+			_rows{ vector<ElementType, columns>(HeterogeneousInitTag<std::make_index_sequence<columns>, false>(), static_cast<const CSwizzle<SrcElementType, 0, srcColumns> &>(src[row]))... }
 		{
 			static_assert(rows <= srcRows, "\"copy\" ctor: too few rows in src");
 			static_assert(columns <= srcColumns, "\"copy\" ctor: too few columns in src");
@@ -727,7 +727,7 @@ consider using preprocessor instead of templates or overloading each target func
 		template<typename ElementType, unsigned int rows, unsigned int columns>
 		template<size_t ...row, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
 		inline CData<ElementType, rows, columns>::CData(std::index_sequence<row...>, const SrcElementType (&src)[srcRows][srcColumns]) :
-			_rows{ vector<ElementType, columns>(HeterogeneousInitTag<std::make_index_sequence<columns>, false>(), src[row])... }
+			_rows{ vector<ElementType, columns>(HeterogeneousInitTag<std::make_index_sequence<columns>, false>(), static_cast<const CSwizzle<SrcElementType, 0, srcColumns> &>(src[row]))... }
 		{
 			static_assert(rows <= srcRows, "array ctor: too few rows in src");
 			static_assert(columns <= srcColumns, "array ctor: too few columns in src");
