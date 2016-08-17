@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.08.2016 (c)Alexey Shaydurov
+\date		18.08.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -722,7 +722,7 @@ consider using preprocessor instead of templates or overloading each target func
 		template<typename ElementType, unsigned int rows, unsigned int columns>
 		template<size_t ...row, typename SrcElementType>
 		inline CData<ElementType, rows, columns>::CData(std::index_sequence<row...>, const SrcElementType &scalar) :
-			_rows{ (row, ElementType(scalar))... } {}
+			_rows{ (row, static_cast<const ElementType &>(scalar))... } {}
 
 		template<typename ElementType, unsigned int rows, unsigned int columns>
 		template<size_t ...row, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
@@ -788,7 +788,7 @@ consider using preprocessor instead of templates or overloading each target func
 		template<typename ElementType, unsigned int dimension>
 		template<size_t ...idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
 		inline CData<ElementType, 0, dimension>::CData(HeterogeneousInitTag<std::index_sequence<idx...>, false>, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) :
-			_data{ ElementType(src[idx])... } {}
+			_data{ static_cast<const ElementType &>(src[idx])... } {}
 
 		template<typename ElementType, unsigned int dimension>
 		template<size_t ...idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
@@ -801,12 +801,12 @@ consider using preprocessor instead of templates or overloading each target func
 		template<typename ElementType, unsigned int dimension>
 		template<size_t ...idx, typename SrcElementType>
 		inline CData<ElementType, 0, dimension>::CData(std::index_sequence<idx...>, const SrcElementType &scalar) :
-			_data{ (idx, ElementType(scalar))... } {}
+			_data{ (idx, static_cast<const ElementType &>(scalar))... } {}
 
 		template<typename ElementType, unsigned int dimension>
 		template<size_t ...idx, typename SrcElementType, unsigned int srcDimension>
 		inline CData<ElementType, 0, dimension>::CData(HeterogeneousInitTag<std::index_sequence<idx...>, false>, const SrcElementType (&src)[srcDimension]) :
-			_data{ ElementType(src[idx])... } {}
+			_data{ static_cast<const ElementType &>(src[idx])... } {}
 
 		template<typename ElementType, unsigned int dimension>
 		template<size_t ...idx, typename SrcElementType, unsigned int srcDimension>
@@ -819,7 +819,7 @@ consider using preprocessor instead of templates or overloading each target func
 		template<typename ElementType, unsigned int dimension>
 		template<size_t ...idx, unsigned offset, typename First, typename ...Rest>
 		inline CData<ElementType, 0, dimension>::CData(HeterogeneousInitTag<std::index_sequence<idx...>, false, offset>, const First &first, const Rest &...rest) :
-			_data{ ElementType(GetElement<idx + offset>(first, rest...))... } {}
+			_data{ static_cast<const ElementType &>(GetElement<idx + offset>(first, rest...))... } {}
 
 		template<typename ElementType, unsigned int dimension>
 		template<size_t ...idx, typename First, typename ...Rest>
