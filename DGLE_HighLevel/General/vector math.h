@@ -1720,6 +1720,9 @@ consider using preprocessor instead of templates or overloading each target func
 
 			ElementType &operator [](unsigned int idx) noexcept;
 		private:
+			template<typename ElementType, unsigned int rows, unsigned int columns>
+			friend class CData;
+
 			// workaround for bug in VS 2015 Update 2
 			typedef std::make_index_sequence<dimension> IdxSeq;
 
