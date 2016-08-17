@@ -24,7 +24,7 @@ constexpr auto iters = 8ull * 1024 * 1024 * 1024;
 int main()
 {
 #pragma region(test)
-	VectorMath::HLSL::int4 vec4(float2x2{});
+	VectorMath::HLSL::int4 vec4(float2x1{}, 0, 1);
 	VectorMath::GLSL::vec3 vec3(vec4);
 	vec3.apply(floor);
 	min(vec4, 0);
@@ -71,6 +71,7 @@ int main()
 	m5x4 += 2;
 	m5x4 + 2;
 	2 + m5x4;
+	float2x3 M = float4x4(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
 	cout << vec4.x << '\n' << vec5[4] << "\nsizeof vec3 = " << sizeof vec3 << endl;
 
 	vec4 += int4(4);
