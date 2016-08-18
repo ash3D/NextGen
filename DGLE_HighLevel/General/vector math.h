@@ -526,16 +526,12 @@ consider using preprocessor instead of templates or overloading each target func
 			static constexpr unsigned int elementsCount = 0u;
 
 			// scalar
-			template<typename SrcElementType, typename ...Rest>
-			static constexpr unsigned int elementsCount<const SrcElementType &, Rest...> = 1u + elementsCount<Rest...>;
+			template<typename SrcType, typename ...Rest>
+			static constexpr std::enable_if_t<IsScalar<SrcType>, unsigned int> elementsCount<const SrcType &, Rest...> = 1u + elementsCount<Rest...>;
 
 			// swizzle
 			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, typename ...Rest>
 			static constexpr unsigned int elementsCount<const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &, Rest...> = SrcSwizzleDesc::TDimension::value + elementsCount<Rest...>;
-
-			// vector
-			template<typename SrcElementType, unsigned int srcDimenstion, typename ...Rest>
-			static constexpr unsigned int elementsCount<const vector<SrcElementType, srcDimenstion> &, Rest...> = elementsCount<const CSwizzle<SrcElementType, 0, srcDimenstion> &, Rest...>;
 
 			// matrix
 			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, typename ...Rest>
