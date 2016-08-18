@@ -114,40 +114,46 @@ consider using preprocessor instead of templates or overloading each target func
 			TRANSFORM_SWIZZLE(NAMING_SET_2, swizzle_seq);
 
 #if defined _MSC_VER && _MSC_VER <= 1900
-#	define TRIVIAL_CTOR_FORWARD CDataContainerImpl() = default; template<typename TCurSrc, typename ...TRestSrc> CDataContainerImpl(const TCurSrc &curSrc, const TRestSrc &...restSrc): _data(curSrc, restSrc...) {}
+#	define TRIVIAL_CTOR_FORWARD CDataContainerImpl() = default; template<typename TCurSrc, typename ...TRestSrc> CDataContainerImpl(const TCurSrc &curSrc, const TRestSrc &...restSrc): data(curSrc, restSrc...) {}
 #else
 #	define TRIVIAL_CTOR_FORWARD CDataContainerImpl() = default; NONTRIVIAL_CTOR_FORWARD
 #endif
-#	define NONTRIVIAL_CTOR_FORWARD template<typename ...TSrc> CDataContainerImpl(const TSrc &...src): _data(src...) {}
+#	define NONTRIVIAL_CTOR_FORWARD template<typename ...TSrc> CDataContainerImpl(const TSrc &...src) : data(src...) {}
 #	define DATA_CONTAINER_IMPL_SPECIALIZATION(trivialCtor)																										\
 		template<typename ElementType>																															\
 		class CDataContainerImpl<ElementType, ROWS, COLUMNS, trivialCtor> : public std::conditional_t<ROWS == 0, CSwizzle<ElementType, 0, COLUMNS>, MatrixTag>	\
 		{																																						\
 		protected:																																				\
-			/*forward ctors/dtor/= to _data*/																													\
+			/*forward ctors/dtor/= to data*/																													\
 			BOOST_PP_REMOVE_PARENS(BOOST_PP_IIF(trivialCtor, (TRIVIAL_CTOR_FORWARD), (NONTRIVIAL_CTOR_FORWARD)))												\
-			CDataContainerImpl(const CDataContainerImpl &src): _data(src._data)																					\
+																																								\
+			CDataContainerImpl(const CDataContainerImpl &src) : data(src.data)																					\
 			{																																					\
 			}																																					\
-			CDataContainerImpl(CDataContainerImpl &&src): _data(std::move(src._data))																			\
+																																								\
+			CDataContainerImpl(CDataContainerImpl &&src) : data(std::move(src.data))																			\
 			{																																					\
 			}																																					\
+																																								\
 			~CDataContainerImpl()																																\
 			{																																					\
-				_data.~CData<ElementType, ROWS, COLUMNS>();																										\
+				data.~CData<ElementType, ROWS, COLUMNS>();																										\
 			}																																					\
+																																								\
 			void operator =(const CDataContainerImpl &right)																									\
 			{																																					\
-				_data = right._data;																															\
+				data = right.data;																																\
 			}																																					\
+																																								\
 			void operator =(CDataContainerImpl &&right)																											\
 			{																																					\
-				_data = std::move(right._data);																													\
+				data = std::move(right.data);																													\
 			}																																					\
+																																								\
 		public:																																					\
 			union																																				\
 			{																																					\
-				CData<ElementType, ROWS, COLUMNS> _data;																										\
+				CData<ElementType, ROWS, COLUMNS> data;																											\
 				/*gcc does not allow class definition inside anonymous union*/																					\
 				GENERATE_SWIZZLES((SWIZZLE_OBJECT))																												\
 			};																																					\
@@ -160,7 +166,7 @@ consider using preprocessor instead of templates or overloading each target func
 
 	// specialization for graphics vectors/matrices
 	template<typename ElementType>
-	class CDataContainer<ElementType, ROWS, COLUMNS>: public CDataContainerImpl<ElementType, ROWS, COLUMNS>
+	class CDataContainer<ElementType, ROWS, COLUMNS> : public CDataContainerImpl<ElementType, ROWS, COLUMNS>
 	{
 	protected:
 		using CDataContainerImpl<ElementType, ROWS, COLUMNS>::CDataContainerImpl;
@@ -344,7 +350,7 @@ consider using preprocessor instead of templates or overloading each target func
 #	include <boost/mpl/iter_fold.hpp>
 #	include <boost/mpl/find.hpp>
 
-//#	define GET_SWIZZLE_ELEMENT(vectorDimension, idx, cv) (reinterpret_cast<cv CData<ElementType, vectorDimension> &>(*this)._data[(idx)])
+//#	define GET_SWIZZLE_ELEMENT(vectorDimension, idx, cv) (reinterpret_cast<cv CData<ElementType, vectorDimension> &>(*this).data[(idx)])
 //#	define GET_SWIZZLE_ELEMENT_PACKED(vectorDimension, packedSwizzle, idx, cv) (GET_SWIZZLE_ELEMENT(vectorDimension, packedSwizzle >> ((idx) << 1) & 3u, cv))
 
 	namespace Math::VectorMath
@@ -383,6 +389,7 @@ consider using preprocessor instead of templates or overloading each target func
 
 			template<typename FixedTag, typename VarSrc>
 			using IterateSrc = Iterate<std::is_convertible, VarSrc, FixedTag>;
+
 		public:
 			static constexpr bool value = Iterate<IterateSrc, Tag, Src>::value;
 		};
@@ -402,15 +409,19 @@ consider using preprocessor instead of templates or overloading each target func
 			template<class Iter>
 			struct PackSwizzleElement : mpl::shift_left<typename mpl::deref<Iter>::type, typename mpl::times<typename Iter::pos, mpl::integral_c<unsigned short, 4u>::type>> {};
 			typedef mpl::iter_fold<CSwizzleVector_, mpl::integral_c<unsigned short, 0u>, mpl::bitor_<mpl::_1, PackSwizzleElement<mpl::_2>>> PackedSwizzle;
+
 		private:
 			typedef typename mpl::sort<CSwizzleVector_>::type CSortedSwizzleVector;
 			typedef typename mpl::unique<CSortedSwizzleVector, std::is_same<mpl::_, mpl::_>>::type CUniqueSwizzleVector;
 			typedef typename mpl::equal_to<mpl::size<CUniqueSwizzleVector>, mpl::size<CSwizzleVector_>> IsWriteMaskValid;
+
 		public:
 			// unique for CSwizzleDesc (not present in CVectorSwizzleDesc)
 			static constexpr unsigned short packedSwizzle = PackedSwizzle::type::value;
+
 		public:
 			typedef CSwizzleVector_ CSwizzleVector;
+
 		public:
 			typedef typename mpl::size<CSwizzleVector_>::type TDimension;
 			static constexpr typename IsWriteMaskValid::value_type isWriteMaskValid = IsWriteMaskValid::value;
@@ -422,6 +433,7 @@ consider using preprocessor instead of templates or overloading each target func
 		public:
 			// CSwizzleVector here not actually vector but rather range
 			typedef mpl::range_c<unsigned int, 0, vectorDimension> CSwizzleVector;
+
 		public:
 			typedef typename mpl::integral_c<unsigned, vectorDimension> TDimension;
 			static constexpr bool isWriteMaskValid = true;
@@ -448,6 +460,7 @@ consider using preprocessor instead of templates or overloading each target func
 			typedef typename mpl::min<typename mpl::size<CSrcSwizzleVector>::type, typename mpl::size<CDstSwizzleVector>::type>::type MinSwizzleSize;
 			typedef typename mpl::begin<CSrcSwizzleVector>::type SrcSwizzleBegin;
 			typedef typename mpl::iterator_range<SrcSwizzleBegin, typename mpl::advance<SrcSwizzleBegin, MinSwizzleSize>::type>::type CCuttedSrcSwizzleVector;
+
 		private:
 			template<class SrcIter>
 			class Pred
@@ -456,16 +469,19 @@ consider using preprocessor instead of templates or overloading each target func
 				struct DistanceFromBegin : mpl::distance<typename mpl::begin<Seq>::type, Iter> {};
 				typedef typename mpl::find<CDstSwizzleVector, typename mpl::deref<SrcIter>::type>::type DstIter;
 				typedef typename mpl::less<typename DistanceFromBegin<CDstSwizzleVector, DstIter>::type, typename DistanceFromBegin<CCuttedSrcSwizzleVector, SrcIter>::type>::type DstWasAlreadyWritten;
+
 			private:
 				// use metafunctions to perform lazy evaluation
 				template<class DstIter = DstIter>
 				struct FindSrcWrittenToDstIter : mpl::advance<typename mpl::begin<CCuttedSrcSwizzleVector>::type, typename DistanceFromBegin<CDstSwizzleVector, DstIter>::type> {};
 				template<class DstIter = DstIter>
 				struct DstWasModified : mpl::not_equal_to<typename mpl::deref<DstIter>::type, typename mpl::deref<typename FindSrcWrittenToDstIter<>::type>::type> {};
+
 			public:
 				typedef std::conditional_t<assign && DstWasAlreadyWritten::value, DstWasModified<>, DstWasAlreadyWritten> type;
 			};
 			typedef typename mpl::iter_fold<CCuttedSrcSwizzleVector, std::false_type, mpl::or_<mpl::_1, Pred<mpl::_2>>>::type Result;
+
 		public:
 			static constexpr typename Result::value_type value = Result::value;
 		};
@@ -518,6 +534,7 @@ consider using preprocessor instead of templates or overloading each target func
 		protected:
 			template<class IdxSeq, bool checkLength = true, unsigned offset = 0>
 			class HeterogeneousInitTag {};
+
 		protected:
 			// maybe wrap with decay_t?
 
@@ -536,6 +553,7 @@ consider using preprocessor instead of templates or overloading each target func
 			// matrix
 			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, typename ...Rest>
 			static constexpr unsigned int elementsCount<const matrix<SrcElementType, srcRows, srcColumns> &, Rest...> = srcRows * srcColumns + elementsCount<Rest...>;
+
 #if defined _MSC_VER && _MSC_VER <= 1900
 			// SFINAE leads to internal comiler error on VS 2015, use tagging as workaround
 		private:
@@ -566,6 +584,7 @@ consider using preprocessor instead of templates or overloading each target func
 			{
 				return src[idx / srcColumns][idx % srcColumns];
 			}
+
 		protected:
 			template<unsigned idx, typename First, typename ...Rest>
 			static inline decltype(auto) GetElement(const First &first, const Rest &...rest) noexcept
@@ -646,6 +665,7 @@ consider using preprocessor instead of templates or overloading each target func
 			friend class CDataContainer<ElementType, rows, columns>;
 			friend class CDataContainerImpl<ElementType, rows, columns, false>;
 			friend class CDataContainerImpl<ElementType, rows, columns, true>;
+
 		private:
 			CData() = default;
 			CData(const CData &) = default;
@@ -653,6 +673,7 @@ consider using preprocessor instead of templates or overloading each target func
 			~CData() = default;
 			CData &operator =(const CData &) = default;
 			CData &operator =(CData &&) = default;
+
 		private:	// matrix specific ctors
 			template<size_t ...row, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
 			CData(std::index_sequence<row...>, const matrix<SrcElementType, srcRows, srcColumns> &src);
@@ -665,6 +686,7 @@ consider using preprocessor instead of templates or overloading each target func
 
 			template<size_t ...row, typename First, typename ...Rest>
 			CData(HeterogeneousInitTag<std::index_sequence<row...>>, const First &first, const Rest &...rest);
+
 		private:
 			vector<ElementType, columns> _rows[rows];
 		};
@@ -712,6 +734,7 @@ consider using preprocessor instead of templates or overloading each target func
 			friend class CDataContainer<ElementType, 0, dimension>;
 			friend class CDataContainerImpl<ElementType, 0, dimension, false>;
 			friend class CDataContainerImpl<ElementType, 0, dimension, true>;
+
 		private:
 			CData() = default;
 			CData(const CData &) = default;
@@ -719,6 +742,7 @@ consider using preprocessor instead of templates or overloading each target func
 			~CData() = default;
 			CData &operator =(const CData &) = default;
 			CData &operator =(CData &&) = default;
+
 		private:	// vector specific ctors
 			template<size_t ...idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
 			CData(HeterogeneousInitTag<std::index_sequence<idx...>, false>, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
@@ -740,14 +764,15 @@ consider using preprocessor instead of templates or overloading each target func
 
 			template<size_t ...idx, typename First, typename ...Rest>
 			inline CData(HeterogeneousInitTag<std::index_sequence<idx...>, true>, const First &first, const Rest &...rest);
+
 		private:
-			ElementType _data[dimension];
+			ElementType data[dimension];
 		};
 
 		template<typename ElementType, unsigned int dimension>
 		template<size_t ...idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
 		inline CData<ElementType, 0, dimension>::CData(HeterogeneousInitTag<std::index_sequence<idx...>, false>, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) :
-			_data{ static_cast<const ElementType &>(src[idx])... } {}
+			data{ static_cast<const ElementType &>(src[idx])... } {}
 
 		template<typename ElementType, unsigned int dimension>
 		template<size_t ...idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
@@ -760,12 +785,12 @@ consider using preprocessor instead of templates or overloading each target func
 		template<typename ElementType, unsigned int dimension>
 		template<size_t ...idx, typename SrcElementType>
 		inline CData<ElementType, 0, dimension>::CData(std::index_sequence<idx...>, const SrcElementType &scalar) :
-			_data{ (idx, static_cast<const ElementType &>(scalar))... } {}
+			data{ (idx, static_cast<const ElementType &>(scalar))... } {}
 
 		template<typename ElementType, unsigned int dimension>
 		template<size_t ...idx, typename SrcElementType, unsigned int srcDimension>
 		inline CData<ElementType, 0, dimension>::CData(HeterogeneousInitTag<std::index_sequence<idx...>, false>, const SrcElementType (&src)[srcDimension]) :
-			_data{ static_cast<const ElementType &>(src[idx])... } {}
+			data{ static_cast<const ElementType &>(src[idx])... } {}
 
 		template<typename ElementType, unsigned int dimension>
 		template<size_t ...idx, typename SrcElementType, unsigned int srcDimension>
@@ -778,7 +803,7 @@ consider using preprocessor instead of templates or overloading each target func
 		template<typename ElementType, unsigned int dimension>
 		template<size_t ...idx, unsigned offset, typename First, typename ...Rest>
 		inline CData<ElementType, 0, dimension>::CData(HeterogeneousInitTag<std::index_sequence<idx...>, false, offset>, const First &first, const Rest &...rest) :
-			_data{ static_cast<const ElementType &>(GetElement<idx + offset>(first, rest...))... } {}
+			data{ static_cast<const ElementType &>(GetElement<idx + offset>(first, rest...))... } {}
 
 		template<typename ElementType, unsigned int dimension>
 		template<size_t ...idx, typename First, typename ...Rest>
@@ -793,14 +818,14 @@ consider using preprocessor instead of templates or overloading each target func
 		class CDataContainer : public std::conditional_t<rows == 0, CSwizzle<ElementType, 0, columns>, MatrixTag>
 		{
 		protected:
-			CData<ElementType, rows, columns> _data;
+			CData<ElementType, rows, columns> data;
 			CDataContainer() = default;
 			CDataContainer(const CDataContainer &) = default;
 			CDataContainer(CDataContainer &&) = default;
 #if defined _MSC_VER && _MSC_VER <= 1900
-			template<typename TCurSrc, typename ...TRestSrc> CDataContainer(const TCurSrc &curSrc, const TRestSrc &...restSrc) : _data(curSrc, restSrc...) {}
+			template<typename TCurSrc, typename ...TRestSrc> CDataContainer(const TCurSrc &curSrc, const TRestSrc &...restSrc) : data(curSrc, restSrc...) {}
 #else
-			template<typename ...TSrc> CDataContainer(const TSrc &...src) : _data(src...) {}
+			template<typename ...TSrc> CDataContainer(const TSrc &...src) : data(src...) {}
 #endif
 			CDataContainer &operator =(const CDataContainer &) = default;
 			CDataContainer &operator =(CDataContainer &&) = default;
@@ -813,6 +838,7 @@ consider using preprocessor instead of templates or overloading each target func
 			CInitListItem() = delete;
 			CInitListItem(const CInitListItem &) = delete;
 			CInitListItem &operator =(const CInitListItem &) = delete;
+
 		private:
 			static ElementType _GetItemElement(const void *item, unsigned)
 			{
@@ -854,14 +880,17 @@ consider using preprocessor instead of templates or overloading each target func
 			{
 				typedef void(*TImpl)(const void *ptr);
 				TImpl _impl;
+
 			public:
 				CDeleter(TImpl impl) : _impl(impl) {}
+
 			public:
 				void operator ()(const void *ptr) const
 				{
 					_impl(ptr);
 				}
 			};
+
 		public:
 			CInitListItem(const ElementType &item) :
 				_getItemElement(_GetItemElement),
@@ -895,6 +924,7 @@ consider using preprocessor instead of templates or overloading each target func
 			{
 				return _itemSize;
 			}
+
 		private:
 			ElementType(&_getItemElement)(const void *, unsigned);
 			const std::unique_ptr<const void, CDeleter> _item;
@@ -917,11 +947,13 @@ consider using preprocessor instead of templates or overloading each target func
 			CSwizzleBase -> CSwizzle
 			*/
 			typedef CSwizzle<ElementType, rows, columns, SwizzleDesc> TSwizzle;
+
 		protected:
 			CSwizzleBase() = default;
 			CSwizzleBase(const CSwizzleBase &) = default;
 			~CSwizzleBase() = default;
 			CSwizzleBase &operator =(const CSwizzleBase &) = default;
+
 		public:
 			operator const ElementType &() const noexcept
 			{
@@ -935,6 +967,7 @@ consider using preprocessor instead of templates or overloading each target func
 			//{
 			//	return operator ElementType &();
 			//}
+
 		public:
 			template<typename F>
 			vector<std::result_of_t<F &(ElementType)>, SwizzleDesc::TDimension::value> apply(F f) const;
@@ -964,22 +997,26 @@ consider using preprocessor instead of templates or overloading each target func
 
 		// CSwizzle inherits from this to reduce preprocessor generated code for faster compiling
 		template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-		class CSwizzleCommon: public CSwizzleBase<ElementType, rows, columns, SwizzleDesc>
+		class CSwizzleCommon : public CSwizzleBase<ElementType, rows, columns, SwizzleDesc>
 		{
 			typedef CSwizzle<ElementType, rows, columns, SwizzleDesc> TSwizzle;
 			typedef matrix<ElementType, rows, columns> Tmatrix;
+
 		protected:
 			CSwizzleCommon() = default;
 			CSwizzleCommon(const CSwizzleCommon &) = delete;
 			~CSwizzleCommon() = default;
 			CSwizzleCommon &operator =(const CSwizzleCommon &) = delete;
+
 		public:
 			typedef TSwizzle TOperationResult;
+
 		protected:
 			operator TSwizzle &()
 			{
 				return static_cast<TSwizzle &>(*this);
 			}
+
 		public:
 			const ElementType &operator [](unsigned int idx) const noexcept
 			{
@@ -1003,7 +1040,7 @@ consider using preprocessor instead of templates or overloading each target func
 
 		// specialization for vectors
 		template<typename ElementType, unsigned int vectorDimension, class SwizzleDesc>
-		class CSwizzleCommon<ElementType, 0, vectorDimension, SwizzleDesc>: public CSwizzleBase<ElementType, 0, vectorDimension, SwizzleDesc>
+		class CSwizzleCommon<ElementType, 0, vectorDimension, SwizzleDesc> : public CSwizzleBase<ElementType, 0, vectorDimension, SwizzleDesc>
 		{
 			/*
 			?
@@ -1020,18 +1057,22 @@ consider using preprocessor instead of templates or overloading each target func
 			*/
 			typedef CSwizzle<ElementType, 0, vectorDimension, SwizzleDesc> TSwizzle;
 			typedef vector<ElementType, vectorDimension> Tvector;
+
 		protected:
 			CSwizzleCommon() = default;
 			CSwizzleCommon(const CSwizzleCommon &) = delete;
 			~CSwizzleCommon() = default;
 			CSwizzleCommon &operator =(const CSwizzleCommon &) = delete;
+
 		public:
 			typedef TSwizzle TOperationResult;
+
 		protected:
 			operator TSwizzle &()
 			{
 				return static_cast<TSwizzle &>(*this);
 			}
+
 		public:
 			const ElementType &operator [](unsigned int idx) const noexcept
 			{
@@ -1044,7 +1085,7 @@ consider using preprocessor instead of templates or overloading each target func
 				CSwizzleCommon -> CSwizzle -> CData
 				*/
 				typedef CData<ElementType, 0, vectorDimension> CData;
-				return reinterpret_cast<const CData &>(static_cast<const TSwizzle &>(*this))._data[idx];
+				return reinterpret_cast<const CData &>(static_cast<const TSwizzle &>(*this)).data[idx];
 			}
 			ElementType &operator [](unsigned int idx) noexcept
 			{
@@ -1057,17 +1098,20 @@ consider using preprocessor instead of templates or overloading each target func
 		TODO: try with newer version
 		*/
 		template<typename ElementType, unsigned int vectorDimension>
-		class CSwizzleCommon<ElementType, 0, vectorDimension, CVectorSwizzleDesc<vectorDimension>>: public CSwizzleBase<ElementType, 0, vectorDimension>
+		class CSwizzleCommon<ElementType, 0, vectorDimension, CVectorSwizzleDesc<vectorDimension>> : public CSwizzleBase<ElementType, 0, vectorDimension>
 		{
 			typedef vector<ElementType, vectorDimension> Tvector;
+
 		protected:
 			CSwizzleCommon() = default;
 			CSwizzleCommon(const CSwizzleCommon &) = default;
 			~CSwizzleCommon() = default;
 			CSwizzleCommon &operator =(const CSwizzleCommon &) = default;
 			// TODO: consider adding 'op=' operators to friends and making some stuff below protected/private (and TOperationResult for other CSwizzleCommon above)
+
 		public:
 			typedef Tvector TOperationResult;
+
 		private:
 			operator const Tvector &() const noexcept
 			{
@@ -1084,11 +1128,13 @@ consider using preprocessor instead of templates or overloading each target func
 			{
 				return static_cast<const CSwizzleCommon *>(this)->operator const Tvector &();
 			}
+
 		public:
 			operator Tvector &() noexcept
 			{
 				return const_cast<Tvector &>(operator const Tvector &());
 			}
+
 		public:
 			const ElementType &operator [](unsigned int idx) const noexcept
 			{
@@ -1102,10 +1148,11 @@ consider using preprocessor instead of templates or overloading each target func
 		};
 
 		template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-		class CSwizzleAssign: public CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>
+		class CSwizzleAssign : public CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>
 		{
 			typedef CSwizzle<ElementType, rows, columns, SwizzleDesc> TSwizzle;
 			// TODO: remove 'public'
+
 		public:
 			using typename CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>::TOperationResult;
 
@@ -1198,6 +1245,7 @@ consider using preprocessor instead of templates or overloading each target func
 #else
 			inline TOperationResult &operator =(std::initializer_list<CInitListItem<ElementType>> initList) &;
 #endif
+
 		public:
 			using CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>::operator [];
 		};
@@ -1256,7 +1304,7 @@ consider using preprocessor instead of templates or overloading each target func
 #endif
 		{
 			unsigned dst_idx = 0;
-			for (const auto &item: initList)
+			for (const auto &item : initList)
 				for (unsigned item_element_idx = 0; item_element_idx < item.GetItemSize(); item_element_idx++)
 					(*this)[dst_idx++] = item[item_element_idx];
 			assert(dst_idx == SwizzleDesc::TDimension::value);
@@ -1269,7 +1317,7 @@ consider using preprocessor instead of templates or overloading each target func
 		TODO: try with newer version
 		*/
 		template<typename ElementType, unsigned int vectorDimension>
-		class CSwizzle<ElementType, 0, vectorDimension, CVectorSwizzleDesc<vectorDimension>, std::true_type>: public CSwizzleAssign<ElementType, 0, vectorDimension>
+		class CSwizzle<ElementType, 0, vectorDimension, CVectorSwizzleDesc<vectorDimension>, std::true_type> : public CSwizzleAssign<ElementType, 0, vectorDimension>
 		{
 		protected:
 			CSwizzle() = default;
@@ -1279,12 +1327,14 @@ consider using preprocessor instead of templates or overloading each target func
 		};
 
 		template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-		class CSwizzle<ElementType, rows, columns, SwizzleDesc, std::false_type>: public CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>
+		class CSwizzle<ElementType, rows, columns, SwizzleDesc, std::false_type> : public CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>
 		{
 			friend class CDataContainerImpl<ElementType, rows, columns, false>;
 			friend class CDataContainerImpl<ElementType, rows, columns, true>;
+
 		public:
 			CSwizzle &operator =(const CSwizzle &) = delete;
+
 		private:
 			CSwizzle() = default;
 			CSwizzle(const CSwizzle &) = delete;
@@ -1292,10 +1342,11 @@ consider using preprocessor instead of templates or overloading each target func
 		};
 
 		template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-		class CSwizzle<ElementType, rows, columns, SwizzleDesc, std::true_type>: public CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>
+		class CSwizzle<ElementType, rows, columns, SwizzleDesc, std::true_type> : public CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>
 		{
 			friend class CDataContainerImpl<ElementType, rows, columns, false>;
 			friend class CDataContainerImpl<ElementType, rows, columns, true>;
+
 		public:
 #ifdef __GNUC__
 			CSwizzle &operator =(const CSwizzle &) = default;
@@ -1303,6 +1354,7 @@ consider using preprocessor instead of templates or overloading each target func
 			CSwizzle &operator =(const CSwizzle &) & = default;
 #endif
 			using CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =;
+
 		private:
 			CSwizzle() = default;
 			CSwizzle(const CSwizzle &) = delete;
@@ -1310,16 +1362,17 @@ consider using preprocessor instead of templates or overloading each target func
 		};
 
 		template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-		class CSwizzleIteratorImpl: public std::iterator<std::forward_iterator_tag, const ElementType>
+		class CSwizzleIteratorImpl : public std::iterator<std::forward_iterator_tag, const ElementType>
 		{
 			const CSwizzle<ElementType, rows, columns, SwizzleDesc> &_swizzle;
 			unsigned _i;
+
 		protected:
 			CSwizzleIteratorImpl(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &swizzle, unsigned i):
 			_swizzle(swizzle), _i(i) {}
 			~CSwizzleIteratorImpl() = default;
-			// required by stl => public
-		public:
+
+		public:	// required by stl => public
 			std::conditional_t
 			<
 				sizeof(typename CSwizzleIteratorImpl::value_type) <= sizeof(void *),
@@ -1357,7 +1410,7 @@ consider using preprocessor instead of templates or overloading each target func
 		};
 
 		template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-		class CSwizzleIterator: public CSwizzleIteratorImpl<ElementType, rows, columns, SwizzleDesc>
+		class CSwizzleIterator : public CSwizzleIteratorImpl<ElementType, rows, columns, SwizzleDesc>
 		{
 			friend bool all<>(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
 			friend bool any<>(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
@@ -1640,11 +1693,12 @@ consider using preprocessor instead of templates or overloading each target func
 #		pragma endregion
 
 		template<typename ElementType_, unsigned int dimension_>
-		class vector: public CDataContainer<ElementType_, 0, dimension_>
+		class vector : public CDataContainer<ElementType_, 0, dimension_>
 		{
 			static_assert(dimension_ > 0, "vector dimension should be positive");
 			typedef CDataContainer<ElementType_, 0, dimension_> DataContainer;
-			//using CDataContainer<ElementType_, 0, dimension_>::_data;
+			//using CDataContainer<ElementType_, 0, dimension_>::data;
+
 		public:
 			typedef ElementType_ ElementType;
 			static constexpr unsigned int dimension = dimension_;
@@ -1678,6 +1732,7 @@ consider using preprocessor instead of templates or overloading each target func
 			const ElementType &operator [](unsigned int idx) const noexcept;
 
 			ElementType &operator [](unsigned int idx) noexcept;
+
 		private:
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			friend class CData;
@@ -1696,7 +1751,7 @@ consider using preprocessor instead of templates or overloading each target func
 		};
 
 		template<typename ElementType_, unsigned int rows_, unsigned int columns_>
-		class matrix: public CDataContainer<ElementType_, rows_, columns_>
+		class matrix : public CDataContainer<ElementType_, rows_, columns_>
 		{
 			static_assert(rows_ > 0, "matrix should contain at leat 1 row");
 			static_assert(columns_ > 0, "matrix should contain at leat 1 column");
@@ -1705,6 +1760,7 @@ consider using preprocessor instead of templates or overloading each target func
 			friend bool none<>(const matrix<ElementType_, rows_, columns_> &);
 			typedef vector<ElementType_, columns_> TRow;
 			typedef CDataContainer<ElementType_, rows_, columns_> DataContainer;
+
 		public:
 			typedef ElementType_ ElementType;
 			static constexpr unsigned int rows = rows_, columns = columns_;
@@ -1801,6 +1857,7 @@ consider using preprocessor instead of templates or overloading each target func
 			const TRow &operator [](unsigned int idx) const noexcept;
 
 			TRow &operator [](unsigned int idx) noexcept;
+
 		public:
 			template<typename F>
 			matrix<std::result_of_t<F &(ElementType)>, rows, columns> apply(F f) const;
@@ -1845,14 +1902,14 @@ consider using preprocessor instead of templates or overloading each target func
 			inline const ElementType &vector<ElementType, dimension>::operator [](unsigned int idx) const noexcept
 			{
 				assert(idx < dimension);
-				return DataContainer::_data._data[idx];
+				return DataContainer::data.data[idx];
 			}
 
 			template<typename ElementType, unsigned int dimension>
 			inline ElementType &vector<ElementType, dimension>::operator [](unsigned int idx) noexcept
 			{
 				assert(idx < dimension);
-				return DataContainer::_data._data[idx];
+				return DataContainer::data.data[idx];
 			}
 
 			template<typename ElementType, unsigned int dimension>
@@ -1874,7 +1931,7 @@ consider using preprocessor instead of templates or overloading each target func
 			//template<typename TIterator>
 			//inline vector<ElementType, dimension>::vector(TIterator src)
 			//{
-			//	std::copy_n(src, dimension, DataContainer::_data._data);
+			//	std::copy_n(src, dimension, DataContainer::data.data);
 			//}
 
 			template<typename ElementType, unsigned int dimension>
@@ -1909,14 +1966,14 @@ consider using preprocessor instead of templates or overloading each target func
 			inline auto matrix<ElementType, rows, columns>::operator [](unsigned int idx) const noexcept -> const typename matrix::TRow &
 			{
 				assert(idx < rows);
-				return DataContainer::_data._rows[idx];
+				return DataContainer::data._rows[idx];
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			inline auto matrix<ElementType, rows, columns>::operator [](unsigned int idx) noexcept -> typename matrix::TRow &
 			{
 				assert(idx < rows);
-				return DataContainer::_data._rows[idx];
+				return DataContainer::data._rows[idx];
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
@@ -1955,7 +2012,7 @@ consider using preprocessor instead of templates or overloading each target func
 #endif
 			{
 				unsigned dst_idx = 0;
-				for (const auto &item: initList)
+				for (const auto &item : initList)
 					for (unsigned item_element_idx = 0; item_element_idx < item.GetItemSize(); item_element_idx++, dst_idx++)
 						(*this)[dst_idx / columns][dst_idx % columns] = item[item_element_idx];
 				assert(dst_idx == rows * columns);
@@ -2355,7 +2412,7 @@ consider using preprocessor instead of templates or overloading each target func
 				template<typename ElementType, unsigned int rows, unsigned int columns>															\
 				bool f1(const matrix<ElementType, rows, columns> &src)																			\
 				{																																\
-					return std::f2##_of(src._data._rows, src._data._rows + rows, f1<ElementType, 0, columns, CVectorSwizzleDesc<columns>>);		\
+					return std::f2##_of(src.data._rows, src.data._rows + rows, f1<ElementType, 0, columns, CVectorSwizzleDesc<columns>>);		\
 				};
 			FUNCTION_DEFINITION1(all)
 			FUNCTION_DEFINITION1(any)
