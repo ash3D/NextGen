@@ -535,24 +535,26 @@ consider using preprocessor instead of templates or overloading each target func
 			template<class IdxSeq, bool checkLength = true, unsigned offset = 0>
 			class HeterogeneousInitTag {};
 
-		protected:
-			// maybe wrap with decay_t?
-
-			// terminator
-			template<typename ...Params>
-			static constexpr unsigned int elementsCount = 0u;
-
+		private:
 			// scalar
-			template<typename SrcType, typename ...Rest>
-			static constexpr std::enable_if_t<IsScalar<SrcType>, unsigned int> elementsCount<const SrcType &, Rest...> = 1u + elementsCount<Rest...>;
+			template<typename Type>
+			static std::enable_if_t<IsScalar<Type>, std::integral_constant<unsigned int, 1u>> ElementsCountHelper(const Type &);
 
 			// swizzle
-			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, typename ...Rest>
-			static constexpr unsigned int elementsCount<const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &, Rest...> = SrcSwizzleDesc::TDimension::value + elementsCount<Rest...>;
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
+			static typename SwizzleDesc::TDimension ElementsCountHelper(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &);
 
 			// matrix
-			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, typename ...Rest>
-			static constexpr unsigned int elementsCount<const matrix<SrcElementType, srcRows, srcColumns> &, Rest...> = srcRows * srcColumns + elementsCount<Rest...>;
+			template<typename ElementType, unsigned int rows, unsigned int columns>
+			static std::integral_constant<unsigned int, rows * columns> ElementsCountHelper(const matrix<ElementType, rows, columns> &);
+
+			template<typename First, typename Second, typename ...Rest>
+			static auto ElementsCountHelper(const First &first, const Second &second, const Rest &...rest)	// enaable_if_t - workaround for VS 2015
+				-> std::integral_constant<unsigned int, std::enable_if_t<true, decltype(ElementsCountHelper(first))>::value + std::enable_if_t<true, decltype(ElementsCountHelper(second, rest...))>::value>;
+
+		protected:
+			template<typename ...Args>
+			static constexpr unsigned int elementsCount = decltype(ElementsCountHelper(std::declval<Args>()...))::value;
 
 #if defined _MSC_VER && _MSC_VER <= 1900
 			// SFINAE leads to internal comiler error on VS 2015, use tagging as workaround
