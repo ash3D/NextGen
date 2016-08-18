@@ -559,30 +559,40 @@ consider using preprocessor instead of templates or overloading each target func
 #if defined _MSC_VER && _MSC_VER <= 1900
 			// SFINAE leads to internal comiler error on VS 2015, use tagging as workaround
 		private:
+			enum class Dispatch
+			{
+				Skip,
+				Scalar,
+				Other,
+			};
+
+			template<Dispatch dispatch>
+			using DispatchTag = std::integral_constant<Dispatch, dispatch>;
+
 			// next
 			template<unsigned idx, typename First, typename ...Rest>
-			static inline decltype(auto) GetElementImpl(std::false_type, const First &, const Rest &...rest) noexcept
+			static inline decltype(auto) GetElementImpl(DispatchTag<Dispatch::Skip>, const First &, const Rest &...rest) noexcept
 			{
 				return GetElement<idx - elementsCount<const First &>>(rest...);
 			}
 
 			// scalar
-			template<unsigned idx, typename SrcElementType, typename ...Rest>
-			static inline decltype(auto) GetElementImpl(std::true_type, const SrcElementType &scalar, const Rest &...rest) noexcept
+			template<unsigned idx, typename SrcType, typename ...Rest>
+			static inline decltype(auto) GetElementImpl(DispatchTag<Dispatch::Scalar>, const SrcType &scalar, const Rest &...rest) noexcept
 			{
 				return scalar;
 			}
 
 			// swizzle
 			template<unsigned idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, typename ...Rest>
-			static inline decltype(auto) GetElementImpl(std::true_type, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src, const Rest &...rest) noexcept
+			static inline decltype(auto) GetElementImpl(DispatchTag<Dispatch::Other>, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src, const Rest &...rest) noexcept
 			{
 				return src[idx];
 			}
 
 			// matrix
 			template<unsigned idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, typename ...Rest>
-			static inline decltype(auto) GetElementImpl(std::true_type, const matrix<SrcElementType, srcRows, srcColumns> &src, const Rest &...rest) noexcept
+			static inline decltype(auto) GetElementImpl(DispatchTag<Dispatch::Other>, const matrix<SrcElementType, srcRows, srcColumns> &src, const Rest &...rest) noexcept
 			{
 				return src[idx / srcColumns][idx % srcColumns];
 			}
@@ -591,14 +601,7 @@ consider using preprocessor instead of templates or overloading each target func
 			template<unsigned idx, typename First, typename ...Rest>
 			static inline decltype(auto) GetElement(const First &first, const Rest &...rest) noexcept
 			{
-				return GetElementImpl<idx>(std::bool_constant<idx < elementsCount<decltype(first)>>(), first, rest...);
-			}
-
-			// vector
-			template<unsigned idx, typename SrcElementType, unsigned int srcDimenstion, typename ...Rest>
-			static inline decltype(auto) GetElement(const vector<SrcElementType, srcDimenstion> &src, const Rest &...rest) noexcept
-			{
-				return GetElement<idx>(static_cast<const CSwizzle<SrcElementType, 0, srcDimenstion> &>(src), rest...);
+				return GetElementImpl<idx>(DispatchTag<idx < elementsCount<decltype(first)> ? IsScalar<First> ? Dispatch::Scalar : Dispatch::Other : Dispatch::Skip>(), first, rest...);
 			}
 
 			// empty check
@@ -619,9 +622,9 @@ consider using preprocessor instead of templates or overloading each target func
 			}
 
 			// scalar
-			template<unsigned idx, typename SrcElementType, typename ...Rest>
-			static inline auto GetElement(const SrcElementType &scalar, const Rest &...rest) noexcept
-				-> std::enable_if_t<idx < elementsCount<decltype(scalar)>, decltype(scalar)>
+			template<unsigned idx, typename SrcType, typename ...Rest>
+			static inline auto GetElement(const SrcType &scalar, const Rest &...rest) noexcept
+				-> std::enable_if_t<idx < elementsCount<decltype(scalar)> && IsScalar<SrcType>, decltype(scalar)>
 			{
 				return scalar;
 			}
