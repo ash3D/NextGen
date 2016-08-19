@@ -601,11 +601,13 @@ consider using preprocessor instead of templates or overloading each target func
 			}
 
 		protected:
+			// clamp
 			template<unsigned idx, typename First, typename ...Rest>
 			static inline decltype(auto) GetElement(const First &first, const Rest &...rest) noexcept
 			{
-				static_assert(idx < elementsCount<decltype(first)> + elementsCount<decltype(rest)...>, "heterogeneous ctor: too few src elements");
-				return GetElementImpl<idx>(DispatchTag<idx < elementsCount<decltype(first)> ? IsScalar<First> ? Dispatch::Scalar : Dispatch::Other : Dispatch::Skip>(), first, rest...);
+				constexpr auto count = elementsCount<decltype(first)> + elementsCount<decltype(rest)...>;
+				constexpr auto clampedIdx = idx < count ? idx : count - 1u;
+				return GetElementImpl<clampedIdx>(DispatchTag<clampedIdx < elementsCount<decltype(first)> ? IsScalar<First> ? Dispatch::Scalar : Dispatch::Other : Dispatch::Skip>(), first, rest...);
 			}
 #else
 		private:
@@ -630,10 +632,9 @@ consider using preprocessor instead of templates or overloading each target func
 				return src[idx / srcColumns][idx % srcColumns];
 			}
 
-		protected:
 			// dispatch
 			template<unsigned idx, typename First, typename ...Rest>
-			static inline auto GetElement(const First &first, const Rest &...) noexcept
+			static inline auto GetElementFind(const First &first, const Rest &...) noexcept
 				-> std::enable_if_t<idx < elementsCount<const First &>, decltype(GetElementImpl<idx>(first))>
 			{
 				return GetElementImpl<idx>(first);
@@ -641,11 +642,19 @@ consider using preprocessor instead of templates or overloading each target func
 
 			// next
 			template<unsigned idx, typename First, typename ...Rest>
-			static inline auto GetElement(const First &, const Rest &...rest) noexcept
-				-> std::enable_if_t<idx >= elementsCount<const First &>, decltype(GetElement<idx - elementsCount<const First &>>(rest...))>
+			static inline auto GetElementFind(const First &, const Rest &...rest) noexcept
+				-> std::enable_if_t<idx >= elementsCount<const First &>, decltype(GetElementFind<idx - elementsCount<const First &>>(rest...))>
 			{
-				static_assert(idx < elementsCount<const First &> +elementsCount<const Rest &...>, "heterogeneous ctor: too few src elements");
-				return GetElement<idx - elementsCount<const First &>>(rest...);
+				return GetElementFind<idx - elementsCount<const First &>>(rest...);
+			}
+
+		protected:
+			// clamp
+			template<unsigned idx, typename ...Args>
+			static inline decltype(auto) GetElement(const Args &...args) noexcept
+			{
+				constexpr auto count = elementsCount<const Args &...>;
+				return GetElementFind<idx < count ? idx : count - 1u>(args...);
 			}
 #endif
 		};
@@ -719,7 +728,9 @@ consider using preprocessor instead of templates or overloading each target func
 		inline CData<ElementType, rows, columns>::CData(HeterogeneousInitTag<std::index_sequence<row...>>, const First &first, const Rest &...rest) :
 			_rows{ vector<ElementType, columns>(HeterogeneousInitTag<std::make_index_sequence<columns>, false, row * columns>(), first, rest...)... }
 		{
-			static_assert(elementsCount<First, Rest...> <= rows * columns, "heterogeneous ctor: too many src elements");
+			constexpr auto srcElements = elementsCount<const First &, const Rest &...>;
+			static_assert(srcElements >= rows * columns, "heterogeneous ctor: too few src elements");
+			static_assert(srcElements <= rows * columns, "heterogeneous ctor: too many src elements");
 		}
 
 		// specialization for vector
@@ -810,7 +821,9 @@ consider using preprocessor instead of templates or overloading each target func
 		inline CData<ElementType, 0, dimension>::CData(HeterogeneousInitTag<std::index_sequence<idx...>, true>, const First &first, const Rest &...rest) :
 			CData(HeterogeneousInitTag<std::index_sequence<idx...>, false>(), first, rest...)
 		{
-			static_assert(elementsCount<First, Rest...> <= dimension, "heterogeneous ctor: too many src elements");
+			constexpr auto srcElements = elementsCount<const First &, const Rest &...>;
+			static_assert(srcElements >= dimension, "heterogeneous ctor: too few src elements");
+			static_assert(srcElements <= dimension, "heterogeneous ctor: too many src elements");
 		}
 
 		// generic vector/matrix
