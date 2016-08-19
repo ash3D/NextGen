@@ -604,15 +604,8 @@ consider using preprocessor instead of templates or overloading each target func
 			template<unsigned idx, typename First, typename ...Rest>
 			static inline decltype(auto) GetElement(const First &first, const Rest &...rest) noexcept
 			{
+				static_assert(idx < elementsCount<decltype(first)> + elementsCount<decltype(rest)...>, "heterogeneous ctor: too few src elements");
 				return GetElementImpl<idx>(DispatchTag<idx < elementsCount<decltype(first)> ? IsScalar<First> ? Dispatch::Scalar : Dispatch::Other : Dispatch::Skip>(), first, rest...);
-			}
-
-			// empty check
-			template<unsigned idx>
-			static inline void GetElement() noexcept
-			{
-				// 'idx < 0' required instead of 'false' in order to make dependency on template param and therefore trigger static_assert on instantiation only
-				static_assert(idx < 0, "heterogeneous ctor: too few src elements");
 			}
 #else
 		private:
@@ -651,15 +644,8 @@ consider using preprocessor instead of templates or overloading each target func
 			static inline auto GetElement(const First &, const Rest &...rest) noexcept
 				-> std::enable_if_t<idx >= elementsCount<const First &>, decltype(GetElement<idx - elementsCount<const First &>>(rest...))>
 			{
+				static_assert(idx < elementsCount<const First &> +elementsCount<const Rest &...>, "heterogeneous ctor: too few src elements");
 				return GetElement<idx - elementsCount<const First &>>(rest...);
-			}
-
-			// empty check
-			template<unsigned idx>
-			static inline void GetElement() noexcept
-			{
-				// 'idx < 0' required instead of 'false' in order to make dependency on template param and therefore trigger static_assert on instantiation only
-				static_assert(idx < 0, "heterogeneous ctor: too few src elements");
 			}
 #endif
 		};
