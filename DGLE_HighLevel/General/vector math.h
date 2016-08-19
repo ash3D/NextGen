@@ -1439,7 +1439,7 @@ consider using preprocessor instead of templates or overloading each target func
 
 #		pragma region generate operators
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			inline const typename CSwizzle<ElementType, rows, columns, SwizzleDesc>::TOperationResult &operator +(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src) noexcept
+			inline vector<ElementType, SwizzleDesc::TDimension::value> operator +(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src)
 			{
 				return src;
 			}
@@ -1825,7 +1825,7 @@ consider using preprocessor instead of templates or overloading each target func
 			matrix &operator =(std::initializer_list<CInitListItem<ElementType>> initList) &;
 #endif
 
-			const matrix &operator +() const noexcept
+			matrix operator +() const
 			{
 				return *this;
 			}
