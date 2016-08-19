@@ -185,10 +185,10 @@ consider using preprocessor instead of templates or overloading each target func
 
 #	pragma region generate typedefs
 		// tuple: (C++, HLSL, GLSL)
-#		define SCALAR_TYPES_MAPPINGS										\
-			((bool, bool, b))												\
-			((signed long, int, i))((unsigned long, uint, ui))				\
-			((signed long long, long, l))((unsigned long long, ulong, ul))	\
+#		define SCALAR_TYPES_MAPPINGS					\
+			((bool, bool, b))							\
+			((int32_t, int, i))((uint32_t, uint, ui))	\
+			((int64_t, long, l))((uint64_t, ulong, ul))	\
 			((float, float, ))((double, double, d))
 
 #		define CPP_SCALAR_TYPE(scalar_types_mapping) BOOST_PP_TUPLE_ELEM(3, 0, scalar_types_mapping)
@@ -283,6 +283,7 @@ consider using preprocessor instead of templates or overloading each target func
 #	pragma warning(disable: 4003)
 
 #	include <cassert>
+#	include <cstdint>
 #	include <utility>
 #	include <type_traits>
 #	include <functional>
