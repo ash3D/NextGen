@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.08.2016 (c)Alexey Shaydurov
+\date		19.08.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -612,37 +612,43 @@ consider using preprocessor instead of templates or overloading each target func
 				static_assert(idx < 0, "heterogeneous ctor: too few src elements");
 			}
 #else
+		private:
+			// scalar
+			template<unsigned idx, typename SrcType>
+			static inline auto GetElementImpl(const SrcType &scalar) noexcept -> std::enable_if_t<IsScalar<SrcType>, decltype(scalar)>
+			{
+				return scalar;
+			}
+
+			// swizzle
+			template<unsigned idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
+			static inline decltype(auto) GetElementImpl(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) noexcept
+			{
+				return src[idx];
+			}
+
+			// matrix
+			template<unsigned idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
+			static inline decltype(auto) GetElementImpl(const matrix<SrcElementType, srcRows, srcColumns> &src) noexcept
+			{
+				return src[idx / srcColumns][idx % srcColumns];
+			}
+
 		protected:
+			// dispatch
+			template<unsigned idx, typename First, typename ...Rest>
+			static inline auto GetElement(const First &first, const Rest &...) noexcept
+				-> std::enable_if_t<idx < elementsCount<const First &>, decltype(GetElementImpl<idx>(first))>
+			{
+				return GetElementImpl<idx>(first);
+			}
+
 			// next
 			template<unsigned idx, typename First, typename ...Rest>
 			static inline auto GetElement(const First &, const Rest &...rest) noexcept
 				-> std::enable_if_t<idx >= elementsCount<const First &>, decltype(GetElement<idx - elementsCount<const First &>>(rest...))>
 			{
 				return GetElement<idx - elementsCount<const First &>>(rest...);
-			}
-
-			// scalar
-			template<unsigned idx, typename SrcType, typename ...Rest>
-			static inline auto GetElement(const SrcType &scalar, const Rest &...rest) noexcept
-				-> std::enable_if_t<idx < elementsCount<decltype(scalar)> && IsScalar<SrcType>, decltype(scalar)>
-			{
-				return scalar;
-			}
-
-			// swizzle
-			template<unsigned idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, typename ...Rest>
-			static inline auto GetElement(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src, const Rest &...rest) noexcept
-				-> std::enable_if_t<idx < elementsCount<decltype(src)>, decltype(src[idx])>
-			{
-				return src[idx];
-			}
-
-			// matrix
-			template<unsigned idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, typename ...Rest>
-			static inline auto GetElement(const matrix<SrcElementType, srcRows, srcColumns> &src, const Rest &...rest) noexcept
-				-> std::enable_if_t<idx < elementsCount<decltype(src)>, decltype(src[idx / srcColumns][idx % srcColumns])>
-			{
-				return src[idx / srcColumns][idx % srcColumns];
 			}
 
 			// empty check
