@@ -1445,12 +1445,6 @@ consider using preprocessor instead of templates or overloading each target func
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			inline typename CSwizzle<ElementType, rows, columns, SwizzleDesc>::TOperationResult &operator +(CSwizzle<ElementType, rows, columns, SwizzleDesc> &src) noexcept
-			{
-				return src;
-			}
-
-			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			inline vector<ElementType, SwizzleDesc::TDimension::value> operator -(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src)
 			{
 				vector<ElementType, SwizzleDesc::TDimension::value> result;
@@ -1832,11 +1826,6 @@ consider using preprocessor instead of templates or overloading each target func
 #endif
 
 			const matrix &operator +() const noexcept
-			{
-				return *this;
-			}
-
-			matrix &operator +() noexcept
 			{
 				return *this;
 			}
