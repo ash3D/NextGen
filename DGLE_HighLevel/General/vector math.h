@@ -536,6 +536,9 @@ consider using preprocessor instead of templates or overloading each target func
 			class HeterogeneousInitTag {};
 
 		private:
+			// empty
+			static std::integral_constant<unsigned int, 0u> ElementsCountHelper();
+
 			// scalar
 			template<typename Type>
 			static std::enable_if_t<IsScalar<Type>, std::integral_constant<unsigned int, 1u>> ElementsCountHelper(const Type &);
