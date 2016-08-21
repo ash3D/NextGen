@@ -988,9 +988,14 @@ consider using preprocessor instead of templates or overloading each target func
 			//	return operator ElementType &();
 			//}
 
-#if !(defined _MSC_VER && _MSC_VER <= 1900)
-			// ICE on VS 2015
 		private:
+#if defined _MSC_VER && _MSC_VER <= 1900
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
+			friend auto operator +(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
+			friend auto operator -<>(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
+#else
+			// ICE on VS 2015
 			friend auto operator +<>(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
 			friend auto operator -<>(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
 #endif
