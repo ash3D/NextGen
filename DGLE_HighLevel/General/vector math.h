@@ -952,10 +952,10 @@ consider using preprocessor instead of templates or overloading each target func
 #		include BOOST_PP_ITERATE()
 
 		template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-		vector<ElementType, SwizzleDesc::TDimension::value> operator +(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
+		auto operator +(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
 
 		template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-		vector<ElementType, SwizzleDesc::TDimension::value> operator -(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
+		auto operator -(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
 
 		template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc = CVectorSwizzleDesc<columns>>
 		class CSwizzleBase : public SwizzleTag
@@ -991,20 +991,20 @@ consider using preprocessor instead of templates or overloading each target func
 #if !(defined _MSC_VER && _MSC_VER <= 1900)
 			// ICE on VS 2015
 		private:
-			friend vector<ElementType, SwizzleDesc::TDimension::value> operator +<>(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
-			friend vector<ElementType, SwizzleDesc::TDimension::value> operator -<>(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
+			friend auto operator +<>(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
+			friend auto operator -<>(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
 #endif
 
 			template<size_t ...idx>
 			inline auto Pos(std::index_sequence<idx...>) const
 			{
-				return vector<ElementType, SwizzleDesc::TDimension::value>(+static_cast<const TSwizzle &>(*this)[idx]...);
+				return vector<decltype(+std::declval<ElementType>()), SwizzleDesc::TDimension::value>(+static_cast<const TSwizzle &>(*this)[idx]...);
 			}
 
 			template<size_t ...idx>
 			inline auto Neg(std::index_sequence<idx...>) const
 			{
-				return vector<ElementType, SwizzleDesc::TDimension::value>(-static_cast<const TSwizzle &>(*this)[idx]...);
+				return vector<decltype(-std::declval<ElementType>()), SwizzleDesc::TDimension::value>(-static_cast<const TSwizzle &>(*this)[idx]...);
 			}
 
 		public:
@@ -1464,13 +1464,13 @@ consider using preprocessor instead of templates or overloading each target func
 
 #		pragma region generate operators
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			inline vector<ElementType, SwizzleDesc::TDimension::value> operator +(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src)
+			inline auto operator +(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src)
 			{
 				return src.Pos(std::make_index_sequence<SwizzleDesc::TDimension::value>());
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			inline vector<ElementType, SwizzleDesc::TDimension::value> operator -(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src)
+			inline auto operator -(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src)
 			{
 				return src.Neg(std::make_index_sequence<SwizzleDesc::TDimension::value>());
 			}
@@ -1847,7 +1847,8 @@ consider using preprocessor instead of templates or overloading each target func
 			matrix &operator =(std::initializer_list<CInitListItem<ElementType>> initList) &;
 #endif
 
-			matrix operator +() const, operator -() const;
+			auto operator +() const;
+			auto operator -() const;
 
 #			define OPERATOR_DECLARATION(op)																\
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns>	\
@@ -2086,24 +2087,24 @@ consider using preprocessor instead of templates or overloading each target func
 			template<size_t ...idx>
 			inline auto matrix<ElementType, rows, columns>::Pos(std::index_sequence<idx...>) const
 			{
-				return matrix(+operator [](idx)...);
+				return matrix<decltype(+std::declval<ElementType>()), rows, columns>(+operator [](idx)...);
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<size_t ...idx>
 			inline auto matrix<ElementType, rows, columns>::Neg(std::index_sequence<idx...>) const
 			{
-				return matrix(-operator [](idx)...);
+				return matrix<decltype(-std::declval<ElementType>()), rows, columns>(-operator [](idx)...);
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			inline auto matrix<ElementType, rows, columns>::operator +() const -> matrix
+			inline auto matrix<ElementType, rows, columns>::operator +() const
 			{
 				return Pos(std::make_index_sequence<rows>());
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			inline auto matrix<ElementType, rows, columns>::operator -() const -> matrix
+			inline auto matrix<ElementType, rows, columns>::operator -() const
 			{
 				return Neg(std::make_index_sequence<rows>());
 			}
