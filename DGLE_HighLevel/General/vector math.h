@@ -1460,9 +1460,7 @@ consider using preprocessor instead of templates or overloading each target func
 			friend bool any<>(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
 			friend bool none<>(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
 
-			// use C++11 inheriting ctor
-			CSwizzleIterator(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &swizzle, unsigned i):
-			CSwizzleIteratorImpl<ElementType, rows, columns, SwizzleDesc>(swizzle, i) {}
+			using CSwizzleIteratorImpl::CSwizzleIteratorImpl;
 			// copy ctor required by stl => public
 			~CSwizzleIterator() = default;
 		};
