@@ -1454,7 +1454,7 @@ consider using preprocessor instead of templates or overloading each target func
 		};
 
 		template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-		class CSwizzleIterator : public CSwizzleIteratorImpl<ElementType, rows, columns, SwizzleDesc>
+		class CSwizzleIterator final : public CSwizzleIteratorImpl<ElementType, rows, columns, SwizzleDesc>
 		{
 			friend bool all<>(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
 			friend bool any<>(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
