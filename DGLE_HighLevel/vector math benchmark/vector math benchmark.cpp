@@ -21,7 +21,7 @@ constexpr auto iters = 8ull * 1024 * 1024 * 1024;
 //extern template class VectorMath::matrix<long, 5, 4>;
 //extern template VectorMath::HLSL::int2;
 
-int main()
+int main(int argc, _TCHAR *argv[])
 {
 #pragma region(test)
 	VectorMath::HLSL::int4 vec4(float2x1{}, 0, 1);
