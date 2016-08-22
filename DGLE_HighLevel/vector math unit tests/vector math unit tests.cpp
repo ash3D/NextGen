@@ -188,7 +188,7 @@ namespace vectormathunittests
 
 			Assert::AreEqual(true, all(vec4 < vec3));
 			//Assert::AreEqual(int4(0), min(vec4, 0));
-			AreEqual(0L, min(vec4, 0));
+			AreEqual(0, min(vec4, 0));
 			Assert::AreEqual(true, all(int4(0) == min(vec4, 0)));
 		}
 
@@ -217,7 +217,7 @@ namespace vectormathunittests
 
 			for (auto i = 0ull; i < iters; i++)
 				a += a - b;
-			AreEqual(1L, a);
+			AreEqual(1, a);
 		}
 	};
 }
