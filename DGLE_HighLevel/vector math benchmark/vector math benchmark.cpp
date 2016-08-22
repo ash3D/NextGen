@@ -7,6 +7,8 @@
 #endif
 #include "performance.h"
 
+#define ENABLE_TEST 1
+
 using std::cout;
 using std::endl;
 namespace VectorMath = Math::VectorMath;
@@ -23,7 +25,8 @@ constexpr auto iters = 8ull * 1024 * 1024 * 1024;
 
 int main(int argc, _TCHAR *argv[])
 {
-#pragma region(test)
+#pragma region test
+#if ENABLE_TEST || _DEBUG
 	VectorMath::HLSL::int4 vec4(float2x1{}, 0, 1);
 	VectorMath::GLSL::vec3 vec3(vec4);
 	vec3.apply(floor);
@@ -97,18 +100,20 @@ int main(int argc, _TCHAR *argv[])
 	vec4.xy = vec4;
 	vec4.xy = vec4.xxx;
 	vec4.xy = 42;
+#endif
 #pragma endregion
 
-#pragma region("benchmark")
-	//int2 a(argc), b((size_t)argv);
-	//performance::Start();
-	//for (auto i = 0ull; i < iters; i++)
-	//	a += a - b;
-	//performance::Stop();
-	//performance::Out(cout << a << '\n');
-	//cout << endl;
+#pragma region benchmark
+#if !_DEBUG
+	int2 a(argc), b((size_t)argv);
+	performance::Start();
+	for (auto i = 0ull; i < iters; i++)
+		a += a - b;
+	performance::Stop();
+	performance::Out(cout << a << '\n');
+	cout << endl;
+#endif
 #pragma endregion
 
 	return 0;
 }
-
