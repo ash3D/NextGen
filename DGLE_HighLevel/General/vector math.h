@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		21.08.2016 (c)Alexey Shaydurov
+\date		22.08.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -530,12 +530,41 @@ consider using preprocessor instead of templates or overloading each target func
 		template<typename ElementType, unsigned int rows, unsigned int columns>
 		bool none(const matrix<ElementType, rows, columns> &src);
 
+#if defined _MSC_VER && _MSC_VER <= 1900 && !_DEBUG
+		namespace ElementsCountHelpers
+		{
+			// empty
+			static std::integral_constant<unsigned int, 0u> ElementsCountHelper();
+
+			// scalar
+			template<typename Type>
+			static std::enable_if_t<IsScalar<Type>, std::integral_constant<unsigned int, 1u>> ElementsCountHelper(const Type &);
+
+			// swizzle
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
+			static typename SwizzleDesc::TDimension ElementsCountHelper(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &);
+
+			// matrix
+			template<typename ElementType, unsigned int rows, unsigned int columns>
+			static std::integral_constant<unsigned int, rows * columns> ElementsCountHelper(const matrix<ElementType, rows, columns> &);
+
+			template<typename First, typename Second, typename ...Rest>
+			static auto ElementsCountHelper(const First &first, const Second &second, const Rest &...rest)	// enaable_if_t - workaround for VS 2015
+				-> std::integral_constant<unsigned int, std::enable_if_t<true, decltype(ElementsCountHelper(first))>::value + std::enable_if_t<true, decltype(ElementsCountHelper(second, rest...))>::value>;
+		}
+
+		template<typename ...Args>
+		static constexpr unsigned int elementsCount = decltype(ElementsCountHelpers::ElementsCountHelper(std::declval<Args>()...))::value;
+#endif
+
 		class CDataCommon
 		{
 		protected:
 			template<class IdxSeq, bool checkLength = true, unsigned offset = 0>
 			class HeterogeneousInitTag {};
 
+			// unresolved external symbols on VS 2015 under whole program optimizations
+#if !(defined _MSC_VER && _MSC_VER <= 1900) || _DEBUG
 		private:
 			// empty
 			static std::integral_constant<unsigned int, 0u> ElementsCountHelper();
@@ -559,6 +588,7 @@ consider using preprocessor instead of templates or overloading each target func
 		protected:
 			template<typename ...Args>
 			static constexpr unsigned int elementsCount = decltype(ElementsCountHelper(std::declval<Args>()...))::value;
+#endif
 
 #if defined _MSC_VER && _MSC_VER <= 1900
 			// SFINAE leads to internal comiler error on VS 2015, use tagging as workaround
