@@ -1261,7 +1261,7 @@ consider using preprocessor instead of templates or overloading each target func
 				return operator =<false>(static_cast<const TSwizzle &>(right));
 			}
 
-			// currently public to allow user specify WAR hazard explixitly if needed
+			// currently public to allow user specify WAR hazard explicitly if needed
 			template<bool WARHazard, typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc>
 #ifdef __GNUC__
 			TOperationResult &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)
