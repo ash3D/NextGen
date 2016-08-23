@@ -467,9 +467,9 @@ consider using preprocessor instead of templates or overloading each target func
 			class Pred
 			{
 				template<class Seq, class Iter>
-				struct DistanceFromBegin : mpl::distance<typename mpl::begin<Seq>::type, Iter> {};
-				typedef typename mpl::find<CDstSwizzleVector, typename mpl::deref<SrcIter>::type>::type DstIter;
-				typedef typename mpl::less<typename DistanceFromBegin<CDstSwizzleVector, DstIter>::type, typename DistanceFromBegin<CCuttedSrcSwizzleVector, SrcIter>::type>::type DstWasAlreadyWritten;
+				using DistanceFromBegin = mpl::distance<typename mpl::begin<Seq>::type, Iter>;
+				using DstIter = typename mpl::find<CDstSwizzleVector, typename mpl::deref<SrcIter>::type>::type;
+				using DstWasAlreadyWritten = typename mpl::less<typename DistanceFromBegin<CDstSwizzleVector, DstIter>::type, typename DistanceFromBegin<CCuttedSrcSwizzleVector, SrcIter>::type>::type;
 
 			private:
 				using FindSrcWrittenToDstIter = mpl::advance<typename mpl::begin<CCuttedSrcSwizzleVector>::type, typename DistanceFromBegin<CDstSwizzleVector, DstIter>::type>;
