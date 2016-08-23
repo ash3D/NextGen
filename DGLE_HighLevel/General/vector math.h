@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.08.2016 (c)Alexey Shaydurov
+\date		23.08.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -472,14 +472,11 @@ consider using preprocessor instead of templates or overloading each target func
 				typedef typename mpl::less<typename DistanceFromBegin<CDstSwizzleVector, DstIter>::type, typename DistanceFromBegin<CCuttedSrcSwizzleVector, SrcIter>::type>::type DstWasAlreadyWritten;
 
 			private:
-				// use metafunctions to perform lazy evaluation
-				template<class DstIter = DstIter>
-				struct FindSrcWrittenToDstIter : mpl::advance<typename mpl::begin<CCuttedSrcSwizzleVector>::type, typename DistanceFromBegin<CDstSwizzleVector, DstIter>::type> {};
-				template<class DstIter = DstIter>
-				struct DstWasModified : mpl::not_equal_to<typename mpl::deref<DstIter>::type, typename mpl::deref<typename FindSrcWrittenToDstIter<>::type>::type> {};
+				using FindSrcWrittenToDstIter = mpl::advance<typename mpl::begin<CCuttedSrcSwizzleVector>::type, typename DistanceFromBegin<CDstSwizzleVector, DstIter>::type>;
+				using DstWasModified = mpl::not_equal_to<typename mpl::deref<DstIter>::type, typename mpl::deref<typename FindSrcWrittenToDstIter::type>::type>;
 
 			public:
-				typedef std::conditional_t<assign && DstWasAlreadyWritten::value, DstWasModified<>, DstWasAlreadyWritten> type;
+				typedef std::conditional_t<assign && DstWasAlreadyWritten::value, DstWasModified, DstWasAlreadyWritten> type;
 			};
 			typedef typename mpl::iter_fold<CCuttedSrcSwizzleVector, std::false_type, mpl::or_<mpl::_1, Pred<mpl::_2>>>::type Result;
 
