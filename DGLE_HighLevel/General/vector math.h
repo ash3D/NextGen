@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		23.08.2016 (c)Alexey Shaydurov
+\date		09.09.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1020,7 +1020,7 @@ consider using preprocessor instead of templates or overloading each target func
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			friend auto operator +(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			friend auto operator -<>(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
+			friend auto operator -(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
 #else
 			// ICE on VS 2015
 			friend auto operator +<>(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
