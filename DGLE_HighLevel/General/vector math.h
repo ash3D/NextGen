@@ -858,8 +858,10 @@ consider using preprocessor instead of templates or overloading each target func
 		template<typename ElementType, unsigned int rows, unsigned int columns>
 		class CDataContainer : public std::conditional_t<rows == 0, CSwizzle<ElementType, 0, columns>, MatrixTag>
 		{
-		protected:
+		public:
 			CData<ElementType, rows, columns> data;
+
+		protected:
 			CDataContainer() = default;
 			CDataContainer(const CDataContainer &) = default;
 			CDataContainer(CDataContainer &&) = default;
@@ -1172,19 +1174,19 @@ consider using preprocessor instead of templates or overloading each target func
 		class CSwizzleCommon<ElementType, 0, vectorDimension, CVectorSwizzleDesc<vectorDimension>> : public CSwizzleBase<ElementType, 0, vectorDimension>
 		{
 			typedef vector<ElementType, vectorDimension> Tvector;
+			typedef CDataContainer<ElementType, 0, vectorDimension> DataContainer;
 
 		protected:
 			CSwizzleCommon() = default;
 			CSwizzleCommon(const CSwizzleCommon &) = default;
 			~CSwizzleCommon() = default;
 			CSwizzleCommon &operator =(const CSwizzleCommon &) = default;
-			// TODO: consider adding 'op=' operators to friends and making some stuff below protected/private (and TOperationResult for other CSwizzleCommon above)
 
+			// TODO: consider adding 'op=' operators to friends and making some stuff below protected/private (and TOperationResult for other CSwizzleCommon above)
 		public:
 			typedef Tvector TOperationResult;
 
-		private:
-			operator const Tvector &() const noexcept
+			operator Tvector &() noexcept
 			{
 				/*
 							static
@@ -1192,29 +1194,38 @@ consider using preprocessor instead of templates or overloading each target func
 							   |
 				CSwizzleCommon -> vector
 				*/
-				return static_cast<const Tvector &>(*this);
+				return static_cast<Tvector &>(*this);
 			}
 
-			operator const Tvector &() noexcept
+		private:
+			/*
+						static
+						   ^
+						   |
+			CSwizzleCommon -> CDataContainer
+			*/
+
+			const auto &Data() const noexcept
 			{
-				return static_cast<const CSwizzleCommon *>(this)->operator const Tvector &();
+				return static_cast<const DataContainer *>(this)->data.data;
 			}
 
-		public:
-			operator Tvector &() noexcept
+			auto &Data() noexcept
 			{
-				return const_cast<Tvector &>(operator const Tvector &());
+				return static_cast<DataContainer *>(this)->data.data;
 			}
 
 		public:
 			const ElementType &operator [](unsigned int idx) const noexcept
 			{
-				return operator const Tvector &()[idx];
+				assert(idx < vectorDimension);
+				return Data()[idx];
 			}
 
 			ElementType &operator [](unsigned int idx) noexcept
 			{
-				return operator Tvector &()[idx];
+				assert(idx < vectorDimension);
+				return Data()[idx];
 			}
 		};
 
@@ -1222,8 +1233,8 @@ consider using preprocessor instead of templates or overloading each target func
 		class CSwizzleAssign : public CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>
 		{
 			typedef CSwizzle<ElementType, rows, columns, SwizzleDesc> TSwizzle;
-			// TODO: remove 'public'
 
+			// TODO: remove 'public'
 		public:
 			using typename CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>::TOperationResult;
 
@@ -1789,10 +1800,6 @@ consider using preprocessor instead of templates or overloading each target func
 #endif
 			using CSwizzleAssign<ElementType, 0, dimension>::operator =;
 
-			const ElementType &operator [](unsigned int idx) const noexcept;
-
-			ElementType &operator [](unsigned int idx) noexcept;
-
 		private:
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			friend class CData;
@@ -1956,20 +1963,6 @@ consider using preprocessor instead of templates or overloading each target func
 		}
 
 #		pragma region vector impl
-			template<typename ElementType, unsigned int dimension>
-			inline const ElementType &vector<ElementType, dimension>::operator [](unsigned int idx) const noexcept
-			{
-				assert(idx < dimension);
-				return DataContainer::data.data[idx];
-			}
-
-			template<typename ElementType, unsigned int dimension>
-			inline ElementType &vector<ElementType, dimension>::operator [](unsigned int idx) noexcept
-			{
-				assert(idx < dimension);
-				return DataContainer::data.data[idx];
-			}
-
 			template<typename ElementType, unsigned int dimension>
 			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
 			inline vector<ElementType, dimension>::vector(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) :
