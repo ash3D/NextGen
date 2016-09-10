@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		09.09.2016 (c)Alexey Shaydurov
+\date		10.09.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -725,13 +725,13 @@ consider using preprocessor instead of templates or overloading each target func
 			CData(HeterogeneousInitTag<std::index_sequence<row...>>, const First &first, const Rest &...rest);
 
 		private:
-			vector<ElementType, columns> _rows[rows];
+			vector<ElementType, columns> rowsData[rows];
 		};
 
 		template<typename ElementType, unsigned int rows, unsigned int columns>
 		template<size_t ...row, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
 		inline CData<ElementType, rows, columns>::CData(std::index_sequence<row...>, const matrix<SrcElementType, srcRows, srcColumns> &src) :
-			_rows{ vector<ElementType, columns>(HeterogeneousInitTag<std::make_index_sequence<columns>, false>(), static_cast<const CSwizzle<SrcElementType, 0, srcColumns> &>(src[row]))... }
+			rowsData{ vector<ElementType, columns>(HeterogeneousInitTag<std::make_index_sequence<columns>, false>(), static_cast<const CSwizzle<SrcElementType, 0, srcColumns> &>(src[row]))... }
 		{
 			static_assert(rows <= srcRows, "\"copy\" ctor: too few rows in src");
 			static_assert(columns <= srcColumns, "\"copy\" ctor: too few columns in src");
@@ -740,12 +740,12 @@ consider using preprocessor instead of templates or overloading each target func
 		template<typename ElementType, unsigned int rows, unsigned int columns>
 		template<size_t ...row, typename SrcElementType>
 		inline CData<ElementType, rows, columns>::CData(std::index_sequence<row...>, const SrcElementType &scalar) :
-			_rows{ (row, static_cast<const ElementType &>(scalar))... } {}
+			rowsData{ (row, static_cast<const ElementType &>(scalar))... } {}
 
 		template<typename ElementType, unsigned int rows, unsigned int columns>
 		template<size_t ...row, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
 		inline CData<ElementType, rows, columns>::CData(std::index_sequence<row...>, const SrcElementType (&src)[srcRows][srcColumns]) :
-			_rows{ vector<ElementType, columns>(HeterogeneousInitTag<std::make_index_sequence<columns>, false>(), static_cast<const CSwizzle<SrcElementType, 0, srcColumns> &>(src[row]))... }
+			rowsData{ vector<ElementType, columns>(HeterogeneousInitTag<std::make_index_sequence<columns>, false>(), static_cast<const CSwizzle<SrcElementType, 0, srcColumns> &>(src[row]))... }
 		{
 			static_assert(rows <= srcRows, "array ctor: too few rows in src");
 			static_assert(columns <= srcColumns, "array ctor: too few columns in src");
@@ -754,7 +754,7 @@ consider using preprocessor instead of templates or overloading each target func
 		template<typename ElementType, unsigned int rows, unsigned int columns>
 		template<size_t ...row, typename First, typename ...Rest>
 		inline CData<ElementType, rows, columns>::CData(HeterogeneousInitTag<std::index_sequence<row...>>, const First &first, const Rest &...rest) :
-			_rows{ vector<ElementType, columns>(HeterogeneousInitTag<std::make_index_sequence<columns>, false, row * columns>(), first, rest...)... }
+			rowsData{ vector<ElementType, columns>(HeterogeneousInitTag<std::make_index_sequence<columns>, false, row * columns>(), first, rest...)... }
 		{
 			constexpr auto srcElements = elementsCount<const First &, const Rest &...>;
 			static_assert(srcElements >= rows * columns, "heterogeneous ctor: too few src elements");
@@ -1068,6 +1068,37 @@ consider using preprocessor instead of templates or overloading each target func
 			}
 		};
 
+#if defined _MSC_VER && _MSC_VER <= 1900
+#		define FRIEND_DECLARATIONS(op)																									\
+			template																													\
+			<																															\
+				bool WARHazard,																											\
+				typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,						\
+				typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc					\
+			>																															\
+			friend inline typename CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &operator op##=(	\
+			CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,													\
+			const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right);										\
+																																		\
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>									\
+			friend class CSwizzleAssign;
+#else
+		// ICE on VS 2015
+#		define FRIEND_DECLARATIONS(op)																									\
+			template																													\
+			<																															\
+				bool WARHazard,																											\
+				typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,						\
+				typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc					\
+			>																															\
+			friend inline typename CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &operator op##=(	\
+			CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,													\
+			const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right);										\
+																																		\
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>									\
+			friend class CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::AssignDirect(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right);
+#endif
+
 		// CSwizzle inherits from this to reduce preprocessor generated code for faster compiling
 		template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 		class CSwizzleCommon : public CSwizzleBase<ElementType, rows, columns, SwizzleDesc>
@@ -1090,12 +1121,11 @@ consider using preprocessor instead of templates or overloading each target func
 				return static_cast<TSwizzle &>(*this);
 			}
 
-		public:
-			const ElementType &operator [](unsigned int idx) const noexcept
+		private:
+			GENERATE_OPERATORS(FRIEND_DECLARATIONS, ARITHMETIC_OPS)
+
+			const auto &Data() const noexcept
 			{
-				assert((idx < SwizzleDesc::TDimension::value));
-				idx = SwizzleDesc::packedSwizzle >> idx * 4u & (1u << 4u) - 1u;
-				const auto row = idx >> 2 & 3u, column = idx & 3u;
 				/*
 							static	  reinterpret
 							   ^		   ^
@@ -1103,8 +1133,18 @@ consider using preprocessor instead of templates or overloading each target func
 				CSwizzleCommon -> CSwizzle -> CData
 				*/
 				typedef CData<ElementType, rows, columns> CData;
-				return reinterpret_cast<const CData &>(static_cast<const TSwizzle &>(*this))._rows[row][column];
+				return reinterpret_cast<const CData *>(static_cast<const TSwizzle *>(this))->rowsData;
 			}
+
+		public:
+			const ElementType &operator [](unsigned int idx) const noexcept
+			{
+				assert(idx < SwizzleDesc::TDimension::value);
+				idx = SwizzleDesc::packedSwizzle >> idx * 4u & (1u << 4u) - 1u;
+				const auto row = idx >> 2 & 3u, column = idx & 3u;
+				return Data()[row][column];
+			}
+
 			ElementType &operator [](unsigned int idx) noexcept
 			{
 				return const_cast<ElementType &>(static_cast<const CSwizzleCommon &>(*this)[idx]);
@@ -1146,11 +1186,11 @@ consider using preprocessor instead of templates or overloading each target func
 				return static_cast<TSwizzle &>(*this);
 			}
 
-		public:
-			const ElementType &operator [](unsigned int idx) const noexcept
+		private:
+			GENERATE_OPERATORS(FRIEND_DECLARATIONS, ARITHMETIC_OPS)
+
+			const auto &Data() const noexcept
 			{
-				assert((idx < SwizzleDesc::TDimension::value));
-				idx = SwizzleDesc::packedSwizzle >> idx * 4u & (1u << 4u) - 1u;
 				/*
 							static	  reinterpret
 							   ^		   ^
@@ -1158,8 +1198,17 @@ consider using preprocessor instead of templates or overloading each target func
 				CSwizzleCommon -> CSwizzle -> CData
 				*/
 				typedef CData<ElementType, 0, vectorDimension> CData;
-				return reinterpret_cast<const CData &>(static_cast<const TSwizzle &>(*this)).data[idx];
+				return reinterpret_cast<const CData *>(static_cast<const TSwizzle *>(this))->data;
 			}
+
+		public:
+			const ElementType &operator [](unsigned int idx) const noexcept
+			{
+				assert(idx < SwizzleDesc::TDimension::value);
+				idx = SwizzleDesc::packedSwizzle >> idx * 4u & (1u << 4u) - 1u;
+				return Data()[idx];
+			}
+
 			ElementType &operator [](unsigned int idx) noexcept
 			{
 				return const_cast<ElementType &>(static_cast<const CSwizzleCommon &>(*this)[idx]);
@@ -1198,6 +1247,8 @@ consider using preprocessor instead of templates or overloading each target func
 			}
 
 		private:
+			GENERATE_OPERATORS(FRIEND_DECLARATIONS, ARITHMETIC_OPS)
+
 			/*
 						static
 						   ^
@@ -1228,6 +1279,8 @@ consider using preprocessor instead of templates or overloading each target func
 				return Data()[idx];
 			}
 		};
+
+#		undef FRIEND_DECLARATIONS
 
 		template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 		class CSwizzleAssign : public CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>
@@ -1336,20 +1389,14 @@ consider using preprocessor instead of templates or overloading each target func
 		template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc>
 		inline void CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::AssignDirect(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)
 		{
-			/*
-			NOTE: assert should not be triggered if WAR hazard not detected.
-			C-style casts to CDataContainer below performed as static_cast if corresponding swizzle is
-			CDataContainer's base and as reinterpret_cast if swizzle is part of CDataContainer's union.
-			*/
+			// NOTE: assert should not be triggered if WAR hazard is not detected.
 			assert((
 				!DetectSwizzleWARHazard
 				<
 					ElementType, rows, columns, SwizzleDesc,
 					RightElementType, rightRows, rightColumns, RightSwizzleDesc,
 					true
-				>::value ||
-				(const CDataContainer<ElementType, rows, columns> *)static_cast<const CSwizzle<ElementType, rows, columns, SwizzleDesc> *>(this) !=
-				(const void *)(const CDataContainer<RightElementType, rightRows, rightColumns> *)&right));
+				>::value || &Data() != (const void *)&right.Data()));
 			static_assert(SwizzleDesc::TDimension::value <= RightSwizzleDesc::TDimension::value, "operator =: too small src dimension");
 			for (unsigned idx = 0; idx < SwizzleDesc::TDimension::value; idx++)
 				(*this)[idx] = right[idx];
@@ -1537,9 +1584,7 @@ consider using preprocessor instead of templates or overloading each target func
 								LeftElementType, leftRows, leftColumns, LeftSwizzleDesc,																		\
 								RightElementType, rightRows, rightColumns, RightSwizzleDesc,																	\
 								false																															\
-							>::value ||																															\
-							(const CDataContainer<LeftElementType, leftRows, leftColumns> *)(&left) !=															\
-							(const void *)(const CDataContainer<RightElementType, rightRows, rightColumns> *)&right));											\
+							>::value || &left.Data() != (const void *)&right.Data()));																			\
 						static_assert(LeftSwizzleDesc::isWriteMaskValid, "operator "#op"=: invalid write mask");												\
 						static_assert(LeftSwizzleDesc::TDimension::value <= RightSwizzleDesc::TDimension::value, "operator "#op"=: too small src dimension");	\
 						for (typename LeftSwizzleDesc::TDimension::value_type i = 0; i < LeftSwizzleDesc::TDimension::value; i++)								\
@@ -2017,14 +2062,14 @@ consider using preprocessor instead of templates or overloading each target func
 			inline auto matrix<ElementType, rows, columns>::operator [](unsigned int idx) const noexcept -> const typename matrix::TRow &
 			{
 				assert(idx < rows);
-				return DataContainer::data._rows[idx];
+				return DataContainer::data.rowsData[idx];
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			inline auto matrix<ElementType, rows, columns>::operator [](unsigned int idx) noexcept -> typename matrix::TRow &
 			{
 				assert(idx < rows);
-				return DataContainer::data._rows[idx];
+				return DataContainer::data.rowsData[idx];
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
@@ -2480,7 +2525,7 @@ consider using preprocessor instead of templates or overloading each target func
 				template<typename ElementType, unsigned int rows, unsigned int columns>															\
 				bool f1(const matrix<ElementType, rows, columns> &src)																			\
 				{																																\
-					return std::f2##_of(src.data._rows, src.data._rows + rows, f1<ElementType, 0, columns, CVectorSwizzleDesc<columns>>);		\
+					return std::f2##_of(src.data.rowsData, src.data.rowsData + rows, f1<ElementType, 0, columns, CVectorSwizzleDesc<columns>>);	\
 				};
 			FUNCTION_DEFINITION1(all)
 			FUNCTION_DEFINITION1(any)
