@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		10.09.2016 (c)Alexey Shaydurov
+\date		12.09.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -329,7 +329,10 @@ consider using preprocessor instead of templates or overloading each target func
 #	include <boost/preprocessor/seq/cat.hpp>
 #	include <boost/preprocessor/seq/to_tuple.hpp>
 #	include <boost/preprocessor/punctuation/remove_parens.hpp>
+#	include <boost/mpl/apply.hpp>
 #	include <boost/mpl/placeholders.hpp>
+#	include <boost/mpl/lambda.hpp>
+#	include <boost/mpl/bind.hpp>
 #	include <boost/mpl/vector_c.hpp>
 #	include <boost/mpl/range_c.hpp>
 #	include <boost/mpl/at.hpp>
@@ -350,6 +353,7 @@ consider using preprocessor instead of templates or overloading each target func
 #	include <boost/mpl/distance.hpp>
 #	include <boost/mpl/iter_fold.hpp>
 #	include <boost/mpl/find.hpp>
+#	include <boost/mpl/transform_view.hpp>
 
 //#	define GET_SWIZZLE_ELEMENT(vectorDimension, idx, cv) (reinterpret_cast<cv CData<ElementType, vectorDimension> &>(*this).data[(idx)])
 //#	define GET_SWIZZLE_ELEMENT_PACKED(vectorDimension, packedSwizzle, idx, cv) (GET_SWIZZLE_ELEMENT(vectorDimension, packedSwizzle >> ((idx) << 1) & 3u, cv))
@@ -440,50 +444,6 @@ consider using preprocessor instead of templates or overloading each target func
 			static constexpr bool isWriteMaskValid = true;
 		};
 
-		template
-		<
-			typename DstElementType, unsigned int dstRows, unsigned int dstColumns, class DstSwizzleDesc,
-			typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc,
-			bool assign
-		>
-		struct DetectSwizzleWARHazard : std::false_type {};
-
-		template
-		<
-			typename ElementType, unsigned int rows, unsigned int columns,
-			class DstSwizzleDesc, class SrcSwizzleDesc, bool assign
-		>
-		class DetectSwizzleWARHazard<ElementType, rows, columns, DstSwizzleDesc, ElementType, rows, columns, SrcSwizzleDesc, assign>
-		{
-			typedef typename DstSwizzleDesc::CSwizzleVector CDstSwizzleVector;
-			typedef typename SrcSwizzleDesc::CSwizzleVector CSrcSwizzleVector;
-			// cut off CSrcSwizzleVector
-			typedef typename mpl::min<typename mpl::size<CSrcSwizzleVector>::type, typename mpl::size<CDstSwizzleVector>::type>::type MinSwizzleSize;
-			typedef typename mpl::begin<CSrcSwizzleVector>::type SrcSwizzleBegin;
-			typedef typename mpl::iterator_range<SrcSwizzleBegin, typename mpl::advance<SrcSwizzleBegin, MinSwizzleSize>::type>::type CCuttedSrcSwizzleVector;
-
-		private:
-			template<class SrcIter>
-			class Pred
-			{
-				template<class Seq, class Iter>
-				using DistanceFromBegin = mpl::distance<typename mpl::begin<Seq>::type, Iter>;
-				using DstIter = typename mpl::find<CDstSwizzleVector, typename mpl::deref<SrcIter>::type>::type;
-				using DstWasAlreadyWritten = typename mpl::less<typename DistanceFromBegin<CDstSwizzleVector, DstIter>::type, typename DistanceFromBegin<CCuttedSrcSwizzleVector, SrcIter>::type>::type;
-
-			private:
-				using FindSrcWrittenToDstIter = mpl::advance<typename mpl::begin<CCuttedSrcSwizzleVector>::type, typename DistanceFromBegin<CDstSwizzleVector, DstIter>::type>;
-				using DstWasModified = mpl::not_equal_to<typename mpl::deref<DstIter>::type, typename mpl::deref<typename FindSrcWrittenToDstIter::type>::type>;
-
-			public:
-				typedef std::conditional_t<assign && DstWasAlreadyWritten::value, DstWasModified, DstWasAlreadyWritten> type;
-			};
-			typedef typename mpl::iter_fold<CCuttedSrcSwizzleVector, std::false_type, mpl::or_<mpl::_1, Pred<mpl::_2>>>::type Result;
-
-		public:
-			static constexpr typename Result::value_type value = Result::value;
-		};
-
 		template<typename ElementType, unsigned int dimension>
 		class vector;
 
@@ -526,6 +486,133 @@ consider using preprocessor instead of templates or overloading each target func
 
 		template<typename ElementType, unsigned int rows, unsigned int columns>
 		bool none(const matrix<ElementType, rows, columns> &src);
+
+#		pragma region WAR hazard detector
+			template<class DstSwizzleDesc, class SrcSwizzleDesc, bool assign, unsigned dstRowIdx = 0, unsigned srcRowIdx = 0>
+			class SwizzleWARHazardDetectHelper
+			{
+				// mpl::transform does not work with ranges (bug in mpl?) => use mpl::transform_view (even if it can ponentially be less efficient)
+				typedef mpl::transform_view<typename DstSwizzleDesc::CSwizzleVector, mpl::bitor_<mpl::_, mpl::integral_c<unsigned, dstRowIdx << 2>>> CDstSwizzleVector;
+				typedef mpl::transform_view<typename SrcSwizzleDesc::CSwizzleVector, mpl::bitor_<mpl::_, mpl::integral_c<unsigned, srcRowIdx << 2>>> CSrcSwizzleVector;
+
+				// cut CSrcSwizzleVector off
+				typedef typename mpl::min<typename mpl::size<CSrcSwizzleVector>::type, typename mpl::size<CDstSwizzleVector>::type>::type MinSwizzleSize;
+				typedef typename mpl::begin<CSrcSwizzleVector>::type SrcSwizzleBegin;
+				typedef typename mpl::iterator_range<SrcSwizzleBegin, typename mpl::advance<SrcSwizzleBegin, MinSwizzleSize>::type>::type CCuttedSrcSwizzleVector;
+
+			private:
+				template<class SrcIter>
+				class Pred
+				{
+					template<class F>
+					struct invoke
+					{
+						typedef typename F::type type;
+					};
+					template<class Seq, class Iter>
+					using DistanceFromBegin = mpl::distance<typename mpl::begin<Seq>::type, Iter>;
+					using DstIter = typename mpl::find<CDstSwizzleVector, typename mpl::deref<SrcIter>::type>::type;
+					using DstWasAlreadyWritten = typename mpl::less<typename DistanceFromBegin<CDstSwizzleVector, DstIter>::type, typename DistanceFromBegin<CCuttedSrcSwizzleVector, SrcIter>::type>::type;
+
+				private:
+					using FindSrcWrittenToDstIter = mpl::advance<typename mpl::begin<CCuttedSrcSwizzleVector>::type, typename DistanceFromBegin<CDstSwizzleVector, DstIter>::type>;
+					using DstWasModified = mpl::bind<typename mpl::lambda<mpl::not_equal_to<invoke<mpl::_1>, invoke<mpl::_2>>>::type, mpl::deref<DstIter>, mpl::deref<typename FindSrcWrittenToDstIter::type>>;
+
+				public:
+					typedef typename mpl::apply<std::conditional_t<assign && DstWasAlreadyWritten::value, DstWasModified, mpl::bind<mpl::lambda<mpl::_>::type, DstWasAlreadyWritten>>>::type type;
+				};
+				typedef typename mpl::iter_fold<CCuttedSrcSwizzleVector, std::false_type, mpl::or_<mpl::_1, Pred<mpl::_2>>>::type Result;
+
+			public:
+				static constexpr typename Result::value_type value = Result::value;
+			};
+
+			template
+			<
+				typename DstElementType, unsigned int dstRows, unsigned int dstColumns, class DstSwizzleDesc,
+				typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc,
+				bool assign
+			>
+			struct DetectSwizzleWARHazard : std::false_type {};
+
+			template
+			<
+				typename ElementType, unsigned int rows, unsigned int columns,
+				class DstSwizzleDesc, class SrcSwizzleDesc, bool assign
+			>
+			struct DetectSwizzleWARHazard<ElementType, rows, columns, DstSwizzleDesc, ElementType, rows, columns, SrcSwizzleDesc, assign> :
+				SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign> {};
+
+			// mixed vector/matrix swizzles
+			template
+			<
+				typename ElementType, unsigned int dstRows, unsigned int srcRows, unsigned int columns,
+				class DstSwizzleDesc, class SrcSwizzleDesc, bool assign
+			>
+			class DetectSwizzleWARHazard<std::enable_if_t<bool(dstRows) != bool(srcRows), ElementType>, dstRows, columns, DstSwizzleDesc, ElementType, srcRows, columns, SrcSwizzleDesc, assign>
+			{
+				template<unsigned int rows, unsigned rowIdx = 0>
+				static constexpr auto rowsFold = SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign, dstRows ? 0 : rowIdx, srcRows ? 0 : rowIdx>::value || rowsFold<rows, rowIdx + 1>;
+
+				// terminator
+				template<unsigned int rows>
+				static constexpr auto rowsFold<rows, rows> = false;
+
+			public:
+				static constexpr auto value = rowsFold<dstRows ? dstRows : srcRows>;
+			};
+
+			// vector
+			template<unsigned rowIdx = 0, typename ElementType, unsigned int columns, class SwizzleDesc>
+			static inline const void *GetRowAddress(const CSwizzleCommon<ElementType, 0, columns, SwizzleDesc> &swizzle)
+			{
+				return swizzle.Data();
+			}
+
+			// matrix
+			template<unsigned rowIdx = 0, typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
+			static inline const void *GetRowAddress(const CSwizzleCommon<ElementType, rows, columns, SwizzleDesc> &swizzle)
+			{
+				return swizzle.Data()[rowIdx].Data();
+			}
+
+			// NOTE: assert should not be triggered if WAR hazard is not detected.
+
+			template
+			<
+				bool assign, class DstSwizzleDesc, class SrcSwizzleDesc,
+				typename ElementType, unsigned int rows, unsigned int columns
+			>
+			static inline bool TriggerWARHazard(CSwizzleCommon<ElementType, rows, columns, DstSwizzleDesc> &dst, const CSwizzleCommon<ElementType, rows, columns, SrcSwizzleDesc> &src)
+			{
+				return SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign>::value && GetRowAddress(dst) == GetRowAddress(src);
+			}
+
+			// mixed vector/matrix swizzles
+			template
+			<
+				bool assign, unsigned rowIdx = 0, class DstSwizzleDesc, class SrcSwizzleDesc,
+				typename ElementType, unsigned int dstRows, unsigned int srcRows, unsigned int columns
+			>
+			static inline std::enable_if_t<bool(dstRows) != bool(srcRows) && rowIdx < mpl::max<mpl::integral_c<unsigned int, dstRows>, mpl::integral_c<unsigned int, srcRows>>::type::value, bool>
+				TriggerWARHazard(CSwizzleCommon<ElementType, dstRows, columns, DstSwizzleDesc> &dst, const CSwizzleCommon<ElementType, srcRows, columns, SrcSwizzleDesc> &src)
+			{
+				return SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign, dstRows ? 0 : rowIdx, srcRows ? 0 : rowIdx>::value
+					&& GetRowAddress<rowIdx>(dst.Data()) == GetRowAddress<rowIdx>(src.Data()) || TriggerWARHazard<assign, rowIdx + 1>(dst, src);
+			}
+
+			// served both for unmatched swizzles and as terminator for mixed vector/matrix swizzles
+			template
+			<
+				bool assign, unsigned rowIdx = 0,
+				typename DstElementType, unsigned int dstRows, unsigned int dstColumns, class DstSwizzleDesc,
+				typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc
+			>
+				static inline bool TriggerWARHazard(CSwizzleCommon<DstElementType, dstRows, dstColumns, DstSwizzleDesc> &, const CSwizzleCommon<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &)
+			{
+				return false;
+			}
+#		pragma endregion
 
 #if defined _MSC_VER && _MSC_VER <= 1900 && !_DEBUG
 		namespace ElementsCountHelpers
@@ -1068,36 +1155,12 @@ consider using preprocessor instead of templates or overloading each target func
 			}
 		};
 
-#if defined _MSC_VER && _MSC_VER <= 1900
-#		define FRIEND_DECLARATIONS(op)																									\
-			template																													\
-			<																															\
-				bool WARHazard,																											\
-				typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,						\
-				typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc					\
-			>																															\
-			friend inline typename CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &operator op##=(	\
-			CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,													\
-			const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right);										\
-																																		\
-			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>									\
-			friend class CSwizzleAssign;
-#else
-		// ICE on VS 2015
-#		define FRIEND_DECLARATIONS(op)																									\
-			template																													\
-			<																															\
-				bool WARHazard,																											\
-				typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,						\
-				typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc					\
-			>																															\
-			friend inline typename CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &operator op##=(	\
-			CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,													\
-			const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right);										\
-																																		\
-			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>									\
-			friend class CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::AssignDirect(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right);
-#endif
+#		define FRIEND_DECLARATIONS(op)																								\
+			template<unsigned rowIdx = 0, typename ElementType, unsigned int columns, class SwizzleDesc>							\
+			friend static inline const void *GetRowAddress(const CSwizzleCommon<ElementType, 0, columns, SwizzleDesc> &swizzle);	\
+																																	\
+			template<unsigned rowIdx = 0, typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>			\
+			friend static inline const void *GetRowAddress(const CSwizzleCommon<ElementType, rows, columns, SwizzleDesc> &swizzle);
 
 		// CSwizzle inherits from this to reduce preprocessor generated code for faster compiling
 		template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
@@ -1389,15 +1452,8 @@ consider using preprocessor instead of templates or overloading each target func
 		template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc>
 		inline void CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::AssignDirect(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)
 		{
-			// NOTE: assert should not be triggered if WAR hazard is not detected.
-			assert((
-				!DetectSwizzleWARHazard
-				<
-					ElementType, rows, columns, SwizzleDesc,
-					RightElementType, rightRows, rightColumns, RightSwizzleDesc,
-					true
-				>::value || &Data() != (const void *)&right.Data()));
 			static_assert(SwizzleDesc::TDimension::value <= RightSwizzleDesc::TDimension::value, "operator =: too small src dimension");
+			assert(!TriggerWARHazard<true>(*this, right));
 			for (unsigned idx = 0; idx < SwizzleDesc::TDimension::value; idx++)
 				(*this)[idx] = right[idx];
 		}
@@ -1578,15 +1634,9 @@ consider using preprocessor instead of templates or overloading each target func
 						return operator op##=<false>(left, vector<RightElementType, RightSwizzleDesc::TDimension::value>(right));								\
 					else																																		\
 					{																																			\
-						assert((																																\
-						!DetectSwizzleWARHazard																													\
-							<																																	\
-								LeftElementType, leftRows, leftColumns, LeftSwizzleDesc,																		\
-								RightElementType, rightRows, rightColumns, RightSwizzleDesc,																	\
-								false																															\
-							>::value || &left.Data() != (const void *)&right.Data()));																			\
 						static_assert(LeftSwizzleDesc::isWriteMaskValid, "operator "#op"=: invalid write mask");												\
 						static_assert(LeftSwizzleDesc::TDimension::value <= RightSwizzleDesc::TDimension::value, "operator "#op"=: too small src dimension");	\
+						assert(!TriggerWARHazard<false>(left, right));																							\
 						for (typename LeftSwizzleDesc::TDimension::value_type i = 0; i < LeftSwizzleDesc::TDimension::value; i++)								\
 							left[i] op##= right[i];																												\
 						return left;																															\
