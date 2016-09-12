@@ -2417,7 +2417,7 @@ consider using preprocessor instead of templates or overloading each target func
 			// std::min/max requires explicit template param if used for different types => provide scalar version
 #			define FUNCTION_DEFINITION(f)																					\
 				template<typename LeftElementType, typename RightElementType>												\
-				inline auto f(const LeftElementType &left, const RightElementType &right) -> decltype(left - right)			\
+				inline auto f(const LeftElementType &left, const RightElementType &right)									\
 				{																											\
 					return std::f<decltype(left - right)>(left, right);														\
 				};
@@ -2434,7 +2434,6 @@ consider using preprocessor instead of templates or overloading each target func
 				inline auto f(																								\
 				const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,								\
 				const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)							\
-				-> decltype(left - right)																					\
 				{																											\
 					typedef decltype(left - right) TResult;																	\
 					TResult result;																							\
@@ -2497,7 +2496,6 @@ consider using preprocessor instead of templates or overloading each target func
 				auto f(																										\
 				const matrix<LeftElementType, leftRows, leftColumns> &left,													\
 				const matrix<RightElementType, rightRows, rightColumns> &right)												\
-				-> decltype(left - right)																					\
 				{																											\
 					typedef decltype(left - right) TResult;																	\
 					TResult result;																							\
@@ -2702,14 +2700,12 @@ consider using preprocessor instead of templates or overloading each target func
 			inline auto dot(
 			const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,
 			const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)
-			-> decltype(mul(left, right))
 			{
 				return mul(left, right);
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			inline auto length(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &swizzle)
-			-> decltype(sqrt(dot(swizzle, swizzle)))
 			{
 				return sqrt(dot(swizzle, swizzle));
 			}
@@ -2722,14 +2718,12 @@ consider using preprocessor instead of templates or overloading each target func
 			inline auto distance(
 			const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,
 			const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)
-			-> decltype(length(right - left))
 			{
 				return length(right - left);
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			inline auto normalize(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &swizzle)
-			-> decltype(swizzle / length(swizzle))
 			{
 				return swizzle / length(swizzle);
 			}
@@ -2743,7 +2737,6 @@ consider using preprocessor instead of templates or overloading each target func
 				inline auto operator ,(
 				const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,
 				const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)
-				-> decltype(mul(left, right))
 				{
 					return mul(left, right);
 				}
@@ -2756,7 +2749,6 @@ consider using preprocessor instead of templates or overloading each target func
 				inline auto operator ,(
 				const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,
 				const matrix<RightElementType, rightRows, rightColumns> &right)
-				-> decltype(mul(left, right))
 				{
 					return mul(left, right);
 				}
@@ -2769,7 +2761,6 @@ consider using preprocessor instead of templates or overloading each target func
 				inline auto operator ,(
 				const matrix<LeftElementType, leftRows, leftColumns> &left,
 				const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)
-				-> decltype(mul(left, right))
 				{
 					return mul(left, right);
 				}
@@ -2782,7 +2773,6 @@ consider using preprocessor instead of templates or overloading each target func
 				inline auto operator ,(
 				const matrix<LeftElementType, leftRows, leftColumns> &left,
 				const matrix<RightElementType, rightRows, rightColumns> &right)
-				-> decltype(mul(left, right))
 				{
 					return mul(left, right);
 				}

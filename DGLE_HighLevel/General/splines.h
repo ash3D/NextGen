@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		12.08.2016 (c)Korotkov Andrey
+\date		12.09.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -179,13 +179,13 @@ namespace Math::Splines
 	};
 
 	template<class Point>
-	inline auto GetPos(const Point &point) -> decltype(point.pos)
+	inline decltype(auto) GetPos(const Point &point)
 	{
 		return point.pos;
 	}
 
 	template<typename ScalarType, unsigned int dimension>
-	inline auto GetPos(const VectorMath::vector<ScalarType, dimension> &point) -> decltype(point)
+	inline decltype(auto) GetPos(const VectorMath::vector<ScalarType, dimension> &point)
 	{
 		return point;
 	}
