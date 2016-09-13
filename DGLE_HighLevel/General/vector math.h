@@ -2576,7 +2576,7 @@ consider using preprocessor instead of templates or overloading each target func
 				typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,
 				typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc
 			>
-			inline std::decay_t<decltype(std::declval<LeftElementType>() * std::declval<RightElementType>())> mul(
+			inline auto mul(
 			const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,
 			const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)
 			{
@@ -2596,7 +2596,7 @@ consider using preprocessor instead of templates or overloading each target func
 				typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,
 				typename RightElementType, unsigned int rightRows, unsigned int rightColumns
 			>
-			vector<std::decay_t<decltype(std::declval<LeftElementType>() * std::declval<RightElementType>())>, rightColumns> mul(
+			auto mul(
 			const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,
 			const matrix<RightElementType, rightRows, rightColumns> &right)
 			{
@@ -2619,7 +2619,7 @@ consider using preprocessor instead of templates or overloading each target func
 				typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,
 				typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc
 			>
-			vector<std::decay_t<decltype(std::declval<LeftElementType>() * std::declval<RightElementType>())>, leftRows> mul(
+			auto mul(
 			const matrix<LeftElementType, leftRows, leftColumns> &left,
 			const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)
 			{
@@ -2642,7 +2642,7 @@ consider using preprocessor instead of templates or overloading each target func
 				typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,
 				typename RightElementType, unsigned int rightRows, unsigned int rightColumns
 			>
-			matrix<std::decay_t<decltype(std::declval<LeftElementType>() * std::declval<RightElementType>())>, leftRows, rightColumns> mul(
+			auto mul(
 			const matrix<LeftElementType, leftRows, leftColumns> &left,
 			const matrix<RightElementType, rightRows, rightColumns> &right)
 			{
