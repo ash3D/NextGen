@@ -2581,7 +2581,7 @@ consider using preprocessor instead of templates or overloading each target func
 			const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)
 			{
 				constexpr unsigned int rowXcolumnDimension = std::min(LeftSwizzleDesc::dimension, RightSwizzleDesc::dimension);
-				typedef std::decay_t<decltype(std::declval<LeftElementType>() + std::declval<RightElementType>())> ElementType;
+				typedef std::decay_t<decltype(std::declval<LeftElementType>() * std::declval<RightElementType>())> ElementType;
 
 				ElementType result = ElementType();
 
@@ -2603,7 +2603,7 @@ consider using preprocessor instead of templates or overloading each target func
 				constexpr unsigned int
 					resultColumns = rightColumns,
 					rowXcolumnDimension = std::min(LeftSwizzleDesc::dimension, rightRows);
-				typedef std::decay_t<decltype(std::declval<LeftElementType>() + std::declval<RightElementType>())> ElementType;
+				typedef std::decay_t<decltype(std::declval<LeftElementType>() * std::declval<RightElementType>())> ElementType;
 
 				vector<ElementType, resultColumns> result = ElementType();
 
@@ -2626,7 +2626,7 @@ consider using preprocessor instead of templates or overloading each target func
 				constexpr unsigned int
 					resultRows = leftRows,
 					rowXcolumnDimension = std::min(leftColumns, RightSwizzleDesc::dimension);
-				typedef std::decay_t<decltype(std::declval<LeftElementType>() + std::declval<RightElementType>())> ElementType;
+				typedef std::decay_t<decltype(std::declval<LeftElementType>() * std::declval<RightElementType>())> ElementType;
 
 				vector<ElementType, resultRows> result = ElementType();
 
@@ -2650,7 +2650,7 @@ consider using preprocessor instead of templates or overloading each target func
 					resultRows = leftRows,
 					resultColumns = rightColumns,
 					rowXcolumnDimension = std::min(leftColumns, rightRows);
-				typedef std::decay_t<decltype(std::declval<LeftElementType>() + std::declval<RightElementType>())> ElementType;
+				typedef std::decay_t<decltype(std::declval<LeftElementType>() * std::declval<RightElementType>())> ElementType;
 
 				matrix<ElementType, resultRows, resultColumns> result = ElementType();
 
