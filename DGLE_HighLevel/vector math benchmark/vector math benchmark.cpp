@@ -31,6 +31,7 @@ int main(int argc, _TCHAR *argv[])
 	VectorMath::GLSL::vec3 vec3(vec4);
 	vec3.apply(floor);
 	min(vec4, 0);
+	min(vec4, vec3);
 	VectorMath::max(0ul, 0l);
 	vec4 < vec3;
 	vec4 > 0;

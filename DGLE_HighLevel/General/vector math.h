@@ -2400,10 +2400,12 @@ consider using preprocessor instead of templates or overloading each target func
 #		pragma endregion
 
 #		pragma region min/max functions
-			// std::min/max requires explicit template param if used for different types => provide scalar version
+			// std::min/max requires explicit template param if used for different types => provide scalar version\
+			this version it also returns copy ather than reference
 #			define FUNCTION_DEFINITION(f)																					\
-				template<typename LeftElementType, typename RightElementType>												\
-				inline auto f(const LeftElementType &left, const RightElementType &right)									\
+				template<typename LeftType, typename RightType>																\
+				inline auto f(const LeftType &left, const RightType &right)													\
+				-> std::enable_if_t<IsScalar<LeftType> && IsScalar<RightType>, std::decay_t<decltype(left - right)>>		\
 				{																											\
 					return std::f<decltype(left - right)>(left, right);														\
 				};
@@ -2455,13 +2457,13 @@ consider using preprocessor instead of templates or overloading each target func
 #			define FUNCTION_DEFINITION(f)																					\
 				template																									\
 				<																											\
-					typename Leftype,																						\
+					typename LeftType,																						\
 					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc	\
 				>																											\
 				inline auto f(																								\
-				const Leftype &left,																						\
+				const LeftType &left,																						\
 				const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)							\
-				-> std::enable_if_t<IsScalar<Leftype>, decltype(left - right)>												\
+				-> std::enable_if_t<IsScalar<LeftType>, decltype(left - right)>												\
 				{																											\
 					typedef decltype(left - right) TResult;																	\
 					TResult result;																							\
@@ -2517,13 +2519,13 @@ consider using preprocessor instead of templates or overloading each target func
 #			define FUNCTION_DEFINITION(f)																					\
 				template																									\
 				<																											\
-					typename Leftype,																						\
+					typename LeftType,																						\
 					typename RightElementType, unsigned int rightRows, unsigned int rightColumns							\
 				>																											\
 				auto f(																										\
-				const Leftype &left,																						\
+				const LeftType &left,																						\
 				const matrix<RightElementType, rightRows, rightColumns> &right)												\
-				-> std::enable_if_t<IsScalar<Leftype>, decltype(left - right)>												\
+				-> std::enable_if_t<IsScalar<LeftType>, decltype(left - right)>												\
 				{																											\
 					typedef decltype(left - right) TResult;																	\
 					TResult result;																							\
