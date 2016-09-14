@@ -2405,9 +2405,9 @@ consider using preprocessor instead of templates or overloading each target func
 #			define FUNCTION_DEFINITION(f)																					\
 				template<typename LeftType, typename RightType>																\
 				inline auto f(const LeftType &left, const RightType &right)													\
-				-> std::enable_if_t<IsScalar<LeftType> && IsScalar<RightType>, std::decay_t<decltype(left - right)>>		\
+				-> std::enable_if_t<IsScalar<LeftType> && IsScalar<RightType>, std::common_type_t<LeftType, RightType>>		\
 				{																											\
-					return std::f<decltype(left - right)>(left, right);														\
+					return std::f<std::common_type_t<LeftType, RightType>>(left, right);									\
 				};
 			FUNCTION_DEFINITION(min)
 			FUNCTION_DEFINITION(max)
@@ -2423,7 +2423,11 @@ consider using preprocessor instead of templates or overloading each target func
 				const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,								\
 				const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)							\
 				{																											\
-					typedef decltype(left - right) TResult;																	\
+					typedef std::common_type_t																				\
+					<																										\
+						vector<LeftElementType, LeftSwizzleDesc::dimension>,												\
+						vector<RightElementType, RightSwizzleDesc::dimension>												\
+					> TResult;																								\
 					TResult result;																							\
 					for (unsigned i = 0; i < TResult::dimension; i++)														\
 						result[i] = std::f<typename TResult::ElementType>(left[i], right[i]);								\
@@ -2442,9 +2446,13 @@ consider using preprocessor instead of templates or overloading each target func
 				inline auto f(																								\
 				const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,								\
 				const RightType &right)																						\
-				-> std::enable_if_t<IsScalar<RightType>, decltype(left - right)>											\
+				-> std::enable_if_t<IsScalar<RightType>, std::common_type_t													\
+				<																											\
+					vector<LeftElementType, LeftSwizzleDesc::dimension>,													\
+					RightType																								\
+				>>																											\
 				{																											\
-					typedef decltype(left - right) TResult;																	\
+					typedef decltype(f(left, right)) TResult;																\
 					TResult result;																							\
 					for (unsigned i = 0; i < TResult::dimension; i++)														\
 						result[i] = std::f<typename TResult::ElementType>(left[i], right);									\
@@ -2463,9 +2471,13 @@ consider using preprocessor instead of templates or overloading each target func
 				inline auto f(																								\
 				const LeftType &left,																						\
 				const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)							\
-				-> std::enable_if_t<IsScalar<LeftType>, decltype(left - right)>												\
+				-> std::enable_if_t<IsScalar<LeftType>, std::common_type_t													\
+				<																											\
+					LeftType,																								\
+					vector<RightElementType, RightSwizzleDesc::dimension>													\
+				>>																											\
 				{																											\
-					typedef decltype(left - right) TResult;																	\
+					typedef decltype(f(left, right)) TResult;																\
 					TResult result;																							\
 					for (unsigned i = 0; i < TResult::dimension; i++)														\
 						result[i] = std::f<typename TResult::ElementType>(left, right[i]);									\
@@ -2485,7 +2497,11 @@ consider using preprocessor instead of templates or overloading each target func
 				const matrix<LeftElementType, leftRows, leftColumns> &left,													\
 				const matrix<RightElementType, rightRows, rightColumns> &right)												\
 				{																											\
-					typedef decltype(left - right) TResult;																	\
+					typedef std::common_type_t																				\
+					<																										\
+						matrix<LeftElementType, leftRows, leftColumns>,														\
+						matrix<RightElementType, rightRows, rightColumns>													\
+					> TResult;																								\
 					TResult result;																							\
 					for (unsigned i = 0; i < TResult::rows; i++)															\
 						result[i] = VectorMath::f(left[i], right[i]);														\
@@ -2504,9 +2520,13 @@ consider using preprocessor instead of templates or overloading each target func
 				auto f(																										\
 				const matrix<LeftElementType, leftRows, leftColumns> &left,													\
 				const RightType &right)																						\
-				-> std::enable_if_t<IsScalar<RightType>, decltype(left - right)>											\
+				-> std::enable_if_t<IsScalar<RightType>, std::common_type_t													\
+				<																											\
+					matrix<LeftElementType, leftRows, leftColumns>,															\
+					RightType																								\
+				>>																											\
 				{																											\
-					typedef decltype(left - right) TResult;																	\
+					typedef decltype(f(left, right)) TResult;																\
 					TResult result;																							\
 					for (unsigned i = 0; i < TResult::rows; i++)															\
 						result[i] = VectorMath::f(left[i], right);															\
@@ -2525,9 +2545,13 @@ consider using preprocessor instead of templates or overloading each target func
 				auto f(																										\
 				const LeftType &left,																						\
 				const matrix<RightElementType, rightRows, rightColumns> &right)												\
-				-> std::enable_if_t<IsScalar<LeftType>, decltype(left - right)>												\
+				-> std::enable_if_t<IsScalar<LeftType>, std::common_type_t													\
+				<																											\
+					LeftType,																								\
+					matrix<RightElementType, rightRows, rightColumns>														\
+				>>																											\
 				{																											\
-					typedef decltype(left - right) TResult;																	\
+					typedef decltype(f(left, right)) TResult;																\
 					TResult result;																							\
 					for (unsigned i = 0; i < TResult::rows; i++)															\
 						result[i] = VectorMath::f(left, right[i]);															\
@@ -2756,6 +2780,83 @@ consider using preprocessor instead of templates or overloading each target func
 #		undef GENERATE_OPERATORS_MACRO
 #		undef GENERATE_OPERATORS
 	}
+
+	// std specializations\
+	NOTE: cv/ref specializations not provided, std::decay_t should be applied first for such types
+	namespace std
+	{
+		// swizzle -> vector
+		template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, typename isWriteMaskValid>
+		struct decay<Math::VectorMath::CSwizzle<ElementType, rows, columns, SwizzleDesc, isWriteMaskValid>>
+		{
+			typedef Math::VectorMath::vector<ElementType, SwizzleDesc::dimension> type;
+		};
+
+		// vector/vector
+#if defined _MSC_VER && _MSC_VER <= 1900
+		template<typename LeftElementType, unsigned int leftDimension, typename RightElementType, unsigned int rightDimension>
+		class common_type<Math::VectorMath::vector<LeftElementType, leftDimension>, Math::VectorMath::vector<RightElementType, rightDimension>>
+		{
+			static constexpr unsigned int dimension = min(leftDimension, rightDimension);
+
+		public:
+			typedef Math::VectorMath::vector<common_type_t<LeftElementType, RightElementType>, dimension> type;
+		};
+#else
+		template<typename LeftElementType, unsigned int leftDimension, typename RightElementType, unsigned int rightDimension>
+		struct common_type<Math::VectorMath::vector<LeftElementType, leftDimension>, Math::VectorMath::vector<RightElementType, rightDimension>>
+		{
+			typedef Math::VectorMath::vector<common_type_t<LeftElementType, RightElementType>, min(leftDimension, rightDimension)> type;
+		};
+#endif
+
+		// vector/scalar
+		template<typename LeftElementType, unsigned int leftDimension, typename RightType>
+		struct common_type<Math::VectorMath::vector<LeftElementType, leftDimension>, RightType>
+		{
+			typedef Math::VectorMath::vector<common_type_t<LeftElementType, RightType>, leftDimension> type;
+		};
+
+		// scalar/vector
+		template<typename LeftType, typename RightElementType, unsigned int rightDimension>
+		struct common_type<LeftType, Math::VectorMath::vector<RightElementType, rightDimension>>
+		{
+			typedef Math::VectorMath::vector<common_type_t<LeftType, RightElementType>, rightDimension> type;
+		};
+
+		// matrix/matrix
+#if defined _MSC_VER && _MSC_VER <= 1900
+		template<typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, typename RightElementType, unsigned int rightRows, unsigned int rightColumns>
+		class common_type<Math::VectorMath::matrix<LeftElementType, leftRows, leftColumns>, Math::VectorMath::matrix<RightElementType, rightRows, rightColumns>>
+		{
+			static constexpr unsigned int rows = min(leftRows, rightRows), columns = min(leftColumns, rightColumns);
+
+		public:
+			typedef Math::VectorMath::matrix<common_type_t<LeftElementType, RightElementType>, rows, columns> type;
+		};
+#else
+		template<typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, typename RightElementType, unsigned int rightRows, unsigned int rightColumns>
+		struct common_type<Math::VectorMath::matrix<LeftElementType, leftRows, leftColumns>, Math::VectorMath::matrix<RightElementType, rightRows, rightColumns>>
+		{
+			typedef Math::VectorMath::matrix<common_type_t<LeftElementType, RightElementType>, min(leftRows, rightRows), min(leftColumns, rightColumns)> type;
+		};
+#endif
+
+		// matrix/scalar
+		template<typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, typename RightType>
+		struct common_type<Math::VectorMath::matrix<LeftElementType, leftRows, leftColumns>, RightType>
+		{
+			typedef Math::VectorMath::matrix<common_type_t<LeftElementType, RightType>, leftRows, leftColumns> type;
+		};
+
+		// scalar/matrix
+		template<typename LeftType, typename RightElementType, unsigned int rightRows, unsigned int rightColumns>
+		struct common_type<LeftType, Math::VectorMath::matrix<RightElementType, rightRows, rightColumns>>
+		{
+			typedef Math::VectorMath::matrix<common_type_t<LeftType, RightElementType>, rightRows, rightColumns> type;
+		};
+	}
+
 //#	undef GET_SWIZZLE_ELEMENT
 //#	undef GET_SWIZZLE_ELEMENT_PACKED
 
