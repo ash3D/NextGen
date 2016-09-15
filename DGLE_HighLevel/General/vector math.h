@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		14.09.2016 (c)Alexey Shaydurov
+\date		15.09.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -282,6 +282,13 @@ consider using preprocessor instead of templates or overloading each target func
 #	pragma warning(push)
 #	pragma warning(disable: 4003)
 
+// it seems that MSVC violates C++ standard regarding temp objects lifetime with initializer lists\
+further investigations needed, including other compilers
+
+#if !defined INIT_LIST_ITEM_COPY && defined _MSC_VER
+#define INIT_LIST_ITEM_COPY 1
+#endif
+
 #	include <cassert>
 #	include <cstdint>
 #	include <utility>
@@ -290,7 +297,9 @@ consider using preprocessor instead of templates or overloading each target func
 #	include <iterator>
 #	include <algorithm>
 #	include <initializer_list>
+#if INIT_LIST_ITEM_COPY
 #	include <memory>	// temp for unique_ptr
+#endif
 #	include <boost/preprocessor/facilities/apply.hpp>
 #	include <boost/preprocessor/iteration/iterate.hpp>
 //#	include <boost/preprocessor/repetition/repeat.hpp>
@@ -964,104 +973,151 @@ consider using preprocessor instead of templates or overloading each target func
 		};
 
 #		pragma region Initializer list
-		template<typename ElementType>
-		class CInitListItem final
-		{
-			CInitListItem() = delete;
-			CInitListItem(const CInitListItem &) = delete;
-			CInitListItem &operator =(const CInitListItem &) = delete;
-
-		private:
-			static ElementType _GetItemElement(const void *item, unsigned)
+			template<typename ElementType>
+			class CInitListItem final
 			{
-				return *reinterpret_cast<const ElementType *>(item);
-			}
+				CInitListItem() = delete;
+				CInitListItem(const CInitListItem &) = delete;
+				CInitListItem &operator =(const CInitListItem &) = delete;
 
-			template<unsigned int dimension>
-			static ElementType _GetItemElement(const void *item, unsigned idx)
-			{
-				const auto &v = *reinterpret_cast<const vector<ElementType, dimension> *>(item);
-				return v[idx];
-			}
-
-			template<unsigned int rows, unsigned int columns>
-			static ElementType _GetItemElement(const void *item, unsigned idx)
-			{
-				const auto &m = *reinterpret_cast<const matrix<ElementType, rows, columns> *>(item);
-				return m[idx / columns][idx % columns];
-			}
-
-			static void _Delete(const void *ptr)
-			{
-				delete (const ElementType *)ptr;
-			}
-
-			template<unsigned int dimension>
-			static void _Delete(const void *ptr)
-			{
-				delete (const vector<ElementType, dimension> *)ptr;
-			}
-
-			template<unsigned int rows, unsigned int columns>
-			static void _Delete(const void *ptr)
-			{
-				delete (const matrix<ElementType, rows, columns> *)ptr;
-			}
-
-			class CDeleter
-			{
-				typedef void(*TImpl)(const void *ptr);
-				TImpl _impl;
-
-			public:
-				CDeleter(TImpl impl) : _impl(impl) {}
-
-			public:
-				void operator ()(const void *ptr) const
+			private:
+#if INIT_LIST_ITEM_COPY
+				static ElementType GetItemElement(const void *item, unsigned)
 				{
-					_impl(ptr);
+					return *reinterpret_cast<const ElementType *>(item);
 				}
+
+				template<unsigned int dimension>
+				static ElementType GetItemElement(const void *item, unsigned idx)
+				{
+					const auto &v = *reinterpret_cast<const vector<ElementType, dimension> *>(item);
+					return v[idx];
+				}
+
+				template<unsigned int rows, unsigned int columns>
+				static ElementType GetItemElement(const void *item, unsigned idx)
+				{
+					const auto &m = *reinterpret_cast<const matrix<ElementType, rows, columns> *>(item);
+					return m[idx / columns][idx % columns];
+				}
+
+				static void Delete(const void *ptr)
+				{
+					delete (const ElementType *)ptr;
+				}
+
+				template<unsigned int dimension>
+				static void Delete(const void *ptr)
+				{
+					delete (const vector<ElementType, dimension> *)ptr;
+				}
+
+				template<unsigned int rows, unsigned int columns>
+				static void Delete(const void *ptr)
+				{
+					delete (const matrix<ElementType, rows, columns> *)ptr;
+				}
+
+				class CDeleter
+				{
+					typedef void(*TImpl)(const void *ptr);
+					TImpl impl;
+
+				public:
+					CDeleter(TImpl impl) : impl(impl) {}
+
+				public:
+					void operator ()(const void *ptr) const
+					{
+						impl(ptr);
+					}
+				};
+#else
+				template<typename ItemElementType>
+				static ElementType GetItemElement(const void *item, unsigned)
+				{
+					return *reinterpret_cast<const ItemElementType *>(item);
+				}
+
+				template<typename ItemElementType, unsigned int dimension>
+				static ElementType GetItemElement(const void *item, unsigned idx)
+				{
+					const auto &v = *reinterpret_cast<const vector<ItemElementType, dimension> *>(item);
+					return v[idx];
+				}
+
+				template<typename ItemElementType, unsigned int rows, unsigned int columns>
+				static ElementType GetItemElement(const void *item, unsigned idx)
+				{
+					const auto &m = *reinterpret_cast<const matrix<ItemElementType, rows, columns> *>(item);
+					return m[idx / columns][idx % columns];
+				}
+#endif
+
+			public:
+#if INIT_LIST_ITEM_COPY
+				CInitListItem(const ElementType &item) :
+					getItemElement(GetItemElement),
+					item(new ElementType(item), CDeleter(Delete)),
+#else
+				template<typename ItemElementType, typename = std::enable_if_t<IsScalar<ItemElementType>>>
+				CInitListItem(const ItemElementType &item) :
+					getItemElement(GetItemElement<ItemElementType>),
+					item(&item),
+#endif
+					itemSize(1)
+				{
+				}
+
+				template<typename ItemElementType, unsigned int itemRows, unsigned int itemColumns, class ItemSwizzleDesc>
+				CInitListItem(const CSwizzle<ItemElementType, itemRows, itemColumns, ItemSwizzleDesc> &item) :
+#if INIT_LIST_ITEM_COPY
+					getItemElement(GetItemElement<ItemSwizzleDesc::dimension>),
+					item(new vector<ElementType, ItemSwizzleDesc::dimension>(item), CDeleter(Delete<ItemSwizzleDesc::dimension>)),
+#else
+					getItemElement(GetItemElement<ItemElementType, ItemSwizzleDesc::dimension>),
+					item(&item),
+#endif
+					itemSize(ItemSwizzleDesc::dimension)
+				{
+				}
+
+				template<typename ItemElementType, unsigned int itemRows, unsigned int itemColumns>
+				CInitListItem(const matrix<ItemElementType, itemRows, itemColumns> &item) :
+#if INIT_LIST_ITEM_COPY
+					getItemElement(GetItemElement<itemRows, itemColumns>),
+					item(new matrix<ElementType, itemRows, itemColumns>(item), CDeleter(Delete<itemRows, itemColumns>)),
+#else
+					getItemElement(GetItemElement<ItemElementType, itemRows, itemColumns>),
+					item(&item),
+#endif
+					itemSize(itemRows * itemColumns)
+				{
+				}
+
+				ElementType operator [](unsigned idx) const
+				{
+#if INIT_LIST_ITEM_COPY
+					return getItemElement(item.get(), idx);
+#else
+					return getItemElement(item, idx);
+#endif
+				}
+
+				unsigned GetItemSize() const noexcept
+				{
+					return itemSize;
+				}
+
+			private:
+				ElementType(&getItemElement)(const void *, unsigned);
+#if INIT_LIST_ITEM_COPY
+				const std::unique_ptr<const void, CDeleter> item;
+#else
+				const void *const item;
+#endif
+				const unsigned itemSize;
 			};
-
-		public:
-			CInitListItem(const ElementType &item) :
-				_getItemElement(_GetItemElement),
-				_item(new ElementType(item), CDeleter(_Delete)),
-				_itemSize(1)
-			{
-			}
-
-			template<typename ItemElementType, unsigned int itemRows, unsigned int itemColumns, class ItemSwizzleDesc>
-			CInitListItem(const CSwizzle<ItemElementType, itemRows, itemColumns, ItemSwizzleDesc> &item) :
-			_getItemElement(_GetItemElement<ItemSwizzleDesc::dimension>),
-				_item(new vector<ElementType, ItemSwizzleDesc::dimension>(item), CDeleter(_Delete<ItemSwizzleDesc::dimension>)),
-				_itemSize(ItemSwizzleDesc::dimension)
-			{
-			}
-
-			template<typename ItemElementType, unsigned int itemRows, unsigned int itemColumns>
-			CInitListItem(const matrix<ItemElementType, itemRows, itemColumns> &item) :
-			_getItemElement(_GetItemElement<itemRows, itemColumns>),
-				_item(new matrix<ElementType, itemRows, itemColumns>(item), CDeleter(_Delete<itemRows, itemColumns>)),
-				_itemSize(itemRows * itemColumns)
-			{
-			}
-
-			ElementType operator [](unsigned idx) const
-			{
-				return _getItemElement(_item.get(), idx);
-			}
-
-			unsigned GetItemSize() const noexcept
-			{
-				return _itemSize;
-			}
-
-		private:
-			ElementType(&_getItemElement)(const void *, unsigned);
-			const std::unique_ptr<const void, CDeleter> _item;
-			const unsigned _itemSize;
-		};
 #		pragma endregion TODO: consider to remove it and rely on more efficient variadic template technique for heterogeneous ctors, or limit it usage for assignment operators only, or disable/specialize temp overloads to get rid of mem alloc
 
 		// specializations for graphics vectors/matrices
@@ -1490,11 +1546,11 @@ consider using preprocessor instead of templates or overloading each target func
 		inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(std::initializer_list<CInitListItem<ElementType>> initList) & -> TOperationResult &
 #endif
 		{
-			unsigned dst_idx = 0;
+			unsigned dstIdx = 0;
 			for (const auto &item : initList)
-				for (unsigned item_element_idx = 0; item_element_idx < item.GetItemSize(); item_element_idx++)
-					(*this)[dst_idx++] = item[item_element_idx];
-			assert(dst_idx == SwizzleDesc::dimension);
+				for (unsigned itemEementIdx = 0; itemEementIdx < item.GetItemSize(); itemEementIdx++)
+					(*this)[dstIdx++] = item[itemEementIdx];
+			assert(dstIdx == SwizzleDesc::dimension);
 			return *this;
 		}
 
@@ -2143,11 +2199,11 @@ consider using preprocessor instead of templates or overloading each target func
 			inline auto matrix<ElementType, rows, columns>::operator =(std::initializer_list<CInitListItem<ElementType>> initList) & -> matrix &
 #endif
 			{
-				unsigned dst_idx = 0;
+				unsigned dstIdx = 0;
 				for (const auto &item : initList)
-					for (unsigned item_element_idx = 0; item_element_idx < item.GetItemSize(); item_element_idx++, dst_idx++)
-						(*this)[dst_idx / columns][dst_idx % columns] = item[item_element_idx];
-				assert(dst_idx == rows * columns);
+					for (unsigned itemEementIdx = 0; itemEementIdx < item.GetItemSize(); itemEementIdx++, dstIdx++)
+						(*this)[dstIdx / columns][dstIdx % columns] = item[itemEementIdx];
+				assert(dstIdx == rows * columns);
 				return *this;
 			}
 
