@@ -1051,7 +1051,7 @@ further investigations needed, including other compilers
 				}
 
 				template<typename ItemElementType, unsigned int rows, unsigned int columns>
-				static cont ElementType &GetItemElement(const void *item, unsigned idx)
+				static const ElementType &GetItemElement(const void *item, unsigned idx)
 				{
 					const auto &m = *reinterpret_cast<const matrix<ItemElementType, rows, columns> *>(item);
 					return m[idx / columns][idx % columns];
@@ -1095,7 +1095,7 @@ further investigations needed, including other compilers
 				}
 
 			private:
-				ElementType(&getItemElement)(const void *, unsigned);
+				const ElementType &(&getItemElement)(const void *, unsigned);
 				const void *const item;
 				const unsigned itemSize;
 			};
