@@ -289,6 +289,8 @@ further investigations needed, including other compilers
 #define INIT_LIST_ITEM_COPY 1
 #endif
 
+#	define INIT_LIST_ITEM_OVERFLOW_MSG "Too large item encountered in initializer list"
+
 #	include <cassert>
 #	include <cstdint>
 #	include <utility>
@@ -1002,14 +1004,14 @@ further investigations needed, including other compilers
 				CInitListItem(const CSwizzle<ItemElementType, itemRows, itemColumns, ItemSwizzleDesc> &item) :
 					CInitListItem(std::make_index_sequence<std::min(ItemSwizzleDesc::dimension, capacity)>, item)
 				{
-					assert(ItemSwizzleDesc::dimension <= capacity);
+					static_assert(ItemSwizzleDesc::dimension <= capacity, INIT_LIST_ITEM_OVERFLOW_MSG);
 				}
 
 				template<typename ItemElementType, unsigned int itemRows, unsigned int itemColumns>
 				CInitListItem(const matrix<ItemElementType, itemRows, itemColumns> &item) :
 					CInitListItem(std::make_index_sequence<std::min(itemRows * itemColumns, capacity)>, item)
 				{
-					assert(itemRows * itemColumns <= capacity);
+					static_assert(itemRows * itemColumns <= capacity), INIT_LIST_ITEM_OVERFLOW_MSG;
 				}
 
 				const ElementType &operator [](unsigned idx) const
@@ -1027,12 +1029,12 @@ further investigations needed, including other compilers
 				const unsigned itemSize;
 			};
 #else
-			template<typename ElementType>
-			class CInitListItemImpl final
+			template<typename ElementType, unsigned int capacity>
+			class CInitListItem final
 			{
-				CInitListItemImpl() = delete;
-				CInitListItemImpl(const CInitListItemImpl &) = delete;
-				CInitListItemImpl &operator =(const CInitListItemImpl &) = delete;
+				CInitListItem() = delete;
+				CInitListItem(const CInitListItem &) = delete;
+				CInitListItem &operator =(const CInitListItem &) = delete;
 
 			private:
 				template<typename ItemElementType>
@@ -1057,7 +1059,7 @@ further investigations needed, including other compilers
 
 			public:
 				template<typename ItemElementType, typename = std::enable_if_t<IsScalar<ItemElementType>>>
-				CInitListItemImpl(const ItemElementType &item) :
+				CInitListItem(const ItemElementType &item) :
 					getItemElement(GetItemElement<ItemElementType>),
 					item(&item),
 					itemSize(1)
@@ -1065,19 +1067,21 @@ further investigations needed, including other compilers
 				}
 
 				template<typename ItemElementType, unsigned int itemRows, unsigned int itemColumns, class ItemSwizzleDesc>
-				CInitListItemImpl(const CSwizzle<ItemElementType, itemRows, itemColumns, ItemSwizzleDesc> &item) :
+				CInitListItem(const CSwizzle<ItemElementType, itemRows, itemColumns, ItemSwizzleDesc> &item) :
 					getItemElement(GetItemElement<ItemElementType, ItemSwizzleDesc::dimension>),
 					item(&item),
 					itemSize(ItemSwizzleDesc::dimension)
 				{
+					static_assert(ItemSwizzleDesc::dimension <= capacity, INIT_LIST_ITEM_OVERFLOW_MSG);
 				}
 
 				template<typename ItemElementType, unsigned int itemRows, unsigned int itemColumns>
-				CInitListItemImpl(const matrix<ItemElementType, itemRows, itemColumns> &item) :
+				CInitListItem(const matrix<ItemElementType, itemRows, itemColumns> &item) :
 					getItemElement(GetItemElement<ItemElementType, itemRows, itemColumns>),
 					item(&item),
 					itemSize(itemRows * itemColumns)
 				{
+					static_assert(itemRows * itemColumns <= capacity), INIT_LIST_ITEM_OVERFLOW_MSG;
 				}
 
 				const ElementType &operator [](unsigned idx) const
@@ -1095,9 +1099,6 @@ further investigations needed, including other compilers
 				const void *const item;
 				const unsigned itemSize;
 			};
-
-			template<typename ElementType, unsigned int>
-			using CInitListItem = CInitListItemImpl<ElementType>;
 #endif
 #		pragma endregion TODO: consider to remove it and rely on potentially more efficient variadic template technique for heterogeneous ctors, or limit it usage for assignment operators only
 
@@ -2893,6 +2894,8 @@ further investigations needed, including other compilers
 			typedef Math::VectorMath::matrix<common_type_t<LeftType, RightElementType>, rightRows, rightColumns> type;
 		};
 	}
+
+#	undef INIT_LIST_ITEM_OVERFLOW_MSG
 
 //#	undef GET_SWIZZLE_ELEMENT
 //#	undef GET_SWIZZLE_ELEMENT_PACKED
