@@ -297,9 +297,6 @@ further investigations needed, including other compilers
 #	include <iterator>
 #	include <algorithm>
 #	include <initializer_list>
-#if INIT_LIST_ITEM_COPY
-#	include <memory>	// temp for unique_ptr
-#endif
 #	include <boost/preprocessor/facilities/apply.hpp>
 #	include <boost/preprocessor/iteration/iterate.hpp>
 //#	include <boost/preprocessor/repetition/repeat.hpp>
@@ -474,9 +471,6 @@ further investigations needed, including other compilers
 
 		template<typename ElementType, unsigned int rows, unsigned int columns>
 		class CDataContainer;
-
-		template<typename ElementType>
-		class CInitListItem;
 
 		template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 		bool all(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
@@ -973,7 +967,8 @@ further investigations needed, including other compilers
 		};
 
 #		pragma region Initializer list
-			template<typename ElementType>
+#if INIT_LIST_ITEM_COPY
+			template<typename ElementType, unsigned int capacity>
 			class CInitListItem final
 			{
 				CInitListItem() = delete;
@@ -981,58 +976,65 @@ further investigations needed, including other compilers
 				CInitListItem &operator =(const CInitListItem &) = delete;
 
 			private:
-#if INIT_LIST_ITEM_COPY
-				static ElementType GetItemElement(const void *item, unsigned)
+				template<size_t ...idx, typename ItemElementType, unsigned int itemRows, unsigned int itemColumns, class ItemSwizzleDesc>
+				CInitListItem(std::index_sequence<idx...>, const CSwizzle<ItemElementType, itemRows, itemColumns, ItemSwizzleDesc> &item) :
+					itemStore{ static_cast<const ElementType &>(item[idx])... },
+					itemSize(sizeof...(idx))
 				{
-					return *reinterpret_cast<const ElementType *>(item);
 				}
 
-				template<unsigned int dimension>
-				static ElementType GetItemElement(const void *item, unsigned idx)
+				template<size_t ...idx, typename ItemElementType, unsigned int itemRows, unsigned int itemColumns>
+				CInitListItem(std::index_sequence<idx...>, const matrix<ItemElementType, itemRows, itemColumns> &item) :
+					item{ static_cast<const ElementType &>(item[idx / itemColumns][idx % itemColumns])... },
+					itemSize(sizeof...(idx))
 				{
-					const auto &v = *reinterpret_cast<const vector<ElementType, dimension> *>(item);
-					return v[idx];
 				}
 
-				template<unsigned int rows, unsigned int columns>
-				static ElementType GetItemElement(const void *item, unsigned idx)
+			public:
+				template<typename ItemElementType, typename = std::enable_if_t<IsScalar<ItemElementType>>>
+				CInitListItem(const ItemElementType &item) :
+					itemStore{ static_cast<const ElementType &>(item) },
+					itemSize(1)
 				{
-					const auto &m = *reinterpret_cast<const matrix<ElementType, rows, columns> *>(item);
-					return m[idx / columns][idx % columns];
 				}
 
-				static void Delete(const void *ptr)
+				template<typename ItemElementType, unsigned int itemRows, unsigned int itemColumns, class ItemSwizzleDesc>
+				CInitListItem(const CSwizzle<ItemElementType, itemRows, itemColumns, ItemSwizzleDesc> &item) :
+					CInitListItem(std::make_index_sequence<std::min(ItemSwizzleDesc::dimension, capacity)>, item)
 				{
-					delete (const ElementType *)ptr;
+					assert(ItemSwizzleDesc::dimension <= capacity);
 				}
 
-				template<unsigned int dimension>
-				static void Delete(const void *ptr)
+				template<typename ItemElementType, unsigned int itemRows, unsigned int itemColumns>
+				CInitListItem(const matrix<ItemElementType, itemRows, itemColumns> &item) :
+					CInitListItem(std::make_index_sequence<std::min(itemRows * itemColumns, capacity)>, item)
 				{
-					delete (const vector<ElementType, dimension> *)ptr;
+					assert(itemRows * itemColumns <= capacity);
 				}
 
-				template<unsigned int rows, unsigned int columns>
-				static void Delete(const void *ptr)
+				ElementType operator [](unsigned idx) const
 				{
-					delete (const matrix<ElementType, rows, columns> *)ptr;
+					return itemStore[idx];
 				}
 
-				class CDeleter
+				unsigned GetItemSize() const noexcept
 				{
-					typedef void(*TImpl)(const void *ptr);
-					TImpl impl;
+					return itemSize;
+				}
 
-				public:
-					CDeleter(TImpl impl) : impl(impl) {}
-
-				public:
-					void operator ()(const void *ptr) const
-					{
-						impl(ptr);
-					}
-				};
+			private:
+				const ElementType itemStore[capacity];
+				const unsigned itemSize;
+			};
 #else
+			template<typename ElementType>
+			class CInitListItemImpl final
+			{
+				CInitListItemImpl() = delete;
+				CInitListItemImpl(const CInitListItemImpl &) = delete;
+				CInitListItemImpl &operator =(const CInitListItemImpl &) = delete;
+
+			private:
 				template<typename ItemElementType>
 				static ElementType GetItemElement(const void *item, unsigned)
 				{
@@ -1052,55 +1054,35 @@ further investigations needed, including other compilers
 					const auto &m = *reinterpret_cast<const matrix<ItemElementType, rows, columns> *>(item);
 					return m[idx / columns][idx % columns];
 				}
-#endif
 
 			public:
 				template<typename ItemElementType, typename = std::enable_if_t<IsScalar<ItemElementType>>>
-				CInitListItem(const ItemElementType &item) :
-#if INIT_LIST_ITEM_COPY
-					getItemElement(GetItemElement),
-					item(new ElementType(item), CDeleter(Delete)),
-#else
+				CInitListItemImpl(const ItemElementType &item) :
 					getItemElement(GetItemElement<ItemElementType>),
 					item(&item),
-#endif
 					itemSize(1)
 				{
 				}
 
 				template<typename ItemElementType, unsigned int itemRows, unsigned int itemColumns, class ItemSwizzleDesc>
-				CInitListItem(const CSwizzle<ItemElementType, itemRows, itemColumns, ItemSwizzleDesc> &item) :
-#if INIT_LIST_ITEM_COPY
-					getItemElement(GetItemElement<ItemSwizzleDesc::dimension>),
-					item(new vector<ElementType, ItemSwizzleDesc::dimension>(item), CDeleter(Delete<ItemSwizzleDesc::dimension>)),
-#else
+				CInitListItemImpl(const CSwizzle<ItemElementType, itemRows, itemColumns, ItemSwizzleDesc> &item) :
 					getItemElement(GetItemElement<ItemElementType, ItemSwizzleDesc::dimension>),
 					item(&item),
-#endif
 					itemSize(ItemSwizzleDesc::dimension)
 				{
 				}
 
 				template<typename ItemElementType, unsigned int itemRows, unsigned int itemColumns>
-				CInitListItem(const matrix<ItemElementType, itemRows, itemColumns> &item) :
-#if INIT_LIST_ITEM_COPY
-					getItemElement(GetItemElement<itemRows, itemColumns>),
-					item(new matrix<ElementType, itemRows, itemColumns>(item), CDeleter(Delete<itemRows, itemColumns>)),
-#else
+				CInitListItemImpl(const matrix<ItemElementType, itemRows, itemColumns> &item) :
 					getItemElement(GetItemElement<ItemElementType, itemRows, itemColumns>),
 					item(&item),
-#endif
 					itemSize(itemRows * itemColumns)
 				{
 				}
 
 				ElementType operator [](unsigned idx) const
 				{
-#if INIT_LIST_ITEM_COPY
-					return getItemElement(item.get(), idx);
-#else
 					return getItemElement(item, idx);
-#endif
 				}
 
 				unsigned GetItemSize() const noexcept
@@ -1110,14 +1092,14 @@ further investigations needed, including other compilers
 
 			private:
 				ElementType(&getItemElement)(const void *, unsigned);
-#if INIT_LIST_ITEM_COPY
-				const std::unique_ptr<const void, CDeleter> item;
-#else
 				const void *const item;
-#endif
 				const unsigned itemSize;
 			};
-#		pragma endregion TODO: consider to remove it and rely on more efficient variadic template technique for heterogeneous ctors, or limit it usage for assignment operators only, or disable/specialize temp overloads to get rid of mem alloc
+
+			template<typename ElementType, unsigned int>
+			using CInitListItem = CInitListItemImpl<ElementType>;
+#endif
+#		pragma endregion TODO: consider to remove it and rely on potentially more efficient variadic template technique for heterogeneous ctors, or limit it usage for assignment operators only
 
 		// specializations for graphics vectors/matrices
 #		define BOOST_PP_ITERATION_LIMITS (0, 4)
@@ -1496,9 +1478,9 @@ further investigations needed, including other compilers
 #endif
 
 #ifdef __GNUC__
-			inline TOperationResult &operator =(std::initializer_list<CInitListItem<ElementType>> initList);
+			inline TOperationResult &operator =(std::initializer_list<CInitListItem<ElementType, SwizzleDesc::dimension>> initList);
 #else
-			inline TOperationResult &operator =(std::initializer_list<CInitListItem<ElementType>> initList) &;
+			inline TOperationResult &operator =(std::initializer_list<CInitListItem<ElementType, SwizzleDesc::dimension>> initList) &;
 #endif
 
 		public:
@@ -1540,9 +1522,9 @@ further investigations needed, including other compilers
 
 		template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 #ifdef __GNUC__
-		inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(std::initializer_list<CInitListItem<ElementType>> initList) -> TOperationResult &
+		inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(std::initializer_list<CInitListItem<ElementType, SwizzleDesc::dimension>> initList) -> TOperationResult &
 #else
-		inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(std::initializer_list<CInitListItem<ElementType>> initList) & -> TOperationResult &
+		inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(std::initializer_list<CInitListItem<ElementType, SwizzleDesc::dimension>> initList) & -> TOperationResult &
 #endif
 		{
 			unsigned dstIdx = 0;
@@ -1921,7 +1903,7 @@ further investigations needed, including other compilers
 			template<typename First, typename ...Rest, typename = std::enable_if_t<(sizeof...(Rest) > 0) || IsMatrix<First>>>
 			vector(const First &first, const Rest &...rest);
 
-			vector(std::initializer_list<CInitListItem<ElementType>> initList);
+			vector(std::initializer_list<CInitListItem<ElementType, dimension>> initList);
 
 			//template<typename TIterator>
 			//explicit vector(TIterator src);
@@ -1979,7 +1961,7 @@ further investigations needed, including other compilers
 			template<typename First, typename ...Rest, typename = std::enable_if_t<(sizeof...(Rest) > 0) || IsSwizzle<First>>>
 			matrix(const First &first, const Rest &...rest);
 
-			matrix(std::initializer_list<CInitListItem<ElementType>> initList);
+			matrix(std::initializer_list<CInitListItem<ElementType, rows * columns>> initList);
 
 			//template<typename TIterator>
 			//explicit matrix(TIterator src);
@@ -2015,9 +1997,9 @@ further investigations needed, including other compilers
 #endif
 
 #ifdef __GNUC__
-			matrix &operator =(std::initializer_list<CInitListItem<ElementType>> initList);
+			matrix &operator =(std::initializer_list<CInitListItem<ElementType, rows * columns>> initList);
 #else
-			matrix &operator =(std::initializer_list<CInitListItem<ElementType>> initList) &;
+			matrix &operator =(std::initializer_list<CInitListItem<ElementType, rows * columns>> initList) &;
 #endif
 
 			auto operator +() const;
@@ -2127,7 +2109,7 @@ further investigations needed, including other compilers
 				DataContainer(CData<ElementType, 0, dimension>::HeterogeneousInitTag<IdxSeq>(), src) {}
 
 			template<typename ElementType, unsigned int dimension>
-			inline vector<ElementType, dimension>::vector(std::initializer_list<CInitListItem<ElementType>> initList)
+			inline vector<ElementType, dimension>::vector(std::initializer_list<CInitListItem<ElementType, dimension>> initList)
 			{
 				operator =(initList);
 			}
@@ -2193,9 +2175,9 @@ further investigations needed, including other compilers
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 #ifdef __GNUC__
-			inline auto matrix<ElementType, rows, columns>::operator =(std::initializer_list<CInitListItem<ElementType>> initList) -> matrix &
+			inline auto matrix<ElementType, rows, columns>::operator =(std::initializer_list<CInitListItem<ElementType, rows * columns>> initList) -> matrix &
 #else
-			inline auto matrix<ElementType, rows, columns>::operator =(std::initializer_list<CInitListItem<ElementType>> initList) & -> matrix &
+			inline auto matrix<ElementType, rows, columns>::operator =(std::initializer_list<CInitListItem<ElementType, rows * columns>> initList) & -> matrix &
 #endif
 			{
 				unsigned dstIdx = 0;
@@ -2207,7 +2189,7 @@ further investigations needed, including other compilers
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			inline matrix<ElementType, rows, columns>::matrix(std::initializer_list<CInitListItem<ElementType>> initList)
+			inline matrix<ElementType, rows, columns>::matrix(std::initializer_list<CInitListItem<ElementType, rows * columns>> initList)
 			{
 				operator =(initList);
 			}
