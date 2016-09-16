@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		15.09.2016 (c)Alexey Shaydurov
+\date		16.09.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1055,13 +1055,12 @@ further investigations needed, including other compilers
 #endif
 
 			public:
+				template<typename ItemElementType, typename = std::enable_if_t<IsScalar<ItemElementType>>>
+				CInitListItem(const ItemElementType &item) :
 #if INIT_LIST_ITEM_COPY
-				CInitListItem(const ElementType &item) :
 					getItemElement(GetItemElement),
 					item(new ElementType(item), CDeleter(Delete)),
 #else
-				template<typename ItemElementType, typename = std::enable_if_t<IsScalar<ItemElementType>>>
-				CInitListItem(const ItemElementType &item) :
 					getItemElement(GetItemElement<ItemElementType>),
 					item(&item),
 #endif
