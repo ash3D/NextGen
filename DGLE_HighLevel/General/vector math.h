@@ -1011,7 +1011,7 @@ further investigations needed, including other compilers
 				constexpr CInitListItem(const matrix<ItemElementType, itemRows, itemColumns> &item) :
 					CInitListItem(std::make_index_sequence<std::min(itemRows * itemColumns, capacity)>, item)
 				{
-					static_assert(itemRows * itemColumns <= capacity), INIT_LIST_ITEM_OVERFLOW_MSG;
+					static_assert(itemRows * itemColumns <= capacity, INIT_LIST_ITEM_OVERFLOW_MSG);
 				}
 
 				constexpr const ElementType &operator [](unsigned idx) const
@@ -1081,7 +1081,7 @@ further investigations needed, including other compilers
 					item(&item),
 					itemSize(itemRows * itemColumns)
 				{
-					static_assert(itemRows * itemColumns <= capacity), INIT_LIST_ITEM_OVERFLOW_MSG;
+					static_assert(itemRows * itemColumns <= capacity, INIT_LIST_ITEM_OVERFLOW_MSG);
 				}
 
 				constexpr const ElementType &operator [](unsigned idx) const
