@@ -1012,7 +1012,7 @@ further investigations needed, including other compilers
 					assert(itemRows * itemColumns <= capacity);
 				}
 
-				ElementType operator [](unsigned idx) const
+				const ElementType &operator [](unsigned idx) const
 				{
 					return itemStore[idx];
 				}
@@ -1036,20 +1036,20 @@ further investigations needed, including other compilers
 
 			private:
 				template<typename ItemElementType>
-				static ElementType GetItemElement(const void *item, unsigned)
+				static const ElementType &GetItemElement(const void *item, unsigned)
 				{
 					return *reinterpret_cast<const ItemElementType *>(item);
 				}
 
 				template<typename ItemElementType, unsigned int dimension>
-				static ElementType GetItemElement(const void *item, unsigned idx)
+				static const ElementType &GetItemElement(const void *item, unsigned idx)
 				{
 					const auto &v = *reinterpret_cast<const vector<ItemElementType, dimension> *>(item);
 					return v[idx];
 				}
 
 				template<typename ItemElementType, unsigned int rows, unsigned int columns>
-				static ElementType GetItemElement(const void *item, unsigned idx)
+				static cont ElementType &GetItemElement(const void *item, unsigned idx)
 				{
 					const auto &m = *reinterpret_cast<const matrix<ItemElementType, rows, columns> *>(item);
 					return m[idx / columns][idx % columns];
@@ -1080,7 +1080,7 @@ further investigations needed, including other compilers
 				{
 				}
 
-				ElementType operator [](unsigned idx) const
+				const ElementType &operator [](unsigned idx) const
 				{
 					return getItemElement(item, idx);
 				}
