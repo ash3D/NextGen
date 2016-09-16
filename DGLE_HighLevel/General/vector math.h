@@ -1014,7 +1014,7 @@ further investigations needed, including other compilers
 					static_assert(itemRows * itemColumns <= capacity, INIT_LIST_ITEM_OVERFLOW_MSG);
 				}
 
-				constexpr const ElementType &operator [](unsigned idx) const
+				constexpr const ElementType &operator [](unsigned idx) const noexcept
 				{
 					return itemStore[idx];
 				}
@@ -1038,20 +1038,20 @@ further investigations needed, including other compilers
 
 			private:
 				template<typename ItemElementType>
-				static const ElementType &GetItemElement(const void *item, unsigned)
+				static const ElementType &GetItemElement(const void *item, unsigned) noexcept
 				{
 					return *reinterpret_cast<const ItemElementType *>(item);
 				}
 
 				template<typename ItemElementType, unsigned int dimension>
-				static const ElementType &GetItemElement(const void *item, unsigned idx)
+				static const ElementType &GetItemElement(const void *item, unsigned idx) noexcept
 				{
 					const auto &v = *reinterpret_cast<const vector<ItemElementType, dimension> *>(item);
 					return v[idx];
 				}
 
 				template<typename ItemElementType, unsigned int rows, unsigned int columns>
-				static const ElementType &GetItemElement(const void *item, unsigned idx)
+				static const ElementType &GetItemElement(const void *item, unsigned idx) noexcept
 				{
 					const auto &m = *reinterpret_cast<const matrix<ItemElementType, rows, columns> *>(item);
 					return m[idx / columns][idx % columns];
@@ -1084,7 +1084,7 @@ further investigations needed, including other compilers
 					static_assert(itemRows * itemColumns <= capacity, INIT_LIST_ITEM_OVERFLOW_MSG);
 				}
 
-				constexpr const ElementType &operator [](unsigned idx) const
+				constexpr const ElementType &operator [](unsigned idx) const noexcept
 				{
 					return getItemElement(item, idx);
 				}
@@ -1095,7 +1095,7 @@ further investigations needed, including other compilers
 				}
 
 			private:
-				const ElementType &(&getItemElement)(const void *, unsigned);
+				const ElementType &(&getItemElement)(const void *, unsigned) noexcept;
 				const void *const item;
 				const unsigned int itemSize;
 			};
