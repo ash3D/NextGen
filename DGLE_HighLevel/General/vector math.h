@@ -979,14 +979,14 @@ further investigations needed, including other compilers
 
 			private:
 				template<size_t ...idx, typename ItemElementType, unsigned int itemRows, unsigned int itemColumns, class ItemSwizzleDesc>
-				CInitListItem(std::index_sequence<idx...>, const CSwizzle<ItemElementType, itemRows, itemColumns, ItemSwizzleDesc> &item) :
+				constexpr CInitListItem(std::index_sequence<idx...>, const CSwizzle<ItemElementType, itemRows, itemColumns, ItemSwizzleDesc> &item) :
 					itemStore{ static_cast<const ElementType &>(item[idx])... },
 					itemSize(sizeof...(idx))
 				{
 				}
 
 				template<size_t ...idx, typename ItemElementType, unsigned int itemRows, unsigned int itemColumns>
-				CInitListItem(std::index_sequence<idx...>, const matrix<ItemElementType, itemRows, itemColumns> &item) :
+				constexpr CInitListItem(std::index_sequence<idx...>, const matrix<ItemElementType, itemRows, itemColumns> &item) :
 					item{ static_cast<const ElementType &>(item[idx / itemColumns][idx % itemColumns])... },
 					itemSize(sizeof...(idx))
 				{
@@ -994,39 +994,39 @@ further investigations needed, including other compilers
 
 			public:
 				template<typename ItemElementType, typename = std::enable_if_t<IsScalar<ItemElementType>>>
-				CInitListItem(const ItemElementType &item) :
+				constexpr CInitListItem(const ItemElementType &item) :
 					itemStore{ static_cast<const ElementType &>(item) },
 					itemSize(1)
 				{
 				}
 
 				template<typename ItemElementType, unsigned int itemRows, unsigned int itemColumns, class ItemSwizzleDesc>
-				CInitListItem(const CSwizzle<ItemElementType, itemRows, itemColumns, ItemSwizzleDesc> &item) :
+				constexpr CInitListItem(const CSwizzle<ItemElementType, itemRows, itemColumns, ItemSwizzleDesc> &item) :
 					CInitListItem(std::make_index_sequence<std::min(ItemSwizzleDesc::dimension, capacity)>, item)
 				{
 					static_assert(ItemSwizzleDesc::dimension <= capacity, INIT_LIST_ITEM_OVERFLOW_MSG);
 				}
 
 				template<typename ItemElementType, unsigned int itemRows, unsigned int itemColumns>
-				CInitListItem(const matrix<ItemElementType, itemRows, itemColumns> &item) :
+				constexpr CInitListItem(const matrix<ItemElementType, itemRows, itemColumns> &item) :
 					CInitListItem(std::make_index_sequence<std::min(itemRows * itemColumns, capacity)>, item)
 				{
 					static_assert(itemRows * itemColumns <= capacity), INIT_LIST_ITEM_OVERFLOW_MSG;
 				}
 
-				const ElementType &operator [](unsigned idx) const
+				constexpr const ElementType &operator [](unsigned idx) const
 				{
 					return itemStore[idx];
 				}
 
-				unsigned GetItemSize() const noexcept
+				constexpr unsigned int GetItemSize() const noexcept
 				{
 					return itemSize;
 				}
 
 			private:
 				const ElementType itemStore[capacity];
-				const unsigned itemSize;
+				const unsigned int itemSize;
 			};
 #else
 			template<typename ElementType, unsigned int capacity>
@@ -1059,7 +1059,7 @@ further investigations needed, including other compilers
 
 			public:
 				template<typename ItemElementType, typename = std::enable_if_t<IsScalar<ItemElementType>>>
-				CInitListItem(const ItemElementType &item) :
+				constexpr CInitListItem(const ItemElementType &item) :
 					getItemElement(GetItemElement<ItemElementType>),
 					item(&item),
 					itemSize(1)
@@ -1067,7 +1067,7 @@ further investigations needed, including other compilers
 				}
 
 				template<typename ItemElementType, unsigned int itemRows, unsigned int itemColumns, class ItemSwizzleDesc>
-				CInitListItem(const CSwizzle<ItemElementType, itemRows, itemColumns, ItemSwizzleDesc> &item) :
+				constexpr CInitListItem(const CSwizzle<ItemElementType, itemRows, itemColumns, ItemSwizzleDesc> &item) :
 					getItemElement(GetItemElement<ItemElementType, ItemSwizzleDesc::dimension>),
 					item(&item),
 					itemSize(ItemSwizzleDesc::dimension)
@@ -1076,7 +1076,7 @@ further investigations needed, including other compilers
 				}
 
 				template<typename ItemElementType, unsigned int itemRows, unsigned int itemColumns>
-				CInitListItem(const matrix<ItemElementType, itemRows, itemColumns> &item) :
+				constexpr CInitListItem(const matrix<ItemElementType, itemRows, itemColumns> &item) :
 					getItemElement(GetItemElement<ItemElementType, itemRows, itemColumns>),
 					item(&item),
 					itemSize(itemRows * itemColumns)
@@ -1084,12 +1084,12 @@ further investigations needed, including other compilers
 					static_assert(itemRows * itemColumns <= capacity), INIT_LIST_ITEM_OVERFLOW_MSG;
 				}
 
-				const ElementType &operator [](unsigned idx) const
+				constexpr const ElementType &operator [](unsigned idx) const
 				{
 					return getItemElement(item, idx);
 				}
 
-				unsigned GetItemSize() const noexcept
+				constexpr unsigned int GetItemSize() const noexcept
 				{
 					return itemSize;
 				}
@@ -1097,7 +1097,7 @@ further investigations needed, including other compilers
 			private:
 				const ElementType &(&getItemElement)(const void *, unsigned);
 				const void *const item;
-				const unsigned itemSize;
+				const unsigned int itemSize;
 			};
 #endif
 #		pragma endregion TODO: consider to remove it and rely on potentially more efficient variadic template technique for heterogeneous ctors, or limit it usage for assignment operators only
