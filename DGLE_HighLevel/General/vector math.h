@@ -426,6 +426,9 @@ further investigations needed, including other compilers
 			template<typename Src>
 			static constexpr bool IsScalar = !(IsSwizzle<Src> || IsMatrix<Src>);
 
+			template<typename ElementType>
+			static constexpr bool IsElementTypeValid = (std::is_union_v<ElementType> || std::is_class_v<ElementType> || std::is_arithmetic_v<ElementType>) && !std::is_const_v<ElementType>;
+
 			template<class CSwizzleVector_>
 			class CSwizzleDesc
 			{
@@ -1924,6 +1927,7 @@ further investigations needed, including other compilers
 		class vector : public Impl::CDataContainer<ElementType_, 0, dimension_>
 		{
 			static_assert(dimension_ > 0, "vector dimension should be positive");
+			static_assert(Impl::IsElementTypeValid<ElementType_>, "invalid vector element type");
 			typedef Impl::CDataContainer<ElementType_, 0, dimension_> DataContainer;
 			//using CDataContainer<ElementType_, 0, dimension_>::data;
 
@@ -1979,6 +1983,7 @@ further investigations needed, including other compilers
 		{
 			static_assert(rows_ > 0, "matrix should contain at leat 1 row");
 			static_assert(columns_ > 0, "matrix should contain at leat 1 column");
+			static_assert(Impl::IsElementTypeValid<ElementType_>, "invalid matrix element type");
 			friend bool VectorMath::all<>(const matrix<ElementType_, rows_, columns_> &);
 			friend bool VectorMath::any<>(const matrix<ElementType_, rows_, columns_> &);
 			friend bool VectorMath::none<>(const matrix<ElementType_, rows_, columns_> &);
