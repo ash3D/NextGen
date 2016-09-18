@@ -516,130 +516,130 @@ further investigations needed, including other compilers
 		{
 #			pragma region WAR hazard
 #				pragma region detector
-			template<class DstSwizzleDesc, class SrcSwizzleDesc, bool assign, unsigned dstRowIdx = 0, unsigned srcRowIdx = 0>
-			class SwizzleWARHazardDetectHelper
-			{
-				// mpl::transform does not work with ranges (bug in mpl?) => use mpl::transform_view (even if it can ponentially be less efficient)
-				typedef mpl::transform_view<typename DstSwizzleDesc::CSwizzleVector, mpl::bitor_<mpl::_, mpl::integral_c<unsigned, dstRowIdx << 2>>> CDstSwizzleVector;
-				typedef mpl::transform_view<typename SrcSwizzleDesc::CSwizzleVector, mpl::bitor_<mpl::_, mpl::integral_c<unsigned, srcRowIdx << 2>>> CSrcSwizzleVector;
-
-				// cut CSrcSwizzleVector off
-				typedef typename mpl::min<typename mpl::size<CSrcSwizzleVector>::type, typename mpl::size<CDstSwizzleVector>::type>::type MinSwizzleSize;
-				typedef typename mpl::begin<CSrcSwizzleVector>::type SrcSwizzleBegin;
-				typedef typename mpl::iterator_range<SrcSwizzleBegin, typename mpl::advance<SrcSwizzleBegin, MinSwizzleSize>::type>::type CCuttedSrcSwizzleVector;
-
-			private:
-				template<class SrcIter>
-				class Pred
-				{
-					template<class F>
-					struct invoke
+					template<class DstSwizzleDesc, class SrcSwizzleDesc, bool assign, unsigned dstRowIdx = 0, unsigned srcRowIdx = 0>
+					class SwizzleWARHazardDetectHelper
 					{
-						typedef typename F::type type;
+						// mpl::transform does not work with ranges (bug in mpl?) => use mpl::transform_view (even if it can ponentially be less efficient)
+						typedef mpl::transform_view<typename DstSwizzleDesc::CSwizzleVector, mpl::bitor_<mpl::_, mpl::integral_c<unsigned, dstRowIdx << 2>>> CDstSwizzleVector;
+						typedef mpl::transform_view<typename SrcSwizzleDesc::CSwizzleVector, mpl::bitor_<mpl::_, mpl::integral_c<unsigned, srcRowIdx << 2>>> CSrcSwizzleVector;
+
+						// cut CSrcSwizzleVector off
+						typedef typename mpl::min<typename mpl::size<CSrcSwizzleVector>::type, typename mpl::size<CDstSwizzleVector>::type>::type MinSwizzleSize;
+						typedef typename mpl::begin<CSrcSwizzleVector>::type SrcSwizzleBegin;
+						typedef typename mpl::iterator_range<SrcSwizzleBegin, typename mpl::advance<SrcSwizzleBegin, MinSwizzleSize>::type>::type CCuttedSrcSwizzleVector;
+
+					private:
+						template<class SrcIter>
+						class Pred
+						{
+							template<class F>
+							struct invoke
+							{
+								typedef typename F::type type;
+							};
+							template<class Seq, class Iter>
+							using DistanceFromBegin = mpl::distance<typename mpl::begin<Seq>::type, Iter>;
+							using DstIter = typename mpl::find<CDstSwizzleVector, typename mpl::deref<SrcIter>::type>::type;
+							using DstWasAlreadyWritten = typename mpl::less<typename DistanceFromBegin<CDstSwizzleVector, DstIter>::type, typename DistanceFromBegin<CCuttedSrcSwizzleVector, SrcIter>::type>::type;
+
+						private:
+							using FindSrcWrittenToDstIter = mpl::advance<typename mpl::begin<CCuttedSrcSwizzleVector>::type, typename DistanceFromBegin<CDstSwizzleVector, DstIter>::type>;
+							using DstWasModified = mpl::bind<typename mpl::lambda<mpl::not_equal_to<invoke<mpl::_1>, invoke<mpl::_2>>>::type, mpl::deref<DstIter>, mpl::deref<typename FindSrcWrittenToDstIter::type>>;
+
+						public:
+							typedef typename mpl::apply<std::conditional_t<assign && DstWasAlreadyWritten::value, DstWasModified, mpl::bind<mpl::lambda<mpl::_>::type, DstWasAlreadyWritten>>>::type type;
+						};
+						typedef typename mpl::iter_fold<CCuttedSrcSwizzleVector, std::false_type, mpl::or_<mpl::_1, Pred<mpl::_2>>>::type Result;
+
+					public:
+						static constexpr typename Result::value_type value = Result::value;
 					};
-					template<class Seq, class Iter>
-					using DistanceFromBegin = mpl::distance<typename mpl::begin<Seq>::type, Iter>;
-					using DstIter = typename mpl::find<CDstSwizzleVector, typename mpl::deref<SrcIter>::type>::type;
-					using DstWasAlreadyWritten = typename mpl::less<typename DistanceFromBegin<CDstSwizzleVector, DstIter>::type, typename DistanceFromBegin<CCuttedSrcSwizzleVector, SrcIter>::type>::type;
 
-				private:
-					using FindSrcWrittenToDstIter = mpl::advance<typename mpl::begin<CCuttedSrcSwizzleVector>::type, typename DistanceFromBegin<CDstSwizzleVector, DstIter>::type>;
-					using DstWasModified = mpl::bind<typename mpl::lambda<mpl::not_equal_to<invoke<mpl::_1>, invoke<mpl::_2>>>::type, mpl::deref<DstIter>, mpl::deref<typename FindSrcWrittenToDstIter::type>>;
+					template
+					<
+						typename DstElementType, unsigned int dstRows, unsigned int dstColumns, class DstSwizzleDesc,
+						typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc,
+						bool assign
+					>
+					struct DetectSwizzleWARHazard : std::false_type {};
 
-				public:
-					typedef typename mpl::apply<std::conditional_t<assign && DstWasAlreadyWritten::value, DstWasModified, mpl::bind<mpl::lambda<mpl::_>::type, DstWasAlreadyWritten>>>::type type;
-				};
-				typedef typename mpl::iter_fold<CCuttedSrcSwizzleVector, std::false_type, mpl::or_<mpl::_1, Pred<mpl::_2>>>::type Result;
+					template
+					<
+						typename ElementType, unsigned int rows, unsigned int columns,
+						class DstSwizzleDesc, class SrcSwizzleDesc, bool assign
+					>
+					struct DetectSwizzleWARHazard<ElementType, rows, columns, DstSwizzleDesc, ElementType, rows, columns, SrcSwizzleDesc, assign> :
+					SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign> {};
 
-			public:
-				static constexpr typename Result::value_type value = Result::value;
-			};
+					// mixed vector/matrix swizzles
+					template
+					<
+						typename ElementType, unsigned int dstRows, unsigned int srcRows, unsigned int columns,
+						class DstSwizzleDesc, class SrcSwizzleDesc, bool assign
+					>
+					class DetectSwizzleWARHazard<std::enable_if_t<bool(dstRows) != bool(srcRows), ElementType>, dstRows, columns, DstSwizzleDesc, ElementType, srcRows, columns, SrcSwizzleDesc, assign>
+					{
+						template<unsigned int rows, unsigned rowIdx = 0>
+						static constexpr auto rowsFold = SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign, dstRows ? 0 : rowIdx, srcRows ? 0 : rowIdx>::value || rowsFold<rows, rowIdx + 1>;
 
-			template
-				<
-				typename DstElementType, unsigned int dstRows, unsigned int dstColumns, class DstSwizzleDesc,
-				typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc,
-				bool assign
-				>
-				struct DetectSwizzleWARHazard : std::false_type {};
+						// terminator
+						template<unsigned int rows>
+						static constexpr auto rowsFold<rows, rows> = false;
 
-			template
-				<
-				typename ElementType, unsigned int rows, unsigned int columns,
-				class DstSwizzleDesc, class SrcSwizzleDesc, bool assign
-				>
-				struct DetectSwizzleWARHazard<ElementType, rows, columns, DstSwizzleDesc, ElementType, rows, columns, SrcSwizzleDesc, assign> :
-				SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign> {};
-
-			// mixed vector/matrix swizzles
-			template
-				<
-				typename ElementType, unsigned int dstRows, unsigned int srcRows, unsigned int columns,
-				class DstSwizzleDesc, class SrcSwizzleDesc, bool assign
-				>
-				class DetectSwizzleWARHazard<std::enable_if_t<bool(dstRows) != bool(srcRows), ElementType>, dstRows, columns, DstSwizzleDesc, ElementType, srcRows, columns, SrcSwizzleDesc, assign>
-			{
-				template<unsigned int rows, unsigned rowIdx = 0>
-				static constexpr auto rowsFold = SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign, dstRows ? 0 : rowIdx, srcRows ? 0 : rowIdx>::value || rowsFold<rows, rowIdx + 1>;
-
-				// terminator
-				template<unsigned int rows>
-				static constexpr auto rowsFold<rows, rows> = false;
-
-			public:
-				static constexpr auto value = rowsFold<dstRows ? dstRows : srcRows>;
-			};
+					public:
+						static constexpr auto value = rowsFold<dstRows ? dstRows : srcRows>;
+					};
 #				pragma endregion
 
 #				pragma region trigger
-			// vector
-			template<unsigned rowIdx = 0, typename ElementType, unsigned int columns, class SwizzleDesc>
-			static inline const void *GetRowAddress(const CSwizzleCommon<ElementType, 0, columns, SwizzleDesc> &swizzle)
-			{
-				return swizzle.Data();
-			}
+					// vector
+					template<unsigned rowIdx = 0, typename ElementType, unsigned int columns, class SwizzleDesc>
+					static inline const void *GetRowAddress(const CSwizzleCommon<ElementType, 0, columns, SwizzleDesc> &swizzle)
+					{
+						return swizzle.Data();
+					}
 
-			// matrix
-			template<unsigned rowIdx = 0, typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			static inline const void *GetRowAddress(const CSwizzleCommon<ElementType, rows, columns, SwizzleDesc> &swizzle)
-			{
-				return swizzle.Data()[rowIdx].Data();
-			}
+					// matrix
+					template<unsigned rowIdx = 0, typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
+					static inline const void *GetRowAddress(const CSwizzleCommon<ElementType, rows, columns, SwizzleDesc> &swizzle)
+					{
+						return swizzle.Data()[rowIdx].Data();
+					}
 
-			template
-				<
-				bool assign, class DstSwizzleDesc, class SrcSwizzleDesc,
-				typename ElementType, unsigned int rows, unsigned int columns
-				>
-				static inline bool TriggerWARHazard(CSwizzleCommon<ElementType, rows, columns, DstSwizzleDesc> &dst, const CSwizzleCommon<ElementType, rows, columns, SrcSwizzleDesc> &src)
-			{
-				return SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign>::value && GetRowAddress(dst) == GetRowAddress(src);
-			}
+					template
+					<
+						bool assign, class DstSwizzleDesc, class SrcSwizzleDesc,
+						typename ElementType, unsigned int rows, unsigned int columns
+					>
+					static inline bool TriggerWARHazard(CSwizzleCommon<ElementType, rows, columns, DstSwizzleDesc> &dst, const CSwizzleCommon<ElementType, rows, columns, SrcSwizzleDesc> &src)
+					{
+						return SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign>::value && GetRowAddress(dst) == GetRowAddress(src);
+					}
 
-			// mixed vector/matrix swizzles
-			template
-				<
-				bool assign, unsigned rowIdx = 0, class DstSwizzleDesc, class SrcSwizzleDesc,
-				typename ElementType, unsigned int dstRows, unsigned int srcRows, unsigned int columns
-				>
-				static inline std::enable_if_t<bool(dstRows) != bool(srcRows) && rowIdx < std::max(dstRows, srcRows), bool>
-				TriggerWARHazard(CSwizzleCommon<ElementType, dstRows, columns, DstSwizzleDesc> &dst, const CSwizzleCommon<ElementType, srcRows, columns, SrcSwizzleDesc> &src)
-			{
-				return SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign, dstRows ? 0 : rowIdx, srcRows ? 0 : rowIdx>::value
-					&& GetRowAddress<rowIdx>(dst.Data()) == GetRowAddress<rowIdx>(src.Data()) || TriggerWARHazard<assign, rowIdx + 1>(dst, src);
-			}
+					// mixed vector/matrix swizzles
+					template
+					<
+						bool assign, unsigned rowIdx = 0, class DstSwizzleDesc, class SrcSwizzleDesc,
+						typename ElementType, unsigned int dstRows, unsigned int srcRows, unsigned int columns
+					>
+					static inline std::enable_if_t<bool(dstRows) != bool(srcRows) && rowIdx < std::max(dstRows, srcRows), bool>
+					TriggerWARHazard(CSwizzleCommon<ElementType, dstRows, columns, DstSwizzleDesc> &dst, const CSwizzleCommon<ElementType, srcRows, columns, SrcSwizzleDesc> &src)
+					{
+						return SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign, dstRows ? 0 : rowIdx, srcRows ? 0 : rowIdx>::value
+							&& GetRowAddress<rowIdx>(dst.Data()) == GetRowAddress<rowIdx>(src.Data()) || TriggerWARHazard<assign, rowIdx + 1>(dst, src);
+					}
 
-			// served both for unmatched swizzles and as terminator for mixed vector/matrix swizzles
-			template
-				<
-				bool assign, unsigned rowIdx = 0,
-				typename DstElementType, unsigned int dstRows, unsigned int dstColumns, class DstSwizzleDesc,
-				typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc
-				>
-				static inline bool TriggerWARHazard(CSwizzleCommon<DstElementType, dstRows, dstColumns, DstSwizzleDesc> &, const CSwizzleCommon<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &)
-			{
-				return false;
-			}
+					// served both for unmatched swizzles and as terminator for mixed vector/matrix swizzles
+					template
+					<
+						bool assign, unsigned rowIdx = 0,
+						typename DstElementType, unsigned int dstRows, unsigned int dstColumns, class DstSwizzleDesc,
+						typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc
+					>
+					static inline bool TriggerWARHazard(CSwizzleCommon<DstElementType, dstRows, dstColumns, DstSwizzleDesc> &, const CSwizzleCommon<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &)
+					{
+						return false;
+					}
 #				pragma endregion NOTE: assert should not be triggered if WAR hazard is not detected.
 #			pragma endregion
 
