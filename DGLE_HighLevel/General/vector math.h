@@ -285,6 +285,11 @@ consider using preprocessor instead of templates or overloading each target func
 #	pragma warning(push)
 #	pragma warning(disable: 4003)
 
+// ugly workaround for operations like 'vec4.xy += int4(4).xxx;'
+#if defined _MSC_VER && _MSC_VER <= 1900
+#	define MSVC_NAMESPACE_WORKAROUND
+#endif
+
 // it seems that MSVC violates C++ standard regarding temp objects lifetime with initializer lists\
 further investigations needed, including other compilers
 
@@ -463,9 +468,18 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc = CVectorSwizzleDesc<columns>>
 			class CSwizzleAssign;
 
+#ifdef MSVC_NAMESPACE_WORKAROUND
+		}
+#endif
 			// rows = 0 for vectors
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc = CVectorSwizzleDesc<columns>, typename isWriteMaskValid = std::bool_constant<SwizzleDesc::isWriteMaskValid>>
 			class CSwizzle;
+#ifdef MSVC_NAMESPACE_WORKAROUND
+		namespace Impl
+		{
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc = CVectorSwizzleDesc<columns>, typename isWriteMaskValid = std::bool_constant<SwizzleDesc::isWriteMaskValid>>
+			using CSwizzle = VectorMath::CSwizzle<ElementType, rows, columns, SwizzleDesc, isWriteMaskValid>;
+#endif
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, bool trivialCtor = std::is_trivially_default_constructible_v<ElementType>>
 			class CDataContainerImpl;
@@ -1186,13 +1200,13 @@ further investigations needed, including other compilers
 				template<typename TResult>
 				vector<TResult, SwizzleDesc::dimension> apply(TResult f(ElementType)) const
 				{
-					return apply<TResult (ElementType)>(f);
+					return apply<TResult(ElementType)>(f);
 				}
 
 				template<typename TResult>
 				vector<TResult, SwizzleDesc::dimension> apply(TResult f(const ElementType &)) const
 				{
-					return apply<TResult (const ElementType &)>(f);
+					return apply<TResult(const ElementType &)>(f);
 				}
 
 				vector<ElementType, SwizzleDesc::dimension> apply(ElementType f(ElementType)) const
@@ -1521,7 +1535,7 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			template<typename RightType>
 #ifdef __GNUC__
-			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(const RightType &scalar) -> std::enable_if_t<IsScalar<RightType>, TOperationResult &>
+			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(const RightType &scalar)->std::enable_if_t<IsScalar<RightType>, TOperationResult &>
 #else
 			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(const RightType &scalar) & -> std::enable_if_t<IsScalar<RightType>, TOperationResult &>
 #endif
@@ -1534,7 +1548,7 @@ further investigations needed, including other compilers
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 #ifdef __GNUC__
-			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(std::initializer_list<CInitListItem<ElementType, SwizzleDesc::dimension>> initList) -> TOperationResult &
+			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(std::initializer_list<CInitListItem<ElementType, SwizzleDesc::dimension>> initList)->TOperationResult &
 #else
 			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(std::initializer_list<CInitListItem<ElementType, SwizzleDesc::dimension>> initList) & -> TOperationResult &
 #endif
@@ -1547,13 +1561,19 @@ further investigations needed, including other compilers
 				return *this;
 			}
 
+#ifdef MSVC_NAMESPACE_WORKAROUND
+		}
+#define NAMESPACE_PREFIX Impl::
+#else
+#define NAMESPACE_PREFIX
+#endif
 			// this specialization used as base class for CDataContainer to eliminate need for various overloads
 			/*
 			CVectorSwizzleDesc<vectorDimension> required for VS 2013/2015
 			TODO: try with newer version
 			*/
 			template<typename ElementType, unsigned int vectorDimension>
-			class CSwizzle<ElementType, 0, vectorDimension, CVectorSwizzleDesc<vectorDimension>, std::true_type> : public CSwizzleAssign<ElementType, 0, vectorDimension>
+			class CSwizzle<ElementType, 0, vectorDimension, NAMESPACE_PREFIX CVectorSwizzleDesc<vectorDimension>, std::true_type> : public NAMESPACE_PREFIX CSwizzleAssign<ElementType, 0, vectorDimension>
 			{
 			protected:
 				CSwizzle() = default;
@@ -1563,10 +1583,10 @@ further investigations needed, including other compilers
 			};
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			class CSwizzle<ElementType, rows, columns, SwizzleDesc, std::false_type> : public CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>
+			class CSwizzle<ElementType, rows, columns, SwizzleDesc, std::false_type> : public NAMESPACE_PREFIX CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>
 			{
-				friend class CDataContainerImpl<ElementType, rows, columns, false>;
-				friend class CDataContainerImpl<ElementType, rows, columns, true>;
+				friend class NAMESPACE_PREFIX CDataContainerImpl<ElementType, rows, columns, false>;
+				friend class NAMESPACE_PREFIX CDataContainerImpl<ElementType, rows, columns, true>;
 
 			public:
 				CSwizzle &operator =(const CSwizzle &) = delete;
@@ -1578,10 +1598,10 @@ further investigations needed, including other compilers
 			};
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			class CSwizzle<ElementType, rows, columns, SwizzleDesc, std::true_type> : public CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>
+			class CSwizzle<ElementType, rows, columns, SwizzleDesc, std::true_type> : public NAMESPACE_PREFIX CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>
 			{
-				friend class CDataContainerImpl<ElementType, rows, columns, false>;
-				friend class CDataContainerImpl<ElementType, rows, columns, true>;
+				friend class NAMESPACE_PREFIX CDataContainerImpl<ElementType, rows, columns, false>;
+				friend class NAMESPACE_PREFIX CDataContainerImpl<ElementType, rows, columns, true>;
 
 			public:
 #ifdef __GNUC__
@@ -1589,13 +1609,19 @@ further investigations needed, including other compilers
 #else
 				CSwizzle &operator =(const CSwizzle &) & = default;
 #endif
-				using CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =;
+				using NAMESPACE_PREFIX CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =;
 
 			private:
 				CSwizzle() = default;
 				CSwizzle(const CSwizzle &) = delete;
 				~CSwizzle() = default;
 			};
+
+#undef NAMESPACE_PREFIX
+#ifdef MSVC_NAMESPACE_WORKAROUND
+		namespace Impl
+		{
+#endif
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			class CSwizzleIteratorImpl : public std::iterator<std::forward_iterator_tag, const ElementType>
@@ -2907,6 +2933,8 @@ further investigations needed, including other compilers
 			typedef Math::VectorMath::matrix<common_type_t<LeftType, RightElementType>, rightRows, rightColumns> type;
 		};
 	}
+
+#	undef MSVC_NAMESPACE_WORKAROUND
 
 #	undef INIT_LIST_ITEM_OVERFLOW_MSG
 
