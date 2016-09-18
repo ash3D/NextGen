@@ -2477,12 +2477,12 @@ further investigations needed, including other compilers
 
 #		pragma region min/max functions
 			// std::min/max requires explicit template param if used for different types => provide scalar version\
-			this version it also returns copy rather than reference
+			this version also has option to return copy or reference
 #			define FUNCTION_DEFINITION(f)																					\
-				template<typename LeftType, typename RightType>																\
+				template<bool copy = false, typename LeftType, typename RightType>											\
 				inline auto f(const LeftType &left, const RightType &right)													\
-				-> std::enable_if_t<Impl::IsScalar<LeftType> && Impl::IsScalar<RightType>,									\
-					std::common_type_t<LeftType, RightType>>																\
+				-> std::enable_if_t<Impl::IsScalar<LeftType> && Impl::IsScalar<RightType>, std::conditional_t<copy,			\
+					std::common_type_t<LeftType, RightType>, const std::common_type_t<LeftType, RightType> &>>				\
 				{																											\
 					return std::f<std::common_type_t<LeftType, RightType>>(left, right);									\
 				};
