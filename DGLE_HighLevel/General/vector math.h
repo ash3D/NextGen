@@ -121,44 +121,44 @@ consider using preprocessor instead of templates or overloading each target func
 #		define TRIVIAL_CTOR_FORWARD CDataContainerImpl() = default; NONTRIVIAL_CTOR_FORWARD
 #endif
 #		define NONTRIVIAL_CTOR_FORWARD template<typename ...TSrc> CDataContainerImpl(const TSrc &...src) : data(src...) {}
-#		define DATA_CONTAINER_IMPL_SPECIALIZATION(trivialCtor)																										\
-			template<typename ElementType>																															\
-			class CDataContainerImpl<ElementType, ROWS, COLUMNS, trivialCtor> : public std::conditional_t<ROWS == 0, CSwizzle<ElementType, 0, COLUMNS>, MatrixTag>	\
-			{																																						\
-			protected:																																				\
-				/*forward ctors/dtor/= to data*/																													\
-				BOOST_PP_REMOVE_PARENS(BOOST_PP_IIF(trivialCtor, (TRIVIAL_CTOR_FORWARD), (NONTRIVIAL_CTOR_FORWARD)))												\
-																																									\
-				CDataContainerImpl(const CDataContainerImpl &src) : data(src.data)																					\
-				{																																					\
-				}																																					\
-																																									\
-				CDataContainerImpl(CDataContainerImpl &&src) : data(std::move(src.data))																			\
-				{																																					\
-				}																																					\
-																																									\
-				~CDataContainerImpl()																																\
-				{																																					\
-					data.~CData<ElementType, ROWS, COLUMNS>();																										\
-				}																																					\
-																																									\
-				void operator =(const CDataContainerImpl &right)																									\
-				{																																					\
-					data = right.data;																																\
-				}																																					\
-																																									\
-				void operator =(CDataContainerImpl &&right)																											\
-				{																																					\
-					data = std::move(right.data);																													\
-				}																																					\
-																																									\
-			public:																																					\
-				union																																				\
-				{																																					\
-					CData<ElementType, ROWS, COLUMNS> data;																											\
-					/*gcc does not allow class definition inside anonymous union*/																					\
-					GENERATE_SWIZZLES((SWIZZLE_OBJECT))																												\
-				};																																					\
+#		define DATA_CONTAINER_IMPL_SPECIALIZATION(trivialCtor)																									\
+			template<typename ElementType>																														\
+			class CDataContainerImpl<ElementType, ROWS, COLUMNS, trivialCtor> : public conditional_t<ROWS == 0, CSwizzle<ElementType, 0, COLUMNS>, MatrixTag>	\
+			{																																					\
+			protected:																																			\
+				/*forward ctors/dtor/= to data*/																												\
+				BOOST_PP_REMOVE_PARENS(BOOST_PP_IIF(trivialCtor, (TRIVIAL_CTOR_FORWARD), (NONTRIVIAL_CTOR_FORWARD)))											\
+																																								\
+				CDataContainerImpl(const CDataContainerImpl &src) : data(src.data)																				\
+				{																																				\
+				}																																				\
+																																								\
+				CDataContainerImpl(CDataContainerImpl &&src) : data(move(src.data))																				\
+				{																																				\
+				}																																				\
+																																								\
+				~CDataContainerImpl()																															\
+				{																																				\
+					data.~CData<ElementType, ROWS, COLUMNS>();																									\
+				}																																				\
+																																								\
+				void operator =(const CDataContainerImpl &right)																								\
+				{																																				\
+					data = right.data;																															\
+				}																																				\
+																																								\
+				void operator =(CDataContainerImpl &&right)																										\
+				{																																				\
+					data = move(right.data);																													\
+				}																																				\
+																																								\
+			public:																																				\
+				union																																			\
+				{																																				\
+					CData<ElementType, ROWS, COLUMNS> data;																										\
+					/*gcc does not allow class definition inside anonymous union*/																				\
+					GENERATE_SWIZZLES((SWIZZLE_OBJECT))																											\
+				};																																				\
 			};
 		DATA_CONTAINER_IMPL_SPECIALIZATION(0)
 		DATA_CONTAINER_IMPL_SPECIALIZATION(1)
@@ -384,6 +384,8 @@ further investigations needed, including other compilers
 		namespace Impl
 		{
 			namespace mpl = boost::mpl;
+			using namespace mpl::placeholders;
+			using namespace std;
 
 			enum class TagName
 			{
@@ -408,10 +410,10 @@ further investigations needed, including other compilers
 			class CheckTag
 			{
 				template<template<typename, typename> class F, typename Var, typename Fixed>
-				using Iterate = std::bool_constant<F<Var &, Fixed>::value || F<const Var &, Fixed>::value || F<Var &&, Fixed>::value || F<const Var &&, Fixed>::value>;
+				using Iterate = bool_constant<F<Var &, Fixed>::value || F<const Var &, Fixed>::value || F<Var &&, Fixed>::value || F<const Var &&, Fixed>::value>;
 
 				template<typename FixedTag, typename VarSrc>
-				using IterateSrc = Iterate<std::is_convertible, VarSrc, FixedTag>;
+				using IterateSrc = Iterate<is_convertible, VarSrc, FixedTag>;
 
 			public:
 				static constexpr bool value = Iterate<IterateSrc, Tag, Src>::value;
@@ -427,18 +429,18 @@ further investigations needed, including other compilers
 			static constexpr bool IsScalar = !(IsSwizzle<Src> || IsMatrix<Src>);
 
 			template<typename ElementType>
-			static constexpr bool IsElementTypeValid = (std::is_union_v<ElementType> || std::is_class_v<ElementType> || std::is_arithmetic_v<ElementType>) && !std::is_const_v<ElementType>;
+			static constexpr bool IsElementTypeValid = (is_union_v<ElementType> || is_class_v<ElementType> || is_arithmetic_v<ElementType>) && !is_const_v<ElementType>;
 
 			template<class CSwizzleVector_>
 			class CSwizzleDesc
 			{
 				template<class Iter>
 				struct PackSwizzleElement : mpl::shift_left<typename mpl::deref<Iter>::type, typename mpl::times<typename Iter::pos, mpl::integral_c<unsigned short, 4u>::type>> {};
-				typedef mpl::iter_fold<CSwizzleVector_, mpl::integral_c<unsigned short, 0u>, mpl::bitor_<mpl::_1, PackSwizzleElement<mpl::_2>>> PackedSwizzle;
+				typedef mpl::iter_fold<CSwizzleVector_, mpl::integral_c<unsigned short, 0u>, mpl::bitor_<_1, PackSwizzleElement<_2>>> PackedSwizzle;
 
 			private:
 				typedef typename mpl::sort<CSwizzleVector_>::type CSortedSwizzleVector;
-				typedef typename mpl::unique<CSortedSwizzleVector, std::is_same<mpl::_, mpl::_>>::type CUniqueSwizzleVector;
+				typedef typename mpl::unique<CSortedSwizzleVector, is_same<_, _>>::type CUniqueSwizzleVector;
 				typedef typename mpl::equal_to<mpl::size<CUniqueSwizzleVector>, mpl::size<CSwizzleVector_>> IsWriteMaskValid;
 
 			public:
@@ -480,11 +482,11 @@ further investigations needed, including other compilers
 #ifdef MSVC_NAMESPACE_WORKAROUND
 		namespace Impl
 		{
-			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc = CVectorSwizzleDesc<columns>, typename isWriteMaskValid = std::bool_constant<SwizzleDesc::isWriteMaskValid>>
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc = CVectorSwizzleDesc<columns>, typename isWriteMaskValid = bool_constant<SwizzleDesc::isWriteMaskValid>>
 			using CSwizzle = VectorMath::CSwizzle<ElementType, rows, columns, SwizzleDesc, isWriteMaskValid>;
 #endif
 
-			template<typename ElementType, unsigned int rows, unsigned int columns, bool trivialCtor = std::is_trivially_default_constructible_v<ElementType>>
+			template<typename ElementType, unsigned int rows, unsigned int columns, bool trivialCtor = is_trivially_default_constructible_v<ElementType>>
 			class CDataContainerImpl;
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
@@ -523,8 +525,8 @@ further investigations needed, including other compilers
 					class SwizzleWARHazardDetectHelper
 					{
 						// mpl::transform does not work with ranges (bug in mpl?) => use mpl::transform_view (even if it can ponentially be less efficient)
-						typedef mpl::transform_view<typename DstSwizzleDesc::CSwizzleVector, mpl::bitor_<mpl::_, mpl::integral_c<unsigned, dstRowIdx << 2>>> CDstSwizzleVector;
-						typedef mpl::transform_view<typename SrcSwizzleDesc::CSwizzleVector, mpl::bitor_<mpl::_, mpl::integral_c<unsigned, srcRowIdx << 2>>> CSrcSwizzleVector;
+						typedef mpl::transform_view<typename DstSwizzleDesc::CSwizzleVector, mpl::bitor_<_, mpl::integral_c<unsigned, dstRowIdx << 2>>> CDstSwizzleVector;
+						typedef mpl::transform_view<typename SrcSwizzleDesc::CSwizzleVector, mpl::bitor_<_, mpl::integral_c<unsigned, srcRowIdx << 2>>> CSrcSwizzleVector;
 
 						// cut CSrcSwizzleVector off
 						typedef typename mpl::min<typename mpl::size<CSrcSwizzleVector>::type, typename mpl::size<CDstSwizzleVector>::type>::type MinSwizzleSize;
@@ -547,12 +549,12 @@ further investigations needed, including other compilers
 
 						private:
 							using FindSrcWrittenToDstIter = mpl::advance<typename mpl::begin<CCuttedSrcSwizzleVector>::type, typename DistanceFromBegin<CDstSwizzleVector, DstIter>::type>;
-							using DstWasModified = mpl::bind<typename mpl::lambda<mpl::not_equal_to<invoke<mpl::_1>, invoke<mpl::_2>>>::type, mpl::deref<DstIter>, mpl::deref<typename FindSrcWrittenToDstIter::type>>;
+							using DstWasModified = mpl::bind<typename mpl::lambda<mpl::not_equal_to<invoke<_1>, invoke<_2>>>::type, mpl::deref<DstIter>, mpl::deref<typename FindSrcWrittenToDstIter::type>>;
 
 						public:
-							typedef typename mpl::apply<std::conditional_t<assign && DstWasAlreadyWritten::value, DstWasModified, mpl::bind<mpl::lambda<mpl::_>::type, DstWasAlreadyWritten>>>::type type;
+							typedef typename mpl::apply<conditional_t<assign && DstWasAlreadyWritten::value, DstWasModified, mpl::bind<mpl::lambda<_>::type, DstWasAlreadyWritten>>>::type type;
 						};
-						typedef typename mpl::iter_fold<CCuttedSrcSwizzleVector, std::false_type, mpl::or_<mpl::_1, Pred<mpl::_2>>>::type Result;
+						typedef typename mpl::iter_fold<CCuttedSrcSwizzleVector, false_type, mpl::or_<_1, Pred<_2>>>::type Result;
 
 					public:
 						static constexpr typename Result::value_type value = Result::value;
@@ -564,7 +566,7 @@ further investigations needed, including other compilers
 						typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc,
 						bool assign
 					>
-					struct DetectSwizzleWARHazard : std::false_type {};
+					struct DetectSwizzleWARHazard : false_type {};
 
 					template
 					<
@@ -580,7 +582,7 @@ further investigations needed, including other compilers
 						typename ElementType, unsigned int dstRows, unsigned int srcRows, unsigned int columns,
 						class DstSwizzleDesc, class SrcSwizzleDesc, bool assign
 					>
-					class DetectSwizzleWARHazard<std::enable_if_t<bool(dstRows) != bool(srcRows), ElementType>, dstRows, columns, DstSwizzleDesc, ElementType, srcRows, columns, SrcSwizzleDesc, assign>
+					class DetectSwizzleWARHazard<enable_if_t<bool(dstRows) != bool(srcRows), ElementType>, dstRows, columns, DstSwizzleDesc, ElementType, srcRows, columns, SrcSwizzleDesc, assign>
 					{
 						template<unsigned int rows, unsigned rowIdx = 0>
 						static constexpr auto rowsFold = SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign, dstRows ? 0 : rowIdx, srcRows ? 0 : rowIdx>::value || rowsFold<rows, rowIdx + 1>;
@@ -625,7 +627,7 @@ further investigations needed, including other compilers
 						bool assign, unsigned rowIdx = 0, class DstSwizzleDesc, class SrcSwizzleDesc,
 						typename ElementType, unsigned int dstRows, unsigned int srcRows, unsigned int columns
 					>
-					static inline std::enable_if_t<bool(dstRows) != bool(srcRows) && rowIdx < std::max(dstRows, srcRows), bool>
+					static inline enable_if_t<bool(dstRows) != bool(srcRows) && rowIdx < std::max(dstRows, srcRows), bool>
 					TriggerWARHazard(CSwizzleCommon<ElementType, dstRows, columns, DstSwizzleDesc> &dst, const CSwizzleCommon<ElementType, srcRows, columns, SrcSwizzleDesc> &src)
 					{
 						return SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign, dstRows ? 0 : rowIdx, srcRows ? 0 : rowIdx>::value
@@ -650,27 +652,27 @@ further investigations needed, including other compilers
 			namespace ElementsCountHelpers
 			{
 				// empty
-				static std::integral_constant<unsigned int, 0u> ElementsCountHelper();
+				static integral_constant<unsigned int, 0u> ElementsCountHelper();
 
 				// scalar
 				template<typename Type>
-				static std::enable_if_t<IsScalar<Type>, std::integral_constant<unsigned int, 1u>> ElementsCountHelper(const Type &);
+				static enable_if_t<IsScalar<Type>, integral_constant<unsigned int, 1u>> ElementsCountHelper(const Type &);
 
 				// swizzle
 				template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-				static std::integral_constant<unsigned int, SwizzleDesc::dimension> ElementsCountHelper(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &);
+				static integral_constant<unsigned int, SwizzleDesc::dimension> ElementsCountHelper(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &);
 
 				// matrix
 				template<typename ElementType, unsigned int rows, unsigned int columns>
-				static std::integral_constant<unsigned int, rows * columns> ElementsCountHelper(const matrix<ElementType, rows, columns> &);
+				static integral_constant<unsigned int, rows * columns> ElementsCountHelper(const matrix<ElementType, rows, columns> &);
 
 				template<typename First, typename Second, typename ...Rest>
 				static auto ElementsCountHelper(const First &first, const Second &second, const Rest &...rest)	// enaable_if_t - workaround for VS 2015
-					-> std::integral_constant<unsigned int, std::enable_if_t<true, decltype(ElementsCountHelper(first))>::value + std::enable_if_t<true, decltype(ElementsCountHelper(second, rest...))>::value>;
+					-> integral_constant<unsigned int, enable_if_t<true, decltype(ElementsCountHelper(first))>::value + enable_if_t<true, decltype(ElementsCountHelper(second, rest...))>::value>;
 			}
 
 			template<typename ...Args>
-			static constexpr unsigned int elementsCount = decltype(ElementsCountHelpers::ElementsCountHelper(std::declval<Args>()...))::value;
+			static constexpr unsigned int elementsCount = decltype(ElementsCountHelpers::ElementsCountHelper(declval<Args>()...))::value;
 #endif
 
 			class CDataCommon
@@ -683,27 +685,27 @@ further investigations needed, including other compilers
 #if !(defined _MSC_VER && _MSC_VER <= 1900) || _DEBUG
 			private:
 				// empty
-				static std::integral_constant<unsigned int, 0u> ElementsCountHelper();
+				static integral_constant<unsigned int, 0u> ElementsCountHelper();
 
 				// scalar
 				template<typename Type>
-				static std::enable_if_t<IsScalar<Type>, std::integral_constant<unsigned int, 1u>> ElementsCountHelper(const Type &);
+				static enable_if_t<IsScalar<Type>, integral_constant<unsigned int, 1u>> ElementsCountHelper(const Type &);
 
 				// swizzle
 				template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-				static std::integral_constant<unsigned int, SwizzleDesc::dimension> ElementsCountHelper(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &);
+				static integral_constant<unsigned int, SwizzleDesc::dimension> ElementsCountHelper(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &);
 
 				// matrix
 				template<typename ElementType, unsigned int rows, unsigned int columns>
-				static std::integral_constant<unsigned int, rows * columns> ElementsCountHelper(const matrix<ElementType, rows, columns> &);
+				static integral_constant<unsigned int, rows * columns> ElementsCountHelper(const matrix<ElementType, rows, columns> &);
 
 				template<typename First, typename Second, typename ...Rest>
 				static auto ElementsCountHelper(const First &first, const Second &second, const Rest &...rest)	// enaable_if_t - workaround for VS 2015
-					-> std::integral_constant<unsigned int, std::enable_if_t<true, decltype(ElementsCountHelper(first))>::value + std::enable_if_t<true, decltype(ElementsCountHelper(second, rest...))>::value>;
+					-> integral_constant<unsigned int, enable_if_t<true, decltype(ElementsCountHelper(first))>::value + enable_if_t<true, decltype(ElementsCountHelper(second, rest...))>::value>;
 
 			protected:
 				template<typename ...Args>
-				static constexpr unsigned int elementsCount = decltype(ElementsCountHelper(std::declval<Args>()...))::value;
+				static constexpr unsigned int elementsCount = decltype(ElementsCountHelper(declval<Args>()...))::value;
 #endif
 
 #if defined _MSC_VER && _MSC_VER <= 1900
@@ -717,7 +719,7 @@ further investigations needed, including other compilers
 				};
 
 				template<Dispatch dispatch>
-				using DispatchTag = std::integral_constant<Dispatch, dispatch>;
+				using DispatchTag = integral_constant<Dispatch, dispatch>;
 
 				// next
 				template<unsigned idx, typename First, typename ...Rest>
@@ -760,7 +762,7 @@ further investigations needed, including other compilers
 			private:
 				// scalar
 				template<unsigned idx, typename SrcType>
-				static inline auto GetElementImpl(const SrcType &scalar) noexcept -> std::enable_if_t<IsScalar<SrcType>, decltype(scalar)>
+				static inline auto GetElementImpl(const SrcType &scalar) noexcept -> enable_if_t<IsScalar<SrcType>, decltype(scalar)>
 				{
 					return scalar;
 				}
@@ -782,7 +784,7 @@ further investigations needed, including other compilers
 				// dispatch
 				template<unsigned idx, typename First, typename ...Rest>
 				static inline auto GetElementFind(const First &first, const Rest &...) noexcept
-					-> std::enable_if_t<idx < elementsCount<const First &>, decltype(GetElementImpl<idx>(first))>
+					-> enable_if_t<idx < elementsCount<const First &>, decltype(GetElementImpl<idx>(first))>
 				{
 					return GetElementImpl<idx>(first);
 				}
@@ -790,7 +792,7 @@ further investigations needed, including other compilers
 				// next
 				template<unsigned idx, typename First, typename ...Rest>
 				static inline auto GetElementFind(const First &, const Rest &...rest) noexcept
-					-> std::enable_if_t<idx >= elementsCount<const First &>, decltype(GetElementFind<idx - elementsCount<const First &>>(rest...))>
+					-> enable_if_t<idx >= elementsCount<const First &>, decltype(GetElementFind<idx - elementsCount<const First &>>(rest...))>
 				{
 					return GetElementFind<idx - elementsCount<const First &>>(rest...);
 				}
@@ -832,16 +834,16 @@ further investigations needed, including other compilers
 
 			private:	// matrix specific ctors
 				template<size_t ...row, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
-				CData(std::index_sequence<row...>, const matrix<SrcElementType, srcRows, srcColumns> &src);
+				CData(index_sequence<row...>, const matrix<SrcElementType, srcRows, srcColumns> &src);
 
 				template<size_t ...row, typename SrcElementType>
-				CData(std::index_sequence<row...>, const SrcElementType &scalar);
+				CData(index_sequence<row...>, const SrcElementType &scalar);
 
 				template<size_t ...row, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
-				CData(std::index_sequence<row...>, const SrcElementType (&src)[srcRows][srcColumns]);
+				CData(index_sequence<row...>, const SrcElementType (&src)[srcRows][srcColumns]);
 
 				template<size_t ...row, typename First, typename ...Rest>
-				CData(HeterogeneousInitTag<std::index_sequence<row...>>, const First &first, const Rest &...rest);
+				CData(HeterogeneousInitTag<index_sequence<row...>>, const First &first, const Rest &...rest);
 
 			private:
 				vector<ElementType, columns> rowsData[rows];
@@ -849,8 +851,8 @@ further investigations needed, including other compilers
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<size_t ...row, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
-			inline CData<ElementType, rows, columns>::CData(std::index_sequence<row...>, const matrix<SrcElementType, srcRows, srcColumns> &src) :
-				rowsData{ vector<ElementType, columns>(HeterogeneousInitTag<std::make_index_sequence<columns>, false>(), static_cast<const CSwizzle<SrcElementType, 0, srcColumns> &>(src[row]))... }
+			inline CData<ElementType, rows, columns>::CData(index_sequence<row...>, const matrix<SrcElementType, srcRows, srcColumns> &src) :
+				rowsData{ vector<ElementType, columns>(HeterogeneousInitTag<make_index_sequence<columns>, false>(), static_cast<const CSwizzle<SrcElementType, 0, srcColumns> &>(src[row]))... }
 			{
 				static_assert(rows <= srcRows, "\"copy\" ctor: too few rows in src");
 				static_assert(columns <= srcColumns, "\"copy\" ctor: too few columns in src");
@@ -858,13 +860,13 @@ further investigations needed, including other compilers
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<size_t ...row, typename SrcElementType>
-			inline CData<ElementType, rows, columns>::CData(std::index_sequence<row...>, const SrcElementType &scalar) :
+			inline CData<ElementType, rows, columns>::CData(index_sequence<row...>, const SrcElementType &scalar) :
 				rowsData{ (row, static_cast<const ElementType &>(scalar))... } {}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<size_t ...row, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
-			inline CData<ElementType, rows, columns>::CData(std::index_sequence<row...>, const SrcElementType (&src)[srcRows][srcColumns]) :
-				rowsData{ vector<ElementType, columns>(HeterogeneousInitTag<std::make_index_sequence<columns>, false>(), static_cast<const CSwizzle<SrcElementType, 0, srcColumns> &>(src[row]))... }
+			inline CData<ElementType, rows, columns>::CData(index_sequence<row...>, const SrcElementType (&src)[srcRows][srcColumns]) :
+				rowsData{ vector<ElementType, columns>(HeterogeneousInitTag<make_index_sequence<columns>, false>(), static_cast<const CSwizzle<SrcElementType, 0, srcColumns> &>(src[row]))... }
 			{
 				static_assert(rows <= srcRows, "array ctor: too few rows in src");
 				static_assert(columns <= srcColumns, "array ctor: too few columns in src");
@@ -872,8 +874,8 @@ further investigations needed, including other compilers
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<size_t ...row, typename First, typename ...Rest>
-			inline CData<ElementType, rows, columns>::CData(HeterogeneousInitTag<std::index_sequence<row...>>, const First &first, const Rest &...rest) :
-				rowsData{ vector<ElementType, columns>(HeterogeneousInitTag<std::make_index_sequence<columns>, false, row * columns>(), first, rest...)... }
+			inline CData<ElementType, rows, columns>::CData(HeterogeneousInitTag<index_sequence<row...>>, const First &first, const Rest &...rest) :
+				rowsData{ vector<ElementType, columns>(HeterogeneousInitTag<make_index_sequence<columns>, false, row * columns>(), first, rest...)... }
 			{
 				constexpr auto srcElements = elementsCount<const First &, const Rest &...>;
 				static_assert(srcElements >= rows * columns, "heterogeneous ctor: too few src elements");
@@ -903,25 +905,25 @@ further investigations needed, including other compilers
 
 			private:	// vector specific ctors
 				template<size_t ...idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-				CData(HeterogeneousInitTag<std::index_sequence<idx...>, false>, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
+				CData(HeterogeneousInitTag<index_sequence<idx...>, false>, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
 
 				template<size_t ...idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-				inline CData(HeterogeneousInitTag<std::index_sequence<idx...>, true>, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
+				inline CData(HeterogeneousInitTag<index_sequence<idx...>, true>, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
 
 				template<size_t ...idx, typename SrcElementType>
-				CData(std::index_sequence<idx...>, const SrcElementType &scalar);
+				CData(index_sequence<idx...>, const SrcElementType &scalar);
 
 				template<size_t ...idx, typename SrcElementType, unsigned int srcDimension>
-				CData(HeterogeneousInitTag<std::index_sequence<idx...>, false>, const SrcElementType (&src)[srcDimension]);
+				CData(HeterogeneousInitTag<index_sequence<idx...>, false>, const SrcElementType (&src)[srcDimension]);
 
 				template<size_t ...idx, typename SrcElementType, unsigned int srcDimension>
-				inline CData(HeterogeneousInitTag<std::index_sequence<idx...>, true>, const SrcElementType (&src)[srcDimension]);
+				inline CData(HeterogeneousInitTag<index_sequence<idx...>, true>, const SrcElementType (&src)[srcDimension]);
 
 				template<size_t ...idx, unsigned offset, typename First, typename ...Rest>
-				CData(HeterogeneousInitTag<std::index_sequence<idx...>, false, offset>, const First &first, const Rest &...rest);
+				CData(HeterogeneousInitTag<index_sequence<idx...>, false, offset>, const First &first, const Rest &...rest);
 
 				template<size_t ...idx, typename First, typename ...Rest>
-				inline CData(HeterogeneousInitTag<std::index_sequence<idx...>, true>, const First &first, const Rest &...rest);
+				inline CData(HeterogeneousInitTag<index_sequence<idx...>, true>, const First &first, const Rest &...rest);
 
 			private:
 				ElementType data[dimension];
@@ -929,44 +931,44 @@ further investigations needed, including other compilers
 
 			template<typename ElementType, unsigned int dimension>
 			template<size_t ...idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-			inline CData<ElementType, 0, dimension>::CData(HeterogeneousInitTag<std::index_sequence<idx...>, false>, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) :
+			inline CData<ElementType, 0, dimension>::CData(HeterogeneousInitTag<index_sequence<idx...>, false>, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) :
 				data{ static_cast<const ElementType &>(src[idx])... } {}
 
 			template<typename ElementType, unsigned int dimension>
 			template<size_t ...idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-			inline CData<ElementType, 0, dimension>::CData(HeterogeneousInitTag<std::index_sequence<idx...>, true>, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) :
-				CData(HeterogeneousInitTag<std::index_sequence<idx...>, false>(), src)
+			inline CData<ElementType, 0, dimension>::CData(HeterogeneousInitTag<index_sequence<idx...>, true>, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) :
+				CData(HeterogeneousInitTag<index_sequence<idx...>, false>(), src)
 			{
 				static_assert(dimension <= SrcSwizzleDesc::dimension, "\"copy\" ctor: too small src dimension");
 			}
 
 			template<typename ElementType, unsigned int dimension>
 			template<size_t ...idx, typename SrcElementType>
-			inline CData<ElementType, 0, dimension>::CData(std::index_sequence<idx...>, const SrcElementType &scalar) :
+			inline CData<ElementType, 0, dimension>::CData(index_sequence<idx...>, const SrcElementType &scalar) :
 				data{ (idx, static_cast<const ElementType &>(scalar))... } {}
 
 			template<typename ElementType, unsigned int dimension>
 			template<size_t ...idx, typename SrcElementType, unsigned int srcDimension>
-			inline CData<ElementType, 0, dimension>::CData(HeterogeneousInitTag<std::index_sequence<idx...>, false>, const SrcElementType (&src)[srcDimension]) :
+			inline CData<ElementType, 0, dimension>::CData(HeterogeneousInitTag<index_sequence<idx...>, false>, const SrcElementType (&src)[srcDimension]) :
 				data{ static_cast<const ElementType &>(src[idx])... } {}
 
 			template<typename ElementType, unsigned int dimension>
 			template<size_t ...idx, typename SrcElementType, unsigned int srcDimension>
-			inline CData<ElementType, 0, dimension>::CData(HeterogeneousInitTag<std::index_sequence<idx...>, true>, const SrcElementType (&src)[srcDimension]) :
-				CData(HeterogeneousInitTag<std::index_sequence<idx...>, false>(), src)
+			inline CData<ElementType, 0, dimension>::CData(HeterogeneousInitTag<index_sequence<idx...>, true>, const SrcElementType (&src)[srcDimension]) :
+				CData(HeterogeneousInitTag<index_sequence<idx...>, false>(), src)
 			{
 				static_assert(dimension <= srcDimension, "array ctor: too small src dimension");
 			}
 
 			template<typename ElementType, unsigned int dimension>
 			template<size_t ...idx, unsigned offset, typename First, typename ...Rest>
-			inline CData<ElementType, 0, dimension>::CData(HeterogeneousInitTag<std::index_sequence<idx...>, false, offset>, const First &first, const Rest &...rest) :
+			inline CData<ElementType, 0, dimension>::CData(HeterogeneousInitTag<index_sequence<idx...>, false, offset>, const First &first, const Rest &...rest) :
 				data{ static_cast<const ElementType &>(GetElement<idx + offset>(first, rest...))... } {}
 
 			template<typename ElementType, unsigned int dimension>
 			template<size_t ...idx, typename First, typename ...Rest>
-			inline CData<ElementType, 0, dimension>::CData(HeterogeneousInitTag<std::index_sequence<idx...>, true>, const First &first, const Rest &...rest) :
-				CData(HeterogeneousInitTag<std::index_sequence<idx...>, false>(), first, rest...)
+			inline CData<ElementType, 0, dimension>::CData(HeterogeneousInitTag<index_sequence<idx...>, true>, const First &first, const Rest &...rest) :
+				CData(HeterogeneousInitTag<index_sequence<idx...>, false>(), first, rest...)
 			{
 				constexpr auto srcElements = elementsCount<const First &, const Rest &...>;
 				static_assert(srcElements >= dimension, "heterogeneous ctor: too few src elements");
@@ -975,7 +977,7 @@ further investigations needed, including other compilers
 
 			// generic vector/matrix
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			class CDataContainer : public std::conditional_t<rows == 0, CSwizzle<ElementType, 0, columns>, MatrixTag>
+			class CDataContainer : public conditional_t<rows == 0, CSwizzle<ElementType, 0, columns>, MatrixTag>
 			{
 			public:
 				CData<ElementType, rows, columns> data;
@@ -1004,21 +1006,21 @@ further investigations needed, including other compilers
 
 				private:
 					template<size_t ...idx, typename ItemElementType, unsigned int itemRows, unsigned int itemColumns, class ItemSwizzleDesc>
-					constexpr CInitListItem(std::index_sequence<idx...>, const CSwizzle<ItemElementType, itemRows, itemColumns, ItemSwizzleDesc> &item) :
+					constexpr CInitListItem(index_sequence<idx...>, const CSwizzle<ItemElementType, itemRows, itemColumns, ItemSwizzleDesc> &item) :
 						itemStore{ static_cast<const ElementType &>(item[idx])... },
 						itemSize(sizeof...(idx))
 					{
 					}
 
 					template<size_t ...idx, typename ItemElementType, unsigned int itemRows, unsigned int itemColumns>
-					constexpr CInitListItem(std::index_sequence<idx...>, const matrix<ItemElementType, itemRows, itemColumns> &item) :
+					constexpr CInitListItem(index_sequence<idx...>, const matrix<ItemElementType, itemRows, itemColumns> &item) :
 						item{ static_cast<const ElementType &>(item[idx / itemColumns][idx % itemColumns])... },
 						itemSize(sizeof...(idx))
 					{
 					}
 
 				public:
-					template<typename ItemElementType, typename = std::enable_if_t<IsScalar<ItemElementType>>>
+					template<typename ItemElementType, typename = enable_if_t<IsScalar<ItemElementType>>>
 					constexpr CInitListItem(const ItemElementType &item) :
 						itemStore{ static_cast<const ElementType &>(item) },
 						itemSize(1)
@@ -1027,14 +1029,14 @@ further investigations needed, including other compilers
 
 					template<typename ItemElementType, unsigned int itemRows, unsigned int itemColumns, class ItemSwizzleDesc>
 					constexpr CInitListItem(const CSwizzle<ItemElementType, itemRows, itemColumns, ItemSwizzleDesc> &item) :
-						CInitListItem(std::make_index_sequence<std::min(ItemSwizzleDesc::dimension, capacity)>, item)
+						CInitListItem(make_index_sequence<std::min(ItemSwizzleDesc::dimension, capacity)>, item)
 					{
 						static_assert(ItemSwizzleDesc::dimension <= capacity, INIT_LIST_ITEM_OVERFLOW_MSG);
 					}
 
 					template<typename ItemElementType, unsigned int itemRows, unsigned int itemColumns>
 					constexpr CInitListItem(const matrix<ItemElementType, itemRows, itemColumns> &item) :
-						CInitListItem(std::make_index_sequence<std::min(itemRows * itemColumns, capacity)>, item)
+						CInitListItem(make_index_sequence<std::min(itemRows * itemColumns, capacity)>, item)
 					{
 						static_assert(itemRows * itemColumns <= capacity, INIT_LIST_ITEM_OVERFLOW_MSG);
 					}
@@ -1083,7 +1085,7 @@ further investigations needed, including other compilers
 					}
 
 				public:
-					template<typename ItemElementType, typename = std::enable_if_t<IsScalar<ItemElementType>>>
+					template<typename ItemElementType, typename = enable_if_t<IsScalar<ItemElementType>>>
 					constexpr CInitListItem(const ItemElementType &item) :
 						getItemElement(GetItemElement<ItemElementType>),
 						item(&item),
@@ -1185,20 +1187,20 @@ further investigations needed, including other compilers
 #endif
 
 				template<size_t ...idx>
-				inline auto Pos(std::index_sequence<idx...>) const
+				inline auto Pos(index_sequence<idx...>) const
 				{
-					return vector<std::decay_t<decltype(+std::declval<ElementType>())>, SwizzleDesc::dimension>(+static_cast<const TSwizzle &>(*this)[idx]...);
+					return vector<decay_t<decltype(+declval<ElementType>())>, SwizzleDesc::dimension>(+static_cast<const TSwizzle &>(*this)[idx]...);
 				}
 
 				template<size_t ...idx>
-				inline auto Neg(std::index_sequence<idx...>) const
+				inline auto Neg(index_sequence<idx...>) const
 				{
-					return vector<std::decay_t<decltype(-std::declval<ElementType>())>, SwizzleDesc::dimension>(-static_cast<const TSwizzle &>(*this)[idx]...);
+					return vector<decay_t<decltype(-declval<ElementType>())>, SwizzleDesc::dimension>(-static_cast<const TSwizzle &>(*this)[idx]...);
 				}
 
 			public:
 				template<typename F>
-				vector<std::result_of_t<F &(ElementType)>, SwizzleDesc::dimension> apply(F f) const;
+				vector<result_of_t<F &(ElementType)>, SwizzleDesc::dimension> apply(F f) const;
 
 				template<typename TResult>
 				vector<TResult, SwizzleDesc::dimension> apply(TResult f(ElementType)) const
@@ -1494,22 +1496,22 @@ further investigations needed, including other compilers
 
 				template<typename RightType>
 #ifdef __GNUC__
-				inline std::enable_if_t<IsScalar<RightType>, TOperationResult &> operator =(const RightType &scalar);
+				inline enable_if_t<IsScalar<RightType>, TOperationResult &> operator =(const RightType &scalar);
 #elif defined _MSC_VER && _MSC_VER <= 1900
-				inline std::enable_if_t<IsScalar<RightType>, TOperationResult &> operator =(const RightType &scalar) &
+				inline enable_if_t<IsScalar<RightType>, TOperationResult &> operator =(const RightType &scalar) &
 				{
 					for (unsigned idx = 0; idx < SwizzleDesc::dimension; idx++)
 						(*this)[idx] = scalar;
 					return *this;
 				}
 #else
-				inline std::enable_if_t<IsScalar<RightType>, TOperationResult &> operator =(const RightType &scalar) &;
+				inline enable_if_t<IsScalar<RightType>, TOperationResult &> operator =(const RightType &scalar) &;
 #endif
 
 #ifdef __GNUC__
-				inline TOperationResult &operator =(std::initializer_list<CInitListItem<ElementType, SwizzleDesc::dimension>> initList);
+				inline TOperationResult &operator =(initializer_list<CInitListItem<ElementType, SwizzleDesc::dimension>> initList);
 #else
-				inline TOperationResult &operator =(std::initializer_list<CInitListItem<ElementType, SwizzleDesc::dimension>> initList) &;
+				inline TOperationResult &operator =(initializer_list<CInitListItem<ElementType, SwizzleDesc::dimension>> initList) &;
 #endif
 
 			public:
@@ -1538,9 +1540,9 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			template<typename RightType>
 #ifdef __GNUC__
-			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(const RightType &scalar)->std::enable_if_t<IsScalar<RightType>, TOperationResult &>
+			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(const RightType &scalar)->enable_if_t<IsScalar<RightType>, TOperationResult &>
 #else
-			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(const RightType &scalar) & -> std::enable_if_t<IsScalar<RightType>, TOperationResult &>
+			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(const RightType &scalar) & -> enable_if_t<IsScalar<RightType>, TOperationResult &>
 #endif
 			{
 				for (unsigned idx = 0; idx < SwizzleDesc::dimension; idx++)
@@ -1551,9 +1553,9 @@ further investigations needed, including other compilers
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 #ifdef __GNUC__
-			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(std::initializer_list<CInitListItem<ElementType, SwizzleDesc::dimension>> initList)->TOperationResult &
+			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(initializer_list<CInitListItem<ElementType, SwizzleDesc::dimension>> initList)->TOperationResult &
 #else
-			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(std::initializer_list<CInitListItem<ElementType, SwizzleDesc::dimension>> initList) & -> TOperationResult &
+			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(initializer_list<CInitListItem<ElementType, SwizzleDesc::dimension>> initList) & -> TOperationResult &
 #endif
 			{
 				unsigned dstIdx = 0;
@@ -1627,7 +1629,7 @@ further investigations needed, including other compilers
 #endif
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			class CSwizzleIteratorImpl : public std::iterator<std::forward_iterator_tag, const ElementType>
+			class CSwizzleIteratorImpl : public iterator<forward_iterator_tag, const ElementType>
 			{
 				const CSwizzle<ElementType, rows, columns, SwizzleDesc> &_swizzle;
 				unsigned _i;
@@ -1638,7 +1640,7 @@ further investigations needed, including other compilers
 				~CSwizzleIteratorImpl() = default;
 
 			public:	// required by stl => public
-				std::conditional_t
+				conditional_t
 					<
 					sizeof(typename CSwizzleIteratorImpl::value_type) <= sizeof(void *),
 					typename CSwizzleIteratorImpl::value_type,
