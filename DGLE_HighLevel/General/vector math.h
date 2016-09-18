@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.09.2016 (c)Alexey Shaydurov
+\date		19.09.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1434,6 +1434,7 @@ further investigations needed, including other compilers
 				class SelectAssign
 				{
 					typedef void (CSwizzleAssign::*const TAssign)(Arg);
+
 				public:
 					static constexpr TAssign Assign = WARHazard ? TAssign(&CSwizzleAssign::AssignCopy) : TAssign(&CSwizzleAssign::AssignDirect);
 				};
@@ -1476,11 +1477,11 @@ further investigations needed, including other compilers
 #endif
 				{
 					static constexpr auto WARHazard = DetectSwizzleWARHazard
-						<
+					<
 						ElementType, rows, columns, SwizzleDesc,
 						RightElementType, rightRows, rightColumns, RightSwizzleDesc,
 						true
-						>::value;
+					>::value;
 					return operator =<WARHazard>(right);
 				}
 
@@ -1635,17 +1636,17 @@ further investigations needed, including other compilers
 				unsigned _i;
 
 			protected:
-				CSwizzleIteratorImpl(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &swizzle, unsigned i):
+				CSwizzleIteratorImpl(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &swizzle, unsigned i) :
 					_swizzle(swizzle), _i(i) {}
 				~CSwizzleIteratorImpl() = default;
 
 			public:	// required by stl => public
 				conditional_t
-					<
+				<
 					sizeof(typename CSwizzleIteratorImpl::value_type) <= sizeof(void *),
 					typename CSwizzleIteratorImpl::value_type,
 					typename CSwizzleIteratorImpl::reference
-					> operator *() const
+				> operator *() const
 				{
 					return _swizzle[_i];
 				}
