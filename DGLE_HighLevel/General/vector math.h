@@ -2477,7 +2477,7 @@ further investigations needed, including other compilers
 
 #		pragma region min/max functions
 			// std::min/max requires explicit template param if used for different types => provide scalar version\
-			this version it also returns copy ather than reference
+			this version it also returns copy rather than reference
 #			define FUNCTION_DEFINITION(f)																					\
 				template<typename LeftType, typename RightType>																\
 				inline auto f(const LeftType &left, const RightType &right)													\
