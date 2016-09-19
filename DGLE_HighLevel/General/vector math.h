@@ -1429,23 +1429,6 @@ further investigations needed, including other compilers
 				CSwizzleAssign(const CSwizzleAssign &) = default;
 				~CSwizzleAssign() = default;
 
-			private:
-				template<typename Arg, bool WARHazard>
-				class SelectAssign
-				{
-					typedef void (CSwizzleAssign::*const TAssign)(Arg);
-
-				public:
-					static constexpr TAssign Assign = WARHazard ? TAssign(&CSwizzleAssign::AssignCopy) : TAssign(&CSwizzleAssign::AssignDirect);
-				};
-
-			private:
-				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc>
-				inline void AssignDirect(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right);
-
-				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc>
-				inline void AssignCopy(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right);
-
 			public:
 #ifdef __GNUC__
 				inline TOperationResult &operator =(const CSwizzleAssign &right)
@@ -1457,17 +1440,20 @@ further investigations needed, including other compilers
 				}
 
 				// currently public to allow user specify WAR hazard explicitly if needed
+
 				template<bool WARHazard, typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc>
 #ifdef __GNUC__
-				TOperationResult &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)
+				enable_if_t<!WARHazard, TOperationResult &> operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right);
 #else
-				TOperationResult &operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right) &
+				enable_if_t<!WARHazard, TOperationResult &> operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right) &;
 #endif
-				{
-					constexpr auto Assign = SelectAssign<const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &, WARHazard>::Assign;
-					(this->*Assign)(right);
-					return *this;
-				}
+
+				template<bool WARHazard, typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc>
+#ifdef __GNUC__
+				enable_if_t<WARHazard, TOperationResult &> operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right);
+#else
+				enable_if_t<WARHazard, TOperationResult &> operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right) &;
+#endif
 
 				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc>
 #ifdef __GNUC__
@@ -1520,21 +1506,32 @@ further investigations needed, including other compilers
 			};
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc>
-			inline void CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::AssignDirect(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)
+			template<bool WARHazard, typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc>
+#ifdef __GNUC__
+			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)
+#else
+			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right) &
+#endif
+				-> enable_if_t<!WARHazard, TOperationResult &>
 			{
 				static_assert(SwizzleDesc::dimension <= RightSwizzleDesc::dimension, "operator =: too small src dimension");
 				assert(!TriggerWARHazard<true>(*this, right));
 				for (unsigned idx = 0; idx < SwizzleDesc::dimension; idx++)
 					(*this)[idx] = right[idx];
+				return *this;
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc>
-			inline void CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::AssignCopy(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)
+			template<bool WARHazard, typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc>
+#ifdef __GNUC__
+			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)
+#else
+			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right) &
+#endif
+				-> enable_if_t<WARHazard, TOperationResult &>
 			{
-				// make copy and call AssignDirect()
-				AssignDirect(vector<RightElementType, RightSwizzleDesc::dimension>(right));
+				// make copy and call direct assignment
+				return operator =<false>(vector<RightElementType, RightSwizzleDesc::dimension>(right));
 			}
 
 #if !(defined _MSC_VER && _MSC_VER <= 1900)
@@ -1703,224 +1700,234 @@ further investigations needed, including other compilers
 				return src.Neg(std::make_index_sequence<SwizzleDesc::dimension>());
 			}
 
-#			define OPERATOR_DEFINITION(op)																										\
-				template																														\
-				<																																\
-					bool WARHazard,																												\
-					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,							\
-					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc						\
-				>																																\
-				inline typename Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &operator op##=(		\
-				Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,													\
-				const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)										\
-				{																																\
-					if (WARHazard)																												\
-						return operator op##=<false>(left, vector<RightElementType, RightSwizzleDesc::dimension>(right));						\
-					else																														\
-					{																															\
-						static_assert(LeftSwizzleDesc::isWriteMaskValid, "operator "#op"=: invalid write mask");								\
-						static_assert(LeftSwizzleDesc::dimension <= RightSwizzleDesc::dimension, "operator "#op"=: too small src dimension");	\
-						assert(!Impl::TriggerWARHazard<false>(left, right));																	\
-						for (unsigned i = 0; i < LeftSwizzleDesc::dimension; i++)																\
-							left[i] op##= right[i];																								\
-						return left;																											\
-					}																															\
+#			define OPERATOR_DEFINITION(op)																									\
+				template																													\
+				<																															\
+					bool WARHazard,																											\
+					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,						\
+					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc					\
+				>																															\
+				inline std::enable_if_t<!WARHazard,																							\
+				typename Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &> operator op##=(		\
+				Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,												\
+				const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)									\
+				{																															\
+					static_assert(LeftSwizzleDesc::isWriteMaskValid, "operator "#op"=: invalid write mask");								\
+					static_assert(LeftSwizzleDesc::dimension <= RightSwizzleDesc::dimension, "operator "#op"=: too small src dimension");	\
+					assert(!Impl::TriggerWARHazard<false>(left, right));																	\
+					for (unsigned i = 0; i < LeftSwizzleDesc::dimension; i++)																\
+						left[i] op##= right[i];																								\
+					return left;																											\
+				};																															\
+																																			\
+				template																													\
+				<																															\
+					bool WARHazard,																											\
+					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,						\
+					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc					\
+				>																															\
+				inline std::enable_if_t<WARHazard,																							\
+				typename Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &> operator op##=(		\
+				Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,												\
+				const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)									\
+				{																															\
+					return operator op##=<false>(left, vector<RightElementType, RightSwizzleDesc::dimension>(right));						\
 				};
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #			undef OPERATOR_DEFINITION
 
-#			define OPERATOR_DEFINITION(op)																										\
-				template																														\
-				<																																\
-					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,							\
-					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc						\
-				>																																\
-				inline typename Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &operator op##=(		\
-				Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,													\
-				const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)										\
-				{																																\
-					static constexpr auto WARHazard = Impl::DetectSwizzleWARHazard																\
-					<																															\
-						LeftElementType, leftRows, leftColumns, LeftSwizzleDesc,																\
-						RightElementType, rightRows, rightColumns, RightSwizzleDesc,															\
-						false																													\
-					>::value;																													\
-					return operator op##=<WARHazard>(left, right);																				\
+#			define OPERATOR_DEFINITION(op)																									\
+				template																													\
+				<																															\
+					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,						\
+					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc					\
+				>																															\
+				inline typename Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &operator op##=(	\
+				Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,												\
+				const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)									\
+				{																															\
+					static constexpr auto WARHazard = Impl::DetectSwizzleWARHazard															\
+					<																														\
+						LeftElementType, leftRows, leftColumns, LeftSwizzleDesc,															\
+						RightElementType, rightRows, rightColumns, RightSwizzleDesc,														\
+						false																												\
+					>::value;																												\
+					return operator op##=<WARHazard>(left, right);																			\
 				};
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #			undef OPERATOR_DEFINITION
 
-#			define OPERATOR_DEFINITION(op)																										\
-				template																														\
-				<																																\
-					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,							\
-					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc						\
-				>																																\
-				inline typename Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &operator op##=(		\
-				Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,													\
-				const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &&right)										\
-				{																																\
-					return operator op##=<false>(left, right);																					\
+#			define OPERATOR_DEFINITION(op)																									\
+				template																													\
+				<																															\
+					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,						\
+					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc					\
+				>																															\
+				inline typename Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &operator op##=(	\
+				Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,												\
+				const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &&right)									\
+				{																															\
+					return operator op##=<false>(left, right);																				\
 				};
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #			undef OPERATOR_DEFINITION
 
-#			define OPERATOR_DEFINITION(op)																										\
-				template																														\
-				<																																\
-					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,							\
-					typename RightType																											\
-				>																																\
-				inline std::enable_if_t<Impl::IsScalar<RightType>,																				\
-				typename Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &> operator op##=(			\
-				Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,													\
-				RightType right)																												\
-				{																																\
-					static_assert(LeftSwizzleDesc::isWriteMaskValid, "operator "#op"=: invalid write mask");									\
-					for (unsigned i = 0; i < LeftSwizzleDesc::dimension; i++)																	\
-						left[i] op##= right;																									\
-					return left;																												\
+#			define OPERATOR_DEFINITION(op)																									\
+				template																													\
+				<																															\
+					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,						\
+					typename RightType																										\
+				>																															\
+				inline std::enable_if_t<Impl::IsScalar<RightType>,																			\
+				typename Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &> operator op##=(		\
+				Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,												\
+				RightType right)																											\
+				{																															\
+					static_assert(LeftSwizzleDesc::isWriteMaskValid, "operator "#op"=: invalid write mask");								\
+					for (unsigned i = 0; i < LeftSwizzleDesc::dimension; i++)																\
+						left[i] op##= right;																								\
+					return left;																											\
 				};
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #			undef OPERATOR_DEFINITION
 
-#			define OPERATOR_DEFINITION(op)																										\
-				template																														\
-				<																																\
-					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,							\
-					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc						\
-				>																																\
-				inline vector																													\
-				<																																\
-					std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>,								\
-					std::min(LeftSwizzleDesc::dimension, RightSwizzleDesc::dimension)															\
-				> operator op(																													\
-				const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,											\
-				const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)										\
-				{																																\
-					vector																														\
-					<																															\
-						std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>,							\
-						std::min(LeftSwizzleDesc::dimension, RightSwizzleDesc::dimension)														\
-					> result(left);																												\
-					return operator op##=<false>(result, right);																				\
+#			define OPERATOR_DEFINITION(op)																									\
+				template																													\
+				<																															\
+					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,						\
+					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc					\
+				>																															\
+				inline vector																												\
+				<																															\
+					std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>,							\
+					std::min(LeftSwizzleDesc::dimension, RightSwizzleDesc::dimension)														\
+				> operator op(																												\
+				const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,										\
+				const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)									\
+				{																															\
+					vector																													\
+					<																														\
+						std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>,						\
+						std::min(LeftSwizzleDesc::dimension, RightSwizzleDesc::dimension)													\
+					> result(left);																											\
+					return operator op##=<false>(result, right);																			\
 				};
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #			undef OPERATOR_DEFINITION
 
-#			define OPERATOR_DEFINITION(op)																										\
-				template																														\
-				<																																\
-					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,							\
-					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc						\
-				>																																\
-				inline vector																													\
-				<																																\
-					bool,																														\
-					std::min(LeftSwizzleDesc::dimension, RightSwizzleDesc::dimension)															\
-				> operator op(																													\
-				const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,											\
-				const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)										\
-				{																																\
-					constexpr unsigned int dimension = std::min(LeftSwizzleDesc::dimension, RightSwizzleDesc::dimension);						\
-					vector<bool, dimension> result;																								\
-					for (unsigned i = 0; i < dimension; i++)																					\
-						result[i] = left[i] op right[i];																						\
-					return result;																												\
+#			define OPERATOR_DEFINITION(op)																									\
+				template																													\
+				<																															\
+					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,						\
+					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc					\
+				>																															\
+				inline vector																												\
+				<																															\
+					bool,																													\
+					std::min(LeftSwizzleDesc::dimension, RightSwizzleDesc::dimension)														\
+				> operator op(																												\
+				const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,										\
+				const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)									\
+				{																															\
+					constexpr unsigned int dimension = std::min(LeftSwizzleDesc::dimension, RightSwizzleDesc::dimension);					\
+					vector<bool, dimension> result;																							\
+					for (unsigned i = 0; i < dimension; i++)																				\
+						result[i] = left[i] op right[i];																					\
+					return result;																											\
 				};
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
 #			undef OPERATOR_DEFINITION
 
-#			define OPERATOR_DEFINITION(op)																										\
-				template																														\
-				<																																\
-					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,							\
-					typename RightType																											\
-				>																																\
-				inline std::enable_if_t<Impl::IsScalar<RightType>, vector																		\
-				<																																\
-					std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightType>())>,										\
-					LeftSwizzleDesc::dimension																									\
-				>> operator op(																													\
-				const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,											\
-				const RightType &right)																											\
-				{																																\
-					vector																														\
-					<																															\
-						std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightType>())>,									\
-						LeftSwizzleDesc::dimension																								\
-					> result(left);																												\
-					return result op##= right;																									\
+#			define OPERATOR_DEFINITION(op)																									\
+				template																													\
+				<																															\
+					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,						\
+					typename RightType																										\
+				>																															\
+				inline std::enable_if_t<Impl::IsScalar<RightType>, vector																	\
+				<																															\
+					std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightType>())>,									\
+					LeftSwizzleDesc::dimension																								\
+				>> operator op(																												\
+				const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,										\
+				const RightType &right)																										\
+				{																															\
+					vector																													\
+					<																														\
+						std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightType>())>,								\
+						LeftSwizzleDesc::dimension																							\
+					> result(left);																											\
+					return result op##= right;																								\
 				};
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #			undef OPERATOR_DEFINITION
 
-#			define OPERATOR_DEFINITION(op)																										\
-				template																														\
-				<																																\
-					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,							\
-					typename RightType																											\
-				>																																\
-				inline std::enable_if_t<Impl::IsScalar<RightType>, vector																		\
-				<																																\
-					bool,																														\
-					LeftSwizzleDesc::dimension																									\
-				>> operator op(																													\
-				const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,											\
-				const RightType &right)																											\
-				{																																\
-					constexpr unsigned int dimension = LeftSwizzleDesc::dimension;																\
-					vector<bool, dimension> result;																								\
-					for (unsigned i = 0; i < dimension; i++)																					\
-						result[i] = left[i] op right;																							\
-					return result;																												\
+#			define OPERATOR_DEFINITION(op)																									\
+				template																													\
+				<																															\
+					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,						\
+					typename RightType																										\
+				>																															\
+				inline std::enable_if_t<Impl::IsScalar<RightType>, vector																	\
+				<																															\
+					bool,																													\
+					LeftSwizzleDesc::dimension																								\
+				>> operator op(																												\
+				const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,										\
+				const RightType &right)																										\
+				{																															\
+					constexpr unsigned int dimension = LeftSwizzleDesc::dimension;															\
+					vector<bool, dimension> result;																							\
+					for (unsigned i = 0; i < dimension; i++)																				\
+						result[i] = left[i] op right;																						\
+					return result;																											\
 				};
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
 #			undef OPERATOR_DEFINITION
 
-#			define OPERATOR_DEFINITION(op)																										\
-				template																														\
-				<																																\
-					typename LeftType,																											\
-					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc						\
-				>																																\
-				inline std::enable_if_t<Impl::IsScalar<LeftType>, vector																		\
-				<																																\
-					std::decay_t<decltype(std::declval<LeftType>() op std::declval<RightElementType>())>,										\
-					RightSwizzleDesc::dimension																									\
-				>> operator op(																													\
-				const LeftType &left,																											\
-				const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)										\
-				{																																\
-					vector																														\
-					<																															\
-						std::decay_t<decltype(std::declval<LeftType>() op std::declval<RightElementType>())>,									\
-						RightSwizzleDesc::dimension																								\
-					> result(left);																												\
-					return operator op##=<false>(result, right);																				\
+#			define OPERATOR_DEFINITION(op)																									\
+				template																													\
+				<																															\
+					typename LeftType,																										\
+					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc					\
+				>																															\
+				inline std::enable_if_t<Impl::IsScalar<LeftType>, vector																	\
+				<																															\
+					std::decay_t<decltype(std::declval<LeftType>() op std::declval<RightElementType>())>,									\
+					RightSwizzleDesc::dimension																								\
+				>> operator op(																												\
+				const LeftType &left,																										\
+				const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)									\
+				{																															\
+					vector																													\
+					<																														\
+						std::decay_t<decltype(std::declval<LeftType>() op std::declval<RightElementType>())>,								\
+						RightSwizzleDesc::dimension																							\
+					> result(left);																											\
+					return operator op##=<false>(result, right);																			\
 				};
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #			undef OPERATOR_DEFINITION
 
-#			define OPERATOR_DEFINITION(op)																										\
-				template																														\
-				<																																\
-					typename LeftType,																											\
-					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc						\
-				>																																\
-				inline std::enable_if_t<Impl::IsScalar<LeftType>, vector																		\
-				<																																\
-					bool,																														\
-					RightSwizzleDesc::dimension																									\
-				>> operator op(																													\
-				const LeftType &left,																											\
-				const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)										\
-				{																																\
-					constexpr unsigned int dimension = RightSwizzleDesc::dimension;																\
-					vector<bool, dimension> result;																								\
-					for (unsigned i = 0; i < dimension; i++)																					\
-						result[i] = left op right[i];																							\
-					return result;																												\
+#			define OPERATOR_DEFINITION(op)																									\
+				template																													\
+				<																															\
+					typename LeftType,																										\
+					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc					\
+				>																															\
+				inline std::enable_if_t<Impl::IsScalar<LeftType>, vector																	\
+				<																															\
+					bool,																													\
+					RightSwizzleDesc::dimension																								\
+				>> operator op(																												\
+				const LeftType &left,																										\
+				const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)									\
+				{																															\
+					constexpr unsigned int dimension = RightSwizzleDesc::dimension;															\
+					vector<bool, dimension> result;																							\
+					for (unsigned i = 0; i < dimension; i++)																				\
+						result[i] = left op right[i];																						\
+					return result;																											\
 				};
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
 #			undef OPERATOR_DEFINITION
