@@ -1718,7 +1718,7 @@ further investigations needed, including other compilers
 					for (unsigned i = 0; i < LeftSwizzleDesc::dimension; i++)																\
 						left[i] op##= right[i];																								\
 					return left;																											\
-				};																															\
+				}																															\
 																																			\
 				template																													\
 				<																															\
@@ -1732,7 +1732,7 @@ further investigations needed, including other compilers
 				const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)									\
 				{																															\
 					return operator op##=<false>(left, vector<RightElementType, RightSwizzleDesc::dimension>(right));						\
-				};
+				}
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #			undef OPERATOR_DEFINITION
 
@@ -1753,7 +1753,7 @@ further investigations needed, including other compilers
 						false																												\
 					>::value;																												\
 					return operator op##=<WARHazard>(left, right);																			\
-				};
+				}
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #			undef OPERATOR_DEFINITION
 
@@ -1768,7 +1768,7 @@ further investigations needed, including other compilers
 				const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &&right)									\
 				{																															\
 					return operator op##=<false>(left, right);																				\
-				};
+				}
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #			undef OPERATOR_DEFINITION
 
@@ -1787,7 +1787,7 @@ further investigations needed, including other compilers
 					for (unsigned i = 0; i < LeftSwizzleDesc::dimension; i++)																\
 						left[i] op##= right;																								\
 					return left;																											\
-				};
+				}
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #			undef OPERATOR_DEFINITION
 
@@ -1811,7 +1811,7 @@ further investigations needed, including other compilers
 						std::min(LeftSwizzleDesc::dimension, RightSwizzleDesc::dimension)													\
 					> result(left);																											\
 					return operator op##=<false>(result, right);																			\
-				};
+				}
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #			undef OPERATOR_DEFINITION
 
@@ -1834,7 +1834,7 @@ further investigations needed, including other compilers
 					for (unsigned i = 0; i < dimension; i++)																				\
 						result[i] = left[i] op right[i];																					\
 					return result;																											\
-				};
+				}
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
 #			undef OPERATOR_DEFINITION
 
@@ -1858,7 +1858,7 @@ further investigations needed, including other compilers
 						LeftSwizzleDesc::dimension																							\
 					> result(left);																											\
 					return result op##= right;																								\
-				};
+				}
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #			undef OPERATOR_DEFINITION
 
@@ -1881,7 +1881,7 @@ further investigations needed, including other compilers
 					for (unsigned i = 0; i < dimension; i++)																				\
 						result[i] = left[i] op right;																						\
 					return result;																											\
-				};
+				}
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
 #			undef OPERATOR_DEFINITION
 
@@ -1905,7 +1905,7 @@ further investigations needed, including other compilers
 						RightSwizzleDesc::dimension																							\
 					> result(left);																											\
 					return operator op##=<false>(result, right);																			\
-				};
+				}
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #			undef OPERATOR_DEFINITION
 
@@ -1928,7 +1928,7 @@ further investigations needed, including other compilers
 					for (unsigned i = 0; i < dimension; i++)																				\
 						result[i] = left op right[i];																						\
 					return result;																											\
-				};
+				}
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
 #			undef OPERATOR_DEFINITION
 #		pragma endregion
