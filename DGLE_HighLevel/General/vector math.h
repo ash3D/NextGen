@@ -1586,7 +1586,7 @@ further investigations needed, including other compilers
 			};
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			class CSwizzle<ElementType, rows, columns, SwizzleDesc, std::false_type> : public NAMESPACE_PREFIX CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>
+			class CSwizzle<ElementType, rows, columns, SwizzleDesc, std::false_type> final : public NAMESPACE_PREFIX CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>
 			{
 				friend class NAMESPACE_PREFIX CDataContainerImpl<ElementType, rows, columns, false>;
 				friend class NAMESPACE_PREFIX CDataContainerImpl<ElementType, rows, columns, true>;
@@ -1601,7 +1601,7 @@ further investigations needed, including other compilers
 			};
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			class CSwizzle<ElementType, rows, columns, SwizzleDesc, std::true_type> : public NAMESPACE_PREFIX CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>
+			class CSwizzle<ElementType, rows, columns, SwizzleDesc, std::true_type> final : public NAMESPACE_PREFIX CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>
 			{
 				friend class NAMESPACE_PREFIX CDataContainerImpl<ElementType, rows, columns, false>;
 				friend class NAMESPACE_PREFIX CDataContainerImpl<ElementType, rows, columns, true>;
