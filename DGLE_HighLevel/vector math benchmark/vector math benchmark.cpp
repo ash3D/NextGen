@@ -43,6 +43,10 @@ int main(int argc, _TCHAR *argv[])
 	vec4.xy = vec3.yx;
 	vec4.xy = vec4.yx;
 	vec4.xy += vec4.yx;
+	vec4.xy = vec4.y;
+	vec4.xy += vec4.y;
+	vec4.xy = float1x1();
+	vec4.xy += float1x1();
 	vec4 = vec4.xxzz;
 	vec4 = 1;
 	vec4.xy = 2;
