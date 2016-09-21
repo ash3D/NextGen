@@ -548,7 +548,7 @@ further investigations needed, including other compilers
 			template<typename ElementType>
 			inline const ElementType &ExtractScalar(const matrix<ElementType, 1, 1> &src) noexcept
 			{
-				return src[0];
+				return src;
 			}
 
 #			pragma region WAR hazard
@@ -2136,6 +2136,9 @@ further investigations needed, including other compilers
 			const TRow &operator [](unsigned int idx) const noexcept;
 			TRow &operator [](unsigned int idx) noexcept;
 
+			operator const ElementType &() const noexcept;
+			operator ElementType &() noexcept;
+
 		public:
 			template<typename F>
 			matrix<std::result_of_t<F &(ElementType)>, rows, columns> apply(F f) const;
@@ -2245,6 +2248,18 @@ further investigations needed, including other compilers
 			{
 				assert(idx < rows);
 				return DataContainer::data.rowsData[idx];
+			}
+
+			template<typename ElementType, unsigned int rows, unsigned int columns>
+			inline matrix<ElementType, rows, columns>::operator const ElementType &() const noexcept
+			{
+				return operator [](0);
+			}
+
+			template<typename ElementType, unsigned int rows, unsigned int columns>
+			inline matrix<ElementType, rows, columns>::operator ElementType &() noexcept
+			{
+				return operator [](0);
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
