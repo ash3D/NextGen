@@ -1197,10 +1197,12 @@ further investigations needed, including other compilers
 				{
 					return static_cast<const TSwizzle &>(*this)[0];
 				}
+
 				operator ElementType &() noexcept
 				{
 					return static_cast<TSwizzle &>(*this)[0];
 				}
+
 				//operator const ElementType &() noexcept
 				//{
 				//	return operator ElementType &();
@@ -1289,7 +1291,7 @@ further investigations needed, including other compilers
 			private:
 				GENERATE_OPERATORS(FRIEND_DECLARATIONS, ARITHMETIC_OPS)
 
-					const auto &Data() const noexcept
+				const auto &Data() const noexcept
 				{
 					/*
 								static	  reinterpret
@@ -1354,7 +1356,7 @@ further investigations needed, including other compilers
 			private:
 				GENERATE_OPERATORS(FRIEND_DECLARATIONS, ARITHMETIC_OPS)
 
-					const auto &Data() const noexcept
+				const auto &Data() const noexcept
 				{
 					/*
 								static	  reinterpret
@@ -1403,9 +1405,9 @@ further investigations needed, including other compilers
 				operator Tvector &() noexcept
 				{
 					/*
-					static
-					^
-					|
+								static
+								   ^
+								   |
 					CSwizzleCommon -> vector
 					*/
 					return static_cast<Tvector &>(*this);
@@ -1414,14 +1416,14 @@ further investigations needed, including other compilers
 			private:
 				GENERATE_OPERATORS(FRIEND_DECLARATIONS, ARITHMETIC_OPS)
 
-					/*
-					static
-					^
-					|
-					CSwizzleCommon -> CDataContainer
-					*/
+				/*
+							static
+							   ^
+							   |
+				CSwizzleCommon -> CDataContainer
+				*/
 
-					const auto &Data() const noexcept
+				const auto &Data() const noexcept
 				{
 					return static_cast<const DataContainer *>(this)->data.data;
 				}
@@ -2132,7 +2134,6 @@ further investigations needed, including other compilers
 #endif
 
 			const TRow &operator [](unsigned int idx) const noexcept;
-
 			TRow &operator [](unsigned int idx) noexcept;
 
 		public:
