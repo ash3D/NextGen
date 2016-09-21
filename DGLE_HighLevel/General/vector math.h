@@ -893,7 +893,7 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<size_t ...row, typename SrcElementType>
 			inline CData<ElementType, rows, columns>::CData(index_sequence<row...>, const SrcElementType &scalar) :
-				rowsData{ (row, static_cast<const ElementType &>(scalar))... } {}
+				rowsData{ (row, scalar)... } {}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<size_t ...row, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
