@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		21.09.2016 (c)Alexey Shaydurov
+\date		22.09.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -547,6 +547,12 @@ further investigations needed, including other compilers
 
 			template<typename ElementType>
 			inline const ElementType &ExtractScalar(const matrix<ElementType, 1, 1> &src) noexcept
+			{
+				return src;
+			}
+
+			template<bool copy, typename SrcType>
+			inline conditional_t<copy, SrcType, const SrcType &> PassThrough(const SrcType &src) noexcept(!copy || is_nothrow_copy_constructible_v<SrcType>)
 			{
 				return src;
 			}
@@ -1813,6 +1819,78 @@ further investigations needed, including other compilers
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #			undef OPERATOR_DEFINITION
 
+			namespace Impl::ScalarOps
+			{
+				// swizzle / 1D swizzle op=<?WARHazard, !extractScalar> scalar
+#				define OPERATOR_DEFINITION(op)																								\
+					template																												\
+					<																														\
+						bool WARHazard, bool extractScalar,																					\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,					\
+						typename RightType																									\
+					>																														\
+					inline enable_if_t<!extractScalar/* && IsScalar<RightType>*/,															\
+					typename CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &> operator op##=(			\
+					CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,												\
+					const RightType &right)																									\
+					{																														\
+						static_assert(LeftSwizzleDesc::isWriteMaskValid, "operator "#op"=: invalid write mask");							\
+						const auto &scalar = PassThrough<WARHazard>(right);																	\
+						for (unsigned i = 0; i < LeftSwizzleDesc::dimension; i++)															\
+						{																													\
+							assert(i == LeftSwizzleDesc::dimension - 1 || &left[i] != (const void *)&scalar);								\
+							left[i] op##= scalar;																							\
+						}																													\
+						return left;																										\
+					}
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#				undef OPERATOR_DEFINITION
+
+				// swizzle / 1D swizzle op=<?WARHazard, extractScalar> scalar
+#				define OPERATOR_DEFINITION(op)																								\
+					template																												\
+					<																														\
+						bool WARHazard, bool extractScalar = true,																			\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,					\
+						typename RightType																									\
+					>																														\
+					inline enable_if_t<extractScalar/* && IsScalar<RightType>*/,															\
+					typename CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &> operator op##=(			\
+					CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,												\
+					const RightType &right)																									\
+					{																														\
+						return operator op##=<WARHazard, false>(left, ExtractScalar(right));												\
+					}
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#				undef OPERATOR_DEFINITION
+			}
+
+#if defined _MSC_VER && _MSC_VER <= 1900
+			//	workaround for ICE on VS 2015\
+				this implementation does not allow users to explicitly specify WAR hazard\
+				TODO: try with newer version or x64
+			namespace Workaround = Impl::ScalarOps;
+#else
+			namespace Workaround = VectorMath;
+			// swizzle / 1D swizzle op=<?WARHazard> scalar
+#			define OPERATOR_DEFINITION(op)																									\
+				template																													\
+				<																															\
+					bool WARHazard,																											\
+					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,						\
+					typename RightType																										\
+				>																															\
+				inline std::enable_if_t<Impl::IsScalar<RightType>,																			\
+				typename Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &> operator op##=(		\
+				Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,												\
+				const RightType &right)																										\
+				{																															\
+					return Impl::ScalarOps::operator op##=(left, right);																	\
+				}
+			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#			undef OPERATOR_DEFINITION
+#endif
+
 			// swizzle / 1D swizzle op= scalar
 #			define OPERATOR_DEFINITION(op)																									\
 				template																													\
@@ -1825,11 +1903,27 @@ further investigations needed, including other compilers
 				Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,												\
 				const RightType &right)																										\
 				{																															\
-					static_assert(LeftSwizzleDesc::isWriteMaskValid, "operator "#op"=: invalid write mask");								\
-					const auto scalar = Impl::ExtractScalar(right);																			\
-					for (unsigned i = 0; i < LeftSwizzleDesc::dimension; i++)																\
-						left[i] op##= scalar;																								\
-					return left;																											\
+					using namespace std;																									\
+					static constexpr bool WARHazard = LeftSwizzleDesc::dimension > 1 &&														\
+						is_same_v<remove_volatile_t<LeftElementType>, remove_cv_t<remove_reference<decltype(Impl::ExtractScalar(right))>>>;	\
+					return Workaround::operator op##=<WARHazard>(left, right);																\
+				}
+			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#			undef OPERATOR_DEFINITION
+
+			// swizzle / 1D swizzle op= temp scalar
+#			define OPERATOR_DEFINITION(op)																									\
+				template																													\
+				<																															\
+					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,						\
+					typename RightType																										\
+				>																															\
+				inline std::enable_if_t<Impl::IsScalar<RightType>,																			\
+				typename Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &> operator op##=(		\
+				Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,												\
+				const RightType &&right)																									\
+				{																															\
+					return Workaround::operator op##=<false>(left, right);																	\
 				}
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #			undef OPERATOR_DEFINITION
@@ -2108,27 +2202,55 @@ further investigations needed, including other compilers
 			auto operator +() const;
 			auto operator -() const;
 
-#			define OPERATOR_DECLARATION(op)																			\
-				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns>				\
-				matrix &operator op##=(const matrix<RightElementType, rightRows, rightColumns> &right);
+#			define OPERATOR_DECLARATION(op)																		\
+				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>				\
+				matrix &operator op##=(const matrix<SrcElementType, srcRows, srcColumns> &src);
 			GENERATE_OPERATORS(OPERATOR_DECLARATION, ARITHMETIC_OPS)
 #			undef OPERATOR_DECLARATION
 
 #if defined _MSC_VER && _MSC_VER <= 1900
-#			define OPERATOR_DEFINITION(op)																			\
-				template<typename RightType>																		\
-				inline std::enable_if_t<Impl::IsScalar<RightType>, matrix &> operator op##=(const RightType &right)	\
-				{																									\
-					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)												\
-						operator [](rowIdx) op##= right;															\
-					return *this;																					\
+#			define OPERATOR_DEFINITION(op)																								\
+				template<bool WARHazard, typename SrcType>																				\
+				inline std::enable_if_t<Impl::IsScalar<SrcType>, matrix &> operator op##=(const SrcType &src)							\
+				{																														\
+					const auto &scalar = ImplPassThrough<WARHazard>(Impl::ExtractScalar(src));											\
+					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)																	\
+						Impl::ScalarOps::operator op##=<false, false>(operator [](rowIdx), scalar);										\
+					return *this;																										\
+				}
+			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#			undef OPERATOR_DEFINITION
+
+#			define OPERATOR_DEFINITION(op)																								\
+				template<typename SrcType>																								\
+				inline std::enable_if_t<Impl::IsScalar<SrcType>, matrix &> operator op##=(SrcType &&src)								\
+				{																														\
+					using namespace std;																								\
+					static constexpr bool WARHazard = (rows > 1 || columns > 1) && is_lvalue_reference_v<SrcType> &&					\
+						is_same_v<remove_volatile_t<ElementType>, remove_cv_t<remove_reference<decltype(Impl::ExtractScalar(src))>>>;	\
+					const auto &scalar = Impl::PassThrough<WARHazard>(Impl::ExtractScalar(src));										\
+					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)																	\
+						Impl::ScalarOps::operator op##=<false, false>(operator [](rowIdx), scalar);										\
+					return *this;																										\
 				}
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #			undef OPERATOR_DEFINITION
 #else
-#			define OPERATOR_DECLARATION(op)																			\
-				template<typename RightType>																		\
-				std::enable_if_t<Impl::IsScalar<RightType>, matrix &> operator op##=(const RightType &right);
+#			define OPERATOR_DECLARATION(op)																		\
+				template<bool WARHazard, typename SrcType>														\
+				std::enable_if_t<Impl::IsScalar<SrcType>, matrix &> operator op##=(const SrcType &scalar);
+			GENERATE_OPERATORS(OPERATOR_DECLARATION, ARITHMETIC_OPS)
+#			undef OPERATOR_DECLARATION
+
+#			define OPERATOR_DECLARATION(op)																		\
+				template<typename SrcType>																		\
+				std::enable_if_t<Impl::IsScalar<SrcType>, matrix &> operator op##=(const SrcType &scalar);
+			GENERATE_OPERATORS(OPERATOR_DECLARATION, ARITHMETIC_OPS)
+#			undef OPERATOR_DECLARATION
+
+#			define OPERATOR_DECLARATION(op)																		\
+				template<typename SrcType>																		\
+				std::enable_if_t<Impl::IsScalar<SrcType>, matrix &> operator op##=(const SrcType &&scalar);
 			GENERATE_OPERATORS(OPERATOR_DECLARATION, ARITHMETIC_OPS)
 #			undef OPERATOR_DECLARATION
 #endif
@@ -2370,28 +2492,54 @@ further investigations needed, including other compilers
 			// matrix / 1x1 matrix op= matrix / 1x1 matrix
 #			define OPERATOR_DEFINITION(op)																														\
 				template<typename ElementType, unsigned int rows, unsigned int columns>																			\
-				template<typename RightElementType, unsigned int rightRows, unsigned int rightColumns>															\
-				inline auto matrix<ElementType, rows, columns>::operator op##=(const matrix<RightElementType, rightRows, rightColumns> &right) -> matrix &		\
+				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>																\
+				inline auto matrix<ElementType, rows, columns>::operator op##=(const matrix<SrcElementType, srcRows, srcColumns> &src) -> matrix &				\
 				{																																				\
-					static_assert(rows <= rightRows, "operator "#op"=: too few rows in src");																	\
-					static_assert(columns <= rightColumns, "operator "#op"=: too few columns in src");															\
+					static_assert(rows <= srcRows, "operator "#op"=: too few rows in src");																		\
+					static_assert(columns <= srcColumns, "operator "#op"=: too few columns in src");															\
 					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)																							\
-						operator [](rowIdx) op##= right[rowIdx];																								\
+						operator [](rowIdx) op##= src[rowIdx];																									\
 					return *this;																																\
 				}
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #			undef OPERATOR_DEFINITION
 
 #if !(defined _MSC_VER && _MSC_VER <= 1900)
+			// matrix / 1x1 matrix op=<WARHazard> scalar
+#			define OPERATOR_DEFINITION(op)																														\
+				template<typename ElementType, unsigned int rows, unsigned int columns>																			\
+				template<bool WARHazard, typename SrcType>																										\
+				inline auto matrix<ElementType, rows, columns>::operator op##=(const SrcType &src) -> std::enable_if_t<Impl::IsScalar<SrcType>, matrix &>		\
+				{																																				\
+					const auto &scalar = Impl::PassThrough<WARHazard>(Impl::ExtractScalar(src));																\
+					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)																							\
+						Impl::ScalarOps::operator op##=<false, false>(operator [](rowIdx), scalar);																\
+					return *this;																																\
+				}
+			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#			undef OPERATOR_DEFINITION
+
 			// matrix / 1x1 matrix op= scalar
 #			define OPERATOR_DEFINITION(op)																														\
 				template<typename ElementType, unsigned int rows, unsigned int columns>																			\
-				template<typename RightType>																													\
-				inline auto matrix<ElementType, rows, columns>::operator op##=(const RightType &right) -> std::enable_if_t<Impl::IsScalar<RightType>, matrix &>	\
+				template<typename SrcType>																														\
+				inline auto matrix<ElementType, rows, columns>::operator op##=(const SrcType &scalar) -> std::enable_if_t<Impl::IsScalar<SrcType>, matrix &>	\
 				{																																				\
-					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)																							\
-						operator [](rowIdx) op##= right;																										\
-					return *this;																																\
+					using namespace std;																														\
+					static constexpr bool WARHazard = (rows > 1 || columns > 1) &&																				\
+						is_same_v<remove_volatile_t<ElementType>, remove_cv_t<remove_reference<decltype(Impl::ExtractScalar(scalar))>>>;						\
+					return operator op##=<WARHazard>(scalar);																									\
+				}
+			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#			undef OPERATOR_DEFINITION
+
+			// matrix / 1x1 matrix op= temp scalar
+#			define OPERATOR_DEFINITION(op)																														\
+				template<typename ElementType, unsigned int rows, unsigned int columns>																			\
+				template<typename SrcType>																														\
+				inline auto matrix<ElementType, rows, columns>::operator op##=(const SrcType &&scalar) -> std::enable_if_t<Impl::IsScalar<SrcType>, matrix &>	\
+				{																																				\
+					return operator op##=<false>(scalar);																										\
 				}
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #			undef OPERATOR_DEFINITION
