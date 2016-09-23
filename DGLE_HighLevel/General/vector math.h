@@ -1737,7 +1737,7 @@ further investigations needed, including other compilers
 					return src.Neg(std::make_index_sequence<SwizzleDesc::dimension>());
 				}
 
-				// swizzle / 1D swizzle op=<WARHazard> swizzle
+				// swizzle / 1D swizzle op=<!WARHazard> swizzle
 #				define OPERATOR_DEFINITION(op)																									\
 					template																													\
 					<																															\
@@ -1756,8 +1756,12 @@ further investigations needed, including other compilers
 						for (unsigned i = 0; i < LeftSwizzleDesc::dimension; i++)																\
 							left[i] op##= right[i];																								\
 						return left;																											\
-					}																															\
-																																				\
+					}
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#				undef OPERATOR_DEFINITION
+
+				// swizzle / 1D swizzle op=<WARHazard> swizzle
+#				define OPERATOR_DEFINITION(op)																									\
 					template																													\
 					<																															\
 						bool WARHazard,																											\
