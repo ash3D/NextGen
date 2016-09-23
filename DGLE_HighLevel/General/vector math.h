@@ -1736,7 +1736,7 @@ further investigations needed, including other compilers
 				return src.Neg(std::make_index_sequence<SwizzleDesc::dimension>());
 			}
 
-			// swizzle / 1D swizzle op=<WARHazard> swizzle / 1D swizzle
+			// swizzle / 1D swizzle op=<WARHazard> swizzle
 #			define OPERATOR_DEFINITION(op)																									\
 				template																													\
 				<																															\
@@ -1773,7 +1773,7 @@ further investigations needed, including other compilers
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #			undef OPERATOR_DEFINITION
 
-			// swizzle / 1D swizzle op= swizzle / 1D swizzle
+			// swizzle / 1D swizzle op= swizzle
 #			define OPERATOR_DEFINITION(op)																									\
 				template																													\
 				<																															\
@@ -1796,7 +1796,7 @@ further investigations needed, including other compilers
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #			undef OPERATOR_DEFINITION
 
-			// swizzle / 1D swizzle op= temp swizzle / 1D swizzle
+			// swizzle / 1D swizzle op= temp swizzle
 #			define OPERATOR_DEFINITION(op)																									\
 				template																													\
 				<																															\
@@ -2529,16 +2529,17 @@ further investigations needed, including other compilers
 				return Neg(std::make_index_sequence<rows>());
 			}
 
-			// matrix / 1x1 matrix op= matrix / 1x1 matrix
+			// matrix / 1x1 matrix op= matrix
 #			define OPERATOR_DEFINITION(op)																									\
 				template																													\
 				<																															\
 					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,												\
 					typename RightElementType, unsigned int rightRows, unsigned int rightColumns											\
 				>																															\
-				inline decltype(auto) operator op##=(																						\
+				inline auto operator op##=(																									\
 				matrix<LeftElementType, leftRows, leftColumns> &left,																		\
 				const matrix<RightElementType, rightRows, rightColumns> &right)																\
+				-> std::enable_if_t<(rightRows > 1 || rightColumns > 1), decltype(left)>													\
 				{																															\
 					static_assert(leftRows <= rightRows, "operator "#op"=: too few rows in src");											\
 					static_assert(leftColumns <= rightColumns, "operator "#op"=: too few columns in src");									\
