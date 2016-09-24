@@ -2108,7 +2108,7 @@ further investigations needed, including other compilers
 						static_assert(leftRows <= rightRows, "operator "#op"=: too few rows in src");											\
 						static_assert(leftColumns <= rightColumns, "operator "#op"=: too few columns in src");									\
 						for (unsigned rowIdx = 0; rowIdx < leftRows; rowIdx++)																	\
-							left[rowIdx] op##= right[rowIdx];																					\
+							operator op##=<false>(left[rowIdx], right[rowIdx]);																	\
 						return left;																											\
 					}
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
