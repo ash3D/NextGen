@@ -1167,12 +1167,6 @@ further investigations needed, including other compilers
 #		define BOOST_PP_FILENAME_1 "vector math.h"
 #		include BOOST_PP_ITERATE()
 
-		template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-		auto operator +(const Impl::CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
-
-		template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-		auto operator -(const Impl::CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
-
 		namespace Impl
 		{
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc = CVectorSwizzleDesc<columns>>
@@ -1209,17 +1203,6 @@ further investigations needed, including other compilers
 				//}
 
 			private:
-#if defined _MSC_VER && _MSC_VER <= 1900
-				template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-				friend auto VectorMath::operator +(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
-				template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-				friend auto VectorMath::operator -(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
-#else
-				// ICE on VS 2015
-				friend auto VectorMath::operator +<>(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
-				friend auto VectorMath::operator -<>(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
-#endif
-
 				template<size_t ...idx>
 				inline auto Pos(index_sequence<idx...>) const
 				{
@@ -1231,6 +1214,10 @@ further investigations needed, including other compilers
 				{
 					return vector<decay_t<decltype(-declval<ElementType>())>, SwizzleDesc::dimension>(-static_cast<const TSwizzle &>(*this)[idx]...);
 				}
+
+			public:
+				auto operator +() const;
+				auto operator -() const;
 
 			public:
 				template<typename F>
@@ -1258,6 +1245,18 @@ further investigations needed, including other compilers
 					return apply<ElementType>(f);
 				}
 			};
+
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
+			inline auto CSwizzleBase<ElementType, rows, columns, SwizzleDesc>::operator +() const
+			{
+				return Pos(std::make_index_sequence<SwizzleDesc::dimension>());
+			}
+
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
+			inline auto CSwizzleBase<ElementType, rows, columns, SwizzleDesc>::operator -() const
+			{
+				return Neg(std::make_index_sequence<SwizzleDesc::dimension>());
+			}
 
 #			define FRIEND_DECLARATIONS(op)																								\
 				template<unsigned rowIdx = 0, typename ElementType, unsigned int columns, class SwizzleDesc>							\
@@ -1725,18 +1724,6 @@ further investigations needed, including other compilers
 
 #		pragma region generate operators
 #			pragma region swizzle
-				template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-				inline auto operator +(const Impl::CSwizzle<ElementType, rows, columns, SwizzleDesc> &src)
-				{
-					return src.Pos(std::make_index_sequence<SwizzleDesc::dimension>());
-				}
-
-				template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-				inline auto operator -(const Impl::CSwizzle<ElementType, rows, columns, SwizzleDesc> &src)
-				{
-					return src.Neg(std::make_index_sequence<SwizzleDesc::dimension>());
-				}
-
 				// swizzle / 1D swizzle op=<!WARHazard> swizzle
 #				define OPERATOR_DEFINITION(op)																									\
 					template																													\
