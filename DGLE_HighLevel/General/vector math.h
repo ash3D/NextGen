@@ -182,8 +182,13 @@ min/max does not treat 1D swizzles / 1x1 matrices as scalars
 			CDataContainer(const CDataContainer &) = default;
 			CDataContainer(CDataContainer &&) = default;
 			~CDataContainer() = default;
+#ifdef __GNUC__
 			CDataContainer &operator =(const CDataContainer &) = default;
 			CDataContainer &operator =(CDataContainer &&) = default;
+#else
+			CDataContainer &operator =(const CDataContainer &) & = default;
+			CDataContainer &operator =(CDataContainer &&) & = default;
+#endif
 		};
 
 #		undef NAMING_SET_1
@@ -407,7 +412,11 @@ further investigations needed, including other compilers
 			protected:
 				Tag() = default;
 				Tag(const Tag &) = default;
+#ifdef __GNUC__
 				Tag &operator =(const Tag &) = default;
+#else
+				Tag &operator =(const Tag &) & = default;
+#endif
 				~Tag() = default;
 			};
 
@@ -861,8 +870,13 @@ further investigations needed, including other compilers
 				CData(const CData &) = default;
 				CData(CData &&) = default;
 				~CData() = default;
+#ifdef __GNUC__
 				CData &operator =(const CData &) = default;
 				CData &operator =(CData &&) = default;
+#else
+				CData &operator =(const CData &) & = default;
+				CData &operator =(CData &&) & = default;
+#endif
 
 			private:	// matrix specific ctors
 				template<size_t ...row, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
@@ -932,8 +946,13 @@ further investigations needed, including other compilers
 				CData(const CData &) = default;
 				CData(CData &&) = default;
 				~CData() = default;
+#ifdef __GNUC__
 				CData &operator =(const CData &) = default;
 				CData &operator =(CData &&) = default;
+#else
+				CData &operator =(const CData &) & = default;
+				CData &operator =(CData &&) & = default;
+#endif
 
 			private:	// vector specific ctors
 				template<size_t ...idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
@@ -1023,8 +1042,13 @@ further investigations needed, including other compilers
 #else
 				template<typename ...TSrc> CDataContainer(const TSrc &...src) : data(src...) {}
 #endif
+#ifdef __GNUC__
 				CDataContainer &operator =(const CDataContainer &) = default;
 				CDataContainer &operator =(CDataContainer &&) = default;
+#else
+				CDataContainer &operator =(const CDataContainer &) & = default;
+				CDataContainer &operator =(CDataContainer &&) & = default;
+#endif
 			};
 
 #			pragma region Initializer list
@@ -1184,7 +1208,11 @@ further investigations needed, including other compilers
 				CSwizzleBase() = default;
 				CSwizzleBase(const CSwizzleBase &) = default;
 				~CSwizzleBase() = default;
+#ifdef __GNUC__
 				CSwizzleBase &operator =(const CSwizzleBase &) = default;
+#else
+				CSwizzleBase &operator =(const CSwizzleBase &) & = default;
+#endif
 
 			public:
 				operator const ElementType &() const noexcept
@@ -1192,7 +1220,11 @@ further investigations needed, including other compilers
 					return static_cast<const TSwizzle &>(*this)[0];
 				}
 
+#ifdef __GNUC__
 				operator ElementType &() noexcept
+#else
+				operator ElementType &() & noexcept
+#endif
 				{
 					return static_cast<TSwizzle &>(*this)[0];
 				}
@@ -1282,7 +1314,11 @@ further investigations needed, including other compilers
 				typedef TSwizzle TOperationResult;
 
 			protected:
+#ifdef __GNUC__
 				operator TSwizzle &()
+#else
+				operator TSwizzle &() &
+#endif
 				{
 					return static_cast<TSwizzle &>(*this);
 				}
@@ -1303,7 +1339,11 @@ further investigations needed, including other compilers
 				}
 
 			public:
+#ifdef __GNUC__
 				const ElementType &operator [](unsigned int idx) const noexcept
+#else
+				const ElementType &operator [](unsigned int idx) const & noexcept
+#endif
 				{
 					assert(idx < SwizzleDesc::dimension);
 					idx = SwizzleDesc::packedSwizzle >> idx * 4u & (1u << 4u) - 1u;
@@ -1311,7 +1351,18 @@ further investigations needed, including other compilers
 					return Data()[row][column];
 				}
 
+#ifndef __GNUC__
+				const ElementType &operator [](unsigned int idx) const && noexcept
+				{
+					return operator [](idx);
+				}
+#endif
+
+#ifdef __GNUC__
 				ElementType &operator [](unsigned int idx) noexcept
+#else
+				ElementType &operator [](unsigned int idx) & noexcept
+#endif
 				{
 					return const_cast<ElementType &>(static_cast<const CSwizzleCommon &>(*this)[idx]);
 				}
@@ -1347,7 +1398,11 @@ further investigations needed, including other compilers
 				typedef TSwizzle TOperationResult;
 
 			protected:
+#ifdef __GNUC__
 				operator TSwizzle &()
+#else
+				operator TSwizzle &() &
+#endif
 				{
 					return static_cast<TSwizzle &>(*this);
 				}
@@ -1368,14 +1423,29 @@ further investigations needed, including other compilers
 				}
 
 			public:
+#ifdef __GNUC__
 				const ElementType &operator [](unsigned int idx) const noexcept
+#else
+				const ElementType &operator [](unsigned int idx) const & noexcept
+#endif
 				{
 					assert(idx < SwizzleDesc::dimension);
 					idx = SwizzleDesc::packedSwizzle >> idx * 4u & (1u << 4u) - 1u;
 					return Data()[idx];
 				}
 
+#ifndef __GNUC__
+				const ElementType &operator [](unsigned int idx) const && noexcept
+				{
+					return operator [](idx);
+				}
+#endif
+
+#ifdef __GNUC__
 				ElementType &operator [](unsigned int idx) noexcept
+#else
+				ElementType &operator [](unsigned int idx) & noexcept
+#endif
 				{
 					return const_cast<ElementType &>(static_cast<const CSwizzleCommon &>(*this)[idx]);
 				}
@@ -1395,13 +1465,21 @@ further investigations needed, including other compilers
 				CSwizzleCommon() = default;
 				CSwizzleCommon(const CSwizzleCommon &) = default;
 				~CSwizzleCommon() = default;
+#ifdef __GNUC__
 				CSwizzleCommon &operator =(const CSwizzleCommon &) = default;
+#else
+				CSwizzleCommon &operator =(const CSwizzleCommon &) & = default;
+#endif
 
 				// TODO: consider adding 'op=' operators to friends and making some stuff below protected/private (and TOperationResult for other CSwizzleCommon above)
 			public:
 				typedef Tvector TOperationResult;
 
+#ifdef __GNUC__
 				operator Tvector &() noexcept
+#else
+				operator Tvector &() & noexcept
+#endif
 				{
 					/*
 								static
@@ -1433,13 +1511,28 @@ further investigations needed, including other compilers
 				}
 
 			public:
+#ifdef __GNUC__
 				const ElementType &operator [](unsigned int idx) const noexcept
+#else
+				const ElementType &operator [](unsigned int idx) const & noexcept
+#endif
 				{
 					assert(idx < vectorDimension);
 					return Data()[idx];
 				}
 
+#ifndef __GNUC__
+				const ElementType &operator [](unsigned int idx) const && noexcept
+				{
+					return operator [](idx);
+				}
+#endif
+
+#ifdef __GNUC__
 				ElementType &operator [](unsigned int idx) noexcept
+#else
+				ElementType &operator [](unsigned int idx) & noexcept
+#endif
 				{
 					assert(idx < vectorDimension);
 					return Data()[idx];
@@ -1617,7 +1710,11 @@ further investigations needed, including other compilers
 				CSwizzle() = default;
 				CSwizzle(const CSwizzle &) = default;
 				~CSwizzle() = default;
+#ifdef __GNUC__
 				CSwizzle &operator =(const CSwizzle &) = default;
+#else
+				CSwizzle &operator =(const CSwizzle &) & = default;
+#endif
 			};
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
@@ -1696,12 +1793,20 @@ further investigations needed, including other compilers
 					assert(&_swizzle == &src._swizzle);
 					return _i != src._i;
 				}
+#ifdef __GNUC__
 				CSwizzleIteratorImpl &operator ++()
+#else
+				CSwizzleIteratorImpl &operator ++() &
+#endif
 				{
 					++_i;
 					return *this;
 				}
+#ifdef __GNUC__
 				CSwizzleIteratorImpl operator ++(int)
+#else
+				CSwizzleIteratorImpl operator ++(int) &
+#endif
 				{
 					CSwizzleIteratorImpl old(*this);
 					operator ++();
@@ -2516,11 +2621,23 @@ further investigations needed, including other compilers
 #endif
 
 		public:
+#ifdef __GNUC__
 			const TRow &operator [](unsigned int idx) const noexcept;
+#else
+			const TRow &operator [](unsigned int idx) const & noexcept, &operator [](unsigned int idx) const && noexcept;
+#endif
+#ifdef __GNUC__
 			TRow &operator [](unsigned int idx) noexcept;
+#else
+			TRow &operator [](unsigned int idx) & noexcept;
+#endif
 
 			operator const ElementType &() const noexcept;
+#ifdef __GNUC__
 			operator ElementType &() noexcept;
+#else
+			operator ElementType &() & noexcept;
+#endif
 
 		public:
 			template<typename F>
@@ -2620,14 +2737,30 @@ further investigations needed, including other compilers
 
 #		pragma region matrix impl
 			template<typename ElementType, unsigned int rows, unsigned int columns>
+#ifdef __GNUC__
 			inline auto matrix<ElementType, rows, columns>::operator [](unsigned int idx) const noexcept -> const typename matrix::TRow &
+#else
+			inline auto matrix<ElementType, rows, columns>::operator [](unsigned int idx) const & noexcept -> const typename matrix::TRow &
+#endif
 			{
 				assert(idx < rows);
 				return DataContainer::data.rowsData[idx];
 			}
 
+#ifndef __GNUC__
 			template<typename ElementType, unsigned int rows, unsigned int columns>
+			inline auto matrix<ElementType, rows, columns>::operator [](unsigned int idx) const && noexcept -> const typename matrix::TRow &
+			{
+				return operator [](idx);
+			}
+#endif
+
+			template<typename ElementType, unsigned int rows, unsigned int columns>
+#ifdef __GNUC__
 			inline auto matrix<ElementType, rows, columns>::operator [](unsigned int idx) noexcept -> typename matrix::TRow &
+#else
+			inline auto matrix<ElementType, rows, columns>::operator [](unsigned int idx) & noexcept -> typename matrix::TRow &
+#endif
 			{
 				assert(idx < rows);
 				return DataContainer::data.rowsData[idx];
@@ -2640,7 +2773,11 @@ further investigations needed, including other compilers
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
+#ifdef __GNUC__
 			inline matrix<ElementType, rows, columns>::operator ElementType &() noexcept
+#else
+			inline matrix<ElementType, rows, columns>::operator ElementType &() & noexcept
+#endif
 			{
 				return operator [](0);
 			}
