@@ -1665,7 +1665,7 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			template<typename SrcType>
 #ifdef __GNUC__
-			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(const SrcType &src)->enable_if_t<IsScalar<SrcType>, TOperationResult &>
+			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(const SrcType &src) -> enable_if_t<IsScalar<SrcType>, TOperationResult &>
 #else
 			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(const SrcType &src) & -> enable_if_t<IsScalar<SrcType>, TOperationResult &>
 #endif
@@ -1679,7 +1679,7 @@ further investigations needed, including other compilers
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 #ifdef __GNUC__
-			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(initializer_list<CInitListItem<ElementType, SwizzleDesc::dimension>> initList)->TOperationResult &
+			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(initializer_list<CInitListItem<ElementType, SwizzleDesc::dimension>> initList) -> TOperationResult &
 #else
 			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(initializer_list<CInitListItem<ElementType, SwizzleDesc::dimension>> initList) & -> TOperationResult &
 #endif
@@ -1761,12 +1761,13 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			class CSwizzleIteratorImpl : public iterator<forward_iterator_tag, const ElementType>
 			{
-				const CSwizzle<ElementType, rows, columns, SwizzleDesc> &_swizzle;
-				unsigned _i;
+				const CSwizzle<ElementType, rows, columns, SwizzleDesc> &swizzle;
+				unsigned i;
 
 			protected:
 				CSwizzleIteratorImpl(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &swizzle, unsigned i) :
-					_swizzle(swizzle), _i(i) {}
+					swizzle(swizzle), i(i) {}
+
 				~CSwizzleIteratorImpl() = default;
 
 			public:	// required by stl => public
@@ -1777,21 +1778,24 @@ further investigations needed, including other compilers
 					typename CSwizzleIteratorImpl::reference
 				> operator *() const
 				{
-					return _swizzle[_i];
+					return swizzle[i];
 				}
+
 				typename CSwizzleIteratorImpl::pointer operator ->() const
 				{
-					return &_swizzle[_i];
+					return &swizzle[i];
 				}
+
 				bool operator ==(CSwizzleIteratorImpl<ElementType, rows, columns, SwizzleDesc> src) const noexcept
 				{
-					assert(&_swizzle == &src._swizzle);
-					return _i == src._i;
+					assert(&swizzle == &src.swizzle);
+					return i == src.i;
 				}
+
 				bool operator !=(CSwizzleIteratorImpl<ElementType, rows, columns, SwizzleDesc> src) const noexcept
 				{
-					assert(&_swizzle == &src._swizzle);
-					return _i != src._i;
+					assert(&swizzle == &src.swizzle);
+					return i != src.i;
 				}
 #ifdef __GNUC__
 				CSwizzleIteratorImpl &operator ++()
@@ -1799,9 +1803,10 @@ further investigations needed, including other compilers
 				CSwizzleIteratorImpl &operator ++() &
 #endif
 				{
-					++_i;
+					++i;
 					return *this;
 				}
+
 #ifdef __GNUC__
 				CSwizzleIteratorImpl operator ++(int)
 #else
