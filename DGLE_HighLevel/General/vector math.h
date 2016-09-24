@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		23.09.2016 (c)Alexey Shaydurov
+\date		24.09.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1315,9 +1315,9 @@ further investigations needed, including other compilers
 
 			protected:
 #ifdef __GNUC__
-				operator TSwizzle &()
+				operator TSwizzle &() noexcept
 #else
-				operator TSwizzle &() &
+				operator TSwizzle &() & noexcept
 #endif
 				{
 					return static_cast<TSwizzle &>(*this);
@@ -1399,9 +1399,9 @@ further investigations needed, including other compilers
 
 			protected:
 #ifdef __GNUC__
-				operator TSwizzle &()
+				operator TSwizzle &() noexcept
 #else
-				operator TSwizzle &() &
+				operator TSwizzle &() & noexcept
 #endif
 				{
 					return static_cast<TSwizzle &>(*this);
