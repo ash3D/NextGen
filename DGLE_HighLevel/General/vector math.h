@@ -2056,11 +2056,7 @@ further investigations needed, including other compilers
 					const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,										\
 					const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)									\
 					{																															\
-						vector																													\
-						<																														\
-							std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>,						\
-							std::min(LeftSwizzleDesc::dimension, RightSwizzleDesc::dimension)													\
-						> result(left);																											\
+						decltype(left op right) result(left);																					\
 						return operator op##=<false>(result, right);																			\
 					}
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
@@ -2081,9 +2077,8 @@ further investigations needed, including other compilers
 					const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,										\
 					const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)									\
 					{																															\
-						constexpr unsigned int dimension = std::min(LeftSwizzleDesc::dimension, RightSwizzleDesc::dimension);					\
-						vector<bool, dimension> result;																							\
-						for (unsigned i = 0; i < dimension; i++)																				\
+						decltype(left op right) result;																							\
+						for (unsigned i = 0; i < decltype(result)::dimension; i++)																\
 							result[i] = left[i] op right[i];																					\
 						return result;																											\
 					}
@@ -2105,11 +2100,7 @@ further investigations needed, including other compilers
 					const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,										\
 					const RightType &right)																										\
 					{																															\
-						vector																													\
-						<																														\
-							std::decay_t<decltype(std::declval<LeftElementType>() op Impl::ExtractScalar(std::declval<RightType>()))>,			\
-							LeftSwizzleDesc::dimension																							\
-						> result(left);																											\
+						decltype(left op right) result(left);																					\
 						return result op##= right;																								\
 					}
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
@@ -2130,9 +2121,8 @@ further investigations needed, including other compilers
 					const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,										\
 					const RightType &right)																										\
 					{																															\
-						constexpr unsigned int dimension = LeftSwizzleDesc::dimension;															\
-						vector<bool, dimension> result;																							\
-						for (unsigned i = 0; i < dimension; i++)																				\
+						decltype(left op right) result;																							\
+						for (unsigned i = 0; i < decltype(result)::dimension; i++)																\
 							result[i] = left[i] op right;																						\
 						return result;																											\
 					}
@@ -2154,11 +2144,7 @@ further investigations needed, including other compilers
 					const LeftType &left,																										\
 					const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)									\
 					{																															\
-						vector																													\
-						<																														\
-							std::decay_t<decltype(Impl::ExtractScalar(std::declval<LeftType>()) op std::declval<RightElementType>())>,			\
-							RightSwizzleDesc::dimension																							\
-						> result(left);																											\
+						decltype(left op right) result(left);																					\
 						return operator op##=<false>(result, right);																			\
 					}
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
@@ -2179,9 +2165,8 @@ further investigations needed, including other compilers
 					const LeftType &left,																										\
 					const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)									\
 					{																															\
-						constexpr unsigned int dimension = RightSwizzleDesc::dimension;															\
-						vector<bool, dimension> result;																							\
-						for (unsigned i = 0; i < dimension; i++)																				\
+						decltype(left op right) result;																							\
+						for (unsigned i = 0; i < decltype(result)::dimension; i++)																\
 							result[i] = left op right[i];																						\
 						return result;																											\
 					}
@@ -2304,13 +2289,7 @@ further investigations needed, including other compilers
 					const matrix<LeftElementType, leftRows, leftColumns> &left,																	\
 					const matrix<RightElementType, rightRows, rightColumns> &right)																\
 					{																															\
-						matrix																													\
-						<																														\
-							std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>,						\
-							std::min(leftRows, rightRows),																						\
-							std::min(leftColumns, rightColumns)																					\
-						>																														\
-						result(left);																											\
+						decltype(left op right) result(left);																					\
 						return result op##= std::move(right);																					\
 					}
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
@@ -2332,11 +2311,8 @@ further investigations needed, including other compilers
 					const matrix<LeftElementType, leftRows, leftColumns> &left,																	\
 					const matrix<RightElementType, rightRows, rightColumns> &right)																\
 					{																															\
-						constexpr unsigned int																									\
-							rows = std::min(leftRows, rightRows),																				\
-							columns = std::min(leftColumns, rightColumns);																		\
-						matrix<bool, rows, columns> result;																						\
-						for (unsigned i = 0; i < rows; i++)																						\
+						decltype(left op right) result;																							\
+						for (unsigned i = 0; i < decltype(result)::rows; i++)																	\
 							result[i] = left[i] op right[i];																					\
 						return result;																											\
 					}
@@ -2358,12 +2334,7 @@ further investigations needed, including other compilers
 					const matrix<LeftElementType, leftRows, leftColumns> &left,																	\
 					const RightType &right)																										\
 					{																															\
-						matrix																													\
-						<																														\
-							std::decay_t<decltype(std::declval<LeftElementType>() op Impl::ExtractScalar(std::declval<RightType>()))>,			\
-							leftRows, leftColumns																								\
-						>																														\
-						result(left);																											\
+						decltype(left op right) result(left);																					\
 						return result op##= std::move(right);																					\
 					}
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
@@ -2384,8 +2355,8 @@ further investigations needed, including other compilers
 					const matrix<LeftElementType, leftRows, leftColumns> &left,																	\
 					const RightType &right)																										\
 					{																															\
-						matrix<bool, leftRows, leftColumns> result;																				\
-						for (unsigned i = 0; i < leftRows; i++)																					\
+						decltype(left op right) result;																							\
+						for (unsigned i = 0; i < decltype(result)::rows; i++)																	\
 							result[i] = left[i] op right;																						\
 						return result;																											\
 					}
@@ -2407,12 +2378,7 @@ further investigations needed, including other compilers
 					const LeftType &left,																										\
 					const matrix<RightElementType, rightRows, rightColumns> &right)																\
 					{																															\
-						matrix																													\
-						<																														\
-							std::decay_t<decltype(Impl::ExtractScalar(std::declval<LeftType>()) op std::declval<RightElementType>())>,			\
-							rightRows, rightColumns																								\
-						>																														\
-						result(left);																											\
+						decltype(left op right) result(left);																					\
 						return result op##= right;																								\
 					}
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
@@ -2433,8 +2399,8 @@ further investigations needed, including other compilers
 					const LeftType &left,																										\
 					const matrix<RightElementType, rightRows, rightColumns> &right)																\
 					{																															\
-						matrix<bool, rightRows, rightColumns> result;																			\
-						for (unsigned i = 0; i < rightRows; i++)																				\
+						decltype(left op right) result;																							\
+						for (unsigned i = 0; i < decltype(result)::rows; i++)																	\
 							result[i] = left op right[i];																						\
 						return result;																											\
 					}
