@@ -2214,7 +2214,7 @@ further investigations needed, including other compilers
 							std::min(leftColumns, rightColumns)																					\
 						>																														\
 						result(left);																											\
-						return result op##= right;																								\
+						return result op##= std::move(right);																					\
 					}
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
@@ -2267,7 +2267,7 @@ further investigations needed, including other compilers
 							leftRows, leftColumns																								\
 						>																														\
 						result(left);																											\
-						return result op##= right;																								\
+						return result op##= std::move(right);																					\
 					}
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
