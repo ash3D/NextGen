@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		24.09.2016 (c)Alexey Shaydurov
+\date		25.09.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -33,6 +33,8 @@ consider using preprocessor instead of templates or overloading each target func
 
 '&& = ?' now forbidden
 '&& op= ?' also forbidden but not with MSVC (it does not follows C++ standard in that regard)
+
+vectors/matrices are currently forbidden to be an element type for other vector/matrix
 
 similar to HLSL:
 1D swizzle op 1x1 matrix -> 1D swizle
@@ -452,7 +454,7 @@ further investigations needed, including other compilers
 			static constexpr bool IsPureScalar = IsScalar<Src> && !Is1D<Src> && !Is1x1<Src>;
 
 			template<typename ElementType>
-			static constexpr bool IsElementTypeValid = (is_union_v<ElementType> || is_class_v<ElementType> || is_arithmetic_v<ElementType>) && !is_const_v<ElementType>;
+			static constexpr bool IsElementTypeValid = (is_union_v<ElementType> || is_class_v<ElementType> || is_arithmetic_v<ElementType>) && !is_const_v<ElementType> && IsPureScalar<ElementType>;
 
 			template<class CSwizzleVector_>
 			class CSwizzleDesc
