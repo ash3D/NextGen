@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.09.2016 (c)Alexey Shaydurov
+\date		26.09.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -310,7 +310,7 @@ further investigations needed, including other compilers
 #define INIT_LIST_ITEM_COPY 1
 #endif
 
-#	define INIT_LIST_ITEM_OVERFLOW_MSG "Too large item encountered in initializer list"
+#	define INIT_LIST_ITEM_OVERFLOW_MSG "too large item encountered in sequence"
 
 #	include <cassert>
 #	include <cstdint>
@@ -722,7 +722,7 @@ further investigations needed, including other compilers
 			{
 			protected:
 				template<class IdxSeq, bool checkLength = true, unsigned offset = 0>
-				class HeterogeneousInitTag {};
+				class SequencingInitTag {};
 
 				// unresolved external symbols on VS 2015 under whole program optimizations
 #if !(defined _MSC_VER && _MSC_VER <= 1900) || _DEBUG
@@ -891,7 +891,7 @@ further investigations needed, including other compilers
 				CData(index_sequence<row...>, const SrcElementType (&src)[srcRows][srcColumns]);
 
 				template<size_t ...row, typename First, typename ...Rest>
-				CData(HeterogeneousInitTag<index_sequence<row...>>, const First &first, const Rest &...rest);
+				CData(SequencingInitTag<index_sequence<row...>>, const First &first, const Rest &...rest);
 
 			private:
 				vector<ElementType, columns> rowsData[rows];
@@ -900,7 +900,7 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<size_t ...row, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
 			inline CData<ElementType, rows, columns>::CData(index_sequence<row...>, const matrix<SrcElementType, srcRows, srcColumns> &src) :
-				rowsData{ vector<ElementType, columns>(HeterogeneousInitTag<make_index_sequence<columns>, false>(), static_cast<const CSwizzle<SrcElementType, 0, srcColumns> &>(src[row]))... }
+				rowsData{ vector<ElementType, columns>(SequencingInitTag<make_index_sequence<columns>, false>(), static_cast<const CSwizzle<SrcElementType, 0, srcColumns> &>(src[row]))... }
 			{
 				static_assert(rows <= srcRows, "\"copy\" ctor: too few rows in src");
 				static_assert(columns <= srcColumns, "\"copy\" ctor: too few columns in src");
@@ -914,7 +914,7 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<size_t ...row, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
 			inline CData<ElementType, rows, columns>::CData(index_sequence<row...>, const SrcElementType (&src)[srcRows][srcColumns]) :
-				rowsData{ vector<ElementType, columns>(HeterogeneousInitTag<make_index_sequence<columns>, false>(), static_cast<const CSwizzle<SrcElementType, 0, srcColumns> &>(src[row]))... }
+				rowsData{ vector<ElementType, columns>(SequencingInitTag<make_index_sequence<columns>, false>(), static_cast<const CSwizzle<SrcElementType, 0, srcColumns> &>(src[row]))... }
 			{
 				static_assert(rows <= srcRows, "array ctor: too few rows in src");
 				static_assert(columns <= srcColumns, "array ctor: too few columns in src");
@@ -922,12 +922,12 @@ further investigations needed, including other compilers
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<size_t ...row, typename First, typename ...Rest>
-			inline CData<ElementType, rows, columns>::CData(HeterogeneousInitTag<index_sequence<row...>>, const First &first, const Rest &...rest) :
-				rowsData{ vector<ElementType, columns>(HeterogeneousInitTag<make_index_sequence<columns>, false, row * columns>(), first, rest...)... }
+			inline CData<ElementType, rows, columns>::CData(SequencingInitTag<index_sequence<row...>>, const First &first, const Rest &...rest) :
+				rowsData{ vector<ElementType, columns>(SequencingInitTag<make_index_sequence<columns>, false, row * columns>(), first, rest...)... }
 			{
 				constexpr auto srcElements = elementsCount<const First &, const Rest &...>;
-				static_assert(srcElements >= rows * columns, "heterogeneous ctor: too few src elements");
-				static_assert(srcElements <= rows * columns, "heterogeneous ctor: too many src elements");
+				static_assert(srcElements >= rows * columns, "sequencing ctor: too few src elements");
+				static_assert(srcElements <= rows * columns, "sequencing ctor: too many src elements");
 			}
 
 			// specialization for vector
@@ -958,25 +958,25 @@ further investigations needed, including other compilers
 
 			private:	// vector specific ctors
 				template<size_t ...idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-				CData(HeterogeneousInitTag<index_sequence<idx...>, false>, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
+				CData(SequencingInitTag<index_sequence<idx...>, false>, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
 
 				template<size_t ...idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-				inline CData(HeterogeneousInitTag<index_sequence<idx...>, true>, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
+				inline CData(SequencingInitTag<index_sequence<idx...>, true>, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
 
 				template<size_t ...idx, typename SrcElementType>
 				CData(index_sequence<idx...>, const SrcElementType &scalar);
 
 				template<size_t ...idx, typename SrcElementType, unsigned int srcDimension>
-				CData(HeterogeneousInitTag<index_sequence<idx...>, false>, const SrcElementType (&src)[srcDimension]);
+				CData(SequencingInitTag<index_sequence<idx...>, false>, const SrcElementType (&src)[srcDimension]);
 
 				template<size_t ...idx, typename SrcElementType, unsigned int srcDimension>
-				inline CData(HeterogeneousInitTag<index_sequence<idx...>, true>, const SrcElementType (&src)[srcDimension]);
+				inline CData(SequencingInitTag<index_sequence<idx...>, true>, const SrcElementType (&src)[srcDimension]);
 
 				template<size_t ...idx, unsigned offset, typename First, typename ...Rest>
-				CData(HeterogeneousInitTag<index_sequence<idx...>, false, offset>, const First &first, const Rest &...rest);
+				CData(SequencingInitTag<index_sequence<idx...>, false, offset>, const First &first, const Rest &...rest);
 
 				template<size_t ...idx, typename First, typename ...Rest>
-				inline CData(HeterogeneousInitTag<index_sequence<idx...>, true>, const First &first, const Rest &...rest);
+				inline CData(SequencingInitTag<index_sequence<idx...>, true>, const First &first, const Rest &...rest);
 
 			private:
 				ElementType data[dimension];
@@ -984,13 +984,13 @@ further investigations needed, including other compilers
 
 			template<typename ElementType, unsigned int dimension>
 			template<size_t ...idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-			inline CData<ElementType, 0, dimension>::CData(HeterogeneousInitTag<index_sequence<idx...>, false>, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) :
+			inline CData<ElementType, 0, dimension>::CData(SequencingInitTag<index_sequence<idx...>, false>, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) :
 				data{ static_cast<const ElementType &>(src[idx])... } {}
 
 			template<typename ElementType, unsigned int dimension>
 			template<size_t ...idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-			inline CData<ElementType, 0, dimension>::CData(HeterogeneousInitTag<index_sequence<idx...>, true>, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) :
-				CData(HeterogeneousInitTag<index_sequence<idx...>, false>(), src)
+			inline CData<ElementType, 0, dimension>::CData(SequencingInitTag<index_sequence<idx...>, true>, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) :
+				CData(SequencingInitTag<index_sequence<idx...>, false>(), src)
 			{
 				static_assert(dimension <= SrcSwizzleDesc::dimension, "\"copy\" ctor: too small src dimension");
 			}
@@ -1002,30 +1002,30 @@ further investigations needed, including other compilers
 
 			template<typename ElementType, unsigned int dimension>
 			template<size_t ...idx, typename SrcElementType, unsigned int srcDimension>
-			inline CData<ElementType, 0, dimension>::CData(HeterogeneousInitTag<index_sequence<idx...>, false>, const SrcElementType (&src)[srcDimension]) :
+			inline CData<ElementType, 0, dimension>::CData(SequencingInitTag<index_sequence<idx...>, false>, const SrcElementType (&src)[srcDimension]) :
 				data{ static_cast<const ElementType &>(src[idx])... } {}
 
 			template<typename ElementType, unsigned int dimension>
 			template<size_t ...idx, typename SrcElementType, unsigned int srcDimension>
-			inline CData<ElementType, 0, dimension>::CData(HeterogeneousInitTag<index_sequence<idx...>, true>, const SrcElementType (&src)[srcDimension]) :
-				CData(HeterogeneousInitTag<index_sequence<idx...>, false>(), src)
+			inline CData<ElementType, 0, dimension>::CData(SequencingInitTag<index_sequence<idx...>, true>, const SrcElementType (&src)[srcDimension]) :
+				CData(SequencingInitTag<index_sequence<idx...>, false>(), src)
 			{
 				static_assert(dimension <= srcDimension, "array ctor: too small src dimension");
 			}
 
 			template<typename ElementType, unsigned int dimension>
 			template<size_t ...idx, unsigned offset, typename First, typename ...Rest>
-			inline CData<ElementType, 0, dimension>::CData(HeterogeneousInitTag<index_sequence<idx...>, false, offset>, const First &first, const Rest &...rest) :
+			inline CData<ElementType, 0, dimension>::CData(SequencingInitTag<index_sequence<idx...>, false, offset>, const First &first, const Rest &...rest) :
 				data{ static_cast<const ElementType &>(GetElement<idx + offset>(first, rest...))... } {}
 
 			template<typename ElementType, unsigned int dimension>
 			template<size_t ...idx, typename First, typename ...Rest>
-			inline CData<ElementType, 0, dimension>::CData(HeterogeneousInitTag<index_sequence<idx...>, true>, const First &first, const Rest &...rest) :
-				CData(HeterogeneousInitTag<index_sequence<idx...>, false>(), first, rest...)
+			inline CData<ElementType, 0, dimension>::CData(SequencingInitTag<index_sequence<idx...>, true>, const First &first, const Rest &...rest) :
+				CData(SequencingInitTag<index_sequence<idx...>, false>(), first, rest...)
 			{
 				constexpr auto srcElements = elementsCount<const First &, const Rest &...>;
-				static_assert(srcElements >= dimension, "heterogeneous ctor: too few src elements");
-				static_assert(srcElements <= dimension, "heterogeneous ctor: too many src elements");
+				static_assert(srcElements >= dimension, "sequencing ctor: too few src elements");
+				static_assert(srcElements <= dimension, "sequencing ctor: too many src elements");
 			}
 
 			// generic vector/matrix
@@ -1185,7 +1185,7 @@ further investigations needed, including other compilers
 					const unsigned int itemSize;
 				};
 #endif
-#			pragma endregion TODO: consider to remove it and rely on potentially more efficient variadic template technique for heterogeneous ctors, or limit it usage for assignment operators only
+#			pragma endregion TODO: consider to remove it and rely on potentially more efficient variadic template technique for sequencing ctors, or limit it usage for assignment operators only
 		}
 
 		// specializations for graphics vectors/matrices
@@ -2457,13 +2457,13 @@ further investigations needed, including other compilers
 			typedef std::make_index_sequence<dimension> IdxSeq;
 
 			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-			vector(typename Impl::CData<ElementType, 0, dimension>::template HeterogeneousInitTag<IdxSeq, false>, const Impl::CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
+			vector(typename Impl::CData<ElementType, 0, dimension>::template SequencingInitTag<IdxSeq, false>, const Impl::CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
 
 			template<unsigned offset, typename First, typename ...Rest>
-			vector(typename Impl::CData<ElementType, 0, dimension>::template HeterogeneousInitTag<IdxSeq, false, offset>, const First &first, const Rest &...rest);
+			vector(typename Impl::CData<ElementType, 0, dimension>::template SequencingInitTag<IdxSeq, false, offset>, const First &first, const Rest &...rest);
 
 			template<typename SrcElementType, unsigned int srcDimension>
-			vector(typename Impl::CData<ElementType, 0, dimension>::template HeterogeneousInitTag<IdxSeq, false>, const SrcElementType (&src)[srcDimension]);
+			vector(typename Impl::CData<ElementType, 0, dimension>::template SequencingInitTag<IdxSeq, false>, const SrcElementType (&src)[srcDimension]);
 		};
 
 		template<typename ElementType_, unsigned int rows_, unsigned int columns_>
@@ -2662,7 +2662,7 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int dimension>
 			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
 			inline vector<ElementType, dimension>::vector(const Impl::CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) :
-				DataContainer(Impl::CData<ElementType, 0, dimension>::HeterogeneousInitTag<IdxSeq>(), src) {}
+				DataContainer(Impl::CData<ElementType, 0, dimension>::SequencingInitTag<IdxSeq>(), src) {}
 
 			template<typename ElementType, unsigned int dimension>
 			template<typename SrcType, typename = std::enable_if_t<Impl::IsScalar<SrcType>>>
@@ -2672,7 +2672,7 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int dimension>
 			template<typename First, typename ...Rest, typename = std::enable_if_t<(sizeof...(Rest) > 0) || Impl::IsMatrix<First>>>
 			inline vector<ElementType, dimension>::vector(const First &first, const Rest &...rest) :
-				DataContainer(Impl::CData<ElementType, 0, dimension>::HeterogeneousInitTag<IdxSeq>(), first, rest...) {}
+				DataContainer(Impl::CData<ElementType, 0, dimension>::SequencingInitTag<IdxSeq>(), first, rest...) {}
 
 			//template<typename ElementType, unsigned int dimension>
 			//template<typename TIterator>
@@ -2684,7 +2684,7 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int dimension>
 			template<typename SrcElementType, unsigned int srcDimension>
 			inline vector<ElementType, dimension>::vector(const SrcElementType (&src)[srcDimension]) :
-				DataContainer(Impl::CData<ElementType, 0, dimension>::HeterogeneousInitTag<IdxSeq>(), src) {}
+				DataContainer(Impl::CData<ElementType, 0, dimension>::SequencingInitTag<IdxSeq>(), src) {}
 
 			template<typename ElementType, unsigned int dimension>
 			inline vector<ElementType, dimension>::vector(std::initializer_list<Impl::CInitListItem<ElementType, dimension>> initList)
@@ -2694,17 +2694,17 @@ further investigations needed, including other compilers
 
 			template<typename ElementType, unsigned int dimension>
 			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-			inline vector<ElementType, dimension>::vector(typename Impl::CData<ElementType, 0, dimension>::template HeterogeneousInitTag<IdxSeq, false> tag, const Impl::CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) :
+			inline vector<ElementType, dimension>::vector(typename Impl::CData<ElementType, 0, dimension>::template SequencingInitTag<IdxSeq, false> tag, const Impl::CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) :
 				DataContainer(tag, src) {}
 
 			template<typename ElementType, unsigned int dimension>
 			template<unsigned offset, typename First, typename ...Rest>
-			inline vector<ElementType, dimension>::vector(typename Impl::CData<ElementType, 0, dimension>::template HeterogeneousInitTag<IdxSeq, false, offset> tag, const First &first, const Rest &...rest) :
+			inline vector<ElementType, dimension>::vector(typename Impl::CData<ElementType, 0, dimension>::template SequencingInitTag<IdxSeq, false, offset> tag, const First &first, const Rest &...rest) :
 				DataContainer(tag, first, rest...) {}
 
 			template<typename ElementType, unsigned int dimension>
 			template<typename SrcElementType, unsigned int srcDimension>
-			inline vector<ElementType, dimension>::vector(typename Impl::CData<ElementType, 0, dimension>::template HeterogeneousInitTag<IdxSeq, false> tag, const SrcElementType (&src)[srcDimension]) :
+			inline vector<ElementType, dimension>::vector(typename Impl::CData<ElementType, 0, dimension>::template SequencingInitTag<IdxSeq, false> tag, const SrcElementType (&src)[srcDimension]) :
 				DataContainer(tag, src) {}
 #		pragma endregion
 
@@ -2768,7 +2768,7 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<typename First, typename ...Rest, typename = std::enable_if_t<(sizeof...(Rest) > 0) || Impl::IsSwizzle<First>>>
 			inline matrix<ElementType, rows, columns>::matrix(const First &first, const Rest &...rest) :
-				DataContainer(Impl::CData<ElementType, rows, columns>::HeterogeneousInitTag<std::make_index_sequence<rows>>(), first, rest...) {}
+				DataContainer(Impl::CData<ElementType, rows, columns>::SequencingInitTag<std::make_index_sequence<rows>>(), first, rest...) {}
 
 			//template<typename ElementType, unsigned int rows, unsigned int columns>
 			//template<typename TIterator>
