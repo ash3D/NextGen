@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		26.09.2016 (c)Alexey Shaydurov
+\date		27.09.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -2059,7 +2059,7 @@ further investigations needed, including other compilers
 					const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)									\
 					{																															\
 						decltype(left op right) result(left);																					\
-						return operator op##=<false>(result, right);																			\
+						return result op##= std::move(right);																					\
 					}
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
