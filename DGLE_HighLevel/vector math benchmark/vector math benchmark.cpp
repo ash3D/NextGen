@@ -30,6 +30,7 @@ int main(int argc, _TCHAR *argv[])
 	VectorMath::HLSL::int4 vec4(float2x1{}, 0, 1);
 	VectorMath::GLSL::vec3 vec3(vec4);
 	vec3.x + vec3.x;
+	vec3.x + 42;
 	vec3.apply(floor);
 	min(vec4, 0.);
 	min(vec4, vec3);
