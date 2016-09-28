@@ -2040,10 +2040,10 @@ further investigations needed, including other compilers
 					{																																\
 						return Workaround::operator op##=<false>(left, right);																		\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
 
-				// swizzle op swizzle / 1D swizzle op 1D swizzle
+// swizzle op swizzle / 1D swizzle op 1D swizzle
 #				define OPERATOR_DEFINITION(op)																										\
 					template																														\
 					<																																\
@@ -2062,10 +2062,10 @@ further investigations needed, including other compilers
 						decltype(left op right) result(left);																						\
 						return result op##= std::move(right);																						\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+	GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
 
-				// swizzle op swizzle / 1D swizzle op 1D swizzle -> bool
+	// swizzle op swizzle / 1D swizzle op 1D swizzle -> bool
 #				define OPERATOR_DEFINITION(op)																										\
 					template																														\
 					<																																\
@@ -2086,10 +2086,10 @@ further investigations needed, including other compilers
 							result[i] = left[i] op right[i];																						\
 						return result;																												\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
+	GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
 #				undef OPERATOR_DEFINITION
 
-				// swizzle op scalar / 1D swizle op scalar (excluding 1D swizzle)
+	// swizzle op scalar / 1D swizle op scalar (excluding 1D swizzle)
 #				define OPERATOR_DEFINITION(op)																										\
 					template																														\
 					<																																\
@@ -2108,10 +2108,10 @@ further investigations needed, including other compilers
 						decltype(left op right) result(left);																						\
 						return Workaround::operator op##=<false>(result, right);																	\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+	GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
 
-				// swizzle op scalar / 1D swizle op scalar (excluding 1D swizzle) -> bool
+	// swizzle op scalar / 1D swizle op scalar (excluding 1D swizzle) -> bool
 #				define OPERATOR_DEFINITION(op)																										\
 					template																														\
 					<																																\
@@ -2128,8 +2128,9 @@ further investigations needed, including other compilers
 					const RightType &right)																											\
 					{																																\
 						decltype(left op right) result;																								\
+						const auto &scalar = Impl::ExtractScalar(right);																			\
 						for (unsigned i = 0; i < decltype(result)::dimension; i++)																	\
-							result[i] = left[i] op right;																							\
+							result[i] = left[i] op scalar;																							\
 						return result;																												\
 					}
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
@@ -2174,8 +2175,9 @@ further investigations needed, including other compilers
 					const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)										\
 					{																																\
 						decltype(left op right) result;																								\
+						const auto &scalar = Impl::ExtractScalar(left);																				\
 						for (unsigned i = 0; i < decltype(result)::dimension; i++)																	\
-							result[i] = left op right[i];																							\
+							result[i] = scalar op right[i];																							\
 						return result;																												\
 					}
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
