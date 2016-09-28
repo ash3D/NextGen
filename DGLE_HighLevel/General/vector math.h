@@ -2875,39 +2875,42 @@ GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 			}
 
 			// matrix / 1x1 matrix op=<!WARHazard, !extractScalar> scalar
-#			define OPERATOR_DEFINITION(op)																									\
-				template<typename ElementType, unsigned int rows, unsigned int columns>														\
-				template<bool WARHazard, bool extractScalar, typename SrcType>																\
-				inline auto matrix<ElementType, rows, columns>::operator op##=(const SrcType &scalar)										\
-				-> std::enable_if_t<!WARHazard && !extractScalar/* && Impl::IsScalar<SrcType>*/, matrix &>									\
-				{																															\
-					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)																		\
-						Impl::ScalarOps::operator op##=<false, false>(operator [](rowIdx), scalar);											\
-					return *this;																											\
+#			define OPERATOR_DEFINITION(op)																					\
+				template<typename ElementType, unsigned int rows, unsigned int columns>										\
+				template<bool WARHazard, bool extractScalar, typename SrcType>												\
+				inline auto matrix<ElementType, rows, columns>::operator op##=(const SrcType &scalar)						\
+				-> std::enable_if_t<!WARHazard && !extractScalar/* && Impl::IsScalar<SrcType>*/, matrix &>					\
+				{																											\
+					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)														\
+					{																										\
+						assert(rowIdx == rows - 1 || &operator [](rowIdx)[columns - 1] != (const void *)&scalar);			\
+						Impl::ScalarOps::operator op##=<false, false>(operator [](rowIdx), scalar);							\
+					}																										\
+					return *this;																							\
 				}
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #			undef OPERATOR_DEFINITION
 
 			// matrix / 1x1 matrix op=<WARHazard, !extractScalar> scalar
-#			define OPERATOR_DEFINITION(op)																									\
-				template<typename ElementType, unsigned int rows, unsigned int columns>														\
-				template<bool WARHazard, bool extractScalar, typename SrcType>																\
-				inline auto matrix<ElementType, rows, columns>::operator op##=(const SrcType &scalar)										\
-				-> std::enable_if_t<WARHazard && !extractScalar/* && Impl::IsScalar<SrcType>*/, matrix &>									\
-				{																															\
-					return operator op=<false, false>(SrcType(scalar));																		\
+#			define OPERATOR_DEFINITION(op)																					\
+				template<typename ElementType, unsigned int rows, unsigned int columns>										\
+				template<bool WARHazard, bool extractScalar, typename SrcType>												\
+				inline auto matrix<ElementType, rows, columns>::operator op##=(const SrcType &scalar)						\
+				-> std::enable_if_t<WARHazard && !extractScalar/* && Impl::IsScalar<SrcType>*/, matrix &>					\
+				{																											\
+					return operator op=<false, false>(SrcType(scalar));														\
 				}
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #			undef OPERATOR_DEFINITION
 
 			// matrix / 1x1 matrix op=<?WARHazard, extractScalar> scalar
-#			define OPERATOR_DEFINITION(op)																									\
-				template<typename ElementType, unsigned int rows, unsigned int columns>														\
-				template<bool WARHazard, bool extractScalar, typename SrcType>																\
-				inline auto matrix<ElementType, rows, columns>::operator op##=(const SrcType &scalar)										\
-				-> std::enable_if_t<extractScalar/* && Impl::IsScalar<SrcType>*/, matrix &>													\
-				{																															\
-					return operator op=<WARHazard, false>(Impl::ExtractScalar(scalar));														\
+#			define OPERATOR_DEFINITION(op)																					\
+				template<typename ElementType, unsigned int rows, unsigned int columns>										\
+				template<bool WARHazard, bool extractScalar, typename SrcType>												\
+				inline auto matrix<ElementType, rows, columns>::operator op##=(const SrcType &scalar)						\
+				-> std::enable_if_t<extractScalar/* && Impl::IsScalar<SrcType>*/, matrix &>									\
+				{																											\
+					return operator op=<WARHazard, false>(Impl::ExtractScalar(scalar));										\
 				}
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #			undef OPERATOR_DEFINITION
