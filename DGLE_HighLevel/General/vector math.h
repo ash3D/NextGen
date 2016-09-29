@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		28.09.2016 (c)Alexey Shaydurov
+\date		29.09.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -640,54 +640,56 @@ further investigations needed, including other compilers
 #				pragma endregion
 
 #				pragma region trigger
-					// vector
-					template<unsigned rowIdx = 0, typename ElementType, unsigned int columns, class SwizzleDesc>
-					static inline const void *GetRowAddress(const CSwizzleCommon<ElementType, 0, columns, SwizzleDesc> &swizzle)
-					{
-						return swizzle.Data();
-					}
+#					ifndef NDEBUG
+						// vector
+						template<unsigned rowIdx = 0, typename ElementType, unsigned int columns, class SwizzleDesc>
+						static inline const void *GetRowAddress(const CSwizzleCommon<ElementType, 0, columns, SwizzleDesc> &swizzle)
+						{
+							return swizzle.Data();
+						}
 
-					// matrix
-					template<unsigned rowIdx = 0, typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-					static inline const void *GetRowAddress(const CSwizzleCommon<ElementType, rows, columns, SwizzleDesc> &swizzle)
-					{
-						return swizzle.Data()[rowIdx].Data();
-					}
+						// matrix
+						template<unsigned rowIdx = 0, typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
+						static inline const void *GetRowAddress(const CSwizzleCommon<ElementType, rows, columns, SwizzleDesc> &swizzle)
+						{
+							return swizzle.Data()[rowIdx].Data();
+						}
 
-					template
-					<
-						bool assign, class DstSwizzleDesc, class SrcSwizzleDesc,
-						typename ElementType, unsigned int rows, unsigned int columns
-					>
-					static inline bool TriggerWARHazard(CSwizzleCommon<ElementType, rows, columns, DstSwizzleDesc> &dst, const CSwizzleCommon<ElementType, rows, columns, SrcSwizzleDesc> &src)
-					{
-						return SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign>::value && GetRowAddress(dst) == GetRowAddress(src);
-					}
+						template
+						<
+							bool assign, class DstSwizzleDesc, class SrcSwizzleDesc,
+							typename ElementType, unsigned int rows, unsigned int columns
+						>
+						static inline bool TriggerWARHazard(CSwizzleCommon<ElementType, rows, columns, DstSwizzleDesc> &dst, const CSwizzleCommon<ElementType, rows, columns, SrcSwizzleDesc> &src)
+						{
+							return SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign>::value && GetRowAddress(dst) == GetRowAddress(src);
+						}
 
-					// mixed vector/matrix swizzles
-					template
-					<
-						bool assign, unsigned rowIdx = 0, class DstSwizzleDesc, class SrcSwizzleDesc,
-						typename ElementType, unsigned int dstRows, unsigned int srcRows, unsigned int columns
-					>
-					static inline enable_if_t<bool(dstRows) != bool(srcRows) && rowIdx < std::max(dstRows, srcRows), bool>
-					TriggerWARHazard(CSwizzleCommon<ElementType, dstRows, columns, DstSwizzleDesc> &dst, const CSwizzleCommon<ElementType, srcRows, columns, SrcSwizzleDesc> &src)
-					{
-						return SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign, dstRows ? 0 : rowIdx, srcRows ? 0 : rowIdx>::value
-							&& GetRowAddress<rowIdx>(dst.Data()) == GetRowAddress<rowIdx>(src.Data()) || TriggerWARHazard<assign, rowIdx + 1>(dst, src);
-					}
+						// mixed vector/matrix swizzles
+						template
+						<
+							bool assign, unsigned rowIdx = 0, class DstSwizzleDesc, class SrcSwizzleDesc,
+							typename ElementType, unsigned int dstRows, unsigned int srcRows, unsigned int columns
+						>
+						static inline enable_if_t<bool(dstRows) != bool(srcRows) && rowIdx < std::max(dstRows, srcRows), bool>
+						TriggerWARHazard(CSwizzleCommon<ElementType, dstRows, columns, DstSwizzleDesc> &dst, const CSwizzleCommon<ElementType, srcRows, columns, SrcSwizzleDesc> &src)
+						{
+							return SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign, dstRows ? 0 : rowIdx, srcRows ? 0 : rowIdx>::value
+								&& GetRowAddress<rowIdx>(dst.Data()) == GetRowAddress<rowIdx>(src.Data()) || TriggerWARHazard<assign, rowIdx + 1>(dst, src);
+						}
 
-					// served both for unmatched swizzles and as terminator for mixed vector/matrix swizzles
-					template
-					<
-						bool assign, unsigned rowIdx = 0,
-						typename DstElementType, unsigned int dstRows, unsigned int dstColumns, class DstSwizzleDesc,
-						typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc
-					>
-					static inline bool TriggerWARHazard(CSwizzleCommon<DstElementType, dstRows, dstColumns, DstSwizzleDesc> &, const CSwizzleCommon<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &)
-					{
-						return false;
-					}
+						// served both for unmatched swizzles and as terminator for mixed vector/matrix swizzles
+						template
+						<
+							bool assign, unsigned rowIdx = 0,
+							typename DstElementType, unsigned int dstRows, unsigned int dstColumns, class DstSwizzleDesc,
+							typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc
+						>
+						static inline bool TriggerWARHazard(CSwizzleCommon<DstElementType, dstRows, dstColumns, DstSwizzleDesc> &, const CSwizzleCommon<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &)
+						{
+							return false;
+						}
+#					endif
 #				pragma endregion NOTE: assert should not be triggered if WAR hazard is not detected.
 #			pragma endregion
 
@@ -1292,12 +1294,16 @@ further investigations needed, including other compilers
 				return Neg(std::make_index_sequence<SwizzleDesc::dimension>());
 			}
 
-#			define FRIEND_DECLARATIONS(op)																								\
-				template<unsigned rowIdx = 0, typename ElementType, unsigned int columns, class SwizzleDesc>							\
-				friend static inline const void *GetRowAddress(const CSwizzleCommon<ElementType, 0, columns, SwizzleDesc> &swizzle);	\
-																																		\
-				template<unsigned rowIdx = 0, typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>			\
-				friend static inline const void *GetRowAddress(const CSwizzleCommon<ElementType, rows, columns, SwizzleDesc> &swizzle);
+#			ifdef NDEBUG
+#				define define FRIEND_DECLARATIONS(op)
+#			else
+#				define FRIEND_DECLARATIONS(op)																								\
+					template<unsigned rowIdx = 0, typename ElementType, unsigned int columns, class SwizzleDesc>							\
+					friend static inline const void *GetRowAddress(const CSwizzleCommon<ElementType, 0, columns, SwizzleDesc> &swizzle);	\
+																																			\
+					template<unsigned rowIdx = 0, typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>			\
+					friend static inline const void *GetRowAddress(const CSwizzleCommon<ElementType, rows, columns, SwizzleDesc> &swizzle);
+#			endif
 
 			// CSwizzle inherits from this to reduce preprocessor generated code for faster compiling
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
