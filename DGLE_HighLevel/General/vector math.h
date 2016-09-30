@@ -771,7 +771,7 @@ further investigations needed, including other compilers
 						TriggerWARHazard(CSwizzleCommon<ElementType, dstRows, columns, DstSwizzleDesc> &dst, const CSwizzleCommon<ElementType, srcRows, columns, SrcSwizzleDesc> &src)
 						{
 							return SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign, dstRows ? 0 : rowIdx, srcRows ? 0 : rowIdx>::value
-								&& GetRowAddress<rowIdx>(dst.Data()) == GetRowAddress<rowIdx>(src.Data()) || TriggerWARHazard<assign, rowIdx + 1>(dst, src);
+								&& GetRowAddress<rowIdx>(dst.Data()) == GetRowAddress<rowIdx>(src.Data()) | TriggerWARHazard<assign, rowIdx + 1>(dst, src);
 						}
 
 						// served both for unmatched swizzles and as terminator for mixed vector/matrix swizzles
@@ -794,14 +794,14 @@ further investigations needed, including other compilers
 							template<unsigned idx = 0, typename DstElementType, unsigned int dstRows, unsigned int dstColumns, class DstSwizzleDesc>
 							static inline enable_if_t<(idx < DstSwizzleDesc::dimension - 1), bool> TriggerScalarWARHazard(CSwizzle<DstElementType, dstRows, dstColumns, DstSwizzleDesc> &dst, const void *src)
 							{
-								return &dst[idx] == src || TriggerScalarWARHazard<idx + 1>(dst, src);
+								return &dst[idx] == src | TriggerScalarWARHazard<idx + 1>(dst, src);
 							}
 
 							// matrix
 							template<unsigned rowIdx = 0, typename DstElementType, unsigned int dstRows, unsigned int dstColumns>
 							static inline enable_if_t<(rowIdx < dstRows - 1), bool> TriggerScalarWARHazard(matrix<DstElementType, dstRows, dstColumns> &dst, const void *src)
 							{
-								return &dst[rowIdx][dstColumns - 1] == src || TriggerScalarWARHazard<rowIdx + 1>(dst, src);
+								return &dst[rowIdx][dstColumns - 1] == src | TriggerScalarWARHazard<rowIdx + 1>(dst, src);
 							}
 
 							// terminator for both swizzles and matrices
