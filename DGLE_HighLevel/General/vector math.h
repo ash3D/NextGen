@@ -634,9 +634,13 @@ further investigations needed, including other compilers
 					<
 						typename DstElementType, unsigned int dstRows, unsigned int dstColumns, class DstSwizzleDesc,
 						typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc,
-						bool assign
+						bool assign, typename Void = void
 					>
-					struct DetectSwizzleWARHazard : false_type {};
+					struct DetectSwizzleWARHazard : false_type
+					{
+						// C++17\
+						static_assert(is_same_v<Void, void>);
+					};
 
 					template
 					<
@@ -652,7 +656,7 @@ further investigations needed, including other compilers
 						typename ElementType, unsigned int dstRows, unsigned int srcRows, unsigned int columns,
 						class DstSwizzleDesc, class SrcSwizzleDesc, bool assign
 					>
-					class DetectSwizzleWARHazard<enable_if_t<bool(dstRows) != bool(srcRows), ElementType>, dstRows, columns, DstSwizzleDesc, ElementType, srcRows, columns, SrcSwizzleDesc, assign>
+					class DetectSwizzleWARHazard<ElementType, dstRows, columns, DstSwizzleDesc, ElementType, srcRows, columns, SrcSwizzleDesc, assign, enable_if_t<bool(dstRows) != bool(srcRows)>>
 					{
 						template<unsigned int rows, unsigned rowIdx = 0>
 						static constexpr auto rowsFold = SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign, dstRows ? 0 : rowIdx, srcRows ? 0 : rowIdx>::value || rowsFold<rows, rowIdx + 1>;
