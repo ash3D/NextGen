@@ -1417,9 +1417,9 @@ further investigations needed, including other compilers
 			}
 
 #			ifdef NDEBUG
-#				define define FRIEND_DECLARATIONS(op)
+#				define FRIEND_DECLARATIONS
 #			else
-#				define FRIEND_DECLARATIONS(op)																								\
+#				define FRIEND_DECLARATIONS																									\
 					template<unsigned rowIdx = 0, typename ElementType, unsigned int columns, class SwizzleDesc>							\
 					friend static inline const void *GetRowAddress(const CSwizzleCommon<ElementType, 0, columns, SwizzleDesc> &swizzle);	\
 																																			\
@@ -1454,7 +1454,7 @@ further investigations needed, including other compilers
 				}
 
 			private:
-				GENERATE_OPERATORS(FRIEND_DECLARATIONS, ARITHMETIC_OPS)
+				FRIEND_DECLARATIONS
 
 				const auto &Data() const noexcept
 				{
@@ -1538,7 +1538,7 @@ further investigations needed, including other compilers
 				}
 
 			private:
-				GENERATE_OPERATORS(FRIEND_DECLARATIONS, ARITHMETIC_OPS)
+				FRIEND_DECLARATIONS
 
 				const auto &Data() const noexcept
 				{
@@ -1621,7 +1621,7 @@ further investigations needed, including other compilers
 				}
 
 			private:
-				GENERATE_OPERATORS(FRIEND_DECLARATIONS, ARITHMETIC_OPS)
+				FRIEND_DECLARATIONS
 
 				/*
 							static
