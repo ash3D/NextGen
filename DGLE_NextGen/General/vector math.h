@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		01.10.2016 (c)Alexey Shaydurov
+\date		03.10.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -134,45 +134,47 @@ min/max does not treat 1D swizzles / 1x1 matrices as scalars
 #		define TRIVIAL_CTOR_FORWARD CDataContainerImpl() = default; NONTRIVIAL_CTOR_FORWARD
 #endif
 #		define NONTRIVIAL_CTOR_FORWARD template<typename ...TSrc> CDataContainerImpl(const TSrc &...src) : data(src...) {}
-#		define DATA_CONTAINER_IMPL_SPECIALIZATION(trivialCtor)																							\
-			template<typename ElementType>																												\
-			class CDataContainerImpl<ElementType, ROWS, COLUMNS, trivialCtor> :																			\
-				public conditional_t<ROWS == 0, CSwizzle<ElementType, 0, COLUMNS>, Tag<(ROWS > 1 || COLUMNS > 1 ? TagName::Matrix : TagName::_1x1_)>>	\
-			{																																			\
-			protected:																																	\
-				/*forward ctors/dtor/= to data*/																										\
-				BOOST_PP_REMOVE_PARENS(BOOST_PP_IIF(trivialCtor, (TRIVIAL_CTOR_FORWARD), (NONTRIVIAL_CTOR_FORWARD)))									\
-																																						\
-				CDataContainerImpl(const CDataContainerImpl &src) : data(src.data)																		\
-				{																																		\
-				}																																		\
-																																						\
-				CDataContainerImpl(CDataContainerImpl &&src) : data(move(src.data))																		\
-				{																																		\
-				}																																		\
-																																						\
-				~CDataContainerImpl()																													\
-				{																																		\
-					data.~CData<ElementType, ROWS, COLUMNS>();																							\
-				}																																		\
-																																						\
-				void operator =(const CDataContainerImpl &right)																						\
-				{																																		\
-					data = right.data;																													\
-				}																																		\
-																																						\
-				void operator =(CDataContainerImpl &&right)																								\
-				{																																		\
-					data = move(right.data);																											\
-				}																																		\
-																																						\
-			public:																																		\
-				union																																	\
-				{																																		\
-					CData<ElementType, ROWS, COLUMNS> data;																								\
-					/*gcc does not allow class definition inside anonymous union*/																		\
-					GENERATE_SWIZZLES((SWIZZLE_OBJECT))																									\
-				};																																		\
+#		define DATA_CONTAINER_IMPL_SPECIALIZATION(trivialCtor)															\
+			template<typename ElementType>																				\
+			class CDataContainerImpl<ElementType, ROWS, COLUMNS, trivialCtor> :											\
+				public conditional_t<ROWS == 0, CSwizzle<ElementType, 0, COLUMNS>,										\
+				conditional_t<ROWS == 1, Tag<(COLUMNS > 1 ? TagName::Matrix : TagName::_1x1_)>,							\
+				CMatrixSequencingAssign<ElementType, ROWS, COLUMNS>>>													\
+			{																											\
+			protected:																									\
+				/*forward ctors/dtor/= to data*/																		\
+				BOOST_PP_REMOVE_PARENS(BOOST_PP_IIF(trivialCtor, (TRIVIAL_CTOR_FORWARD), (NONTRIVIAL_CTOR_FORWARD)))	\
+																														\
+				CDataContainerImpl(const CDataContainerImpl &src) : data(src.data)										\
+				{																										\
+				}																										\
+																														\
+				CDataContainerImpl(CDataContainerImpl &&src) : data(move(src.data))										\
+				{																										\
+				}																										\
+																														\
+				~CDataContainerImpl()																					\
+				{																										\
+					data.~CData<ElementType, ROWS, COLUMNS>();															\
+				}																										\
+																														\
+				void operator =(const CDataContainerImpl &right)														\
+				{																										\
+					data = right.data;																					\
+				}																										\
+																														\
+				void operator =(CDataContainerImpl &&right)																\
+				{																										\
+					data = move(right.data);																			\
+				}																										\
+																														\
+			public:																										\
+				union																									\
+				{																										\
+					CData<ElementType, ROWS, COLUMNS> data;																\
+					/*gcc does not allow class definition inside anonymous union*/										\
+					GENERATE_SWIZZLES((SWIZZLE_OBJECT))																	\
+				};																										\
 			};
 		DATA_CONTAINER_IMPL_SPECIALIZATION(0)
 		DATA_CONTAINER_IMPL_SPECIALIZATION(1)
@@ -521,6 +523,9 @@ further investigations needed, including other compilers
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc = CVectorSwizzleDesc<columns>>
 			class CSwizzleCommon;
+
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc = CVectorSwizzleDesc<columns>>
+			class CSwizzleSequencingAssign;
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc = CVectorSwizzleDesc<columns>>
 			class CSwizzleAssign;
@@ -1152,9 +1157,65 @@ further investigations needed, including other compilers
 				static_assert(srcElements <= dimension, "sequencing ctor: too many src elements");
 			}
 
+			template<typename ElementType, unsigned int rows, unsigned int columns>
+			class CMatrixSequencingAssign : public Tag<TagName::Matrix>
+			{
+				typedef matrix<ElementType, rows, columns> Tmatrix;
+				// C++17\
+				static_assert(is_base_of_v<CMatrixSequencingAssign, Tmatrix> && rows > 1);
+
+			protected:
+				CMatrixSequencingAssign() = default;
+				CMatrixSequencingAssign(const CMatrixSequencingAssign &) = default;
+				~CMatrixSequencingAssign() = default;
+
+			private:
+#ifdef __GNUC__
+				operator Tmatrix &() noexcept
+#else
+				operator Tmatrix &() & noexcept
+#endif
+				{
+					/*
+										 static
+											^
+											|
+					CMatrixSequencingAssign -> matrix
+					*/
+					return static_cast<Tmatrix &>(*this);
+				}
+
+			public:
+				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
+#ifdef __GNUC__
+				enable_if_t<(SrcSwizzleDesc::dimension > 1), Tmatrix &> operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
+#else
+				enable_if_t<(SrcSwizzleDesc::dimension > 1), Tmatrix &> operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &;
+#endif
+			};
+
+			template<typename ElementType, unsigned int rows, unsigned int columns>
+			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
+#ifdef __GNUC__
+			inline auto CMatrixSequencingAssign<ElementType, rows, columns>::operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src)
+#else
+			inline auto CMatrixSequencingAssign<ElementType, rows, columns>::operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &
+#endif
+				-> enable_if_t<(SrcSwizzleDesc::dimension > 1), Tmatrix &>
+			{
+				static_assert(rows * columns == SrcSwizzleDesc::dimension, "operator =: unmatched sequencing");
+				for (unsigned rowIdx = 0, flatIdx = 0; rowIdx < srcRows; rowIdx++)
+					for (unsigned columnIdx = 0; columnIdx < srcColumns; columnIdx++, flatIdx++)
+						(*this)[rowIdx][columnIdx] = src[flatIdx];
+				return *this;
+			}
+
 			// generic vector/matrix
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			class CDataContainer : public conditional_t<rows == 0, CSwizzle<ElementType, 0, columns>, Tag<(rows > 1 || columns > 1 ? TagName::Matrix : TagName::_1x1_)>>
+			class CDataContainer :
+				public conditional_t<rows == 0, CSwizzle<ElementType, 0, columns>,
+				conditional_t<rows == 1, Tag<(columns > 1 ? TagName::Matrix : TagName::_1x1_)>,
+				CMatrixSequencingAssign<ElementType, rows, columns>>>
 			{
 			public:
 				CData<ElementType, rows, columns> data;
@@ -1672,13 +1733,51 @@ further investigations needed, including other compilers
 #			undef FRIEND_DECLARATIONS
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			class CSwizzleAssign : public CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>
+			class CSwizzleSequencingAssign : public CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>
 			{
+				// TODO: remove 'public'
+			public:
+				using typename CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>::TOperationResult;
+
+			protected:
+				CSwizzleSequencingAssign() = default;
+				CSwizzleSequencingAssign(const CSwizzleSequencingAssign &) = default;
+				~CSwizzleSequencingAssign() = default;
+
+			public:
+				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
+#ifdef __GNUC__
+				enable_if_t<(srcRows > 1), TOperationResult &> operator =(const matrix<SrcElementType, srcRows, srcColumns> &src);
+#else
+				enable_if_t<(srcRows > 1), TOperationResult &> operator =(const matrix<SrcElementType, srcRows, srcColumns> &src) &;
+#endif
+			};
+
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
+			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
+#ifdef __GNUC__
+			inline auto CSwizzleSequencingAssign<ElementType, rows, columns, SwizzleDesc>::operator =(const matrix<SrcElementType, srcRows, srcColumns> &src)
+#else
+			inline auto CSwizzleSequencingAssign<ElementType, rows, columns, SwizzleDesc>::operator =(const matrix<SrcElementType, srcRows, srcColumns> &src) &
+#endif
+				-> enable_if_t<(srcRows > 1), TOperationResult &>
+			{
+				static_assert(SwizzleDesc::dimension == srcRows * srcColumns, "operator =: unmatched sequencing");
+				for (unsigned rowIdx = 0, flatIdx = 0; rowIdx < srcRows; rowIdx++)
+					for (unsigned columnIdx = 0; columnIdx < srcColumns; columnIdx++, flatIdx++)
+						(*this)[flatIdx] = src[rowIdx][columnIdx];
+				return *this;
+			}
+
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
+			class CSwizzleAssign : public conditional_t<(SwizzleDesc::dimension > 1), CSwizzleSequencingAssign<ElementType, rows, columns, SwizzleDesc>, CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>>
+			{
+				typedef CSwizzleCommon<ElementType, rows, columns, SwizzleDesc> TSwizzleCommon;
 				typedef CSwizzle<ElementType, rows, columns, SwizzleDesc> TSwizzle;
 
 				// TODO: remove 'public'
 			public:
-				using typename CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>::TOperationResult;
+				using typename TSwizzleCommon::TOperationResult;
 
 			protected:
 				CSwizzleAssign() = default;
@@ -1686,6 +1785,8 @@ further investigations needed, including other compilers
 				~CSwizzleAssign() = default;
 
 			public:
+				using conditional_t<(SwizzleDesc::dimension > 1), CSwizzleSequencingAssign<ElementType, rows, columns, SwizzleDesc>, TSwizzleCommon>::operator =;
+
 #ifdef __GNUC__
 				inline TOperationResult &operator =(const CSwizzleAssign &src)
 #else
@@ -2549,6 +2650,148 @@ further investigations needed, including other compilers
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
 #			undef OPERATOR_DEFINITION
 #			pragma endregion
+
+#			pragma region sequencing
+				// matrix op= swizzle
+#				define OPERATOR_DEFINITION(op)																									\
+					template																													\
+					<																															\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,												\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc					\
+					>																															\
+					inline auto operator op##=(																									\
+					matrix<LeftElementType, leftRows, leftColumns> &left,																		\
+					const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)									\
+					-> std::enable_if_t<(leftRows > 1 && RightSwizzleDesc::dimension > 1), decltype(left)>										\
+					{																															\
+						static_assert(leftRows * leftColumns == RightSwizzleDesc::dimension, "operator "#op"=: unmatched sequencing");			\
+						for (unsigned rowIdx = 0, flatIdx = 0; rowIdx < leftRows; rowIdx++)														\
+							for (unsigned columnIdx = 0; columnIdx < leftColumns; columnIdx++, flatIdx++)										\
+								left[rowIdx][columnIdx] op##= right[flatIdx];																	\
+						return left;																											\
+					}
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#				undef OPERATOR_DEFINITION
+
+				// swizzle op= matrix
+#				define OPERATOR_DEFINITION(op)																									\
+					template																													\
+					<																															\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,						\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns											\
+					>																															\
+					inline std::enable_if_t<(LeftSwizzleDesc::dimension > 1 && rightRows > 1),													\
+					typename Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &> operator op##=(		\
+					Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,												\
+					const matrix<RightElementType, rightRows, rightColumns> &right)																\
+					{																															\
+						static_assert(LeftSwizzleDesc::dimension == rightRows * rightColumns, "operator "#op"=: unmatched sequencing");			\
+						for (unsigned rowIdx = 0, flatIdx = 0; rowIdx < rightRows; rowIdx++)													\
+							for (unsigned columnIdx = 0; columnIdx < rightColumns; columnIdx++, flatIdx++)										\
+								left[flatIdx] op##= right[rowIdx][columnIdx];																	\
+						return left;																											\
+					}
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#				undef OPERATOR_DEFINITION
+
+				// matrix op swizzle
+#				define OPERATOR_DEFINITION(op)																									\
+					template																													\
+					<																															\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,												\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc					\
+					>																															\
+					inline std::enable_if_t<(leftRows > 1 && RightSwizzleDesc::dimension > 1),													\
+					matrix																														\
+					<																															\
+						std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>,							\
+						leftRows, leftColumns																									\
+					>> operator op(																												\
+					const matrix<LeftElementType, leftRows, leftColumns> &left,																	\
+					const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)									\
+					{																															\
+						static_assert(leftRows * leftColumns == RightSwizzleDesc::dimension, "operator "#op": unmatched sequencing");			\
+						decltype(left op right) result(left);																					\
+						return result op##= right;																								\
+					}
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#				undef OPERATOR_DEFINITION
+
+				// matrix op swizzle -> bool
+#				define OPERATOR_DEFINITION(op)																									\
+					template																													\
+					<																															\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,												\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc					\
+					>																															\
+					inline std::enable_if_t<(leftRows > 1 && RightSwizzleDesc::dimension > 1),													\
+					matrix																														\
+					<																															\
+						bool,																													\
+						leftRows, leftColumns																									\
+					>> operator op(																												\
+					const matrix<LeftElementType, leftRows, leftColumns> &left,																	\
+					const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)									\
+					{																															\
+						static_assert(leftRows * leftColumns == RightSwizzleDesc::dimension, "operator "#op": unmatched sequencing");			\
+						decltype(left op right) result(left);																					\
+						for (unsigned rowIdx = 0, flatIdx = 0; rowIdx < leftRows; rowIdx++)														\
+							for (unsigned columnIdx = 0; columnIdx < leftColumns; columnIdx++, flatIdx++)										\
+								result[rowIdx][columnIdx] = left[rowIdx][columnIdx] op right[flatIdx];											\
+						return result;																											\
+					}
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
+#				undef OPERATOR_DEFINITION
+
+				// swizzle op matrix
+#				define OPERATOR_DEFINITION(op)																									\
+					template																													\
+					<																															\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,						\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns											\
+					>																															\
+					inline std::enable_if_t<(LeftSwizzleDesc::dimension > 1 && rightRows > 1),													\
+					vector																														\
+					<																															\
+						std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>,							\
+						LeftSwizzleDesc::dimension																								\
+					>> operator op(																												\
+					const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, LeftSwizzleDesc> &left,						\
+					const matrix<RightElementType, rightRows, rightColumns> &right)																\
+					{																															\
+						static_assert(LeftSwizzleDesc::dimension == rightRows * rightColumns, "operator "#op": unmatched sequencing");			\
+						decltype(left op right) result(left);																					\
+						return result op##= right;																								\
+					}
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+#				undef OPERATOR_DEFINITION
+
+				// swizzle op matrix -> bool
+#				define OPERATOR_DEFINITION(op)																									\
+					template																													\
+					<																															\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,						\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns											\
+					>																															\
+					inline std::enable_if_t<(LeftSwizzleDesc::dimension > 1 && rightRows > 1),													\
+					vector																														\
+					<																															\
+						bool,																													\
+						LeftSwizzleDesc::dimension																								\
+					>> operator op(																												\
+					const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,										\
+					const matrix<RightElementType, rightRows, rightColumns> &right)																\
+					{																															\
+						static_assert(LeftSwizzleDesc::dimension == rightRows * rightColumns, "operator "#op": unmatched sequencing");			\
+						decltype(left op right) result(left);																					\
+						for (unsigned rowIdx = 0, flatIdx = 0; rowIdx < rightRows; rowIdx++)													\
+							for (unsigned columnIdx = 0; columnIdx < rightColumns; columnIdx++, flatIdx++)										\
+								result[flatIdx] = left[rowIdx][columnIdx] op right[flatIdx];													\
+						return result;																											\
+					}
+				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
+#				undef OPERATOR_DEFINITION
+#			pragma endregion
 #		pragma endregion
 
 		template<typename ElementType_, unsigned int dimension_>
@@ -2640,6 +2883,17 @@ further investigations needed, including other compilers
 
 			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
 			matrix(const SrcElementType (&src)[srcRows][srcColumns]);
+
+#if defined _MSC_VER && _MSC_VER <= 1900
+		private:
+			typedef std::conditional_t<(rows > 1), Impl::CMatrixSequencingAssign<ElementType, rows, columns>, DataContainer> Assign;
+
+		public:
+			using Assign::operator =;
+#else
+			// ICE on VS 2015
+			using std::conditional_t<(rows > 1), Impl::CMatrixSequencingAssign<ElementType, rows, columns>, DataContainer>::operator =;
+#endif
 
 #ifdef __GNUC__
 			matrix &operator =(const matrix &) = default;
