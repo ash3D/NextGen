@@ -1001,29 +1001,29 @@ further investigations needed, including other compilers
 #endif
 
 			private:	// matrix specific ctors
-				template<size_t ...row, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
-				CData(index_sequence<row...>, const matrix<SrcElementType, srcRows, srcColumns> &src);
+				template<size_t ...rowIdx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
+				CData(index_sequence<rowIdx...>, const matrix<SrcElementType, srcRows, srcColumns> &src);
 
-				template<size_t ...row, typename SrcElementType>
-				CData(index_sequence<row...>, const SrcElementType &scalar);
+				template<size_t ...rowIdx, typename SrcElementType>
+				CData(index_sequence<rowIdx...>, const SrcElementType &scalar);
 
-				template<size_t ...row, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
-				CData(index_sequence<row...>, const SrcElementType (&src)[srcRows][srcColumns]);
+				template<size_t ...rowIdx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
+				CData(index_sequence<rowIdx...>, const SrcElementType (&src)[srcRows][srcColumns]);
 
-				template<size_t ...row, typename First, typename ...Rest>
-				CData(SequencingInitTag<index_sequence<row...>, CheckLength::None>, const First &first, const Rest &...rest);
+				template<size_t ...rowIdx, typename First, typename ...Rest>
+				CData(SequencingInitTag<index_sequence<rowIdx...>, CheckLength::None>, const First &first, const Rest &...rest);
 
-				template<size_t ...row, typename First, typename ...Rest, CheckLength checkLength>
+				template<size_t ...rowIdx, typename First, typename ...Rest, CheckLength checkLength>
 #if defined _MSC_VER && _MSC_VER <= 1900
-				inline CData(SequencingInitTag<index_sequence<row...>, checkLength>, const First &first, const Rest &...rest) :
-					CData(SequencingInitTag<index_sequence<row...>, CheckLength::None>(), first, rest...)
+				inline CData(SequencingInitTag<index_sequence<rowIdx...>, checkLength>, const First &first, const Rest &...rest) :
+					CData(SequencingInitTag<index_sequence<rowIdx...>, CheckLength::None>(), first, rest...)
 				{
 					constexpr auto srcElements = elementsCount<const First &, const Rest &...>;
 					static_assert(srcElements >= rows * columns, "sequencing ctor: too few src elements");
 					static_assert(srcElements <= rows * columns || checkLength != CheckLength::All, "sequencing ctor: too many src elements");
 				}
 #else
-				inline CData(SequencingInitTag<index_sequence<row...>, checkLength>, const First &first, const Rest &...rest);
+				inline CData(SequencingInitTag<index_sequence<rowIdx...>, checkLength>, const First &first, const Rest &...rest);
 #endif
 
 			private:
@@ -1031,38 +1031,38 @@ further investigations needed, including other compilers
 			};
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			template<size_t ...row, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
-			inline CData<ElementType, rows, columns>::CData(index_sequence<row...>, const matrix<SrcElementType, srcRows, srcColumns> &src) :
-				rowsData{ vector<ElementType, columns>(SequencingInitTag<make_index_sequence<columns>, CheckLength::None>(), static_cast<const CSwizzle<SrcElementType, 0, srcColumns> &>(src[row]))... }
+			template<size_t ...rowIdx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
+			inline CData<ElementType, rows, columns>::CData(index_sequence<rowIdx...>, const matrix<SrcElementType, srcRows, srcColumns> &src) :
+				rowsData{ vector<ElementType, columns>(SequencingInitTag<make_index_sequence<columns>, CheckLength::None>(), static_cast<const CSwizzle<SrcElementType, 0, srcColumns> &>(src[rowIdx]))... }
 			{
 				static_assert(rows <= srcRows, "\"copy\" ctor: too few rows in src");
 				static_assert(columns <= srcColumns, "\"copy\" ctor: too few columns in src");
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			template<size_t ...row, typename SrcElementType>
-			inline CData<ElementType, rows, columns>::CData(index_sequence<row...>, const SrcElementType &scalar) :
-				rowsData{ (row, scalar)... } {}
+			template<size_t ...rowIdx, typename SrcElementType>
+			inline CData<ElementType, rows, columns>::CData(index_sequence<rowIdx...>, const SrcElementType &scalar) :
+				rowsData{ (rowIdx, scalar)... } {}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			template<size_t ...row, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
-			inline CData<ElementType, rows, columns>::CData(index_sequence<row...>, const SrcElementType (&src)[srcRows][srcColumns]) :
-				rowsData{ vector<ElementType, columns>(SequencingInitTag<make_index_sequence<columns>, CheckLength::None>(), static_cast<const CSwizzle<SrcElementType, 0, srcColumns> &>(src[row]))... }
+			template<size_t ...rowIdx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
+			inline CData<ElementType, rows, columns>::CData(index_sequence<rowIdx...>, const SrcElementType (&src)[srcRows][srcColumns]) :
+				rowsData{ vector<ElementType, columns>(SequencingInitTag<make_index_sequence<columns>, CheckLength::None>(), static_cast<const CSwizzle<SrcElementType, 0, srcColumns> &>(src[rowIdx]))... }
 			{
 				static_assert(rows <= srcRows, "array ctor: too few rows in src");
 				static_assert(columns <= srcColumns, "array ctor: too few columns in src");
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			template<size_t ...row, typename First, typename ...Rest>
-			inline CData<ElementType, rows, columns>::CData(SequencingInitTag<index_sequence<row...>, CheckLength::None>, const First &first, const Rest &...rest) :
-				rowsData{ vector<ElementType, columns>(SequencingInitTag<make_index_sequence<columns>, CheckLength::None, row * columns>(), first, rest...)... } {}
+			template<size_t ...rowIdx, typename First, typename ...Rest>
+			inline CData<ElementType, rows, columns>::CData(SequencingInitTag<index_sequence<rowIdx...>, CheckLength::None>, const First &first, const Rest &...rest) :
+				rowsData{ vector<ElementType, columns>(SequencingInitTag<make_index_sequence<columns>, CheckLength::None, rowIdx * columns>(), first, rest...)... } {}
 
 #if !(defined _MSC_VER && _MSC_VER <= 1900)
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			template<size_t ...row, typename First, typename ...Rest, typename CData<ElementType, rows, columns>::CheckLength checkLength>
-			inline CData<ElementType, rows, columns>::CData(SequencingInitTag<index_sequence<row...>, checkLength>, const First &first, const Rest &...rest) :
-				CData(SequencingInitTag<index_sequence<row...>, CheckLength::None>(), first, rest...)
+			template<size_t ...rowIdx, typename First, typename ...Rest, typename CData<ElementType, rows, columns>::CheckLength checkLength>
+			inline CData<ElementType, rows, columns>::CData(SequencingInitTag<index_sequence<rowIdx...>, checkLength>, const First &first, const Rest &...rest) :
+				CData(SequencingInitTag<index_sequence<rowIdx...>, CheckLength::None>(), first, rest...)
 			{
 				constexpr auto srcElements = elementsCount<const First &, const Rest &...>;
 				static_assert(srcElements >= rows * columns, "sequencing ctor: too few src elements");
@@ -1856,9 +1856,9 @@ further investigations needed, including other compilers
 			{
 				constexpr static const bool underflow = SwizzleDesc::dimension > srcRows * srcColumns, overflow = SwizzleDesc::dimension < srcRows * srcColumns;
 				static_assert(!(underflow || overflow && SwizzleDesc::dimension > 1), "'vector = matrix': unmatched sequencing");
-				for (unsigned rowIdx = 0, flatIdx = 0; flatIdx < SwizzleDesc::dimension; rowIdx++)
-					for (unsigned columnIdx = 0; flatIdx < SwizzleDesc::dimension; columnIdx++, flatIdx++)
-						(*this)[flatIdx] = src[rowIdx][columnIdx];
+				for (unsigned r = 0, i = 0; i < SwizzleDesc::dimension; r++)
+					for (unsigned c = 0; i < SwizzleDesc::dimension; c++, i++)
+						(*this)[i] = src[r][c];
 				return *this;
 			}
 
@@ -2385,8 +2385,8 @@ further investigations needed, including other compilers
 					{																																	\
 						static_assert(leftRows <= rightRows, "'matrix "#op"= matrix': too few rows in src");											\
 						static_assert(leftColumns <= rightColumns, "'matrix "#op"= matrix': too few columns in src");									\
-						for (unsigned rowIdx = 0; rowIdx < leftRows; rowIdx++)																			\
-							operator op##=<false>(left[rowIdx], right[rowIdx]);																			\
+						for (unsigned r = 0; r < leftRows; r++)																							\
+							operator op##=<false>(left[r], right[r]);																					\
 						return left;																													\
 					}
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
@@ -2626,9 +2626,9 @@ further investigations needed, including other compilers
 							underflow = LeftSwizzleDesc::dimension > rightRows * rightColumns,															\
 							overflow = LeftSwizzleDesc::dimension < rightRows * rightColumns;															\
 						static_assert(!(underflow || overflow && LeftSwizzleDesc::dimension > 1), "'vector "#op"= matrix': unmatched sequencing");		\
-						for (unsigned rowIdx = 0, flatIdx = 0; flatIdx < LeftSwizzleDesc::dimension; rowIdx++)											\
-							for (unsigned columnIdx = 0; flatIdx < LeftSwizzleDesc::dimension; columnIdx++, flatIdx++)									\
-								left[flatIdx] op##= right[rowIdx][columnIdx];																			\
+						for (unsigned r = 0, i = 0; i < LeftSwizzleDesc::dimension; r++)																\
+							for (unsigned c = 0; i < LeftSwizzleDesc::dimension; c++, i++)																\
+								left[i] op##= right[r][c];																								\
 						return left;																													\
 					}
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
@@ -2651,9 +2651,9 @@ further investigations needed, including other compilers
 							underflow = leftDimension > RightSwizzleDesc::dimension,																	\
 							overflow = leftDimension < RightSwizzleDesc::dimension;																		\
 						static_assert(!(underflow || overflow && leftDimension > 1), "'matrix "#op"= vector': unmatched sequencing");					\
-						for (unsigned rowIdx = 0, flatIdx = 0; rowIdx < leftRows; rowIdx++)																\
-							for (unsigned columnIdx = 0; columnIdx < leftColumns; columnIdx++, flatIdx++)												\
-								left[rowIdx][columnIdx] op##= right[flatIdx];																			\
+						for (unsigned r = 0, i = 0; r < leftRows; r++)																					\
+							for (unsigned c = 0; c < leftColumns; c++, i++)																				\
+								left[r][c] op##= right[i];																								\
 						return left;																													\
 					}
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
@@ -2704,9 +2704,9 @@ further investigations needed, including other compilers
 						constexpr static const bool matched = LeftSwizzleDesc::dimension == rightRows * rightColumns;									\
 						static_assert(matched || rightRows == 1 || rightColumns == 1, "'vector "#op" matrix': unmatched sequencing");					\
 						decltype(left op right) result(left);																							\
-						for (unsigned rowIdx = 0, flatIdx = 0; flatIdx < LeftSwizzleDesc::dimension; rowIdx++)											\
-							for (unsigned columnIdx = 0; flatIdx < LeftSwizzleDesc::dimension; columnIdx++, flatIdx++)									\
-								result[flatIdx] = left[rowIdx][columnIdx] op right[flatIdx];															\
+						for (unsigned r = 0, i = 0; i < LeftSwizzleDesc::dimension; r++)																\
+							for (unsigned c = 0; i < LeftSwizzleDesc::dimension; c++, i++)																\
+								result[i] = left[r][c] op right[i];																						\
 						return result;																													\
 					}
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
@@ -2757,9 +2757,9 @@ further investigations needed, including other compilers
 						constexpr static const bool matched = leftRows * leftColumns == RightSwizzleDesc::dimension;									\
 						static_assert(matched || leftRows == 1 || leftColumns == 1, "'matrix "#op" vector': unmatched sequencing");						\
 						decltype(left op right) result(left);																							\
-						for (unsigned rowIdx = 0, flatIdx = 0; rowIdx < leftRows; rowIdx++)																\
-							for (unsigned columnIdx = 0; columnIdx < leftColumns; columnIdx++, flatIdx++)												\
-								result[rowIdx][columnIdx] = left[rowIdx][columnIdx] op right[flatIdx];													\
+						for (unsigned r = 0, i = 0; r < leftRows; r++)																					\
+							for (unsigned c = 0; c < leftColumns; c++, i++)																				\
+								result[r][c] = left[r][c] op right[i];																					\
 						return result;																													\
 					}
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
@@ -2899,8 +2899,8 @@ further investigations needed, including other compilers
 #elif defined _MSC_VER && _MSC_VER <= 1900
 			std::enable_if_t<Impl::IsScalar<SrcType>, matrix &> operator =(const SrcType &scalar) &
 			{
-				for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)
-					operator [](rowIdx) = scalar;
+				for (unsigned r = 0; r < rows; r++)
+					operator [](r) = scalar;
 				return *this;
 			}
 #else
@@ -3191,8 +3191,8 @@ further investigations needed, including other compilers
 			//template<typename TIterator>
 			//inline matrix<ElementType, rows, columns>::matrix(TIterator src)
 			//{
-			//	for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++, src += columns)
-			//		operator [](rowIdx) = src;
+			//	for (unsigned r = 0; r < rows; r++, src += columns)
+			//		operator [](r) = src;
 			//}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
@@ -3216,8 +3216,8 @@ further investigations needed, including other compilers
 			{
 				static_assert(rows <= srcRows, "'matrix = matrix': too few rows in src");
 				static_assert(columns <= srcColumns, "'matrix = matrix': too few columns in src");
-				for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)
-					operator [](rowIdx) = src[rowIdx];
+				for (unsigned r = 0; r < rows; r++)
+					operator [](r) = src[r];
 				return *this;
 			}
 
@@ -3230,8 +3230,8 @@ further investigations needed, including other compilers
 			inline auto matrix<ElementType, rows, columns>::operator =(const SrcType &scalar) & -> std::enable_if_t<Impl::IsScalar<SrcType>, matrix &>
 #endif
 			{
-				for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)
-					operator [](rowIdx) = scalar;
+				for (unsigned r = 0; r < rows; r++)
+					operator [](r) = scalar;
 				return *this;
 			}
 #endif
@@ -3248,9 +3248,9 @@ further investigations needed, including other compilers
 				constexpr static const auto dstDimension = rows * columns;
 				constexpr static const bool underflow = dstDimension > SrcSwizzleDesc::dimension, overflow = dstDimension < SrcSwizzleDesc::dimension;
 				static_assert(!(underflow || overflow && dstDimension > 1), "'matrix = vector': unmatched sequencing");
-				for (unsigned rowIdx = 0, flatIdx = 0; rowIdx < srcRows; rowIdx++)
-					for (unsigned columnIdx = 0; columnIdx < srcColumns; columnIdx++, flatIdx++)
-						(*this)[rowIdx][columnIdx] = src[flatIdx];
+				for (unsigned r = 0, i = 0; r < srcRows; r++)
+					for (unsigned c = 0; c < srcColumns; c++, i++)
+						(*this)[r][c] = src[i];
 				return *this;
 			}
 
@@ -3303,8 +3303,8 @@ further investigations needed, including other compilers
 				-> std::enable_if_t<!WARHazard && !extractScalar/* && Impl::IsScalar<SrcType>*/, matrix &>					\
 				{																											\
 					assert(!TriggerScalarWARHazard(*this, &scalar));														\
-					for (unsigned rowIdx = 0; rowIdx < rows; rowIdx++)														\
-						Impl::ScalarOps::operator op##=<false, false>(operator [](rowIdx), scalar);							\
+					for (unsigned r = 0; r < rows; r++)																		\
+						Impl::ScalarOps::operator op##=<false, false>(operator [](r), scalar);								\
 					return *this;																							\
 				}
 			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
