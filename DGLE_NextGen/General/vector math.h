@@ -1721,23 +1721,23 @@ further investigations needed, including other compilers
 				inline TOperationResult &operator =(const CSwizzleAssign &src) &
 #endif
 				{
-					return operator =<false>(static_cast<const TSwizzle &>(src));
+					return operator =(std::move(static_cast<const TSwizzle &>(src)));
 				}
 
 				// currently public to allow user specify WAR hazard explicitly if needed
 
 				template<bool WARHazard, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
 #ifdef __GNUC__
-				enable_if_t<!WARHazard, TOperationResult &> operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
+				enable_if_t<(!WARHazard && SrcSwizzleDesc::dimension > 1), TOperationResult &> operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
 #else
-				enable_if_t<!WARHazard, TOperationResult &> operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &;
+				enable_if_t<(!WARHazard && SrcSwizzleDesc::dimension > 1), TOperationResult &> operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &;
 #endif
 
 				template<bool WARHazard, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
 #ifdef __GNUC__
-				enable_if_t<WARHazard, TOperationResult &> operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
+				enable_if_t<(WARHazard && SrcSwizzleDesc::dimension > 1), TOperationResult &> operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
 #else
-				enable_if_t<WARHazard, TOperationResult &> operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &;
+				enable_if_t<(WARHazard && SrcSwizzleDesc::dimension > 1), TOperationResult &> operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &;
 #endif
 
 				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
@@ -1805,7 +1805,7 @@ further investigations needed, including other compilers
 #else
 			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &
 #endif
-				-> enable_if_t<!WARHazard, TOperationResult &>
+				-> enable_if_t<(!WARHazard && SrcSwizzleDesc::dimension > 1), TOperationResult &>
 			{
 				static_assert(SwizzleDesc::dimension <= SrcSwizzleDesc::dimension, "'vector = vector': too small src dimension");
 				assert(!TriggerWARHazard<true>(*this, src));
@@ -1821,7 +1821,7 @@ further investigations needed, including other compilers
 #else
 			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &
 #endif
-				-> enable_if_t<WARHazard, TOperationResult &>
+				-> enable_if_t<(WARHazard && SrcSwizzleDesc::dimension > 1), TOperationResult &>
 			{
 				// make copy and call direct assignment
 				return operator =<false>(vector<SrcElementType, SrcSwizzleDesc::dimension>(src));
