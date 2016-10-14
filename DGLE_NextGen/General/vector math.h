@@ -1462,7 +1462,6 @@ further investigations needed, including other compilers
 			class CSwizzleCommon : public CSwizzleBase<ElementType, rows, columns, SwizzleDesc>
 			{
 				typedef CSwizzle<ElementType, rows, columns, SwizzleDesc> TSwizzle;
-				typedef matrix<ElementType, rows, columns> Tmatrix;
 
 			protected:
 				CSwizzleCommon() = default;
@@ -1546,7 +1545,6 @@ further investigations needed, including other compilers
 				typedef TSwizzleTraits<...> TSwizzleTraits;
 				*/
 				typedef CSwizzle<ElementType, 0, vectorDimension, SwizzleDesc> TSwizzle;
-				typedef vector<ElementType, vectorDimension> Tvector;
 
 			protected:
 				CSwizzleCommon() = default;
