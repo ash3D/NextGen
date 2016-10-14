@@ -82,6 +82,8 @@ int main(int argc, _TCHAR *argv[])
 	m5x4 + 2;
 	2 + m5x4;
 	float2x3 M = float4x4(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+	vec3.x = M;
+	vec3.x += M;
 	cout << vec4.x << '\n' << vec5[4] << "\nsizeof vec3 = " << sizeof vec3 << endl;
 
 	vec4 += int4(4);
