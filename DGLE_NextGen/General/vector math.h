@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		14.10.2016 (c)Alexey Shaydurov
+\date		17.10.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -46,6 +46,8 @@ similar to HLSL:
 1D swizzle op 1x1 matrix -> 1D swizle
 1x1 matrix op 1D swizzle -> 1x1 matrix
 min/max does not treat 1D swizzles / 1x1 matrices as scalars
+1xN matrices converted to vectors in some situations if DISABLE_MATRIX_DECAY is non specified to 1
+matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified to 1
 */
 #pragma endregion
 
@@ -576,8 +578,14 @@ further investigations needed, including other compilers
 				return src;
 			}
 
+#if defined _MSC_VER && _MSC_VER <= 1900
+			// workaround for lack of expression SFINAE support in VS 2015 for MatrixOpScalarResult/ScalarOpMatrixResult
+			template<typename ElementType, unsigned int rows, unsigned int columns>
+			inline const ElementType &ExtractScalar(const matrix<ElementType, rows, columns> &src) noexcept
+#else
 			template<typename ElementType>
 			inline const ElementType &ExtractScalar(const matrix<ElementType, 1, 1> &src) noexcept
+#endif
 			{
 				return src;
 			}
@@ -2014,11 +2022,117 @@ further investigations needed, including other compilers
 				~CSwizzleIterator() = default;
 			};
 
-			template<typename ElementType, unsigned int dimension, unsigned int rows, unsigned int columns>
-			using SwizzleOpMatrixResult = conditional_t<dimension <= rows * columns, vector<ElementType, dimension>, matrix<ElementType, rows, columns>>;
+			template<class Src>
+			struct _1xN_2_vec_impl
+			{
+				typedef Src type;
+			};
 
-			template<typename ElementType, unsigned int rows, unsigned int columns, unsigned int dimension>
-			using MatrixOpSwizzleResult = conditional_t<rows * columns <= dimension, matrix<ElementType, rows, columns>, vector<ElementType, dimension>>;
+#if !DISABLE_MATRIX_DECAY
+			template<typename ElementType, unsigned int dimension>
+			struct _1xN_2_vec_impl<matrix<ElementType, 1, dimension>>
+			{
+				typedef vector<ElementType, dimension> type;
+			};
+#endif
+
+			template<class Src>
+			struct vec_2_1xN_impl
+			{
+				typedef Src type;
+			};
+
+			template<typename ElementType, unsigned int dimension>
+			struct vec_2_1xN_impl<vector<ElementType, dimension>>
+			{
+				typedef matrix<ElementType, 1, dimension> type;
+			};
+
+			template<class Src, typename LeftElementType, typename RightElementType, bool force>
+			using _1xN_2_vec = conditional_t<force || !is_same_v<decay_t<LeftElementType>, decay_t<RightElementType>>, typename _1xN_2_vec_impl<Src>::type, Src>;
+
+			template<class Src>
+			using vec_2_1xN = typename vec_2_1xN_impl<Src>::type;
+
+			template
+			<
+				typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,
+				typename RightElementType, unsigned int rightRows, unsigned int rightColumns,
+				typename TargetElementType, bool force_1xN_2_vec
+			>
+			class MatrixOpMatrixResultImpl
+			{
+#if defined _MSC_VER && _MSC_VER <= 1900
+				constexpr static const unsigned int lr = leftRows, lc = leftColumns, rr = rightRows, rc = rightColumns;
+#endif
+				constexpr static const bool dimensionalMismatch =
+#if ENABLE_UNMATCHED_MATRICES
+					false;
+#else
+#if defined _MSC_VER && _MSC_VER <= 1900
+#else
+					!(leftRows <= rightRows && leftColumns <= rightColumns || leftRows >= rightRows && leftColumns >= rightColumns);
+#endif
+					!(lr <= rr && lc <= rc || lr >= rr && lc >= rc);
+#endif
+#if defined _MSC_VER && _MSC_VER <= 1900
+				typedef matrix<TargetElementType, std::min(lr, rr), std::min(lc, rc)> ResultMatrix;
+#else
+				typedef matrix<TargetElementType, std::min(leftRows, rightRows), std::min(leftColumns, rightColumns)> ResultMatrix;
+#endif
+				typedef vector<typename ResultMatrix::ElementType, ResultMatrix::columns> ResultVector;
+				typedef _1xN_2_vec<ResultMatrix, LeftElementType, RightElementType, force_1xN_2_vec> Result;
+				constexpr static const bool vecMatMismatch = is_same_v<_1xN_2_vec<ResultMatrix, LeftElementType, RightElementType, false>, ResultVector> && (leftRows > 1 || rightRows > 1);
+
+			public:
+				typedef conditional_t<dimensionalMismatch, nullptr_t, conditional_t<vecMatMismatch, void, Result>> type;
+			};
+
+			template
+			<
+				typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,
+				typename RightElementType, unsigned int rightRows, unsigned int rightColumns,
+				typename TargetElementType, bool force_1xN_2_vec = false
+			>
+			using MatrixOpMatrixResult = typename MatrixOpMatrixResultImpl<LeftElementType, leftRows, leftColumns, RightElementType, rightRows, rightColumns, TargetElementType, force_1xN_2_vec>::type;
+
+			template
+			<
+				typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,
+				typename RightType,
+				typename TargetElementType, bool force_1xN_2_vec = false
+			>
+			using MatrixOpScalarResult = _1xN_2_vec<matrix<TargetElementType, leftRows, leftColumns>, LeftElementType, decltype(ExtractScalar(declval<RightType>())), force_1xN_2_vec>;
+
+			template
+			<
+				typename LeftType,
+				typename RightElementType, unsigned int rightRows, unsigned int rightColumns,
+				typename TargetElementType, bool force_1xN_2_vec = false
+			>
+			using ScalarOpMatrixResult = conditional_t<rightRows * rightColumns == 1,
+				vector<decay_t<decltype(ExtractScalar(declval<LeftType>()))>, 1>,
+				_1xN_2_vec<matrix<TargetElementType, rightRows, rightColumns>, decltype(ExtractScalar(declval<LeftType>())), RightElementType, force_1xN_2_vec>>;
+
+			template
+			<
+				typename LeftElementType, unsigned int leftDimension,
+				typename RightElementType, unsigned int rightRows, unsigned int rightColumns,
+				typename TargetElementType, bool force_1xN_2_vec = false
+			>
+			using SwizzleOpMatrixResult = conditional_t<leftDimension <= rightRows * rightColumns,
+				vector<TargetElementType, leftDimension>,
+				_1xN_2_vec<matrix<TargetElementType, rightRows, rightColumns>, LeftElementType, RightElementType, force_1xN_2_vec>>;
+
+			template
+			<
+				typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,
+				typename RightElementType, unsigned int rightDimension,
+				typename TargetElementType, bool force_1xN_2_vec = false
+			>
+			using MatrixOpSwizzleResult = conditional_t<leftRows * leftColumns <= rightDimension,
+				_1xN_2_vec<matrix<TargetElementType, leftRows, leftColumns>, LeftElementType, RightElementType, force_1xN_2_vec>,
+				vector<TargetElementType, rightDimension>>;
 		}
 
 #		pragma region generate operators
@@ -2383,6 +2497,12 @@ further investigations needed, including other compilers
 					{																																	\
 						static_assert(leftRows <= rightRows, "'matrix "#op"= matrix': too few rows in src");											\
 						static_assert(leftColumns <= rightColumns, "'matrix "#op"= matrix': too few columns in src");									\
+						constexpr static const bool vecMatMismatch = std::is_void_v<Impl::MatrixOpMatrixResult<											\
+							LeftElementType, leftRows, leftColumns,																						\
+							RightElementType, rightRows, rightColumns,																					\
+							LeftElementType>>;																											\
+						static_assert(!(vecMatMismatch && leftRows == 1), "'matrix1xN -> vectorN "#op"= matrix': cannot convert matrix to vector");		\
+						static_assert(!(vecMatMismatch && rightRows == 1), "'matrix "#op"= matrix1xN -> vectorN': cannot convert matrix to vector");	\
 						for (unsigned r = 0; r < leftRows; r++)																							\
 							operator op##=<false>(left[r], right[r]);																					\
 						return left;																													\
@@ -2474,16 +2594,21 @@ further investigations needed, including other compilers
 						typename RightElementType, unsigned int rightRows, unsigned int rightColumns													\
 					>																																	\
 					inline std::enable_if_t<(leftRows > 1 || leftColumns > 1) == (rightRows > 1 || rightColumns > 1),									\
-					matrix																																\
+					Impl::MatrixOpMatrixResult																											\
 					<																																	\
-						std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>,									\
-						std::min(leftRows, rightRows),																									\
-						std::min(leftColumns, rightColumns)																								\
+						LeftElementType, leftRows, leftColumns,																							\
+						RightElementType, rightRows, rightColumns,																						\
+						std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>										\
 					>> operator op(																														\
 					const matrix<LeftElementType, leftRows, leftColumns> &left,																			\
 					const matrix<RightElementType, rightRows, rightColumns> &right)																		\
 					{																																	\
-						decltype(left op right) result(left);																							\
+						typedef decltype(left op right) Result;																							\
+						constexpr static const bool vecMatMismatch = std::is_void_v<Result>;															\
+						static_assert(!std::is_null_pointer_v<Result>, "'matrix "#op" matrix': mismatched matrix dimensions");							\
+						static_assert(!(vecMatMismatch && leftRows == 1), "'matrix1xN -> vectorN "#op" matrix': cannot convert matrix to vector");		\
+						static_assert(!(vecMatMismatch && rightRows == 1), "'matrix "#op" matrix1xN -> vectorN': cannot convert matrix to vector");		\
+						Result result(left);																											\
 						return result op##= std::move(right);																							\
 					}
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
@@ -2497,17 +2622,22 @@ further investigations needed, including other compilers
 						typename RightElementType, unsigned int rightRows, unsigned int rightColumns													\
 					>																																	\
 					inline std::enable_if_t<(leftRows > 1 || leftColumns > 1) == (rightRows > 1 || rightColumns > 1),									\
-					matrix																																\
+					Impl::MatrixOpMatrixResult																											\
 					<																																	\
-						bool,																															\
-						std::min(leftRows, rightRows),																									\
-						std::min(leftColumns, rightColumns)																								\
+						LeftElementType, leftRows, leftColumns,																							\
+						RightElementType, rightRows, rightColumns,																						\
+						bool, true																														\
 					>> operator op(																														\
 					const matrix<LeftElementType, leftRows, leftColumns> &left,																			\
 					const matrix<RightElementType, rightRows, rightColumns> &right)																		\
 					{																																	\
-						decltype(left op right) result;																									\
-						for (unsigned i = 0; i < decltype(result)::rows; i++)																			\
+						typedef Impl::vec_2_1xN<decltype(left op right)> MatrixResult;																	\
+						constexpr static const bool vecMatMismatch = std::is_void_v<MatrixResult>;														\
+						static_assert(!std::is_null_pointer_v<MatrixResult>, "'matrix "#op" matrix': mismatched matrix dimensions");					\
+						static_assert(!(vecMatMismatch && leftRows == 1), "'matrix1xN -> vectorN "#op" matrix': cannot convert matrix to vector");		\
+						static_assert(!(vecMatMismatch && rightRows == 1), "'matrix "#op" matrix1xN -> vectorN': cannot convert matrix to vector");		\
+						MatrixResult result;																											\
+						for (unsigned i = 0; i < MatrixResult::rows; i++)																				\
 							result[i] = left[i] op right[i];																							\
 						return result;																													\
 					}
@@ -2522,10 +2652,11 @@ further investigations needed, including other compilers
 						typename RightType																												\
 					>																																	\
 					inline std::enable_if_t<(leftRows > 1 || leftColumns > 1 ? Impl::IsScalar<RightType> : Impl::IsPureScalar<RightType>),				\
-					matrix																																\
+					Impl::MatrixOpScalarResult																											\
 					<																																	\
-						std::decay_t<decltype(std::declval<LeftElementType>() op Impl::ExtractScalar(std::declval<RightType>()))>,						\
-						leftRows, leftColumns																											\
+						LeftElementType, leftRows, leftColumns,																							\
+						RightType,																														\
+						std::decay_t<decltype(std::declval<LeftElementType>() op Impl::ExtractScalar(std::declval<RightType>()))>						\
 					>> operator op(																														\
 					const matrix<LeftElementType, leftRows, leftColumns> &left,																			\
 					const RightType &right)																												\
@@ -2544,16 +2675,18 @@ further investigations needed, including other compilers
 						typename RightType																												\
 					>																																	\
 					inline std::enable_if_t<(leftRows > 1 || leftColumns > 1 ? Impl::IsScalar<RightType> : Impl::IsPureScalar<RightType>),				\
-					matrix																																\
+					Impl::MatrixOpScalarResult																											\
 					<																																	\
-						bool,																															\
-						leftRows, leftColumns																											\
+						LeftElementType, leftRows, leftColumns,																							\
+						RightType,																														\
+						bool, true																														\
 					>> operator op(																														\
 					const matrix<LeftElementType, leftRows, leftColumns> &left,																			\
 					const RightType &right)																												\
 					{																																	\
-						decltype(left op right) result;																									\
-						for (unsigned i = 0; i < decltype(result)::rows; i++)																			\
+						typedef Impl::vec_2_1xN<decltype(left op right)> MatrixResult;																	\
+						MatrixResult result;																											\
+						for (unsigned i = 0; i < MatrixResult::rows; i++)																				\
 							result[i] = left[i] op right;																								\
 						return result;																													\
 					}
@@ -2568,10 +2701,11 @@ further investigations needed, including other compilers
 						typename RightElementType, unsigned int rightRows, unsigned int rightColumns													\
 					>																																	\
 					inline std::enable_if_t<(rightRows > 1 || rightColumns > 1 ? Impl::IsScalar<LeftType> : Impl::IsPureScalar<LeftType>),				\
-					matrix																																\
+					Impl::ScalarOpMatrixResult																											\
 					<																																	\
-						std::decay_t<decltype(Impl::ExtractScalar(std::declval<LeftType>()) op std::declval<RightElementType>())>,						\
-						rightRows, rightColumns																											\
+						LeftType,																														\
+						RightElementType, rightRows, rightColumns,																						\
+						std::decay_t<decltype(Impl::ExtractScalar(std::declval<LeftType>()) op std::declval<RightElementType>())>						\
 					>> operator op(																														\
 					const LeftType &left,																												\
 					const matrix<RightElementType, rightRows, rightColumns> &right)																		\
@@ -2590,16 +2724,18 @@ further investigations needed, including other compilers
 						typename RightElementType, unsigned int rightRows, unsigned int rightColumns													\
 					>																																	\
 					inline std::enable_if_t<(rightRows > 1 || rightColumns > 1 ? Impl::IsScalar<LeftType> : Impl::IsPureScalar<LeftType>),				\
-					matrix																																\
+					Impl::ScalarOpMatrixResult																											\
 					<																																	\
-						bool,																															\
-						rightRows, rightColumns																											\
+						LeftType,																														\
+						RightElementType, rightRows, rightColumns,																						\
+						bool, true																														\
 					>> operator op(																														\
 					const LeftType &left,																												\
 					const matrix<RightElementType, rightRows, rightColumns> &right)																		\
 					{																																	\
-						decltype(left op right) result;																									\
-						for (unsigned i = 0; i < decltype(result)::rows; i++)																			\
+						typedef Impl::vec_2_1xN<decltype(left op right)> MatrixResult;																	\
+						MatrixResult result;																											\
+						for (unsigned i = 0; i < MatrixResult::rows; i++)																				\
 							result[i] = left op right[i];																								\
 						return result;																													\
 					}
@@ -2667,9 +2803,9 @@ further investigations needed, including other compilers
 					inline std::enable_if_t<(LeftSwizzleDesc::dimension > 1 == (rightRows > 1 || rightColumns > 1)),									\
 					Impl::SwizzleOpMatrixResult																											\
 					<																																	\
-						std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>,									\
-						LeftSwizzleDesc::dimension,																										\
-						rightRows, rightColumns																											\
+						LeftElementType, LeftSwizzleDesc::dimension,																					\
+						RightElementType, rightRows, rightColumns,																						\
+						std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>										\
 					>> operator op(																														\
 					const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, LeftSwizzleDesc> &left,								\
 					const matrix<RightElementType, rightRows, rightColumns> &right)																		\
@@ -2692,18 +2828,19 @@ further investigations needed, including other compilers
 					inline std::enable_if_t<(LeftSwizzleDesc::dimension > 1 == (rightRows > 1 || rightColumns > 1)),									\
 					Impl::SwizzleOpMatrixResult																											\
 					<																																	\
-						bool,																															\
-						LeftSwizzleDesc::dimension,																										\
-						rightRows, rightColumns																											\
+						LeftElementType, LeftSwizzleDesc::dimension,																					\
+						RightElementType, rightRows, rightColumns,																						\
+						bool, true																														\
 					>> operator op(																														\
 					const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,												\
 					const matrix<RightElementType, rightRows, rightColumns> &right)																		\
 					{																																	\
 						constexpr static const bool matched = LeftSwizzleDesc::dimension == rightRows * rightColumns;									\
 						static_assert(matched || rightRows == 1 || rightColumns == 1, "'vector "#op" matrix': unmatched sequencing");					\
-						decltype(left op right) result(left);																							\
-						for (unsigned r = 0, i = 0; i < LeftSwizzleDesc::dimension; r++)																\
-							for (unsigned c = 0; i < LeftSwizzleDesc::dimension; c++, i++)																\
+						typedef vector<bool, std::min(LeftSwizzleDesc::dimension, rightRows * rightColumns) VectorResult;								\
+						VectorResult result(left);																										\
+						for (unsigned r = 0, i = 0; i < VectorResult::dimension; r++)																	\
+							for (unsigned c = 0; i < VectorResult::dimension; c++, i++)																	\
 								result[i] = left[r][c] op right[i];																						\
 						return result;																													\
 					}
@@ -2720,9 +2857,9 @@ further investigations needed, including other compilers
 					inline std::enable_if_t<((leftRows > 1 || leftColumns > 1) == RightSwizzleDesc::dimension > 1),										\
 					Impl::MatrixOpSwizzleResult																											\
 					<																																	\
-						std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>,									\
-						leftRows, leftColumns,																											\
-						RightSwizzleDesc::dimension																										\
+						LeftElementType, leftRows, leftColumns,																							\
+						RightElementType, RightSwizzleDesc::dimension,																					\
+						std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>										\
 					>> operator op(																														\
 					const matrix<LeftElementType, leftRows, leftColumns> &left,																			\
 					const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)											\
@@ -2745,18 +2882,19 @@ further investigations needed, including other compilers
 					inline std::enable_if_t<((leftRows > 1 || leftColumns > 1) == RightSwizzleDesc::dimension > 1),										\
 					Impl::MatrixOpSwizzleResult																											\
 					<																																	\
-						bool,																															\
-						leftRows, leftColumns,																											\
-						RightSwizzleDesc::dimension																										\
+						LeftElementType, leftRows, leftColumns,																							\
+						RightElementType, RightSwizzleDesc::dimension,																					\
+						bool, true																														\
 					>> operator op(																														\
 					const matrix<LeftElementType, leftRows, leftColumns> &left,																			\
 					const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)											\
 					{																																	\
 						constexpr static const bool matched = leftRows * leftColumns == RightSwizzleDesc::dimension;									\
 						static_assert(matched || leftRows == 1 || leftColumns == 1, "'matrix "#op" vector': unmatched sequencing");						\
-						decltype(left op right) result(left);																							\
-						for (unsigned r = 0, i = 0; r < leftRows; r++)																					\
-							for (unsigned c = 0; c < leftColumns; c++, i++)																				\
+						typedef Impl::vec_2_1xN<decltype(left op right)> MatrixResult;																	\
+						MatrixResult result(left);																										\
+						for (unsigned r = 0, i = 0; r < MatrixResult::rows; r++)																		\
+							for (unsigned c = 0; c < MatrixResult::columns; c++, i++)																	\
 								result[r][c] = left[r][c] op right[i];																					\
 						return result;																													\
 					}
