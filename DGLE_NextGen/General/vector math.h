@@ -1229,23 +1229,20 @@ further investigations needed, including other compilers
 					constexpr CInitListItem(index_sequence<idx...>, const CSwizzle<ItemElementType, itemRows, itemColumns, ItemSwizzleDesc> &item) :
 						itemStore{ static_cast<const ElementType &>(item[idx])... },
 						itemSize(sizeof...(idx))
-					{
-					}
+					{}
 
 					template<size_t ...idx, typename ItemElementType, unsigned int itemRows, unsigned int itemColumns>
 					constexpr CInitListItem(index_sequence<idx...>, const matrix<ItemElementType, itemRows, itemColumns> &item) :
 						item{ static_cast<const ElementType &>(item[idx / itemColumns][idx % itemColumns])... },
 						itemSize(sizeof...(idx))
-					{
-					}
+					{}
 
 				public:
 					template<typename ItemElementType, typename = enable_if_t<IsPureScalar<ItemElementType>>>
 					constexpr CInitListItem(const ItemElementType &item) :
 						itemStore{ static_cast<const ElementType &>(item) },
 						itemSize(1)
-					{
-					}
+					{}
 
 					template<typename ItemElementType, unsigned int itemRows, unsigned int itemColumns, class ItemSwizzleDesc>
 					constexpr CInitListItem(const CSwizzle<ItemElementType, itemRows, itemColumns, ItemSwizzleDesc> &item) :
@@ -1310,8 +1307,7 @@ further investigations needed, including other compilers
 						getItemElement(GetItemElement<ItemElementType>),
 						item(&item),
 						itemSize(1)
-					{
-					}
+					{}
 
 					template<typename ItemElementType, unsigned int itemRows, unsigned int itemColumns, class ItemSwizzleDesc>
 					constexpr CInitListItem(const CSwizzle<ItemElementType, itemRows, itemColumns, ItemSwizzleDesc> &item) :
