@@ -572,8 +572,8 @@ further investigations needed, including other compilers
 				return src;
 			}
 
-			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, typename isWriteMaskValid>
-			inline const ElementType &ExtractScalar(const CSwizzle<ElementType, rows, columns, SwizzleDesc, isWriteMaskValid> &src) noexcept
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
+			inline const ElementType &ExtractScalar(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src) noexcept
 			{
 				return src;
 			}
@@ -3865,8 +3865,8 @@ further investigations needed, including other compilers
 	namespace std
 	{
 		// swizzle -> vector
-		template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, typename isWriteMaskValid>
-		struct decay<Math::VectorMath::Impl::CSwizzle<ElementType, rows, columns, SwizzleDesc, isWriteMaskValid>>
+		template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
+		struct decay<Math::VectorMath::Impl::CSwizzle<ElementType, rows, columns, SwizzleDesc>>
 		{
 			typedef Math::VectorMath::vector<ElementType, SwizzleDesc::dimension> type;
 		};
