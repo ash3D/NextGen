@@ -767,8 +767,8 @@ further investigations needed, including other compilers
 						static inline enable_if_t<bool(dstRows) != bool(srcRows) && rowIdx < std::max(dstRows, srcRows), bool>
 						TriggerWARHazard(CSwizzleCommon<ElementType, dstRows, columns, DstSwizzleDesc> &dst, const CSwizzleCommon<ElementType, srcRows, columns, SrcSwizzleDesc> &src)
 						{
-							return SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign, dstRows ? 0 : rowIdx, srcRows ? 0 : rowIdx>::value
-								&& GetRowAddress<rowIdx>(dst.Data()) == GetRowAddress<rowIdx>(src.Data()) | TriggerWARHazard<assign, rowIdx + 1>(dst, src);
+							return (SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign, dstRows ? 0 : rowIdx, srcRows ? 0 : rowIdx>::value
+								&& GetRowAddress<rowIdx>(dst.Data()) == GetRowAddress<rowIdx>(src.Data())) | TriggerWARHazard<assign, rowIdx + 1>(dst, src);
 						}
 
 						// served both for unmatched swizzles and as terminator for mixed vector/matrix swizzles
