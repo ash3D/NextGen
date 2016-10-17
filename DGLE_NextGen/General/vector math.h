@@ -836,7 +836,7 @@ further investigations needed, including other compilers
 			}
 
 			template<typename ...Args>
-			static constexpr unsigned int elementsCount = decltype(ElementsCountHelpers::ElementsCountHelper(declval<Args>()...))::value;
+			static constexpr unsigned int ElementsCount = decltype(ElementsCountHelpers::ElementsCountHelper(declval<Args>()...))::value;
 #endif
 
 			class CDataCommon
@@ -876,7 +876,7 @@ further investigations needed, including other compilers
 
 			protected:
 				template<typename ...Args>
-				static constexpr unsigned int elementsCount = decltype(ElementsCountHelper(declval<Args>()...))::value;
+				static constexpr unsigned int ElementsCount = decltype(ElementsCountHelper(declval<Args>()...))::value;
 #endif
 
 #if defined _MSC_VER && _MSC_VER <= 1900
@@ -896,7 +896,7 @@ further investigations needed, including other compilers
 				template<unsigned idx, typename First, typename ...Rest>
 				static inline decltype(auto) GetElementImpl(DispatchTag<Dispatch::Skip>, const First &, const Rest &...rest) noexcept
 				{
-					return GetElement<idx - elementsCount<const First &>>(rest...);
+					return GetElement<idx - ElementsCount<const First &>>(rest...);
 				}
 
 				// scalar
@@ -925,9 +925,9 @@ further investigations needed, including other compilers
 				template<unsigned idx, typename First, typename ...Rest>
 				static inline decltype(auto) GetElement(const First &first, const Rest &...rest) noexcept
 				{
-					constexpr auto count = elementsCount<decltype(first)> + elementsCount<decltype(rest)...>;
+					constexpr auto count = ElementsCount<decltype(first)> + ElementsCount<decltype(rest)...>;
 					constexpr auto clampedIdx = idx < count ? idx : count - 1u;
-					return GetElementImpl<clampedIdx>(DispatchTag<clampedIdx < elementsCount<decltype(first)> ? IsPureScalar<First> ? Dispatch::Scalar : Dispatch::Other : Dispatch::Skip>(), first, rest...);
+					return GetElementImpl<clampedIdx>(DispatchTag<clampedIdx < ElementsCount<decltype(first)> ? IsPureScalar<First> ? Dispatch::Scalar : Dispatch::Other : Dispatch::Skip>(), first, rest...);
 				}
 #else
 			private:
@@ -955,7 +955,7 @@ further investigations needed, including other compilers
 				// dispatch
 				template<unsigned idx, typename First, typename ...Rest>
 				static inline auto GetElementFind(const First &first, const Rest &...) noexcept
-					-> enable_if_t<idx < elementsCount<const First &>, decltype(GetElementImpl<idx>(first))>
+					-> enable_if_t<idx < ElementsCount<const First &>, decltype(GetElementImpl<idx>(first))>
 				{
 					return GetElementImpl<idx>(first);
 				}
@@ -963,9 +963,9 @@ further investigations needed, including other compilers
 				// next
 				template<unsigned idx, typename First, typename ...Rest>
 				static inline auto GetElementFind(const First &, const Rest &...rest) noexcept
-					-> enable_if_t<idx >= elementsCount<const First &>, decltype(GetElementFind<idx - elementsCount<const First &>>(rest...))>
+					-> enable_if_t<idx >= ElementsCount<const First &>, decltype(GetElementFind<idx - ElementsCount<const First &>>(rest...))>
 				{
-					return GetElementFind<idx - elementsCount<const First &>>(rest...);
+					return GetElementFind<idx - ElementsCount<const First &>>(rest...);
 				}
 
 			protected:
@@ -973,7 +973,7 @@ further investigations needed, including other compilers
 				template<unsigned idx, typename ...Args>
 				static inline decltype(auto) GetElement(const Args &...args) noexcept
 				{
-					constexpr auto count = elementsCount<const Args &...>;
+					constexpr auto count = ElementsCount<const Args &...>;
 					return GetElementFind<idx < count ? idx : count - 1u>(args...);
 				}
 #endif
@@ -1026,7 +1026,7 @@ further investigations needed, including other compilers
 				inline CData(SequencingInitTag<index_sequence<rowIdx...>, checkLength>, const First &first, const Rest &...rest) :
 					CData(SequencingInitTag<index_sequence<rowIdx...>, CheckLength::None>(), first, rest...)
 				{
-					constexpr auto srcElements = elementsCount<const First &, const Rest &...>;
+					constexpr auto srcElements = ElementsCount<const First &, const Rest &...>;
 					static_assert(srcElements >= rows * columns, "sequencing ctor: too few src elements");
 					static_assert(srcElements <= rows * columns || checkLength != CheckLength::All, "sequencing ctor: too many src elements");
 				}
@@ -1072,7 +1072,7 @@ further investigations needed, including other compilers
 			inline CData<ElementType, rows, columns>::CData(SequencingInitTag<index_sequence<rowIdx...>, checkLength>, const First &first, const Rest &...rest) :
 				CData(SequencingInitTag<index_sequence<rowIdx...>, CheckLength::None>(), first, rest...)
 			{
-				constexpr auto srcElements = elementsCount<const First &, const Rest &...>;
+				constexpr auto srcElements = ElementsCount<const First &, const Rest &...>;
 				static_assert(srcElements >= rows * columns, "sequencing ctor: too few src elements");
 				static_assert(srcElements <= rows * columns || checkLength != CheckLength::All, "sequencing ctor: too many src elements");
 			}
@@ -1128,7 +1128,7 @@ further investigations needed, including other compilers
 				inline CData(SequencingInitTag<index_sequence<idx...>, checkLength>, const First &first, const Rest &...rest) :
 					CData(SequencingInitTag<index_sequence<idx...>, CheckLength::None>(), first, rest...)
 				{
-					constexpr auto srcElements = elementsCount<const First &, const Rest &...>;
+					constexpr auto srcElements = ElementsCount<const First &, const Rest &...>;
 					static_assert(srcElements >= dimension, "sequencing ctor: too few src elements");
 					static_assert(srcElements <= dimension || checkLength != CheckLength::All, "sequencing ctor: too many src elements");
 				}
@@ -1182,7 +1182,7 @@ further investigations needed, including other compilers
 			inline CData<ElementType, 0, dimension>::CData(SequencingInitTag<index_sequence<idx...>, checkLength>, const First &first, const Rest &...rest) :
 				CData(SequencingInitTag<index_sequence<idx...>, CheckLength::None>(), first, rest...)
 			{
-				constexpr auto srcElements = elementsCount<const First &, const Rest &...>;
+				constexpr auto srcElements = ElementsCount<const First &, const Rest &...>;
 				static_assert(srcElements >= dimension, "sequencing ctor: too few src elements");
 				static_assert(srcElements <= dimension || checkLength != CheckLength::All, "sequencing ctor: too many src elements");
 			}
@@ -2637,8 +2637,8 @@ further investigations needed, including other compilers
 						static_assert(!(vecMatMismatch && leftRows == 1), "'matrix1xN -> vectorN "#op" matrix': cannot convert matrix to vector");		\
 						static_assert(!(vecMatMismatch && rightRows == 1), "'matrix "#op" matrix1xN -> vectorN': cannot convert matrix to vector");		\
 						MatrixResult result;																											\
-						for (unsigned i = 0; i < MatrixResult::rows; i++)																				\
-							result[i] = left[i] op right[i];																							\
+						for (unsigned r = 0; r < MatrixResult::rows; r++)																				\
+							result[r] = left[r] op right[r];																							\
 						return result;																													\
 					}
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
@@ -2686,8 +2686,8 @@ further investigations needed, including other compilers
 					{																																	\
 						typedef Impl::vec_2_1xN<decltype(left op right)> MatrixResult;																	\
 						MatrixResult result;																											\
-						for (unsigned i = 0; i < MatrixResult::rows; i++)																				\
-							result[i] = left[i] op right;																								\
+						for (unsigned r = 0; r < MatrixResult::rows; r++)																				\
+							result[r] = left[r] op right;																								\
 						return result;																													\
 					}
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
@@ -2735,8 +2735,8 @@ further investigations needed, including other compilers
 					{																																	\
 						typedef Impl::vec_2_1xN<decltype(left op right)> MatrixResult;																	\
 						MatrixResult result;																											\
-						for (unsigned i = 0; i < MatrixResult::rows; i++)																				\
-							result[i] = left op right[i];																								\
+						for (unsigned r = 0; r < MatrixResult::rows; r++)																				\
+							result[r] = left op right[r];																								\
 						return result;																													\
 					}
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
@@ -3475,8 +3475,8 @@ further investigations needed, including other compilers
 			inline auto matrix<ElementType, rows, columns>::apply(F f) const -> matrix<std::result_of_t<F &(ElementType)>, rows, columns>
 			{
 				matrix<std::result_of_t<F &(ElementType)>, rows, columns> result;
-				for (unsigned i = 0; i < rows; i++)
-					result[i] = (*this)[i].apply(f);
+				for (unsigned r = 0; r < rows; r++)
+					result[r] = (*this)[r].apply(f);
 				return result;
 			}
 #		pragma endregion
@@ -3586,8 +3586,8 @@ further investigations needed, including other compilers
 						matrix<RightElementType, rightRows, rightColumns>													\
 					> TResult;																								\
 					TResult result;																							\
-					for (unsigned i = 0; i < TResult::rows; i++)															\
-						result[i] = VectorMath::f(left[i], right[i]);														\
+					for (unsigned r = 0; r < TResult::rows; r++)															\
+						result[r] = VectorMath::f(left[r], right[r]);														\
 					return result;																							\
 				}
 			FUNCTION_DEFINITION(min)
@@ -3611,8 +3611,8 @@ further investigations needed, including other compilers
 				{																											\
 					typedef decltype(f(left, right)) TResult;																\
 					TResult result;																							\
-					for (unsigned i = 0; i < TResult::rows; i++)															\
-						result[i] = VectorMath::f(left[i], right);															\
+					for (unsigned r = 0; r < TResult::rows; r++)															\
+						result[r] = VectorMath::f(left[r], right);															\
 					return result;																							\
 				}
 			FUNCTION_DEFINITION(min)
@@ -3636,8 +3636,8 @@ further investigations needed, including other compilers
 				{																											\
 					typedef decltype(f(left, right)) TResult;																\
 					TResult result;																							\
-					for (unsigned i = 0; i < TResult::rows; i++)															\
-						result[i] = VectorMath::f(left, right[i]);															\
+					for (unsigned r = 0; r < TResult::rows; r++)															\
+						result[r] = VectorMath::f(left, right[r]);															\
 					return result;																							\
 				}
 			FUNCTION_DEFINITION(min)
