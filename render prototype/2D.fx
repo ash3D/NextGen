@@ -307,6 +307,11 @@ void CS(uint3 id: SV_DispatchThreadID)
 	test[id.x];
 	determinant(m);
 
+	int2x4 src = 42;
+	float1x3 dst = src;
+	dst = src;
+	dst += (int1x4)src;
+
 	((float1x1)0 + (float)0)._11;
 	((float1x1)0 + (int)0).x;
 	((float1x1)0 + (int1x1)0).x;
@@ -321,7 +326,7 @@ void CS(uint3 id: SV_DispatchThreadID)
 	((float3)0 + (float1x3)0).z;
 	((float1x3)0 + (float3)0)._13;
 
-	((float1x3)0 == (float4)0).z;
+	((float1x3)0 == (float4x4)0).z;
 
 	((float4)0 += (int1x3)0).w;
 	((float4)0 += (int1x3)0)._44;
