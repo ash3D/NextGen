@@ -723,7 +723,7 @@ further investigations needed, including other compilers
 							MatrixVsPackedSwizzleWARHazardDetectHelper(const CSwizzle<ElementType, rows, columns, SrcSwizzleDesc> &);
 
 						template<typename ElementType, unsigned int dstRows, unsigned int columns, class SrcSwizzleDesc>
-						static bool_constant<mpl::front<typename SrcSwizzleDesc::CSwizzleVector>::type::value != columns - 1>
+						static bool_constant<(mpl::front<typename SrcSwizzleDesc::CSwizzleVector>::type::value != columns - 1 || dstRows > 1)>
 							MatrixVsPackedSwizzleWARHazardDetectHelper(const CSwizzle<ElementType, 0, columns, SrcSwizzleDesc> &);
 
 						template<typename DstElementType, unsigned int dstRows, unsigned int dstColumns, typename SrcElementType>
