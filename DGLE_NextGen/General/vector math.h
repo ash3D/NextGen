@@ -2326,7 +2326,7 @@ further investigations needed, including other compilers
 					Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,														\
 					const RightType &right)																												\
 					{																																	\
-						return Impl::ScalarOps::operator op##=<false>(left, right);																		\
+						return Impl::ScalarOps::operator op##=<WARHazard>(left, right);																	\
 					}
 				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
 #				undef OPERATOR_DEFINITION
