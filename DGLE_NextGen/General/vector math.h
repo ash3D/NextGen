@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.10.2016 (c)Alexey Shaydurov
+\date		20.10.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1530,8 +1530,8 @@ further investigations needed, including other compilers
 #endif
 				{
 					assert(idx < SwizzleDesc::dimension);
-					idx = SwizzleDesc::packedSwizzle >> idx * 4u & (1u << 4u) - 1u;
-					const auto row = idx >> 2 & 3u, column = idx & 3u;
+					idx = SwizzleDesc::packedSwizzle >> idx * 4u & 0xFu;
+					const auto row = idx >> 2u & 3u, column = idx & 3u;
 					return Data()[row][column];
 				}
 
@@ -1613,7 +1613,7 @@ further investigations needed, including other compilers
 #endif
 				{
 					assert(idx < SwizzleDesc::dimension);
-					idx = SwizzleDesc::packedSwizzle >> idx * 4u & (1u << 4u) - 1u;
+					idx = SwizzleDesc::packedSwizzle >> idx * 4u & 0xFu;
 					return Data()[idx];
 				}
 
