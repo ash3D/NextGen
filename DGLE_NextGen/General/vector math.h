@@ -405,7 +405,35 @@ further investigations needed, including other compilers
 		{
 			namespace mpl = boost::mpl;
 			using namespace mpl::placeholders;
-			using namespace std;
+
+			using std::declval;
+			using std::integer_sequence;
+			using std::index_sequence;
+			using std::make_integer_sequence;
+			using std::make_index_sequence;
+			using std::integral_constant;
+			using std::bool_constant;
+			using std::false_type;
+			using std::true_type;
+			using std::is_union_v;
+			using std::is_class_v;
+			using std::is_arithmetic_v;
+			using std::is_const_v;
+			using std::is_trivially_default_constructible_v;
+			using std::is_same;
+			using std::is_same_v;
+			using std::is_convertible;
+			using std::remove_cv_t;
+			using std::remove_const_t;
+			using std::remove_volatile_t;
+			using std::remove_reference_t;
+			using std::decay_t;
+			using std::enable_if_t;
+			using std::conditional_t;
+			using std::result_of_t;
+			using std::iterator;
+			using std::forward_iterator_tag;
+			using std::initializer_list;
 
 			enum class TagName
 			{
