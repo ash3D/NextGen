@@ -1,22 +1,11 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		20.10.2016 (c)Alexey Shaydurov
+\date		21.10.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
 See "DGLE2.h" for more details.
 */
-
-#pragma region limitations due to lack of C++11 support
-/*
-VS 2013 does not catch errors like vec.xx = vec.xx and does nothing for things like vec.x = vec.x
-
-different versions of CDataContainer now inherited from specialized CSwizzle
-sizeof(vector<float, 3>) in this case is 12 for both gcc and VS2010
-if vector inherited from specialized CSwizzle instead of CDataContainer then sizeof(...) is 12 for gcc and 16 for VS2010
-TODO: try inherit vector from CSwizzle for future versions of VS
-*/
-#pragma endregion
 
 #pragma region design considerations
 /*
@@ -138,9 +127,7 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 #		define NONTRIVIAL_CTOR_FORWARD template<typename ...TSrc> CDataContainerImpl(const TSrc &...src) : data(src...) {}
 #		define DATA_CONTAINER_IMPL_SPECIALIZATION(trivialCtor)															\
 			template<typename ElementType>																				\
-			class CDataContainerImpl<ElementType, ROWS, COLUMNS, trivialCtor> : public conditional_t<ROWS == 0,			\
-				CSwizzle<ElementType, 0, COLUMNS>,																		\
-				Tag<(ROWS > 1 || COLUMNS > 1 ? TagName::Matrix : TagName::Scalar)>>										\
+			class CDataContainerImpl<ElementType, ROWS, COLUMNS, trivialCtor>											\
 			{																											\
 			protected:																									\
 				/*forward ctors/dtor/= to data*/																		\
@@ -313,6 +300,12 @@ further investigations needed, including other compilers
 
 #if !defined INIT_LIST_ITEM_COPY && defined _MSC_VER
 #define INIT_LIST_ITEM_COPY 1
+#endif
+
+#ifdef _MSC_VER
+#	define EBCO __declspec(empty_bases)
+#else
+#	define EBCO
 #endif
 
 #	define INIT_LIST_ITEM_OVERFLOW_MSG "too large item encountered in sequence"
@@ -589,10 +582,10 @@ further investigations needed, including other compilers
 		}
 
 		template<typename ElementType, unsigned int dimension>
-		class vector;
+		class EBCO vector;
 
 		template<typename ElementType, unsigned int rows, unsigned int columns>
-		class matrix;
+		class EBCO matrix;
 
 		template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 		bool all(const Impl::CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
@@ -1239,9 +1232,7 @@ further investigations needed, including other compilers
 
 			// generic vector/matrix
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			class CDataContainer : public conditional_t<rows == 0,
-				CSwizzle<ElementType, 0, columns>,
-				Tag<(rows > 1 || columns > 1 ? TagName::Matrix : TagName::Scalar)>>
+			class CDataContainer
 			{
 			public:
 				CData<ElementType, rows, columns> data;
@@ -1669,8 +1660,13 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int vectorDimension>
 			class CSwizzleCommon<ElementType, 0, vectorDimension, CVectorSwizzleDesc<vectorDimension>> : public CSwizzleBase<ElementType, 0, vectorDimension>
 			{
+				/*
+							static
+							   ^
+							   |
+				CSwizzleCommon -> vector
+				*/
 				typedef vector<ElementType, vectorDimension> Tvector;
-				typedef CDataContainer<ElementType, 0, vectorDimension> DataContainer;
 
 			protected:
 				CSwizzleCommon() = default;
@@ -1692,33 +1688,20 @@ further investigations needed, including other compilers
 				operator Tvector &() & noexcept
 #endif
 				{
-					/*
-								static
-								   ^
-								   |
-					CSwizzleCommon -> vector
-					*/
 					return static_cast<Tvector &>(*this);
 				}
 
 			private:
 				FRIEND_DECLARATIONS
 
-				/*
-							static
-							   ^
-							   |
-				CSwizzleCommon -> CDataContainer
-				*/
-
 				const auto &Data() const noexcept
 				{
-					return static_cast<const DataContainer *>(this)->data.data;
+					return static_cast<const Tvector *>(this)->data.data;
 				}
 
 				auto &Data() noexcept
 				{
-					return static_cast<DataContainer *>(this)->data.data;
+					return static_cast<Tvector *>(this)->data.data;
 				}
 
 			public:
@@ -2986,7 +2969,7 @@ further investigations needed, including other compilers
 #		pragma endregion
 
 		template<typename ElementType_, unsigned int dimension_>
-		class vector : public Impl::CDataContainer<ElementType_, 0, dimension_>
+		class EBCO vector : public Impl::CDataContainer<ElementType_, 0, dimension_>, public Impl::CSwizzle<ElementType_, 0, dimension_>
 		{
 			static_assert(dimension_ > 0, "vector dimension should be positive");
 			static_assert(Impl::IsElementTypeValid<ElementType_>, "invalid vector element type");
@@ -3055,7 +3038,7 @@ further investigations needed, including other compilers
 		};
 
 		template<typename ElementType_, unsigned int rows_, unsigned int columns_>
-		class matrix : public Impl::CDataContainer<ElementType_, rows_, columns_>
+		class EBCO matrix : public Impl::CDataContainer<ElementType_, rows_, columns_>, public Impl::Tag<(rows_ > 1 || columns_ > 1 ? Impl::TagName::Matrix : Impl::TagName::Scalar)>
 		{
 			static_assert(rows_ > 0, "matrix should contain at leat 1 row");
 			static_assert(columns_ > 0, "matrix should contain at leat 1 column");
@@ -4043,6 +4026,8 @@ further investigations needed, including other compilers
 	}
 
 #	undef MSVC_NAMESPACE_WORKAROUND
+
+#	undef EBCO
 
 #	undef INIT_LIST_ITEM_OVERFLOW_MSG
 

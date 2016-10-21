@@ -84,7 +84,7 @@ int main(int argc, _TCHAR *argv[])
 	float2x3 M = float4x4(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
 	vec3.x = M;
 	vec3.x += M;
-	cout << vec4.x << '\n' << vec5[4] << "\nsizeof vec3 = " << sizeof vec3 << endl;
+	cout << vec4.x << '\n' << vec5[4] << "\nsizeof vec3 = " << sizeof vec3 << "\nfloat3 is standard layout: " << std::boolalpha << std::is_standard_layout_v<float3> << endl;
 
 	vec4 += int4(4);
 	vec4 += int4(4).xxxx;
