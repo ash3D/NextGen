@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.10.2016 (c)Alexey Shaydurov
+\date		23.10.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1840,7 +1840,7 @@ further investigations needed, including other compilers
 #endif
 
 			public:
-				using CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>::operator [];
+				using TSwizzleCommon::operator [];
 			};
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
