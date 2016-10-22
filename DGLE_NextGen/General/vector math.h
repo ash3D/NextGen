@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		21.10.2016 (c)Alexey Shaydurov
+\date		22.10.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -430,12 +430,12 @@ further investigations needed, including other compilers
 
 			enum class TagName
 			{
-				Scalar,	// 1D vector / 1x1 matrix
 				Swizzle,
+				Vector,
 				Matrix,
 			};
 
-			template<TagName name>
+			template<TagName name, bool scalar>
 			class Tag
 			{
 			protected:
@@ -450,7 +450,7 @@ further investigations needed, including other compilers
 			};
 
 			template<typename Src, typename Tag>
-			class CheckTag
+			class CheckTagImpl
 			{
 				template<template<typename, typename> class F, typename Var, typename Fixed>
 				using Iterate = bool_constant<F<Var &, Fixed>::value || F<const Var &, Fixed>::value || F<Var &&, Fixed>::value || F<const Var &&, Fixed>::value>;
@@ -462,17 +462,17 @@ further investigations needed, including other compilers
 				static constexpr bool value = Iterate<IterateSrc, Tag, Src>::value;
 			};
 
-			template<typename Src>
-			static constexpr bool IsPackedScalar = CheckTag<Src, Tag<TagName::Scalar>>::value;
+			template<typename Src, TagName name, bool scalar>
+			static constexpr bool CheckTag = CheckTagImpl<Src, Tag<name, scalar>>::value;
+
+			template<typename Src, bool scalar>
+			static constexpr bool CheckScalarTag = CheckTag<Src, TagName::Swizzle, scalar> || CheckTag<Src, TagName::Vector, scalar> || CheckTag<Src, TagName::Matrix, scalar>;
 
 			template<typename Src>
-			static constexpr bool IsSwizzle = CheckTag<Src, Tag<TagName::Swizzle>>::value;
+			static constexpr bool IsPackedScalar = CheckScalarTag<Src, true>;
 
 			template<typename Src>
-			static constexpr bool IsMatrix = CheckTag<Src, Tag<TagName::Matrix>>::value;
-
-			template<typename Src>
-			static constexpr bool IsScalar = !IsSwizzle<Src> && !IsMatrix<Src>;
+			static constexpr bool IsScalar = !CheckScalarTag<Src, false>;
 
 			template<typename Src>
 			static constexpr bool IsPureScalar = IsScalar<Src> && !IsPackedScalar<Src>;
@@ -1394,7 +1394,7 @@ further investigations needed, including other compilers
 		namespace Impl
 		{
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc = CVectorSwizzleDesc<columns>>
-			class CSwizzleBase : public Tag<(SwizzleDesc::dimension > 1 ? TagName::Swizzle : TagName::Scalar)>
+			class CSwizzleBase : public Tag<is_same_v<SwizzleDesc, CVectorSwizzleDesc<columns>> ? TagName::Vector : TagName::Swizzle, SwizzleDesc::dimension == 1>
 			{
 				/*
 						  static
@@ -3038,7 +3038,7 @@ further investigations needed, including other compilers
 		};
 
 		template<typename ElementType_, unsigned int rows_, unsigned int columns_>
-		class EBCO matrix : public Impl::CDataContainer<ElementType_, rows_, columns_>, public Impl::Tag<(rows_ > 1 || columns_ > 1 ? Impl::TagName::Matrix : Impl::TagName::Scalar)>
+		class EBCO matrix : public Impl::CDataContainer<ElementType_, rows_, columns_>, public Impl::Tag<Impl::TagName::Matrix, rows_ == 1 && columns_ == 1>
 		{
 			static_assert(rows_ > 0, "matrix should contain at leat 1 row");
 			static_assert(columns_ > 0, "matrix should contain at leat 1 column");
