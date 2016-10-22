@@ -449,7 +449,7 @@ further investigations needed, including other compilers
 				~Tag() = default;
 			};
 
-			namespace CheckTagImpl
+			namespace CheckTag
 			{
 				template<template<typename, typename> class F, typename Var, typename Fixed>
 				using Iterate = bool_constant<F<Var &, Fixed>::value || F<const Var &, Fixed>::value || F<Var &&, Fixed>::value || F<const Var &&, Fixed>::value>;
@@ -457,21 +457,18 @@ further investigations needed, including other compilers
 				template<typename FixedTag, typename VarSrc>
 				using IterateSrc = Iterate<is_convertible, VarSrc, FixedTag>;
 
-				template<typename Src, typename Tag>
-				static constexpr bool Check = Iterate<IterateSrc, Tag, Src>::value;
+				template<typename Src, TagName name, bool scalar>
+				static constexpr bool Check = Iterate<IterateSrc, Tag<name, scalar>, Src>::value;
+
+				template<typename Src, bool scalar>
+				static constexpr bool CheckScalar = Check<Src, TagName::Swizzle, scalar> || Check<Src, TagName::Vector, scalar> || Check<Src, TagName::Matrix, scalar>;
 			};
 
-			template<typename Src, TagName name, bool scalar>
-			static constexpr bool CheckTag = CheckTagImpl::Check<Src, Tag<name, scalar>>;
-
-			template<typename Src, bool scalar>
-			static constexpr bool CheckScalarTag = CheckTag<Src, TagName::Swizzle, scalar> || CheckTag<Src, TagName::Vector, scalar> || CheckTag<Src, TagName::Matrix, scalar>;
+			template<typename Src>
+			static constexpr bool IsPackedScalar = CheckTag::CheckScalar<Src, true>;
 
 			template<typename Src>
-			static constexpr bool IsPackedScalar = CheckScalarTag<Src, true>;
-
-			template<typename Src>
-			static constexpr bool IsScalar = !CheckScalarTag<Src, false>;
+			static constexpr bool IsScalar = !CheckTag::CheckScalar<Src, false>;
 
 			template<typename Src>
 			static constexpr bool IsPureScalar = IsScalar<Src> && !IsPackedScalar<Src>;
