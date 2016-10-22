@@ -120,11 +120,12 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 				TRANSFORM_SWIZZLE(NAMING_SET_2, swizzle_seq);
 
 #if defined _MSC_VER && _MSC_VER <= 1900
-#		define TRIVIAL_CTOR_FORWARD CDataContainerImpl() = default; template<typename TCurSrc, typename ...TRestSrc> CDataContainerImpl(const TCurSrc &curSrc, const TRestSrc &...restSrc): data(curSrc, restSrc...) {}
+#		define TRIVIAL_CTOR_FORWARD CDataContainerImpl() = default; template<typename First, typename ...Rest> CDataContainerImpl(const First &first, const Rest &...rest): data(first, rest...) {}
 #else
 #		define TRIVIAL_CTOR_FORWARD CDataContainerImpl() = default; NONTRIVIAL_CTOR_FORWARD
 #endif
-#		define NONTRIVIAL_CTOR_FORWARD template<typename ...TSrc> CDataContainerImpl(const TSrc &...src) : data(src...) {}
+#		define NONTRIVIAL_CTOR_FORWARD template<typename ...Args> CDataContainerImpl(const Args &...args) : data(args...) {}
+
 #		define DATA_CONTAINER_IMPL_SPECIALIZATION(trivialCtor)															\
 			template<typename ElementType>																				\
 			class CDataContainerImpl<ElementType, ROWS, COLUMNS, trivialCtor>											\
@@ -160,8 +161,10 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 					GENERATE_SWIZZLES((SWIZZLE_OBJECT))																	\
 				};																										\
 			};
+
 		DATA_CONTAINER_IMPL_SPECIALIZATION(0)
 		DATA_CONTAINER_IMPL_SPECIALIZATION(1)
+
 #		undef TRIVIAL_CTOR_FORWARD
 #		undef NONTRIVIAL_CTOR_FORWARD
 #		undef DATA_CONTAINER_IMPL_SPECIALIZATION
@@ -1056,20 +1059,20 @@ further investigations needed, including other compilers
 				template<size_t ...rowIdx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
 				CData(index_sequence<rowIdx...>, const SrcElementType (&src)[srcRows][srcColumns]);
 
-				template<size_t ...rowIdx, typename First, typename ...Rest>
-				CData(SequencingInitTag<index_sequence<rowIdx...>, CheckLength::None>, const First &first, const Rest &...rest);
+				template<size_t ...rowIdx, typename ...Args>
+				CData(SequencingInitTag<index_sequence<rowIdx...>, CheckLength::None>, const Args &...args);
 
-				template<size_t ...rowIdx, typename First, typename ...Rest, CheckLength checkLength>
+				template<size_t ...rowIdx, typename ...Args, CheckLength checkLength>
 #if defined _MSC_VER && _MSC_VER <= 1900
-				inline CData(SequencingInitTag<index_sequence<rowIdx...>, checkLength>, const First &first, const Rest &...rest) :
-					CData(SequencingInitTag<index_sequence<rowIdx...>, CheckLength::None>(), first, rest...)
+				inline CData(SequencingInitTag<index_sequence<rowIdx...>, checkLength>, const Args &...args) :
+					CData(SequencingInitTag<index_sequence<rowIdx...>, CheckLength::None>(), args...)
 				{
-					constexpr auto srcElements = ElementsCount<const First &, const Rest &...>;
+					constexpr auto srcElements = ElementsCount<const Args &...>;
 					static_assert(srcElements >= rows * columns, "sequencing ctor: too few src elements");
 					static_assert(srcElements <= rows * columns || checkLength != CheckLength::All, "sequencing ctor: too many src elements");
 				}
 #else
-				inline CData(SequencingInitTag<index_sequence<rowIdx...>, checkLength>, const First &first, const Rest &...rest);
+				inline CData(SequencingInitTag<index_sequence<rowIdx...>, checkLength>, const Args &...args);
 #endif
 
 			private:
@@ -1100,17 +1103,17 @@ further investigations needed, including other compilers
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			template<size_t ...rowIdx, typename First, typename ...Rest>
-			inline CData<ElementType, rows, columns>::CData(SequencingInitTag<index_sequence<rowIdx...>, CheckLength::None>, const First &first, const Rest &...rest) :
-				rowsData{ vector<ElementType, columns>(SequencingInitTag<make_index_sequence<columns>, CheckLength::None, rowIdx * columns>(), first, rest...)... } {}
+			template<size_t ...rowIdx, typename ...Args>
+			inline CData<ElementType, rows, columns>::CData(SequencingInitTag<index_sequence<rowIdx...>, CheckLength::None>, const Args &...args) :
+				rowsData{ vector<ElementType, columns>(SequencingInitTag<make_index_sequence<columns>, CheckLength::None, rowIdx * columns>(), args...)... } {}
 
 #if !(defined _MSC_VER && _MSC_VER <= 1900)
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			template<size_t ...rowIdx, typename First, typename ...Rest, typename CData<ElementType, rows, columns>::CheckLength checkLength>
-			inline CData<ElementType, rows, columns>::CData(SequencingInitTag<index_sequence<rowIdx...>, checkLength>, const First &first, const Rest &...rest) :
+			template<size_t ...rowIdx, typename ...Args, typename CData<ElementType, rows, columns>::CheckLength checkLength>
+			inline CData<ElementType, rows, columns>::CData(SequencingInitTag<index_sequence<rowIdx...>, checkLength>, const Args &...args) :
 				CData(SequencingInitTag<index_sequence<rowIdx...>, CheckLength::None>(), first, rest...)
 			{
-				constexpr auto srcElements = ElementsCount<const First &, const Rest &...>;
+				constexpr auto srcElements = ElementsCount<const Args &...>;
 				static_assert(srcElements >= rows * columns, "sequencing ctor: too few src elements");
 				static_assert(srcElements <= rows * columns || checkLength != CheckLength::All, "sequencing ctor: too many src elements");
 			}
@@ -1158,20 +1161,20 @@ further investigations needed, including other compilers
 				template<size_t ...idx, typename SrcElementType, unsigned int srcDimension>
 				inline CData(SequencingInitTag<index_sequence<idx...>, CheckLength::All>, const SrcElementType (&src)[srcDimension]);
 
-				template<size_t ...idx, unsigned offset, typename First, typename ...Rest>
-				CData(SequencingInitTag<index_sequence<idx...>, CheckLength::None, offset>, const First &first, const Rest &...rest);
+				template<size_t ...idx, unsigned offset, typename ...Args>
+				CData(SequencingInitTag<index_sequence<idx...>, CheckLength::None, offset>, const Args &...args);
 
-				template<size_t ...idx, typename First, typename ...Rest, CheckLength checkLength, typename = enable_if_t<checkLength != CheckLength::None>>
+				template<size_t ...idx, typename ...Args, CheckLength checkLength, typename = enable_if_t<checkLength != CheckLength::None>>
 #if defined _MSC_VER && _MSC_VER <= 1900
-				inline CData(SequencingInitTag<index_sequence<idx...>, checkLength>, const First &first, const Rest &...rest) :
-					CData(SequencingInitTag<index_sequence<idx...>, CheckLength::None>(), first, rest...)
+				inline CData(SequencingInitTag<index_sequence<idx...>, checkLength>, const Args &...args) :
+					CData(SequencingInitTag<index_sequence<idx...>, CheckLength::None>(), args...)
 				{
-					constexpr auto srcElements = ElementsCount<const First &, const Rest &...>;
+					constexpr auto srcElements = ElementsCount<const Args &...>;
 					static_assert(srcElements >= dimension, "sequencing ctor: too few src elements");
 					static_assert(srcElements <= dimension || checkLength != CheckLength::All, "sequencing ctor: too many src elements");
 				}
 #else
-				inline CData(SequencingInitTag<index_sequence<idx...>, checkLength>, const First &first, const Rest &...rest);
+				inline CData(SequencingInitTag<index_sequence<idx...>, checkLength>, const Args &...args);
 #endif
 
 			private:
@@ -1210,17 +1213,17 @@ further investigations needed, including other compilers
 			}
 
 			template<typename ElementType, unsigned int dimension>
-			template<size_t ...idx, unsigned offset, typename First, typename ...Rest>
-			inline CData<ElementType, 0, dimension>::CData(SequencingInitTag<index_sequence<idx...>, CheckLength::None, offset>, const First &first, const Rest &...rest) :
-				data{ static_cast<const ElementType &>(GetElement<idx + offset>(first, rest...))... } {}
+			template<size_t ...idx, unsigned offset, typename ...Args>
+			inline CData<ElementType, 0, dimension>::CData(SequencingInitTag<index_sequence<idx...>, CheckLength::None, offset>, const Args &...args) :
+				data{ static_cast<const ElementType &>(GetElement<idx + offset>(args...))... } {}
 
 #if !(defined _MSC_VER && _MSC_VER <= 1900)
 			template<typename ElementType, unsigned int dimension>
-			template<size_t ...idx, typename First, typename ...Rest, typename CData<ElementType, 0, dimension>::CheckLength checkLength, typename = enable_if_t<checkLength != CData<ElementType, 0, dimension>::CheckLength::None>>
-			inline CData<ElementType, 0, dimension>::CData(SequencingInitTag<index_sequence<idx...>, checkLength>, const First &first, const Rest &...rest) :
-				CData(SequencingInitTag<index_sequence<idx...>, CheckLength::None>(), first, rest...)
+			template<size_t ...idx, typename ...Args, typename CData<ElementType, 0, dimension>::CheckLength checkLength, typename = enable_if_t<checkLength != CData<ElementType, 0, dimension>::CheckLength::None>>
+			inline CData<ElementType, 0, dimension>::CData(SequencingInitTag<index_sequence<idx...>, checkLength>, const Args &...args) :
+				CData(SequencingInitTag<index_sequence<idx...>, CheckLength::None>(), args...)
 			{
-				constexpr auto srcElements = ElementsCount<const First &, const Rest &...>;
+				constexpr auto srcElements = ElementsCount<const Args &...>;
 				static_assert(srcElements >= dimension, "sequencing ctor: too few src elements");
 				static_assert(srcElements <= dimension || checkLength != CheckLength::All, "sequencing ctor: too many src elements");
 			}
@@ -1238,9 +1241,9 @@ further investigations needed, including other compilers
 				CDataContainer(const CDataContainer &) = default;
 				CDataContainer(CDataContainer &&) = default;
 #if defined _MSC_VER && _MSC_VER <= 1900
-				template<typename TCurSrc, typename ...TRestSrc> CDataContainer(const TCurSrc &curSrc, const TRestSrc &...restSrc) : data(curSrc, restSrc...) {}
+				template<typename First, typename ...Rest> CDataContainer(const First &first, const Rest &...rest) : data(first, rest...) {}
 #else
-				template<typename ...TSrc> CDataContainer(const TSrc &...src) : data(src...) {}
+				template<typename ...Args> CDataContainer(const Args &...args) : data(args...) {}
 #endif
 #ifdef __GNUC__
 				CDataContainer &operator =(const CDataContainer &) = default;
@@ -3021,13 +3024,8 @@ further investigations needed, including other compilers
 			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
 			vector(typename Data::template SequencingInitTag<IdxSeq, Data::CheckLength::None>, const Impl::CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
 
-#if defined _MSC_VER && _MSC_VER <= 1900
-			template<unsigned offset, typename First, typename ...Rest>
-			vector(typename Data::template SequencingInitTag<IdxSeq, Data::CheckLength::None, offset>, const First &first, const Rest &...rest);
-#else
 			template<unsigned offset, typename ...Args>
 			vector(typename Data::template SequencingInitTag<IdxSeq, Data::CheckLength::None, offset>, const Args &...args);
-#endif
 
 			template<typename SrcElementType, unsigned int srcDimension>
 			vector(typename Data::template SequencingInitTag<IdxSeq, Data::CheckLength::None>, const SrcElementType (&src)[srcDimension]);
@@ -3299,17 +3297,10 @@ further investigations needed, including other compilers
 			inline vector<ElementType, dimension>::vector(typename Data::template SequencingInitTag<IdxSeq, Data::CheckLength::None> tag, const Impl::CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) :
 				DataContainer(tag, src) {}
 
-#if defined _MSC_VER && _MSC_VER <= 1900
-			template<typename ElementType, unsigned int dimension>
-			template<unsigned offset, typename First, typename ...Rest>
-			inline vector<ElementType, dimension>::vector(typename Data::template SequencingInitTag<IdxSeq, Data::CheckLength::None, offset> tag, const First &first, const Rest &...rest) :
-				DataContainer(tag, first, rest...) {}
-#else
 			template<typename ElementType, unsigned int dimension>
 			template<unsigned offset, typename ...Args>
 			inline vector<ElementType, dimension>::vector(typename Data::template SequencingInitTag<IdxSeq, Data::CheckLength::None, offset> tag, const Args &...args) :
 				DataContainer(tag, args...) {}
-#endif
 
 			template<typename ElementType, unsigned int dimension>
 			template<typename SrcElementType, unsigned int srcDimension>
@@ -3386,8 +3377,8 @@ further investigations needed, including other compilers
 				DataContainer(Data::SequencingInitTag<std::make_index_sequence<rows>>(), first, second, rest...) {}
 #else
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			template<typename First, typename ...Args, typename = std::enable_if_t<(sizeof...(Args) > 1)>>
-			inline matrix<ElementType, rows, columns>::matrix(const First &first, const Args &...args) :
+			template<typename ...Args, typename = std::enable_if_t<(sizeof...(Args) > 1)>>
+			inline matrix<ElementType, rows, columns>::matrix(const Args &...args) :
 				DataContainer(Data::SequencingInitTag<std::make_index_sequence<rows>>(), args...) {}
 #endif
 
