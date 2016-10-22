@@ -551,7 +551,7 @@ further investigations needed, including other compilers
 				typedef typename IntSeq2SwizzleVec<make_integer_sequence<unsigned int, dimension>>::type CSwizzleVector;
 			};
 
-			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc = CVectorSwizzleDesc<columns>>
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			class CSwizzleDataAccess;
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc = CVectorSwizzleDesc<columns>, typename isWriteMaskValid = bool_constant<SwizzleDesc::isWriteMaskValid>>
