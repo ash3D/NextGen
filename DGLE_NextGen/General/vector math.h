@@ -2870,7 +2870,7 @@ further investigations needed, including other compilers
 						RightElementType, rightRows, rightColumns,																						\
 						std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>										\
 					>> operator op(																														\
-					const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc, LeftSwizzleDesc> &left,								\
+					const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,												\
 					const matrix<RightElementType, rightRows, rightColumns> &right)																		\
 					{																																	\
 						constexpr static const bool matched = LeftSwizzleDesc::dimension == rightRows * rightColumns;									\
