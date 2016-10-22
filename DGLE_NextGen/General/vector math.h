@@ -449,8 +449,7 @@ further investigations needed, including other compilers
 				~Tag() = default;
 			};
 
-			template<typename Src, typename Tag>
-			class CheckTagImpl
+			namespace CheckTagImpl
 			{
 				template<template<typename, typename> class F, typename Var, typename Fixed>
 				using Iterate = bool_constant<F<Var &, Fixed>::value || F<const Var &, Fixed>::value || F<Var &&, Fixed>::value || F<const Var &&, Fixed>::value>;
@@ -458,12 +457,12 @@ further investigations needed, including other compilers
 				template<typename FixedTag, typename VarSrc>
 				using IterateSrc = Iterate<is_convertible, VarSrc, FixedTag>;
 
-			public:
-				static constexpr bool value = Iterate<IterateSrc, Tag, Src>::value;
+				template<typename Src, typename Tag>
+				static constexpr bool Check = Iterate<IterateSrc, Tag, Src>::value;
 			};
 
 			template<typename Src, TagName name, bool scalar>
-			static constexpr bool CheckTag = CheckTagImpl<Src, Tag<name, scalar>>::value;
+			static constexpr bool CheckTag = CheckTagImpl::Check<Src, Tag<name, scalar>>;
 
 			template<typename Src, bool scalar>
 			static constexpr bool CheckScalarTag = CheckTag<Src, TagName::Swizzle, scalar> || CheckTag<Src, TagName::Vector, scalar> || CheckTag<Src, TagName::Matrix, scalar>;
