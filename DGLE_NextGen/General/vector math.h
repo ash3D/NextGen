@@ -552,7 +552,7 @@ further investigations needed, including other compilers
 			};
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc = CVectorSwizzleDesc<columns>>
-			class CSwizzleCommon;
+			class CSwizzleDataAccess;
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc = CVectorSwizzleDesc<columns>>
 			class CSwizzleAssign;
@@ -777,14 +777,14 @@ further investigations needed, including other compilers
 #					ifndef NDEBUG
 						// vector
 						template<unsigned rowIdx = 0, typename ElementType, unsigned int columns, class SwizzleDesc>
-						static inline const void *GetRowAddress(const CSwizzleCommon<ElementType, 0, columns, SwizzleDesc> &swizzle)
+						static inline const void *GetRowAddress(const CSwizzleDataAccess<ElementType, 0, columns, SwizzleDesc> &swizzle)
 						{
 							return swizzle.Data();
 						}
 
 						// matrix
 						template<unsigned rowIdx = 0, typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-						static inline const void *GetRowAddress(const CSwizzleCommon<ElementType, rows, columns, SwizzleDesc> &swizzle)
+						static inline const void *GetRowAddress(const CSwizzleDataAccess<ElementType, rows, columns, SwizzleDesc> &swizzle)
 						{
 							return swizzle.Data()[rowIdx].Data();
 						}
@@ -794,7 +794,7 @@ further investigations needed, including other compilers
 							bool assign, class DstSwizzleDesc, class SrcSwizzleDesc,
 							typename ElementType, unsigned int rows, unsigned int columns
 						>
-						static inline bool TriggerWARHazard(CSwizzleCommon<ElementType, rows, columns, DstSwizzleDesc> &dst, const CSwizzleCommon<ElementType, rows, columns, SrcSwizzleDesc> &src)
+						static inline bool TriggerWARHazard(CSwizzleDataAccess<ElementType, rows, columns, DstSwizzleDesc> &dst, const CSwizzleDataAccess<ElementType, rows, columns, SrcSwizzleDesc> &src)
 						{
 							return SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign>::value && GetRowAddress(dst) == GetRowAddress(src);
 						}
@@ -806,7 +806,7 @@ further investigations needed, including other compilers
 							typename ElementType, unsigned int dstRows, unsigned int srcRows, unsigned int columns
 						>
 						static inline enable_if_t<bool(dstRows) != bool(srcRows) && rowIdx < std::max(dstRows, srcRows), bool>
-						TriggerWARHazard(CSwizzleCommon<ElementType, dstRows, columns, DstSwizzleDesc> &dst, const CSwizzleCommon<ElementType, srcRows, columns, SrcSwizzleDesc> &src)
+						TriggerWARHazard(CSwizzleDataAccess<ElementType, dstRows, columns, DstSwizzleDesc> &dst, const CSwizzleDataAccess<ElementType, srcRows, columns, SrcSwizzleDesc> &src)
 						{
 							return (SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign, dstRows ? 0 : rowIdx, srcRows ? 0 : rowIdx>::value
 								&& GetRowAddress<rowIdx>(dst) == GetRowAddress<rowIdx>(src)) | TriggerWARHazard<assign, rowIdx + 1>(dst, src);
@@ -819,7 +819,7 @@ further investigations needed, including other compilers
 							typename DstElementType, unsigned int dstRows, unsigned int dstColumns, class DstSwizzleDesc,
 							typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc
 						>
-						static inline bool TriggerWARHazard(CSwizzleCommon<DstElementType, dstRows, dstColumns, DstSwizzleDesc> &, const CSwizzleCommon<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &)
+						static inline bool TriggerWARHazard(CSwizzleDataAccess<DstElementType, dstRows, dstColumns, DstSwizzleDesc> &, const CSwizzleDataAccess<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &)
 						{
 							return false;
 						}
@@ -1030,7 +1030,7 @@ further investigations needed, including other compilers
 				friend bool VectorMath::none<>(const matrix<ElementType, rows, columns> &);
 
 				template<typename, unsigned int, unsigned int, class>
-				friend class CSwizzleCommon;
+				friend class CSwizzleDataAccess;
 
 				friend class CDataContainer<ElementType, rows, columns>;
 				friend class CDataContainerImpl<ElementType, rows, columns, false>;
@@ -1126,7 +1126,7 @@ further investigations needed, including other compilers
 				friend class vector<ElementType, dimension>;
 
 				template<typename, unsigned int, unsigned int, class>
-				friend class CSwizzleCommon;
+				friend class CSwizzleDataAccess;
 
 				friend class CDataContainer<ElementType, 0, dimension>;
 				friend class CDataContainerImpl<ElementType, 0, dimension, false>;
@@ -1492,25 +1492,25 @@ further investigations needed, including other compilers
 #			ifdef NDEBUG
 #				define FRIEND_DECLARATIONS
 #			else
-#				define FRIEND_DECLARATIONS																									\
-					template<unsigned rowIdx = 0, typename ElementType, unsigned int columns, class SwizzleDesc>							\
-					friend static inline const void *GetRowAddress(const CSwizzleCommon<ElementType, 0, columns, SwizzleDesc> &swizzle);	\
-																																			\
-					template<unsigned rowIdx = 0, typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>			\
-					friend static inline const void *GetRowAddress(const CSwizzleCommon<ElementType, rows, columns, SwizzleDesc> &swizzle);
+#				define FRIEND_DECLARATIONS																										\
+					template<unsigned rowIdx = 0, typename ElementType, unsigned int columns, class SwizzleDesc>								\
+					friend static inline const void *GetRowAddress(const CSwizzleDataAccess<ElementType, 0, columns, SwizzleDesc> &swizzle);	\
+																																				\
+					template<unsigned rowIdx = 0, typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>				\
+					friend static inline const void *GetRowAddress(const CSwizzleDataAccess<ElementType, rows, columns, SwizzleDesc> &swizzle);
 #			endif
 
 			// CSwizzle inherits from this to reduce preprocessor generated code for faster compiling
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			class CSwizzleCommon : public CSwizzleBase<ElementType, rows, columns, SwizzleDesc>
+			class CSwizzleDataAccess : public CSwizzleBase<ElementType, rows, columns, SwizzleDesc>
 			{
 				typedef CSwizzle<ElementType, rows, columns, SwizzleDesc> TSwizzle;
 
 			protected:
-				CSwizzleCommon() = default;
-				CSwizzleCommon(const CSwizzleCommon &) = delete;
-				~CSwizzleCommon() = default;
-				CSwizzleCommon &operator =(const CSwizzleCommon &) = delete;
+				CSwizzleDataAccess() = default;
+				CSwizzleDataAccess(const CSwizzleDataAccess &) = delete;
+				~CSwizzleDataAccess() = default;
+				CSwizzleDataAccess &operator =(const CSwizzleDataAccess &) = delete;
 
 			public:
 				typedef TSwizzle TOperationResult;
@@ -1531,10 +1531,10 @@ further investigations needed, including other compilers
 				const auto &Data() const noexcept
 				{
 					/*
-								static	  reinterpret
-								   ^		   ^
-								   |		   |
-					CSwizzleCommon -> CSwizzle -> CData
+									static	  reinterpret
+									   ^		   ^
+									   |		   |
+					CSwizzleDataAccess -> CSwizzle -> CData
 					*/
 					typedef CData<ElementType, rows, columns> CData;
 					return reinterpret_cast<const CData *>(static_cast<const TSwizzle *>(this))->rowsData;
@@ -1566,13 +1566,13 @@ further investigations needed, including other compilers
 				ElementType &operator [](unsigned int idx) & noexcept
 #endif
 				{
-					return const_cast<ElementType &>(static_cast<const CSwizzleCommon &>(*this)[idx]);
+					return const_cast<ElementType &>(static_cast<const CSwizzleDataAccess &>(*this)[idx]);
 				}
 			};
 
 			// specialization for vectors
 			template<typename ElementType, unsigned int vectorDimension, class SwizzleDesc>
-			class CSwizzleCommon<ElementType, 0, vectorDimension, SwizzleDesc> : public CSwizzleBase<ElementType, 0, vectorDimension, SwizzleDesc>
+			class CSwizzleDataAccess<ElementType, 0, vectorDimension, SwizzleDesc> : public CSwizzleBase<ElementType, 0, vectorDimension, SwizzleDesc>
 			{
 				/*
 				?
@@ -1590,10 +1590,10 @@ further investigations needed, including other compilers
 				typedef CSwizzle<ElementType, 0, vectorDimension, SwizzleDesc> TSwizzle;
 
 			protected:
-				CSwizzleCommon() = default;
-				CSwizzleCommon(const CSwizzleCommon &) = delete;
-				~CSwizzleCommon() = default;
-				CSwizzleCommon &operator =(const CSwizzleCommon &) = delete;
+				CSwizzleDataAccess() = default;
+				CSwizzleDataAccess(const CSwizzleDataAccess &) = delete;
+				~CSwizzleDataAccess() = default;
+				CSwizzleDataAccess &operator =(const CSwizzleDataAccess &) = delete;
 
 			public:
 				typedef TSwizzle TOperationResult;
@@ -1614,10 +1614,10 @@ further investigations needed, including other compilers
 				const auto &Data() const noexcept
 				{
 					/*
-								static	  reinterpret
-								   ^		   ^
-								   |		   |
-					CSwizzleCommon -> CSwizzle -> CData
+									static	  reinterpret
+									   ^		   ^
+									   |		   |
+					CSwizzleDataAccess -> CSwizzle -> CData
 					*/
 					typedef CData<ElementType, 0, vectorDimension> CData;
 					return reinterpret_cast<const CData *>(static_cast<const TSwizzle *>(this))->data;
@@ -1648,7 +1648,7 @@ further investigations needed, including other compilers
 				ElementType &operator [](unsigned int idx) & noexcept
 #endif
 				{
-					return const_cast<ElementType &>(static_cast<const CSwizzleCommon &>(*this)[idx]);
+					return const_cast<ElementType &>(static_cast<const CSwizzleDataAccess &>(*this)[idx]);
 				}
 			};
 
@@ -1657,27 +1657,27 @@ further investigations needed, including other compilers
 			TODO: try with newer version
 			*/
 			template<typename ElementType, unsigned int vectorDimension>
-			class CSwizzleCommon<ElementType, 0, vectorDimension, CVectorSwizzleDesc<vectorDimension>> : public CSwizzleBase<ElementType, 0, vectorDimension>
+			class CSwizzleDataAccess<ElementType, 0, vectorDimension, CVectorSwizzleDesc<vectorDimension>> : public CSwizzleBase<ElementType, 0, vectorDimension>
 			{
 				/*
-							static
-							   ^
-							   |
-				CSwizzleCommon -> vector
+								static
+								   ^
+								   |
+				CSwizzleDataAccess -> vector
 				*/
 				typedef vector<ElementType, vectorDimension> Tvector;
 
 			protected:
-				CSwizzleCommon() = default;
-				CSwizzleCommon(const CSwizzleCommon &) = default;
-				~CSwizzleCommon() = default;
+				CSwizzleDataAccess() = default;
+				CSwizzleDataAccess(const CSwizzleDataAccess &) = default;
+				~CSwizzleDataAccess() = default;
 #ifdef __GNUC__
-				CSwizzleCommon &operator =(const CSwizzleCommon &) = default;
+				CSwizzleDataAccess &operator =(const CSwizzleDataAccess &) = default;
 #else
-				CSwizzleCommon &operator =(const CSwizzleCommon &) & = default;
+				CSwizzleDataAccess &operator =(const CSwizzleDataAccess &) & = default;
 #endif
 
-				// TODO: consider adding 'op=' operators to friends and making some stuff below protected/private (and TOperationResult for other CSwizzleCommon above)
+				// TODO: consider adding 'op=' operators to friends and making some stuff below protected/private (and TOperationResult for other CSwizzleDataAccess above)
 			public:
 				typedef Tvector TOperationResult;
 
@@ -1735,9 +1735,9 @@ further investigations needed, including other compilers
 #			undef FRIEND_DECLARATIONS
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			class CSwizzleAssign : public CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>
+			class CSwizzleAssign : public CSwizzleDataAccess<ElementType, rows, columns, SwizzleDesc>
 			{
-				typedef CSwizzleCommon<ElementType, rows, columns, SwizzleDesc> TSwizzleCommon;
+				typedef CSwizzleDataAccess<ElementType, rows, columns, SwizzleDesc> TSwizzleCommon;
 				typedef CSwizzle<ElementType, rows, columns, SwizzleDesc> TSwizzle;
 
 				// TODO: remove 'public'
@@ -1946,7 +1946,7 @@ further investigations needed, including other compilers
 			};
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			class CSwizzle<ElementType, rows, columns, SwizzleDesc, std::false_type> final : public NAMESPACE_PREFIX CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>
+			class CSwizzle<ElementType, rows, columns, SwizzleDesc, std::false_type> final : public NAMESPACE_PREFIX CSwizzleDataAccess<ElementType, rows, columns, SwizzleDesc>
 			{
 				friend class NAMESPACE_PREFIX CDataContainerImpl<ElementType, rows, columns, false>;
 				friend class NAMESPACE_PREFIX CDataContainerImpl<ElementType, rows, columns, true>;
