@@ -1664,6 +1664,18 @@ further investigations needed, including other compilers
 				CSwizzleAssign(const CSwizzleAssign &) = default;
 				~CSwizzleAssign() = default;
 
+#if !(defined _MSC_VER && _MSC_VER <= 1900)
+			public:
+#ifdef __GNUC__
+				operator ElementType &() noexcept
+#else
+				operator ElementType &() & noexcept
+#endif
+				{
+					return (*this)[0];
+				}
+#endif
+
 			public:
 #ifdef __GNUC__
 				inline TOperationResult &operator =(const CSwizzleAssign &src)
@@ -1851,19 +1863,27 @@ further investigations needed, including other compilers
 #endif
 
 			public:
-				operator const ElementType &() const noexcept
+#if defined _MSC_VER && _MSC_VER <= 1900
+				operator const ElementType &() const & noexcept
 				{
 					return (*this)[0];
 				}
 
-#ifdef __GNUC__
-				operator ElementType &() noexcept
-#else
-				operator ElementType &() & noexcept
-#endif
+				operator const ElementType &() const && noexcept
+				{
+					return *this;
+				}
+
+				operator conditional_t<SwizzleDesc::isWriteMaskValid, ElementType, const ElementType> &() & noexcept
 				{
 					return (*this)[0];
 				}
+#else
+				operator const ElementType &() const noexcept
+				{
+					return (*this)[0];
+				}
+#endif
 
 				//operator const ElementType &() noexcept
 				//{
