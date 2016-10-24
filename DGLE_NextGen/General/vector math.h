@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		23.10.2016 (c)Alexey Shaydurov
+\date		24.10.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1096,7 +1096,7 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<size_t ...rowIdx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
 			inline CData<ElementType, rows, columns>::CData(index_sequence<rowIdx...>, const SrcElementType (&src)[srcRows][srcColumns]) :
-				rowsData{ vector<ElementType, columns>(SequencingInitTag<make_index_sequence<columns>, CheckLength::None>(), static_cast<const CSwizzle<SrcElementType, 0, srcColumns> &>(src[rowIdx]))... }
+				rowsData{ vector<ElementType, columns>(SequencingInitTag<make_index_sequence<columns>, CheckLength::None>(), src[rowIdx])... }
 			{
 				static_assert(rows <= srcRows, "array ctor: too few rows in src");
 				static_assert(columns <= srcColumns, "array ctor: too few columns in src");
