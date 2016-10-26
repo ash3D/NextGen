@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		24.10.2016 (c)Alexey Shaydurov
+\date		26.10.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -489,8 +489,14 @@ further investigations needed, including other compilers
 				struct PackSwizzleElement : mpl::shift_left<typename mpl::deref<Iter>::type, typename mpl::times<DistanceFromBegin<CSwizzleVector, Iter>, mpl::integral_c<unsigned short, 4u>::type>> {};
 				typedef mpl::iter_fold<CSwizzleVector, mpl::integral_c<unsigned short, 0u>, mpl::bitor_<_1, PackSwizzleElement<_2>>> PackedSwizzle;
 
-			public:
+			private:
 				static constexpr unsigned short packedSwizzle = PackedSwizzle::type::value;
+
+			public:
+				static constexpr unsigned int FetchIdx(unsigned int idx)
+				{
+					return packedSwizzle >> idx * 4u & 0xFu;
+				}
 			};
 
 			template<class CSwizzleVector_>
@@ -509,7 +515,7 @@ further investigations needed, including other compilers
 			};
 
 			template<unsigned int rows, unsigned int columns>
-			class CSequencingSwizzleDesc
+			class CSequencingSwizzleVector
 			{
 				typedef mpl::range_c<unsigned int, 0, rows * columns> LinearSequence;
 				typedef mpl::integral_c<unsigned int, columns> Columns;
@@ -518,11 +524,11 @@ further investigations needed, including other compilers
 			public:
 				// CSwizzleVector here not actually vector but rather range
 				typedef mpl::transform_view<LinearSequence, Xform> CSwizzleVector;
+			};
 
-			public:
-				static constexpr unsigned short packedSwizzle = CPackedSwizzle<CSwizzleVector>::packedSwizzle;
-
-			public:
+			template<unsigned int rows, unsigned int columns>
+			struct CSequencingSwizzleDesc : CSequencingSwizzleVector<rows, columns>, CPackedSwizzle<typename CSequencingSwizzleVector<rows, columns>::CSwizzleVector>
+			{
 				static constexpr unsigned int dimension = rows * columns;
 				static constexpr bool isWriteMaskValid = true;
 			};
@@ -1372,7 +1378,7 @@ further investigations needed, including other compilers
 #endif
 				{
 					assert(idx < SwizzleDesc::dimension);
-					idx = SwizzleDesc::packedSwizzle >> idx * 4u & 0xFu;
+					idx = SwizzleDesc::FetchIdx(idx);
 					const auto row = idx >> 2u & 3u, column = idx & 3u;
 					return Data()[row][column];
 				}
@@ -1455,7 +1461,7 @@ further investigations needed, including other compilers
 #endif
 				{
 					assert(idx < SwizzleDesc::dimension);
-					idx = SwizzleDesc::packedSwizzle >> idx * 4u & 0xFu;
+					idx = SwizzleDesc::FetchIdx(idx);
 					return Data()[idx];
 				}
 
