@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		26.10.2016 (c)Alexey Shaydurov
+\date		30.10.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -120,73 +120,55 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 				TRANSFORM_SWIZZLE(NAMING_SET_2, swizzle_seq);
 
 #if defined _MSC_VER && _MSC_VER <= 1900
-#		define TRIVIAL_CTOR_FORWARD CDataContainerImpl() = default; template<typename First, typename ...Rest> CDataContainerImpl(const First &first, const Rest &...rest): data(first, rest...) {}
+#		define TRIVIAL_CTOR_FORWARD CDataContainer() = default; template<typename First, typename ...Rest> CDataContainer(const First &first, const Rest &...rest): data(first, rest...) {}
 #else
-#		define TRIVIAL_CTOR_FORWARD CDataContainerImpl() = default; NONTRIVIAL_CTOR_FORWARD
+#		define TRIVIAL_CTOR_FORWARD CDataContainer() = default; NONTRIVIAL_CTOR_FORWARD
 #endif
-#		define NONTRIVIAL_CTOR_FORWARD template<typename ...Args> CDataContainerImpl(const Args &...args) : data(args...) {}
+#		define NONTRIVIAL_CTOR_FORWARD template<typename ...Args> CDataContainer(const Args &...args) : data(args...) {}
 
-#		define DATA_CONTAINER_IMPL_SPECIALIZATION(trivialCtor)															\
-			template<typename ElementType>																				\
-			class CDataContainerImpl<ElementType, ROWS, COLUMNS, trivialCtor>											\
-			{																											\
-			protected:																									\
-				/*forward ctors/dtor/= to data*/																		\
-				BOOST_PP_REMOVE_PARENS(BOOST_PP_IIF(trivialCtor, (TRIVIAL_CTOR_FORWARD), (NONTRIVIAL_CTOR_FORWARD)))	\
-																														\
-				CDataContainerImpl(const CDataContainerImpl &src) : data(src.data) {}									\
-																														\
-				CDataContainerImpl(CDataContainerImpl &&src) : data(move(src.data)) {}									\
-																														\
-				~CDataContainerImpl()																					\
-				{																										\
-					data.~CData<ElementType, ROWS, COLUMNS>();															\
-				}																										\
-																														\
-				void operator =(const CDataContainerImpl &right)														\
-				{																										\
-					data = right.data;																					\
-				}																										\
-																														\
-				void operator =(CDataContainerImpl &&right)																\
-				{																										\
-					data = move(right.data);																			\
-				}																										\
-																														\
-			public:																										\
-				union																									\
-				{																										\
-					CData<ElementType, ROWS, COLUMNS> data;																\
-					/*gcc does not allow class definition inside anonymous union*/										\
-					GENERATE_SWIZZLES((SWIZZLE_OBJECT))																	\
-				};																										\
+		// specialization for graphics vectors/matrices
+#		define DATA_CONTAINER_SPECIALIZATION(trivialCtor)																					\
+			template<typename ElementType>																									\
+			class CDataContainer<ElementType, ROWS, COLUMNS, enable_if_t<is_trivially_default_constructible_v<ElementType> == trivialCtor>>	\
+			{																																\
+			protected:																														\
+				/*forward ctors/dtor/= to data*/																							\
+				BOOST_PP_REMOVE_PARENS(BOOST_PP_IIF(trivialCtor, (TRIVIAL_CTOR_FORWARD), (NONTRIVIAL_CTOR_FORWARD)))						\
+																																			\
+				CDataContainer(const CDataContainer &src) : data(src.data) {}																\
+																																			\
+				CDataContainer(CDataContainer &&src) : data(move(src.data)) {}																\
+																																			\
+				~CDataContainer()																											\
+				{																															\
+					data.~CData<ElementType, ROWS, COLUMNS>();																				\
+				}																															\
+																																			\
+				void operator =(const CDataContainer &src)																					\
+				{																															\
+					data = src.data;																										\
+				}																															\
+																																			\
+				void operator =(CDataContainer &&src)																						\
+				{																															\
+					data = move(src.data);																									\
+				}																															\
+																																			\
+			public:																															\
+				union																														\
+				{																															\
+					CData<ElementType, ROWS, COLUMNS> data;																					\
+					/*gcc does not allow class definition inside anonymous union*/															\
+					GENERATE_SWIZZLES((SWIZZLE_OBJECT))																						\
+				};																															\
 			};
 
-		DATA_CONTAINER_IMPL_SPECIALIZATION(0)
-		DATA_CONTAINER_IMPL_SPECIALIZATION(1)
+		DATA_CONTAINER_SPECIALIZATION(0)
+		DATA_CONTAINER_SPECIALIZATION(1)
 
 #		undef TRIVIAL_CTOR_FORWARD
 #		undef NONTRIVIAL_CTOR_FORWARD
-#		undef DATA_CONTAINER_IMPL_SPECIALIZATION
-
-		// specialization for graphics vectors/matrices
-		template<typename ElementType>
-		class CDataContainer<ElementType, ROWS, COLUMNS> : public CDataContainerImpl<ElementType, ROWS, COLUMNS>
-		{
-		protected:
-			using CDataContainerImpl<ElementType, ROWS, COLUMNS>::CDataContainerImpl;
-			CDataContainer() = default;
-			CDataContainer(const CDataContainer &) = default;
-			CDataContainer(CDataContainer &&) = default;
-			~CDataContainer() = default;
-#ifdef __GNUC__
-			CDataContainer &operator =(const CDataContainer &) = default;
-			CDataContainer &operator =(CDataContainer &&) = default;
-#else
-			CDataContainer &operator =(const CDataContainer &) & = default;
-			CDataContainer &operator =(CDataContainer &&) & = default;
-#endif
-		};
+#		undef DATA_CONTAINER_SPECIALIZATION
 
 #		undef NAMING_SET_1
 #		undef NAMING_SET_2
@@ -579,10 +561,7 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			using CSequencingSwizzle = CSwizzle<ElementType, rows, columns, CSequencingSwizzleDesc<rows, columns>>;
 
-			template<typename ElementType, unsigned int rows, unsigned int columns, bool trivialCtor = is_trivially_default_constructible_v<ElementType>>
-			class CDataContainerImpl;
-
-			template<typename ElementType, unsigned int rows, unsigned int columns>
+			template<typename ElementType, unsigned int rows, unsigned int columns, typename = void>
 			class CDataContainer;
 		}
 
@@ -1040,8 +1019,6 @@ further investigations needed, including other compilers
 				friend class CSwizzleDataAccess;
 
 				friend class CDataContainer<ElementType, rows, columns>;
-				friend class CDataContainerImpl<ElementType, rows, columns, false>;
-				friend class CDataContainerImpl<ElementType, rows, columns, true>;
 
 			private:
 				CData() = default;
@@ -1103,8 +1080,6 @@ further investigations needed, including other compilers
 				friend class CSwizzleDataAccess;
 
 				friend class CDataContainer<ElementType, 0, dimension>;
-				friend class CDataContainerImpl<ElementType, 0, dimension, false>;
-				friend class CDataContainerImpl<ElementType, 0, dimension, true>;
 
 			private:
 				CData() = default;
@@ -1157,9 +1132,12 @@ further investigations needed, including other compilers
 				data{ static_cast<const ElementType &>(GetElement<idx + offset>(args...))... } {}
 
 			// generic vector/matrix
-			template<typename ElementType, unsigned int rows, unsigned int columns>
+			template<typename ElementType, unsigned int rows, unsigned int columns, typename Void>
 			class CDataContainer
 			{
+				// C++17\
+				static_assert(is_same_v<Void, void>);
+
 			public:
 				CData<ElementType, rows, columns> data;
 
@@ -1901,8 +1879,7 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			class CSwizzle final : public NAMESPACE_PREFIX CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>
 			{
-				friend class NAMESPACE_PREFIX CDataContainerImpl<ElementType, rows, columns, false>;
-				friend class NAMESPACE_PREFIX CDataContainerImpl<ElementType, rows, columns, true>;
+				friend class NAMESPACE_PREFIX CDataContainer<ElementType, rows, columns>;
 
 			public:
 #ifdef __GNUC__
