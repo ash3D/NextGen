@@ -15,5 +15,6 @@
 // TODO: reference additional headers your program requires here
 #include <iostream>
 #include <type_traits>
+#define USE_BOOST_PREPROCESSOR 0
 #define DISABLE_MATRIX_SWIZZLES
 #include "vector math.h"

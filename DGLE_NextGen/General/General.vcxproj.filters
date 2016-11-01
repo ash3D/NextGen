@@ -57,6 +57,9 @@
     <ClInclude Include="CompilerCheck.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="vector math generate stuff.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="collision.cpp">

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		30.10.2016 (c)Alexey Shaydurov
+\date		01.11.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -40,7 +40,7 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 */
 #pragma endregion
 
-#if BOOST_PP_IS_ITERATING
+#if USE_BOOST_PREPROCESSOR && BOOST_PP_IS_ITERATING
 #if BOOST_PP_ITERATION_DEPTH() == 1
 #	define ROWS BOOST_PP_FRAME_ITERATION(1)
 #	define COLUMNS BOOST_PP_FRAME_ITERATION(2)
@@ -120,7 +120,7 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 				TRANSFORM_SWIZZLE(NAMING_SET_2, swizzle_seq);
 
 #if defined _MSC_VER && _MSC_VER <= 1900
-#		define TRIVIAL_CTOR_FORWARD CDataContainer() = default; template<typename First, typename ...Rest> CDataContainer(const First &first, const Rest &...rest): data(first, rest...) {}
+#		define TRIVIAL_CTOR_FORWARD CDataContainer() = default; template<typename First, typename ...Rest> CDataContainer(const First &first, const Rest &...rest) : data(first, rest...) {}
 #else
 #		define TRIVIAL_CTOR_FORWARD CDataContainer() = default; NONTRIVIAL_CTOR_FORWARD
 #endif
@@ -263,6 +263,9 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 #	undef SWIZZLE_SEQ_2_VECTOR
 #endif
 #else
+#if !USE_BOOST_PREPROCESSOR
+#	pragma once
+#endif
 #	ifndef __VECTOR_MATH_H__
 #	define __VECTOR_MATH_H__
 
@@ -303,6 +306,8 @@ further investigations needed, including other compilers
 #	include <iterator>
 #	include <algorithm>
 #	include <initializer_list>
+#if USE_BOOST_PREPROCESSOR
+#	include <boost/preprocessor/cat.hpp>
 #	include <boost/preprocessor/facilities/apply.hpp>
 #	include <boost/preprocessor/iteration/iterate.hpp>
 //#	include <boost/preprocessor/repetition/repeat.hpp>
@@ -341,6 +346,7 @@ further investigations needed, including other compilers
 #	include <boost/preprocessor/seq/cat.hpp>
 #	include <boost/preprocessor/seq/to_tuple.hpp>
 #	include <boost/preprocessor/punctuation/remove_parens.hpp>
+#endif
 #	include <boost/mpl/apply.hpp>
 #	include <boost/mpl/placeholders.hpp>
 #	include <boost/mpl/lambda.hpp>
@@ -369,15 +375,35 @@ further investigations needed, including other compilers
 #	include <boost/mpl/find.hpp>
 #	include <boost/mpl/transform_view.hpp>
 
+#if USE_BOOST_PREPROCESSOR
 //#	define GET_SWIZZLE_ELEMENT(vectorDimension, idx, cv) (reinterpret_cast<cv CData<ElementType, vectorDimension> &>(*this).data[(idx)])
 //#	define GET_SWIZZLE_ELEMENT_PACKED(vectorDimension, packedSwizzle, idx, cv) (GET_SWIZZLE_ELEMENT(vectorDimension, packedSwizzle >> ((idx) << 1) & 3u, cv))
+#endif
 
 	namespace Math::VectorMath
 	{
+#if USE_BOOST_PREPROCESSOR
 #		define ARITHMETIC_OPS (+)(-)(*)(/)
 #		define REL_OPS (==)(!=)(<)(<=)(>)(>=)
-#		define GENERATE_OPERATORS_MACRO(r, callback, op) callback(op)
-#		define GENERATE_OPERATORS(callback, ops) BOOST_PP_SEQ_FOR_EACH(GENERATE_OPERATORS_MACRO, callback, ops)
+#		define GENERATE_OPERATOR(r, operatorTemplate, op) operatorTemplate(op)
+#		define GENERATE_OPERATORS(operatorTemplate, ops) BOOST_PP_SEQ_FOR_EACH(GENERATE_OPERATOR, operatorTemplate, ops)
+#		define GENERATE_ARITHMETIC_OPERATORS(operatorTemplate) GENERATE_OPERATORS(operatorTemplate)
+#		define GENERATE_REL_OPERATORS(operatorTemplate) GENERATE_OPERATORS(operatorTemplate)
+#else
+#		define GENERATE_ARITHMETIC_OPERATORS(operatorTemplate)	\
+			operatorTemplate(+)									\
+			operatorTemplate(-)									\
+			operatorTemplate(*)									\
+			operatorTemplate(/)
+
+#		define GENERATE_REL_OPERATORS(operatorTemplate)			\
+			operatorTemplate(==)								\
+			operatorTemplate(!=)								\
+			operatorTemplate(<)									\
+			operatorTemplate(<=)								\
+			operatorTemplate(>)									\
+			operatorTemplate(>=)
+#endif
 
 		namespace Impl
 		{
@@ -1290,10 +1316,308 @@ further investigations needed, including other compilers
 #			pragma endregion TODO: consider to remove it and rely on potentially more efficient variadic template technique for sequencing ctors, or limit its usage for assignment operators only
 		}
 
-		// specializations for graphics vectors/matrices
+#pragma region specializations for graphics vectors/matrices
+#if USE_BOOST_PREPROCESSOR
 #		define BOOST_PP_ITERATION_LIMITS (0, 4)
 #		define BOOST_PP_FILENAME_1 "vector math.h"
 #		include BOOST_PP_ITERATE()
+#else
+#pragma region swizzles generator
+#ifdef _MSC_VER
+#		define CONCAT_IMPL_1(a, b) a ## b
+#		define CONCAT_IMPL_0(a, b) CONCAT_IMPL_1(a, b)
+#		define CONCAT_IMPL(a, b) CONCAT_IMPL_0(a, b)
+#else
+#		define CONCAT_IMPL(a, b) a ## b
+#endif
+#		define CONCAT(a, b) CONCAT_IMPL(a, b)
+#
+#		define LOOKUP_SYMBOL_0_0 x
+#		define LOOKUP_SYMBOL_0_1 y
+#		define LOOKUP_SYMBOL_0_2 z
+#		define LOOKUP_SYMBOL_0_3 w
+#
+#		define LOOKUP_SYMBOL_1_0 r
+#		define LOOKUP_SYMBOL_1_1 g
+#		define LOOKUP_SYMBOL_1_2 b
+#		define LOOKUP_SYMBOL_1_3 a
+#
+#		define LOOKUP_SYMBOL_0_00 _m00
+#		define LOOKUP_SYMBOL_0_01 _m01
+#		define LOOKUP_SYMBOL_0_02 _m02
+#		define LOOKUP_SYMBOL_0_03 _m03
+#		define LOOKUP_SYMBOL_0_10 _m10
+#		define LOOKUP_SYMBOL_0_11 _m11
+#		define LOOKUP_SYMBOL_0_12 _m12
+#		define LOOKUP_SYMBOL_0_13 _m13
+#		define LOOKUP_SYMBOL_0_20 _m20
+#		define LOOKUP_SYMBOL_0_21 _m21
+#		define LOOKUP_SYMBOL_0_22 _m22
+#		define LOOKUP_SYMBOL_0_23 _m23
+#		define LOOKUP_SYMBOL_0_30 _m30
+#		define LOOKUP_SYMBOL_0_31 _m31
+#		define LOOKUP_SYMBOL_0_32 _m32
+#		define LOOKUP_SYMBOL_0_33 _m33
+#
+#		define LOOKUP_SYMBOL_1_00 _11
+#		define LOOKUP_SYMBOL_1_01 _12
+#		define LOOKUP_SYMBOL_1_02 _13
+#		define LOOKUP_SYMBOL_1_03 _14
+#		define LOOKUP_SYMBOL_1_10 _21
+#		define LOOKUP_SYMBOL_1_11 _22
+#		define LOOKUP_SYMBOL_1_12 _23
+#		define LOOKUP_SYMBOL_1_13 _24
+#		define LOOKUP_SYMBOL_1_20 _31
+#		define LOOKUP_SYMBOL_1_21 _32
+#		define LOOKUP_SYMBOL_1_22 _33
+#		define LOOKUP_SYMBOL_1_23 _34
+#		define LOOKUP_SYMBOL_1_30 _41
+#		define LOOKUP_SYMBOL_1_31 _42
+#		define LOOKUP_SYMBOL_1_32 _43
+#		define LOOKUP_SYMBOL_1_33 _44
+#
+#		define LOOKUP_SYMBOL_0(idx, ...) LOOKUP_SYMBOL_0_##idx
+#		define LOOKUP_SYMBOL_1(idx, ...) LOOKUP_SYMBOL_1_##idx
+#if defined _MSC_VER && _MSC_VER <= 1900
+		constexpr unsigned int ExtractSwizzleIdx(unsigned int dec, unsigned int bcd)
+		{
+			return bcd;
+		}
+#		define LOOKUP_SYMBOL_0_ExtractSwizzleIdx(idx, ...) LOOKUP_SYMBOL_0_##idx
+#		define LOOKUP_SYMBOL_1_ExtractSwizzleIdx(idx, ...) LOOKUP_SYMBOL_1_##idx
+#endif
+#
+#		define IDX_SEQ_2_SYMBOLS_1(xform, i0) xform i0
+#		define IDX_SEQ_2_SYMBOLS_2(xform, i0, i1) CONCAT(IDX_SEQ_2_SYMBOLS_1(xform, i0), xform i1)
+#		define IDX_SEQ_2_SYMBOLS_3(xform, i0, i1, i2) CONCAT(IDX_SEQ_2_SYMBOLS_2(xform, i0, i1), xform i2)
+#		define IDX_SEQ_2_SYMBOLS_4(xform, i0, i1, i2, i3) CONCAT(IDX_SEQ_2_SYMBOLS_3(xform, i0, i1, i2), xform i3)
+#ifdef _MSC_VER
+#		define IDX_SEQ_2_SYMBOLS(swizDim, xform, ...) CONCAT(IDX_SEQ_2_SYMBOLS_, swizDim(xform, __VA_ARGS__))
+#else
+#		define IDX_SEQ_2_SYMBOLS(swizDim, xform, ...) IDX_SEQ_2_SYMBOLS_##swizDim(xform, __VA_ARGS__)
+#endif
+#		define GENERATE_SWIZZLE(rows, columns, swizDim, ...)												\
+			CSwizzle<ElementType, rows, columns, CSwizzleDesc<mpl::vector_c<unsigned int, __VA_ARGS__>>>	\
+				IDX_SEQ_2_SYMBOLS(swizDim, LOOKUP_SYMBOL_0, __VA_ARGS__),									\
+				IDX_SEQ_2_SYMBOLS(swizDim, LOOKUP_SYMBOL_1, __VA_ARGS__);
+#
+#		define DEC_2_BIN_
+#		define DEC_2_BIN_0 00
+#		define DEC_2_BIN_1 01
+#		define DEC_2_BIN_2 10
+#		define DEC_2_BIN_3 11
+#if defined _MSC_VER && _MSC_VER <= 1900
+#		define ENCODE_RC_IDX(r, c) (ExtractSwizzleIdx(r ## c, CONCAT(0b, CONCAT(DEC_2_BIN_##r, DEC_2_BIN_##c))))
+#else
+#		define ENCODE_RC_IDX(r, c) (r ## c, CONCAT(0b, CONCAT(DEC_2_BIN_##r, DEC_2_BIN_##c)))
+#endif
+#
+#		define SWIZZLE_4_GENERATE(rows, columns, r0, c0, r1, c1, r2, c2, r3, c4) GENERATE_SWIZZLE(rows, columns, 4, ENCODE_RC_IDX(r0, c0), ENCODE_RC_IDX(r1, c1), ENCODE_RC_IDX(r2, c2), ENCODE_RC_IDX(r3, c4))
+#		define SWIZZLE_3_ITERATE_COLUMN_1(rows, columns, r0, c0, r1, c1, r2, c2, r3) SWIZZLE_4_GENERATE(rows, columns, r0, c0, r1, c1, r2, c2, r3, 0)
+#		define SWIZZLE_3_ITERATE_COLUMN_2(rows, columns, r0, c0, r1, c1, r2, c2, r3) SWIZZLE_3_ITERATE_COLUMN_1(rows, columns, r0, c0, r1, c1, r2, c2, r3) SWIZZLE_4_GENERATE(rows, columns, r0, c0, r1, c1, r2, c2, r3, 1)
+#		define SWIZZLE_3_ITERATE_COLUMN_3(rows, columns, r0, c0, r1, c1, r2, c2, r3) SWIZZLE_3_ITERATE_COLUMN_2(rows, columns, r0, c0, r1, c1, r2, c2, r3) SWIZZLE_4_GENERATE(rows, columns, r0, c0, r1, c1, r2, c2, r3, 2)
+#		define SWIZZLE_3_ITERATE_COLUMN_4(rows, columns, r0, c0, r1, c1, r2, c2, r3) SWIZZLE_3_ITERATE_COLUMN_3(rows, columns, r0, c0, r1, c1, r2, c2, r3) SWIZZLE_4_GENERATE(rows, columns, r0, c0, r1, c1, r2, c2, r3, 3)
+#		define SWIZZLE_3_ITERATE_COLUMNS(rows, columns, r0, c0, r1, c1, r2, c2, r3) SWIZZLE_3_ITERATE_COLUMN_##columns(rows, columns, r0, c0, r1, c1, r2, c2, r3)
+#		define SWIZZLE_3_ITERATE_ROW_0(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_COLUMNS(rows, columns, r0, c0, r1, c1, r2, c2, )
+#		define SWIZZLE_3_ITERATE_ROW_1(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_COLUMNS(rows, columns, r0, c0, r1, c1, r2, c2, 0)
+#		define SWIZZLE_3_ITERATE_ROW_2(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_ROW_1(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_COLUMNS(rows, columns, r0, c0, r1, c1, r2, c2, 1)
+#		define SWIZZLE_3_ITERATE_ROW_3(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_ROW_2(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_COLUMNS(rows, columns, r0, c0, r1, c1, r2, c2, 2)
+#		define SWIZZLE_3_ITERATE_ROW_4(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_ROW_3(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_COLUMNS(rows, columns, r0, c0, r1, c1, r2, c2, 3)
+#		define SWIZZLE_3_SELECTOR_3(rows, columns, r0, c0, r1, c1, r2, c2) GENERATE_SWIZZLE(rows, columns, 3, ENCODE_RC_IDX(r0, c0), ENCODE_RC_IDX(r1, c1), ENCODE_RC_IDX(r2, c2))
+#		define SWIZZLE_3_SELECTOR_4(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_ROW_##rows(rows, columns, r0, c0, r1, c1, r2, c2)
+#		define SWIZZLE_3_SELECTOR(rows, columns, swizDim, r0, c0, r1, c1, r2, c2) SWIZZLE_3_SELECTOR_##swizDim(rows, columns, r0, c0, r1, c1, r2, c2)
+#
+#		define SWIZZLE_2_ITERATE_COLUMN_1(rows, columns, swizDim, r0, c0, r1, c1, r2) SWIZZLE_3_SELECTOR(rows, columns, swizDim, r0, c0, r1, c1, r2, 0)
+#		define SWIZZLE_2_ITERATE_COLUMN_2(rows, columns, swizDim, r0, c0, r1, c1, r2) SWIZZLE_2_ITERATE_COLUMN_1(rows, columns, swizDim, r0, c0, r1, c1, r2) SWIZZLE_3_SELECTOR(rows, columns, swizDim, r0, c0, r1, c1, r2, 1)
+#		define SWIZZLE_2_ITERATE_COLUMN_3(rows, columns, swizDim, r0, c0, r1, c1, r2) SWIZZLE_2_ITERATE_COLUMN_2(rows, columns, swizDim, r0, c0, r1, c1, r2) SWIZZLE_3_SELECTOR(rows, columns, swizDim, r0, c0, r1, c1, r2, 2)
+#		define SWIZZLE_2_ITERATE_COLUMN_4(rows, columns, swizDim, r0, c0, r1, c1, r2) SWIZZLE_2_ITERATE_COLUMN_3(rows, columns, swizDim, r0, c0, r1, c1, r2) SWIZZLE_3_SELECTOR(rows, columns, swizDim, r0, c0, r1, c1, r2, 3)
+#		define SWIZZLE_2_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, r1, c1, r2) SWIZZLE_2_ITERATE_COLUMN_##columns(rows, columns, swizDim, r0, c0, r1, c1, r2)
+#		define SWIZZLE_2_ITERATE_ROW_0(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, r1, c1, )
+#		define SWIZZLE_2_ITERATE_ROW_1(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, r1, c1, 0)
+#		define SWIZZLE_2_ITERATE_ROW_2(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_ITERATE_ROW_1(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, r1, c1, 1)
+#		define SWIZZLE_2_ITERATE_ROW_3(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_ITERATE_ROW_2(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, r1, c1, 2)
+#		define SWIZZLE_2_ITERATE_ROW_4(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_ITERATE_ROW_3(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, r1, c1, 3)
+#		define SWIZZLE_2_SELECTOR_2(rows, columns, r0, c0, r1, c1) GENERATE_SWIZZLE(rows, columns, 2, ENCODE_RC_IDX(r0, c0), ENCODE_RC_IDX(r1, c1))
+#		define SWIZZLE_2_SELECTOR_3(rows, columns, r0, c0, r1, c1) SWIZZLE_2_ITERATE_ROW_##rows(rows, columns, 3, r0, c0, r1, c1)
+#		define SWIZZLE_2_SELECTOR_4(rows, columns, r0, c0, r1, c1) SWIZZLE_2_ITERATE_ROW_##rows(rows, columns, 4, r0, c0, r1, c1)
+#		define SWIZZLE_2_SELECTOR(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_SELECTOR_##swizDim(rows, columns, r0, c0, r1, c1)
+#
+#		define SWIZZLE_1_ITERATE_COLUMN_1(rows, columns, swizDim, r0, c0, r1) SWIZZLE_2_SELECTOR(rows, columns, swizDim, r0, c0, r1, 0)
+#		define SWIZZLE_1_ITERATE_COLUMN_2(rows, columns, swizDim, r0, c0, r1) SWIZZLE_1_ITERATE_COLUMN_1(rows, columns, swizDim, r0, c0, r1) SWIZZLE_2_SELECTOR(rows, columns, swizDim, r0, c0, r1, 1)
+#		define SWIZZLE_1_ITERATE_COLUMN_3(rows, columns, swizDim, r0, c0, r1) SWIZZLE_1_ITERATE_COLUMN_2(rows, columns, swizDim, r0, c0, r1) SWIZZLE_2_SELECTOR(rows, columns, swizDim, r0, c0, r1, 2)
+#		define SWIZZLE_1_ITERATE_COLUMN_4(rows, columns, swizDim, r0, c0, r1) SWIZZLE_1_ITERATE_COLUMN_3(rows, columns, swizDim, r0, c0, r1) SWIZZLE_2_SELECTOR(rows, columns, swizDim, r0, c0, r1, 3)
+#		define SWIZZLE_1_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, r1) SWIZZLE_1_ITERATE_COLUMN_##columns(rows, columns, swizDim, r0, c0, r1)
+#		define SWIZZLE_1_ITERATE_ROW_0(rows, columns, swizDim, r0, c0) SWIZZLE_1_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, )
+#		define SWIZZLE_1_ITERATE_ROW_1(rows, columns, swizDim, r0, c0) SWIZZLE_1_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, 0)
+#		define SWIZZLE_1_ITERATE_ROW_2(rows, columns, swizDim, r0, c0) SWIZZLE_1_ITERATE_ROW_1(rows, columns, swizDim, r0, c0) SWIZZLE_1_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, 1)
+#		define SWIZZLE_1_ITERATE_ROW_3(rows, columns, swizDim, r0, c0) SWIZZLE_1_ITERATE_ROW_2(rows, columns, swizDim, r0, c0) SWIZZLE_1_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, 2)
+#		define SWIZZLE_1_ITERATE_ROW_4(rows, columns, swizDim, r0, c0) SWIZZLE_1_ITERATE_ROW_3(rows, columns, swizDim, r0, c0) SWIZZLE_1_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, 3)
+#		define SWIZZLE_1_SELECTOR_1(rows, columns, r0, c0) GENERATE_SWIZZLE(rows, columns, 1, ENCODE_RC_IDX(r0, c0))
+#		define SWIZZLE_1_SELECTOR_2(rows, columns, r0, c0) SWIZZLE_1_ITERATE_ROW_##rows(rows, columns, 2, r0, c0)
+#		define SWIZZLE_1_SELECTOR_3(rows, columns, r0, c0) SWIZZLE_1_ITERATE_ROW_##rows(rows, columns, 3, r0, c0)
+#		define SWIZZLE_1_SELECTOR_4(rows, columns, r0, c0) SWIZZLE_1_ITERATE_ROW_##rows(rows, columns, 4, r0, c0)
+#		define SWIZZLE_1_SELECTOR(rows, columns, swizDim, r0, c0) SWIZZLE_1_SELECTOR_##swizDim(rows, columns, r0, c0)
+#
+#		define SWIZZLE_0_ITERATE_COLUMN_1(rows, columns, swizDim, r0) SWIZZLE_1_SELECTOR(rows, columns, swizDim, r0, 0)
+#		define SWIZZLE_0_ITERATE_COLUMN_2(rows, columns, swizDim, r0) SWIZZLE_0_ITERATE_COLUMN_1(rows, columns, swizDim, r0) SWIZZLE_1_SELECTOR(rows, columns, swizDim, r0, 1)
+#		define SWIZZLE_0_ITERATE_COLUMN_3(rows, columns, swizDim, r0) SWIZZLE_0_ITERATE_COLUMN_2(rows, columns, swizDim, r0) SWIZZLE_1_SELECTOR(rows, columns, swizDim, r0, 2)
+#		define SWIZZLE_0_ITERATE_COLUMN_4(rows, columns, swizDim, r0) SWIZZLE_0_ITERATE_COLUMN_3(rows, columns, swizDim, r0) SWIZZLE_1_SELECTOR(rows, columns, swizDim, r0, 3)
+#		define SWIZZLE_0_ITERATE_COLUMNS(rows, columns, swizDim, r0) SWIZZLE_0_ITERATE_COLUMN_##columns(rows, columns, swizDim, r0)
+#		define SWIZZLE_0_ITERATE_ROW_0(rows, columns, swizDim) SWIZZLE_0_ITERATE_COLUMNS(rows, columns, swizDim, )
+#		define SWIZZLE_0_ITERATE_ROW_1(rows, columns, swizDim) SWIZZLE_0_ITERATE_COLUMNS(rows, columns, swizDim, 0)
+#		define SWIZZLE_0_ITERATE_ROW_2(rows, columns, swizDim) SWIZZLE_0_ITERATE_ROW_1(rows, columns, swizDim) SWIZZLE_0_ITERATE_COLUMNS(rows, columns, swizDim, 1)
+#		define SWIZZLE_0_ITERATE_ROW_3(rows, columns, swizDim) SWIZZLE_0_ITERATE_ROW_2(rows, columns, swizDim) SWIZZLE_0_ITERATE_COLUMNS(rows, columns, swizDim, 2)
+#		define SWIZZLE_0_ITERATE_ROW_4(rows, columns, swizDim) SWIZZLE_0_ITERATE_ROW_3(rows, columns, swizDim) SWIZZLE_0_ITERATE_COLUMNS(rows, columns, swizDim, 3)
+#		define SWIZZLE_ITERATE(rows, columns, swizDim) SWIZZLE_0_ITERATE_ROW_##rows(rows, columns, swizDim)
+#
+#		define GENERATE_SWIZZLES(rows, columns)	\
+			SWIZZLE_ITERATE(rows, columns, 1)	\
+			SWIZZLE_ITERATE(rows, columns, 2)	\
+			SWIZZLE_ITERATE(rows, columns, 3)	\
+			SWIZZLE_ITERATE(rows, columns, 4)
+#pragma endregion
+
+		// undefs to be on the safe side
+#		undef ROWS
+#		undef COULMNS
+#		undef TRIVIAL_CTOR
+#		include "vector math generate stuff.h"
+
+#pragma region cleanup
+#ifdef _MSC_VER
+#		undef CONCAT_IMPL_1
+#		undef CONCAT_IMPL_0
+#endif
+#		undef CONCAT_IMPL
+#		undef CONCAT
+#
+#		undef LOOKUP_SYMBOL_0_0
+#		undef LOOKUP_SYMBOL_0_1
+#		undef LOOKUP_SYMBOL_0_2
+#		undef LOOKUP_SYMBOL_0_3
+#
+#		undef LOOKUP_SYMBOL_1_0
+#		undef LOOKUP_SYMBOL_1_1
+#		undef LOOKUP_SYMBOL_1_2
+#		undef LOOKUP_SYMBOL_1_3
+#
+#		undef LOOKUP_SYMBOL_0_00
+#		undef LOOKUP_SYMBOL_0_01
+#		undef LOOKUP_SYMBOL_0_02
+#		undef LOOKUP_SYMBOL_0_03
+#		undef LOOKUP_SYMBOL_0_10
+#		undef LOOKUP_SYMBOL_0_11
+#		undef LOOKUP_SYMBOL_0_12
+#		undef LOOKUP_SYMBOL_0_13
+#		undef LOOKUP_SYMBOL_0_20
+#		undef LOOKUP_SYMBOL_0_21
+#		undef LOOKUP_SYMBOL_0_22
+#		undef LOOKUP_SYMBOL_0_23
+#		undef LOOKUP_SYMBOL_0_30
+#		undef LOOKUP_SYMBOL_0_31
+#		undef LOOKUP_SYMBOL_0_32
+#		undef LOOKUP_SYMBOL_0_33
+#
+#		undef LOOKUP_SYMBOL_1_00
+#		undef LOOKUP_SYMBOL_1_01
+#		undef LOOKUP_SYMBOL_1_02
+#		undef LOOKUP_SYMBOL_1_03
+#		undef LOOKUP_SYMBOL_1_10
+#		undef LOOKUP_SYMBOL_1_11
+#		undef LOOKUP_SYMBOL_1_12
+#		undef LOOKUP_SYMBOL_1_13
+#		undef LOOKUP_SYMBOL_1_20
+#		undef LOOKUP_SYMBOL_1_21
+#		undef LOOKUP_SYMBOL_1_22
+#		undef LOOKUP_SYMBOL_1_23
+#		undef LOOKUP_SYMBOL_1_30
+#		undef LOOKUP_SYMBOL_1_31
+#		undef LOOKUP_SYMBOL_1_32
+#		undef LOOKUP_SYMBOL_1_33
+#
+#		undef LOOKUP_SYMBOL_0
+#		undef LOOKUP_SYMBOL_1
+#if defined _MSC_VER && _MSC_VER <= 1900
+#		undef LOOKUP_SYMBOL_0_ExtractSwizzleIdx
+#		undef LOOKUP_SYMBOL_1_ExtractSwizzleIdx
+#endif
+#
+#		undef IDX_SEQ_2_SYMBOLS_1
+#		undef IDX_SEQ_2_SYMBOLS_2
+#		undef IDX_SEQ_2_SYMBOLS_3
+#		undef IDX_SEQ_2_SYMBOLS_4
+#		undef IDX_SEQ_2_SYMBOLS
+#		undef GENERATE_SWIZZLE
+#
+#		undef DEC_2_BIN_
+#		undef DEC_2_BIN_0
+#		undef DEC_2_BIN_1
+#		undef DEC_2_BIN_2
+#		undef DEC_2_BIN_3
+#		undef ENCODE_RC_IDX
+#
+#		undef SWIZZLE_4_GENERATE
+#		undef SWIZZLE_3_ITERATE_COLUMN_1
+#		undef SWIZZLE_3_ITERATE_COLUMN_2
+#		undef SWIZZLE_3_ITERATE_COLUMN_3
+#		undef SWIZZLE_3_ITERATE_COLUMN_4
+#		undef SWIZZLE_3_ITERATE_COLUMNS
+#		undef SWIZZLE_3_ITERATE_ROW_0
+#		undef SWIZZLE_3_ITERATE_ROW_1
+#		undef SWIZZLE_3_ITERATE_ROW_2
+#		undef SWIZZLE_3_ITERATE_ROW_3
+#		undef SWIZZLE_3_ITERATE_ROW_4
+#		undef SWIZZLE_3_SELECTOR_3
+#		undef SWIZZLE_3_SELECTOR_4
+#		undef SWIZZLE_3_SELECTOR
+#
+#		undef SWIZZLE_2_ITERATE_COLUMN_1
+#		undef SWIZZLE_2_ITERATE_COLUMN_2
+#		undef SWIZZLE_2_ITERATE_COLUMN_3
+#		undef SWIZZLE_2_ITERATE_COLUMN_4
+#		undef SWIZZLE_2_ITERATE_COLUMNS
+#		undef SWIZZLE_2_ITERATE_ROW_0
+#		undef SWIZZLE_2_ITERATE_ROW_1
+#		undef SWIZZLE_2_ITERATE_ROW_2
+#		undef SWIZZLE_2_ITERATE_ROW_3
+#		undef SWIZZLE_2_ITERATE_ROW_4
+#		undef SWIZZLE_2_SELECTOR_2
+#		undef SWIZZLE_2_SELECTOR_3
+#		undef SWIZZLE_2_SELECTOR_4
+#		undef SWIZZLE_2_SELECTOR
+#
+#		undef SWIZZLE_1_ITERATE_COLUMN_1
+#		undef SWIZZLE_1_ITERATE_COLUMN_2
+#		undef SWIZZLE_1_ITERATE_COLUMN_3
+#		undef SWIZZLE_1_ITERATE_COLUMN_4
+#		undef SWIZZLE_1_ITERATE_COLUMNS
+#		undef SWIZZLE_1_ITERATE_ROW_0
+#		undef SWIZZLE_1_ITERATE_ROW_1
+#		undef SWIZZLE_1_ITERATE_ROW_2
+#		undef SWIZZLE_1_ITERATE_ROW_3
+#		undef SWIZZLE_1_ITERATE_ROW_4
+#		undef SWIZZLE_1_SELECTOR_1
+#		undef SWIZZLE_1_SELECTOR_2
+#		undef SWIZZLE_1_SELECTOR_3
+#		undef SWIZZLE_1_SELECTOR_4
+#		undef SWIZZLE_1_SELECTOR
+#
+#		undef SWIZZLE_0_ITERATE_COLUMN_1
+#		undef SWIZZLE_0_ITERATE_COLUMN_2
+#		undef SWIZZLE_0_ITERATE_COLUMN_3
+#		undef SWIZZLE_0_ITERATE_COLUMN_4
+#		undef SWIZZLE_0_ITERATE_COLUMNS
+#		undef SWIZZLE_0_ITERATE_ROW_0
+#		undef SWIZZLE_0_ITERATE_ROW_1
+#		undef SWIZZLE_0_ITERATE_ROW_2
+#		undef SWIZZLE_0_ITERATE_ROW_3
+#		undef SWIZZLE_0_ITERATE_ROW_4
+#		undef SWIZZLE_ITERATE
+#
+#		undef GENERATE_SWIZZLES
+#pragma endregion
+#endif
+#pragma endregion
 
 		namespace Impl
 		{
@@ -2109,7 +2433,7 @@ further investigations needed, including other compilers
 							left[i] op##= right[i];																										\
 						return left;																													\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
 				// swizzle / 1D swizzle op=<WARHazard> swizzle
@@ -2127,7 +2451,7 @@ further investigations needed, including other compilers
 					{																																	\
 						return operator op##=<false>(left, vector<RightElementType, RightSwizzleDesc::dimension>(right));								\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
 				// swizzle / 1D swizzle op= swizzle
@@ -2150,7 +2474,7 @@ further investigations needed, including other compilers
 						>::value;																														\
 						return operator op##=<WARHazard>(left, right);																					\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
 				// swizzle / 1D swizzle op= temp swizzle
@@ -2167,7 +2491,7 @@ further investigations needed, including other compilers
 					{																																	\
 						return operator op##=<false>(left, right);																						\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
 				namespace Impl::ScalarOps
@@ -2191,7 +2515,7 @@ further investigations needed, including other compilers
 								left[i] op##= right;																									\
 							return left;																												\
 						}
-					GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+					GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #					undef OPERATOR_DEFINITION
 
 					// swizzle / 1D swizzle op=<WARHazard, !extractScalar> scalar
@@ -2209,7 +2533,7 @@ further investigations needed, including other compilers
 						{																																\
 							return operator op##=<false, false>(left, RightType(right));																\
 						}
-					GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+					GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #					undef OPERATOR_DEFINITION
 
 					// swizzle / 1D swizzle op=<?WARHazard, extractScalar> scalar
@@ -2227,7 +2551,7 @@ further investigations needed, including other compilers
 						{																																\
 							return operator op##=<WARHazard, false>(left, ExtractScalar(right));														\
 						}
-					GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+					GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #					undef OPERATOR_DEFINITION
 				}
 
@@ -2253,7 +2577,7 @@ further investigations needed, including other compilers
 					{																																	\
 						return Impl::ScalarOps::operator op##=<WARHazard>(left, right);																	\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 #endif
 
@@ -2273,7 +2597,7 @@ further investigations needed, including other compilers
 							Impl::DetectScalarWARHazard<Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>, RightType>::value;		\
 						return Workaround::operator op##=<WARHazard>(left, right);																		\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
 				// swizzle / 1D swizzle op= temp scalar
@@ -2290,7 +2614,7 @@ further investigations needed, including other compilers
 					{																																	\
 						return Workaround::operator op##=<false>(left, right);																			\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
 				// swizzle op swizzle / 1D swizzle op 1D swizzle
@@ -2312,7 +2636,7 @@ further investigations needed, including other compilers
 						decltype(left op right) result(left);																							\
 						return result op##= std::move(right);																							\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
 				// swizzle op swizzle / 1D swizzle op 1D swizzle -> bool
@@ -2336,7 +2660,7 @@ further investigations needed, including other compilers
 							result[i] = left[i] op right[i];																							\
 						return result;																													\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
+				GENERATE_REL_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
 				// swizzle op scalar / 1D swizle op pure scalar
@@ -2358,7 +2682,7 @@ further investigations needed, including other compilers
 						decltype(left op right) result(left);																							\
 						return Workaround::operator op##=<false>(result, right);																		\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
 				// swizzle op scalar / 1D swizle op pure scalar -> bool
@@ -2383,7 +2707,7 @@ further investigations needed, including other compilers
 							result[i] = left[i] op scalar;																								\
 						return result;																													\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
+				GENERATE_REL_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
 				// scalar op swizzle / pure scalar op 1D swizzle
@@ -2405,7 +2729,7 @@ further investigations needed, including other compilers
 						decltype(left op right) result(left);																							\
 						return operator op##=<false>(result, right);																					\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
 				// scalar op swizzle / pure scalar op 1D swizzle -> bool
@@ -2430,7 +2754,7 @@ further investigations needed, including other compilers
 							result[i] = scalar op right[i];																								\
 						return result;																													\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
+				GENERATE_REL_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 #			pragma endregion
 
@@ -2459,7 +2783,7 @@ further investigations needed, including other compilers
 							operator op##=<false>(left[r], right[r]);																					\
 						return left;																													\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
 #if defined _MSC_VER && _MSC_VER <= 1900
@@ -2479,7 +2803,7 @@ further investigations needed, including other compilers
 						{																																\
 							return left.operator op##=<WARHazard>(right);																				\
 						}
-					GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+					GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #					undef OPERATOR_DEFINITION
 				}
 #else
@@ -2498,7 +2822,7 @@ further investigations needed, including other compilers
 					{																																	\
 						return left.operator op##=<WARHazard>(right);																					\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 #endif
 
@@ -2518,7 +2842,7 @@ further investigations needed, including other compilers
 							Impl::DetectScalarWARHazard<matrix<LeftElementType, leftRows, leftColumns>, RightType>::value;								\
 						return Workaround::operator op##=<WARHazard>(left, right);																		\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
 				// matrix / 1x1 matrix op= temp scalar
@@ -2535,7 +2859,7 @@ further investigations needed, including other compilers
 					{																																	\
 						return Workaround::operator op##=<false>(left, right);																			\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
 				// matrix op matrix / 1x1 matrix op 1x1 matrix
@@ -2563,7 +2887,7 @@ further investigations needed, including other compilers
 						Result result(left);																											\
 						return result op##= std::move(right);																							\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
 				// matrix op matrix / 1x1 matrix op 1x1 matrix -> bool
@@ -2593,7 +2917,7 @@ further investigations needed, including other compilers
 							result[r] = left[r] op right[r];																							\
 						return result;																													\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
+				GENERATE_REL_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
 				// matrix op scalar / 1x1 matrix op pure scalar
@@ -2616,7 +2940,7 @@ further investigations needed, including other compilers
 						decltype(left op right) result(left);																							\
 						return result op##= std::move(right);																							\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
 				// matrix op scalar / 1x1 matrix op pure scalar -> bool
@@ -2642,7 +2966,7 @@ further investigations needed, including other compilers
 							result[r] = left[r] op right;																								\
 						return result;																													\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
+				GENERATE_REL_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
 				// scalar op matrix / pure scalar op 1x1 matrix
@@ -2665,7 +2989,7 @@ further investigations needed, including other compilers
 						decltype(left op right) result(left);																							\
 						return result op##= right;																										\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
 				// scalar op matrix / pure scalar op 1x1 matrix -> bool
@@ -2691,7 +3015,7 @@ further investigations needed, including other compilers
 							result[r] = left op right[r];																								\
 						return result;																													\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
+				GENERATE_REL_OPERATORS(OPERATOR_DEFINITION)
 #			undef OPERATOR_DEFINITION
 #			pragma endregion
 
@@ -2717,7 +3041,7 @@ further investigations needed, including other compilers
 						const auto &seq = reinterpret_cast<const Impl::CSequencingSwizzle<RightElementType, rightRows, rightColumns> &>(right.data);	\
 						return left.operator =<WARHazard...>(seq);																						\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
 				// swizzle / 1D swizzle op= temp matrix
@@ -2734,7 +3058,7 @@ further investigations needed, including other compilers
 					{																																	\
 						return left.operator =<false>(right);																							\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
 				// matrix / 1x1 matrix op= swizzle
@@ -2760,7 +3084,7 @@ further investigations needed, including other compilers
 						seq.operator =<WARHazard...>(right);																							\
 						return left;																													\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
 				// matrix / 1x1 matrix op= temp swizzle
@@ -2777,7 +3101,7 @@ further investigations needed, including other compilers
 					{																																	\
 						return left.operator =<false>(right);																							\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
 				// swizzle op matrix / 1D swizzle op 1x1 matrix
@@ -2802,7 +3126,7 @@ further investigations needed, including other compilers
 						decltype(left op right) result(left);																							\
 						return result op##= std::move(right);																							\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
 				// swizzle op matrix / 1D swizzle op 1x1 matrix -> bool
@@ -2827,7 +3151,7 @@ further investigations needed, including other compilers
 						const auto &seq = reinterpret_cast<const Impl::CSequencingSwizzle<RightElementType, rightRows, rightColumns> &>(right.data);	\
 						return left op seq;																												\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
+				GENERATE_REL_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
 				// matrix op swizzle / 1x1 matrix op 1D swizzle
@@ -2852,7 +3176,7 @@ further investigations needed, including other compilers
 						decltype(left op right) result(left);																							\
 						return result op##= std::move(right);																							\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
 				// matrix op swizzle / 1x1 matrix op 1D swizzle -> bool
@@ -2877,7 +3201,7 @@ further investigations needed, including other compilers
 						const auto &seq = reinterpret_cast<const Impl::CSequencingSwizzle<LeftElementType, leftRows, leftColumns> &>(left.data);		\
 						return seq op right;																											\
 					}
-				GENERATE_OPERATORS(OPERATOR_DEFINITION, REL_OPS)
+				GENERATE_REL_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 #			pragma endregion
 #		pragma endregion
@@ -3046,7 +3370,7 @@ further investigations needed, including other compilers
 				template<bool WARHazard, bool extractScalar, typename SrcType>							\
 				std::enable_if_t<!WARHazard && !extractScalar/* && Impl::IsScalar<SrcType>*/, matrix &>	\
 				operator op##=(const SrcType &scalar);
-			GENERATE_OPERATORS(OPERATOR_DECLARATION, ARITHMETIC_OPS)
+			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION)
 #			undef OPERATOR_DECLARATION
 
 			// matrix / 1x1 matrix op=<WARHazard, !extractScalar> scalar
@@ -3054,7 +3378,7 @@ further investigations needed, including other compilers
 				template<bool WARHazard, bool extractScalar, typename SrcType>							\
 				std::enable_if_t<WARHazard && !extractScalar/* && Impl::IsScalar<SrcType>*/, matrix &>	\
 				operator op##=(const SrcType &scalar);
-				GENERATE_OPERATORS(OPERATOR_DECLARATION, ARITHMETIC_OPS)
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION)
 #			undef OPERATOR_DECLARATION
 
 			// matrix / 1x1 matrix op=<?WARHazard, extractScalar> scalar
@@ -3062,7 +3386,7 @@ further investigations needed, including other compilers
 				template<bool WARHazard, bool extractScalar = true, typename SrcType>					\
 				std::enable_if_t<extractScalar/* && Impl::IsScalar<SrcType>*/, matrix &>				\
 				operator op##=(const SrcType &scalar);
-				GENERATE_OPERATORS(OPERATOR_DECLARATION, ARITHMETIC_OPS)
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION)
 #			undef OPERATOR_DECLARATION
 
 #if defined _MSC_VER && _MSC_VER <= 1900
@@ -3077,7 +3401,7 @@ further investigations needed, including other compilers
 				friend inline decltype(auto) Impl::ScalarOps::operator op##=(							\
 				matrix<LeftElementType, leftRows, leftColumns> &left,									\
 				const RightType &right);
-			GENERATE_OPERATORS(OPERATOR_DECLARATION, ARITHMETIC_OPS)
+			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION)
 #			undef OPERATOR_DECLARATION
 #else
 			// matrix / 1x1 matrix op=<?WARHazard> scalar
@@ -3092,7 +3416,7 @@ further investigations needed, including other compilers
 				matrix<LeftElementType, leftRows, leftColumns> &left,									\
 				const RightType &right)																	\
 				-> std::enable_if_t<Impl::IsScalar<RightType>, decltype(left)>;
-			GENERATE_OPERATORS(OPERATOR_DECLARATION, ARITHMETIC_OPS)
+			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION)
 #			undef OPERATOR_DECLARATION
 #endif
 
@@ -3473,7 +3797,7 @@ further investigations needed, including other compilers
 						Impl::ScalarOps::operator op##=<false, false>(operator [](r), scalar);								\
 					return *this;																							\
 				}
-			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #			undef OPERATOR_DEFINITION
 
 			// matrix / 1x1 matrix op=<WARHazard, !extractScalar> scalar
@@ -3485,7 +3809,7 @@ further investigations needed, including other compilers
 				{																											\
 					return operator op=<false, false>(SrcType(scalar));														\
 				}
-			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #			undef OPERATOR_DEFINITION
 
 			// matrix / 1x1 matrix op=<?WARHazard, extractScalar> scalar
@@ -3497,7 +3821,7 @@ further investigations needed, including other compilers
 				{																											\
 					return operator op=<WARHazard, false>(Impl::ExtractScalar(scalar));										\
 				}
-			GENERATE_OPERATORS(OPERATOR_DEFINITION, ARITHMETIC_OPS)
+			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #			undef OPERATOR_DEFINITION
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
@@ -3890,10 +4214,14 @@ further investigations needed, including other compilers
 #			pragma endregion
 #		pragma endregion
 
+#if USE_BOOST_PREPROCESSOR
 #		undef ARITHMETIC_OPS
 #		undef REL_OPS
-#		undef GENERATE_OPERATORS_MACRO
+#		undef GENERATE_OPERATOR
 #		undef GENERATE_OPERATORS
+#endif
+#		undef GENERATE_ARITHMETIC_OPERATORS
+#		undef GENERATE_REL_OPERATORS
 	}
 
 	// std specializations\
@@ -3978,8 +4306,10 @@ further investigations needed, including other compilers
 
 #	undef INIT_LIST_ITEM_OVERFLOW_MSG
 
+#if USE_BOOST_PREPROCESSOR
 //#	undef GET_SWIZZLE_ELEMENT
 //#	undef GET_SWIZZLE_ELEMENT_PACKED
+#endif
 
 #	pragma warning(pop)
 
