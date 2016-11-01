@@ -571,11 +571,19 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc = CVectorSwizzleDesc<columns>, typename isWriteMaskValid = bool_constant<SwizzleDesc::isWriteMaskValid>>
 			class CSwizzleAssign;
 
+#if OPTIMIZE_FOR_PCH
+			template<class SwizzleDesc>
+			using TouchSwizzleDesc = std::void_t<bool_constant<SwizzleDesc::isWriteMaskValid>>;
+#else
+			template<class SwizzleDesc>
+			using TouchSwizzleDesc = void;
+#endif
+
 #ifdef MSVC_NAMESPACE_WORKAROUND
 		}
 #endif
 			// rows = 0 for vectors
-			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc = CVectorSwizzleDesc<columns>>
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc = CVectorSwizzleDesc<columns>, typename = Impl::TouchSwizzleDesc<SwizzleDesc>>
 			class CSwizzle;
 #ifdef MSVC_NAMESPACE_WORKAROUND
 		namespace Impl
@@ -2200,7 +2208,7 @@ further investigations needed, including other compilers
 #endif
 			};
 
-			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, typename>
 			class CSwizzle final : public NAMESPACE_PREFIX CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>
 			{
 				friend class NAMESPACE_PREFIX CDataContainer<ElementType, rows, columns>;

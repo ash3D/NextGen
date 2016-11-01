@@ -15,5 +15,6 @@
 
 // TODO: reference additional headers your program requires here
 #include <iostream>
+#define OPTIMIZE_FOR_PCH 1
 #define DISABLE_MATRIX_SWIZZLES
 #include "vector math.h"
