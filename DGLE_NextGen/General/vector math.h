@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		01.11.2016 (c)Alexey Shaydurov
+\date		02.11.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -387,8 +387,8 @@ further investigations needed, including other compilers
 #		define REL_OPS (==)(!=)(<)(<=)(>)(>=)
 #		define GENERATE_OPERATOR(r, operatorTemplate, op) operatorTemplate(op)
 #		define GENERATE_OPERATORS(operatorTemplate, ops) BOOST_PP_SEQ_FOR_EACH(GENERATE_OPERATOR, operatorTemplate, ops)
-#		define GENERATE_ARITHMETIC_OPERATORS(operatorTemplate) GENERATE_OPERATORS(operatorTemplate)
-#		define GENERATE_REL_OPERATORS(operatorTemplate) GENERATE_OPERATORS(operatorTemplate)
+#		define GENERATE_ARITHMETIC_OPERATORS(operatorTemplate) GENERATE_OPERATORS(operatorTemplate, ARITHMETIC_OPS)
+#		define GENERATE_REL_OPERATORS(operatorTemplate) GENERATE_OPERATORS(operatorTemplate, REL_OPS)
 #else
 #		define GENERATE_ARITHMETIC_OPERATORS(operatorTemplate)	\
 			operatorTemplate(+)									\
