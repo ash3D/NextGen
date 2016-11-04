@@ -503,6 +503,9 @@ further investigations needed, including other compilers
 				struct PackSwizzleElement : mpl::shift_left<typename mpl::deref<Iter>::type, typename mpl::times<DistanceFromBegin<CSwizzleVector, Iter>, mpl::integral_c<unsigned short, 4u>::type>> {};
 				typedef mpl::iter_fold<CSwizzleVector, mpl::integral_c<unsigned short, 0u>, mpl::bitor_<_1, PackSwizzleElement<_2>>> PackedSwizzle;
 
+			public:
+				static constexpr unsigned int dimension = mpl::size<CSwizzleVector>::type::value;
+
 			private:
 				static constexpr unsigned short packedSwizzle = PackedSwizzle::type::value;
 
@@ -525,7 +528,6 @@ further investigations needed, including other compilers
 				typedef typename mpl::equal_to<mpl::size<CUniqueSwizzleVector>, mpl::size<CSwizzleVector>> IsWriteMaskValid;
 
 			public:
-				static constexpr unsigned int dimension = mpl::size<CSwizzleVector>::type::value;
 				static constexpr typename IsWriteMaskValid::value_type isWriteMaskValid = IsWriteMaskValid::value;
 			};
 
@@ -544,7 +546,6 @@ further investigations needed, including other compilers
 			template<unsigned int rows, unsigned int columns>
 			struct CSequencingSwizzleDesc : CSequencingSwizzleVector<rows, columns>, CPackedSwizzle<typename CSequencingSwizzleVector<rows, columns>::CSwizzleVector>
 			{
-				static constexpr unsigned int dimension = rows * columns;
 				static constexpr bool isWriteMaskValid = true;
 			};
 #else
