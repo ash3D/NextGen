@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		02.11.2016 (c)Alexey Shaydurov
+\date		04.11.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -98,7 +98,7 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 		BOOST_PP_FOR((callback, INC_SEQ(GENERATE_ZERO_SEQ(i), COLUMNS, BOOST_PP_MAX(ROWS, 1)), 0, 64), SWIZZLES_INNER_LOOP_PRED, SWIZZLES_OP, SWIZZLES_MACRO)
 #	define GENERATE_SWIZZLES(callback) BOOST_PP_REPEAT_FROM_TO(1, 5, SWIZZLES, callback)
 #
-#	define SWIZZLE_SEQ_2_VECTOR(seq) mpl::vector_c<unsigned int, BOOST_PP_TUPLE_REM_CTOR(BOOST_PP_SEQ_SIZE(seq), BOOST_PP_SEQ_TO_TUPLE(seq))>
+#	define SWIZZLE_SEQ_2_DESC(seq) CSwizzleDesc<BOOST_PP_TUPLE_REM_CTOR(BOOST_PP_SEQ_SIZE(seq), BOOST_PP_SEQ_TO_TUPLE(seq))>
 
 #	define BOOST_PP_ITERATION_LIMITS (1, 4)
 #	define BOOST_PP_FILENAME_2 "vector math.h"
@@ -114,9 +114,9 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 #		define NAMING_SET_1 BOOST_PP_IF(ROWS, MATRIX_ZERO_BASED, XYZW)
 #		define NAMING_SET_2 BOOST_PP_IF(ROWS, MATRIX_ONE_BASED, RGBA)
 
-#		define SWIZZLE_OBJECT(swizzle_seq)															\
-			CSwizzle<ElementType, ROWS, COLUMNS, CSwizzleDesc<SWIZZLE_SEQ_2_VECTOR(swizzle_seq)>>	\
-				TRANSFORM_SWIZZLE(NAMING_SET_1, swizzle_seq),										\
+#		define SWIZZLE_OBJECT(swizzle_seq)											\
+			CSwizzle<ElementType, ROWS, COLUMNS, SWIZZLE_SEQ_2_DESC(swizzle_seq)>	\
+				TRANSFORM_SWIZZLE(NAMING_SET_1, swizzle_seq),						\
 				TRANSFORM_SWIZZLE(NAMING_SET_2, swizzle_seq);
 
 #if defined _MSC_VER && _MSC_VER <= 1900
@@ -260,7 +260,7 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 #	undef SWIZZLES_MACRO
 #	undef SWIZZLES
 #	undef GENERATE_SWIZZLES
-#	undef SWIZZLE_SEQ_2_VECTOR
+#	undef SWIZZLE_SEQ_2_DESC
 #endif
 #else
 #if !USE_BOOST_PREPROCESSOR
@@ -347,6 +347,7 @@ further investigations needed, including other compilers
 #	include <boost/preprocessor/seq/to_tuple.hpp>
 #	include <boost/preprocessor/punctuation/remove_parens.hpp>
 #endif
+#if USE_BOOST_MPL
 #	include <boost/mpl/apply.hpp>
 #	include <boost/mpl/placeholders.hpp>
 #	include <boost/mpl/lambda.hpp>
@@ -374,6 +375,7 @@ further investigations needed, including other compilers
 #	include <boost/mpl/iter_fold.hpp>
 #	include <boost/mpl/find.hpp>
 #	include <boost/mpl/transform_view.hpp>
+#endif
 
 #if USE_BOOST_PREPROCESSOR
 //#	define GET_SWIZZLE_ELEMENT(vectorDimension, idx, cv) (reinterpret_cast<cv CData<ElementType, vectorDimension> &>(*this).data[(idx)])
@@ -407,8 +409,10 @@ further investigations needed, including other compilers
 
 		namespace Impl
 		{
+#if USE_BOOST_MPL
 			namespace mpl = boost::mpl;
 			using namespace mpl::placeholders;
+#endif
 
 			using std::declval;
 			using std::integer_sequence;
@@ -487,6 +491,7 @@ further investigations needed, including other compilers
 			template<typename ElementType>
 			static constexpr bool IsElementTypeValid = (is_union_v<ElementType> || is_class_v<ElementType> || is_arithmetic_v<ElementType>) && !is_const_v<ElementType> && IsPureScalar<ElementType>;
 
+#if USE_BOOST_MPL
 			template<class Seq, class Iter>
 			using DistanceFromBegin = typename mpl::distance<typename mpl::begin<Seq>::type, Iter>::type;
 
@@ -507,18 +512,19 @@ further investigations needed, including other compilers
 				}
 			};
 
-			template<class CSwizzleVector_>
-			class CSwizzleDesc : public CPackedSwizzle<CSwizzleVector_>
+			template<unsigned int ...swizzleSeq>
+			class CSwizzleDesc : public CPackedSwizzle<mpl::vector_c<unsigned int, swizzleSeq...>>
 			{
-				typedef typename mpl::sort<CSwizzleVector_>::type CSortedSwizzleVector;
+			public:
+				typedef mpl::vector_c<unsigned int, swizzleSeq...> CSwizzleVector;
+
+			private:
+				typedef typename mpl::sort<CSwizzleVector>::type CSortedSwizzleVector;
 				typedef typename mpl::unique<CSortedSwizzleVector, is_same<_, _>>::type CUniqueSwizzleVector;
-				typedef typename mpl::equal_to<mpl::size<CUniqueSwizzleVector>, mpl::size<CSwizzleVector_>> IsWriteMaskValid;
+				typedef typename mpl::equal_to<mpl::size<CUniqueSwizzleVector>, mpl::size<CSwizzleVector>> IsWriteMaskValid;
 
 			public:
-				typedef CSwizzleVector_ CSwizzleVector;
-
-			public:
-				static constexpr unsigned int dimension = mpl::size<CSwizzleVector_>::type::value;
+				static constexpr unsigned int dimension = mpl::size<CSwizzleVector>::type::value;
 				static constexpr typename IsWriteMaskValid::value_type isWriteMaskValid = IsWriteMaskValid::value;
 			};
 
@@ -540,12 +546,110 @@ further investigations needed, including other compilers
 				static constexpr unsigned int dimension = rows * columns;
 				static constexpr bool isWriteMaskValid = true;
 			};
+#else
+			template<unsigned int ...swizzleSeq>
+			class CPackedSwizzle
+			{
+#if defined _MSC_VER && _MSC_VER <= 1900
+				template<unsigned int shiftedHead, unsigned int ...shiftedTail>
+				static constexpr unsigned short int Packer = shiftedHead | Packer<shiftedTail...>;
+
+				// terminator
+				template<unsigned int shiftedLast>
+				static constexpr unsigned short int Packer<shiftedLast> = shiftedLast;
+#else
+				template<unsigned int ...shiftedSeq>
+				static constexpr unsigned short int Packer = (shiftedSeq | ...);
+#endif
+
+#if defined _MSC_VER && _MSC_VER <= 1900
+				template<unsigned int shift, unsigned int swizzleHead, unsigned int ...swizzleTail>
+				static constexpr unsigned short int MakePackedSwizzle = swizzleHead << shift | MakePackedSwizzle<shift + 4u, swizzleTail...>;
+
+				template<unsigned int shift, unsigned int swizzleLast>
+				static constexpr unsigned short int MakePackedSwizzle<shift, swizzleLast> = swizzleLast << shift;
+#else
+				template<typename IdxSeq>
+				static constexpr unsigned short int MakePackedSwizzle = 0;
+
+				template<unsigned int ...idxSeq>
+				static constexpr unsigned short int MakePackedSwizzle<integer_sequence<unsigned int, idxSeq...>> = Packer<swizzleSeq << idxSeq * 4u ...>;
+#endif
+
+			public:
+				static constexpr unsigned int dimension = sizeof...(swizzleSeq);
+
+			private:
+#if defined _MSC_VER && _MSC_VER <= 1900
+				static constexpr unsigned short int packedSwizzle = MakePackedSwizzle<0u, swizzleSeq...>;
+#else
+				static constexpr unsigned short int packedSwizzle = MakePackedSwizzle<make_integer_sequence<unsigned int, dimension>>;
+#endif
+
+			public:
+				static constexpr unsigned int FetchIdx(unsigned int idx)
+				{
+					return packedSwizzle >> idx * 4u & 0xFu;
+				}
+
+			public:
+				typedef CPackedSwizzle PackedSwizzle;
+			};
+
+			template<unsigned int ...swizzleSeq>
+			class CSwizzleDesc : public CPackedSwizzle<swizzleSeq...>
+			{
+#if defined _MSC_VER && _MSC_VER <= 1900
+				static constexpr bool IsWriteMaskValid(unsigned i = 0, unsigned j = 1)
+				{
+					return i < dimension ? j < dimension ? FetchIdx(i) != FetchIdx(j) && IsWriteMaskValid(i, j + 1) : IsWriteMaskValid(i + 1, i + 2) : true;
+				}
+#else
+				static constexpr bool IsWriteMaskValid()
+				{
+					for (unsigned i = 0; i < dimension; i++)
+						for (unsigned j = i + 1; j < dimension; j++)
+							if (FetchIdx(i) == FetchIdx(j))
+								return false;
+					return true;
+				}
+#endif
+
+			public:
+				static constexpr bool isWriteMaskValid = IsWriteMaskValid();
+			};
+
+			template<unsigned int rows, unsigned int columns>
+			class MakeSequencingPackedSwizzle
+			{
+				typedef make_integer_sequence<unsigned int, rows * columns> LinearSequence;
+
+				template<typename LinearSequence>
+				struct PackedSwizzle;
+
+				template<unsigned int ...seq>
+				struct PackedSwizzle<integer_sequence<unsigned int, seq...>>
+				{
+					typedef CPackedSwizzle<seq % columns | seq / columns << 2u ...> type;
+				};
+
+				public:
+					typedef typename PackedSwizzle<LinearSequence>::type type;
+			};
+
+			template<unsigned int rows, unsigned int columns>
+			struct CSequencingSwizzleDesc : MakeSequencingPackedSwizzle<rows, columns>::type
+			{
+				static constexpr bool isWriteMaskValid = true;
+			};
+#endif
 
 			template<unsigned int vectorDimension>
 			using CVectorSwizzleDesc = CSequencingSwizzleDesc<1, vectorDimension>;
 
+#if USE_BOOST_MPL
 			// contains CSwizzleVector only, has no dimension nor isWriteMaskValid (it is trivial to evaluate but it is not needed for WAR hazard detector)
-			template<unsigned int swizzleIdx, unsigned int dimension>
+			template<unsigned int scalarSwizzle, unsigned int dimension>
 			class CBroadcastScalarSwizzleDesc
 			{
 				template<typename IntSeq>
@@ -555,15 +659,40 @@ further investigations needed, including other compilers
 				struct IntSeq2SwizzleVec<integer_sequence<unsigned int, seq...>>
 				{
 #if defined _MSC_VER && _MSC_VER <= 1900
-					typedef mpl::vector_c<unsigned int, seq * 0 + swizzleIdx...> type;
+					typedef mpl::vector_c<unsigned int, seq * 0 + scalarSwizzle ...> type;
 #else
-					typedef mpl::vector_c<unsigned int, (seq, swizzleIdx)...> type;
+					typedef mpl::vector_c<unsigned int, (seq, scalarSwizzle)...> type;
 #endif
 				};
 
 			public:
 				typedef typename IntSeq2SwizzleVec<make_integer_sequence<unsigned int, dimension>>::type CSwizzleVector;
 			};
+#else
+			template<unsigned int scalarSwizzle, unsigned int dimension>
+			class MakeBroadcastScalarSwizzleDesc
+			{
+				template<typename Rep>
+				struct PackedSwizzle;
+
+				template<unsigned int ...rep>
+				struct PackedSwizzle<integer_sequence<unsigned int, rep...>>
+				{
+#if defined _MSC_VER && _MSC_VER <= 1900
+					typedef CPackedSwizzle<rep * 0 + scalarSwizzle ...> type;
+#else
+					typedef CPackedSwizzle<(rep, scalarSwizzle)...> type;
+#endif
+				};
+
+			public:
+				typedef typename PackedSwizzle<make_integer_sequence<unsigned int, dimension>>::type type;
+			};
+
+			// contains CPackedSwizzle only, has no isWriteMaskValid (it is trivial to evaluate but it is not needed for WAR hazard detector)
+			template<unsigned int scalarSwizzle, unsigned int dimension>
+			using CBroadcastScalarSwizzleDesc = typename MakeBroadcastScalarSwizzleDesc<scalarSwizzle, dimension>::type;
+#endif
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			class CSwizzleDataAccess;
@@ -651,6 +780,7 @@ further investigations needed, including other compilers
 
 #			pragma region WAR hazard
 #				pragma region detector
+#if USE_BOOST_MPL
 					template<class DstSwizzleDesc, class SrcSwizzleDesc, bool assign, unsigned dstRowIdx = 0, unsigned srcRowIdx = 0>
 					class SwizzleWARHazardDetectHelper
 					{
@@ -687,6 +817,96 @@ further investigations needed, including other compilers
 					public:
 						static constexpr typename Result::value_type value = Result::value;
 					};
+#else
+					template<class PackedSwizzle, unsigned int rowIdx>
+					struct VectorSwizzle_2_MatrixSwizzle;
+
+					template<unsigned int ...swizzleSeq, unsigned int rowIdx>
+					struct VectorSwizzle_2_MatrixSwizzle<CPackedSwizzle<swizzleSeq...>, rowIdx>
+					{
+						typedef CPackedSwizzle<swizzleSeq | rowIdx << 2u ...> type;
+					};
+
+					template<class SwizzleDesc, unsigned int rowIdx>
+					using VectorSwizzleDesc_2_PackedMatrixSwizzle = typename VectorSwizzle_2_MatrixSwizzle<typename SwizzleDesc::PackedSwizzle, rowIdx>::type;
+
+					template<class DstSwizzleDesc, class SrcSwizzleDesc, bool assign, unsigned dstRowIdx = 0, unsigned srcRowIdx = 0>
+					class SwizzleWARHazardDetectHelper
+					{
+						typedef VectorSwizzleDesc_2_PackedMatrixSwizzle<DstSwizzleDesc, dstRowIdx> PackedDstSwizzle;
+						typedef VectorSwizzleDesc_2_PackedMatrixSwizzle<SrcSwizzleDesc, srcRowIdx> PackedSrcSwizzle;
+
+						// cut SrcSwizzle off
+						static constexpr unsigned int cuttedSrcDimension = std::min(PackedSrcSwizzle::dimension, PackedDstSwizzle::dimension);
+
+					private:
+						// searches until srcSwizzleIdx, returns srcSwizzleIdx if not found
+#if defined _MSC_VER && _MSC_VER <= 1900
+						static constexpr unsigned FindDstSwizzleIdx(unsigned srcSwizzleIdx, unsigned dstSwizzleIdx = 0)
+						{
+							return
+								dstSwizzleIdx < srcSwizzleIdx ?
+									PackedDstSwizzle::FetchIdx(dstSwizzleIdx) == PackedSrcSwizzle::FetchIdx(srcSwizzleIdx) ?
+										dstSwizzleIdx
+									:
+										FindDstSwizzleIdx(srcSwizzleIdx, dstSwizzleIdx + 1)
+								:
+									srcSwizzleIdx;
+						}
+#else
+						static constexpr unsigned FindDstSwizzleIdx(unsigned srcSwizzleIdx)
+						{
+							unsigned dstSwizzleIdx = 0;
+							const auto idx2Find = PackedSrcSwizzle::FetchIdx(srcSwizzleIdx);
+							while (dstSwizzleIdx < srcSwizzleIdx && PackedDstSwizzle::FetchIdx(dstSwizzleIdx) != idx2Find)
+								dstSwizzleIdx++;
+							return dstSwizzleIdx;
+						}
+#endif
+
+						static constexpr bool DstWasAlreadyWritten(unsigned dstSwizzleIdx, unsigned srcSwizzleIdx)
+						{
+							return dstSwizzleIdx < srcSwizzleIdx;
+						}
+
+						static constexpr bool DstWasModified(unsigned dstSwizzleIdx)
+						{
+							return PackedDstSwizzle::FetchIdx(dstSwizzleIdx) != PackedSrcSwizzle::FetchIdx(dstSwizzleIdx);
+						}
+
+#if defined _MSC_VER && _MSC_VER <= 1900
+						static constexpr bool Iterate(unsigned dstSwizzleIdx, unsigned srcSwizzleIdx, bool dstWasAlreadyWritten)
+						{
+							return (assign && dstWasAlreadyWritten ? DstWasModified(dstSwizzleIdx) : dstWasAlreadyWritten) || Result(srcSwizzleIdx + 1);
+						}
+
+						static constexpr bool Iterate(unsigned dstSwizzleIdx, unsigned srcSwizzleIdx)
+						{
+							return Iterate(dstSwizzleIdx, srcSwizzleIdx, DstWasAlreadyWritten(dstSwizzleIdx, srcSwizzleIdx));
+						}
+
+						static constexpr bool Result(unsigned srcSwizzleIdx = 0)
+						{
+							return srcSwizzleIdx < cuttedSrcDimension ? Iterate(FindDstSwizzleIdx(srcSwizzleIdx), srcSwizzleIdx) : false;
+						}
+#else
+						static constexpr bool Result()
+						{
+							for (unsigned srcSwizzleIdx = 0; srcSwizzleIdx < cuttedSrcDimension; srcSwizzleIdx++)
+							{
+								unsigned dstSwizzleIdx = FindDstSwizzleIdx(srcSwizzleIdx);
+								const bool dstWasAlreadyWritten = DstWasAlreadyWritten(dstSwizzleIdx, srcSwizzleIdx);
+								if (assign && dstWasAlreadyWritten ? DstWasModified(dstSwizzleIdx) : dstWasAlreadyWritten)
+									return true;
+							}
+							return false;
+						}
+#endif
+
+					public:
+						static constexpr bool value = Result();
+					};
+#endif
 
 					template
 					<
@@ -764,7 +984,11 @@ further investigations needed, including other compilers
 								remove_const_t<remove_reference_t<decltype(ExtractScalar(declval<SrcType>()))>>,
 								enable_if_t<true, decltype(GetSwizzeRows(declval<SrcType>()))>::value,
 								enable_if_t<true, decltype(GetSwizzeColumns(declval<SrcType>()))>::value,
+#if USE_BOOST_MPL
 								CBroadcastScalarSwizzleDesc<mpl::front<typename enable_if_t<true, decltype(GetSwizzeDesc(declval<SrcType>()))>::CSwizzleVector>::type::value, DstSwizzleDesc::dimension>,
+#else
+								CBroadcastScalarSwizzleDesc<enable_if_t<true, decltype(GetSwizzeDesc(declval<SrcType>()))>::FetchIdx(0), DstSwizzleDesc::dimension>,
+#endif
 								false
 							> {};
 
@@ -776,11 +1000,19 @@ further investigations needed, including other compilers
 						static false_type MatrixVsPackedSwizzleWARHazardDetectHelper(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &);
 
 						template<typename ElementType, unsigned int rows, unsigned int columns, class SrcSwizzleDesc>
+#if USE_BOOST_MPL
 						static bool_constant<mpl::front<typename SrcSwizzleDesc::CSwizzleVector>::type::value != (columns - 1 | rows - 1 << 2)>
+#else
+						static bool_constant<SrcSwizzleDesc::FetchIdx(0) != (columns - 1 | rows - 1 << 2)>
+#endif
 							MatrixVsPackedSwizzleWARHazardDetectHelper(const CSwizzle<ElementType, rows, columns, SrcSwizzleDesc> &);
 
 						template<typename ElementType, unsigned int dstRows, unsigned int columns, class SrcSwizzleDesc>
+#if USE_BOOST_MPL
 						static bool_constant<(mpl::front<typename SrcSwizzleDesc::CSwizzleVector>::type::value != columns - 1 || dstRows > 1)>
+#else
+						static bool_constant<(SrcSwizzleDesc::FetchIdx(0) != columns - 1 || dstRows > 1)>
+#endif
 							MatrixVsPackedSwizzleWARHazardDetectHelper(const CSwizzle<ElementType, 0, columns, SrcSwizzleDesc> &);
 
 						template<typename DstElementType, unsigned int dstRows, unsigned int dstColumns, typename SrcElementType>
@@ -1404,9 +1636,9 @@ further investigations needed, including other compilers
 #else
 #		define IDX_SEQ_2_SYMBOLS(swizDim, xform, ...) IDX_SEQ_2_SYMBOLS_##swizDim(xform, __VA_ARGS__)
 #endif
-#		define GENERATE_SWIZZLE(rows, columns, swizDim, ...)												\
-			CSwizzle<ElementType, rows, columns, CSwizzleDesc<mpl::vector_c<unsigned int, __VA_ARGS__>>>	\
-				IDX_SEQ_2_SYMBOLS(swizDim, LOOKUP_SYMBOL_0, __VA_ARGS__),									\
+#		define GENERATE_SWIZZLE(rows, columns, swizDim, ...)				\
+			CSwizzle<ElementType, rows, columns, CSwizzleDesc<__VA_ARGS__>>	\
+				IDX_SEQ_2_SYMBOLS(swizDim, LOOKUP_SYMBOL_0, __VA_ARGS__),	\
 				IDX_SEQ_2_SYMBOLS(swizDim, LOOKUP_SYMBOL_1, __VA_ARGS__);
 #
 #		define DEC_2_BIN_

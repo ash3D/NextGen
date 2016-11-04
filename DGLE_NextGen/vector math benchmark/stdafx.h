@@ -16,6 +16,7 @@
 #include <iostream>
 #include <type_traits>
 #define USE_BOOST_PREPROCESSOR 0
+#define USE_BOOST_MPL 0
 #define OPTIMIZE_FOR_PCH 1
 #define DISABLE_MATRIX_SWIZZLES
 #include "vector math.h"
