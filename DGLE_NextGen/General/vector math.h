@@ -303,6 +303,7 @@ further investigations needed, including other compilers
 #	include <utility>
 #	include <type_traits>
 #	include <functional>
+#	include <limits>
 #	include <iterator>
 #	include <algorithm>
 #	include <initializer_list>
@@ -440,6 +441,7 @@ further investigations needed, including other compilers
 			using std::enable_if_t;
 			using std::conditional_t;
 			using std::result_of_t;
+			using std::numeric_limits;
 			using std::iterator;
 			using std::forward_iterator_tag;
 			using std::initializer_list;
@@ -499,15 +501,23 @@ further investigations needed, including other compilers
 			template<class CSwizzleVector>
 			class CPackedSwizzle
 			{
-				template<class Iter>
-				struct PackSwizzleElement : mpl::shift_left<typename mpl::deref<Iter>::type, typename mpl::times<DistanceFromBegin<CSwizzleVector, Iter>, mpl::integral_c<unsigned short, 4u>::type>> {};
-				typedef mpl::iter_fold<CSwizzleVector, mpl::integral_c<unsigned short, 0u>, mpl::bitor_<_1, PackSwizzleElement<_2>>> PackedSwizzle;
-
 			public:
 				static constexpr unsigned int dimension = mpl::size<CSwizzleVector>::type::value;
 
 			private:
-				static constexpr unsigned short packedSwizzle = PackedSwizzle::type::value;
+				static constexpr unsigned int bitsRequired = dimension * 4;
+				using TPackedSwizzle =
+					conditional_t<bitsRequired <= numeric_limits<unsigned int>::digits, unsigned int,
+					conditional_t<bitsRequired <= numeric_limits<unsigned long int>::digits, unsigned long int,
+					unsigned long long int>>;
+
+			private:
+				template<class Iter>
+				struct PackSwizzleElement : mpl::shift_left<typename mpl::deref<Iter>::type, typename mpl::times<DistanceFromBegin<CSwizzleVector, Iter>, mpl::integral_c<unsigned int, 4u>>> {};
+				typedef mpl::iter_fold<CSwizzleVector, mpl::integral_c<TPackedSwizzle, 0u>, mpl::bitor_<_1, PackSwizzleElement<_2>>> PackedSwizzle;
+
+			private:
+				static constexpr TPackedSwizzle packedSwizzle = PackedSwizzle::type::value;
 
 			public:
 				static constexpr unsigned int FetchIdx(unsigned int idx)
@@ -552,40 +562,53 @@ further investigations needed, including other compilers
 			template<unsigned int ...swizzleSeq>
 			class CPackedSwizzle
 			{
-#if defined _MSC_VER && _MSC_VER <= 1900
-				template<unsigned int shiftedHead, unsigned int ...shiftedTail>
-				static constexpr unsigned short int Packer = shiftedHead | Packer<shiftedTail...>;
-
-				// terminator
-				template<unsigned int shiftedLast>
-				static constexpr unsigned short int Packer<shiftedLast> = shiftedLast;
-#else
-				template<unsigned int ...shiftedSeq>
-				static constexpr unsigned short int Packer = (shiftedSeq | ...);
-#endif
-
-#if defined _MSC_VER && _MSC_VER <= 1900
-				template<unsigned int shift, unsigned int swizzleHead, unsigned int ...swizzleTail>
-				static constexpr unsigned short int MakePackedSwizzle = swizzleHead << shift | MakePackedSwizzle<shift + 4u, swizzleTail...>;
-
-				template<unsigned int shift, unsigned int swizzleLast>
-				static constexpr unsigned short int MakePackedSwizzle<shift, swizzleLast> = swizzleLast << shift;
-#else
-				template<typename IdxSeq>
-				static constexpr unsigned short int MakePackedSwizzle = 0;
-
-				template<unsigned int ...idxSeq>
-				static constexpr unsigned short int MakePackedSwizzle<integer_sequence<unsigned int, idxSeq...>> = Packer<swizzleSeq << idxSeq * 4u ...>;
-#endif
-
 			public:
 				static constexpr unsigned int dimension = sizeof...(swizzleSeq);
 
 			private:
+				static constexpr unsigned int bitsRequired = dimension * 4;
 #if defined _MSC_VER && _MSC_VER <= 1900
-				static constexpr unsigned short int packedSwizzle = MakePackedSwizzle<0u, swizzleSeq...>;
+				using TPackedSwizzle = unsigned long long int;
 #else
-				static constexpr unsigned short int packedSwizzle = MakePackedSwizzle<make_integer_sequence<unsigned int, dimension>>;
+				// ICE on VS 2015
+				using TPackedSwizzle =
+					conditional_t<bitsRequired <= numeric_limits<unsigned int>::digits, unsigned int,
+					conditional_t<bitsRequired <= numeric_limits<unsigned long int>::digits, unsigned long int,
+					unsigned long long int>>;
+#endif
+
+			private:
+#if defined _MSC_VER && _MSC_VER <= 1900
+				template<TPackedSwizzle shiftedHead, TPackedSwizzle ...shiftedTail>
+				static constexpr TPackedSwizzle Packer = shiftedHead | Packer<shiftedTail...>;
+
+				// terminator
+				template<TPackedSwizzle shiftedLast>
+				static constexpr TPackedSwizzle Packer<shiftedLast> = shiftedLast;
+#else
+				template<TPackedSwizzle ...shiftedSeq>
+				static constexpr TPackedSwizzle Packer = (shiftedSeq | ...);
+#endif
+
+#if defined _MSC_VER && _MSC_VER <= 1900
+				template<unsigned int shift, TPackedSwizzle swizzleHead, TPackedSwizzle ...swizzleTail>
+				static constexpr TPackedSwizzle MakePackedSwizzle = swizzleHead << shift | MakePackedSwizzle<shift + 4u, swizzleTail...>;
+
+				template<unsigned int shift, TPackedSwizzle swizzleLast>
+				static constexpr TPackedSwizzle MakePackedSwizzle<shift, swizzleLast> = swizzleLast << shift;
+#else
+				template<typename IdxSeq>
+				static constexpr TPackedSwizzle MakePackedSwizzle = 0;
+
+				template<unsigned int ...idxSeq>
+				static constexpr TPackedSwizzle MakePackedSwizzle<integer_sequence<unsigned int, idxSeq...>> = Packer<TPackedSwizzle(swizzleSeq) << idxSeq * 4u ...>;
+#endif
+
+			private:
+#if defined _MSC_VER && _MSC_VER <= 1900
+				static constexpr TPackedSwizzle packedSwizzle = MakePackedSwizzle<0u, swizzleSeq...>;
+#else
+				static constexpr TPackedSwizzle packedSwizzle = MakePackedSwizzle<make_integer_sequence<unsigned int, dimension>>;
 #endif
 
 			public:
