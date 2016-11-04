@@ -781,13 +781,9 @@ further investigations needed, including other compilers
 #			pragma region WAR hazard
 #				pragma region detector
 #if USE_BOOST_MPL
-					template<class DstSwizzleDesc, class SrcSwizzleDesc, bool assign, unsigned dstRowIdx = 0, unsigned srcRowIdx = 0>
+					template<class CDstSwizzleVector, class CSrcSwizzleVector, bool assign>
 					class SwizzleWARHazardDetectHelper
 					{
-						// mpl::transform does not work with ranges (bug in mpl?) => use mpl::transform_view (even if it can ponentially be less efficient)
-						typedef mpl::transform_view<typename DstSwizzleDesc::CSwizzleVector, mpl::bitor_<_, mpl::integral_c<unsigned, dstRowIdx << 2>>> CDstSwizzleVector;
-						typedef mpl::transform_view<typename SrcSwizzleDesc::CSwizzleVector, mpl::bitor_<_, mpl::integral_c<unsigned, srcRowIdx << 2>>> CSrcSwizzleVector;
-
 						// cut CSrcSwizzleVector off
 						typedef typename mpl::min<typename mpl::size<CSrcSwizzleVector>::type, typename mpl::size<CDstSwizzleVector>::type>::type MinSwizzleSize;
 						typedef typename mpl::begin<CSrcSwizzleVector>::type SrcSwizzleBegin;
@@ -817,25 +813,20 @@ further investigations needed, including other compilers
 					public:
 						static constexpr typename Result::value_type value = Result::value;
 					};
-#else
-					template<class PackedSwizzle, unsigned int rowIdx>
-					struct VectorSwizzle_2_MatrixSwizzle;
 
-					template<unsigned int ...swizzleSeq, unsigned int rowIdx>
-					struct VectorSwizzle_2_MatrixSwizzle<CPackedSwizzle<swizzleSeq...>, rowIdx>
-					{
-						typedef CPackedSwizzle<swizzleSeq | rowIdx << 2u ...> type;
-					};
-
+					// mpl::transform does not work with ranges (bug in mpl?) => use mpl::transform_view (even if it can ponentially be less efficient)
 					template<class SwizzleDesc, unsigned int rowIdx>
-					using VectorSwizzleDesc_2_PackedMatrixSwizzle = typename VectorSwizzle_2_MatrixSwizzle<typename SwizzleDesc::PackedSwizzle, rowIdx>::type;
+					using RowSwizzleDesc_2_MatrixSwizzleVector = mpl::transform_view<typename SwizzleDesc::CSwizzleVector, mpl::bitor_<_, mpl::integral_c<unsigned, rowIdx << 2>>>;
 
-					template<class DstSwizzleDesc, class SrcSwizzleDesc, bool assign, unsigned dstRowIdx = 0, unsigned srcRowIdx = 0>
+					template<class DstSwizzleDesc, bool dstIsMatrix, class SrcSwizzleDesc, bool srcIsMatrix, unsigned int rowIdx, bool assign>
+					using DetectRowVsMatrixWARHaard = SwizzleWARHazardDetectHelper<
+						conditional_t<dstIsMatrix, typename DstSwizzleDesc::CSwizzleVector, RowSwizzleDesc_2_MatrixSwizzleVector<DstSwizzleDesc, rowIdx>>,
+						conditional_t<srcIsMatrix, typename SrcSwizzleDesc::CSwizzleVector, RowSwizzleDesc_2_MatrixSwizzleVector<SrcSwizzleDesc, rowIdx>>,
+						assign>;
+#else
+					template<class PackedDstSwizzle, class PackedSrcSwizzle, bool assign>
 					class SwizzleWARHazardDetectHelper
 					{
-						typedef VectorSwizzleDesc_2_PackedMatrixSwizzle<DstSwizzleDesc, dstRowIdx> PackedDstSwizzle;
-						typedef VectorSwizzleDesc_2_PackedMatrixSwizzle<SrcSwizzleDesc, srcRowIdx> PackedSrcSwizzle;
-
 						// cut SrcSwizzle off
 						static constexpr unsigned int cuttedSrcDimension = std::min(PackedSrcSwizzle::dimension, PackedDstSwizzle::dimension);
 
@@ -906,6 +897,24 @@ further investigations needed, including other compilers
 					public:
 						static constexpr bool value = Result();
 					};
+
+					template<class PackedSwizzle, unsigned int rowIdx>
+					struct RowSwizzle_2_MatrixSwizzle;
+
+					template<unsigned int ...swizzleSeq, unsigned int rowIdx>
+					struct RowSwizzle_2_MatrixSwizzle<CPackedSwizzle<swizzleSeq...>, rowIdx>
+					{
+						typedef CPackedSwizzle<swizzleSeq | rowIdx << 2u ...> type;
+					};
+
+					template<class SwizzleDesc, unsigned int rowIdx>
+					using RowSwizzleDesc_2_PackedMatrixSwizzle = typename RowSwizzle_2_MatrixSwizzle<typename SwizzleDesc::PackedSwizzle, rowIdx>::type;
+
+					template<class DstSwizzleDesc, bool dstIsMatrix, class SrcSwizzleDesc, bool srcIsMatrix, unsigned int rowIdx, bool assign>
+					using DetectRowVsMatrixWARHaard = SwizzleWARHazardDetectHelper<
+						conditional_t<dstIsMatrix, DstSwizzleDesc, RowSwizzleDesc_2_PackedMatrixSwizzle<DstSwizzleDesc, rowIdx>>,
+						conditional_t<srcIsMatrix, SrcSwizzleDesc, RowSwizzleDesc_2_PackedMatrixSwizzle<SrcSwizzleDesc, rowIdx>>,
+						assign>;
 #endif
 
 					template
@@ -926,7 +935,11 @@ further investigations needed, including other compilers
 						class DstSwizzleDesc, class SrcSwizzleDesc, bool assign
 					>
 					struct DetectSwizzleWARHazard<ElementType, rows, columns, DstSwizzleDesc, ElementType, rows, columns, SrcSwizzleDesc, assign> :
+#if USE_BOOST_MPL
+						SwizzleWARHazardDetectHelper<typename DstSwizzleDesc::CSwizzleVector, typename SrcSwizzleDesc::CSwizzleVector, assign> {};
+#else
 						SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign> {};
+#endif
 
 					// mixed vector/matrix swizzles
 					template
@@ -937,7 +950,7 @@ further investigations needed, including other compilers
 					class DetectSwizzleWARHazard<ElementType, dstRows, columns, DstSwizzleDesc, ElementType, srcRows, columns, SrcSwizzleDesc, assign, enable_if_t<bool(dstRows) != bool(srcRows)>>
 					{
 						template<unsigned int rows, unsigned rowIdx = 0>
-						static constexpr auto rowsFold = SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign, dstRows ? 0 : rowIdx, srcRows ? 0 : rowIdx>::value || rowsFold<rows, rowIdx + 1>;
+						static constexpr auto rowsFold = DetectRowVsMatrixWARHaard<DstSwizzleDesc, dstRows, SrcSwizzleDesc, srcRows, rowIdx, assign>::value || rowsFold<rows, rowIdx + 1>;
 
 						// terminator
 						template<unsigned int rows>
@@ -1047,7 +1060,11 @@ further investigations needed, including other compilers
 						>
 						static inline bool TriggerWARHazard(CSwizzleDataAccess<ElementType, rows, columns, DstSwizzleDesc> &dst, const CSwizzleDataAccess<ElementType, rows, columns, SrcSwizzleDesc> &src)
 						{
+#if USE_BOOST_MPL
+							return SwizzleWARHazardDetectHelper<typename DstSwizzleDesc::CSwizzleVector, typename SrcSwizzleDesc::CSwizzleVector, assign>::value && GetRowAddress(dst) == GetRowAddress(src);
+#else
 							return SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign>::value && GetRowAddress(dst) == GetRowAddress(src);
+#endif
 						}
 
 						// mixed vector/matrix swizzles
@@ -1059,7 +1076,7 @@ further investigations needed, including other compilers
 						static inline enable_if_t<bool(dstRows) != bool(srcRows) && rowIdx < std::max(dstRows, srcRows), bool>
 						TriggerWARHazard(CSwizzleDataAccess<ElementType, dstRows, columns, DstSwizzleDesc> &dst, const CSwizzleDataAccess<ElementType, srcRows, columns, SrcSwizzleDesc> &src)
 						{
-							return (SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign, dstRows ? 0 : rowIdx, srcRows ? 0 : rowIdx>::value
+							return (DetectRowVsMatrixWARHaard<DstSwizzleDesc, dstRows, SrcSwizzleDesc, srcRows, rowIdx, assign>::value
 								&& GetRowAddress<rowIdx>(dst) == GetRowAddress<rowIdx>(src)) | TriggerWARHazard<assign, rowIdx + 1>(dst, src);
 						}
 
