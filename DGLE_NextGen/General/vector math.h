@@ -436,6 +436,7 @@ further investigations needed, including other compilers
 			using std::remove_volatile_t;
 			using std::remove_reference_t;
 			using std::decay_t;
+			using std::enable_if;
 			using std::enable_if_t;
 			using std::conditional_t;
 			using std::result_of_t;
@@ -908,12 +909,12 @@ further investigations needed, including other compilers
 					};
 
 					template<class SwizzleDesc, unsigned int rowIdx>
-					using RowSwizzleDesc_2_PackedMatrixSwizzle = typename RowSwizzle_2_MatrixSwizzle<typename SwizzleDesc::PackedSwizzle, rowIdx>::type;
+					using RowSwizzleDesc_2_PackedMatrixSwizzle = RowSwizzle_2_MatrixSwizzle<typename SwizzleDesc::PackedSwizzle, rowIdx>;
 
 					template<class DstSwizzleDesc, bool dstIsMatrix, class SrcSwizzleDesc, bool srcIsMatrix, unsigned int rowIdx, bool assign>
 					using DetectRowVsMatrixWARHaard = SwizzleWARHazardDetectHelper<
-						conditional_t<dstIsMatrix, DstSwizzleDesc, RowSwizzleDesc_2_PackedMatrixSwizzle<DstSwizzleDesc, rowIdx>>,
-						conditional_t<srcIsMatrix, SrcSwizzleDesc, RowSwizzleDesc_2_PackedMatrixSwizzle<SrcSwizzleDesc, rowIdx>>,
+						typename conditional_t<dstIsMatrix, enable_if<true, DstSwizzleDesc>, RowSwizzleDesc_2_PackedMatrixSwizzle<DstSwizzleDesc, rowIdx>>::type,
+						typename conditional_t<srcIsMatrix, enable_if<true, SrcSwizzleDesc>, RowSwizzleDesc_2_PackedMatrixSwizzle<SrcSwizzleDesc, rowIdx>>::type,
 						assign>;
 #endif
 
