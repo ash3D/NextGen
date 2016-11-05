@@ -1006,13 +1006,22 @@ further investigations needed, including other compilers
 						// packed scalar
 
 						template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-						static integral_constant<unsigned int, rows> GetSwizzleRows(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &);
+						static integral_constant<unsigned int, rows> GetRows(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &);
 
 						template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-						static integral_constant<unsigned int, columns> GetSwizzleColumns(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &);
+						static integral_constant<unsigned int, columns> GetColumns(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &);
 
 						template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 						static SwizzleDesc GetSwizzleDesc(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &);
+
+						template<typename ElementType>
+						static integral_constant<unsigned int, 1> GetRows(const matrix<ElementType, 1, 1> &);
+
+						template<typename ElementType>
+						static integral_constant<unsigned int, 1> GetColumns(const matrix<ElementType, 1, 1> &);
+
+						template<typename ElementType>
+						static CSwizzleDesc<0> GetSwizzleDesc(const matrix<ElementType, 1, 1> &);
 
 						template<typename DstElementType, unsigned int dstRows, unsigned int dstColumns, class DstSwizzleDesc, typename SrcType>
 						struct DetectScalarWARHazard<CSwizzle<DstElementType, dstRows, dstColumns, DstSwizzleDesc>, SrcType, enable_if_t<IsPackedScalar<SrcType>>> :
@@ -1020,8 +1029,8 @@ further investigations needed, including other compilers
 							<
 								DstElementType, dstRows, dstColumns, DstSwizzleDesc,
 								remove_const_t<remove_reference_t<decltype(ExtractScalar(declval<SrcType>()))>>,
-								enable_if_t<true, decltype(GetSwizzleRows(declval<SrcType>()))>::value,
-								enable_if_t<true, decltype(GetSwizzleColumns(declval<SrcType>()))>::value,
+								enable_if_t<true, decltype(GetRows(declval<SrcType>()))>::value,
+								enable_if_t<true, decltype(GetColumns(declval<SrcType>()))>::value,
 #if USE_BOOST_MPL
 								CBroadcastScalarSwizzleDesc<mpl::front<typename enable_if_t<true, decltype(GetSwizzleDesc(declval<SrcType>()))>::CSwizzleVector>::type::value, DstSwizzleDesc::dimension>,
 #else
