@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		05.11.2016 (c)Alexey Shaydurov
+\date		06.11.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1496,7 +1496,7 @@ further investigations needed, including other compilers
 
 					template<size_t ...idx, typename ItemElementType, unsigned int itemRows, unsigned int itemColumns>
 					constexpr CInitListItem(index_sequence<idx...>, const matrix<ItemElementType, itemRows, itemColumns> &item) :
-						item{ static_cast<const ElementType &>(item[idx / itemColumns][idx % itemColumns])... },
+						itemStore{ static_cast<const ElementType &>(item[idx / itemColumns][idx % itemColumns])... },
 						itemSize(sizeof...(idx))
 					{}
 
@@ -1509,14 +1509,14 @@ further investigations needed, including other compilers
 
 					template<typename ItemElementType, unsigned int itemRows, unsigned int itemColumns, class ItemSwizzleDesc>
 					constexpr CInitListItem(const CSwizzle<ItemElementType, itemRows, itemColumns, ItemSwizzleDesc> &item) :
-						CInitListItem(make_index_sequence<std::min(ItemSwizzleDesc::dimension, capacity)>, item)
+						CInitListItem(make_index_sequence<std::min(ItemSwizzleDesc::dimension, capacity)>(), item)
 					{
 						static_assert(ItemSwizzleDesc::dimension <= capacity, INIT_LIST_ITEM_OVERFLOW_MSG);
 					}
 
 					template<typename ItemElementType, unsigned int itemRows, unsigned int itemColumns>
 					constexpr CInitListItem(const matrix<ItemElementType, itemRows, itemColumns> &item) :
-						CInitListItem(make_index_sequence<std::min(itemRows * itemColumns, capacity)>, item)
+						CInitListItem(make_index_sequence<std::min(itemRows * itemColumns, capacity)>(), item)
 					{
 						static_assert(itemRows * itemColumns <= capacity, INIT_LIST_ITEM_OVERFLOW_MSG);
 					}
