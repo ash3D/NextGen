@@ -743,7 +743,7 @@ further investigations needed, including other compilers
 		}
 #endif
 			// rows = 0 for vectors
-			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc = CVectorSwizzleDesc<columns>, typename = Impl::TouchSwizzleDesc<SwizzleDesc>>
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc = Impl::CVectorSwizzleDesc<columns>, typename = Impl::TouchSwizzleDesc<SwizzleDesc>>
 			class CSwizzle;
 #ifdef MSVC_NAMESPACE_WORKAROUND
 		namespace Impl
