@@ -62,7 +62,7 @@ See "DGLE2.h" for more details.
 #	undef CTOR_FORWARD
 #endif
 #pragma region generate typedefs
-#ifdef _MSC_VER
+#ifdef MSVC_LIMITATIONS
 #	define PASS_THROUGH(x) x
 #endif
 #
@@ -72,7 +72,7 @@ See "DGLE2.h" for more details.
 #
 #	// scalar types mapping expected at '...'
 #	if ROWS == 0
-#ifdef _MSC_VER
+#ifdef MSVC_LIMITATIONS
 #		define CPP_CLASS(...) vector<PASS_THROUGH(LOOKUP_CPP_TYPE(__VA_ARGS__)), COLUMNS>
 #else
 #		define CPP_CLASS(...) vector<LOOKUP_CPP_TYPE(__VA_ARGS__), COLUMNS>
@@ -80,7 +80,7 @@ See "DGLE2.h" for more details.
 #		define HLSL_CLASS(...) CONCAT(LOOKUP_HLSL_TYPE(__VA_ARGS__), COLUMNS)
 #		define GLSL_CLASS(...) CONCAT(CONCAT(LOOKUP_GLSL_TYPE(__VA_ARGS__), vec), COLUMNS)
 #	else
-#ifdef _MSC_VER
+#ifdef MSVC_LIMITATIONS
 #		define CPP_CLASS(...) matrix<PASS_THROUGH(LOOKUP_CPP_TYPE(__VA_ARGS__)), ROWS, COLUMNS>
 #else
 #		define CPP_CLASS(...) matrix<LOOKUP_CPP_TYPE(__VA_ARGS__), ROWS, COLUMNS>
@@ -116,7 +116,7 @@ See "DGLE2.h" for more details.
 	}
 
 #pragma region cleanup
-#ifdef _MSC_VER
+#ifdef MSVC_LIMITATIONS
 #	undef PASS_THROUGH
 #endif
 #	undef LOOKUP_CPP_TYPE

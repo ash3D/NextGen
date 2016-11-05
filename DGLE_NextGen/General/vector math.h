@@ -1616,7 +1616,7 @@ further investigations needed, including other compilers
 #		include BOOST_PP_ITERATE()
 #else
 #pragma region swizzles generator
-#ifdef _MSC_VER
+#ifdef MSVC_LIMITATIONS
 #		define CONCAT_IMPL_1(a, b) a ## b
 #		define CONCAT_IMPL_0(a, b) CONCAT_IMPL_1(a, b)
 #		define CONCAT_IMPL(a, b) CONCAT_IMPL_0(a, b)
@@ -1684,7 +1684,7 @@ further investigations needed, including other compilers
 #		define IDX_SEQ_2_SYMBOLS_2(xform, i0, i1) CONCAT(IDX_SEQ_2_SYMBOLS_1(xform, i0), xform i1)
 #		define IDX_SEQ_2_SYMBOLS_3(xform, i0, i1, i2) CONCAT(IDX_SEQ_2_SYMBOLS_2(xform, i0, i1), xform i2)
 #		define IDX_SEQ_2_SYMBOLS_4(xform, i0, i1, i2, i3) CONCAT(IDX_SEQ_2_SYMBOLS_3(xform, i0, i1, i2), xform i3)
-#ifdef _MSC_VER
+#ifdef MSVC_LIMITATIONS
 #		define IDX_SEQ_2_SYMBOLS(swizDim, xform, ...) CONCAT(IDX_SEQ_2_SYMBOLS_, swizDim(xform, __VA_ARGS__))
 #else
 #		define IDX_SEQ_2_SYMBOLS(swizDim, xform, ...) IDX_SEQ_2_SYMBOLS_##swizDim(xform, __VA_ARGS__)
@@ -1777,7 +1777,7 @@ further investigations needed, including other compilers
 #		include "vector math generate stuff.h"
 
 #pragma region cleanup
-#ifdef _MSC_VER
+#ifdef MSVC_LIMITATIONS
 #		undef CONCAT_IMPL_1
 #		undef CONCAT_IMPL_0
 #endif
