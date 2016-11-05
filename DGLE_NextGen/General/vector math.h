@@ -119,7 +119,7 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 				TRANSFORM_SWIZZLE(NAMING_SET_1, swizzle_seq),						\
 				TRANSFORM_SWIZZLE(NAMING_SET_2, swizzle_seq);
 
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 #		define TRIVIAL_CTOR_FORWARD CDataContainer() = default; template<typename First, typename ...Rest> CDataContainer(const First &first, const Rest &...rest) : data(first, rest...) {}
 #else
 #		define TRIVIAL_CTOR_FORWARD CDataContainer() = default; NONTRIVIAL_CTOR_FORWARD
@@ -278,8 +278,12 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 #	pragma warning(push)
 #	pragma warning(disable: 4003)
 
+#if !defined  __clang__ && defined _MSC_VER && _MSC_VER <= 1900
+#	define MSVC_LIMITATIONS
+#endif
+
 // ugly workaround for operations like 'vec4.xy += int4(4).xxx;'
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 #	define MSVC_NAMESPACE_WORKAROUND
 #endif
 
@@ -573,7 +577,7 @@ further investigations needed, including other compilers
 
 			private:
 				static constexpr unsigned int bitsRequired = dimension * 4;
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 				using TPackedSwizzle = unsigned long long int;
 #else
 				// ICE on VS 2015
@@ -584,7 +588,7 @@ further investigations needed, including other compilers
 #endif
 
 			private:
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 				template<TPackedSwizzle shiftedHead, TPackedSwizzle ...shiftedTail>
 				static constexpr TPackedSwizzle Packer = shiftedHead | Packer<shiftedTail...>;
 
@@ -596,7 +600,7 @@ further investigations needed, including other compilers
 				static constexpr TPackedSwizzle Packer = (shiftedSeq | ...);
 #endif
 
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 				template<unsigned int shift, TPackedSwizzle swizzleHead, TPackedSwizzle ...swizzleTail>
 				static constexpr TPackedSwizzle MakePackedSwizzle = swizzleHead << shift | MakePackedSwizzle<shift + 4u, swizzleTail...>;
 
@@ -611,7 +615,7 @@ further investigations needed, including other compilers
 #endif
 
 			private:
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 				static constexpr TPackedSwizzle packedSwizzle = MakePackedSwizzle<0u, swizzleSeq...>;
 #else
 				static constexpr TPackedSwizzle packedSwizzle = MakePackedSwizzle<make_integer_sequence<unsigned int, dimension>>;
@@ -630,7 +634,7 @@ further investigations needed, including other compilers
 			template<unsigned int ...swizzleSeq>
 			class CSwizzleDesc : public CPackedSwizzle<swizzleSeq...>
 			{
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 				static constexpr bool IsWriteMaskValid(unsigned i = 0, unsigned j = 1)
 				{
 					return i < dimension ? j < dimension ? FetchIdx(i) != FetchIdx(j) && IsWriteMaskValid(i, j + 1) : IsWriteMaskValid(i + 1, i + 2) : true;
@@ -689,7 +693,7 @@ further investigations needed, including other compilers
 				template<unsigned int ...seq>
 				struct IntSeq2SwizzleVec<integer_sequence<unsigned int, seq...>>
 				{
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 					typedef mpl::vector_c<unsigned int, seq * 0 + scalarSwizzle ...> type;
 #else
 					typedef mpl::vector_c<unsigned int, (seq, scalarSwizzle)...> type;
@@ -709,7 +713,7 @@ further investigations needed, including other compilers
 				template<unsigned int ...rep>
 				struct PackedSwizzle<integer_sequence<unsigned int, rep...>>
 				{
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 					typedef CPackedSwizzle<rep * 0 + scalarSwizzle ...> type;
 #else
 					typedef CPackedSwizzle<(rep, scalarSwizzle)...> type;
@@ -797,7 +801,7 @@ further investigations needed, including other compilers
 				return src;
 			}
 
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 			// workaround for lack of expression SFINAE support in VS 2015 for MatrixOpScalarResult/ScalarOpMatrixResult
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			inline const ElementType &ExtractScalar(const matrix<ElementType, rows, columns> &src) noexcept
@@ -863,7 +867,7 @@ further investigations needed, including other compilers
 
 					private:
 						// searches until srcSwizzleIdx, returns srcSwizzleIdx if not found
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 						static constexpr unsigned FindDstSwizzleIdx(unsigned srcSwizzleIdx, unsigned dstSwizzleIdx = 0)
 						{
 							return
@@ -896,7 +900,7 @@ further investigations needed, including other compilers
 							return PackedDstSwizzle::FetchIdx(dstSwizzleIdx) != PackedSrcSwizzle::FetchIdx(dstSwizzleIdx);
 						}
 
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 						static constexpr bool Iterate(unsigned dstSwizzleIdx, unsigned srcSwizzleIdx, bool dstWasAlreadyWritten)
 						{
 							return (assign && dstWasAlreadyWritten ? DstWasModified(dstSwizzleIdx) : dstWasAlreadyWritten) || Result(srcSwizzleIdx + 1);
@@ -1153,7 +1157,7 @@ further investigations needed, including other compilers
 #				pragma endregion NOTE: assert should not be triggered if WAR hazard is not detected except for scalars.
 #			pragma endregion
 
-#if defined _MSC_VER && _MSC_VER <= 1900 && !_DEBUG
+#if defined MSVC_LIMITATIONS && !_DEBUG
 			namespace ElementsCountHelpers
 			{
 				// empty
@@ -1195,7 +1199,7 @@ further investigations needed, including other compilers
 				class InitTag {};
 
 				// unresolved external symbols on VS 2015 under whole program optimizations
-#if !(defined _MSC_VER && _MSC_VER <= 1900) || _DEBUG
+#if !defined MSVC_LIMITATIONS || _DEBUG
 			private:
 				// empty
 				static integral_constant<unsigned int, 0u> ElementsCountHelper();
@@ -1221,7 +1225,7 @@ further investigations needed, including other compilers
 				static constexpr unsigned int ElementsCount = decltype(ElementsCountHelper(declval<Args>()...))::value;
 #endif
 
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 				// SFINAE leads to internal comiler error on VS 2015, use tagging as workaround
 			private:
 				enum class Dispatch
@@ -1460,7 +1464,7 @@ further investigations needed, including other compilers
 				CDataContainer() = default;
 				CDataContainer(const CDataContainer &) = default;
 				CDataContainer(CDataContainer &&) = default;
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 				template<typename First, typename ...Rest> CDataContainer(const First &first, const Rest &...rest) : data(first, rest...) {}
 #else
 				template<typename ...Args> CDataContainer(const Args &...args) : data(args...) {}
@@ -1667,7 +1671,7 @@ further investigations needed, including other compilers
 #
 #		define LOOKUP_SYMBOL_0(idx, ...) LOOKUP_SYMBOL_0_##idx
 #		define LOOKUP_SYMBOL_1(idx, ...) LOOKUP_SYMBOL_1_##idx
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 		constexpr unsigned int ExtractSwizzleIdx(unsigned int dec, unsigned int bcd)
 		{
 			return bcd;
@@ -1695,7 +1699,7 @@ further investigations needed, including other compilers
 #		define DEC_2_BIN_1 01
 #		define DEC_2_BIN_2 10
 #		define DEC_2_BIN_3 11
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 #		define ENCODE_RC_IDX(r, c) (ExtractSwizzleIdx(r ## c, CONCAT(0b, CONCAT(DEC_2_BIN_##r, DEC_2_BIN_##c))))
 #else
 #		define ENCODE_RC_IDX(r, c) (r ## c, CONCAT(0b, CONCAT(DEC_2_BIN_##r, DEC_2_BIN_##c)))
@@ -1826,7 +1830,7 @@ further investigations needed, including other compilers
 #
 #		undef LOOKUP_SYMBOL_0
 #		undef LOOKUP_SYMBOL_1
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 #		undef LOOKUP_SYMBOL_0_ExtractSwizzleIdx
 #		undef LOOKUP_SYMBOL_1_ExtractSwizzleIdx
 #endif
@@ -2182,7 +2186,7 @@ further investigations needed, including other compilers
 				CSwizzleAssign(const CSwizzleAssign &) = default;
 				~CSwizzleAssign() = default;
 
-#if !(defined _MSC_VER && _MSC_VER <= 1900)
+#ifndef MSVC_LIMITATIONS
 			public:
 #ifdef __GNUC__
 				operator ElementType &() noexcept
@@ -2249,7 +2253,7 @@ further investigations needed, including other compilers
 				template<typename SrcType>
 #ifdef __GNUC__
 				inline enable_if_t<IsScalar<SrcType>, TOperationResult &> operator =(const SrcType &scalar);
-#elif defined _MSC_VER && _MSC_VER <= 1900
+#elif defined MSVC_LIMITATIONS
 				inline enable_if_t<IsScalar<SrcType>, TOperationResult &> operator =(const SrcType &src) &
 				{
 					const auto &scalar = ExtractScalar(src);
@@ -2317,7 +2321,7 @@ further investigations needed, including other compilers
 				return operator =<false>(vector<SrcElementType, SrcSwizzleDesc::dimension>(src));
 			}
 
-#if !(defined _MSC_VER && _MSC_VER <= 1900)
+#ifndef MSVC_LIMITATIONS
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			template<typename SrcType>
 #ifdef __GNUC__
@@ -2381,7 +2385,7 @@ further investigations needed, including other compilers
 #endif
 
 			public:
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 				operator const ElementType &() const & noexcept
 				{
 					return (*this)[0];
@@ -2627,20 +2631,20 @@ further investigations needed, including other compilers
 			>
 			class MatrixOpMatrixResultImpl
 			{
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 				constexpr static const unsigned int lr = leftRows, lc = leftColumns, rr = rightRows, rc = rightColumns;
 #endif
 				constexpr static const bool dimensionalMismatch =
 #if ENABLE_UNMATCHED_MATRICES
 					false;
 #else
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 #else
 					!(leftRows <= rightRows && leftColumns <= rightColumns || leftRows >= rightRows && leftColumns >= rightColumns);
 #endif
 					!(lr <= rr && lc <= rc || lr >= rr && lc >= rc);
 #endif
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 				typedef matrix<TargetElementType, std::min(lr, rr), std::min(lc, rc)> ResultMatrix;
 #else
 				typedef matrix<TargetElementType, std::min(leftRows, rightRows), std::min(leftColumns, rightColumns)> ResultMatrix;
@@ -2844,7 +2848,7 @@ further investigations needed, including other compilers
 #					undef OPERATOR_DEFINITION
 				}
 
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 				//	workaround for ICE on VS 2015\
 					this implementation does not allow users to explicitly specify WAR hazard\
 					TODO: try with newer version or x64
@@ -3075,7 +3079,7 @@ further investigations needed, including other compilers
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 				namespace Impl::ScalarOps
 				{
 					// matrix / 1x1 matrix op=<?WARHazard> scalar
@@ -3519,7 +3523,7 @@ further investigations needed, including other compilers
 			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, typename = std::enable_if_t<(srcRows > 1 || srcColumns > 1)>>
 			vector(const matrix<SrcElementType, srcRows, srcColumns> &src);
 
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 			template<typename First, typename Second, typename ...Rest>
 			vector(const First &first, const Second &second, const Rest &...rest);
 #else
@@ -3550,7 +3554,7 @@ further investigations needed, including other compilers
 			typedef std::make_index_sequence<dimension> IdxSeq;
 
 			template<typename Data::InitType initType, class IdxSeq, unsigned offset, typename ...Args>
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 			inline vector(typename Data::template InitTag<initType, IdxSeq, offset> tag, const Args &...args) :
 				DataContainer(tag, args...) {}
 #else
@@ -3587,7 +3591,7 @@ further investigations needed, including other compilers
 			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, typename = std::enable_if_t<(SrcSwizzleDesc::dimension > 1)>>
 			matrix(const Impl::CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
 
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 			template<typename First, typename Second, typename ...Rest>
 			matrix(const First &first, const Second &second, const Rest &...rest);
 #else
@@ -3619,7 +3623,7 @@ further investigations needed, including other compilers
 			template<typename SrcType>
 #ifdef __GNUC__
 			std::enable_if_t<Impl::IsScalar<SrcType>, matrix &> operator =(const SrcType &scalar);
-#elif defined _MSC_VER && _MSC_VER <= 1900
+#elif defined MSVC_LIMITATIONS
 			std::enable_if_t<Impl::IsScalar<SrcType>, matrix &> operator =(const SrcType &scalar) &
 			{
 				for (unsigned r = 0; r < rows; r++)
@@ -3678,7 +3682,7 @@ further investigations needed, including other compilers
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION)
 #			undef OPERATOR_DECLARATION
 
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 			// matrix / 1x1 matrix op=<?WARHazard> scalar
 #			define OPERATOR_DECLARATION(op)																\
 				template																				\
@@ -3774,7 +3778,7 @@ further investigations needed, including other compilers
 			return result;
 		}
 
-#if defined _MSC_VER && _MSC_VER <= 1900 && !_DEBUG
+#if defined MSVC_LIMITATIONS && !_DEBUG
 #	define ELEMENTS_COUNT_PREFIX Impl
 #else
 #	define ELEMENTS_COUNT_PREFIX Data
@@ -3804,7 +3808,7 @@ further investigations needed, including other compilers
 				static_assert(srcRows * srcColumns <= dimension || !checkOverflow, "sequencing ctor: too many src elements");
 			}
 
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 			template<typename ElementType, unsigned int dimension>
 			template<typename First, typename Second, typename ...Rest>
 			inline vector<ElementType, dimension>::vector(const First &first, const Second &second, const Rest &...rest) :
@@ -3847,7 +3851,7 @@ further investigations needed, including other compilers
 				operator =(initList);
 			}
 
-#if !(defined _MSC_VER && _MSC_VER <= 1900)
+#ifndef MSVC_LIMITATIONS
 			template<typename ElementType, unsigned int dimension>
 			template<typename vector<ElementType, dimension>::Data::InitType initType, class IdxSeq, unsigned offset, typename ...Args>
 			inline vector<ElementType, dimension>::vector(typename Data::template InitTag<initType, IdxSeq, offset> tag, const Args &...args) :
@@ -3927,7 +3931,7 @@ further investigations needed, including other compilers
 				static_assert(srcElements <= rows * columns || !checkOverflow, "sequencing ctor: too many src elements");
 			}
 
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<typename First, typename Second, typename ...Rest>
 			inline matrix<ElementType, rows, columns>::matrix(const First &first, const Second &second, const Rest &...rest) :
@@ -3987,7 +3991,7 @@ further investigations needed, including other compilers
 				return *this;
 			}
 
-#if !(defined _MSC_VER && _MSC_VER <= 1900)
+#ifndef MSVC_LIMITATIONS
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<typename SrcType>
 #ifdef __GNUC__
@@ -4525,7 +4529,7 @@ further investigations needed, including other compilers
 		};
 
 		// vector/vector
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 		template<typename LeftElementType, unsigned int leftDimension, typename RightElementType, unsigned int rightDimension>
 		class common_type<Math::VectorMath::vector<LeftElementType, leftDimension>, Math::VectorMath::vector<RightElementType, rightDimension>>
 		{
@@ -4557,7 +4561,7 @@ further investigations needed, including other compilers
 		};
 
 		// matrix/matrix
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 		template<typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, typename RightElementType, unsigned int rightRows, unsigned int rightColumns>
 		class common_type<Math::VectorMath::matrix<LeftElementType, leftRows, leftColumns>, Math::VectorMath::matrix<RightElementType, rightRows, rightColumns>>
 		{
