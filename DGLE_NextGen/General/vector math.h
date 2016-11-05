@@ -271,7 +271,7 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 
 #	if !defined  __clang__  && defined _MSC_FULL_VER && _MSC_FULL_VER < 190024210
 #	error Old MSVC compiler version. Visual Studio 2015 Update 3 or later required.
-#	elif defined __GNUC__ && (__GNUC__ < 4 || (__GNUC__ >= 4 && __GNUC_MINOR__ < 7))
+#	elif !defined  __clang__ && defined __GNUC__ && (__GNUC__ < 4 || (__GNUC__ >= 4 && __GNUC_MINOR__ < 7))
 #	error Old GCC compiler version. GCC 4.7 or later required.	// need to be clarified
 #	endif
 
