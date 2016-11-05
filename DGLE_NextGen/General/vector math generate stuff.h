@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		01.11.2016 (c)Alexey Shaydurov
+\date		05.11.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -151,12 +151,20 @@ namespace Impl
 			data.~CData<ElementType, ROWS, COLUMNS>();
 		}
 
+#ifdef __GNUC__
 		void operator =(const CDataContainer &src)
+#else
+		void operator =(const CDataContainer &src) &
+#endif
 		{
 			data = src.data;
 		}
 
+#ifdef __GNUC__
 		void operator =(CDataContainer &&src)
+#else
+		void operator =(CDataContainer &&src) &
+#endif
 		{
 			data = move(src.data);
 		}
