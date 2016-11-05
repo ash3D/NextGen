@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		04.11.2016 (c)Alexey Shaydurov
+\date		05.11.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1006,13 +1006,13 @@ further investigations needed, including other compilers
 						// packed scalar
 
 						template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-						static integral_constant<unsigned int, rows> GetSwizzeRows(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &);
+						static integral_constant<unsigned int, rows> GetSwizzleRows(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &);
 
 						template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-						static integral_constant<unsigned int, columns> GetSwizzeColumns(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &);
+						static integral_constant<unsigned int, columns> GetSwizzleColumns(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &);
 
 						template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-						static SwizzleDesc GetSwizzeDesc(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &);
+						static SwizzleDesc GetSwizzleDesc(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &);
 
 						template<typename DstElementType, unsigned int dstRows, unsigned int dstColumns, class DstSwizzleDesc, typename SrcType>
 						struct DetectScalarWARHazard<CSwizzle<DstElementType, dstRows, dstColumns, DstSwizzleDesc>, SrcType, enable_if_t<IsPackedScalar<SrcType>>> :
@@ -1020,12 +1020,12 @@ further investigations needed, including other compilers
 							<
 								DstElementType, dstRows, dstColumns, DstSwizzleDesc,
 								remove_const_t<remove_reference_t<decltype(ExtractScalar(declval<SrcType>()))>>,
-								enable_if_t<true, decltype(GetSwizzeRows(declval<SrcType>()))>::value,
-								enable_if_t<true, decltype(GetSwizzeColumns(declval<SrcType>()))>::value,
+								enable_if_t<true, decltype(GetSwizzleRows(declval<SrcType>()))>::value,
+								enable_if_t<true, decltype(GetSwizzleColumns(declval<SrcType>()))>::value,
 #if USE_BOOST_MPL
-								CBroadcastScalarSwizzleDesc<mpl::front<typename enable_if_t<true, decltype(GetSwizzeDesc(declval<SrcType>()))>::CSwizzleVector>::type::value, DstSwizzleDesc::dimension>,
+								CBroadcastScalarSwizzleDesc<mpl::front<typename enable_if_t<true, decltype(GetSwizzleDesc(declval<SrcType>()))>::CSwizzleVector>::type::value, DstSwizzleDesc::dimension>,
 #else
-								CBroadcastScalarSwizzleDesc<enable_if_t<true, decltype(GetSwizzeDesc(declval<SrcType>()))>::FetchIdx(0), DstSwizzleDesc::dimension>,
+								CBroadcastScalarSwizzleDesc<enable_if_t<true, decltype(GetSwizzleDesc(declval<SrcType>()))>::FetchIdx(0), DstSwizzleDesc::dimension>,
 #endif
 								false
 							> {};
@@ -1035,7 +1035,7 @@ further investigations needed, including other compilers
 							typename DstElementType, unsigned int dstRows, unsigned int dstColumns,
 							typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc
 						>
-						static false_type MatrixVsPackedSwizzleWARHazardDetectHelper(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &);
+						static false_type MatrixVsPackedScalarWARHazardDetectHelper(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &);
 
 						template<typename ElementType, unsigned int rows, unsigned int columns, class SrcSwizzleDesc>
 #if USE_BOOST_MPL
@@ -1043,7 +1043,7 @@ further investigations needed, including other compilers
 #else
 						static bool_constant<SrcSwizzleDesc::FetchIdx(0) != (columns - 1 | rows - 1 << 2)>
 #endif
-							MatrixVsPackedSwizzleWARHazardDetectHelper(const CSwizzle<ElementType, rows, columns, SrcSwizzleDesc> &);
+							MatrixVsPackedScalarWARHazardDetectHelper(const CSwizzle<ElementType, rows, columns, SrcSwizzleDesc> &);
 
 						template<typename ElementType, unsigned int dstRows, unsigned int columns, class SrcSwizzleDesc>
 #if USE_BOOST_MPL
@@ -1051,14 +1051,14 @@ further investigations needed, including other compilers
 #else
 						static bool_constant<(SrcSwizzleDesc::FetchIdx(0) != columns - 1 || dstRows > 1)>
 #endif
-							MatrixVsPackedSwizzleWARHazardDetectHelper(const CSwizzle<ElementType, 0, columns, SrcSwizzleDesc> &);
+							MatrixVsPackedScalarWARHazardDetectHelper(const CSwizzle<ElementType, 0, columns, SrcSwizzleDesc> &);
 
 						template<typename DstElementType, unsigned int dstRows, unsigned int dstColumns, typename SrcElementType>
-						static false_type MatrixVsPackedSwizzleWARHazardDetectHelper(const matrix<SrcElementType, 1, 1> &);
+						static false_type MatrixVsPackedScalarWARHazardDetectHelper(const matrix<SrcElementType, 1, 1> &);
 
 						template<typename DstElementType, unsigned int dstRows, unsigned int dstColumns, typename SrcType>
 						struct DetectScalarWARHazard<matrix<DstElementType, dstRows, dstColumns>, SrcType, enable_if_t<IsPackedScalar<SrcType>>> :
-							decltype(MatrixVsPackedSwizzleWARHazardDetectHelper<DstElementType, dstRows, dstColumns>(declval<SrcType>())) {};
+							decltype(MatrixVsPackedScalarWARHazardDetectHelper<DstElementType, dstRows, dstColumns>(declval<SrcType>())) {};
 #					pragma endregion
 #				pragma endregion
 
