@@ -3805,6 +3805,7 @@ further investigations needed, including other compilers
 			auto operator -() const;
 
 		private:
+#pragma region generate operators
 			// matrix / 1x1 matrix op=<!WARHazard, !extractScalar> scalar
 #			define OPERATOR_DECLARATION(op)																\
 				template<bool WARHazard, bool extractScalar, typename SrcType>							\
@@ -3818,7 +3819,7 @@ further investigations needed, including other compilers
 				template<bool WARHazard, bool extractScalar, typename SrcType>							\
 				std::enable_if_t<WARHazard && !extractScalar/* && Impl::IsScalar<SrcType>*/, matrix &>	\
 				operator op##=(const SrcType &scalar);
-				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION)
+			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION)
 #			undef OPERATOR_DECLARATION
 
 			// matrix / 1x1 matrix op=<?WARHazard, extractScalar> scalar
@@ -3826,7 +3827,7 @@ further investigations needed, including other compilers
 				template<bool WARHazard, bool extractScalar = true, typename SrcType>					\
 				std::enable_if_t<extractScalar/* && Impl::IsScalar<SrcType>*/, matrix &>				\
 				operator op##=(const SrcType &scalar);
-				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION)
+			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION)
 #			undef OPERATOR_DECLARATION
 
 #ifdef MSVC_LIMITATIONS
@@ -3859,6 +3860,7 @@ further investigations needed, including other compilers
 			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION)
 #			undef OPERATOR_DECLARATION
 #endif
+#pragma endregion
 
 		public:
 #ifdef __GNUC__
@@ -3929,6 +3931,7 @@ further investigations needed, including other compilers
 				-> std::enable_if_t<(srcRows > 1 || srcColumns > 1), typename Impl::CSwizzleAssign<DstElementType, dstRows, dstColumns, DstSwizzleDesc, std::true_type>::TOperationResult &>;
 #endif
 
+#pragma region generate operators
 			// swizzle / 1D swizzle op= matrix
 #ifdef MSVC_LIMITATIONS
 #			define OPERATOR_DECLARATION(op)																								\
@@ -4049,6 +4052,7 @@ further investigations needed, including other compilers
 			GENERATE_REL_OPERATORS(OPERATOR_DECLARATION)
 #			undef OPERATOR_DECLARATION
 #endif
+#pragma endregion
 
 			friend bool VectorMath::all<>(const matrix<ElementType, rows, columns> &);
 			friend bool VectorMath::any<>(const matrix<ElementType, rows, columns> &);
