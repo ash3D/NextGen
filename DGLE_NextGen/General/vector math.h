@@ -867,7 +867,7 @@ further investigations needed, including other compilers
 					using RowSwizzleDesc_2_MatrixSwizzleVector = mpl::transform_view<typename SwizzleDesc::CSwizzleVector, mpl::bitor_<_, mpl::integral_c<unsigned, rowIdx << 2>>>;
 
 					template<class DstSwizzleDesc, bool dstIsMatrix, class SrcSwizzleDesc, bool srcIsMatrix, unsigned int rowIdx, bool assign>
-					using DetectRowVsMatrixWARHaard = SwizzleWARHazardDetectHelper<
+					using DetectRowVsMatrixWARHazard = SwizzleWARHazardDetectHelper<
 						conditional_t<dstIsMatrix, typename DstSwizzleDesc::CSwizzleVector, RowSwizzleDesc_2_MatrixSwizzleVector<DstSwizzleDesc, rowIdx>>,
 						conditional_t<srcIsMatrix, typename SrcSwizzleDesc::CSwizzleVector, RowSwizzleDesc_2_MatrixSwizzleVector<SrcSwizzleDesc, rowIdx>>,
 						assign>;
@@ -959,7 +959,7 @@ further investigations needed, including other compilers
 					using RowSwizzleDesc_2_PackedMatrixSwizzle = RowSwizzle_2_MatrixSwizzle<typename SwizzleDesc::PackedSwizzle, rowIdx>;
 
 					template<class DstSwizzleDesc, bool dstIsMatrix, class SrcSwizzleDesc, bool srcIsMatrix, unsigned int rowIdx, bool assign>
-					using DetectRowVsMatrixWARHaard = SwizzleWARHazardDetectHelper<
+					using DetectRowVsMatrixWARHazard = SwizzleWARHazardDetectHelper<
 						typename conditional_t<dstIsMatrix, enable_if<true, DstSwizzleDesc>, RowSwizzleDesc_2_PackedMatrixSwizzle<DstSwizzleDesc, rowIdx>>::type,
 						typename conditional_t<srcIsMatrix, enable_if<true, SrcSwizzleDesc>, RowSwizzleDesc_2_PackedMatrixSwizzle<SrcSwizzleDesc, rowIdx>>::type,
 						assign>;
@@ -999,7 +999,7 @@ further investigations needed, including other compilers
 					{
 #ifdef MSVC_LIMITATIONS
 						template<unsigned int rows, unsigned rowIdx = 0>
-						static constexpr auto FoldRows = DetectRowVsMatrixWARHaard<DstSwizzleDesc, bool(dstRows), SrcSwizzleDesc, bool(srcRows), rowIdx, assign>::value || FoldRows<rows, rowIdx + 1>;
+						static constexpr auto FoldRows = DetectRowVsMatrixWARHazard<DstSwizzleDesc, bool(dstRows), SrcSwizzleDesc, bool(srcRows), rowIdx, assign>::value || FoldRows<rows, rowIdx + 1>;
 
 						// terminator
 						template<unsigned int rows>
@@ -1012,7 +1012,7 @@ further investigations needed, including other compilers
 						static constexpr bool FoldRows = false;
 
 						template<unsigned ...rowIdx>
-						static constexpr bool FoldRows<integer_sequence<unsigned, rowIdx...>> = (DetectRowVsMatrixWARHaard<DstSwizzleDesc, bool(dstRows), SrcSwizzleDesc, bool(srcRows), rowIdx, assign>::value || ...);
+						static constexpr bool FoldRows<integer_sequence<unsigned, rowIdx...>> = (DetectRowVsMatrixWARHazard<DstSwizzleDesc, bool(dstRows), SrcSwizzleDesc, bool(srcRows), rowIdx, assign>::value || ...);
 
 					public:
 						static constexpr bool value = FoldRows<make_integer_sequence<unsigned, dstRows ? dstRows : srcRows>>;
@@ -1136,7 +1136,7 @@ further investigations needed, including other compilers
 						static inline enable_if_t<bool(dstRows) != bool(srcRows) && rowIdx < std::max(dstRows, srcRows), bool>
 						TriggerWARHazard(CSwizzleDataAccess<ElementType, dstRows, columns, DstSwizzleDesc> &dst, const CSwizzleDataAccess<ElementType, srcRows, columns, SrcSwizzleDesc> &src)
 						{
-							return (DetectRowVsMatrixWARHaard<DstSwizzleDesc, bool(dstRows), SrcSwizzleDesc, bool(srcRows), rowIdx, assign>::value
+							return (DetectRowVsMatrixWARHazard<DstSwizzleDesc, bool(dstRows), SrcSwizzleDesc, bool(srcRows), rowIdx, assign>::value
 								&& GetRowAddress<rowIdx>(dst) == GetRowAddress<rowIdx>(src)) | TriggerWARHazard<assign, rowIdx + 1>(dst, src);
 						}
 
