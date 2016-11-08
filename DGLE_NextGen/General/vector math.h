@@ -425,6 +425,7 @@ further investigations needed, including other compilers
 			using namespace mpl::placeholders;
 #endif
 
+			using std::move;
 			using std::declval;
 			using std::integer_sequence;
 			using std::index_sequence;
@@ -2212,7 +2213,7 @@ further investigations needed, including other compilers
 				inline TOperationResult &operator =(const CSwizzleAssign &src) &
 #endif
 				{
-					return operator =(std::move(static_cast<const TSwizzle &>(src)));
+					return operator =(move(static_cast<const TSwizzle &>(src)));
 				}
 
 				// currently public to allow user specify WAR hazard explicitly if needed
