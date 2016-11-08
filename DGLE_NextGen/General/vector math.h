@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		07.11.2016 (c)Alexey Shaydurov
+\date		08.11.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -3916,11 +3916,11 @@ further investigations needed, including other compilers
 
 			// hide data in private and expose it from dependent base to allow for unqualified lookup
 		private:
-#ifdef MSVC_LIMITATIONS
+#if defined MSVC_LIMITATIONS || defined __clang__
 			template<typename, unsigned int, unsigned int, class, typename>
 			friend class Impl::CSwizzleAssign;
 #else
-			// ICE on VS 2015
+			// ICE on VS 2015, has no effect on clang
 			template<typename DstElementType, unsigned int dstRows, unsigned int dstColumns, class DstSwizzleDesc>
 			template<bool ...WARHazard, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
 #ifdef __GNUC__
