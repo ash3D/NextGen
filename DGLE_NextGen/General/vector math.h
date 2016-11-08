@@ -3693,7 +3693,7 @@ further investigations needed, including other compilers
 
 		private:
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			friend class Impl::CData;
+			friend struct Impl::CData;
 
 			// workaround for bug in VS 2015 Update 2
 			typedef std::make_index_sequence<dimension> IdxSeq;
@@ -4086,7 +4086,7 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int dimension>
 			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
 			inline vector<ElementType, dimension>::vector(const Impl::CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) :
-				DataContainer(typename Data::InitTag<Data::InitType::Copy, IdxSeq>(), src)
+				DataContainer(typename Data::template InitTag<Data::InitType::Copy, IdxSeq>(), src)
 			{
 				static_assert(dimension <= SrcSwizzleDesc::dimension, "\"copy\" ctor: too small src dimension");
 			}
@@ -4094,12 +4094,12 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int dimension>
 			template<typename SrcType, typename>
 			inline vector<ElementType, dimension>::vector(const SrcType &scalar) :
-				DataContainer(typename Data::InitTag<Data::InitType::Scalar, IdxSeq>(), Impl::ExtractScalar(scalar)) {}
+				DataContainer(typename Data::template InitTag<Data::InitType::Scalar, IdxSeq>(), Impl::ExtractScalar(scalar)) {}
 
 			template<typename ElementType, unsigned int dimension>
 			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, typename>
 			inline vector<ElementType, dimension>::vector(const matrix<SrcElementType, srcRows, srcColumns> &src) :
-				DataContainer(typename Data::InitTag<Data::InitType::Sequencing, IdxSeq>(), src)
+				DataContainer(typename Data::template InitTag<Data::InitType::Sequencing, IdxSeq>(), src)
 			{
 				constexpr bool checkOverflow = dimension > 1 && srcRows > 1 && srcColumns > 1;
 				static_assert(srcRows * srcColumns >= dimension, "sequencing ctor: too few src elements");
@@ -4110,7 +4110,7 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int dimension>
 			template<typename First, typename Second, typename ...Rest>
 			inline vector<ElementType, dimension>::vector(const First &first, const Second &second, const Rest &...rest) :
-				DataContainer(typename Data::InitTag<Data::InitType::Sequencing, IdxSeq>(), first, second, rest...)
+				DataContainer(typename Data::template InitTag<Data::InitType::Sequencing, IdxSeq>(), first, second, rest...)
 			{
 				constexpr auto srcElements = ELEMENTS_COUNT_PREFIX ElementsCount<const First &, const Second, const Rest &...>;
 				static_assert(srcElements >= dimension, "sequencing ctor: too few src elements");
@@ -4120,7 +4120,7 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int dimension>
 			template<typename ...Args, typename>
 			inline vector<ElementType, dimension>::vector(const Args &...args) :
-				DataContainer(typename Data::InitTag<Data::InitType::Sequencing, IdxSeq>(), args...)
+				DataContainer(typename Data::template InitTag<Data::InitType::Sequencing, IdxSeq>(), args...)
 			{
 				constexpr auto srcElements = ELEMENTS_COUNT_PREFIX ElementsCount<const Args &...>;
 				static_assert(srcElements >= dimension, "sequencing ctor: too few src elements");
@@ -4138,7 +4138,7 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int dimension>
 			template<typename SrcElementType, unsigned int srcDimension>
 			inline vector<ElementType, dimension>::vector(const SrcElementType (&src)[srcDimension]) :
-				DataContainer(typename Data::InitTag<Data::InitType::Array, IdxSeq>(), src)
+				DataContainer(typename Data::template InitTag<Data::InitType::Array, IdxSeq>(), src)
 			{
 				static_assert(dimension <= srcDimension, "array ctor: too small src dimension");
 			}
@@ -4207,7 +4207,7 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
 			inline matrix<ElementType, rows, columns>::matrix(const matrix<SrcElementType, srcRows, srcColumns> &src) :
-				DataContainer(typename Data::InitTag<Data::InitType::Copy, IdxSeq>(), src)
+				DataContainer(typename Data::template InitTag<Data::InitType::Copy, IdxSeq>(), src)
 			{
 				static_assert(rows <= srcRows, "\"copy\" ctor: too few rows in src");
 				static_assert(columns <= srcColumns, "\"copy\" ctor: too few columns in src");
@@ -4216,12 +4216,12 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<typename SrcType, typename>
 			inline matrix<ElementType, rows, columns>::matrix(const SrcType &scalar) :
-				DataContainer(typename Data::InitTag<Data::InitType::Scalar, IdxSeq>(), scalar) {}
+				DataContainer(typename Data::template InitTag<Data::InitType::Scalar, IdxSeq>(), scalar) {}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, typename>
 			inline matrix<ElementType, rows, columns>::matrix(const Impl::CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) :
-				DataContainer(typename Data::InitTag<Data::InitType::Sequencing, IdxSeq>(), src)
+				DataContainer(typename Data::template InitTag<Data::InitType::Sequencing, IdxSeq>(), src)
 			{
 				constexpr bool checkOverflow = rows > 1 && columns > 1;
 				constexpr auto srcElements = SrcSwizzleDesc::dimension;
@@ -4233,7 +4233,7 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<typename First, typename Second, typename ...Rest>
 			inline matrix<ElementType, rows, columns>::matrix(const First &first, const Second &second, const Rest &...rest) :
-				DataContainer(typename Data::InitTag<Data::InitType::Sequencing, IdxSeq>(), first, second, rest...)
+				DataContainer(typename Data::template InitTag<Data::InitType::Sequencing, IdxSeq>(), first, second, rest...)
 			{
 				constexpr auto srcElements = ELEMENTS_COUNT_PREFIX ElementsCount<const First &, const Second &, const Rest &...>;
 				static_assert(srcElements >= rows * columns, "sequencing ctor: too few src elements");
@@ -4243,7 +4243,7 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<typename ...Args, typename>
 			inline matrix<ElementType, rows, columns>::matrix(const Args &...args) :
-				DataContainer(typename Data::InitTag<Data::InitType::Sequencing, IdxSeq>(), args...)
+				DataContainer(typename Data::template InitTag<Data::InitType::Sequencing, IdxSeq>(), args...)
 			{
 				constexpr auto srcElements = ELEMENTS_COUNT_PREFIX ElementsCount<const Args &...>;
 				static_assert(srcElements >= rows * columns, "sequencing ctor: too few src elements");
@@ -4262,7 +4262,7 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
 			inline matrix<ElementType, rows, columns>::matrix(const SrcElementType (&src)[srcRows][srcColumns]) :
-				DataContainer(typename Data::InitTag<Data::InitType::Array, IdxSeq>(), src)
+				DataContainer(typename Data::template InitTag<Data::InitType::Array, IdxSeq>(), src)
 			{
 				static_assert(rows <= srcRows, "array ctor: too few rows in src");
 				static_assert(columns <= srcColumns, "array ctor: too few columns in src");
