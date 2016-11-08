@@ -300,7 +300,7 @@ further investigations needed, including other compilers
 #define INIT_LIST_ITEM_COPY 1
 #endif
 
-#ifdef _MSC_VER
+#if defined _MSC_VER && !defined __clang__
 #	define EBCO __declspec(empty_bases)
 #else
 #	define EBCO
