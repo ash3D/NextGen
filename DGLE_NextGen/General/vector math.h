@@ -1614,986 +1614,6 @@ further investigations needed, including other compilers
 				};
 #endif
 #			pragma endregion TODO: consider to remove it and rely on potentially more efficient variadic template technique for sequencing ctors, or limit its usage for assignment operators only
-		}
-
-#pragma region specializations for graphics vectors/matrices
-#if USE_BOOST_PREPROCESSOR
-#		define BOOST_PP_ITERATION_LIMITS (0, 4)
-#		define BOOST_PP_FILENAME_1 "vector math.h"
-#		include BOOST_PP_ITERATE()
-#else
-#pragma region swizzles generator
-#ifdef MSVC_LIMITATIONS
-#		define CONCAT_IMPL_1(a, b) a ## b
-#		define CONCAT_IMPL_0(a, b) CONCAT_IMPL_1(a, b)
-#		define CONCAT_IMPL(a, b) CONCAT_IMPL_0(a, b)
-#else
-#		define CONCAT_IMPL(a, b) a ## b
-#endif
-#		define CONCAT(a, b) CONCAT_IMPL(a, b)
-#
-#		define LOOKUP_SYMBOL_0_0 x
-#		define LOOKUP_SYMBOL_0_1 y
-#		define LOOKUP_SYMBOL_0_2 z
-#		define LOOKUP_SYMBOL_0_3 w
-#
-#		define LOOKUP_SYMBOL_1_0 r
-#		define LOOKUP_SYMBOL_1_1 g
-#		define LOOKUP_SYMBOL_1_2 b
-#		define LOOKUP_SYMBOL_1_3 a
-#
-#		define LOOKUP_SYMBOL_0_00 _m00
-#		define LOOKUP_SYMBOL_0_01 _m01
-#		define LOOKUP_SYMBOL_0_02 _m02
-#		define LOOKUP_SYMBOL_0_03 _m03
-#		define LOOKUP_SYMBOL_0_10 _m10
-#		define LOOKUP_SYMBOL_0_11 _m11
-#		define LOOKUP_SYMBOL_0_12 _m12
-#		define LOOKUP_SYMBOL_0_13 _m13
-#		define LOOKUP_SYMBOL_0_20 _m20
-#		define LOOKUP_SYMBOL_0_21 _m21
-#		define LOOKUP_SYMBOL_0_22 _m22
-#		define LOOKUP_SYMBOL_0_23 _m23
-#		define LOOKUP_SYMBOL_0_30 _m30
-#		define LOOKUP_SYMBOL_0_31 _m31
-#		define LOOKUP_SYMBOL_0_32 _m32
-#		define LOOKUP_SYMBOL_0_33 _m33
-#
-#		define LOOKUP_SYMBOL_1_00 _11
-#		define LOOKUP_SYMBOL_1_01 _12
-#		define LOOKUP_SYMBOL_1_02 _13
-#		define LOOKUP_SYMBOL_1_03 _14
-#		define LOOKUP_SYMBOL_1_10 _21
-#		define LOOKUP_SYMBOL_1_11 _22
-#		define LOOKUP_SYMBOL_1_12 _23
-#		define LOOKUP_SYMBOL_1_13 _24
-#		define LOOKUP_SYMBOL_1_20 _31
-#		define LOOKUP_SYMBOL_1_21 _32
-#		define LOOKUP_SYMBOL_1_22 _33
-#		define LOOKUP_SYMBOL_1_23 _34
-#		define LOOKUP_SYMBOL_1_30 _41
-#		define LOOKUP_SYMBOL_1_31 _42
-#		define LOOKUP_SYMBOL_1_32 _43
-#		define LOOKUP_SYMBOL_1_33 _44
-#
-#		define LOOKUP_SYMBOL_0(idx, ...) LOOKUP_SYMBOL_0_##idx
-#		define LOOKUP_SYMBOL_1(idx, ...) LOOKUP_SYMBOL_1_##idx
-#ifdef MSVC_LIMITATIONS
-		constexpr unsigned int ExtractSwizzleIdx(unsigned int dec, unsigned int bcd)
-		{
-			return bcd;
-		}
-#		define LOOKUP_SYMBOL_0_ExtractSwizzleIdx(idx, ...) LOOKUP_SYMBOL_0_##idx
-#		define LOOKUP_SYMBOL_1_ExtractSwizzleIdx(idx, ...) LOOKUP_SYMBOL_1_##idx
-#endif
-#
-#		define IDX_SEQ_2_SYMBOLS_1(xform, i0) xform i0
-#		define IDX_SEQ_2_SYMBOLS_2(xform, i0, i1) CONCAT(IDX_SEQ_2_SYMBOLS_1(xform, i0), xform i1)
-#		define IDX_SEQ_2_SYMBOLS_3(xform, i0, i1, i2) CONCAT(IDX_SEQ_2_SYMBOLS_2(xform, i0, i1), xform i2)
-#		define IDX_SEQ_2_SYMBOLS_4(xform, i0, i1, i2, i3) CONCAT(IDX_SEQ_2_SYMBOLS_3(xform, i0, i1, i2), xform i3)
-#ifdef MSVC_LIMITATIONS
-#		define IDX_SEQ_2_SYMBOLS(swizDim, xform, ...) CONCAT(IDX_SEQ_2_SYMBOLS_, swizDim(xform, __VA_ARGS__))
-#else
-#		define IDX_SEQ_2_SYMBOLS(swizDim, xform, ...) IDX_SEQ_2_SYMBOLS_##swizDim(xform, __VA_ARGS__)
-#endif
-#		define GENERATE_SWIZZLE(rows, columns, swizDim, ...)				\
-			CSwizzle<ElementType, rows, columns, CSwizzleDesc<__VA_ARGS__>>	\
-				IDX_SEQ_2_SYMBOLS(swizDim, LOOKUP_SYMBOL_0, __VA_ARGS__),	\
-				IDX_SEQ_2_SYMBOLS(swizDim, LOOKUP_SYMBOL_1, __VA_ARGS__);
-#
-#		define DEC_2_BIN_
-#		define DEC_2_BIN_0 00
-#		define DEC_2_BIN_1 01
-#		define DEC_2_BIN_2 10
-#		define DEC_2_BIN_3 11
-#ifdef MSVC_LIMITATIONS
-#		define ENCODE_RC_IDX(r, c) (ExtractSwizzleIdx(r ## c, CONCAT(0b, CONCAT(DEC_2_BIN_##r, DEC_2_BIN_##c))))
-#else
-#		define ENCODE_RC_IDX(r, c) (r ## c, CONCAT(0b, CONCAT(DEC_2_BIN_##r, DEC_2_BIN_##c)))
-#endif
-#
-#		define SWIZZLE_4_GENERATE(rows, columns, r0, c0, r1, c1, r2, c2, r3, c4) GENERATE_SWIZZLE(rows, columns, 4, ENCODE_RC_IDX(r0, c0), ENCODE_RC_IDX(r1, c1), ENCODE_RC_IDX(r2, c2), ENCODE_RC_IDX(r3, c4))
-#		define SWIZZLE_3_ITERATE_COLUMN_1(rows, columns, r0, c0, r1, c1, r2, c2, r3) SWIZZLE_4_GENERATE(rows, columns, r0, c0, r1, c1, r2, c2, r3, 0)
-#		define SWIZZLE_3_ITERATE_COLUMN_2(rows, columns, r0, c0, r1, c1, r2, c2, r3) SWIZZLE_3_ITERATE_COLUMN_1(rows, columns, r0, c0, r1, c1, r2, c2, r3) SWIZZLE_4_GENERATE(rows, columns, r0, c0, r1, c1, r2, c2, r3, 1)
-#		define SWIZZLE_3_ITERATE_COLUMN_3(rows, columns, r0, c0, r1, c1, r2, c2, r3) SWIZZLE_3_ITERATE_COLUMN_2(rows, columns, r0, c0, r1, c1, r2, c2, r3) SWIZZLE_4_GENERATE(rows, columns, r0, c0, r1, c1, r2, c2, r3, 2)
-#		define SWIZZLE_3_ITERATE_COLUMN_4(rows, columns, r0, c0, r1, c1, r2, c2, r3) SWIZZLE_3_ITERATE_COLUMN_3(rows, columns, r0, c0, r1, c1, r2, c2, r3) SWIZZLE_4_GENERATE(rows, columns, r0, c0, r1, c1, r2, c2, r3, 3)
-#		define SWIZZLE_3_ITERATE_COLUMNS(rows, columns, r0, c0, r1, c1, r2, c2, r3) SWIZZLE_3_ITERATE_COLUMN_##columns(rows, columns, r0, c0, r1, c1, r2, c2, r3)
-#		define SWIZZLE_3_ITERATE_ROW_0(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_COLUMNS(rows, columns, r0, c0, r1, c1, r2, c2, )
-#		define SWIZZLE_3_ITERATE_ROW_1(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_COLUMNS(rows, columns, r0, c0, r1, c1, r2, c2, 0)
-#		define SWIZZLE_3_ITERATE_ROW_2(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_ROW_1(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_COLUMNS(rows, columns, r0, c0, r1, c1, r2, c2, 1)
-#		define SWIZZLE_3_ITERATE_ROW_3(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_ROW_2(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_COLUMNS(rows, columns, r0, c0, r1, c1, r2, c2, 2)
-#		define SWIZZLE_3_ITERATE_ROW_4(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_ROW_3(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_COLUMNS(rows, columns, r0, c0, r1, c1, r2, c2, 3)
-#		define SWIZZLE_3_SELECTOR_3(rows, columns, r0, c0, r1, c1, r2, c2) GENERATE_SWIZZLE(rows, columns, 3, ENCODE_RC_IDX(r0, c0), ENCODE_RC_IDX(r1, c1), ENCODE_RC_IDX(r2, c2))
-#		define SWIZZLE_3_SELECTOR_4(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_ROW_##rows(rows, columns, r0, c0, r1, c1, r2, c2)
-#		define SWIZZLE_3_SELECTOR(rows, columns, swizDim, r0, c0, r1, c1, r2, c2) SWIZZLE_3_SELECTOR_##swizDim(rows, columns, r0, c0, r1, c1, r2, c2)
-#
-#		define SWIZZLE_2_ITERATE_COLUMN_1(rows, columns, swizDim, r0, c0, r1, c1, r2) SWIZZLE_3_SELECTOR(rows, columns, swizDim, r0, c0, r1, c1, r2, 0)
-#		define SWIZZLE_2_ITERATE_COLUMN_2(rows, columns, swizDim, r0, c0, r1, c1, r2) SWIZZLE_2_ITERATE_COLUMN_1(rows, columns, swizDim, r0, c0, r1, c1, r2) SWIZZLE_3_SELECTOR(rows, columns, swizDim, r0, c0, r1, c1, r2, 1)
-#		define SWIZZLE_2_ITERATE_COLUMN_3(rows, columns, swizDim, r0, c0, r1, c1, r2) SWIZZLE_2_ITERATE_COLUMN_2(rows, columns, swizDim, r0, c0, r1, c1, r2) SWIZZLE_3_SELECTOR(rows, columns, swizDim, r0, c0, r1, c1, r2, 2)
-#		define SWIZZLE_2_ITERATE_COLUMN_4(rows, columns, swizDim, r0, c0, r1, c1, r2) SWIZZLE_2_ITERATE_COLUMN_3(rows, columns, swizDim, r0, c0, r1, c1, r2) SWIZZLE_3_SELECTOR(rows, columns, swizDim, r0, c0, r1, c1, r2, 3)
-#		define SWIZZLE_2_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, r1, c1, r2) SWIZZLE_2_ITERATE_COLUMN_##columns(rows, columns, swizDim, r0, c0, r1, c1, r2)
-#		define SWIZZLE_2_ITERATE_ROW_0(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, r1, c1, )
-#		define SWIZZLE_2_ITERATE_ROW_1(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, r1, c1, 0)
-#		define SWIZZLE_2_ITERATE_ROW_2(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_ITERATE_ROW_1(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, r1, c1, 1)
-#		define SWIZZLE_2_ITERATE_ROW_3(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_ITERATE_ROW_2(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, r1, c1, 2)
-#		define SWIZZLE_2_ITERATE_ROW_4(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_ITERATE_ROW_3(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, r1, c1, 3)
-#		define SWIZZLE_2_SELECTOR_2(rows, columns, r0, c0, r1, c1) GENERATE_SWIZZLE(rows, columns, 2, ENCODE_RC_IDX(r0, c0), ENCODE_RC_IDX(r1, c1))
-#		define SWIZZLE_2_SELECTOR_3(rows, columns, r0, c0, r1, c1) SWIZZLE_2_ITERATE_ROW_##rows(rows, columns, 3, r0, c0, r1, c1)
-#		define SWIZZLE_2_SELECTOR_4(rows, columns, r0, c0, r1, c1) SWIZZLE_2_ITERATE_ROW_##rows(rows, columns, 4, r0, c0, r1, c1)
-#		define SWIZZLE_2_SELECTOR(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_SELECTOR_##swizDim(rows, columns, r0, c0, r1, c1)
-#
-#		define SWIZZLE_1_ITERATE_COLUMN_1(rows, columns, swizDim, r0, c0, r1) SWIZZLE_2_SELECTOR(rows, columns, swizDim, r0, c0, r1, 0)
-#		define SWIZZLE_1_ITERATE_COLUMN_2(rows, columns, swizDim, r0, c0, r1) SWIZZLE_1_ITERATE_COLUMN_1(rows, columns, swizDim, r0, c0, r1) SWIZZLE_2_SELECTOR(rows, columns, swizDim, r0, c0, r1, 1)
-#		define SWIZZLE_1_ITERATE_COLUMN_3(rows, columns, swizDim, r0, c0, r1) SWIZZLE_1_ITERATE_COLUMN_2(rows, columns, swizDim, r0, c0, r1) SWIZZLE_2_SELECTOR(rows, columns, swizDim, r0, c0, r1, 2)
-#		define SWIZZLE_1_ITERATE_COLUMN_4(rows, columns, swizDim, r0, c0, r1) SWIZZLE_1_ITERATE_COLUMN_3(rows, columns, swizDim, r0, c0, r1) SWIZZLE_2_SELECTOR(rows, columns, swizDim, r0, c0, r1, 3)
-#		define SWIZZLE_1_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, r1) SWIZZLE_1_ITERATE_COLUMN_##columns(rows, columns, swizDim, r0, c0, r1)
-#		define SWIZZLE_1_ITERATE_ROW_0(rows, columns, swizDim, r0, c0) SWIZZLE_1_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, )
-#		define SWIZZLE_1_ITERATE_ROW_1(rows, columns, swizDim, r0, c0) SWIZZLE_1_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, 0)
-#		define SWIZZLE_1_ITERATE_ROW_2(rows, columns, swizDim, r0, c0) SWIZZLE_1_ITERATE_ROW_1(rows, columns, swizDim, r0, c0) SWIZZLE_1_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, 1)
-#		define SWIZZLE_1_ITERATE_ROW_3(rows, columns, swizDim, r0, c0) SWIZZLE_1_ITERATE_ROW_2(rows, columns, swizDim, r0, c0) SWIZZLE_1_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, 2)
-#		define SWIZZLE_1_ITERATE_ROW_4(rows, columns, swizDim, r0, c0) SWIZZLE_1_ITERATE_ROW_3(rows, columns, swizDim, r0, c0) SWIZZLE_1_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, 3)
-#		define SWIZZLE_1_SELECTOR_1(rows, columns, r0, c0) GENERATE_SWIZZLE(rows, columns, 1, ENCODE_RC_IDX(r0, c0))
-#		define SWIZZLE_1_SELECTOR_2(rows, columns, r0, c0) SWIZZLE_1_ITERATE_ROW_##rows(rows, columns, 2, r0, c0)
-#		define SWIZZLE_1_SELECTOR_3(rows, columns, r0, c0) SWIZZLE_1_ITERATE_ROW_##rows(rows, columns, 3, r0, c0)
-#		define SWIZZLE_1_SELECTOR_4(rows, columns, r0, c0) SWIZZLE_1_ITERATE_ROW_##rows(rows, columns, 4, r0, c0)
-#		define SWIZZLE_1_SELECTOR(rows, columns, swizDim, r0, c0) SWIZZLE_1_SELECTOR_##swizDim(rows, columns, r0, c0)
-#
-#		define SWIZZLE_0_ITERATE_COLUMN_1(rows, columns, swizDim, r0) SWIZZLE_1_SELECTOR(rows, columns, swizDim, r0, 0)
-#		define SWIZZLE_0_ITERATE_COLUMN_2(rows, columns, swizDim, r0) SWIZZLE_0_ITERATE_COLUMN_1(rows, columns, swizDim, r0) SWIZZLE_1_SELECTOR(rows, columns, swizDim, r0, 1)
-#		define SWIZZLE_0_ITERATE_COLUMN_3(rows, columns, swizDim, r0) SWIZZLE_0_ITERATE_COLUMN_2(rows, columns, swizDim, r0) SWIZZLE_1_SELECTOR(rows, columns, swizDim, r0, 2)
-#		define SWIZZLE_0_ITERATE_COLUMN_4(rows, columns, swizDim, r0) SWIZZLE_0_ITERATE_COLUMN_3(rows, columns, swizDim, r0) SWIZZLE_1_SELECTOR(rows, columns, swizDim, r0, 3)
-#		define SWIZZLE_0_ITERATE_COLUMNS(rows, columns, swizDim, r0) SWIZZLE_0_ITERATE_COLUMN_##columns(rows, columns, swizDim, r0)
-#		define SWIZZLE_0_ITERATE_ROW_0(rows, columns, swizDim) SWIZZLE_0_ITERATE_COLUMNS(rows, columns, swizDim, )
-#		define SWIZZLE_0_ITERATE_ROW_1(rows, columns, swizDim) SWIZZLE_0_ITERATE_COLUMNS(rows, columns, swizDim, 0)
-#		define SWIZZLE_0_ITERATE_ROW_2(rows, columns, swizDim) SWIZZLE_0_ITERATE_ROW_1(rows, columns, swizDim) SWIZZLE_0_ITERATE_COLUMNS(rows, columns, swizDim, 1)
-#		define SWIZZLE_0_ITERATE_ROW_3(rows, columns, swizDim) SWIZZLE_0_ITERATE_ROW_2(rows, columns, swizDim) SWIZZLE_0_ITERATE_COLUMNS(rows, columns, swizDim, 2)
-#		define SWIZZLE_0_ITERATE_ROW_4(rows, columns, swizDim) SWIZZLE_0_ITERATE_ROW_3(rows, columns, swizDim) SWIZZLE_0_ITERATE_COLUMNS(rows, columns, swizDim, 3)
-#		define SWIZZLE_ITERATE(rows, columns, swizDim) SWIZZLE_0_ITERATE_ROW_##rows(rows, columns, swizDim)
-#
-#		define GENERATE_SWIZZLES(rows, columns)	\
-			SWIZZLE_ITERATE(rows, columns, 1)	\
-			SWIZZLE_ITERATE(rows, columns, 2)	\
-			SWIZZLE_ITERATE(rows, columns, 3)	\
-			SWIZZLE_ITERATE(rows, columns, 4)
-#pragma endregion
-
-		// undefs to be on the safe side
-#		undef ROWS
-#		undef COULMNS
-#		undef TRIVIAL_CTOR
-#		include "vector math generate stuff.h"
-
-#pragma region cleanup
-#ifdef MSVC_LIMITATIONS
-#		undef CONCAT_IMPL_1
-#		undef CONCAT_IMPL_0
-#endif
-#		undef CONCAT_IMPL
-#		undef CONCAT
-#
-#		undef LOOKUP_SYMBOL_0_0
-#		undef LOOKUP_SYMBOL_0_1
-#		undef LOOKUP_SYMBOL_0_2
-#		undef LOOKUP_SYMBOL_0_3
-#
-#		undef LOOKUP_SYMBOL_1_0
-#		undef LOOKUP_SYMBOL_1_1
-#		undef LOOKUP_SYMBOL_1_2
-#		undef LOOKUP_SYMBOL_1_3
-#
-#		undef LOOKUP_SYMBOL_0_00
-#		undef LOOKUP_SYMBOL_0_01
-#		undef LOOKUP_SYMBOL_0_02
-#		undef LOOKUP_SYMBOL_0_03
-#		undef LOOKUP_SYMBOL_0_10
-#		undef LOOKUP_SYMBOL_0_11
-#		undef LOOKUP_SYMBOL_0_12
-#		undef LOOKUP_SYMBOL_0_13
-#		undef LOOKUP_SYMBOL_0_20
-#		undef LOOKUP_SYMBOL_0_21
-#		undef LOOKUP_SYMBOL_0_22
-#		undef LOOKUP_SYMBOL_0_23
-#		undef LOOKUP_SYMBOL_0_30
-#		undef LOOKUP_SYMBOL_0_31
-#		undef LOOKUP_SYMBOL_0_32
-#		undef LOOKUP_SYMBOL_0_33
-#
-#		undef LOOKUP_SYMBOL_1_00
-#		undef LOOKUP_SYMBOL_1_01
-#		undef LOOKUP_SYMBOL_1_02
-#		undef LOOKUP_SYMBOL_1_03
-#		undef LOOKUP_SYMBOL_1_10
-#		undef LOOKUP_SYMBOL_1_11
-#		undef LOOKUP_SYMBOL_1_12
-#		undef LOOKUP_SYMBOL_1_13
-#		undef LOOKUP_SYMBOL_1_20
-#		undef LOOKUP_SYMBOL_1_21
-#		undef LOOKUP_SYMBOL_1_22
-#		undef LOOKUP_SYMBOL_1_23
-#		undef LOOKUP_SYMBOL_1_30
-#		undef LOOKUP_SYMBOL_1_31
-#		undef LOOKUP_SYMBOL_1_32
-#		undef LOOKUP_SYMBOL_1_33
-#
-#		undef LOOKUP_SYMBOL_0
-#		undef LOOKUP_SYMBOL_1
-#ifdef MSVC_LIMITATIONS
-#		undef LOOKUP_SYMBOL_0_ExtractSwizzleIdx
-#		undef LOOKUP_SYMBOL_1_ExtractSwizzleIdx
-#endif
-#
-#		undef IDX_SEQ_2_SYMBOLS_1
-#		undef IDX_SEQ_2_SYMBOLS_2
-#		undef IDX_SEQ_2_SYMBOLS_3
-#		undef IDX_SEQ_2_SYMBOLS_4
-#		undef IDX_SEQ_2_SYMBOLS
-#		undef GENERATE_SWIZZLE
-#
-#		undef DEC_2_BIN_
-#		undef DEC_2_BIN_0
-#		undef DEC_2_BIN_1
-#		undef DEC_2_BIN_2
-#		undef DEC_2_BIN_3
-#		undef ENCODE_RC_IDX
-#
-#		undef SWIZZLE_4_GENERATE
-#		undef SWIZZLE_3_ITERATE_COLUMN_1
-#		undef SWIZZLE_3_ITERATE_COLUMN_2
-#		undef SWIZZLE_3_ITERATE_COLUMN_3
-#		undef SWIZZLE_3_ITERATE_COLUMN_4
-#		undef SWIZZLE_3_ITERATE_COLUMNS
-#		undef SWIZZLE_3_ITERATE_ROW_0
-#		undef SWIZZLE_3_ITERATE_ROW_1
-#		undef SWIZZLE_3_ITERATE_ROW_2
-#		undef SWIZZLE_3_ITERATE_ROW_3
-#		undef SWIZZLE_3_ITERATE_ROW_4
-#		undef SWIZZLE_3_SELECTOR_3
-#		undef SWIZZLE_3_SELECTOR_4
-#		undef SWIZZLE_3_SELECTOR
-#
-#		undef SWIZZLE_2_ITERATE_COLUMN_1
-#		undef SWIZZLE_2_ITERATE_COLUMN_2
-#		undef SWIZZLE_2_ITERATE_COLUMN_3
-#		undef SWIZZLE_2_ITERATE_COLUMN_4
-#		undef SWIZZLE_2_ITERATE_COLUMNS
-#		undef SWIZZLE_2_ITERATE_ROW_0
-#		undef SWIZZLE_2_ITERATE_ROW_1
-#		undef SWIZZLE_2_ITERATE_ROW_2
-#		undef SWIZZLE_2_ITERATE_ROW_3
-#		undef SWIZZLE_2_ITERATE_ROW_4
-#		undef SWIZZLE_2_SELECTOR_2
-#		undef SWIZZLE_2_SELECTOR_3
-#		undef SWIZZLE_2_SELECTOR_4
-#		undef SWIZZLE_2_SELECTOR
-#
-#		undef SWIZZLE_1_ITERATE_COLUMN_1
-#		undef SWIZZLE_1_ITERATE_COLUMN_2
-#		undef SWIZZLE_1_ITERATE_COLUMN_3
-#		undef SWIZZLE_1_ITERATE_COLUMN_4
-#		undef SWIZZLE_1_ITERATE_COLUMNS
-#		undef SWIZZLE_1_ITERATE_ROW_0
-#		undef SWIZZLE_1_ITERATE_ROW_1
-#		undef SWIZZLE_1_ITERATE_ROW_2
-#		undef SWIZZLE_1_ITERATE_ROW_3
-#		undef SWIZZLE_1_ITERATE_ROW_4
-#		undef SWIZZLE_1_SELECTOR_1
-#		undef SWIZZLE_1_SELECTOR_2
-#		undef SWIZZLE_1_SELECTOR_3
-#		undef SWIZZLE_1_SELECTOR_4
-#		undef SWIZZLE_1_SELECTOR
-#
-#		undef SWIZZLE_0_ITERATE_COLUMN_1
-#		undef SWIZZLE_0_ITERATE_COLUMN_2
-#		undef SWIZZLE_0_ITERATE_COLUMN_3
-#		undef SWIZZLE_0_ITERATE_COLUMN_4
-#		undef SWIZZLE_0_ITERATE_COLUMNS
-#		undef SWIZZLE_0_ITERATE_ROW_0
-#		undef SWIZZLE_0_ITERATE_ROW_1
-#		undef SWIZZLE_0_ITERATE_ROW_2
-#		undef SWIZZLE_0_ITERATE_ROW_3
-#		undef SWIZZLE_0_ITERATE_ROW_4
-#		undef SWIZZLE_ITERATE
-#
-#		undef GENERATE_SWIZZLES
-#pragma endregion
-#endif
-#pragma endregion
-
-		namespace Impl
-		{
-#			ifdef NDEBUG
-#				define FRIEND_DECLARATIONS
-#			else
-#				define FRIEND_DECLARATIONS																								\
-					template<unsigned rowIdx, typename ElementType, unsigned int columns, class SwizzleDesc>							\
-					friend inline const void *GetRowAddress(const CSwizzleDataAccess<ElementType, 0, columns, SwizzleDesc> &swizzle);	\
-																																		\
-					template<unsigned rowIdx, typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>			\
-					friend inline const void *GetRowAddress(const CSwizzleDataAccess<ElementType, rows, columns, SwizzleDesc> &swizzle);
-#			endif
-
-			// CSwizzle inherits from this to reduce preprocessor generated code for faster compiling
-			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			class CSwizzleDataAccess
-			{
-				typedef CSwizzle<ElementType, rows, columns, SwizzleDesc> TSwizzle;
-
-			protected:
-				CSwizzleDataAccess() = default;
-				CSwizzleDataAccess(const CSwizzleDataAccess &) = delete;
-				~CSwizzleDataAccess() = default;
-				CSwizzleDataAccess &operator =(const CSwizzleDataAccess &) = delete;
-
-			public:
-				typedef TSwizzle TOperationResult;
-
-			protected:
-#ifdef __GNUC__
-				operator TSwizzle &() noexcept
-#else
-				operator TSwizzle &() & noexcept
-#endif
-				{
-					return static_cast<TSwizzle &>(*this);
-				}
-
-			private:
-				FRIEND_DECLARATIONS
-
-				const auto &Data() const noexcept
-				{
-					/*
-									static	  reinterpret
-									   ^		   ^
-									   |		   |
-					CSwizzleDataAccess -> CSwizzle -> CData
-					*/
-					typedef CData<ElementType, rows, columns> CData;
-					return reinterpret_cast<const CData *>(static_cast<const TSwizzle *>(this))->rowsData;
-				}
-
-			public:
-#ifdef __GNUC__
-				const ElementType &operator [](unsigned int idx) const noexcept
-#else
-				const ElementType &operator [](unsigned int idx) const & noexcept
-#endif
-				{
-					assert(idx < SwizzleDesc::dimension);
-					idx = SwizzleDesc::FetchIdx(idx);
-					const auto row = idx >> 2u & 3u, column = idx & 3u;
-					return Data()[row][column];
-				}
-
-#ifndef __GNUC__
-				const ElementType &operator [](unsigned int idx) const && noexcept
-				{
-					return operator [](idx);
-				}
-#endif
-
-#ifdef __GNUC__
-				ElementType &operator [](unsigned int idx) noexcept
-#else
-				ElementType &operator [](unsigned int idx) & noexcept
-#endif
-				{
-					return const_cast<ElementType &>(static_cast<const CSwizzleDataAccess &>(*this)[idx]);
-				}
-			};
-
-			// specialization for vectors
-			template<typename ElementType, unsigned int vectorDimension, class SwizzleDesc>
-			class CSwizzleDataAccess<ElementType, 0, vectorDimension, SwizzleDesc>
-			{
-				/*
-				?
-
-				does not work with gcc:
-				typedef CSwizzle<...> CSwizzle;
-				typedef CDataContainer<...> CDataContainer;
-
-				does not work with VS and gcc:
-				typedef vector<...> vector;
-
-				works with both VS and gcc (differs from cases above in that it is in function scope, not in class one):
-				typedef TSwizzleTraits<...> TSwizzleTraits;
-				*/
-				typedef CSwizzle<ElementType, 0, vectorDimension, SwizzleDesc> TSwizzle;
-
-			protected:
-				CSwizzleDataAccess() = default;
-				CSwizzleDataAccess(const CSwizzleDataAccess &) = delete;
-				~CSwizzleDataAccess() = default;
-				CSwizzleDataAccess &operator =(const CSwizzleDataAccess &) = delete;
-
-			public:
-				typedef TSwizzle TOperationResult;
-
-			protected:
-#ifdef __GNUC__
-				operator TSwizzle &() noexcept
-#else
-				operator TSwizzle &() & noexcept
-#endif
-				{
-					return static_cast<TSwizzle &>(*this);
-				}
-
-			private:
-				FRIEND_DECLARATIONS
-
-				const auto &Data() const noexcept
-				{
-					/*
-									static	  reinterpret
-									   ^		   ^
-									   |		   |
-					CSwizzleDataAccess -> CSwizzle -> CData
-					*/
-					typedef CData<ElementType, 0, vectorDimension> CData;
-					return reinterpret_cast<const CData *>(static_cast<const TSwizzle *>(this))->data;
-				}
-
-			public:
-#ifdef __GNUC__
-				const ElementType &operator [](unsigned int idx) const noexcept
-#else
-				const ElementType &operator [](unsigned int idx) const & noexcept
-#endif
-				{
-					assert(idx < SwizzleDesc::dimension);
-					idx = SwizzleDesc::FetchIdx(idx);
-					return Data()[idx];
-				}
-
-#ifndef __GNUC__
-				const ElementType &operator [](unsigned int idx) const && noexcept
-				{
-					return operator [](idx);
-				}
-#endif
-
-#ifdef __GNUC__
-				ElementType &operator [](unsigned int idx) noexcept
-#else
-				ElementType &operator [](unsigned int idx) & noexcept
-#endif
-				{
-					return const_cast<ElementType &>(static_cast<const CSwizzleDataAccess &>(*this)[idx]);
-				}
-			};
-
-			/*
-			CVectorSwizzleDesc<vectorDimension> required for VS 2013/2015
-			TODO: try with newer version
-			*/
-			template<typename ElementType, unsigned int vectorDimension>
-			class CSwizzleDataAccess<ElementType, 0, vectorDimension, CVectorSwizzleDesc<vectorDimension>>
-			{
-				/*
-								static
-								   ^
-								   |
-				CSwizzleDataAccess -> vector
-				*/
-				typedef vector<ElementType, vectorDimension> Tvector;
-
-			protected:
-				CSwizzleDataAccess() = default;
-				CSwizzleDataAccess(const CSwizzleDataAccess &) = default;
-				~CSwizzleDataAccess() = default;
-#ifdef __GNUC__
-				CSwizzleDataAccess &operator =(const CSwizzleDataAccess &) = default;
-#else
-				CSwizzleDataAccess &operator =(const CSwizzleDataAccess &) & = default;
-#endif
-
-				// TODO: consider adding 'op=' operators to friends and making some stuff below protected/private (and TOperationResult for other CSwizzleDataAccess above)
-			public:
-				typedef Tvector TOperationResult;
-
-#ifdef __GNUC__
-				operator Tvector &() noexcept
-#else
-				operator Tvector &() & noexcept
-#endif
-				{
-					return static_cast<Tvector &>(*this);
-				}
-
-			private:
-				FRIEND_DECLARATIONS
-
-				const auto &Data() const noexcept
-				{
-					return static_cast<const Tvector *>(this)->data.data;
-				}
-
-				auto &Data() noexcept
-				{
-					return static_cast<Tvector *>(this)->data.data;
-				}
-
-			public:
-#ifdef __GNUC__
-				const ElementType &operator [](unsigned int idx) const noexcept
-#else
-				const ElementType &operator [](unsigned int idx) const & noexcept
-#endif
-				{
-					assert(idx < vectorDimension);
-					return Data()[idx];
-				}
-
-#ifndef __GNUC__
-				const ElementType &operator [](unsigned int idx) const && noexcept
-				{
-					return operator [](idx);
-				}
-#endif
-
-#ifdef __GNUC__
-				ElementType &operator [](unsigned int idx) noexcept
-#else
-				ElementType &operator [](unsigned int idx) & noexcept
-#endif
-				{
-					assert(idx < vectorDimension);
-					return Data()[idx];
-				}
-			};
-
-#			undef FRIEND_DECLARATIONS
-
-			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			class CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, false_type> : public CSwizzleDataAccess<ElementType, rows, columns, SwizzleDesc>
-			{
-			protected:
-				CSwizzleAssign() = default;
-				CSwizzleAssign(const CSwizzleAssign &) = delete;
-				~CSwizzleAssign() = default;
-
-			public:
-				void operator =(const CSwizzleAssign &) = delete;
-			};
-
-			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			class CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type> : public CSwizzleDataAccess<ElementType, rows, columns, SwizzleDesc>
-			{
-				typedef CSwizzleDataAccess<ElementType, rows, columns, SwizzleDesc> TSwizzleDataAccess;
-				typedef CSwizzle<ElementType, rows, columns, SwizzleDesc> TSwizzle;
-
-				// TODO: remove 'public'
-			public:
-				using typename TSwizzleDataAccess::TOperationResult;
-
-			protected:
-				CSwizzleAssign() = default;
-				CSwizzleAssign(const CSwizzleAssign &) = default;
-				~CSwizzleAssign() = default;
-
-#ifndef MSVC_LIMITATIONS
-			public:
-#ifdef __GNUC__
-				operator ElementType &() noexcept
-#else
-				operator ElementType &() & noexcept
-#endif
-				{
-					return (*this)[0];
-				}
-#endif
-
-			public:
-#ifdef __GNUC__
-				inline TOperationResult &operator =(const CSwizzleAssign &src)
-#else
-				inline TOperationResult &operator =(const CSwizzleAssign &src) &
-#endif
-				{
-					return operator =(std::move(static_cast<const TSwizzle &>(src)));
-				}
-
-				// currently public to allow user specify WAR hazard explicitly if needed
-
-				template<bool WARHazard, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-#ifdef __GNUC__
-				enable_if_t<(!WARHazard && SrcSwizzleDesc::dimension > 1), TOperationResult &> operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
-#else
-				enable_if_t<(!WARHazard && SrcSwizzleDesc::dimension > 1), TOperationResult &> operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &;
-#endif
-
-				template<bool WARHazard, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-#ifdef __GNUC__
-				enable_if_t<(WARHazard && SrcSwizzleDesc::dimension > 1), TOperationResult &> operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
-#else
-				enable_if_t<(WARHazard && SrcSwizzleDesc::dimension > 1), TOperationResult &> operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &;
-#endif
-
-				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-#ifdef __GNUC__
-				enable_if_t<(SrcSwizzleDesc::dimension > 1), TOperationResult &> operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src)
-#else
-				enable_if_t<(SrcSwizzleDesc::dimension > 1), TOperationResult &> operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &
-#endif
-				{
-					static constexpr auto WARHazard = DetectSwizzleWARHazard
-					<
-						ElementType, rows, columns, SwizzleDesc,
-						SrcElementType, srcRows, srcColumns, SrcSwizzleDesc,
-						true
-					>::value;
-					return operator =<WARHazard>(src);
-				}
-
-				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-#ifdef __GNUC__
-				enable_if_t<(SrcSwizzleDesc::dimension > 1), TOperationResult &> operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &&src)
-#else
-				enable_if_t<(SrcSwizzleDesc::dimension > 1), TOperationResult &> operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &&src) &
-#endif
-				{
-					return operator =<false>(src);
-				}
-
-				template<typename SrcType>
-#ifdef __GNUC__
-				inline enable_if_t<IsScalar<SrcType>, TOperationResult &> operator =(const SrcType &scalar);
-#elif defined MSVC_LIMITATIONS
-				inline enable_if_t<IsScalar<SrcType>, TOperationResult &> operator =(const SrcType &src) &
-				{
-					const auto &scalar = ExtractScalar(src);
-					for (unsigned idx = 0; idx < SwizzleDesc::dimension; idx++)
-						(*this)[idx] = scalar;
-					return *this;
-				}
-#else
-				inline enable_if_t<IsScalar<SrcType>, TOperationResult &> operator =(const SrcType &scalar) &;
-#endif
-
-				template<bool ...WARHazard, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
-#ifdef __GNUC__
-				enable_if_t<(srcRows > 1 || srcColumns > 1), TOperationResult &> operator =(const matrix<SrcElementType, srcRows, srcColumns> &src);
-#else
-				enable_if_t<(srcRows > 1 || srcColumns > 1), TOperationResult &> operator =(const matrix<SrcElementType, srcRows, srcColumns> &src) &;
-#endif
-
-				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
-#ifdef __GNUC__
-				enable_if_t<(srcRows > 1 || srcColumns > 1), TOperationResult &> operator =(const matrix<SrcElementType, srcRows, srcColumns> &&src)
-#else
-				enable_if_t<(srcRows > 1 || srcColumns > 1), TOperationResult &> operator =(const matrix<SrcElementType, srcRows, srcColumns> &&src) &
-#endif
-				{
-					return operator =<false>(src);
-				}
-
-#ifdef __GNUC__
-				inline TOperationResult &operator =(initializer_list<CInitListItem<ElementType, SwizzleDesc::dimension>> initList);
-#else
-				inline TOperationResult &operator =(initializer_list<CInitListItem<ElementType, SwizzleDesc::dimension>> initList) &;
-#endif
-
-			public:
-				using TSwizzleDataAccess::operator [];
-			};
-
-			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			template<bool WARHazard, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-#ifdef __GNUC__
-			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src)
-#else
-			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &
-#endif
-				-> enable_if_t<(!WARHazard && SrcSwizzleDesc::dimension > 1), TOperationResult &>
-			{
-				static_assert(SwizzleDesc::dimension <= SrcSwizzleDesc::dimension, "'vector = vector': too small src dimension");
-				assert(!TriggerWARHazard<true>(*this, src));
-				for (unsigned idx = 0; idx < SwizzleDesc::dimension; idx++)
-					(*this)[idx] = src[idx];
-				return *this;
-			}
-
-			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			template<bool WARHazard, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-#ifdef __GNUC__
-			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src)
-#else
-			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &
-#endif
-				-> enable_if_t<(WARHazard && SrcSwizzleDesc::dimension > 1), TOperationResult &>
-			{
-				// make copy and call direct assignment
-				return operator =<false>(vector<SrcElementType, SrcSwizzleDesc::dimension>(src));
-			}
-
-#ifndef MSVC_LIMITATIONS
-			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			template<typename SrcType>
-#ifdef __GNUC__
-			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::operator =(const SrcType &src) -> enable_if_t<IsScalar<SrcType>, TOperationResult &>
-#else
-			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::operator =(const SrcType &src) & -> enable_if_t<IsScalar<SrcType>, TOperationResult &>
-#endif
-			{
-				const auto &scalar = ExtractScalar(src);
-				for (unsigned idx = 0; idx < SwizzleDesc::dimension; idx++)
-					(*this)[idx] = scalar;
-				return *this;
-			}
-#endif
-
-			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			template<bool ...WARHazard, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
-#ifdef __GNUC__
-			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::operator =(const matrix<SrcElementType, srcRows, srcColumns> &src)
-#else
-			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::operator =(const matrix<SrcElementType, srcRows, srcColumns> &src) &
-#endif
-				-> enable_if_t<(srcRows > 1 || srcColumns > 1), TOperationResult &>
-			{
-				// C++17\
-				static_assert(sizeof...(WARHazard) <= 1);
-				constexpr static const bool underflow = SwizzleDesc::dimension > srcRows * srcColumns, overflow = SwizzleDesc::dimension < srcRows * srcColumns;
-				static_assert(!(underflow || overflow && SwizzleDesc::dimension > 1), "'vector = matrix': unmatched sequencing");
-				const auto &seq = reinterpret_cast<const CSequencingSwizzle<SrcElementType, srcRows, srcColumns> &>(src.data);
-				return operator =<WARHazard...>(seq);
-			}
-
-			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-#ifdef __GNUC__
-			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::operator =(initializer_list<CInitListItem<ElementType, SwizzleDesc::dimension>> initList) -> TOperationResult &
-#else
-			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::operator =(initializer_list<CInitListItem<ElementType, SwizzleDesc::dimension>> initList) & -> TOperationResult &
-#endif
-			{
-				unsigned dstIdx = 0;
-				for (const auto &item : initList)
-					for (unsigned itemEementIdx = 0; itemEementIdx < item.GetItemSize(); itemEementIdx++)
-						(*this)[dstIdx++] = item[itemEementIdx];
-				assert(dstIdx == SwizzleDesc::dimension);
-				return *this;
-			}
-
-			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc = CVectorSwizzleDesc<columns>>
-			class EBCO CSwizzleCommon :
-				public CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>,
-				public Tag<is_same_v<SwizzleDesc, CVectorSwizzleDesc<columns>> ? TagName::Vector : TagName::Swizzle, SwizzleDesc::dimension == 1>
-			{
-			protected:
-				CSwizzleCommon() = default;
-				CSwizzleCommon(const CSwizzleCommon &) = default;
-				~CSwizzleCommon() = default;
-#ifdef __GNUC__
-				CSwizzleCommon &operator =(const CSwizzleCommon &) = default;
-#else
-				CSwizzleCommon &operator =(const CSwizzleCommon &) & = default;
-#endif
-
-			public:
-#ifdef MSVC_LIMITATIONS
-				operator const ElementType &() const & noexcept
-				{
-					return (*this)[0];
-				}
-
-				operator const ElementType &() const && noexcept
-				{
-					return *this;
-				}
-
-				operator conditional_t<SwizzleDesc::isWriteMaskValid, ElementType, const ElementType> &() & noexcept
-				{
-					return (*this)[0];
-				}
-#else
-				operator const ElementType &() const noexcept
-				{
-					return (*this)[0];
-				}
-#endif
-
-				//operator const ElementType &() noexcept
-				//{
-				//	return operator ElementType &();
-				//}
-
-			private:
-				template<size_t ...idx>
-				inline auto Pos(index_sequence<idx...>) const
-				{
-					return vector<decay_t<decltype(+declval<ElementType>())>, SwizzleDesc::dimension>(+(*this)[idx]...);
-				}
-
-				template<size_t ...idx>
-				inline auto Neg(index_sequence<idx...>) const
-				{
-					return vector<decay_t<decltype(-declval<ElementType>())>, SwizzleDesc::dimension>(-(*this)[idx]...);
-				}
-
-			public:
-				auto operator +() const;
-				auto operator -() const;
-
-			public:
-				template<typename F>
-				vector<result_of_t<F &(ElementType)>, SwizzleDesc::dimension> apply(F f) const;
-
-				template<typename TResult>
-				vector<TResult, SwizzleDesc::dimension> apply(TResult f(ElementType)) const
-				{
-					return apply<TResult(ElementType)>(f);
-				}
-
-				template<typename TResult>
-				vector<TResult, SwizzleDesc::dimension> apply(TResult f(const ElementType &)) const
-				{
-					return apply<TResult(const ElementType &)>(f);
-				}
-
-				vector<ElementType, SwizzleDesc::dimension> apply(ElementType f(ElementType)) const
-				{
-					return apply<ElementType>(f);
-				}
-
-				vector<ElementType, SwizzleDesc::dimension> apply(ElementType f(const ElementType &)) const
-				{
-					return apply<ElementType>(f);
-				}
-			};
-
-			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			inline auto CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>::operator +() const
-			{
-				return Pos(std::make_index_sequence<SwizzleDesc::dimension>());
-			}
-
-			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			inline auto CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>::operator -() const
-			{
-				return Neg(std::make_index_sequence<SwizzleDesc::dimension>());
-			}
-
-#ifdef MSVC_NAMESPACE_WORKAROUND
-		}
-#define NAMESPACE_PREFIX Impl::
-#else
-#define NAMESPACE_PREFIX
-#endif
-			// this specialization used as base class for CDataContainer to eliminate need for various overloads
-			/*
-			CVectorSwizzleDesc<vectorDimension> required for VS 2013/2015
-			TODO: try with newer version
-			*/
-			template<typename ElementType, unsigned int vectorDimension>
-			class CSwizzle<ElementType, 0, vectorDimension, NAMESPACE_PREFIX CVectorSwizzleDesc<vectorDimension>> : public NAMESPACE_PREFIX CSwizzleCommon<ElementType, 0, vectorDimension>
-			{
-			protected:
-				CSwizzle() = default;
-				CSwizzle(const CSwizzle &) = default;
-				~CSwizzle() = default;
-#ifdef __GNUC__
-				CSwizzle &operator =(const CSwizzle &) = default;
-#else
-				CSwizzle &operator =(const CSwizzle &) & = default;
-#endif
-			};
-
-			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, typename>
-			class CSwizzle final : public NAMESPACE_PREFIX CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>
-			{
-				friend class NAMESPACE_PREFIX CDataContainer<ElementType, rows, columns>;
-
-			public:
-#ifdef __GNUC__
-				CSwizzle &operator =(const CSwizzle &) = default;
-#else
-				CSwizzle &operator =(const CSwizzle &) & = default;
-#endif
-				using NAMESPACE_PREFIX CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =;
-
-			private:
-				CSwizzle() = default;
-				CSwizzle(const CSwizzle &) = delete;
-				~CSwizzle() = default;
-			};
-
-#undef NAMESPACE_PREFIX
-#ifdef MSVC_NAMESPACE_WORKAROUND
-		namespace Impl
-		{
-#endif
-
-			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			class CSwizzleIteratorImpl : public iterator<forward_iterator_tag, const ElementType>
-			{
-				const CSwizzle<ElementType, rows, columns, SwizzleDesc> &swizzle;
-				unsigned i;
-
-			protected:
-				CSwizzleIteratorImpl(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &swizzle, unsigned i) :
-					swizzle(swizzle), i(i) {}
-
-			public:	// required by stl => public
-				conditional_t
-				<
-					sizeof(typename CSwizzleIteratorImpl::value_type) <= sizeof(void *),
-					typename CSwizzleIteratorImpl::value_type,
-					typename CSwizzleIteratorImpl::reference
-				> operator *() const
-				{
-					return swizzle[i];
-				}
-
-				typename CSwizzleIteratorImpl::pointer operator ->() const
-				{
-					return &swizzle[i];
-				}
-
-				bool operator ==(CSwizzleIteratorImpl<ElementType, rows, columns, SwizzleDesc> src) const noexcept
-				{
-					assert(&swizzle == &src.swizzle);
-					return i == src.i;
-				}
-
-				bool operator !=(CSwizzleIteratorImpl<ElementType, rows, columns, SwizzleDesc> src) const noexcept
-				{
-					assert(&swizzle == &src.swizzle);
-					return i != src.i;
-				}
-#ifdef __GNUC__
-				CSwizzleIteratorImpl &operator ++()
-#else
-				CSwizzleIteratorImpl &operator ++() &
-#endif
-				{
-					++i;
-					return *this;
-				}
-
-#ifdef __GNUC__
-				CSwizzleIteratorImpl operator ++(int)
-#else
-				CSwizzleIteratorImpl operator ++(int) &
-#endif
-				{
-					CSwizzleIteratorImpl old(*this);
-					operator ++();
-					return old;
-				}
-			};
-
-			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			class CSwizzleIterator final : public CSwizzleIteratorImpl<ElementType, rows, columns, SwizzleDesc>
-			{
-				friend bool VectorMath::all<>(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
-				friend bool VectorMath::any<>(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
-				friend bool VectorMath::none<>(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
-
-				using CSwizzleIteratorImpl<ElementType, rows, columns, SwizzleDesc>::CSwizzleIteratorImpl;
-				// copy ctor/dtor required by stl => public
-			};
 
 			template<class Src>
 			struct _1xN_2_vec_impl
@@ -3644,6 +2664,1170 @@ further investigations needed, including other compilers
 #endif
 #			pragma endregion
 #		pragma endregion
+
+#pragma region specializations for graphics vectors/matrices
+#if USE_BOOST_PREPROCESSOR
+#		define BOOST_PP_ITERATION_LIMITS (0, 4)
+#		define BOOST_PP_FILENAME_1 "vector math.h"
+#		include BOOST_PP_ITERATE()
+#else
+#pragma region swizzles generator
+#ifdef MSVC_LIMITATIONS
+#		define CONCAT_IMPL_1(a, b) a ## b
+#		define CONCAT_IMPL_0(a, b) CONCAT_IMPL_1(a, b)
+#		define CONCAT_IMPL(a, b) CONCAT_IMPL_0(a, b)
+#else
+#		define CONCAT_IMPL(a, b) a ## b
+#endif
+#		define CONCAT(a, b) CONCAT_IMPL(a, b)
+#
+#		define LOOKUP_SYMBOL_0_0 x
+#		define LOOKUP_SYMBOL_0_1 y
+#		define LOOKUP_SYMBOL_0_2 z
+#		define LOOKUP_SYMBOL_0_3 w
+#
+#		define LOOKUP_SYMBOL_1_0 r
+#		define LOOKUP_SYMBOL_1_1 g
+#		define LOOKUP_SYMBOL_1_2 b
+#		define LOOKUP_SYMBOL_1_3 a
+#
+#		define LOOKUP_SYMBOL_0_00 _m00
+#		define LOOKUP_SYMBOL_0_01 _m01
+#		define LOOKUP_SYMBOL_0_02 _m02
+#		define LOOKUP_SYMBOL_0_03 _m03
+#		define LOOKUP_SYMBOL_0_10 _m10
+#		define LOOKUP_SYMBOL_0_11 _m11
+#		define LOOKUP_SYMBOL_0_12 _m12
+#		define LOOKUP_SYMBOL_0_13 _m13
+#		define LOOKUP_SYMBOL_0_20 _m20
+#		define LOOKUP_SYMBOL_0_21 _m21
+#		define LOOKUP_SYMBOL_0_22 _m22
+#		define LOOKUP_SYMBOL_0_23 _m23
+#		define LOOKUP_SYMBOL_0_30 _m30
+#		define LOOKUP_SYMBOL_0_31 _m31
+#		define LOOKUP_SYMBOL_0_32 _m32
+#		define LOOKUP_SYMBOL_0_33 _m33
+#
+#		define LOOKUP_SYMBOL_1_00 _11
+#		define LOOKUP_SYMBOL_1_01 _12
+#		define LOOKUP_SYMBOL_1_02 _13
+#		define LOOKUP_SYMBOL_1_03 _14
+#		define LOOKUP_SYMBOL_1_10 _21
+#		define LOOKUP_SYMBOL_1_11 _22
+#		define LOOKUP_SYMBOL_1_12 _23
+#		define LOOKUP_SYMBOL_1_13 _24
+#		define LOOKUP_SYMBOL_1_20 _31
+#		define LOOKUP_SYMBOL_1_21 _32
+#		define LOOKUP_SYMBOL_1_22 _33
+#		define LOOKUP_SYMBOL_1_23 _34
+#		define LOOKUP_SYMBOL_1_30 _41
+#		define LOOKUP_SYMBOL_1_31 _42
+#		define LOOKUP_SYMBOL_1_32 _43
+#		define LOOKUP_SYMBOL_1_33 _44
+#
+#		define LOOKUP_SYMBOL_0(idx, ...) LOOKUP_SYMBOL_0_##idx
+#		define LOOKUP_SYMBOL_1(idx, ...) LOOKUP_SYMBOL_1_##idx
+#ifdef MSVC_LIMITATIONS
+		constexpr unsigned int ExtractSwizzleIdx(unsigned int dec, unsigned int bcd)
+		{
+			return bcd;
+		}
+#		define LOOKUP_SYMBOL_0_ExtractSwizzleIdx(idx, ...) LOOKUP_SYMBOL_0_##idx
+#		define LOOKUP_SYMBOL_1_ExtractSwizzleIdx(idx, ...) LOOKUP_SYMBOL_1_##idx
+#endif
+#
+#		define IDX_SEQ_2_SYMBOLS_1(xform, i0) xform i0
+#		define IDX_SEQ_2_SYMBOLS_2(xform, i0, i1) CONCAT(IDX_SEQ_2_SYMBOLS_1(xform, i0), xform i1)
+#		define IDX_SEQ_2_SYMBOLS_3(xform, i0, i1, i2) CONCAT(IDX_SEQ_2_SYMBOLS_2(xform, i0, i1), xform i2)
+#		define IDX_SEQ_2_SYMBOLS_4(xform, i0, i1, i2, i3) CONCAT(IDX_SEQ_2_SYMBOLS_3(xform, i0, i1, i2), xform i3)
+#ifdef MSVC_LIMITATIONS
+#		define IDX_SEQ_2_SYMBOLS(swizDim, xform, ...) CONCAT(IDX_SEQ_2_SYMBOLS_, swizDim(xform, __VA_ARGS__))
+#else
+#		define IDX_SEQ_2_SYMBOLS(swizDim, xform, ...) IDX_SEQ_2_SYMBOLS_##swizDim(xform, __VA_ARGS__)
+#endif
+#		define GENERATE_SWIZZLE(rows, columns, swizDim, ...)				\
+			CSwizzle<ElementType, rows, columns, CSwizzleDesc<__VA_ARGS__>>	\
+				IDX_SEQ_2_SYMBOLS(swizDim, LOOKUP_SYMBOL_0, __VA_ARGS__),	\
+				IDX_SEQ_2_SYMBOLS(swizDim, LOOKUP_SYMBOL_1, __VA_ARGS__);
+#
+#		define DEC_2_BIN_
+#		define DEC_2_BIN_0 00
+#		define DEC_2_BIN_1 01
+#		define DEC_2_BIN_2 10
+#		define DEC_2_BIN_3 11
+#ifdef MSVC_LIMITATIONS
+#		define ENCODE_RC_IDX(r, c) (ExtractSwizzleIdx(r ## c, CONCAT(0b, CONCAT(DEC_2_BIN_##r, DEC_2_BIN_##c))))
+#else
+#		define ENCODE_RC_IDX(r, c) (r ## c, CONCAT(0b, CONCAT(DEC_2_BIN_##r, DEC_2_BIN_##c)))
+#endif
+#
+#		define SWIZZLE_4_GENERATE(rows, columns, r0, c0, r1, c1, r2, c2, r3, c4) GENERATE_SWIZZLE(rows, columns, 4, ENCODE_RC_IDX(r0, c0), ENCODE_RC_IDX(r1, c1), ENCODE_RC_IDX(r2, c2), ENCODE_RC_IDX(r3, c4))
+#		define SWIZZLE_3_ITERATE_COLUMN_1(rows, columns, r0, c0, r1, c1, r2, c2, r3) SWIZZLE_4_GENERATE(rows, columns, r0, c0, r1, c1, r2, c2, r3, 0)
+#		define SWIZZLE_3_ITERATE_COLUMN_2(rows, columns, r0, c0, r1, c1, r2, c2, r3) SWIZZLE_3_ITERATE_COLUMN_1(rows, columns, r0, c0, r1, c1, r2, c2, r3) SWIZZLE_4_GENERATE(rows, columns, r0, c0, r1, c1, r2, c2, r3, 1)
+#		define SWIZZLE_3_ITERATE_COLUMN_3(rows, columns, r0, c0, r1, c1, r2, c2, r3) SWIZZLE_3_ITERATE_COLUMN_2(rows, columns, r0, c0, r1, c1, r2, c2, r3) SWIZZLE_4_GENERATE(rows, columns, r0, c0, r1, c1, r2, c2, r3, 2)
+#		define SWIZZLE_3_ITERATE_COLUMN_4(rows, columns, r0, c0, r1, c1, r2, c2, r3) SWIZZLE_3_ITERATE_COLUMN_3(rows, columns, r0, c0, r1, c1, r2, c2, r3) SWIZZLE_4_GENERATE(rows, columns, r0, c0, r1, c1, r2, c2, r3, 3)
+#		define SWIZZLE_3_ITERATE_COLUMNS(rows, columns, r0, c0, r1, c1, r2, c2, r3) SWIZZLE_3_ITERATE_COLUMN_##columns(rows, columns, r0, c0, r1, c1, r2, c2, r3)
+#		define SWIZZLE_3_ITERATE_ROW_0(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_COLUMNS(rows, columns, r0, c0, r1, c1, r2, c2, )
+#		define SWIZZLE_3_ITERATE_ROW_1(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_COLUMNS(rows, columns, r0, c0, r1, c1, r2, c2, 0)
+#		define SWIZZLE_3_ITERATE_ROW_2(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_ROW_1(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_COLUMNS(rows, columns, r0, c0, r1, c1, r2, c2, 1)
+#		define SWIZZLE_3_ITERATE_ROW_3(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_ROW_2(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_COLUMNS(rows, columns, r0, c0, r1, c1, r2, c2, 2)
+#		define SWIZZLE_3_ITERATE_ROW_4(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_ROW_3(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_COLUMNS(rows, columns, r0, c0, r1, c1, r2, c2, 3)
+#		define SWIZZLE_3_SELECTOR_3(rows, columns, r0, c0, r1, c1, r2, c2) GENERATE_SWIZZLE(rows, columns, 3, ENCODE_RC_IDX(r0, c0), ENCODE_RC_IDX(r1, c1), ENCODE_RC_IDX(r2, c2))
+#		define SWIZZLE_3_SELECTOR_4(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_ROW_##rows(rows, columns, r0, c0, r1, c1, r2, c2)
+#		define SWIZZLE_3_SELECTOR(rows, columns, swizDim, r0, c0, r1, c1, r2, c2) SWIZZLE_3_SELECTOR_##swizDim(rows, columns, r0, c0, r1, c1, r2, c2)
+#
+#		define SWIZZLE_2_ITERATE_COLUMN_1(rows, columns, swizDim, r0, c0, r1, c1, r2) SWIZZLE_3_SELECTOR(rows, columns, swizDim, r0, c0, r1, c1, r2, 0)
+#		define SWIZZLE_2_ITERATE_COLUMN_2(rows, columns, swizDim, r0, c0, r1, c1, r2) SWIZZLE_2_ITERATE_COLUMN_1(rows, columns, swizDim, r0, c0, r1, c1, r2) SWIZZLE_3_SELECTOR(rows, columns, swizDim, r0, c0, r1, c1, r2, 1)
+#		define SWIZZLE_2_ITERATE_COLUMN_3(rows, columns, swizDim, r0, c0, r1, c1, r2) SWIZZLE_2_ITERATE_COLUMN_2(rows, columns, swizDim, r0, c0, r1, c1, r2) SWIZZLE_3_SELECTOR(rows, columns, swizDim, r0, c0, r1, c1, r2, 2)
+#		define SWIZZLE_2_ITERATE_COLUMN_4(rows, columns, swizDim, r0, c0, r1, c1, r2) SWIZZLE_2_ITERATE_COLUMN_3(rows, columns, swizDim, r0, c0, r1, c1, r2) SWIZZLE_3_SELECTOR(rows, columns, swizDim, r0, c0, r1, c1, r2, 3)
+#		define SWIZZLE_2_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, r1, c1, r2) SWIZZLE_2_ITERATE_COLUMN_##columns(rows, columns, swizDim, r0, c0, r1, c1, r2)
+#		define SWIZZLE_2_ITERATE_ROW_0(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, r1, c1, )
+#		define SWIZZLE_2_ITERATE_ROW_1(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, r1, c1, 0)
+#		define SWIZZLE_2_ITERATE_ROW_2(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_ITERATE_ROW_1(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, r1, c1, 1)
+#		define SWIZZLE_2_ITERATE_ROW_3(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_ITERATE_ROW_2(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, r1, c1, 2)
+#		define SWIZZLE_2_ITERATE_ROW_4(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_ITERATE_ROW_3(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, r1, c1, 3)
+#		define SWIZZLE_2_SELECTOR_2(rows, columns, r0, c0, r1, c1) GENERATE_SWIZZLE(rows, columns, 2, ENCODE_RC_IDX(r0, c0), ENCODE_RC_IDX(r1, c1))
+#		define SWIZZLE_2_SELECTOR_3(rows, columns, r0, c0, r1, c1) SWIZZLE_2_ITERATE_ROW_##rows(rows, columns, 3, r0, c0, r1, c1)
+#		define SWIZZLE_2_SELECTOR_4(rows, columns, r0, c0, r1, c1) SWIZZLE_2_ITERATE_ROW_##rows(rows, columns, 4, r0, c0, r1, c1)
+#		define SWIZZLE_2_SELECTOR(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_SELECTOR_##swizDim(rows, columns, r0, c0, r1, c1)
+#
+#		define SWIZZLE_1_ITERATE_COLUMN_1(rows, columns, swizDim, r0, c0, r1) SWIZZLE_2_SELECTOR(rows, columns, swizDim, r0, c0, r1, 0)
+#		define SWIZZLE_1_ITERATE_COLUMN_2(rows, columns, swizDim, r0, c0, r1) SWIZZLE_1_ITERATE_COLUMN_1(rows, columns, swizDim, r0, c0, r1) SWIZZLE_2_SELECTOR(rows, columns, swizDim, r0, c0, r1, 1)
+#		define SWIZZLE_1_ITERATE_COLUMN_3(rows, columns, swizDim, r0, c0, r1) SWIZZLE_1_ITERATE_COLUMN_2(rows, columns, swizDim, r0, c0, r1) SWIZZLE_2_SELECTOR(rows, columns, swizDim, r0, c0, r1, 2)
+#		define SWIZZLE_1_ITERATE_COLUMN_4(rows, columns, swizDim, r0, c0, r1) SWIZZLE_1_ITERATE_COLUMN_3(rows, columns, swizDim, r0, c0, r1) SWIZZLE_2_SELECTOR(rows, columns, swizDim, r0, c0, r1, 3)
+#		define SWIZZLE_1_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, r1) SWIZZLE_1_ITERATE_COLUMN_##columns(rows, columns, swizDim, r0, c0, r1)
+#		define SWIZZLE_1_ITERATE_ROW_0(rows, columns, swizDim, r0, c0) SWIZZLE_1_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, )
+#		define SWIZZLE_1_ITERATE_ROW_1(rows, columns, swizDim, r0, c0) SWIZZLE_1_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, 0)
+#		define SWIZZLE_1_ITERATE_ROW_2(rows, columns, swizDim, r0, c0) SWIZZLE_1_ITERATE_ROW_1(rows, columns, swizDim, r0, c0) SWIZZLE_1_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, 1)
+#		define SWIZZLE_1_ITERATE_ROW_3(rows, columns, swizDim, r0, c0) SWIZZLE_1_ITERATE_ROW_2(rows, columns, swizDim, r0, c0) SWIZZLE_1_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, 2)
+#		define SWIZZLE_1_ITERATE_ROW_4(rows, columns, swizDim, r0, c0) SWIZZLE_1_ITERATE_ROW_3(rows, columns, swizDim, r0, c0) SWIZZLE_1_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, 3)
+#		define SWIZZLE_1_SELECTOR_1(rows, columns, r0, c0) GENERATE_SWIZZLE(rows, columns, 1, ENCODE_RC_IDX(r0, c0))
+#		define SWIZZLE_1_SELECTOR_2(rows, columns, r0, c0) SWIZZLE_1_ITERATE_ROW_##rows(rows, columns, 2, r0, c0)
+#		define SWIZZLE_1_SELECTOR_3(rows, columns, r0, c0) SWIZZLE_1_ITERATE_ROW_##rows(rows, columns, 3, r0, c0)
+#		define SWIZZLE_1_SELECTOR_4(rows, columns, r0, c0) SWIZZLE_1_ITERATE_ROW_##rows(rows, columns, 4, r0, c0)
+#		define SWIZZLE_1_SELECTOR(rows, columns, swizDim, r0, c0) SWIZZLE_1_SELECTOR_##swizDim(rows, columns, r0, c0)
+#
+#		define SWIZZLE_0_ITERATE_COLUMN_1(rows, columns, swizDim, r0) SWIZZLE_1_SELECTOR(rows, columns, swizDim, r0, 0)
+#		define SWIZZLE_0_ITERATE_COLUMN_2(rows, columns, swizDim, r0) SWIZZLE_0_ITERATE_COLUMN_1(rows, columns, swizDim, r0) SWIZZLE_1_SELECTOR(rows, columns, swizDim, r0, 1)
+#		define SWIZZLE_0_ITERATE_COLUMN_3(rows, columns, swizDim, r0) SWIZZLE_0_ITERATE_COLUMN_2(rows, columns, swizDim, r0) SWIZZLE_1_SELECTOR(rows, columns, swizDim, r0, 2)
+#		define SWIZZLE_0_ITERATE_COLUMN_4(rows, columns, swizDim, r0) SWIZZLE_0_ITERATE_COLUMN_3(rows, columns, swizDim, r0) SWIZZLE_1_SELECTOR(rows, columns, swizDim, r0, 3)
+#		define SWIZZLE_0_ITERATE_COLUMNS(rows, columns, swizDim, r0) SWIZZLE_0_ITERATE_COLUMN_##columns(rows, columns, swizDim, r0)
+#		define SWIZZLE_0_ITERATE_ROW_0(rows, columns, swizDim) SWIZZLE_0_ITERATE_COLUMNS(rows, columns, swizDim, )
+#		define SWIZZLE_0_ITERATE_ROW_1(rows, columns, swizDim) SWIZZLE_0_ITERATE_COLUMNS(rows, columns, swizDim, 0)
+#		define SWIZZLE_0_ITERATE_ROW_2(rows, columns, swizDim) SWIZZLE_0_ITERATE_ROW_1(rows, columns, swizDim) SWIZZLE_0_ITERATE_COLUMNS(rows, columns, swizDim, 1)
+#		define SWIZZLE_0_ITERATE_ROW_3(rows, columns, swizDim) SWIZZLE_0_ITERATE_ROW_2(rows, columns, swizDim) SWIZZLE_0_ITERATE_COLUMNS(rows, columns, swizDim, 2)
+#		define SWIZZLE_0_ITERATE_ROW_4(rows, columns, swizDim) SWIZZLE_0_ITERATE_ROW_3(rows, columns, swizDim) SWIZZLE_0_ITERATE_COLUMNS(rows, columns, swizDim, 3)
+#		define SWIZZLE_ITERATE(rows, columns, swizDim) SWIZZLE_0_ITERATE_ROW_##rows(rows, columns, swizDim)
+#
+#		define GENERATE_SWIZZLES(rows, columns)	\
+			SWIZZLE_ITERATE(rows, columns, 1)	\
+			SWIZZLE_ITERATE(rows, columns, 2)	\
+			SWIZZLE_ITERATE(rows, columns, 3)	\
+			SWIZZLE_ITERATE(rows, columns, 4)
+#pragma endregion
+
+		// undefs to be on the safe side
+#		undef ROWS
+#		undef COULMNS
+#		undef TRIVIAL_CTOR
+#		include "vector math generate stuff.h"
+
+#pragma region cleanup
+#ifdef MSVC_LIMITATIONS
+#		undef CONCAT_IMPL_1
+#		undef CONCAT_IMPL_0
+#endif
+#		undef CONCAT_IMPL
+#		undef CONCAT
+#
+#		undef LOOKUP_SYMBOL_0_0
+#		undef LOOKUP_SYMBOL_0_1
+#		undef LOOKUP_SYMBOL_0_2
+#		undef LOOKUP_SYMBOL_0_3
+#
+#		undef LOOKUP_SYMBOL_1_0
+#		undef LOOKUP_SYMBOL_1_1
+#		undef LOOKUP_SYMBOL_1_2
+#		undef LOOKUP_SYMBOL_1_3
+#
+#		undef LOOKUP_SYMBOL_0_00
+#		undef LOOKUP_SYMBOL_0_01
+#		undef LOOKUP_SYMBOL_0_02
+#		undef LOOKUP_SYMBOL_0_03
+#		undef LOOKUP_SYMBOL_0_10
+#		undef LOOKUP_SYMBOL_0_11
+#		undef LOOKUP_SYMBOL_0_12
+#		undef LOOKUP_SYMBOL_0_13
+#		undef LOOKUP_SYMBOL_0_20
+#		undef LOOKUP_SYMBOL_0_21
+#		undef LOOKUP_SYMBOL_0_22
+#		undef LOOKUP_SYMBOL_0_23
+#		undef LOOKUP_SYMBOL_0_30
+#		undef LOOKUP_SYMBOL_0_31
+#		undef LOOKUP_SYMBOL_0_32
+#		undef LOOKUP_SYMBOL_0_33
+#
+#		undef LOOKUP_SYMBOL_1_00
+#		undef LOOKUP_SYMBOL_1_01
+#		undef LOOKUP_SYMBOL_1_02
+#		undef LOOKUP_SYMBOL_1_03
+#		undef LOOKUP_SYMBOL_1_10
+#		undef LOOKUP_SYMBOL_1_11
+#		undef LOOKUP_SYMBOL_1_12
+#		undef LOOKUP_SYMBOL_1_13
+#		undef LOOKUP_SYMBOL_1_20
+#		undef LOOKUP_SYMBOL_1_21
+#		undef LOOKUP_SYMBOL_1_22
+#		undef LOOKUP_SYMBOL_1_23
+#		undef LOOKUP_SYMBOL_1_30
+#		undef LOOKUP_SYMBOL_1_31
+#		undef LOOKUP_SYMBOL_1_32
+#		undef LOOKUP_SYMBOL_1_33
+#
+#		undef LOOKUP_SYMBOL_0
+#		undef LOOKUP_SYMBOL_1
+#ifdef MSVC_LIMITATIONS
+#		undef LOOKUP_SYMBOL_0_ExtractSwizzleIdx
+#		undef LOOKUP_SYMBOL_1_ExtractSwizzleIdx
+#endif
+#
+#		undef IDX_SEQ_2_SYMBOLS_1
+#		undef IDX_SEQ_2_SYMBOLS_2
+#		undef IDX_SEQ_2_SYMBOLS_3
+#		undef IDX_SEQ_2_SYMBOLS_4
+#		undef IDX_SEQ_2_SYMBOLS
+#		undef GENERATE_SWIZZLE
+#
+#		undef DEC_2_BIN_
+#		undef DEC_2_BIN_0
+#		undef DEC_2_BIN_1
+#		undef DEC_2_BIN_2
+#		undef DEC_2_BIN_3
+#		undef ENCODE_RC_IDX
+#
+#		undef SWIZZLE_4_GENERATE
+#		undef SWIZZLE_3_ITERATE_COLUMN_1
+#		undef SWIZZLE_3_ITERATE_COLUMN_2
+#		undef SWIZZLE_3_ITERATE_COLUMN_3
+#		undef SWIZZLE_3_ITERATE_COLUMN_4
+#		undef SWIZZLE_3_ITERATE_COLUMNS
+#		undef SWIZZLE_3_ITERATE_ROW_0
+#		undef SWIZZLE_3_ITERATE_ROW_1
+#		undef SWIZZLE_3_ITERATE_ROW_2
+#		undef SWIZZLE_3_ITERATE_ROW_3
+#		undef SWIZZLE_3_ITERATE_ROW_4
+#		undef SWIZZLE_3_SELECTOR_3
+#		undef SWIZZLE_3_SELECTOR_4
+#		undef SWIZZLE_3_SELECTOR
+#
+#		undef SWIZZLE_2_ITERATE_COLUMN_1
+#		undef SWIZZLE_2_ITERATE_COLUMN_2
+#		undef SWIZZLE_2_ITERATE_COLUMN_3
+#		undef SWIZZLE_2_ITERATE_COLUMN_4
+#		undef SWIZZLE_2_ITERATE_COLUMNS
+#		undef SWIZZLE_2_ITERATE_ROW_0
+#		undef SWIZZLE_2_ITERATE_ROW_1
+#		undef SWIZZLE_2_ITERATE_ROW_2
+#		undef SWIZZLE_2_ITERATE_ROW_3
+#		undef SWIZZLE_2_ITERATE_ROW_4
+#		undef SWIZZLE_2_SELECTOR_2
+#		undef SWIZZLE_2_SELECTOR_3
+#		undef SWIZZLE_2_SELECTOR_4
+#		undef SWIZZLE_2_SELECTOR
+#
+#		undef SWIZZLE_1_ITERATE_COLUMN_1
+#		undef SWIZZLE_1_ITERATE_COLUMN_2
+#		undef SWIZZLE_1_ITERATE_COLUMN_3
+#		undef SWIZZLE_1_ITERATE_COLUMN_4
+#		undef SWIZZLE_1_ITERATE_COLUMNS
+#		undef SWIZZLE_1_ITERATE_ROW_0
+#		undef SWIZZLE_1_ITERATE_ROW_1
+#		undef SWIZZLE_1_ITERATE_ROW_2
+#		undef SWIZZLE_1_ITERATE_ROW_3
+#		undef SWIZZLE_1_ITERATE_ROW_4
+#		undef SWIZZLE_1_SELECTOR_1
+#		undef SWIZZLE_1_SELECTOR_2
+#		undef SWIZZLE_1_SELECTOR_3
+#		undef SWIZZLE_1_SELECTOR_4
+#		undef SWIZZLE_1_SELECTOR
+#
+#		undef SWIZZLE_0_ITERATE_COLUMN_1
+#		undef SWIZZLE_0_ITERATE_COLUMN_2
+#		undef SWIZZLE_0_ITERATE_COLUMN_3
+#		undef SWIZZLE_0_ITERATE_COLUMN_4
+#		undef SWIZZLE_0_ITERATE_COLUMNS
+#		undef SWIZZLE_0_ITERATE_ROW_0
+#		undef SWIZZLE_0_ITERATE_ROW_1
+#		undef SWIZZLE_0_ITERATE_ROW_2
+#		undef SWIZZLE_0_ITERATE_ROW_3
+#		undef SWIZZLE_0_ITERATE_ROW_4
+#		undef SWIZZLE_ITERATE
+#
+#		undef GENERATE_SWIZZLES
+#pragma endregion
+#endif
+#pragma endregion
+
+		namespace Impl
+		{
+#			ifdef NDEBUG
+#				define FRIEND_DECLARATIONS
+#			else
+#				define FRIEND_DECLARATIONS																								\
+					template<unsigned rowIdx, typename ElementType, unsigned int columns, class SwizzleDesc>							\
+					friend inline const void *GetRowAddress(const CSwizzleDataAccess<ElementType, 0, columns, SwizzleDesc> &swizzle);	\
+																																		\
+					template<unsigned rowIdx, typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>			\
+					friend inline const void *GetRowAddress(const CSwizzleDataAccess<ElementType, rows, columns, SwizzleDesc> &swizzle);
+#			endif
+
+			// CSwizzle inherits from this to reduce preprocessor generated code for faster compiling
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
+			class CSwizzleDataAccess
+			{
+				typedef CSwizzle<ElementType, rows, columns, SwizzleDesc> TSwizzle;
+
+			protected:
+				CSwizzleDataAccess() = default;
+				CSwizzleDataAccess(const CSwizzleDataAccess &) = delete;
+				~CSwizzleDataAccess() = default;
+				CSwizzleDataAccess &operator =(const CSwizzleDataAccess &) = delete;
+
+			protected:
+				typedef TSwizzle TOperationResult;
+
+#ifdef __GNUC__
+				operator TSwizzle &() noexcept
+#else
+				operator TSwizzle &() & noexcept
+#endif
+				{
+					return static_cast<TSwizzle &>(*this);
+				}
+
+			private:
+				FRIEND_DECLARATIONS
+
+				const auto &Data() const noexcept
+				{
+					/*
+									static	  reinterpret
+									   ^		   ^
+									   |		   |
+					CSwizzleDataAccess -> CSwizzle -> CData
+					*/
+					typedef CData<ElementType, rows, columns> CData;
+					return reinterpret_cast<const CData *>(static_cast<const TSwizzle *>(this))->rowsData;
+				}
+
+			public:
+#ifdef __GNUC__
+				const ElementType &operator [](unsigned int idx) const noexcept
+#else
+				const ElementType &operator [](unsigned int idx) const & noexcept
+#endif
+				{
+					assert(idx < SwizzleDesc::dimension);
+					idx = SwizzleDesc::FetchIdx(idx);
+					const auto row = idx >> 2u & 3u, column = idx & 3u;
+					return Data()[row][column];
+				}
+
+#ifndef __GNUC__
+				const ElementType &operator [](unsigned int idx) const && noexcept
+				{
+					return operator [](idx);
+				}
+#endif
+
+#ifdef __GNUC__
+				ElementType &operator [](unsigned int idx) noexcept
+#else
+				ElementType &operator [](unsigned int idx) & noexcept
+#endif
+				{
+					return const_cast<ElementType &>(static_cast<const CSwizzleDataAccess &>(*this)[idx]);
+				}
+			};
+
+			// specialization for vectors
+			template<typename ElementType, unsigned int vectorDimension, class SwizzleDesc>
+			class CSwizzleDataAccess<ElementType, 0, vectorDimension, SwizzleDesc>
+			{
+				/*
+				?
+
+				does not work with gcc:
+				typedef CSwizzle<...> CSwizzle;
+				typedef CDataContainer<...> CDataContainer;
+
+				does not work with VS and gcc:
+				typedef vector<...> vector;
+
+				works with both VS and gcc (differs from cases above in that it is in function scope, not in class one):
+				typedef TSwizzleTraits<...> TSwizzleTraits;
+				*/
+				typedef CSwizzle<ElementType, 0, vectorDimension, SwizzleDesc> TSwizzle;
+
+			protected:
+				CSwizzleDataAccess() = default;
+				CSwizzleDataAccess(const CSwizzleDataAccess &) = delete;
+				~CSwizzleDataAccess() = default;
+				CSwizzleDataAccess &operator =(const CSwizzleDataAccess &) = delete;
+
+			protected:
+				typedef TSwizzle TOperationResult;
+
+#ifdef __GNUC__
+				operator TSwizzle &() noexcept
+#else
+				operator TSwizzle &() & noexcept
+#endif
+				{
+					return static_cast<TSwizzle &>(*this);
+				}
+
+			private:
+				FRIEND_DECLARATIONS
+
+				const auto &Data() const noexcept
+				{
+					/*
+									static	  reinterpret
+									   ^		   ^
+									   |		   |
+					CSwizzleDataAccess -> CSwizzle -> CData
+					*/
+					typedef CData<ElementType, 0, vectorDimension> CData;
+					return reinterpret_cast<const CData *>(static_cast<const TSwizzle *>(this))->data;
+				}
+
+			public:
+#ifdef __GNUC__
+				const ElementType &operator [](unsigned int idx) const noexcept
+#else
+				const ElementType &operator [](unsigned int idx) const & noexcept
+#endif
+				{
+					assert(idx < SwizzleDesc::dimension);
+					idx = SwizzleDesc::FetchIdx(idx);
+					return Data()[idx];
+				}
+
+#ifndef __GNUC__
+				const ElementType &operator [](unsigned int idx) const && noexcept
+				{
+					return operator [](idx);
+				}
+#endif
+
+#ifdef __GNUC__
+				ElementType &operator [](unsigned int idx) noexcept
+#else
+				ElementType &operator [](unsigned int idx) & noexcept
+#endif
+				{
+					return const_cast<ElementType &>(static_cast<const CSwizzleDataAccess &>(*this)[idx]);
+				}
+			};
+
+			/*
+			CVectorSwizzleDesc<vectorDimension> required for VS 2013/2015
+			TODO: try with newer version
+			*/
+			template<typename ElementType, unsigned int vectorDimension>
+			class CSwizzleDataAccess<ElementType, 0, vectorDimension, CVectorSwizzleDesc<vectorDimension>>
+			{
+				/*
+								static
+								   ^
+								   |
+				CSwizzleDataAccess -> vector
+				*/
+				typedef vector<ElementType, vectorDimension> Tvector;
+
+			protected:
+				CSwizzleDataAccess() = default;
+				CSwizzleDataAccess(const CSwizzleDataAccess &) = default;
+				~CSwizzleDataAccess() = default;
+#ifdef __GNUC__
+				CSwizzleDataAccess &operator =(const CSwizzleDataAccess &) = default;
+#else
+				CSwizzleDataAccess &operator =(const CSwizzleDataAccess &) & = default;
+#endif
+
+			protected:
+				typedef Tvector TOperationResult;
+
+#ifdef __GNUC__
+				operator Tvector &() noexcept
+#else
+				operator Tvector &() & noexcept
+#endif
+				{
+					return static_cast<Tvector &>(*this);
+				}
+
+			private:
+				FRIEND_DECLARATIONS
+
+				const auto &Data() const noexcept
+				{
+					return static_cast<const Tvector *>(this)->data.data;
+				}
+
+				auto &Data() noexcept
+				{
+					return static_cast<Tvector *>(this)->data.data;
+				}
+
+			public:
+#ifdef __GNUC__
+				const ElementType &operator [](unsigned int idx) const noexcept
+#else
+				const ElementType &operator [](unsigned int idx) const & noexcept
+#endif
+				{
+					assert(idx < vectorDimension);
+					return Data()[idx];
+				}
+
+#ifndef __GNUC__
+				const ElementType &operator [](unsigned int idx) const && noexcept
+				{
+					return operator [](idx);
+				}
+#endif
+
+#ifdef __GNUC__
+				ElementType &operator [](unsigned int idx) noexcept
+#else
+				ElementType &operator [](unsigned int idx) & noexcept
+#endif
+				{
+					assert(idx < vectorDimension);
+					return Data()[idx];
+				}
+			};
+
+#			undef FRIEND_DECLARATIONS
+
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
+			class CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, false_type> : public CSwizzleDataAccess<ElementType, rows, columns, SwizzleDesc>
+			{
+			protected:
+				CSwizzleAssign() = default;
+				CSwizzleAssign(const CSwizzleAssign &) = delete;
+				~CSwizzleAssign() = default;
+
+			public:
+				void operator =(const CSwizzleAssign &) = delete;
+			};
+
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
+			class CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type> : public CSwizzleDataAccess<ElementType, rows, columns, SwizzleDesc>
+			{
+				typedef CSwizzleDataAccess<ElementType, rows, columns, SwizzleDesc> TSwizzleDataAccess;
+				typedef CSwizzle<ElementType, rows, columns, SwizzleDesc> TSwizzle;
+
+			protected:
+				CSwizzleAssign() = default;
+				CSwizzleAssign(const CSwizzleAssign &) = default;
+				~CSwizzleAssign() = default;
+
+			private:
+#pragma region generate operators
+#if defined __GNUC__ && !defined __clang__	// bug in gcc?
+#define NAMESPACE_PREFIX Impl::
+#else
+#define NAMESPACE_PREFIX
+#endif
+
+				// swizzle / 1D swizzle op=<!WARHazard> swizzle
+#				define OPERATOR_DECLARATION(op)																														\
+					template																																		\
+					<																																				\
+						bool WARHazard,																																\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,											\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc										\
+					>																																				\
+					friend enable_if_t<!WARHazard && (RightSwizzleDesc::dimension > 1),																				\
+					typename NAMESPACE_PREFIX CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &> VectorMath::operator op##=(	\
+					NAMESPACE_PREFIX CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,														\
+					const NAMESPACE_PREFIX CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right);
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION)
+#				undef OPERATOR_DECLARATION
+
+				// swizzle / 1D swizzle op=<WARHazard> swizzle
+#				define OPERATOR_DECLARATION(op)																														\
+					template																																		\
+					<																																				\
+						bool WARHazard,																																\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,											\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc										\
+					>																																				\
+					friend enable_if_t<WARHazard && (RightSwizzleDesc::dimension > 1),																				\
+					typename NAMESPACE_PREFIX CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &> VectorMath::operator op##=(	\
+					NAMESPACE_PREFIX CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,														\
+					const NAMESPACE_PREFIX CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right);
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION)
+#				undef OPERATOR_DECLARATION
+
+				// swizzle / 1D swizzle op= swizzle
+#				define OPERATOR_DECLARATION(op)																														\
+					template																																		\
+					<																																				\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,											\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc										\
+					>																																				\
+					friend enable_if_t<(RightSwizzleDesc::dimension > 1),																							\
+					typename NAMESPACE_PREFIX CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &> VectorMath::operator op##=(	\
+					NAMESPACE_PREFIX CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,														\
+					const NAMESPACE_PREFIX CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right);
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION)
+#				undef OPERATOR_DECLARATION
+
+				// swizzle / 1D swizzle op= temp swizzle
+#				define OPERATOR_DECLARATION(op)																														\
+					template																																		\
+					<																																				\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,											\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc										\
+					>																																				\
+					friend enable_if_t<(RightSwizzleDesc::dimension > 1),																							\
+					typename NAMESPACE_PREFIX CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &> VectorMath::operator op##=(	\
+					NAMESPACE_PREFIX CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,														\
+					const NAMESPACE_PREFIX CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &&right);
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION)
+#				undef OPERATOR_DECLARATION
+
+				// swizzle / 1D swizzle op=<!WARHazard, !extractScalar> scalar
+#				define OPERATOR_DECLARATION(op)																														\
+					template																																		\
+					<																																				\
+						bool WARHazard, bool extractScalar,																											\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,											\
+						typename RightType																															\
+					>																																				\
+					friend enable_if_t<!WARHazard && !extractScalar/* && IsScalar<RightType>*/,																		\
+					typename NAMESPACE_PREFIX CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &> ScalarOps::operator op##=(		\
+					NAMESPACE_PREFIX CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,														\
+					const RightType &right);
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION)
+#				undef OPERATOR_DECLARATION
+
+				// swizzle / 1D swizzle op=<WARHazard, !extractScalar> scalar
+#				define OPERATOR_DECLARATION(op)																														\
+					template																																		\
+					<																																				\
+						bool WARHazard, bool extractScalar,																											\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,											\
+						typename RightType																															\
+					>																																				\
+					friend enable_if_t<WARHazard && !extractScalar/* && IsScalar<RightType>*/,																		\
+					typename NAMESPACE_PREFIX CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &> ScalarOps::operator op##=(		\
+					NAMESPACE_PREFIX CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,														\
+					const RightType &right);
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION)
+#				undef OPERATOR_DECLARATION
+
+				// swizzle / 1D swizzle op=<?WARHazard, extractScalar> scalar
+#				define OPERATOR_DECLARATION(op)																														\
+					template																																		\
+					<																																				\
+						bool WARHazard, bool extractScalar,																											\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,											\
+						typename RightType																															\
+					>																																				\
+					friend enable_if_t<extractScalar/* && IsScalar<RightType>*/,																					\
+					typename NAMESPACE_PREFIX CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &> ScalarOps::operator op##=(		\
+					NAMESPACE_PREFIX CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,														\
+					const RightType &right);
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION)
+#				undef OPERATOR_DECLARATION
+
+#ifndef MSVC_LIMITATIONS
+				// swizzle / 1D swizzle op=<?WARHazard> scalar
+#				define OPERATOR_DECLARATION(op)																														\
+					template																																		\
+					<																																				\
+						bool WARHazard,																																\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,											\
+						typename RightType																															\
+					>																																				\
+					friend enable_if_t<IsScalar<RightType>,																											\
+					typename NAMESPACE_PREFIX CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &> VectorMath::operator op##=(	\
+					NAMESPACE_PREFIX CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,														\
+					const RightType &right);
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION)
+#				undef OPERATOR_DECLARATION
+#endif
+
+				// swizzle / 1D swizzle op= scalar
+#				define OPERATOR_DECLARATION(op)																														\
+					template																																		\
+					<																																				\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,											\
+						typename RightType																															\
+					>																																				\
+					friend enable_if_t<IsScalar<RightType>,																											\
+					typename NAMESPACE_PREFIX CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &> VectorMath::operator op##=(	\
+					NAMESPACE_PREFIX CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,														\
+					const RightType &right);
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION)
+#				undef OPERATOR_DECLARATION
+
+				// swizzle / 1D swizzle op= temp scalar
+#				define OPERATOR_DECLARATION(op)																														\
+					template																																		\
+					<																																				\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,											\
+						typename RightType																															\
+					>																																				\
+					friend enable_if_t<IsScalar<RightType>,																											\
+					typename NAMESPACE_PREFIX CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &> VectorMath::operator op##=(	\
+					NAMESPACE_PREFIX CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,														\
+					const RightType &&right);
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION)
+#				undef OPERATOR_DECLARATION
+
+				// swizzle / 1D swizzle op= matrix
+#				define OPERATOR_DECLARATION(op)																														\
+					template																																		\
+					<																																				\
+						bool ...WARHazard,																															\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,											\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns																\
+					>																																				\
+					friend enable_if_t<(rightRows > 1 || rightColumns > 1),																							\
+					typename NAMESPACE_PREFIX CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &> VectorMath::operator op##=(	\
+					NAMESPACE_PREFIX CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,														\
+					const matrix<RightElementType, rightRows, rightColumns> &right);
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION)
+#				undef OPERATOR_DECLARATION
+
+				// swizzle / 1D swizzle op= temp matrix
+#				define OPERATOR_DECLARATION(op)																														\
+					template																																		\
+					<																																				\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,											\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns																\
+					>																																				\
+					friend enable_if_t<(rightRows > 1 || rightColumns > 1),																							\
+					typename NAMESPACE_PREFIX CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &> VectorMath::operator op##=(	\
+					NAMESPACE_PREFIX CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,														\
+					const matrix<RightElementType, rightRows, rightColumns> &&right);
+				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION)
+#				undef OPERATOR_DECLARATION
+
+#undef NAMESPACE_PREFIX
+#pragma endregion
+
+				using typename TSwizzleDataAccess::TOperationResult;
+				using TSwizzleDataAccess::operator TOperationResult &;
+
+#ifndef MSVC_LIMITATIONS
+			public:
+#ifdef __GNUC__
+				operator ElementType &() noexcept
+#else
+				operator ElementType &() & noexcept
+#endif
+				{
+					return (*this)[0];
+				}
+#endif
+
+			public:
+#ifdef __GNUC__
+				inline TOperationResult &operator =(const CSwizzleAssign &src)
+#else
+				inline TOperationResult &operator =(const CSwizzleAssign &src) &
+#endif
+				{
+					return operator =(std::move(static_cast<const TSwizzle &>(src)));
+				}
+
+				// currently public to allow user specify WAR hazard explicitly if needed
+
+				template<bool WARHazard, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
+#ifdef __GNUC__
+				enable_if_t<(!WARHazard && SrcSwizzleDesc::dimension > 1), TOperationResult &> operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
+#else
+				enable_if_t<(!WARHazard && SrcSwizzleDesc::dimension > 1), TOperationResult &> operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &;
+#endif
+
+				template<bool WARHazard, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
+#ifdef __GNUC__
+				enable_if_t<(WARHazard && SrcSwizzleDesc::dimension > 1), TOperationResult &> operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
+#else
+				enable_if_t<(WARHazard && SrcSwizzleDesc::dimension > 1), TOperationResult &> operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &;
+#endif
+
+				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
+#ifdef __GNUC__
+				enable_if_t<(SrcSwizzleDesc::dimension > 1), TOperationResult &> operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src)
+#else
+				enable_if_t<(SrcSwizzleDesc::dimension > 1), TOperationResult &> operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &
+#endif
+				{
+					static constexpr auto WARHazard = DetectSwizzleWARHazard
+					<
+						ElementType, rows, columns, SwizzleDesc,
+						SrcElementType, srcRows, srcColumns, SrcSwizzleDesc,
+						true
+					>::value;
+					return operator =<WARHazard>(src);
+				}
+
+				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
+#ifdef __GNUC__
+				enable_if_t<(SrcSwizzleDesc::dimension > 1), TOperationResult &> operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &&src)
+#else
+				enable_if_t<(SrcSwizzleDesc::dimension > 1), TOperationResult &> operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &&src) &
+#endif
+				{
+					return operator =<false>(src);
+				}
+
+				template<typename SrcType>
+#ifdef __GNUC__
+				inline enable_if_t<IsScalar<SrcType>, TOperationResult &> operator =(const SrcType &scalar);
+#elif defined MSVC_LIMITATIONS
+				inline enable_if_t<IsScalar<SrcType>, TOperationResult &> operator =(const SrcType &src) &
+				{
+					const auto &scalar = ExtractScalar(src);
+					for (unsigned idx = 0; idx < SwizzleDesc::dimension; idx++)
+						(*this)[idx] = scalar;
+					return *this;
+				}
+#else
+				inline enable_if_t<IsScalar<SrcType>, TOperationResult &> operator =(const SrcType &scalar) &;
+#endif
+
+				template<bool ...WARHazard, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
+#ifdef __GNUC__
+				enable_if_t<(srcRows > 1 || srcColumns > 1), TOperationResult &> operator =(const matrix<SrcElementType, srcRows, srcColumns> &src);
+#else
+				enable_if_t<(srcRows > 1 || srcColumns > 1), TOperationResult &> operator =(const matrix<SrcElementType, srcRows, srcColumns> &src) &;
+#endif
+
+				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
+#ifdef __GNUC__
+				enable_if_t<(srcRows > 1 || srcColumns > 1), TOperationResult &> operator =(const matrix<SrcElementType, srcRows, srcColumns> &&src)
+#else
+				enable_if_t<(srcRows > 1 || srcColumns > 1), TOperationResult &> operator =(const matrix<SrcElementType, srcRows, srcColumns> &&src) &
+#endif
+				{
+					return operator =<false>(src);
+				}
+
+#ifdef __GNUC__
+				inline TOperationResult &operator =(initializer_list<CInitListItem<ElementType, SwizzleDesc::dimension>> initList);
+#else
+				inline TOperationResult &operator =(initializer_list<CInitListItem<ElementType, SwizzleDesc::dimension>> initList) &;
+#endif
+
+			public:
+				using TSwizzleDataAccess::operator [];
+			};
+
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
+			template<bool WARHazard, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
+#ifdef __GNUC__
+			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src)
+#else
+			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &
+#endif
+				-> enable_if_t<(!WARHazard && SrcSwizzleDesc::dimension > 1), TOperationResult &>
+			{
+				static_assert(SwizzleDesc::dimension <= SrcSwizzleDesc::dimension, "'vector = vector': too small src dimension");
+				assert(!TriggerWARHazard<true>(*this, src));
+				for (unsigned idx = 0; idx < SwizzleDesc::dimension; idx++)
+					(*this)[idx] = src[idx];
+				return *this;
+			}
+
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
+			template<bool WARHazard, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
+#ifdef __GNUC__
+			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src)
+#else
+			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &
+#endif
+				-> enable_if_t<(WARHazard && SrcSwizzleDesc::dimension > 1), TOperationResult &>
+			{
+				// make copy and call direct assignment
+				return operator =<false>(vector<SrcElementType, SrcSwizzleDesc::dimension>(src));
+			}
+
+#ifndef MSVC_LIMITATIONS
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
+			template<typename SrcType>
+#ifdef __GNUC__
+			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::operator =(const SrcType &src) -> enable_if_t<IsScalar<SrcType>, TOperationResult &>
+#else
+			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::operator =(const SrcType &src) & -> enable_if_t<IsScalar<SrcType>, TOperationResult &>
+#endif
+			{
+				const auto &scalar = ExtractScalar(src);
+				for (unsigned idx = 0; idx < SwizzleDesc::dimension; idx++)
+					(*this)[idx] = scalar;
+				return *this;
+			}
+#endif
+
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
+			template<bool ...WARHazard, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
+#ifdef __GNUC__
+			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::operator =(const matrix<SrcElementType, srcRows, srcColumns> &src)
+#else
+			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::operator =(const matrix<SrcElementType, srcRows, srcColumns> &src) &
+#endif
+				-> enable_if_t<(srcRows > 1 || srcColumns > 1), TOperationResult &>
+			{
+				// C++17\
+				static_assert(sizeof...(WARHazard) <= 1);
+				constexpr static const bool underflow = SwizzleDesc::dimension > srcRows * srcColumns, overflow = SwizzleDesc::dimension < srcRows * srcColumns;
+				static_assert(!(underflow || overflow && SwizzleDesc::dimension > 1), "'vector = matrix': unmatched sequencing");
+				const auto &seq = reinterpret_cast<const CSequencingSwizzle<SrcElementType, srcRows, srcColumns> &>(src.data);
+				return operator =<WARHazard...>(seq);
+			}
+
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
+#ifdef __GNUC__
+			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::operator =(initializer_list<CInitListItem<ElementType, SwizzleDesc::dimension>> initList) -> TOperationResult &
+#else
+			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::operator =(initializer_list<CInitListItem<ElementType, SwizzleDesc::dimension>> initList) & -> TOperationResult &
+#endif
+			{
+				unsigned dstIdx = 0;
+				for (const auto &item : initList)
+					for (unsigned itemEementIdx = 0; itemEementIdx < item.GetItemSize(); itemEementIdx++)
+						(*this)[dstIdx++] = item[itemEementIdx];
+				assert(dstIdx == SwizzleDesc::dimension);
+				return *this;
+			}
+
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc = CVectorSwizzleDesc<columns>>
+			class EBCO CSwizzleCommon :
+				public CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>,
+				public Tag<is_same_v<SwizzleDesc, CVectorSwizzleDesc<columns>> ? TagName::Vector : TagName::Swizzle, SwizzleDesc::dimension == 1>
+			{
+			protected:
+				CSwizzleCommon() = default;
+				CSwizzleCommon(const CSwizzleCommon &) = default;
+				~CSwizzleCommon() = default;
+#ifdef __GNUC__
+				CSwizzleCommon &operator =(const CSwizzleCommon &) = default;
+#else
+				CSwizzleCommon &operator =(const CSwizzleCommon &) & = default;
+#endif
+
+			public:
+#ifdef MSVC_LIMITATIONS
+				operator const ElementType &() const & noexcept
+				{
+					return (*this)[0];
+				}
+
+				operator const ElementType &() const && noexcept
+				{
+					return *this;
+				}
+
+				operator conditional_t<SwizzleDesc::isWriteMaskValid, ElementType, const ElementType> &() & noexcept
+				{
+					return (*this)[0];
+				}
+#else
+				operator const ElementType &() const noexcept
+				{
+					return (*this)[0];
+				}
+#endif
+
+				//operator const ElementType &() noexcept
+				//{
+				//	return operator ElementType &();
+				//}
+
+			private:
+				template<size_t ...idx>
+				inline auto Pos(index_sequence<idx...>) const
+				{
+					return vector<decay_t<decltype(+declval<ElementType>())>, SwizzleDesc::dimension>(+(*this)[idx]...);
+				}
+
+				template<size_t ...idx>
+				inline auto Neg(index_sequence<idx...>) const
+				{
+					return vector<decay_t<decltype(-declval<ElementType>())>, SwizzleDesc::dimension>(-(*this)[idx]...);
+				}
+
+			public:
+				auto operator +() const;
+				auto operator -() const;
+
+			public:
+				template<typename F>
+				vector<result_of_t<F &(ElementType)>, SwizzleDesc::dimension> apply(F f) const;
+
+				template<typename TResult>
+				vector<TResult, SwizzleDesc::dimension> apply(TResult f(ElementType)) const
+				{
+					return apply<TResult(ElementType)>(f);
+				}
+
+				template<typename TResult>
+				vector<TResult, SwizzleDesc::dimension> apply(TResult f(const ElementType &)) const
+				{
+					return apply<TResult(const ElementType &)>(f);
+				}
+
+				vector<ElementType, SwizzleDesc::dimension> apply(ElementType f(ElementType)) const
+				{
+					return apply<ElementType>(f);
+				}
+
+				vector<ElementType, SwizzleDesc::dimension> apply(ElementType f(const ElementType &)) const
+				{
+					return apply<ElementType>(f);
+				}
+			};
+
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
+			inline auto CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>::operator +() const
+			{
+				return Pos(std::make_index_sequence<SwizzleDesc::dimension>());
+			}
+
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
+			inline auto CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>::operator -() const
+			{
+				return Neg(std::make_index_sequence<SwizzleDesc::dimension>());
+			}
+
+#ifdef MSVC_NAMESPACE_WORKAROUND
+		}
+#define NAMESPACE_PREFIX Impl::
+#else
+#define NAMESPACE_PREFIX
+#endif
+			// this specialization used as base class for CDataContainer to eliminate need for various overloads
+			/*
+			CVectorSwizzleDesc<vectorDimension> required for VS 2013/2015
+			TODO: try with newer version
+			*/
+			template<typename ElementType, unsigned int vectorDimension>
+			class CSwizzle<ElementType, 0, vectorDimension, NAMESPACE_PREFIX CVectorSwizzleDesc<vectorDimension>> : public NAMESPACE_PREFIX CSwizzleCommon<ElementType, 0, vectorDimension>
+			{
+			protected:
+				CSwizzle() = default;
+				CSwizzle(const CSwizzle &) = default;
+				~CSwizzle() = default;
+#ifdef __GNUC__
+				CSwizzle &operator =(const CSwizzle &) = default;
+#else
+				CSwizzle &operator =(const CSwizzle &) & = default;
+#endif
+			};
+
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, typename>
+			class CSwizzle final : public NAMESPACE_PREFIX CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>
+			{
+				friend class NAMESPACE_PREFIX CDataContainer<ElementType, rows, columns>;
+
+			public:
+#ifdef __GNUC__
+				CSwizzle &operator =(const CSwizzle &) = default;
+#else
+				CSwizzle &operator =(const CSwizzle &) & = default;
+#endif
+				using NAMESPACE_PREFIX CSwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =;
+
+			private:
+				CSwizzle() = default;
+				CSwizzle(const CSwizzle &) = delete;
+				~CSwizzle() = default;
+			};
+
+#undef NAMESPACE_PREFIX
+#ifdef MSVC_NAMESPACE_WORKAROUND
+		namespace Impl
+		{
+#endif
+
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
+			class CSwizzleIteratorImpl : public iterator<forward_iterator_tag, const ElementType>
+			{
+				const CSwizzle<ElementType, rows, columns, SwizzleDesc> &swizzle;
+				unsigned i;
+
+			protected:
+				CSwizzleIteratorImpl(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &swizzle, unsigned i) :
+					swizzle(swizzle), i(i) {}
+
+			public:	// required by stl => public
+				conditional_t
+				<
+					sizeof(typename CSwizzleIteratorImpl::value_type) <= sizeof(void *),
+					typename CSwizzleIteratorImpl::value_type,
+					typename CSwizzleIteratorImpl::reference
+				> operator *() const
+				{
+					return swizzle[i];
+				}
+
+				typename CSwizzleIteratorImpl::pointer operator ->() const
+				{
+					return &swizzle[i];
+				}
+
+				bool operator ==(CSwizzleIteratorImpl<ElementType, rows, columns, SwizzleDesc> src) const noexcept
+				{
+					assert(&swizzle == &src.swizzle);
+					return i == src.i;
+				}
+
+				bool operator !=(CSwizzleIteratorImpl<ElementType, rows, columns, SwizzleDesc> src) const noexcept
+				{
+					assert(&swizzle == &src.swizzle);
+					return i != src.i;
+				}
+#ifdef __GNUC__
+				CSwizzleIteratorImpl &operator ++()
+#else
+				CSwizzleIteratorImpl &operator ++() &
+#endif
+				{
+					++i;
+					return *this;
+				}
+
+#ifdef __GNUC__
+				CSwizzleIteratorImpl operator ++(int)
+#else
+				CSwizzleIteratorImpl operator ++(int) &
+#endif
+				{
+					CSwizzleIteratorImpl old(*this);
+					operator ++();
+					return old;
+				}
+			};
+
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
+			class CSwizzleIterator final : public CSwizzleIteratorImpl<ElementType, rows, columns, SwizzleDesc>
+			{
+				friend bool VectorMath::all<>(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
+				friend bool VectorMath::any<>(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
+				friend bool VectorMath::none<>(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
+
+				using CSwizzleIteratorImpl<ElementType, rows, columns, SwizzleDesc>::CSwizzleIteratorImpl;
+				// copy ctor/dtor required by stl => public
+			};
+		}
 
 		template<typename ElementType_, unsigned int dimension_>
 		class EBCO vector : public Impl::CDataContainer<ElementType_, 0, dimension_>, public Impl::CSwizzle<ElementType_, 0, dimension_>
