@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		08.11.2016 (c)Alexey Shaydurov
+\date		09.11.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1714,13 +1714,13 @@ further investigations needed, including other compilers
 #endif
 #
 #		define SWIZZLE_4_GENERATE(rows, columns, r0, c0, r1, c1, r2, c2, r3, c4) GENERATE_SWIZZLE(rows, columns, 4, ENCODE_RC_IDX(r0, c0), ENCODE_RC_IDX(r1, c1), ENCODE_RC_IDX(r2, c2), ENCODE_RC_IDX(r3, c4))
-#		define SWIZZLE_3_ITERATE_COLUMN_1(rows, columns, r0, c0, r1, c1, r2, c2, r3) SWIZZLE_4_GENERATE(rows, columns, r0, c0, r1, c1, r2, c2, r3, 0)
+#		define SWIZZLE_3_ITERATE_COLUMN_1(rows, columns, r0, c0, r1, c1, r2, c2, r3) /*-----------------------terminate iteration-----------------------*/ SWIZZLE_4_GENERATE(rows, columns, r0, c0, r1, c1, r2, c2, r3, 0)
 #		define SWIZZLE_3_ITERATE_COLUMN_2(rows, columns, r0, c0, r1, c1, r2, c2, r3) SWIZZLE_3_ITERATE_COLUMN_1(rows, columns, r0, c0, r1, c1, r2, c2, r3) SWIZZLE_4_GENERATE(rows, columns, r0, c0, r1, c1, r2, c2, r3, 1)
 #		define SWIZZLE_3_ITERATE_COLUMN_3(rows, columns, r0, c0, r1, c1, r2, c2, r3) SWIZZLE_3_ITERATE_COLUMN_2(rows, columns, r0, c0, r1, c1, r2, c2, r3) SWIZZLE_4_GENERATE(rows, columns, r0, c0, r1, c1, r2, c2, r3, 2)
 #		define SWIZZLE_3_ITERATE_COLUMN_4(rows, columns, r0, c0, r1, c1, r2, c2, r3) SWIZZLE_3_ITERATE_COLUMN_3(rows, columns, r0, c0, r1, c1, r2, c2, r3) SWIZZLE_4_GENERATE(rows, columns, r0, c0, r1, c1, r2, c2, r3, 3)
 #		define SWIZZLE_3_ITERATE_COLUMNS(rows, columns, r0, c0, r1, c1, r2, c2, r3) SWIZZLE_3_ITERATE_COLUMN_##columns(rows, columns, r0, c0, r1, c1, r2, c2, r3)
-#		define SWIZZLE_3_ITERATE_ROW_0(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_COLUMNS(rows, columns, r0, c0, r1, c1, r2, c2, )
-#		define SWIZZLE_3_ITERATE_ROW_1(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_COLUMNS(rows, columns, r0, c0, r1, c1, r2, c2, 0)
+#		define SWIZZLE_3_ITERATE_ROW_0(rows, columns, r0, c0, r1, c1, r2, c2) /*-------------------terminate  iteration-------------------*/ SWIZZLE_3_ITERATE_COLUMNS(rows, columns, r0, c0, r1, c1, r2, c2, )
+#		define SWIZZLE_3_ITERATE_ROW_1(rows, columns, r0, c0, r1, c1, r2, c2) /*-------------------terminate  iteration-------------------*/ SWIZZLE_3_ITERATE_COLUMNS(rows, columns, r0, c0, r1, c1, r2, c2, 0)
 #		define SWIZZLE_3_ITERATE_ROW_2(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_ROW_1(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_COLUMNS(rows, columns, r0, c0, r1, c1, r2, c2, 1)
 #		define SWIZZLE_3_ITERATE_ROW_3(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_ROW_2(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_COLUMNS(rows, columns, r0, c0, r1, c1, r2, c2, 2)
 #		define SWIZZLE_3_ITERATE_ROW_4(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_ROW_3(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_COLUMNS(rows, columns, r0, c0, r1, c1, r2, c2, 3)
@@ -1728,13 +1728,13 @@ further investigations needed, including other compilers
 #		define SWIZZLE_3_SELECTOR_4(rows, columns, r0, c0, r1, c1, r2, c2) SWIZZLE_3_ITERATE_ROW_##rows(rows, columns, r0, c0, r1, c1, r2, c2)
 #		define SWIZZLE_3_SELECTOR(rows, columns, swizDim, r0, c0, r1, c1, r2, c2) SWIZZLE_3_SELECTOR_##swizDim(rows, columns, r0, c0, r1, c1, r2, c2)
 #
-#		define SWIZZLE_2_ITERATE_COLUMN_1(rows, columns, swizDim, r0, c0, r1, c1, r2) SWIZZLE_3_SELECTOR(rows, columns, swizDim, r0, c0, r1, c1, r2, 0)
+#		define SWIZZLE_2_ITERATE_COLUMN_1(rows, columns, swizDim, r0, c0, r1, c1, r2) /*-----------------------terminate  iteration-----------------------*/ SWIZZLE_3_SELECTOR(rows, columns, swizDim, r0, c0, r1, c1, r2, 0)
 #		define SWIZZLE_2_ITERATE_COLUMN_2(rows, columns, swizDim, r0, c0, r1, c1, r2) SWIZZLE_2_ITERATE_COLUMN_1(rows, columns, swizDim, r0, c0, r1, c1, r2) SWIZZLE_3_SELECTOR(rows, columns, swizDim, r0, c0, r1, c1, r2, 1)
 #		define SWIZZLE_2_ITERATE_COLUMN_3(rows, columns, swizDim, r0, c0, r1, c1, r2) SWIZZLE_2_ITERATE_COLUMN_2(rows, columns, swizDim, r0, c0, r1, c1, r2) SWIZZLE_3_SELECTOR(rows, columns, swizDim, r0, c0, r1, c1, r2, 2)
 #		define SWIZZLE_2_ITERATE_COLUMN_4(rows, columns, swizDim, r0, c0, r1, c1, r2) SWIZZLE_2_ITERATE_COLUMN_3(rows, columns, swizDim, r0, c0, r1, c1, r2) SWIZZLE_3_SELECTOR(rows, columns, swizDim, r0, c0, r1, c1, r2, 3)
 #		define SWIZZLE_2_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, r1, c1, r2) SWIZZLE_2_ITERATE_COLUMN_##columns(rows, columns, swizDim, r0, c0, r1, c1, r2)
-#		define SWIZZLE_2_ITERATE_ROW_0(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, r1, c1, )
-#		define SWIZZLE_2_ITERATE_ROW_1(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, r1, c1, 0)
+#		define SWIZZLE_2_ITERATE_ROW_0(rows, columns, swizDim, r0, c0, r1, c1) /*--------------------terminate iteration--------------------*/ SWIZZLE_2_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, r1, c1, )
+#		define SWIZZLE_2_ITERATE_ROW_1(rows, columns, swizDim, r0, c0, r1, c1) /*--------------------terminate iteration--------------------*/ SWIZZLE_2_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, r1, c1, 0)
 #		define SWIZZLE_2_ITERATE_ROW_2(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_ITERATE_ROW_1(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, r1, c1, 1)
 #		define SWIZZLE_2_ITERATE_ROW_3(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_ITERATE_ROW_2(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, r1, c1, 2)
 #		define SWIZZLE_2_ITERATE_ROW_4(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_ITERATE_ROW_3(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, r1, c1, 3)
@@ -1743,13 +1743,13 @@ further investigations needed, including other compilers
 #		define SWIZZLE_2_SELECTOR_4(rows, columns, r0, c0, r1, c1) SWIZZLE_2_ITERATE_ROW_##rows(rows, columns, 4, r0, c0, r1, c1)
 #		define SWIZZLE_2_SELECTOR(rows, columns, swizDim, r0, c0, r1, c1) SWIZZLE_2_SELECTOR_##swizDim(rows, columns, r0, c0, r1, c1)
 #
-#		define SWIZZLE_1_ITERATE_COLUMN_1(rows, columns, swizDim, r0, c0, r1) SWIZZLE_2_SELECTOR(rows, columns, swizDim, r0, c0, r1, 0)
+#		define SWIZZLE_1_ITERATE_COLUMN_1(rows, columns, swizDim, r0, c0, r1) /*-------------------terminate  iteration-------------------*/ SWIZZLE_2_SELECTOR(rows, columns, swizDim, r0, c0, r1, 0)
 #		define SWIZZLE_1_ITERATE_COLUMN_2(rows, columns, swizDim, r0, c0, r1) SWIZZLE_1_ITERATE_COLUMN_1(rows, columns, swizDim, r0, c0, r1) SWIZZLE_2_SELECTOR(rows, columns, swizDim, r0, c0, r1, 1)
 #		define SWIZZLE_1_ITERATE_COLUMN_3(rows, columns, swizDim, r0, c0, r1) SWIZZLE_1_ITERATE_COLUMN_2(rows, columns, swizDim, r0, c0, r1) SWIZZLE_2_SELECTOR(rows, columns, swizDim, r0, c0, r1, 2)
 #		define SWIZZLE_1_ITERATE_COLUMN_4(rows, columns, swizDim, r0, c0, r1) SWIZZLE_1_ITERATE_COLUMN_3(rows, columns, swizDim, r0, c0, r1) SWIZZLE_2_SELECTOR(rows, columns, swizDim, r0, c0, r1, 3)
 #		define SWIZZLE_1_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, r1) SWIZZLE_1_ITERATE_COLUMN_##columns(rows, columns, swizDim, r0, c0, r1)
-#		define SWIZZLE_1_ITERATE_ROW_0(rows, columns, swizDim, r0, c0) SWIZZLE_1_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, )
-#		define SWIZZLE_1_ITERATE_ROW_1(rows, columns, swizDim, r0, c0) SWIZZLE_1_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, 0)
+#		define SWIZZLE_1_ITERATE_ROW_0(rows, columns, swizDim, r0, c0) /*----------------terminate iteration----------------*/ SWIZZLE_1_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, )
+#		define SWIZZLE_1_ITERATE_ROW_1(rows, columns, swizDim, r0, c0) /*----------------terminate iteration----------------*/ SWIZZLE_1_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, 0)
 #		define SWIZZLE_1_ITERATE_ROW_2(rows, columns, swizDim, r0, c0) SWIZZLE_1_ITERATE_ROW_1(rows, columns, swizDim, r0, c0) SWIZZLE_1_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, 1)
 #		define SWIZZLE_1_ITERATE_ROW_3(rows, columns, swizDim, r0, c0) SWIZZLE_1_ITERATE_ROW_2(rows, columns, swizDim, r0, c0) SWIZZLE_1_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, 2)
 #		define SWIZZLE_1_ITERATE_ROW_4(rows, columns, swizDim, r0, c0) SWIZZLE_1_ITERATE_ROW_3(rows, columns, swizDim, r0, c0) SWIZZLE_1_ITERATE_COLUMNS(rows, columns, swizDim, r0, c0, 3)
@@ -1759,13 +1759,13 @@ further investigations needed, including other compilers
 #		define SWIZZLE_1_SELECTOR_4(rows, columns, r0, c0) SWIZZLE_1_ITERATE_ROW_##rows(rows, columns, 4, r0, c0)
 #		define SWIZZLE_1_SELECTOR(rows, columns, swizDim, r0, c0) SWIZZLE_1_SELECTOR_##swizDim(rows, columns, r0, c0)
 #
-#		define SWIZZLE_0_ITERATE_COLUMN_1(rows, columns, swizDim, r0) SWIZZLE_1_SELECTOR(rows, columns, swizDim, r0, 0)
+#		define SWIZZLE_0_ITERATE_COLUMN_1(rows, columns, swizDim, r0) /*---------------terminate  iteration---------------*/ SWIZZLE_1_SELECTOR(rows, columns, swizDim, r0, 0)
 #		define SWIZZLE_0_ITERATE_COLUMN_2(rows, columns, swizDim, r0) SWIZZLE_0_ITERATE_COLUMN_1(rows, columns, swizDim, r0) SWIZZLE_1_SELECTOR(rows, columns, swizDim, r0, 1)
 #		define SWIZZLE_0_ITERATE_COLUMN_3(rows, columns, swizDim, r0) SWIZZLE_0_ITERATE_COLUMN_2(rows, columns, swizDim, r0) SWIZZLE_1_SELECTOR(rows, columns, swizDim, r0, 2)
 #		define SWIZZLE_0_ITERATE_COLUMN_4(rows, columns, swizDim, r0) SWIZZLE_0_ITERATE_COLUMN_3(rows, columns, swizDim, r0) SWIZZLE_1_SELECTOR(rows, columns, swizDim, r0, 3)
 #		define SWIZZLE_0_ITERATE_COLUMNS(rows, columns, swizDim, r0) SWIZZLE_0_ITERATE_COLUMN_##columns(rows, columns, swizDim, r0)
-#		define SWIZZLE_0_ITERATE_ROW_0(rows, columns, swizDim) SWIZZLE_0_ITERATE_COLUMNS(rows, columns, swizDim, )
-#		define SWIZZLE_0_ITERATE_ROW_1(rows, columns, swizDim) SWIZZLE_0_ITERATE_COLUMNS(rows, columns, swizDim, 0)
+#		define SWIZZLE_0_ITERATE_ROW_0(rows, columns, swizDim) /*------------terminate iteration------------*/ SWIZZLE_0_ITERATE_COLUMNS(rows, columns, swizDim, )
+#		define SWIZZLE_0_ITERATE_ROW_1(rows, columns, swizDim) /*------------terminate iteration------------*/ SWIZZLE_0_ITERATE_COLUMNS(rows, columns, swizDim, 0)
 #		define SWIZZLE_0_ITERATE_ROW_2(rows, columns, swizDim) SWIZZLE_0_ITERATE_ROW_1(rows, columns, swizDim) SWIZZLE_0_ITERATE_COLUMNS(rows, columns, swizDim, 1)
 #		define SWIZZLE_0_ITERATE_ROW_3(rows, columns, swizDim) SWIZZLE_0_ITERATE_ROW_2(rows, columns, swizDim) SWIZZLE_0_ITERATE_COLUMNS(rows, columns, swizDim, 2)
 #		define SWIZZLE_0_ITERATE_ROW_4(rows, columns, swizDim) SWIZZLE_0_ITERATE_ROW_3(rows, columns, swizDim) SWIZZLE_0_ITERATE_COLUMNS(rows, columns, swizDim, 3)
