@@ -314,9 +314,11 @@ further investigations needed, including other compilers
 #	include <type_traits>
 #	include <functional>
 #	include <limits>
-#	include <iterator>
 #	include <algorithm>
 #	include <initializer_list>
+#ifdef MSVC_LIMITATIONS
+#	include <iterator>
+#endif
 #if USE_BOOST_PREPROCESSOR
 #	include <boost/preprocessor/cat.hpp>
 #	include <boost/preprocessor/facilities/apply.hpp>
@@ -2526,6 +2528,7 @@ further investigations needed, including other compilers
 		{
 #endif
 
+#ifdef MSVC_LIMITATIONS
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			class CSwizzleIteratorImpl : public iterator<forward_iterator_tag, const ElementType>
 			{
@@ -2595,6 +2598,7 @@ further investigations needed, including other compilers
 				using CSwizzleIteratorImpl<ElementType, rows, columns, SwizzleDesc>::CSwizzleIteratorImpl;
 				// copy ctor/dtor required by stl => public
 			};
+#endif
 
 			template<class Src>
 			struct _1xN_2_vec_impl
@@ -4055,9 +4059,11 @@ further investigations needed, including other compilers
 #endif
 #pragma endregion
 
+#ifdef MSVC_LIMITATIONS
 			friend bool VectorMath::all<>(const matrix<ElementType, rows, columns> &);
 			friend bool VectorMath::any<>(const matrix<ElementType, rows, columns> &);
 			friend bool VectorMath::none<>(const matrix<ElementType, rows, columns> &);
+#endif
 
 			using DataContainer::data;
 		};
@@ -4594,6 +4600,7 @@ further investigations needed, including other compilers
 #		pragma endregion
 
 #		pragma region all/any/none functions
+#ifdef MSVC_LIMITATIONS
 #			define FUNCTION_DEFINITION(f)																												\
 				template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>												\
 				inline bool f(const Impl::CSwizzle<ElementType, rows, columns, SwizzleDesc> &src)														\
@@ -4623,7 +4630,72 @@ further investigations needed, including other compilers
 			FUNCTION_DEFINITION2(none, all)	// none for matrix requires special handling
 #			undef FUNCTION_DEFINITION1
 #			undef FUNCTION_DEFINITION2
-#		pragma endregion TODO: consider for packed specializations for bool vectors/matrices and replace std::all/any/none functions with bit operations
+#else
+			namespace Impl
+			{
+				template<size_t ...idx, typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
+				inline bool all(index_sequence<idx...>, const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src)
+				{
+					return (src[idx] && ...);
+				}
+
+				template<size_t ...idx, typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
+				inline bool any(index_sequence<idx...>, const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src)
+				{
+					return (src[idx] || ...);
+				}
+
+				template<size_t ...rowIdx, typename ElementType, unsigned int rows, unsigned int columns>
+				inline bool all(index_sequence<rowIdx...>, const matrix<ElementType, rows, columns> &src)
+				{
+					return (all(src[rowIdx]) && ...);
+				}
+
+				template<size_t ...rowIdx, typename ElementType, unsigned int rows, unsigned int columns>
+				inline bool any(index_sequence<rowIdx...>, const matrix<ElementType, rows, columns> &src)
+				{
+					return (any(src[rowIdx]) || ...);
+				}
+			}
+
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
+			inline bool all(const Impl::CSwizzle<ElementType, rows, columns, SwizzleDesc> &src)
+			{
+				return Impl::all(std::make_index_sequence<SwizzleDesc::dimension>(), src);
+			}
+
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
+			inline bool any(const Impl::CSwizzle<ElementType, rows, columns, SwizzleDesc> &src)
+			{
+				return Impl::any(std::make_index_sequence<SwizzleDesc::dimension>(), src);
+			}
+
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
+			inline bool none(const Impl::CSwizzle<ElementType, rows, columns, SwizzleDesc> &src)
+			{
+				return !any(src);
+			}
+
+			template<typename ElementType, unsigned int rows, unsigned int columns>
+			inline bool all(const matrix<ElementType, rows, columns> &src)
+			{
+				return Impl::all(std::make_index_sequence<rows>(), src);
+			}
+
+			template<typename ElementType, unsigned int rows, unsigned int columns>
+			inline bool any(const matrix<ElementType, rows, columns> &src)
+			{
+				return Impl::any(std::make_index_sequence<rows>(), src);
+			}
+
+			template<typename ElementType, unsigned int rows, unsigned int columns>
+			inline bool none(const matrix<ElementType, rows, columns> &src)
+			{
+				return !any(src);
+			}
+#endif
+#pragma endregion
+#		pragma endregion TODO: consider bool SWAR (packed specializations for bool vectors/matrices and replace std::all/any/none functions/fold expressions with bit operations)
 
 #		pragma region mul functions
 			// note: most of these functions are not inline
