@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		09.11.2016 (c)Alexey Shaydurov
+\date		10.11.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -681,7 +681,7 @@ further investigations needed, including other compilers
 				template<unsigned int ...seq>
 				struct PackedSwizzle<integer_sequence<unsigned int, seq...>>
 				{
-					typedef CPackedSwizzle<seq % columns | seq / columns << 2u ...> type;
+					typedef CPackedSwizzle<seq / columns << 2u | seq % columns ...> type;
 				};
 
 				public:
