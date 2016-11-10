@@ -689,7 +689,19 @@ further investigations needed, including other compilers
 			};
 
 			template<unsigned int rows, unsigned int columns>
-			struct CSequencingSwizzleDesc : MakeSequencingPackedSwizzle<rows, columns>::type
+			struct CSequencingStorelessSwizzle
+			{
+				static constexpr unsigned int dimension = rows * columns;
+
+			public:
+				static constexpr unsigned int FetchIdx(unsigned int idx)
+				{
+					return idx / columns << 2u | idx % columns;
+				}
+			};
+
+			template<unsigned int rows, unsigned int columns>
+			struct CSequencingSwizzleDesc : conditional_t<rows * columns <= 16, typename MakeSequencingPackedSwizzle<rows, columns>::type, CSequencingStorelessSwizzle<rows, columns>>
 			{
 				static constexpr bool isWriteMaskValid = true;
 			};
