@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		09.08.2016 (c)Korotkov Andrey
+\date		17.11.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -369,7 +369,7 @@ template<typename Iterator>
 void Math::Splines::Impl::CBezierInterpolationCommon<CBezierInterpolationImpl, ScalarType, dimension, Attribs...>::Tessellate(Iterator output, ScalarType delta) const
 {
 	for (Points::size_type i = 1; i < points.size() - 2; i++)
-		_Segment(i).Tessellate(output, delta, i == 1);
+		Segment(i).Tessellate(output, delta, i == 1);
 }
 
 template<typename ScalarType, unsigned int dimension, class ...Attribs>
@@ -396,11 +396,11 @@ auto Math::Splines::Impl::CCatmullRom<ScalarType, dimension, Attribs...>::operat
 	// ensure 1 <= i < m
 	//const Points::size_type i = std::min<Points::size_type>(floor(u), points.size() - 3);
 	const ScalarType i = fmin(fmax(floor(u), 1), points.size() - 3);
-	return _Segment(i)(u - i);
+	return Segment(i)(u - i);
 }
 
 template<typename ScalarType, unsigned int dimension, class ...Attribs>
-auto Math::Splines::Impl::CCatmullRom<ScalarType, dimension, Attribs...>::_Segment(typename Points::size_type i) const -> Bezier
+auto Math::Splines::Impl::CCatmullRom<ScalarType, dimension, Attribs...>::Segment(typename Points::size_type i) const -> Bezier
 {
 	assert(i >= 1 && i < points.size() - 2);
 	return Bezier(points[i], points[i] + (points[i + 1] - points[i - 1]) / 6, points[i + 1] - (points[i + 2] - points[i]) / 6, points[i + 1]);
@@ -464,11 +464,11 @@ auto Math::Splines::Impl::CBesselOverhauser<ScalarType, dimension, Attribs...>::
 	else if (std::distance(p1, points.end()) < 2)
 		p1 = std::prev(points.end(), 2);
 	const auto p0 = std::prev(p1);
-	return _Segment(std::distance(points.begin(), p0))((u - p0->first) / (p1->first - p0->first));
+	return Segment(std::distance(points.begin(), p0))((u - p0->first) / (p1->first - p0->first));
 }
 
 template<typename ScalarType, unsigned int dimension, class ...Attribs>
-auto Math::Splines::Impl::CBesselOverhauser<ScalarType, dimension, Attribs...>::_Segment(typename Points::size_type i) const -> Bezier
+auto Math::Splines::Impl::CBesselOverhauser<ScalarType, dimension, Attribs...>::Segment(typename Points::size_type i) const -> Bezier
 {
 	assert(i >= 1 && i < points.size() - 2);
 	const auto v_segment = [this](Points::size_type j)

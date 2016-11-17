@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		12.09.2016 (c)Korotkov Andrey
+\date		17.11.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -290,7 +290,7 @@ namespace Math::Splines
 			typedef std::vector<Point> Points;
 
 		protected:
-			typename CBezierInterpolationBase<ScalarType, dimension, Attribs...>::Bezier _Segment(typename Points::size_type i) const;
+			typename CBezierInterpolationBase<ScalarType, dimension, Attribs...>::Bezier Segment(typename Points::size_type i) const;
 
 		protected:
 			Points points;
@@ -334,7 +334,7 @@ namespace Math::Splines
 			typedef std::vector<std::pair<ScalarType, Point>> Points;
 
 		protected:
-			typename CBezierInterpolationBase<ScalarType, dimension, Attribs...>::Bezier _Segment(typename Points::size_type i) const;
+			typename CBezierInterpolationBase<ScalarType, dimension, Attribs...>::Bezier Segment(typename Points::size_type i) const;
 
 		protected:
 			Points points;
