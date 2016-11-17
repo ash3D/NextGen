@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		12.09.2016 (c)Korotkov Andrey
+\date		18.11.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -9,10 +9,32 @@ See "DGLE.h" for more details.
 
 #pragma once
 
+#include <cstdint>
 #include "nv_algebra.h"	// for Slerp
 
 namespace Math
 {
+	// NOTE: this implementation is designed for small values, overflows are not handled
+	namespace Combinatorics
+	{
+		// number of k-combinations, returns 0 if k > n
+		template<unsigned int n, unsigned int k = n>
+		constexpr uintmax_t P = n * P<n - 1, k - 1>;
+
+		template<>
+		constexpr uintmax_t P<0, 0> = UINTMAX_C(1);
+
+		template<unsigned int n>
+		constexpr uintmax_t P<n, 0> = UINTMAX_C(1);
+
+		template<unsigned int k>
+		constexpr uintmax_t P<0, k> = UINTMAX_C(0);
+
+		// number of k-permutations of n (binomial coefficient), returns 0 if k > n
+		template<unsigned int n, unsigned int k>
+		constexpr uintmax_t C = P<n, k> / P<k>;
+	}
+
 	template<typename Left, typename Right, typename Param>
 	inline auto lerp(const Left &left, const Right &right, const Param &param)
 	{
