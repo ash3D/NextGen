@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.11.2016 (c)Korotkov Andrey
+\date		18.11.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -235,8 +235,10 @@ namespace Math::Splines
 		class CBezierInterpolationBase
 		{
 			static_assert(!std::is_integral_v<ScalarType>, "integral types for spline interpolation points is not allowed");
+
 		protected:
 			typedef CBezier<ScalarType, dimension, 3, Attribs...> Bezier;
+
 		public:
 			typedef typename Bezier::ControlPoints::value_type Point;
 		};
