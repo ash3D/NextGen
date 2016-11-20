@@ -225,7 +225,7 @@ namespace RotImpl
 	inline auto rot(Value value, Shift shift)
 	{
 		static_assert(is_integral_v<Value> && is_integral_v<Shift>, "rotate is feasible for integral types only");
-		static_assert(width <= numeric_limits<uintmax_t>::digits, "too large width");
+		static_assert(width <= numeric_limits<uintmax_t>::digits, "too large rotate width");
 		return rot_dispatch<dir, width>(value, shift);
 	}
 
