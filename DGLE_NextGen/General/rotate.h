@@ -216,7 +216,7 @@ namespace RotImpl
 	}
 
 	template<Dir dir, unsigned width, typename Value, typename Shift>
-	inline auto rot_dispatch(Value value, Shift shift) -> enable_if_t<dir == Dir::Right, make_unsigned_t<common_type_t<Value, decltype(rol<width>(value, shift))>>>
+	inline auto rot_dispatch(Value value, Shift shift) -> enable_if_t<dir == Dir::Right, make_unsigned_t<common_type_t<Value, decltype(ror<width>(value, shift))>>>
 	{
 		return ror<width>(value, shift);
 	}
