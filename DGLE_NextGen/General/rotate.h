@@ -87,22 +87,36 @@ namespace RotImpl
 #	undef SELECT_TYPE_EXACT
 #endif
 
+#ifdef _MSC_VER
+#	define INTRINSICS_WIDTH_LIST 8, 16, 32, 64
+#else	// empty
+#	define INTRINSICS_WIDTH_LIST
+#endif
+
+#if defined _MSC_VER && _MSC_VER <= 1900 && !defined __clang__
+	template<bool ...notFound>
+	constexpr bool IntrinsicsNotFoundImpl = conjunction_v<bool_constant<notFound>...>;
+
+	template<unsigned width, unsigned ...intrinsicWidth>
+	constexpr bool IntrinsicsNotFound = IntrinsicsNotFoundImpl<width != intrinsicWidth ...>;
+#else
+	template<unsigned width, unsigned ...intrinsicWidth>
+	constexpr bool IntrinsicsNotFound = conjunction_v<bool_constant<width != intrinsicWidth>...>;
+#endif
+
+	template<unsigned width>
+	constexpr bool IsGeneric = IntrinsicsNotFound<width, INTRINSICS_WIDTH_LIST>;
+
+#undef INTRINSICS_WIDTH_LIST
+
 	template<unsigned width>
 #if USE_BOOST_TYPE_SELECTOR
 	inline auto rol(typename boost::uint_t<width>::fast value, unsigned int shift) noexcept ->
+		enable_if_t<IsGeneric<width> && !Has_exact<typename boost::uint_t<width>>::value, decltype(value)>
 #else
 	inline auto rol(typename SelectType<width>::fast value, unsigned int shift) noexcept ->
+		enable_if_t<IsGeneric<width>, decltype(value)>
 #endif
-		enable_if_t<
-#ifdef _MSC_VER
-			width != 8 && width != 16 && width != 32 && width != 64 &&
-#endif
-#if USE_BOOST_TYPE_SELECTOR
-			!Has_exact<typename boost::uint_t<width>>::value
-#else
-			true
-#endif
-			, decltype(value)>
 	{
 		shift %= width;
 		constexpr auto mask = Mask<width, decltype(value)>;
@@ -115,11 +129,7 @@ namespace RotImpl
 #else
 	inline auto rol(typename SelectType<width>::exact value, unsigned int shift) noexcept ->
 #endif
-#ifdef _MSC_VER
-		enable_if_t<width != 8 && width != 16 && width != 32 && width != 64, decltype(value)>
-#else
-		decltype(value)
-#endif
+		enable_if_t<IsGeneric<width>, decltype(value)>
 	{
 		shift %= width;
 		return value << shift | value >> width - shift;
@@ -128,19 +138,11 @@ namespace RotImpl
 	template<unsigned width>
 #if USE_BOOST_TYPE_SELECTOR
 	inline auto ror(typename boost::uint_t<width>::fast value, unsigned int shift) noexcept ->
+		enable_if_t<IsGeneric<width> && !Has_exact<typename boost::uint_t<width>>::value, decltype(value)>
 #else
 	inline auto ror(typename SelectType<width>::fast value, unsigned int shift) noexcept ->
+		enable_if_t<IsGeneric<width>, decltype(value)>
 #endif
-		enable_if_t<
-#ifdef _MSC_VER
-			width != 8 && width != 16 && width != 32 && width != 64 &&
-#endif
-#if USE_BOOST_TYPE_SELECTOR
-			!Has_exact<typename boost::uint_t<width>>::value
-#else
-			true
-#endif
-			, decltype(value)>
 	{
 		shift %= width;
 		constexpr auto mask = Mask<width, decltype(value)>;
@@ -153,11 +155,7 @@ namespace RotImpl
 #else
 	inline auto ror(typename SelectType<width>::exact value, unsigned int shift) noexcept ->
 #endif
-#ifdef _MSC_VER
-		enable_if_t<width != 8 && width != 16 && width != 32 && width != 64, decltype(value)>
-#else
-		decltype(value)
-#endif
+		enable_if_t<IsGeneric<width>, decltype(value)>
 	{
 		shift %= width;
 		return value >> shift | value << width - shift;
