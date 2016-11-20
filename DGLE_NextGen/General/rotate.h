@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		09.08.2016 (c)Korotkov Andrey
+\date		20.11.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -17,7 +17,9 @@ See "DGLE.h" for more details.
 #include <limits>
 #include <functional>
 #include <cstdint>
+#if USE_BOOST_TYPE_SELECTOR
 #include <boost/integer.hpp>
+#endif
 #ifdef _MSC_VER
 #include <intrin.h>
 #endif
@@ -29,19 +31,78 @@ namespace RotImpl
 	template<unsigned width, typename Value>
 	static constexpr auto Mask = (Value(1) << width) - Value(1);
 
+#if USE_BOOST_TYPE_SELECTOR
 	template<typename T, typename = void>
 	struct Has_exact : false_type {};
 
 	template<typename T>
 	struct Has_exact<T, void_t<typename T::exact>> : true_type {};
+#else
+	template<unsigned width, typename Void = void>
+	struct SelectType
+	{
+		// C++17\
+		static_assert(is_same_v<Void, void>);
+		typedef uintmax_t fast;
+	};
+
+	// (a, b]
+#	define SELECT_TYPE_RANGE(a, b)											\
+		template<unsigned width>											\
+		struct SelectType<width, enable_if_t<(width > a && width <= b)>>	\
+		{																	\
+			typedef uint_fast##b##_t fast;									\
+		};
+
+	SELECT_TYPE_RANGE(0, 8)
+	SELECT_TYPE_RANGE(8, 16)
+	SELECT_TYPE_RANGE(16, 32)
+	SELECT_TYPE_RANGE(32, 64)
+
+#	undef SELECT_TYPE_RANGE
+
+#	define SELECT_TYPE_EXACT(x)			\
+		template<>						\
+		struct SelectType<x>			\
+		{								\
+			typedef uint##x##_t exact;	\
+		};
+
+#	ifdef UINT8_MAX
+		SELECT_TYPE_EXACT(8)
+#	endif
+
+#	ifdef UINT16_MAX
+		SELECT_TYPE_EXACT(16)
+#	endif
+
+#	ifdef UINT32_MAX
+		SELECT_TYPE_EXACT(32)
+#	endif
+
+#	ifdef UINT64_MAX
+		SELECT_TYPE_EXACT(64)
+#	endif
+
+#	undef SELECT_TYPE_EXACT
+#endif
 
 	template<unsigned width>
+#if USE_BOOST_TYPE_SELECTOR
 	inline auto rol(typename boost::uint_t<width>::fast value, unsigned int shift) noexcept ->
+#else
+	inline auto rol(typename SelectType<width>::fast value, unsigned int shift) noexcept ->
+#endif
 		enable_if_t<
 #ifdef _MSC_VER
 			width != 8 && width != 16 && width != 32 && width != 64 &&
 #endif
-			!Has_exact<typename boost::uint_t<width>>::value, decltype(value)>
+#if USE_BOOST_TYPE_SELECTOR
+			!Has_exact<typename boost::uint_t<width>>::value
+#else
+			true
+#endif
+			, decltype(value)>
 	{
 		shift %= width;
 		constexpr auto mask = Mask<width, decltype(value)>;
@@ -49,7 +110,11 @@ namespace RotImpl
 	}
 
 	template<unsigned width>
+#if USE_BOOST_TYPE_SELECTOR
 	inline auto rol(typename boost::uint_t<width>::exact value, unsigned int shift) noexcept ->
+#else
+	inline auto rol(typename SelectType<width>::exact value, unsigned int shift) noexcept ->
+#endif
 #ifdef _MSC_VER
 		enable_if_t<width != 8 && width != 16 && width != 32 && width != 64, decltype(value)>
 #else
@@ -61,12 +126,21 @@ namespace RotImpl
 	}
 
 	template<unsigned width>
+#if USE_BOOST_TYPE_SELECTOR
 	inline auto ror(typename boost::uint_t<width>::fast value, unsigned int shift) noexcept ->
+#else
+	inline auto ror(typename SelectType<width>::fast value, unsigned int shift) noexcept ->
+#endif
 		enable_if_t<
 #ifdef _MSC_VER
 			width != 8 && width != 16 && width != 32 && width != 64 &&
 #endif
-			!Has_exact<typename boost::uint_t<width>>::value, decltype(value)>
+#if USE_BOOST_TYPE_SELECTOR
+			!Has_exact<typename boost::uint_t<width>>::value
+#else
+			true
+#endif
+			, decltype(value)>
 	{
 		shift %= width;
 		constexpr auto mask = Mask<width, decltype(value)>;
@@ -74,7 +148,11 @@ namespace RotImpl
 	}
 
 	template<unsigned width>
+#if USE_BOOST_TYPE_SELECTOR
 	inline auto ror(typename boost::uint_t<width>::exact value, unsigned int shift) noexcept ->
+#else
+	inline auto ror(typename SelectType<width>::exact value, unsigned int shift) noexcept ->
+#endif
 #ifdef _MSC_VER
 		enable_if_t<width != 8 && width != 16 && width != 32 && width != 64, decltype(value)>
 #else
