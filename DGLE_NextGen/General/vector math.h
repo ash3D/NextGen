@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		10.11.2016 (c)Alexey Shaydurov
+\date		21.11.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -3603,7 +3603,7 @@ further investigations needed, including other compilers
 							bool, true																													\
 						> operator op(																													\
 						const matrix<LeftElementType, leftRows, leftColumns> &left,																		\
-						const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)										\
+						const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)												\
 						{																																\
 							constexpr static const bool matched = leftRows * leftColumns == RightSwizzleDesc::dimension;								\
 							static_assert(matched || leftRows == 1 || leftColumns == 1, "'matrix "#op" vector': unmatched sequencing");					\
