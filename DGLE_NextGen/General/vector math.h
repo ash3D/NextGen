@@ -2953,7 +2953,7 @@ further investigations needed, including other compilers
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
-				// swizzle op swizzle / 1D swizzle op 1D swizzle -> bool
+				// swizzle op swizzle / 1D swizzle op 1D swizzle -> mask
 #				define OPERATOR_DEFINITION(op)																											\
 					template																															\
 					<																																	\
@@ -2963,7 +2963,7 @@ further investigations needed, including other compilers
 					inline std::enable_if_t<(LeftSwizzleDesc::dimension > 1 == RightSwizzleDesc::dimension > 1),										\
 					vector																																\
 					<																																	\
-						bool,																															\
+						std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>,									\
 						std::min(LeftSwizzleDesc::dimension, RightSwizzleDesc::dimension)																\
 					>> operator op(																														\
 					const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,												\
@@ -2999,7 +2999,7 @@ further investigations needed, including other compilers
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
-				// swizzle op scalar / 1D swizle op pure scalar -> bool
+				// swizzle op scalar / 1D swizle op pure scalar -> mask
 #				define OPERATOR_DEFINITION(op)																											\
 					template																															\
 					<																																	\
@@ -3009,7 +3009,7 @@ further investigations needed, including other compilers
 					inline std::enable_if_t<(LeftSwizzleDesc::dimension > 1 ? Impl::IsScalar<RightType> : Impl::IsPureScalar<RightType>),				\
 					vector																																\
 					<																																	\
-						bool,																															\
+						std::decay_t<decltype(std::declval<LeftElementType>() op Impl::ExtractScalar(std::declval<RightType>()))>,						\
 						LeftSwizzleDesc::dimension																										\
 					>> operator op(																														\
 					const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,												\
@@ -3046,7 +3046,7 @@ further investigations needed, including other compilers
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
-				// scalar op swizzle / pure scalar op 1D swizzle -> bool
+				// scalar op swizzle / pure scalar op 1D swizzle -> mask
 #				define OPERATOR_DEFINITION(op)																											\
 					template																															\
 					<																																	\
@@ -3056,7 +3056,7 @@ further investigations needed, including other compilers
 					inline std::enable_if_t<(RightSwizzleDesc::dimension > 1 ? Impl::IsScalar<LeftType> : Impl::IsPureScalar<LeftType>),				\
 					vector																																\
 					<																																	\
-						bool,																															\
+						std::decay_t<decltype(Impl::ExtractScalar(std::declval<LeftType>()) op std::declval<RightElementType>())>,						\
 						RightSwizzleDesc::dimension																										\
 					>> operator op(																														\
 					const LeftType &left,																												\
@@ -3204,7 +3204,7 @@ further investigations needed, including other compilers
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
-				// matrix op matrix / 1x1 matrix op 1x1 matrix -> bool
+				// matrix op matrix / 1x1 matrix op 1x1 matrix -> mask
 #				define OPERATOR_DEFINITION(op)																											\
 					template																															\
 					<																																	\
@@ -3216,7 +3216,7 @@ further investigations needed, including other compilers
 					<																																	\
 						LeftElementType, leftRows, leftColumns,																							\
 						RightElementType, rightRows, rightColumns,																						\
-						bool, true																														\
+						std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>, true								\
 					>> operator op(																														\
 					const matrix<LeftElementType, leftRows, leftColumns> &left,																			\
 					const matrix<RightElementType, rightRows, rightColumns> &right)																		\
@@ -3257,7 +3257,7 @@ further investigations needed, including other compilers
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
-				// matrix op scalar / 1x1 matrix op pure scalar -> bool
+				// matrix op scalar / 1x1 matrix op pure scalar -> mask
 #				define OPERATOR_DEFINITION(op)																											\
 					template																															\
 					<																																	\
@@ -3269,7 +3269,7 @@ further investigations needed, including other compilers
 					<																																	\
 						LeftElementType, leftRows, leftColumns,																							\
 						RightType,																														\
-						bool, true																														\
+						std::decay_t<decltype(std::declval<LeftElementType>() op Impl::ExtractScalar(std::declval<RightType>()))>, true					\
 					>> operator op(																														\
 					const matrix<LeftElementType, leftRows, leftColumns> &left,																			\
 					const RightType &right)																												\
@@ -3306,7 +3306,7 @@ further investigations needed, including other compilers
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
-				// scalar op matrix / pure scalar op 1x1 matrix -> bool
+				// scalar op matrix / pure scalar op 1x1 matrix -> mask
 #				define OPERATOR_DEFINITION(op)																											\
 					template																															\
 					<																																	\
@@ -3318,7 +3318,7 @@ further investigations needed, including other compilers
 					<																																	\
 						LeftType,																														\
 						RightElementType, rightRows, rightColumns,																						\
-						bool, true																														\
+						std::decay_t<decltype(Impl::ExtractScalar(std::declval<LeftType>()) op std::declval<RightElementType>())>, true					\
 					>> operator op(																														\
 					const LeftType &left,																												\
 					const matrix<RightElementType, rightRows, rightColumns> &right)																		\
@@ -3487,7 +3487,7 @@ further investigations needed, including other compilers
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
-				// swizzle op matrix / 1D swizzle op 1x1 matrix -> bool
+				// swizzle op matrix / 1D swizzle op 1x1 matrix -> mask
 #ifdef MSVC_LIMITATIONS
 				namespace Impl::SequencingOps
 				{
@@ -3497,12 +3497,7 @@ further investigations needed, including other compilers
 							typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,							\
 							typename RightElementType, unsigned int rightRows, unsigned int rightColumns												\
 						>																																\
-						inline SwizzleOpMatrixResult																									\
-						<																																\
-							LeftElementType, LeftSwizzleDesc::dimension,																				\
-							RightElementType, rightRows, rightColumns,																					\
-							bool, true																													\
-						> operator op(																													\
+						inline auto operator op(																										\
 						const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,													\
 						const matrix<RightElementType, rightRows, rightColumns> &right)																	\
 						{																																\
@@ -3526,7 +3521,7 @@ further investigations needed, including other compilers
 					<																																	\
 						LeftElementType, LeftSwizzleDesc::dimension,																					\
 						RightElementType, rightRows, rightColumns,																						\
-						bool, true																														\
+						std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>, true								\
 					>> operator op(																														\
 					const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,												\
 					const matrix<RightElementType, rightRows, rightColumns> &right)																		\
@@ -3547,7 +3542,7 @@ further investigations needed, including other compilers
 					<																																	\
 						LeftElementType, LeftSwizzleDesc::dimension,																					\
 						RightElementType, rightRows, rightColumns,																						\
-						bool, true																														\
+						std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>, true								\
 					>> operator op(																														\
 					const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,												\
 					const matrix<RightElementType, rightRows, rightColumns> &right)																		\
@@ -3586,7 +3581,7 @@ further investigations needed, including other compilers
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION)
 #				undef OPERATOR_DEFINITION
 
-				// matrix op swizzle / 1x1 matrix op 1D swizzle -> bool
+				// matrix op swizzle / 1x1 matrix op 1D swizzle -> mask
 #ifdef MSVC_LIMITATIONS
 				namespace Impl::SequencingOps
 				{
@@ -3596,12 +3591,7 @@ further investigations needed, including other compilers
 							typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,													\
 							typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc						\
 						>																																\
-						inline MatrixOpSwizzleResult																									\
-						<																																\
-							LeftElementType, leftRows, leftColumns,																						\
-							RightElementType, RightSwizzleDesc::dimension,																				\
-							bool, true																													\
-						> operator op(																													\
+						inline auto operator op(																										\
 						const matrix<LeftElementType, leftRows, leftColumns> &left,																		\
 						const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)												\
 						{																																\
@@ -3625,7 +3615,7 @@ further investigations needed, including other compilers
 					<																																	\
 						LeftElementType, leftRows, leftColumns,																							\
 						RightElementType, RightSwizzleDesc::dimension,																					\
-						bool, true																														\
+						std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>, true								\
 					>> operator op(																														\
 					const matrix<LeftElementType, leftRows, leftColumns> &left,																			\
 					const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)											\
@@ -3646,7 +3636,7 @@ further investigations needed, including other compilers
 					<																																	\
 						LeftElementType, leftRows, leftColumns,																							\
 						RightElementType, RightSwizzleDesc::dimension,																					\
-						bool, true																														\
+						std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>, true								\
 					>> operator op(																														\
 					const matrix<LeftElementType, leftRows, leftColumns> &left,																			\
 					const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)											\
@@ -3994,7 +3984,7 @@ further investigations needed, including other compilers
 			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION)
 #			undef OPERATOR_DECLARATION
 
-			// swizzle op matrix / 1D swizzle op 1x1 matrix -> bool
+			// swizzle op matrix / 1D swizzle op 1x1 matrix -> mask
 #ifdef MSVC_LIMITATIONS
 #			define OPERATOR_DECLARATION(op)																								\
 				template																												\
@@ -4002,12 +3992,7 @@ further investigations needed, including other compilers
 					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,					\
 					typename RightElementType, unsigned int rightRows, unsigned int rightColumns										\
 				>																														\
-				friend inline Impl::SwizzleOpMatrixResult																				\
-				<																														\
-					LeftElementType, LeftSwizzleDesc::dimension,																		\
-					RightElementType, rightRows, rightColumns,																			\
-					bool, true																											\
-				> Impl::SequencingOps::operator op(																						\
+				friend inline auto Impl::SequencingOps::operator op(																	\
 				const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,									\
 				const matrix<RightElementType, rightRows, rightColumns> &right);
 			GENERATE_REL_OPERATORS(OPERATOR_DECLARATION)
@@ -4024,7 +4009,7 @@ further investigations needed, including other compilers
 				<																														\
 					LeftElementType, LeftSwizzleDesc::dimension,																		\
 					RightElementType, rightRows, rightColumns,																			\
-					bool, true																											\
+					std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>, true					\
 				>> operator op(																											\
 				const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,									\
 				const matrix<RightElementType, rightRows, rightColumns> &right);
@@ -4032,7 +4017,7 @@ further investigations needed, including other compilers
 #			undef OPERATOR_DECLARATION
 #endif
 
-			// matrix op swizzle / 1x1 matrix op 1D swizzle -> bool
+			// matrix op swizzle / 1x1 matrix op 1D swizzle -> mask
 #ifdef MSVC_LIMITATIONS
 #			define OPERATOR_DECLARATION(op)																								\
 				template																												\
@@ -4040,12 +4025,7 @@ further investigations needed, including other compilers
 					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,											\
 					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc				\
 				>																														\
-				friend inline Impl::MatrixOpSwizzleResult																				\
-				<																														\
-					LeftElementType, leftRows, leftColumns,																				\
-					RightElementType, RightSwizzleDesc::dimension,																		\
-					bool, true																											\
-				> Impl::SequencingOps::operator op(																						\
+				friend inline auto Impl::SequencingOps::operator op(																	\
 				const matrix<LeftElementType, leftRows, leftColumns> &left,																\
 				const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right);
 			GENERATE_REL_OPERATORS(OPERATOR_DECLARATION)
@@ -4062,7 +4042,7 @@ further investigations needed, including other compilers
 				<																														\
 					LeftElementType, leftRows, leftColumns,																				\
 					RightElementType, RightSwizzleDesc::dimension,																		\
-					bool, true																											\
+					std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>, true					\
 				>> operator op(																											\
 				const matrix<LeftElementType, leftRows, leftColumns> &left,																\
 				const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right);
