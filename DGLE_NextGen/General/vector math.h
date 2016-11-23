@@ -2976,12 +2976,12 @@ further investigations needed, including other compilers
 						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc
 					>
 					inline auto SwizzleOpSwizzle(
-						index_sequence<idx...> seq, F f,
+						index_sequence<idx...>, F f,
 						const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,
 						const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)
 						-> vector<decay_t<decltype(f(std::declval<LeftElementType>(), declval<RightElementType>()))>, sizeof...(idx)>
 					{
-						return decltype(SwizzleOpSwizzle(seq, f, left, right))(f(left[idx], right[idx])...);
+						return{ f(left[idx], right[idx])... };
 					}
 				}
 
@@ -3015,12 +3015,12 @@ further investigations needed, including other compilers
 						typename RightType
 					>
 					inline auto SwizzleOpScalar(
-						index_sequence<idx...> seq, F f,
+						index_sequence<idx...>, F f,
 						const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,
 						const RightType &right)
 						-> vector<decay_t<decltype(f(std::declval<LeftElementType>(), declval<RightType>()))>, sizeof...(idx)>
 					{
-						return decltype(SwizzleOpScalar(seq, f, left, right))(f(left[idx], right)...);
+						return{ f(left[idx], right)... };
 					}
 				}
 
@@ -3054,12 +3054,12 @@ further investigations needed, including other compilers
 						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc
 					>
 					inline auto ScalarOpSwizzle(
-						index_sequence<idx...> seq, F f,
+						index_sequence<idx...>, F f,
 						const LeftType &left,
 						const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)
 						-> vector<decay_t<decltype(f(std::declval<LeftType>(), declval<RightElementType>()))>, sizeof...(idx)>
 					{
-						return decltype(ScalarOpSwizzle(seq, f, left, right))(f(left, right[idx])...);
+						return{ f(left, right[idx])... };
 					}
 				}
 
@@ -3197,7 +3197,7 @@ further investigations needed, including other compilers
 						typename RightElementType, unsigned int rightRows, unsigned int rightColumns
 					>
 					inline auto MatrixOpMatrix(
-						index_sequence<rowIdx...> seq, F f,
+						index_sequence<rowIdx...>, F f,
 						const matrix<LeftElementType, leftRows, leftColumns> &left,
 						const matrix<RightElementType, rightRows, rightColumns> &right)
 						-> MatrixOpMatrixResult
@@ -3207,7 +3207,7 @@ further investigations needed, including other compilers
 							decay_t<decltype(f(declval<LeftElementType>(), declval<RightElementType>()))>, IsRelOp<F>
 						>
 					{
-						return decltype(MatrixOpMatrix(seq, f, left, right))(f(left[rowIdx], right[rowIdx])...);
+						return{ f(left[rowIdx], right[rowIdx])... };
 					}
 				}
 
@@ -3244,7 +3244,7 @@ further investigations needed, including other compilers
 						typename RightType
 					>
 					inline auto MatrixOpScalar(
-						index_sequence<rowIdx...> seq, F f,
+						index_sequence<rowIdx...>, F f,
 						const matrix<LeftElementType, leftRows, leftColumns> &left,
 						const RightType &right)
 						-> MatrixOpScalarResult
@@ -3254,7 +3254,7 @@ further investigations needed, including other compilers
 							decay_t<decltype(f(declval<LeftElementType>(), declval<RightType>()))>, IsRelOp<F>
 						>
 					{
-						return decltype(MatrixOpScalar(seq, f, left, right))(f(left[rowIdx], right)...);
+						return{ f(left[rowIdx], right)... };
 					}
 				}
 
@@ -3286,7 +3286,7 @@ further investigations needed, including other compilers
 						typename RightElementType, unsigned int rightRows, unsigned int rightColumns
 					>
 					inline auto ScalarOpMatrix(
-						index_sequence<rowIdx...> seq, F f,
+						index_sequence<rowIdx...>, F f,
 						const LeftType &left,
 						const matrix<RightElementType, rightRows, rightColumns> &right)
 						-> ScalarOpMatrixResult
@@ -3296,7 +3296,7 @@ further investigations needed, including other compilers
 							decay_t<decltype(f(declval<LeftType>(), declval<RightElementType>()))>, IsRelOp<F>
 						>
 					{
-						return decltype(ScalarOpMatrix(seq, f, left, right))(f(left, right[rowIdx])...);
+						return{ f(left, right[rowIdx])... };
 					}
 				}
 
