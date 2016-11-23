@@ -2767,7 +2767,7 @@ further investigations needed, including other compilers
 					const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)											\
 					{																																	\
 						static_assert(LeftSwizzleDesc::isWriteMaskValid, "'vector "#op"= vector': invalid write mask");									\
-						static_assert(LeftSwizzleDesc::dimension <= RightSwizzleDesc::dimension, "'vector "#op"=' vector: too small src dimension");	\
+						static_assert(LeftSwizzleDesc::dimension <= RightSwizzleDesc::dimension, "'vector "#op"= vector': too small src dimension");	\
 						assert(!Impl::TriggerWARHazard<false>(left, right));																			\
 						for (unsigned i = 0; i < LeftSwizzleDesc::dimension; i++)																		\
 							left[i] op##= right[i];																										\
