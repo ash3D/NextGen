@@ -315,7 +315,9 @@ further investigations needed, including other compilers
 #	include <functional>
 #	include <limits>
 #	include <algorithm>
+#if INIT_LIST_SUPPORT_TIER > 0
 #	include <initializer_list>
+#endif
 #ifdef MSVC_LIMITATIONS
 #	include <iterator>
 #endif
@@ -487,7 +489,9 @@ further investigations needed, including other compilers
 			using std::numeric_limits;
 			using std::iterator;
 			using std::forward_iterator_tag;
+#if INIT_LIST_SUPPORT_TIER > 0
 			using std::initializer_list;
+#endif
 
 			enum class TagName
 			{
@@ -1542,6 +1546,7 @@ further investigations needed, including other compilers
 			};
 
 #			pragma region Initializer list
+#if INIT_LIST_SUPPORT_TIER > 0
 #if INIT_LIST_ITEM_COPY
 				template<typename ElementType, unsigned int capacity>
 				class CInitListItem final
@@ -1668,6 +1673,7 @@ further investigations needed, including other compilers
 					const void *const item;
 					const unsigned int itemSize;
 				};
+#endif
 #endif
 #			pragma endregion TODO: consider to remove it and rely on potentially more efficient variadic template technique for sequencing ctors, or limit its usage for assignment operators only
 		}
@@ -2345,10 +2351,12 @@ further investigations needed, including other compilers
 					return operator =<false>(src);
 				}
 
+#if INIT_LIST_SUPPORT_TIER >= 1
 #ifdef __GNUC__
 				inline TOperationResult &operator =(initializer_list<CInitListItem<ElementType, SwizzleDesc::dimension>> initList);
 #else
 				inline TOperationResult &operator =(initializer_list<CInitListItem<ElementType, SwizzleDesc::dimension>> initList) &;
+#endif
 #endif
 
 			public:
@@ -2417,6 +2425,7 @@ further investigations needed, including other compilers
 				return operator =<WARHazard...>(seq);
 			}
 
+#if INIT_LIST_SUPPORT_TIER >= 1
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 #ifdef __GNUC__
 			inline auto CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::operator =(initializer_list<CInitListItem<ElementType, SwizzleDesc::dimension>> initList) -> TOperationResult &
@@ -2431,6 +2440,7 @@ further investigations needed, including other compilers
 				assert(dstIdx == SwizzleDesc::dimension);
 				return *this;
 			}
+#endif
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc = CVectorSwizzleDesc<columns>>
 			class EBCO CSwizzleCommon :
@@ -3622,7 +3632,9 @@ further investigations needed, including other compilers
 			vector(const Args &...args);
 #endif
 
+#if INIT_LIST_SUPPORT_TIER >= 2
 			vector(std::initializer_list<Impl::CInitListItem<ElementType, dimension>> initList);
+#endif
 
 			//template<typename TIterator>
 			//explicit vector(TIterator src);
@@ -3692,7 +3704,9 @@ further investigations needed, including other compilers
 			matrix(const Args &...args);
 #endif
 
+#if INIT_LIST_SUPPORT_TIER >= 2
 			matrix(std::initializer_list<Impl::CInitListItem<ElementType, rows * columns>> initList);
+#endif
 
 			//template<typename TIterator>
 			//explicit matrix(TIterator src);
@@ -3741,10 +3755,12 @@ further investigations needed, including other compilers
 			std::enable_if_t<(SrcSwizzleDesc::dimension > 1), matrix &> operator =(const Impl::CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &&src) &;
 #endif
 
+#if INIT_LIST_SUPPORT_TIER >= 1
 #ifdef __GNUC__
 			matrix &operator =(std::initializer_list<Impl::CInitListItem<ElementType, rows * columns>> initList);
 #else
 			matrix &operator =(std::initializer_list<Impl::CInitListItem<ElementType, rows * columns>> initList) &;
+#endif
 #endif
 
 			auto operator +() const;
@@ -4085,11 +4101,13 @@ further investigations needed, including other compilers
 				static_assert(dimension <= srcDimension, "array ctor: too small src dimension");
 			}
 
+#if INIT_LIST_SUPPORT_TIER >= 2
 			template<typename ElementType, unsigned int dimension>
 			inline vector<ElementType, dimension>::vector(std::initializer_list<Impl::CInitListItem<ElementType, dimension>> initList)
 			{
 				operator =(initList);
 			}
+#endif
 
 #if !(defined MSVC_LIMITATIONS || defined __clang__)
 			template<typename ElementType, unsigned int dimension>
@@ -4210,11 +4228,13 @@ further investigations needed, including other compilers
 				static_assert(columns <= srcColumns, "array ctor: too few columns in src");
 			}
 
+#if INIT_LIST_SUPPORT_TIER >= 2
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			inline matrix<ElementType, rows, columns>::matrix(std::initializer_list<Impl::CInitListItem<ElementType, rows * columns>> initList)
 			{
 				operator =(initList);
 			}
+#endif
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
@@ -4277,6 +4297,7 @@ further investigations needed, including other compilers
 				return operator =<false>(src);
 			}
 
+#if INIT_LIST_SUPPORT_TIER >= 1
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 #ifdef __GNUC__
 			inline auto matrix<ElementType, rows, columns>::operator =(std::initializer_list<Impl::CInitListItem<ElementType, rows * columns>> initList) -> matrix &
@@ -4291,6 +4312,7 @@ further investigations needed, including other compilers
 				assert(dstIdx == rows * columns);
 				return *this;
 			}
+#endif
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<size_t ...idx>
