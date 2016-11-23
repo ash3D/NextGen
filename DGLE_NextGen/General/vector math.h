@@ -2294,7 +2294,7 @@ further investigations needed, including other compilers
 				enable_if_t<(SrcSwizzleDesc::dimension > 1), TOperationResult &> operator =(const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &
 #endif
 				{
-					static constexpr auto WARHazard = DetectSwizzleWARHazard
+					constexpr auto WARHazard = DetectSwizzleWARHazard
 					<
 						ElementType, rows, columns, SwizzleDesc,
 						SrcElementType, srcRows, srcColumns, SrcSwizzleDesc,
@@ -2806,7 +2806,7 @@ further investigations needed, including other compilers
 					Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,														\
 					const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)											\
 					{																																	\
-						static constexpr auto WARHazard = Impl::DetectSwizzleWARHazard																	\
+						constexpr auto WARHazard = Impl::DetectSwizzleWARHazard																			\
 						<																																\
 							LeftElementType, leftRows, leftColumns, LeftSwizzleDesc,																	\
 							RightElementType, rightRows, rightColumns, RightSwizzleDesc,																\
@@ -2933,7 +2933,7 @@ further investigations needed, including other compilers
 					Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,														\
 					const RightType &right)																												\
 					{																																	\
-						static constexpr bool WARHazard =																								\
+						constexpr bool WARHazard =																										\
 							Impl::DetectScalarWARHazard<Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>, RightType>::value;		\
 						return Workaround::operator op##=<WARHazard>(left, right);																		\
 					}
@@ -3155,8 +3155,7 @@ further investigations needed, including other compilers
 					const RightType &right)																												\
 					-> std::enable_if_t<Impl::IsScalar<RightType>, decltype(left)>																		\
 					{																																	\
-						static constexpr bool WARHazard =																								\
-							Impl::DetectScalarWARHazard<matrix<LeftElementType, leftRows, leftColumns>, RightType>::value;								\
+						constexpr bool WARHazard = Impl::DetectScalarWARHazard<matrix<LeftElementType, leftRows, leftColumns>, RightType>::value;		\
 						return Workaround::operator op##=<WARHazard>(left, right);																		\
 					}
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_OP)
