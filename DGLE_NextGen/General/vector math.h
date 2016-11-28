@@ -2527,7 +2527,7 @@ further investigations needed, including other compilers
 			inline void CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::AssignSwizzle(index_sequence<idx...>, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &
 #endif
 			{
-				((*this)[idx] = src[idx], ...);
+				(((*this)[idx] = src[idx]), ...);
 			}
 #endif
 
@@ -2548,7 +2548,7 @@ further investigations needed, including other compilers
 			inline void CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::AssignScalar(index_sequence<idx...>, const SrcType &scalar) &
 #endif
 			{
-				((*this)[idx] = scalar, ...);
+				(((*this)[idx] = scalar), ...);
 			}
 #endif
 
@@ -4036,7 +4036,7 @@ further investigations needed, including other compilers
 			template<unsigned r, size_t ...rowIdx, typename SrcType>
 			std::enable_if_t<r == sizeof...(rowIdx)> AssignScalar(std::index_sequence<rowIdx...>, const SrcType &) & {}
 #else
-			template<size_t ...rowIdx, typename SrcType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
+			template<size_t ...rowIdx, typename SrcType>
 #ifdef __GNUC__
 			void AssignScalar(std::index_sequence<rowIdx...>, const SrcType &scalar);
 #else
@@ -4710,7 +4710,7 @@ further investigations needed, including other compilers
 			inline void matrix<ElementType, rows, columns>::AssignSwizzle(std::index_sequence<rowIdx...>, const Impl::CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &
 #endif
 			{
-				(operator [](rowIdx) = src[rowIdx], ...);
+				((operator [](rowIdx) = src[rowIdx]), ...);
 			}
 #endif
 
@@ -4731,7 +4731,7 @@ further investigations needed, including other compilers
 			inline void matrix<ElementType, rows, columns>::AssignScalar(std::index_sequence<rowIdx...>, const SrcType &scalar) &
 #endif
 			{
-				(operator [](rowIdx) = scalar, ...);
+				((operator [](rowIdx) = scalar), ...);
 			}
 #endif
 
