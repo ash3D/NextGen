@@ -78,6 +78,7 @@ int main(int argc, _TCHAR *argv[])
 	m5x4 == 0;
 	m5x4 != +m5x4 + -m5x4;
 	vec3, m5x4;
+	m5x4 += m5x4;
 	m5x4 += 2;
 	m5x4 + 2;
 	2 + m5x4;
