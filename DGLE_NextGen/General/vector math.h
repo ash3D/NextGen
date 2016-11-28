@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		28.11.2016 (c)Alexey Shaydurov
+\date		29.11.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -3290,71 +3290,26 @@ further investigations needed, including other compilers
 #			pragma endregion
 
 #			pragma region matrix
-				namespace Impl
-				{
-#ifdef MSVC_LIMITATIONS
-					template
-					<
-						unsigned r = 0, typename F,
-						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,
-						typename RightElementType, unsigned int rightRows, unsigned int rightColumns
-					>
-					inline enable_if_t<r < leftRows> MatrixOpAssignMatrix(
-						F f,
-						matrix<LeftElementType, leftRows, leftColumns> &left,
-						const matrix<RightElementType, rightRows, rightColumns> &right)
-					{
-						f(left[r], right[r]);
-						MatrixOpAssignMatrix<r + 1>(f, left, right);
-					}
-
-					// terminator
-					template
-					<
-						unsigned r, typename F,
-						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,
-						typename RightElementType, unsigned int rightRows, unsigned int rightColumns
-					>
-					inline enable_if_t<r == leftRows> MatrixOpAssignMatrix(
-						F,
-						matrix<LeftElementType, leftRows, leftColumns> &,
-						const matrix<RightElementType, rightRows, rightColumns> &)
-					{}
-
-					template
-					<
-						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,
-						typename RightElementType, unsigned int rightRows, unsigned int rightColumns
-					>
-					inline void MatrixOpAssignMatrix(
-						typename CSwizzle<LeftElementType, 0, leftColumns>::TOperationResult &f(
-							CSwizzle<LeftElementType, 0, leftColumns> &, const CSwizzle<RightElementType, 0, rightColumns> &),
-						matrix<LeftElementType, leftRows, leftColumns> &left,
-						const matrix<RightElementType, rightRows, rightColumns> &right)
-					{
-						MatrixOpAssignMatrix(f, left, right);
-					}
-#else
-					template
-					<
-						size_t ...rowIdx,
-						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,
-						typename RightElementType, unsigned int rightRows, unsigned int rightColumns
-					>
-					inline void MatrixOpAssignMatrix(
-						index_sequence<rowIdx...>,
-						typename CSwizzle<LeftElementType, 0, leftColumns>::TOperationResult &f(
-							CSwizzle<LeftElementType, 0, leftColumns> &, const CSwizzle<RightElementType, 0, rightColumns> &),
-						matrix<LeftElementType, leftRows, leftColumns> &left,
-						const matrix<RightElementType, rightRows, rightColumns> &right)
-					{
-						(f(left[rowIdx], right[rowIdx]), ...);
-					}
-#endif
-				}
-
 				// matrix / 1x1 matrix op= matrix
 #ifdef MSVC_LIMITATIONS
+				namespace Impl::MatrixOps
+				{
+#					define OPERATOR_DEFINITION(op)																										\
+						template																														\
+						<																																\
+							typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,													\
+							typename RightElementType, unsigned int rightRows, unsigned int rightColumns												\
+						>																																\
+						inline void operator op##=(																										\
+						matrix<LeftElementType, leftRows, leftColumns> &left,																			\
+						const matrix<RightElementType, rightRows, rightColumns> &right)																	\
+						{																																\
+							left.OpAssignMatrix(VectorMath::operator op##=, right);																		\
+						}
+					GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_OP)
+#					undef OPERATOR_DEFINITION
+				}
+
 #				define OPERATOR_DEFINITION(op)																											\
 					template																															\
 					<																																	\
@@ -3374,7 +3329,7 @@ further investigations needed, including other compilers
 							LeftElementType, false>>;																									\
 						static_assert(!(vecMatMismatch && leftRows == 1), "'matrix1xN -> vectorN "#op"= matrix': cannot convert matrix to vector");		\
 						static_assert(!(vecMatMismatch && rightRows == 1), "'matrix "#op"= matrix1xN -> vectorN': cannot convert matrix to vector");	\
-						Impl::MatrixOpAssignMatrix(operator op##=, left, right);																		\
+						Impl::MatrixOps::operator op##=(left, right);																					\
 						return left;																													\
 					}
 #else
@@ -3397,7 +3352,7 @@ further investigations needed, including other compilers
 							LeftElementType, false>>;																									\
 						static_assert(!(vecMatMismatch && leftRows == 1), "'matrix1xN -> vectorN "#op"= matrix': cannot convert matrix to vector");		\
 						static_assert(!(vecMatMismatch && rightRows == 1), "'matrix "#op"= matrix1xN -> vectorN': cannot convert matrix to vector");	\
-						Impl::MatrixOpAssignMatrix(std::make_index_sequence<leftRows>(), operator op##=<false>, left, right);							\
+						left.OpAssignMatrix(std::make_index_sequence<leftRows>(), operator op##=<false>, right);										\
 						return left;																													\
 					}
 #endif
@@ -4090,6 +4045,33 @@ further investigations needed, including other compilers
 #endif
 
 #ifdef MSVC_LIMITATIONS
+			template<unsigned r = 0, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
+			std::enable_if_t<r < rows> OpAssignMatrix(
+				typename Impl::CSwizzle<ElementType, 0, columns>::TOperationResult &f(
+					Impl::CSwizzle<ElementType, 0, columns> &, const Impl::CSwizzle<SrcElementType, 0, srcColumns> &),
+				const matrix<SrcElementType, srcRows, srcColumns> &src) &;
+
+			// terminator
+			template<unsigned r, typename F, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
+			std::enable_if_t<r == rows> OpAssignMatrix(F, const matrix<SrcElementType, srcRows, srcColumns> &) & {}
+#else
+			template<size_t ...rowIdx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
+#ifdef __GNUC__
+			void OpAssignMatrix(
+				std::index_sequence<rowIdx...>,
+				typename Impl::CSwizzle<ElementType, 0, columns>::TOperationResult &f(
+					Impl::CSwizzle<ElementType, 0, columns> &, const Impl::CSwizzle<SrcElementType, 0, srcColumns> &),
+				const matrix<SrcElementType, srcRows, srcColumns> &src);
+#else
+			void OpAssignMatrix(
+				std::index_sequence<rowIdx...>,
+				typename Impl::CSwizzle<ElementType, 0, columns>::TOperationResult &f(
+					Impl::CSwizzle<ElementType, 0, columns> &, const Impl::CSwizzle<SrcElementType, 0, srcColumns> &),
+				const matrix<SrcElementType, srcRows, srcColumns> &src) &;
+#endif
+#endif
+
+#ifdef MSVC_LIMITATIONS
 			template<unsigned r = 0, typename SrcType>
 			std::enable_if_t<r < rows> OpAssignScalar(
 				typename Impl::CSwizzle<ElementType, 0, columns>::TOperationResult &f(Impl::CSwizzle<ElementType, 0, columns> &, const SrcType &),
@@ -4270,6 +4252,32 @@ further investigations needed, including other compilers
 			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION, F_2_OP)
 #			undef OPERATOR_DECLARATION
 #endif
+
+			// matrix / 1x1 matrix op= matrix
+#ifdef MSVC_LIMITATIONS
+#			define OPERATOR_DECLARATION(op)																									\
+				template																													\
+				<																															\
+					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,												\
+					typename RightElementType, unsigned int rightRows, unsigned int rightColumns											\
+				>																															\
+				friend inline void Impl::MatrixOps::operator op##=(																			\
+				matrix<LeftElementType, leftRows, leftColumns> &left,																		\
+				const matrix<RightElementType, rightRows, rightColumns> &right);
+#else
+#			define OPERATOR_DECLARATION(op)																									\
+				template																													\
+				<																															\
+					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,												\
+					typename RightElementType, unsigned int rightRows, unsigned int rightColumns											\
+				>																															\
+				friend inline auto operator op##=(																							\
+				matrix<LeftElementType, leftRows, leftColumns> &left,																		\
+				const matrix<RightElementType, rightRows, rightColumns> &right)																\
+				-> std::enable_if_t<(rightRows > 1 || rightColumns > 1), decltype(left)>;
+#endif
+			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION, F_2_OP)
+#			undef OPERATOR_DECLARATION
 
 			// matrix / 1x1 matrix op= swizzle
 #			define OPERATOR_DECLARATION(op)																									\
@@ -4724,6 +4732,38 @@ further investigations needed, including other compilers
 #endif
 			{
 				(operator [](rowIdx) = scalar, ...);
+			}
+#endif
+
+#ifdef MSVC_LIMITATIONS
+			template<typename ElementType, unsigned int rows, unsigned int columns>
+			template<unsigned r, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
+			inline auto matrix<ElementType, rows, columns>::OpAssignMatrix(
+				typename Impl::CSwizzle<ElementType, 0, columns>::TOperationResult &f(
+					Impl::CSwizzle<ElementType, 0, columns> &, const Impl::CSwizzle<SrcElementType, 0, srcColumns> &),
+				const matrix<SrcElementType, srcRows, srcColumns> &src) & -> std::enable_if_t<r < rows>
+			{
+				f(operator [](r), src[r]);
+				OpAssignMatrix<r + 1>(f, src);
+			}
+#else
+			template<typename ElementType, unsigned int rows, unsigned int columns>
+			template<size_t ...rowIdx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
+#ifdef __GNUC__
+			inline void matrix<ElementType, rows, columns>::OpAssignMatrix(
+				std::index_sequence<rowIdx...>,
+				typename Impl::CSwizzle<ElementType, 0, columns>::TOperationResult &f(
+					Impl::CSwizzle<ElementType, 0, columns> &, const Impl::CSwizzle<SrcElementType, 0, srcColumns> &),
+				const matrix<SrcElementType, srcRows, srcColumns> &src)
+#else
+			inline void matrix<ElementType, rows, columns>::OpAssignMatrix(
+				std::index_sequence<rowIdx...>,
+				typename Impl::CSwizzle<ElementType, 0, columns>::TOperationResult &f(
+					Impl::CSwizzle<ElementType, 0, columns> &, const Impl::CSwizzle<SrcElementType, 0, srcColumns> &),
+				const matrix<SrcElementType, srcRows, srcColumns> &src) &
+#endif
+			{
+				(f(operator [](rowIdx), src[rowIdx]), ...);
 			}
 #endif
 
