@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		09.08.2016 (c)Korotkov Andrey
+\date		29.11.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -195,7 +195,11 @@ extern nv_scalar Collision::RayAABBIntersect(const vec3 &rayOrig, const vec3 &ra
 {
 	fMax = -numeric_limits<nv_scalar>::infinity();
 	bMin = +numeric_limits<nv_scalar>::infinity();
+#if __clang__
+	static nv_scalar(__fastcall *AABBnormals[3])(const vec3 &) = { dotX, dotY, dotZ };
+#else
 	static nv_scalar(__fastcall *AABBnormals[3])(const vec3 &) noexcept = { dotX, dotY, dotZ };
+#endif
 	vec3
 		AABBdist_pos = AABBExtents + AABBCenter,
 		AABBdist_neg = AABBExtents - AABBCenter;
