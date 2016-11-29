@@ -2619,6 +2619,10 @@ further investigations needed, including other compilers
 				{
 					return apply<ElementType>(f);
 				}
+
+			private:
+				template<typename F, size_t ...idx>
+				inline vector<result_of_t<F &(ElementType)>, SwizzleDesc::dimension> apply(F f, index_sequence<idx...>) const;
 			};
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
@@ -4181,6 +4185,10 @@ further investigations needed, including other compilers
 			}
 
 		private:
+			template<typename F, size_t ...rowIdx>
+			inline matrix<std::result_of_t<F &(ElementType)>, rows, columns> apply(F f, std::index_sequence<rowIdx...>) const;
+
+		private:
 			template<size_t ...idx>
 			inline auto Pos(std::index_sequence<idx...>) const;
 
@@ -4361,11 +4369,15 @@ further investigations needed, including other compilers
 		inline vector<std::result_of_t<F &(ElementType)>, SwizzleDesc::dimension>
 		Impl::CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>::apply(F f) const
 		{
-			constexpr unsigned int dimension = SwizzleDesc::dimension;
-			vector<std::result_of_t<F &(ElementType)>, dimension> result;
-			for (unsigned i = 0; i < dimension; i++)
-				result[i] = f((*this)[i]);
-			return result;
+			return apply(f, make_index_sequence<SwizzleDesc::dimension>());
+		}
+
+		template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
+		template<typename F, size_t ...idx>
+		inline vector<std::result_of_t<F &(ElementType)>, SwizzleDesc::dimension>
+		Impl::CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>::apply(F f, index_sequence<idx...>) const
+		{
+			return{ f((*this)[idx])... };
 		}
 
 #if !defined _MSC_VER || defined __clang__ || defined MSVC_LIMITATIONS && !_DEBUG
@@ -4837,10 +4849,14 @@ further investigations needed, including other compilers
 			template<typename F>
 			inline auto matrix<ElementType, rows, columns>::apply(F f) const -> matrix<std::result_of_t<F &(ElementType)>, rows, columns>
 			{
-				matrix<std::result_of_t<F &(ElementType)>, rows, columns> result;
-				for (unsigned r = 0; r < rows; r++)
-					result[r] = (*this)[r].apply(f);
-				return result;
+				return apply(f, std::make_index_sequence<rows>());
+			}
+
+			template<typename ElementType, unsigned int rows, unsigned int columns>
+			template<typename F, size_t ...rowIdx>
+			inline auto matrix<ElementType, rows, columns>::apply(F f, std::index_sequence<rowIdx...>) const -> matrix<std::result_of_t<F &(ElementType)>, rows, columns>
+			{
+				return{ (*this)[rowIdx].apply(f)... };
 			}
 #		pragma endregion
 
