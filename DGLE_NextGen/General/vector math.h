@@ -2095,13 +2095,6 @@ further investigations needed, including other compilers
 					return Data()[row][column];
 				}
 
-#ifndef __GNUC__
-				const ElementType &operator [](unsigned int idx) const && noexcept
-				{
-					return operator [](idx);
-				}
-#endif
-
 #ifdef __GNUC__
 				ElementType &operator [](unsigned int idx) noexcept
 #else
@@ -2177,13 +2170,6 @@ further investigations needed, including other compilers
 					return Data()[idx];
 				}
 
-#ifndef __GNUC__
-				const ElementType &operator [](unsigned int idx) const && noexcept
-				{
-					return operator [](idx);
-				}
-#endif
-
 #ifdef __GNUC__
 				ElementType &operator [](unsigned int idx) noexcept
 #else
@@ -2255,13 +2241,6 @@ further investigations needed, including other compilers
 					assert(idx < vectorDimension);
 					return Data()[idx];
 				}
-
-#ifndef __GNUC__
-				const ElementType &operator [](unsigned int idx) const && noexcept
-				{
-					return operator [](idx);
-				}
-#endif
 
 #ifdef __GNUC__
 				ElementType &operator [](unsigned int idx) noexcept
@@ -2580,11 +2559,6 @@ further investigations needed, including other compilers
 				operator const ElementType &() const & noexcept
 				{
 					return (*this)[0];
-				}
-
-				operator const ElementType &() const && noexcept
-				{
-					return *this;
 				}
 
 				operator conditional_t<SwizzleDesc::isWriteMaskValid, ElementType, const ElementType> &() & noexcept
@@ -4165,7 +4139,7 @@ further investigations needed, including other compilers
 #ifdef __GNUC__
 			const TRow &operator [](unsigned int idx) const noexcept;
 #else
-			const TRow &operator [](unsigned int idx) const & noexcept, &operator [](unsigned int idx) const && noexcept;
+			const TRow &operator [](unsigned int idx) const & noexcept;
 #endif
 #ifdef __GNUC__
 			TRow &operator [](unsigned int idx) noexcept;
@@ -4491,14 +4465,6 @@ further investigations needed, including other compilers
 				assert(idx < rows);
 				return DataContainer::data.rowsData[idx];
 			}
-
-#ifndef __GNUC__
-			template<typename ElementType, unsigned int rows, unsigned int columns>
-			inline auto matrix<ElementType, rows, columns>::operator [](unsigned int idx) const && noexcept -> const typename matrix::TRow &
-			{
-				return operator [](idx);
-			}
-#endif
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 #ifdef __GNUC__
