@@ -1221,9 +1221,17 @@ further investigations needed, including other compilers
 						static inline bool TriggerWARHazard(CSwizzleDataAccess<ElementType, rows, columns, DstSwizzleDesc> &dst, const CSwizzleDataAccess<ElementType, rows, columns, SrcSwizzleDesc> &src)
 						{
 #if USE_BOOST_MPL
+#if __clang__
+							return SwizzleWARHazardDetectHelper<typename DstSwizzleDesc::CSwizzleVector, typename SrcSwizzleDesc::CSwizzleVector, assign>::value && GetRowAddress<0>(dst) == GetRowAddress<0>(src);
+#else
 							return SwizzleWARHazardDetectHelper<typename DstSwizzleDesc::CSwizzleVector, typename SrcSwizzleDesc::CSwizzleVector, assign>::value && GetRowAddress(dst) == GetRowAddress(src);
+#endif
+#else
+#if __clang__
+							return SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign>::value && GetRowAddress<0>(dst) == GetRowAddress<0>(src);
 #else
 							return SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign>::value && GetRowAddress(dst) == GetRowAddress(src);
+#endif
 #endif
 						}
 
