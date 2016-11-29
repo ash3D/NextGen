@@ -1200,8 +1200,8 @@ further investigations needed, including other compilers
 #				pragma region trigger
 #					ifndef NDEBUG
 						// vector
-						template<unsigned rowIdx = 0, typename ElementType, unsigned int columns, class SwizzleDesc>
-						static inline const void *GetRowAddress(const CSwizzleDataAccess<ElementType, 0, columns, SwizzleDesc> &swizzle)
+						template<unsigned rowIdx = 0, typename ElementType, unsigned int dimension, class SwizzleDesc>
+						static inline const void *GetRowAddress(const CSwizzleDataAccess<ElementType, 0, dimension, SwizzleDesc> &swizzle)
 						{
 							return swizzle.Data();
 						}
