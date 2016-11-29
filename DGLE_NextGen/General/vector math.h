@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		29.11.2016 (c)Alexey Shaydurov
+\date		30.11.2016 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -4796,51 +4796,51 @@ further investigations needed, including other compilers
 
 			// matrix / 1x1 matrix op=<!WARHazard, !extractScalar> scalar
 #ifdef MSVC_LIMITATIONS
-#			define OPERATOR_DEFINITION(op)																					\
-				template<typename ElementType, unsigned int rows, unsigned int columns>										\
-				template<bool WARHazard, bool extractScalar, typename SrcType>												\
-				inline auto matrix<ElementType, rows, columns>::operator op##=(const SrcType &scalar)						\
-				-> std::enable_if_t<!WARHazard && !extractScalar/* && Impl::IsScalar<SrcType>*/, matrix &>					\
-				{																											\
-					OpAssignScalar(Impl::ScalarOps::operator op##=															\
-						<false, false, ElementType, 0, columns, Impl::CVectorSwizzleDesc<columns>, SrcType>, scalar);		\
-					return *this;																							\
+#			define OPERATOR_DEFINITION(op)																							\
+				template<typename ElementType, unsigned int rows, unsigned int columns>												\
+				template<bool WARHazard, bool extractScalar, typename SrcType>														\
+				inline auto matrix<ElementType, rows, columns>::operator op##=(const SrcType &scalar)								\
+				-> std::enable_if_t<!WARHazard && !extractScalar/* && Impl::IsScalar<SrcType>*/, matrix &>							\
+				{																													\
+					OpAssignScalar(Impl::ScalarOps::operator op##=																	\
+						<false, false, ElementType, 0, columns, Impl::CVectorSwizzleDesc<columns>, SrcType>, scalar);				\
+					return *this;																									\
 				}
 #else
-#			define OPERATOR_DEFINITION(op)																					\
-				template<typename ElementType, unsigned int rows, unsigned int columns>										\
-				template<bool WARHazard, bool extractScalar, typename SrcType>												\
-				inline auto matrix<ElementType, rows, columns>::operator op##=(const SrcType &scalar)						\
-				-> std::enable_if_t<!WARHazard && !extractScalar/* && Impl::IsScalar<SrcType>*/, matrix &>					\
-				{																											\
-					using namespace Impl;																					\
-					OpAssignScalar(make_index_sequence<rows>(), ScalarOps::operator op##=<false, false>, scalar);			\
-					return *this;																							\
+#			define OPERATOR_DEFINITION(op)																							\
+				template<typename ElementType, unsigned int rows, unsigned int columns>												\
+				template<bool WARHazard, bool extractScalar, typename SrcType>														\
+				inline auto matrix<ElementType, rows, columns>::operator op##=(const SrcType &scalar)								\
+				-> std::enable_if_t<!WARHazard && !extractScalar/* && Impl::IsScalar<SrcType>*/, matrix &>							\
+				{																													\
+					using namespace Impl;																							\
+					OpAssignScalar(make_index_sequence<rows>(), ScalarOps::operator op##=<false, false>, scalar);					\
+					return *this;																									\
 				}
 #endif
 			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_OP)
 #			undef OPERATOR_DEFINITION
 
 			// matrix / 1x1 matrix op=<WARHazard, !extractScalar> scalar
-#			define OPERATOR_DEFINITION(op)																					\
-				template<typename ElementType, unsigned int rows, unsigned int columns>										\
-				template<bool WARHazard, bool extractScalar, typename SrcType>												\
-				inline auto matrix<ElementType, rows, columns>::operator op##=(const SrcType &scalar)						\
-				-> std::enable_if_t<WARHazard && !extractScalar/* && Impl::IsScalar<SrcType>*/, matrix &>					\
-				{																											\
-					return operator op##=<false, false>(SrcType(scalar));													\
+#			define OPERATOR_DEFINITION(op)																							\
+				template<typename ElementType, unsigned int rows, unsigned int columns>												\
+				template<bool WARHazard, bool extractScalar, typename SrcType>														\
+				inline auto matrix<ElementType, rows, columns>::operator op##=(const SrcType &scalar)								\
+				-> std::enable_if_t<WARHazard && !extractScalar/* && Impl::IsScalar<SrcType>*/, matrix &>							\
+				{																													\
+					return operator op##=<false, false>(SrcType(scalar));															\
 				}
 			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_OP)
 #			undef OPERATOR_DEFINITION
 
 			// matrix / 1x1 matrix op=<?WARHazard, extractScalar> scalar
-#			define OPERATOR_DEFINITION(op)																					\
-				template<typename ElementType, unsigned int rows, unsigned int columns>										\
-				template<bool WARHazard, bool extractScalar, typename SrcType>												\
-				inline auto matrix<ElementType, rows, columns>::operator op##=(const SrcType &scalar)						\
-				-> std::enable_if_t<extractScalar/* && Impl::IsScalar<SrcType>*/, matrix &>									\
-				{																											\
-					return operator op##=<WARHazard, false>(Impl::ExtractScalar(scalar));									\
+#			define OPERATOR_DEFINITION(op)																							\
+				template<typename ElementType, unsigned int rows, unsigned int columns>												\
+				template<bool WARHazard, bool extractScalar, typename SrcType>														\
+				inline auto matrix<ElementType, rows, columns>::operator op##=(const SrcType &scalar)								\
+				-> std::enable_if_t<extractScalar/* && Impl::IsScalar<SrcType>*/, matrix &>											\
+				{																													\
+					return operator op##=<WARHazard, false>(Impl::ExtractScalar(scalar));											\
 				}
 			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_OP)
 #			undef OPERATOR_DEFINITION
@@ -4865,161 +4865,270 @@ further investigations needed, including other compilers
 #		pragma region min/max functions
 			// std::min/max requires explicit template param if used for different types => provide scalar version\
 			this version also has option to return copy or reference
-#			define FUNCTION_DEFINITION(f)																					\
-				template<bool copy = false, typename LeftType, typename RightType>											\
-				inline auto f(const LeftType &left, const RightType &right)													\
-				-> std::enable_if_t<Impl::IsPureScalar<LeftType> && Impl::IsPureScalar<RightType>, std::conditional_t<copy,	\
-					std::common_type_t<LeftType, RightType>, const std::common_type_t<LeftType, RightType> &>>				\
-				{																											\
-					return std::f<std::common_type_t<LeftType, RightType>>(left, right);									\
+#			define FUNCTION_DEFINITION(f)																							\
+				template<bool copy = false, typename LeftType, typename RightType>													\
+				inline auto f(const LeftType &left, const RightType &right)															\
+				-> std::enable_if_t<Impl::IsPureScalar<LeftType> && Impl::IsPureScalar<RightType>, std::conditional_t<copy,			\
+					std::common_type_t<LeftType, RightType>, const std::common_type_t<LeftType, RightType> &>>						\
+				{																													\
+					return std::f<std::common_type_t<LeftType, RightType>>(left, right);											\
 				};
 			FUNCTION_DEFINITION(min)
 			FUNCTION_DEFINITION(max)
 #			undef FUNCTION_DEFINITION
 
-#			define FUNCTION_DEFINITION(f)																					\
-				template																									\
-				<																											\
-					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,		\
-					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc	\
-				>																											\
-				inline auto f(																								\
-					const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,					\
-					const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)				\
-				{																											\
-					typedef std::common_type_t																				\
-					<																										\
-						vector<LeftElementType, LeftSwizzleDesc::dimension>,												\
-						vector<RightElementType, RightSwizzleDesc::dimension>												\
-					> TResult;																								\
-					TResult result;																							\
-					for (unsigned i = 0; i < TResult::dimension; i++)														\
-						result[i] = std::f<typename TResult::ElementType>(left[i], right[i]);								\
-					return result;																							\
+			namespace Impl
+			{
+				using VectorMath::min;
+				using VectorMath::max;
+
+#				define FUNCTION_DEFINITION(f)																						\
+					template																										\
+					<																												\
+						size_t ...idx,																								\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,			\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc		\
+					>																												\
+					inline vector<decay_t<decltype(f(declval<LeftElementType>(), declval<RightElementType>()))>, sizeof...(idx)>	\
+					f(index_sequence<idx...>,																						\
+						const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,								\
+						const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)							\
+					{																												\
+						return{ f(left[idx], right[idx])... };																		\
+					}
+				FUNCTION_DEFINITION(min)
+				FUNCTION_DEFINITION(max)
+#				undef FUNCTION_DEFINITION
+			}
+
+#			define FUNCTION_DEFINITION(f)																							\
+				template																											\
+				<																													\
+					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,				\
+					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc			\
+				>																													\
+				inline auto f(																										\
+					const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,							\
+					const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)						\
+				{																													\
+					constexpr unsigned int dimension = std::min(LeftSwizzleDesc::dimension, RightSwizzleDesc::dimension);			\
+					return Impl::f(std::make_index_sequence<dimension>(), left, right);												\
 				}
 			FUNCTION_DEFINITION(min)
 			FUNCTION_DEFINITION(max)
 #			undef FUNCTION_DEFINITION
 
-#			define FUNCTION_DEFINITION(f)																					\
-				template																									\
-				<																											\
-					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,		\
-					typename RightType																						\
-				>																											\
-				inline auto f(																								\
-					const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,					\
-					const RightType &right)																					\
-				-> std::enable_if_t<Impl::IsPureScalar<RightType>, std::common_type_t										\
-				<																											\
-					vector<LeftElementType, LeftSwizzleDesc::dimension>,													\
-					RightType																								\
-				>>																											\
-				{																											\
-					typedef decltype(f(left, right)) TResult;																\
-					TResult result;																							\
-					for (unsigned i = 0; i < TResult::dimension; i++)														\
-						result[i] = std::f<typename TResult::ElementType>(left[i], right);									\
-					return result;																							\
+			namespace Impl
+			{
+				using VectorMath::min;
+				using VectorMath::max;
+
+#				define FUNCTION_DEFINITION(f)																						\
+					template																										\
+					<																												\
+						size_t ...idx,																								\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,			\
+						typename RightType																							\
+					>																												\
+					inline enable_if_t<IsPureScalar<RightType>,																		\
+					vector<decay_t<decltype(f(declval<LeftElementType>(), declval<RightType>()))>, sizeof...(idx)>>					\
+					f(index_sequence<idx...>,																						\
+						const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,								\
+						const RightType &right)																						\
+					{																												\
+						return{ f(left[idx], right)... };																			\
+					}
+				FUNCTION_DEFINITION(min)
+				FUNCTION_DEFINITION(max)
+#				undef FUNCTION_DEFINITION
+			}
+
+#			define FUNCTION_DEFINITION(f)																							\
+				template																											\
+				<																													\
+					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,				\
+					typename RightType																								\
+				>																													\
+				inline auto f(																										\
+					const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,							\
+					const RightType &right)																							\
+				-> std::enable_if_t<Impl::IsPureScalar<RightType>,																	\
+				decltype(Impl::f(std::make_index_sequence<LeftSwizzleDesc::dimension>(), left, right))>								\
+				{																													\
+					return Impl::f(std::make_index_sequence<LeftSwizzleDesc::dimension>(), left, right);							\
 				};
 			FUNCTION_DEFINITION(min)
 			FUNCTION_DEFINITION(max)
 #			undef FUNCTION_DEFINITION
 
-#			define FUNCTION_DEFINITION(f)																					\
-				template																									\
-				<																											\
-					typename LeftType,																						\
-					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc	\
-				>																											\
-				inline auto f(																								\
-					const LeftType &left,																					\
-					const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)				\
-				-> std::enable_if_t<Impl::IsPureScalar<LeftType>, std::common_type_t										\
-				<																											\
-					LeftType,																								\
-					vector<RightElementType, RightSwizzleDesc::dimension>													\
-				>>																											\
-				{																											\
-					typedef decltype(f(left, right)) TResult;																\
-					TResult result;																							\
-					for (unsigned i = 0; i < TResult::dimension; i++)														\
-						result[i] = std::f<typename TResult::ElementType>(left, right[i]);									\
-					return result;																							\
+			namespace Impl
+			{
+				using VectorMath::min;
+				using VectorMath::max;
+
+#				define FUNCTION_DEFINITION(f)																						\
+					template																										\
+					<																												\
+						size_t ...idx,																								\
+						typename LeftType,																							\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc		\
+					>																												\
+					inline enable_if_t<IsPureScalar<LeftType>,																		\
+					vector<decay_t<decltype(f(declval<LeftType>(), declval<RightElementType>()))>, sizeof...(idx)>>					\
+					f(index_sequence<idx...>,																						\
+						const LeftType &left,																						\
+						const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)							\
+					{																												\
+						return{ f(left, right[idx])... };																			\
+					}
+				FUNCTION_DEFINITION(min)
+					FUNCTION_DEFINITION(max)
+#				undef FUNCTION_DEFINITION
+			}
+
+#			define FUNCTION_DEFINITION(f)																							\
+				template																											\
+				<																													\
+					typename LeftType,																								\
+					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc			\
+				>																													\
+				inline auto f(																										\
+					const LeftType &left,																							\
+					const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)						\
+				-> std::enable_if_t<Impl::IsPureScalar<LeftType>,																	\
+				decltype(Impl::f(std::make_index_sequence<RightSwizzleDesc::dimension>(), left, right))>							\
+				{																													\
+					return Impl::f(std::make_index_sequence<RightSwizzleDesc::dimension>(), left, right);							\
 				};
 			FUNCTION_DEFINITION(min)
 			FUNCTION_DEFINITION(max)
 #			undef FUNCTION_DEFINITION
 
-#			define FUNCTION_DEFINITION(f)																					\
-				template																									\
-				<																											\
-					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,								\
-					typename RightElementType, unsigned int rightRows, unsigned int rightColumns							\
-				>																											\
-				auto f(																										\
-					const matrix<LeftElementType, leftRows, leftColumns> &left,												\
-					const matrix<RightElementType, rightRows, rightColumns> &right)											\
-				{																											\
-					typedef std::common_type_t																				\
-					<																										\
-						matrix<LeftElementType, leftRows, leftColumns>,														\
-						matrix<RightElementType, rightRows, rightColumns>													\
-					> TResult;																								\
-					TResult result;																							\
-					for (unsigned r = 0; r < TResult::rows; r++)															\
-						result[r] = VectorMath::f(left[r], right[r]);														\
-					return result;																							\
+			namespace Impl
+			{
+				using VectorMath::min;
+				using VectorMath::max;
+
+#				define FUNCTION_DEFINITION(f)																						\
+					template																										\
+					<																												\
+						size_t ...rowIdx,																							\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,									\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns								\
+					>																												\
+					inline matrix																									\
+					<																												\
+						decay_t<decltype(f(declval<LeftElementType>(), declval<RightElementType>()))>,								\
+						std::min(leftRows, rightRows), std::min(leftColumns, rightColumns)											\
+					>																												\
+					f(index_sequence<rowIdx...>,																					\
+						const matrix<LeftElementType, leftRows, leftColumns> &left,													\
+						const matrix<RightElementType, rightRows, rightColumns> &right)												\
+					{																												\
+						return{ f(left[rowIdx], right[rowIdx])... };																\
+					}
+				FUNCTION_DEFINITION(min)
+				FUNCTION_DEFINITION(max)
+#				undef FUNCTION_DEFINITION
+			}
+
+#			define FUNCTION_DEFINITION(f)																							\
+				template																											\
+				<																													\
+					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,										\
+					typename RightElementType, unsigned int rightRows, unsigned int rightColumns									\
+				>																													\
+				auto f(																												\
+					const matrix<LeftElementType, leftRows, leftColumns> &left,														\
+					const matrix<RightElementType, rightRows, rightColumns> &right)													\
+				{																													\
+					return Impl::f(std::make_index_sequence<std::min(leftRows, rightRows)>(), left, right);							\
 				}
 			FUNCTION_DEFINITION(min)
 			FUNCTION_DEFINITION(max)
 #			undef FUNCTION_DEFINITION
 
-#			define FUNCTION_DEFINITION(f)																					\
-				template																									\
-				<																											\
-					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,								\
-					typename RightType																						\
-				>																											\
-				auto f(																										\
-					const matrix<LeftElementType, leftRows, leftColumns> &left,												\
-					const RightType &right)																					\
-				-> std::enable_if_t<Impl::IsPureScalar<RightType>, std::common_type_t										\
-				<																											\
-					matrix<LeftElementType, leftRows, leftColumns>,															\
-					RightType																								\
-				>>																											\
-				{																											\
-					typedef decltype(f(left, right)) TResult;																\
-					TResult result;																							\
-					for (unsigned r = 0; r < TResult::rows; r++)															\
-						result[r] = VectorMath::f(left[r], right);															\
-					return result;																							\
+			namespace Impl
+			{
+				using VectorMath::min;
+				using VectorMath::max;
+
+#				define FUNCTION_DEFINITION(f)																						\
+					template																										\
+					<																												\
+						size_t ...rowIdx,																							\
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,									\
+						typename RightType																							\
+					>																												\
+					inline enable_if_t<IsPureScalar<RightType>,																		\
+					matrix<decay_t<decltype(f(declval<LeftElementType>(), declval<RightType>()))>, leftRows, leftColumns>>			\
+					f(index_sequence<rowIdx...>,																					\
+						const matrix<LeftElementType, leftRows, leftColumns> &left,													\
+						const RightType &right)																						\
+					{																												\
+						return{ f(left[rowIdx], right)... };																		\
+					}
+				FUNCTION_DEFINITION(min)
+				FUNCTION_DEFINITION(max)
+#				undef FUNCTION_DEFINITION
+			}
+
+#			define FUNCTION_DEFINITION(f)																							\
+				template																											\
+				<																													\
+					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,										\
+					typename RightType																								\
+				>																													\
+				auto f(																												\
+					const matrix<LeftElementType, leftRows, leftColumns> &left,														\
+					const RightType &right)																							\
+				-> std::enable_if_t<Impl::IsPureScalar<RightType>,																	\
+				decltype(Impl::f(std::make_index_sequence<leftRows>(), left, right))>												\
+				{																													\
+					return Impl::f(std::make_index_sequence<leftRows>(), left, right);												\
 				}
 			FUNCTION_DEFINITION(min)
 			FUNCTION_DEFINITION(max)
 #			undef FUNCTION_DEFINITION
 
-#			define FUNCTION_DEFINITION(f)																					\
-				template																									\
-				<																											\
-					typename LeftType,																						\
-					typename RightElementType, unsigned int rightRows, unsigned int rightColumns							\
-				>																											\
-				auto f(																										\
-					const LeftType &left,																					\
-					const matrix<RightElementType, rightRows, rightColumns> &right)											\
-				-> std::enable_if_t<Impl::IsPureScalar<LeftType>, std::common_type_t										\
-				<																											\
-					LeftType,																								\
-					matrix<RightElementType, rightRows, rightColumns>														\
-				>>																											\
-				{																											\
-					typedef decltype(f(left, right)) TResult;																\
-					TResult result;																							\
-					for (unsigned r = 0; r < TResult::rows; r++)															\
-						result[r] = VectorMath::f(left, right[r]);															\
-					return result;																							\
+			namespace Impl
+			{
+				using VectorMath::min;
+				using VectorMath::max;
+
+#				define FUNCTION_DEFINITION(f)																						\
+					template																										\
+					<																												\
+						size_t ...rowIdx,																							\
+						typename LeftType,																							\
+						typename RightElementType, unsigned int rightRows, unsigned int rightColumns								\
+					>																												\
+					inline enable_if_t<IsPureScalar<LeftType>,																		\
+					matrix<decay_t<decltype(f(declval<LeftType>(), declval<RightElementType>()))>, rightRows, rightColumns>>		\
+					f(index_sequence<rowIdx...>,																					\
+						const LeftType &left,																						\
+						const matrix<RightElementType, rightRows, rightColumns> &right)												\
+					{																												\
+						return{ f(left, right[rowIdx])... };																		\
+					}
+				FUNCTION_DEFINITION(min)
+				FUNCTION_DEFINITION(max)
+#				undef FUNCTION_DEFINITION
+			}
+
+#			define FUNCTION_DEFINITION(f)																							\
+				template																											\
+				<																													\
+					typename LeftType,																								\
+					typename RightElementType, unsigned int rightRows, unsigned int rightColumns									\
+				>																													\
+				auto f(																												\
+					const LeftType &left,																							\
+					const matrix<RightElementType, rightRows, rightColumns> &right)													\
+				-> std::enable_if_t<Impl::IsPureScalar<LeftType>,																	\
+				decltype(Impl::f(std::make_index_sequence<rightRows>(), left, right))>												\
+				{																													\
+					return Impl::f(std::make_index_sequence<rightRows>(), left, right);												\
 				}
 			FUNCTION_DEFINITION(min)
 			FUNCTION_DEFINITION(max)
