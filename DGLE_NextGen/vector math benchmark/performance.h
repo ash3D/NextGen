@@ -3,17 +3,21 @@
 #include <windows.h>
 #include <ostream>
 
+#if defined _M_X64 || __clang__
+#	define DISABLE_ASM
+#endif
+
 namespace performance {
 	using namespace std;
 
 	DWORD tick_count;
-#ifndef _M_X64
+#ifndef DISABLE_ASM
 	unsigned __int64 cycles_count;
 #endif
 
 	inline void Start(void) {
 		tick_count = GetTickCount();
-#ifndef _M_X64
+#ifndef DISABLE_ASM
 		__asm {
 			rdtsc
 			mov dword ptr cycles_count, eax
@@ -23,7 +27,7 @@ namespace performance {
 	}
 
 	inline void Stop(void) {
-#ifndef _M_X64
+#ifndef DISABLE_ASM
 		__asm {
 			rdtsc
 			sub eax, dword ptr cycles_count
@@ -37,8 +41,10 @@ namespace performance {
 
 	inline void Out(ostream &out) {
 		out << tick_count << " ms";
-#ifndef _M_X64
+#ifndef DISABLE_ASM
 		out << '\n' << cycles_count << " CPU cycles";
 #endif
 	}
 }
+
+#undef DISABLE_ASM
