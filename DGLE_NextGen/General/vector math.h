@@ -4215,7 +4215,6 @@ further investigations needed, including other compilers
 				return !any(src);
 			}
 #endif
-#pragma endregion
 #		pragma endregion TODO: consider bool SWAR (packed specializations for bool vectors/matrices and replace std::all/any/none functions/fold expressions with bit operations)
 
 #		pragma region mul functions
