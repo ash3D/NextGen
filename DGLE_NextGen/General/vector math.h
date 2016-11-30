@@ -409,6 +409,8 @@ further investigations needed, including other compilers
 #		define OP_less			<
 #		define OP_greater_equal	>=
 #		define OP_less_equal	<=
+#		define OP_logical_and	&&
+#		define OP_logical_or	||
 #		define F_2_OP(F) OP_ ## F
 #		define F_2_PAIR(F) F_2_OP(F), F
 
@@ -421,11 +423,11 @@ further investigations needed, including other compilers
 
 #if USE_BOOST_PREPROCESSOR
 #		define ARITHMETIC_OPS (plus)(minus)(multiplies)(divides)
-#		define REL_OPS (equal_to)(not_equal_to)(greater)(less)(greater_equal)(less_equal)
+#		define MASK_OPS (equal_to)(not_equal_to)(greater)(less)(greater_equal)(less_equal)(logical_and)(logical_or)
 #		define OPERATOR_GENERATOR(r, callback, op) GENERATE_OPERATOR(BOOST_PP_TUPLE_ELEM(2, 0, callback), BOOST_PP_TUPLE_ELEM(2, 1, callback)(op))
 #		define GENERATE_OPERATORS(operatorTemplate, adaptor, ops) BOOST_PP_SEQ_FOR_EACH(OPERATOR_GENERATOR, (operatorTemplate, adaptor), ops)
 #		define GENERATE_ARITHMETIC_OPERATORS(operatorTemplate, adaptor) GENERATE_OPERATORS(operatorTemplate, adaptor, ARITHMETIC_OPS)
-#		define GENERATE_REL_OPERATORS(operatorTemplate, adaptor) GENERATE_OPERATORS(operatorTemplate, adaptor, REL_OPS)
+#		define GENERATE_MASK_OPERATORS(operatorTemplate, adaptor) GENERATE_OPERATORS(operatorTemplate, adaptor, MASK_OPS)
 #else
 #		define GENERATE_ARITHMETIC_OPERATORS(operatorTemplate, adaptor)	\
 			GENERATE_OPERATOR(operatorTemplate, adaptor(plus))			\
@@ -433,13 +435,15 @@ further investigations needed, including other compilers
 			GENERATE_OPERATOR(operatorTemplate, adaptor(multiplies))	\
 			GENERATE_OPERATOR(operatorTemplate, adaptor(divides))
 
-#		define GENERATE_REL_OPERATORS(operatorTemplate, adaptor)		\
+#		define GENERATE_MASK_OPERATORS(operatorTemplate, adaptor)		\
 			GENERATE_OPERATOR(operatorTemplate, adaptor(equal_to))		\
 			GENERATE_OPERATOR(operatorTemplate, adaptor(not_equal_to))	\
 			GENERATE_OPERATOR(operatorTemplate, adaptor(greater))		\
 			GENERATE_OPERATOR(operatorTemplate, adaptor(less))			\
 			GENERATE_OPERATOR(operatorTemplate, adaptor(greater_equal))	\
-			GENERATE_OPERATOR(operatorTemplate, adaptor(less_equal))
+			GENERATE_OPERATOR(operatorTemplate, adaptor(less_equal))	\
+			GENERATE_OPERATOR(operatorTemplate, adaptor(logical_and))	\
+			GENERATE_OPERATOR(operatorTemplate, adaptor(logical_or))
 #endif
 
 		namespace Impl
@@ -486,6 +490,8 @@ further investigations needed, including other compilers
 			using std::less;
 			using std::greater_equal;
 			using std::less_equal;
+			using std::logical_and;
+			using std::logical_or;
 			using std::numeric_limits;
 #if INIT_LIST_SUPPORT_TIER > 0
 			using std::initializer_list;
@@ -546,14 +552,14 @@ further investigations needed, including other compilers
 			static constexpr bool IsElementTypeValid = (is_union_v<ElementType> || is_class_v<ElementType> || is_arithmetic_v<ElementType>) && !is_const_v<ElementType> && IsPureScalar<ElementType>;
 
 			template<class F>
-			static constexpr bool IsRelOp = false;
+			static constexpr bool IsMaskOp = false;
 
-#			define IS_REL_OP_SPEC(F)	\
+#			define IS_MASK_OP_SPEC(F)	\
 				template<typename T>	\
-				static constexpr bool IsRelOp<F<T>> = true;
+				static constexpr bool IsMaskOp<F<T>> = true;
 #			define PASS_THROUGH(x) x
-			GENERATE_REL_OPERATORS(IS_REL_OP_SPEC, PASS_THROUGH)
-#			undef IS_REL_OP_SPEC
+			GENERATE_MASK_OPERATORS(IS_MASK_OP_SPEC, PASS_THROUGH)
+#			undef IS_MASK_OP_SPEC
 #			undef PASS_THROUGH
 
 			struct positive
@@ -3214,7 +3220,7 @@ further investigations needed, including other compilers
 						return Impl::SwizzleOpSwizzle(std::make_index_sequence<dimension>(), std::F<>(), left, right);									\
 					}
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
-				GENERATE_REL_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
+				GENERATE_MASK_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
 #				undef OPERATOR_DEFINITION
 
 				namespace Impl
@@ -3253,7 +3259,7 @@ further investigations needed, including other compilers
 						return SwizzleOpScalar(make_index_sequence<LeftSwizzleDesc::dimension>(), F<>(), left, ExtractScalar(right));					\
 					}
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
-				GENERATE_REL_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
+				GENERATE_MASK_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
 #				undef OPERATOR_DEFINITION
 
 				namespace Impl
@@ -3292,7 +3298,7 @@ further investigations needed, including other compilers
 						return ScalarOpSwizzle(make_index_sequence<RightSwizzleDesc::dimension>(), F<>(), ExtractScalar(left), right);					\
 					}
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
-				GENERATE_REL_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
+				GENERATE_MASK_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
 #				undef OPERATOR_DEFINITION
 #			pragma endregion
 
@@ -3457,7 +3463,7 @@ further investigations needed, including other compilers
 						<
 							LeftElementType, leftRows, leftColumns,
 							RightElementType, rightRows, rightColumns,
-							decay_t<decltype(f(declval<LeftElementType>(), declval<RightElementType>()))>, IsRelOp<F>
+							decay_t<decltype(f(declval<LeftElementType>(), declval<RightElementType>()))>, IsMaskOp<F>
 						>
 					{
 						return{ f(left[rowIdx], right[rowIdx])... };
@@ -3485,7 +3491,7 @@ further investigations needed, including other compilers
 						return Impl::MatrixOpMatrix(std::make_index_sequence<std::min(leftRows, rightRows)>(), std::F<>(), left, right);				\
 					}
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
-				GENERATE_REL_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
+				GENERATE_MASK_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
 #				undef OPERATOR_DEFINITION
 
 				namespace Impl
@@ -3504,7 +3510,7 @@ further investigations needed, including other compilers
 						<
 							LeftElementType, leftRows, leftColumns,
 							RightType,
-							decay_t<decltype(f(declval<LeftElementType>(), declval<RightType>()))>, IsRelOp<F>
+							decay_t<decltype(f(declval<LeftElementType>(), declval<RightType>()))>, IsMaskOp<F>
 						>
 					{
 						return{ f(left[rowIdx], right)... };
@@ -3527,7 +3533,7 @@ further investigations needed, including other compilers
 						return Impl::MatrixOpScalar(std::make_index_sequence<leftRows>(), std::F<>(), left, Impl::ExtractScalar(right));				\
 					}
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
-				GENERATE_REL_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
+				GENERATE_MASK_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
 #				undef OPERATOR_DEFINITION
 
 				namespace Impl
@@ -3546,7 +3552,7 @@ further investigations needed, including other compilers
 						<
 							LeftType,
 							RightElementType, rightRows, rightColumns,
-							decay_t<decltype(f(declval<LeftType>(), declval<RightElementType>()))>, IsRelOp<F>
+							decay_t<decltype(f(declval<LeftType>(), declval<RightElementType>()))>, IsMaskOp<F>
 						>
 					{
 						return{ f(left, right[rowIdx])... };
@@ -3569,7 +3575,7 @@ further investigations needed, including other compilers
 						return Impl::ScalarOpMatrix(std::make_index_sequence<rightRows>(), std::F<>(), Impl::ExtractScalar(left), right);				\
 					}
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
-				GENERATE_REL_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
+				GENERATE_MASK_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
 #				undef OPERATOR_DEFINITION
 #			pragma endregion
 
@@ -3722,11 +3728,11 @@ further investigations needed, including other compilers
 							return left op seq;																											\
 						}
 					GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_OP)
-					GENERATE_REL_OPERATORS(OPERATOR_DEFINITION, F_2_OP)
+					GENERATE_MASK_OPERATORS(OPERATOR_DEFINITION, F_2_OP)
 #					undef OPERATOR_DEFINITION
 				}
 
-#				define OPERATOR_DEFINITION(op, IsRelOp)																									\
+#				define OPERATOR_DEFINITION(op, IsMaskOp)																								\
 					template																															\
 					<																																	\
 						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,								\
@@ -3737,7 +3743,7 @@ further investigations needed, including other compilers
 					<																																	\
 						LeftElementType, LeftSwizzleDesc::dimension,																					\
 						RightElementType, rightRows, rightColumns,																						\
-						std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>, IsRelOp							\
+						std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>, IsMaskOp							\
 					>> operator op(																														\
 						const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,											\
 						const matrix<RightElementType, rightRows, rightColumns> &right)																	\
@@ -3747,7 +3753,7 @@ further investigations needed, including other compilers
 #				define ADAPTOR(F) F_2_OP(F), false
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, ADAPTOR)
 #				define ADAPTOR(F) F_2_OP(F), true
-				GENERATE_REL_OPERATORS(OPERATOR_DEFINITION, ADAPTOR)
+				GENERATE_MASK_OPERATORS(OPERATOR_DEFINITION, ADAPTOR)
 #				undef ADAPTOR
 #				undef OPERATOR_DEFINITION
 #else
@@ -3762,7 +3768,7 @@ further investigations needed, including other compilers
 					<																																	\
 						LeftElementType, LeftSwizzleDesc::dimension,																					\
 						RightElementType, rightRows, rightColumns,																						\
-						std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>, Impl::IsRelOp<std::F<>>			\
+						std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>, Impl::IsMaskOp<std::F<>>			\
 					>> operator op(																														\
 						const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,											\
 						const matrix<RightElementType, rightRows, rightColumns> &right)																	\
@@ -3773,7 +3779,7 @@ further investigations needed, including other compilers
 						return left op seq;																												\
 					}
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
-				GENERATE_REL_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
+				GENERATE_MASK_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
 #				undef OPERATOR_DEFINITION
 #endif
 
@@ -3797,11 +3803,11 @@ further investigations needed, including other compilers
 							return seq op right;																										\
 						}
 					GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_OP)
-					GENERATE_REL_OPERATORS(OPERATOR_DEFINITION, F_2_OP)
+					GENERATE_MASK_OPERATORS(OPERATOR_DEFINITION, F_2_OP)
 #					undef OPERATOR_DEFINITION
 				}
 
-#				define OPERATOR_DEFINITION(op, IsRelOp)																									\
+#				define OPERATOR_DEFINITION(op, IsMaskOp)																								\
 					template																															\
 					<																																	\
 						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,														\
@@ -3812,7 +3818,7 @@ further investigations needed, including other compilers
 					<																																	\
 						LeftElementType, leftRows, leftColumns,																							\
 						RightElementType, RightSwizzleDesc::dimension,																					\
-						std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>, IsRelOp							\
+						std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>, IsMaskOp							\
 					>> operator op(																														\
 						const matrix<LeftElementType, leftRows, leftColumns> &left,																		\
 						const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)										\
@@ -3822,7 +3828,7 @@ further investigations needed, including other compilers
 #				define ADAPTOR(F) F_2_OP(F), false
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, ADAPTOR)
 #				define ADAPTOR(F) F_2_OP(F), true
-				GENERATE_REL_OPERATORS(OPERATOR_DEFINITION, ADAPTOR)
+				GENERATE_MASK_OPERATORS(OPERATOR_DEFINITION, ADAPTOR)
 #				undef ADAPTOR
 #				undef OPERATOR_DEFINITION
 #else
@@ -3837,7 +3843,7 @@ further investigations needed, including other compilers
 					<																																	\
 						LeftElementType, leftRows, leftColumns,																							\
 						RightElementType, RightSwizzleDesc::dimension,																					\
-						std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>, Impl::IsRelOp<std::F<>>			\
+						std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>, Impl::IsMaskOp<std::F<>>			\
 					>> operator op(																														\
 						const matrix<LeftElementType, leftRows, leftColumns> &left,																		\
 						const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)										\
@@ -3848,7 +3854,7 @@ further investigations needed, including other compilers
 						return seq op right;																											\
 					}
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
-				GENERATE_REL_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
+				GENERATE_MASK_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
 #				undef OPERATOR_DEFINITION
 #endif
 #			pragma endregion
@@ -4975,7 +4981,7 @@ further investigations needed, including other compilers
 					const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,									\
 					const matrix<RightElementType, rightRows, rightColumns> &right);
 			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION, F_2_OP)
-			GENERATE_REL_OPERATORS(OPERATOR_DECLARATION, F_2_OP)
+			GENERATE_MASK_OPERATORS(OPERATOR_DECLARATION, F_2_OP)
 #			undef OPERATOR_DECLARATION
 #else
 #			define OPERATOR_DECLARATION(op, F)																								\
@@ -4989,12 +4995,12 @@ further investigations needed, including other compilers
 				<																															\
 					LeftElementType, LeftSwizzleDesc::dimension,																			\
 					RightElementType, rightRows, rightColumns,																				\
-					std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>, Impl::IsRelOp<std::F<>>	\
+					std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>, Impl::IsMaskOp<std::F<>>	\
 				>> operator op(																												\
 					const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,									\
 					const matrix<RightElementType, rightRows, rightColumns> &right);
 			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION, F_2_PAIR)
-			GENERATE_REL_OPERATORS(OPERATOR_DECLARATION, F_2_PAIR)
+			GENERATE_MASK_OPERATORS(OPERATOR_DECLARATION, F_2_PAIR)
 #			undef OPERATOR_DECLARATION
 #endif
 
@@ -5010,7 +5016,7 @@ further investigations needed, including other compilers
 					const matrix<LeftElementType, leftRows, leftColumns> &left,																\
 					const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right);
 			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION, F_2_OP)
-			GENERATE_REL_OPERATORS(OPERATOR_DECLARATION, F_2_OP)
+			GENERATE_MASK_OPERATORS(OPERATOR_DECLARATION, F_2_OP)
 #			undef OPERATOR_DECLARATION
 #else
 #			define OPERATOR_DECLARATION(op, F)																								\
@@ -5024,12 +5030,12 @@ further investigations needed, including other compilers
 				<																															\
 					LeftElementType, leftRows, leftColumns,																					\
 					RightElementType, RightSwizzleDesc::dimension,																			\
-					std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>, Impl::IsRelOp<std::F<>>	\
+					std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>, Impl::IsMaskOp<std::F<>>	\
 				>> operator op(																												\
 					const matrix<LeftElementType, leftRows, leftColumns> &left,																\
 					const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right);
 			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION, F_2_PAIR)
-			GENERATE_REL_OPERATORS(OPERATOR_DECLARATION, F_2_PAIR)
+			GENERATE_MASK_OPERATORS(OPERATOR_DECLARATION, F_2_PAIR)
 #			undef OPERATOR_DECLARATION
 #endif
 #pragma endregion
@@ -5557,6 +5563,8 @@ further investigations needed, including other compilers
 #		undef OP_less
 #		undef OP_greater_equal
 #		undef OP_less_equal
+#		undef OP_logical_and
+#		undef OP_logical_or
 #		undef F_2_OP
 #		undef F_2_PAIR
 
@@ -5567,12 +5575,12 @@ further investigations needed, including other compilers
 
 #if USE_BOOST_PREPROCESSOR
 #		undef ARITHMETIC_OPS
-#		undef REL_OPS
+#		undef MASK_OPS
 #		undef OPERATOR_GENERATOR
 #		undef GENERATE_OPERATORS
 #endif
 #		undef GENERATE_ARITHMETIC_OPERATORS
-#		undef GENERATE_REL_OPERATORS
+#		undef GENERATE_MASK_OPERATORS
 	}
 
 	// std specializations\
