@@ -2472,7 +2472,7 @@ further investigations needed, including other compilers
 				-> enable_if_t<(WARHazard && SrcSwizzleDesc::dimension > 1), TOperationResult &>
 			{
 				// make copy and call direct assignment
-				return operator =<false>(vector<SrcElementType, SrcSwizzleDesc::dimension>(src));
+				return operator =<false>(vector<SrcElementType, SwizzleDesc::dimension>(src));
 			}
 
 #ifndef MSVC_LIMITATIONS
@@ -2971,7 +2971,7 @@ further investigations needed, including other compilers
 						Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,													\
 						const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)										\
 					{																																	\
-						return operator op##=<false>(left, vector<RightElementType, RightSwizzleDesc::dimension>(right));								\
+						return operator op##=<false>(left, vector<RightElementType, LeftSwizzleDesc::dimension>(right));								\
 					}
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_OP)
 #				undef OPERATOR_DEFINITION
