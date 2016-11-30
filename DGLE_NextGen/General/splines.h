@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.11.2016 (c)Korotkov Andrey
+\date		01.12.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -222,8 +222,13 @@ namespace Math::Splines
 		void Tessellate(Iterator output, ScalarType delta, bool emitFirstPoint = true) const;
 
 	private:
-		template<typename Iterator>
-		static void Subdiv(Iterator output, ScalarType delta, const ControlPoints &controlPoints);
+#if !(defined _MSC_VER && _MSC_VER <= 1900)
+		template<size_t ...idx>
+		typename ControlPoints::value_type operator ()(ScalarType u, std::index_sequence<idx...>) const;
+#endif
+
+		template<typename Iterator, size_t ...idx>
+		static void Subdiv(Iterator output, ScalarType delta, const ControlPoints &controlPoints, std::index_sequence<idx...> = std::make_index_sequence<degree >= 1 ? degree - 1 : 0>());
 
 	private:
 		ControlPoints controlPoints;

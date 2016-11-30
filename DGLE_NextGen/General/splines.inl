@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.11.2016 (c)Korotkov Andrey
+\date		01.12.2016 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -301,10 +301,25 @@ controlPoints{ std::forward<Points>(controlPoints)... }
 	static_assert(sizeof...(Points) <= cout, "too many control points");
 }
 
-// consider using variadic template to unroll loop
+#if !(defined _MSC_VER && _MSC_VER <= 1900)
+template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
+template<size_t ...idx>
+inline auto Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::operator ()(ScalarType u, std::index_sequence<idx...>) const -> typename ControlPoints::value_type
+{
+	static_assert(degree >= 2);
+	ScalarType factor1 = u;
+	const ScalarType factors2[degree] = { 1 - u, factors2[idx] * factors2[0] ... };
+	using Combinatorics::C;
+	return C<degree, 0> * factors2[degree - 1] * controlPoints[0] +
+		C<degree, 1> * factor1 * factors2[degree - 2] * controlPoints[1] +
+		(C<degree, idx + 2> * (factor1 *= u) * factors2[degree - 3 - idx] * controlPoints[2 + idx] + ... + C<degree, degree> * factor1 * u * controlPoints[degree]);
+}
+#endif
+
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
 auto Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::operator ()(ScalarType u) const -> typename ControlPoints::value_type
 {
+#if defined _MSC_VER && _MSC_VER <= 1900
 	ScalarType factor1 = 1, factors2[degree + 1];
 	factors2[degree] = 1;
 	for (signed i = degree - 1; i >= 0; i--)
@@ -313,6 +328,14 @@ auto Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::operator
 	for (unsigned i = 0; i <= degree; i++, factor1 *= u)
 		result += boost::math::binomial_coefficient<ScalarType>(degree, i) * factor1 * factors2[i] * controlPoints[i];
 	return result;
+#else
+	if constexpr (degree == 0)
+		return controlPoints[0];
+	else if constexpr (degree == 1)
+		return lerp(controlPoints[0], controlPoints[1], u);
+	else
+		return operator ()(u, std::make_index_sequence<degree - 2>());
+#endif
 }
 
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
@@ -324,8 +347,8 @@ void Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::Tessella
 }
 
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
-template<typename Iterator>
-void Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::Subdiv(Iterator output, ScalarType delta, const ControlPoints &controlPoints)
+template<typename Iterator, size_t ...idx>
+void Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::Subdiv(Iterator output, ScalarType delta, const ControlPoints &controlPoints, std::index_sequence<idx...>)
 {
 	// TODO: move to Math
 	const auto point_line_dist = [](typename ControlPoints::const_reference point, typename ControlPoints::const_reference lineBegin, typename ControlPoints::const_reference lineEnd) -> ScalarType
@@ -338,12 +361,16 @@ void Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::Subdiv(I
 
 	const auto stop_test = [&point_line_dist, &controlPoints, delta]() -> bool
 	{
+#if defined _MSC_VER && _MSC_VER <= 1900
 		for (unsigned i = 1; i < degree; i++)
 		{
 			if (point_line_dist(controlPoints[i], controlPoints[0], controlPoints[degree]) > delta)
 				return false;
 		}
 		return true;
+#else
+		return (point_line_dist(controlPoints[idx + 1], controlPoints[0], controlPoints[degree]) > delta || ...);
+#endif
 	};
 
 	if (stop_test())
