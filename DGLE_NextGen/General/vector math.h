@@ -4237,7 +4237,7 @@ further investigations needed, including other compilers
 				inline auto mul(index_sequence<idx...> seq,
 					const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,
 					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)
-					-> typename enable_if_t<i < sizeof...(idx), SwizzleMulSwizzleResult<i, index_sequence<idx...>, decltype(left), decltype(right)>>::type
+					-> typename enable_if_t<i < sizeof...(idx) - 1, SwizzleMulSwizzleResult<i, index_sequence<idx...>, decltype(left), decltype(right)>>::type
 				{
 					return left[i] * right[i] + mul<i + 1>(seq, left, right);
 				}
@@ -4249,11 +4249,12 @@ further investigations needed, including other compilers
 					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,
 					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc
 				>
-				inline enable_if_t<i == sizeof...(idx), std::common_type_t<LeftElementType, RightElementType>> mul(index_sequence<idx...>,
+				inline auto mul(index_sequence<idx...>,
 					const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,
 					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)
+					-> enable_if_t<i == sizeof...(idx) - 1, decltype(left[i] * right[i])>
 				{
-					return 0;
+					return left[i] * right[i];
 				}
 #else
 				template
