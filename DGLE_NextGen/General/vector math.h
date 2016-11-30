@@ -5234,8 +5234,6 @@ further investigations needed, including other compilers
 #		pragma endregion TODO: consider bool SWAR (packed specializations for bool vectors/matrices and replace std::all/any/none functions/fold expressions with bit operations)
 
 #		pragma region mul functions
-			// note: most of these functions are not inline
-
 			template
 			<
 				typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,
@@ -5412,7 +5410,7 @@ further investigations needed, including other compilers
 					return mul(left, right);
 				}
 #			pragma endregion
-#		pragma endregion
+#		pragma endregion note: most of these functions are not inline
 
 #		undef OP_plus
 #		undef OP_minus
