@@ -487,8 +487,6 @@ further investigations needed, including other compilers
 			using std::greater_equal;
 			using std::less_equal;
 			using std::numeric_limits;
-			using std::iterator;
-			using std::forward_iterator_tag;
 #if INIT_LIST_SUPPORT_TIER > 0
 			using std::initializer_list;
 #endif
@@ -2689,7 +2687,7 @@ further investigations needed, including other compilers
 
 #ifdef MSVC_LIMITATIONS
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			class CSwizzleIteratorImpl : public iterator<forward_iterator_tag, const ElementType>
+			class CSwizzleIteratorImpl : public std::iterator<std::forward_iterator_tag, const ElementType>
 			{
 				const CSwizzle<ElementType, rows, columns, SwizzleDesc> &swizzle;
 				unsigned i;
