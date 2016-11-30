@@ -83,6 +83,7 @@ int main(int argc, _TCHAR *argv[])
 	m5x4 + 2;
 	2 + m5x4;
 	float2x3 M = float4x4(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+	mul(M, M);
 	vec3.x = M;
 	vec3.x += M;
 	float1x1 _1x1;
