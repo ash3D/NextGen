@@ -693,36 +693,24 @@ further investigations needed, including other compilers
 
 			private:
 #ifdef MSVC_LIMITATIONS
-				template<TPackedSwizzle shiftedHead, TPackedSwizzle ...shiftedTail>
-				static constexpr TPackedSwizzle Packer = shiftedHead | Packer<shiftedTail...>;
-
-				// terminator
-				template<TPackedSwizzle shiftedLast>
-				static constexpr TPackedSwizzle Packer<shiftedLast> = shiftedLast;
-#else
-				template<TPackedSwizzle ...shiftedSeq>
-				static constexpr TPackedSwizzle Packer = (shiftedSeq | ...);
-#endif
-
-#ifdef MSVC_LIMITATIONS
 				template<unsigned int shift, TPackedSwizzle swizzleHead, TPackedSwizzle ...swizzleTail>
-				static constexpr TPackedSwizzle MakePackedSwizzle = swizzleHead << shift | MakePackedSwizzle<shift + 4u, swizzleTail...>;
+				static constexpr TPackedSwizzle PackSwizzleSeq = swizzleHead << shift | PackSwizzleSeq<shift + 4u, swizzleTail...>;
 
 				template<unsigned int shift, TPackedSwizzle swizzleLast>
-				static constexpr TPackedSwizzle MakePackedSwizzle<shift, swizzleLast> = swizzleLast << shift;
+				static constexpr TPackedSwizzle PackSwizzleSeq<shift, swizzleLast> = swizzleLast << shift;
 #else
 				template<typename IdxSeq>
-				static constexpr TPackedSwizzle MakePackedSwizzle = 0;
+				static constexpr TPackedSwizzle PackSwizzleSeq = 0;
 
 				template<unsigned int ...idxSeq>
-				static constexpr TPackedSwizzle MakePackedSwizzle<integer_sequence<unsigned int, idxSeq...>> = Packer<TPackedSwizzle(swizzleSeq) << idxSeq * 4u ...>;
+				static constexpr TPackedSwizzle PackSwizzleSeq<integer_sequence<unsigned int, idxSeq...>> = ((TPackedSwizzle(swizzleSeq) << idxSeq * 4u) | ...);
 #endif
 
 			private:
 #ifdef MSVC_LIMITATIONS
-				static constexpr TPackedSwizzle packedSwizzle = MakePackedSwizzle<0u, swizzleSeq...>;
+				static constexpr TPackedSwizzle packedSwizzle = PackSwizzleSeq<0u, swizzleSeq...>;
 #else
-				static constexpr TPackedSwizzle packedSwizzle = MakePackedSwizzle<make_integer_sequence<unsigned int, dimension>>;
+				static constexpr TPackedSwizzle packedSwizzle = PackSwizzleSeq<make_integer_sequence<unsigned int, dimension>>;
 #endif
 
 			public:
