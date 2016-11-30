@@ -556,6 +556,12 @@ further investigations needed, including other compilers
 #			undef IS_REL_OP_SPEC
 #			undef PASS_THROUGH
 
+			struct positive
+			{
+				template<typename Src>
+				constexpr auto operator ()(const Src &src) const { return src; }
+			};
+
 			struct plus_assign
 			{
 				template<typename Dst, typename Src>
@@ -2592,21 +2598,16 @@ further investigations needed, including other compilers
 				//}
 
 			private:
-				template<size_t ...idx>
-				inline auto Pos(index_sequence<idx...>) const
+				template<size_t ...idx, class F>
+				inline auto Op(index_sequence<idx...>, F f) const
 				{
-					return vector<decay_t<decltype(+declval<ElementType>())>, SwizzleDesc::dimension>(+(*this)[idx]...);
-				}
-
-				template<size_t ...idx>
-				inline auto Neg(index_sequence<idx...>) const
-				{
-					return vector<decay_t<decltype(-declval<ElementType>())>, SwizzleDesc::dimension>(-(*this)[idx]...);
+					return vector<decay_t<decltype(f(declval<ElementType>()))>, SwizzleDesc::dimension>(f((*this)[idx])...);
 				}
 
 			public:
 				auto operator +() const;
 				auto operator -() const;
+				auto operator !() const;
 
 			public:
 				template<typename F>
@@ -2642,13 +2643,19 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			inline auto CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>::operator +() const
 			{
-				return Pos(std::make_index_sequence<SwizzleDesc::dimension>());
+				return Op(make_index_sequence<SwizzleDesc::dimension>(), positive());
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			inline auto CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>::operator -() const
 			{
-				return Neg(std::make_index_sequence<SwizzleDesc::dimension>());
+				return Op(make_index_sequence<SwizzleDesc::dimension>(), std::negate<>());
+			}
+
+			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
+			inline auto CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>::operator !() const
+			{
+				return Op(make_index_sequence<SwizzleDesc::dimension>(), std::logical_not<>());
 			}
 
 #ifdef MSVC_NAMESPACE_WORKAROUND
@@ -4647,8 +4654,14 @@ further investigations needed, including other compilers
 #endif
 #endif
 
+		private:
+			template<size_t ...idx, class F>
+			inline auto Op(std::index_sequence<idx...>, F f) const;
+
+		public:
 			auto operator +() const;
 			auto operator -() const;
+			auto operator !() const;
 
 		private:
 #ifdef MSVC_LIMITATIONS
@@ -4860,13 +4873,6 @@ further investigations needed, including other compilers
 		private:
 			template<typename F, size_t ...rowIdx>
 			inline matrix<std::result_of_t<F &(ElementType)>, rows, columns> apply(F f, std::index_sequence<rowIdx...>) const;
-
-		private:
-			template<size_t ...idx>
-			inline auto Pos(std::index_sequence<idx...>) const;
-
-			template<size_t ...idx>
-			inline auto Neg(std::index_sequence<idx...>) const;
 
 			// hide data in private and expose it from dependent base to allow for unqualified lookup
 		private:
@@ -5334,29 +5340,28 @@ further investigations needed, including other compilers
 #endif
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			template<size_t ...idx>
-			inline auto matrix<ElementType, rows, columns>::Pos(std::index_sequence<idx...>) const
+			template<size_t ...idx, class F>
+			inline auto matrix<ElementType, rows, columns>::Op(std::index_sequence<idx...>, F f) const
 			{
-				return matrix<std::decay_t<decltype(+std::declval<ElementType>())>, rows, columns>(+operator [](idx)...);
-			}
-
-			template<typename ElementType, unsigned int rows, unsigned int columns>
-			template<size_t ...idx>
-			inline auto matrix<ElementType, rows, columns>::Neg(std::index_sequence<idx...>) const
-			{
-				return matrix<std::decay_t<decltype(-std::declval<ElementType>())>, rows, columns>(-operator [](idx)...);
+				return matrix<std::decay_t<decltype(f(std::declval<ElementType>()))>, rows, columns>(f(operator [](idx))...);
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			inline auto matrix<ElementType, rows, columns>::operator +() const
 			{
-				return Pos(IdxSeq());
+				return Op(IdxSeq(), Impl::positive());
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			inline auto matrix<ElementType, rows, columns>::operator -() const
 			{
-				return Neg(IdxSeq());
+				return Op(IdxSeq(), std::negate<>());
+			}
+
+			template<typename ElementType, unsigned int rows, unsigned int columns>
+			inline auto matrix<ElementType, rows, columns>::operator !() const
+			{
+				return Op(IdxSeq(), std::logical_not<>());
 			}
 
 #ifdef MSVC_LIMITATIONS
