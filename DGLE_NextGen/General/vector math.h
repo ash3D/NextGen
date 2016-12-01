@@ -565,7 +565,7 @@ further investigations needed, including other compilers
 			struct positive
 			{
 				template<typename Src>
-				constexpr auto operator ()(const Src &src) const { return src; }
+				constexpr auto operator ()(const Src &src) const { return +src; }
 			};
 
 			struct plus_assign
