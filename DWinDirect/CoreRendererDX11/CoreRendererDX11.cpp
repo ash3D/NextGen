@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		01.07.2016 (c)Andrey Korotkov
+\date		29.12.2016 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -10,8 +10,13 @@ See "DGLE.h" for more details.
 #include "CoreRendererDX11.h"
 #include <dxgi1_3.h>
 
-#define DEVTYPE D3DDEVTYPE_HAL
-//#define DEVTYPE D3DDEVTYPE_REF
+#define USE_REF_DEVICE		0
+
+#if USE_REF_DEVICE
+#	define DEVTYPE D3DDEVTYPE_REF
+#else
+#	define DEVTYPE D3DDEVTYPE_HAL
+#endif
 
 using namespace std;
 using WRL::ComPtr;
@@ -2358,8 +2363,8 @@ DGLE_RESULT DGLE_API CCoreRendererDX11::SetRenderTarget(ICoreTexture *pTexture)
 						AssertHR(_curRenderTarget->GetTex()->GetSurfaceLevel(0, &resolved_surface));
 						CheckHR(_device->StretchRect(offscreen_target.Get(), NULL, resolved_surface.Get(), NULL, D3DTEXF_NONE));
 					}
-#					ifndef SYNC_RT_TEX_LAZY
-					_curRenderTarget->SyncRT();
+#					if !SYNC_RT_TEX_LAZY
+						_curRenderTarget->SyncRT();
 #					endif
 				}
 				else

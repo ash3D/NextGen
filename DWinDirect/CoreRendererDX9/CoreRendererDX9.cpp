@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		01.07.2016 (c)Andrey Korotkov
+\date		29.12.2016 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -10,10 +10,14 @@ See "DGLE.h" for more details.
 #include "CoreRendererDX9.h"
 #include <d3dx9.h>
 
-#define DEVTYPE D3DDEVTYPE_HAL
-//#define DEVTYPE D3DDEVTYPE_REF
+#define USE_REF_DEVICE		0
+#define SYNC_RT_TEX_LAZY	1
 
-#define SYNC_RT_TEX_LAZY
+#if USE_REF_DEVICE
+#	define DEVTYPE D3DDEVTYPE_REF
+#else
+#	define DEVTYPE D3DDEVTYPE_HAL
+#endif
 
 using namespace std;
 
@@ -2588,7 +2592,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::SetRenderTarget(ICoreTexture *pTexture)
 						AssertHR(_curRenderTarget->GetTex()->GetSurfaceLevel(0, &resolved_surface));
 						CheckHR(_device->StretchRect(offscreen_target, NULL, resolved_surface, NULL, D3DTEXF_NONE));
 					}
-#					ifndef SYNC_RT_TEX_LAZY
+#					if !SYNC_RT_TEX_LAZY
 						_curRenderTarget->SyncRT();
 #					endif
 				}
