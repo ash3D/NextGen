@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		01.04.2016 (c)Andrey Korotkov
+\date		31.12.2016 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -10,6 +10,20 @@ See "DGLE.h" for more details.
 #pragma once
 
 #include "Common.h"
+#if defined _MSC_VER && _MSC_VER <= 1900
+#include <boost/version.hpp>
+#include <boost/optional.hpp>
+#if BOOST_VERSION < 106300
+#error Old boost version. 1.63.0 or later required
+#endif
+namespace std_boost = boost;
+#else
+#include <optional>
+namespace std_boost = std;
+#endif
+#include <vector>
+#include <deque>
+#include <tuple>
 
 //#define SAVE_ALL_STATES
 
@@ -44,6 +58,8 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	bool _NPOTTexSupport, _NSQTexSupport, _mipmapSupport, _anisoSupport;
 
 	TMatrix4x4 _projXform = MatrixIdentity();
+
+	int _profilerState = 0;
 
 	CBroadcast<> _frameEndBroadcast, _clearBroadcast, _cleanBroadcast;
 	CBroadcast<const IDirect3DDevice9Ptr &> _restoreBroadcast;
@@ -258,6 +274,193 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		IDirect3DSurface9Ptr Get(IDirect3DDevice9 *device, UINT width, UINT height, D3DMULTISAMPLE_TYPE MSAA);
 	} _offscreenDepth{ *this };
 
+	template<D3DQUERYTYPE type>
+	struct QueryTypeTraits;
+
+	template<>
+	struct QueryTypeTraits<D3DQUERYTYPE_TIMESTAMP>
+	{
+		typedef UINT64 TResult;
+		static constexpr bool isRanged = false;
+	};
+
+	template<>
+	struct QueryTypeTraits<D3DQUERYTYPE_TIMESTAMPDISJOINT>
+	{
+		typedef BOOL TResult;
+		static constexpr bool isRanged = true;
+	};
+
+	template<>
+	struct QueryTypeTraits<D3DQUERYTYPE_TIMESTAMPFREQ>
+	{
+		typedef UINT64 TResult;
+		static constexpr bool isRanged = false;
+	};
+
+	template<>
+	struct QueryTypeTraits<D3DQUERYTYPE_PIPELINETIMINGS>
+	{
+		typedef D3DDEVINFO_D3D9PIPELINETIMINGS TResult;
+		static constexpr bool isRanged = true;
+	};
+
+	template<>
+	struct QueryTypeTraits<D3DQUERYTYPE_INTERFACETIMINGS>
+	{
+		typedef D3DDEVINFO_D3D9INTERFACETIMINGS TResult;
+		static constexpr bool isRanged = true;
+	};
+
+	template<>
+	struct QueryTypeTraits<D3DQUERYTYPE_VERTEXTIMINGS>
+	{
+		typedef D3DDEVINFO_D3D9STAGETIMINGS TResult;
+		static constexpr bool isRanged = true;
+	};
+
+	template<>
+	struct QueryTypeTraits<D3DQUERYTYPE_PIXELTIMINGS>
+	{
+		typedef D3DDEVINFO_D3D9STAGETIMINGS TResult;
+		static constexpr bool isRanged = true;
+	};
+
+	template<>
+	struct QueryTypeTraits<D3DQUERYTYPE_BANDWIDTHTIMINGS>
+	{
+		typedef D3DDEVINFO_D3D9BANDWIDTHTIMINGS TResult;
+		static constexpr bool isRanged = true;
+	};
+
+	template<>
+	struct QueryTypeTraits<D3DQUERYTYPE_CACHEUTILIZATION>
+	{
+		typedef D3DDEVINFO_D3D9CACHEUTILIZATION TResult;
+		static constexpr bool isRanged = true;
+	};
+
+	template<D3DQUERYTYPE type>
+	class CQuery;
+
+	class CQueryPool
+	{
+		std::vector<IDirect3DQuery9Ptr> _pool;
+	public:
+		CQueryPool() = default;
+		CQueryPool(CQueryPool &) = delete;
+		void operator =(CQueryPool &) = delete;
+	private:
+		IDirect3DQuery9Ptr _GetQuery(IDirect3DDevice9 *device, D3DQUERYTYPE type);
+	public:
+		template<D3DQUERYTYPE type>
+		CQuery<type> GetQuery(IDirect3DDevice9 *device) { return _GetQuery(device, type); }
+		void Clear() { _pool.clear(); }
+	} _GPUTimeQueryPool;
+
+	class CQueryBase
+	{
+		IDirect3DQuery9Ptr _query;
+	protected:
+		CQueryBase() = default;
+		CQueryBase(IDirect3DQuery9Ptr &&ptr) : _query(std::move(ptr)) {}
+		CQueryBase(CQueryBase &&) = default;
+		CQueryBase &operator =(CQueryBase &&) = default;
+		~CQueryBase() = default;
+	public:
+		operator bool() const noexcept { return _query; }
+		void Start(), Stop();
+		bool Ready() noexcept;
+		void Destroy() { _query = nullptr; }
+	protected:
+		bool _GetData(void *dst, DWORD size) noexcept;
+	};
+
+	template<typename TResult>
+	class CQueryAccess : public CQueryBase
+	{
+		using CQueryBase::CQueryBase;
+	public:
+		std_boost::optional<TResult> GetData() noexcept;
+	};
+
+	template<typename TResult>
+	class CPointQuery : public CQueryAccess<TResult>
+	{
+		using CQueryAccess::CQueryAccess;
+		using CQueryBase::Start;
+		using CQueryBase::Stop;
+	public:
+		void Issue() { Stop(); }
+	};
+
+	template<D3DQUERYTYPE type>
+	using SelectQuery = std::conditional_t<QueryTypeTraits<type>::isRanged,
+		CQueryAccess<typename QueryTypeTraits<type>::TResult>,
+		CPointQuery<typename QueryTypeTraits<type>::TResult>>;
+
+	template<D3DQUERYTYPE type>
+	class CQuery final : public SelectQuery<type>
+	{
+		friend class CQueryPool;
+		CQuery(IDirect3DQuery9Ptr &&ptr) : SelectQuery<type>(std::move(ptr)) {}
+	public:
+		CQuery() = default;
+	};
+
+	template<D3DQUERYTYPE ...types>
+	using QueryPack = std::tuple<CQuery<types>...>;
+
+	template<D3DQUERYTYPE type, class Pack>
+	static inline decltype(auto) _GetQuery(Pack &&pack) noexcept
+	{
+		return std::get<CQuery<type>>(std::forward<Pack>(pack));
+	}
+
+#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef __cpp_lib_apply
+	template<D3DQUERYTYPE firstType, D3DQUERYTYPE ...restTypes>
+	static void _DestroyQueriesImpl(CQuery<firstType> &head, CQuery<restTypes> &...tail);
+
+	// terminator
+	static inline void _DestroyQueriesImpl() {}
+#else
+	template<D3DQUERYTYPE firstType, D3DQUERYTYPE ...restTypes, class Pack>
+	static void _DestroyQueriesImpl(Pack &pack);
+
+	// terminator
+	template<class Pack>
+	static inline void _DestroyQueriesImpl(Pack &) {}
+#endif
+#endif
+
+	template<D3DQUERYTYPE ...types>
+	static void _DestroyQueries(QueryPack<types...> &pack);
+
+	template<D3DQUERYTYPE ...types>
+	class CQueryQueue
+	{
+		std::deque<QueryPack<types...>> _queue;
+	public:
+		typedef typename std::enable_if_t<true, decltype(_queue)>::value_type TItem;
+	private:
+#if !(defined _MSC_VER && _MSC_VER <= 1900)
+		template<size_t ...idx>
+		bool _Ready(std::index_sequence<idx...>) noexcept;
+#endif
+		template<size_t ...idx>
+		auto _GetData(std::index_sequence<idx...>);
+	public:
+		void Insert(TItem &&pack);
+		std_boost::optional<std::tuple<typename QueryTypeTraits<types>::TResult...>> Extract();
+		void Clear() { _queue.clear(); }
+	};
+	
+	CQueryQueue<D3DQUERYTYPE_TIMESTAMP, D3DQUERYTYPE_TIMESTAMP, D3DQUERYTYPE_TIMESTAMPFREQ, D3DQUERYTYPE_TIMESTAMPDISJOINT> _GPUTimeQueryQueue;
+	CQuery<D3DQUERYTYPE_TIMESTAMP> _startGPUTimeQuery;
+	QueryPack<D3DQUERYTYPE_TIMESTAMPFREQ, D3DQUERYTYPE_TIMESTAMPDISJOINT> _GPUTimeFreqQuery;
+	std_boost::optional<float> _lastGPUTime;
+
 	static constexpr D3DFORMAT _offscreenDepthFormat = D3DFMT_D24S8;
 	CCoreTexture *_curRenderTarget = nullptr;
 	IDirect3DSurface9Ptr _screenColorTarget, _screenDepthTarget;
@@ -463,6 +666,9 @@ private:
 
 	D3DPRESENT_PARAMETERS _GetPresentParams(TEngineWindow &wnd) const;
 	void _ConfigureWindow(const TEngineWindow &wnd, DGLE_RESULT &res);
+	HRESULT _BeginScene();
+	void _AbortProfiling();
+	void _PrifilerStartFrame(), _ProfilerStopFrame();
 
 	void _SetProjXform();
 

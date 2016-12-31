@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		29.12.2016 (c)Andrey Korotkov
+\date		31.12.2016 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -12,6 +12,7 @@ See "DGLE.h" for more details.
 
 #define USE_REF_DEVICE		0
 #define SYNC_RT_TEX_LAZY	1
+#define CHECK_ALL_QUERIES	0
 
 #if USE_REF_DEVICE
 #	define DEVTYPE D3DDEVTYPE_REF
@@ -19,7 +20,13 @@ See "DGLE.h" for more details.
 #	define DEVTYPE D3DDEVTYPE_HAL
 #endif
 
+#define PROFILER_CMD_NAME "crdx9_profiler"
+
 using namespace std;
+#if defined _MSC_VER && _MSC_VER <= 1900
+using boost::optional;
+using boost::none;
+#endif
 
 const IDirect3D9Ptr d3d(Direct3DCreate9(D3D_SDK_VERSION));
 
@@ -51,6 +58,12 @@ namespace
 		// rely on NRVO
 		return surface_desc;
 	}
+}
+
+static inline bool Unused(IUnknown *object)
+{
+	object->AddRef();
+	return object->Release() == 1;
 }
 
 #pragma region geometry
@@ -1782,6 +1795,69 @@ void CCoreRendererDX9::_ConfigureWindow(const TEngineWindow &wnd, DGLE_RESULT &r
 	}
 }
 
+HRESULT CCoreRendererDX9::_BeginScene()
+{
+	const HRESULT hr = _device->BeginScene();
+	if (FAILED(hr)) return hr;
+	
+	_PrifilerStartFrame();
+
+	return hr;
+}
+
+void CCoreRendererDX9::_AbortProfiling()
+{
+	LOG("Fail to launch profiler queries. Disabling profiler...", LT_ERROR);
+	AssertHR(_engineCore.ConsoleExecute(PROFILER_CMD_NAME" 0"));
+	_startGPUTimeQuery.Destroy();
+	_DestroyQueries(_GPUTimeFreqQuery);
+}
+
+void CCoreRendererDX9::_PrifilerStartFrame()
+{
+	if (_profilerState)
+		try
+		{
+			_GetQuery<D3DQUERYTYPE_TIMESTAMPDISJOINT>(_GPUTimeFreqQuery) = _GPUTimeQueryPool.GetQuery<D3DQUERYTYPE_TIMESTAMPDISJOINT>(_device);
+			_GetQuery<D3DQUERYTYPE_TIMESTAMPFREQ>(_GPUTimeFreqQuery) = _GPUTimeQueryPool.GetQuery<D3DQUERYTYPE_TIMESTAMPFREQ>(_device);
+			_startGPUTimeQuery = _GPUTimeQueryPool.GetQuery<D3DQUERYTYPE_TIMESTAMP>(_device);
+
+			_GetQuery<D3DQUERYTYPE_TIMESTAMPDISJOINT>(_GPUTimeFreqQuery).Start();
+			_GetQuery<D3DQUERYTYPE_TIMESTAMPFREQ>(_GPUTimeFreqQuery).Issue();
+			_startGPUTimeQuery.Issue();
+		}
+		catch (...)
+		{
+			_AbortProfiling();
+		}
+	else
+	{
+		_GPUTimeQueryQueue.Clear();
+		_GPUTimeQueryPool.Clear();
+#if defined _MSC_VER && _MSC_VER <= 1900
+		_lastGPUTime = none;
+#else
+		_lastGPUTime = nullopt;
+#endif
+	}
+}
+
+void CCoreRendererDX9::_ProfilerStopFrame()
+{
+	if (_startGPUTimeQuery)
+		try
+		{
+			auto stopGPUTimeQuery = _GPUTimeQueryPool.GetQuery<D3DQUERYTYPE_TIMESTAMP>(_device);
+			stopGPUTimeQuery.Issue();
+			_GetQuery<D3DQUERYTYPE_TIMESTAMPDISJOINT>(_GPUTimeFreqQuery).Stop();
+			_GPUTimeQueryQueue.Insert(tuple_cat(make_tuple(move(_startGPUTimeQuery), move(stopGPUTimeQuery)), move(_GPUTimeFreqQuery)));
+		}
+		catch (...)
+		{
+			_AbortProfiling();
+		}
+}
+
 DGLE_RESULT DGLE_API CCoreRendererDX9::Initialize(TCrRndrInitResults &stResults, TEngineWindow &stWin, E_ENGINE_INIT_FLAGS &eInitFlags)
 {
 	if (_stInitResults)
@@ -1808,7 +1884,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Initialize(TCrRndrInitResults &stResults,
 	}
 	DGLE_RESULT res = S_OK;
 	//_ConfigureWindow(stWin, res);
-	AssertHR(_device->BeginScene());
+	AssertHR(_BeginScene());
 
 	D3DCAPS9 caps;
 	AssertHR(_device->GetDeviceCaps(&caps));
@@ -1854,6 +1930,9 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Initialize(TCrRndrInitResults &stResults,
 	AssertHR(SetMatrix(MatrixIdentity(), MT_MODELVIEW));
 
 	AssertHR(_engineCore.AddEventListener(ET_ON_PER_SECOND_TIMER, EventsHandler, this));
+	AssertHR(_engineCore.AddEventListener(ET_ON_PROFILER_DRAW, EventsHandler, this));
+
+	AssertHR(_engineCore.ConsoleRegisterVariable(PROFILER_CMD_NAME, "Displays Core Renderer DirectX 9 subsystems profiler.", &_profilerState, 0, 1));
 
 	_stInitResults = stResults;
 
@@ -1867,7 +1946,10 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Finalize()
 	if (!_stInitResults)
 		return E_ABORT;
 
+	AssertHR(_engineCore.ConsoleUnregister(PROFILER_CMD_NAME));
+
 	_engineCore.RemoveEventListener(ET_ON_PER_SECOND_TIMER, EventsHandler, this);
+	_engineCore.RemoveEventListener(ET_ON_PROFILER_DRAW, EventsHandler, this);
 
 	delete _FFP, _FFP = nullptr;
 
@@ -1912,7 +1994,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::AdjustMode(TEngineWindow &stNewWin)
 		if (!stNewWin.bFullScreen)
 			_ConfigureWindow(stNewWin, res);
 		_restoreBroadcast(_device);
-		CheckHR(_device->BeginScene());
+		CheckHR(_BeginScene());
 		_PopStates();
 		CheckHR(_device->GetRenderTarget(0, &_screenColorTarget));
 		CheckHR(_device->GetDepthStencilSurface(&_screenDepthTarget));
@@ -2430,12 +2512,6 @@ inline size_t CCoreRendererDX9::CImagePool::THash::operator ()(const TImageDesc 
 	return HashRange(src.width, src.height, src.format);
 }
 
-static inline bool Unused(IUnknown *object)
-{
-	object->AddRef();
-	return object->Release() == 1;
-}
-
 CCoreRendererDX9::CImagePool::CImagePool(CCoreRendererDX9 &parent, bool managed) :
 _clearCallbackHandle(managed ? nullptr : parent._clearBroadcast.AddCallback([this]{ _pool.clear(); })),
 _cleanCallbackHandle(parent._cleanBroadcast.AddCallback([this]
@@ -2558,6 +2634,160 @@ IDirect3DSurface9Ptr CCoreRendererDX9::COffscreenDepth::Get(IDirect3DDevice9 *de
 
 	return _surface;
 }
+#pragma endregion
+
+#pragma region queries
+#pragma region CQueryPool
+IDirect3DQuery9Ptr CCoreRendererDX9::CQueryPool::_GetQuery(IDirect3DDevice9 *device, D3DQUERYTYPE type)
+{
+	// find unused
+	const auto unused = find_if(_pool.cbegin(), _pool.cend(), [type](decltype(_pool)::const_reference query)
+	{
+		return Unused(query) && query->GetType() == type;
+	});
+
+	if (unused != _pool.cend())
+		return *unused;
+
+	// unused not found, create new
+	IDirect3DQuery9Ptr query;
+	CheckHR(device->CreateQuery(type, &query));
+	_pool.push_back(query);
+	return move(query);
+}
+#pragma endregion
+
+#pragma region CQueryBase
+inline void CCoreRendererDX9::CQueryBase::Start()
+{
+	CheckHR(_query->Issue(D3DISSUE_BEGIN));
+}
+
+inline void CCoreRendererDX9::CQueryBase::Stop()
+{
+	CheckHR(_query->Issue(D3DISSUE_END));
+}
+
+inline bool CCoreRendererDX9::CQueryBase::Ready() noexcept
+{
+	return _GetData(NULL, 0);
+}
+
+inline bool CCoreRendererDX9::CQueryBase::_GetData(void *dst, DWORD size) noexcept
+{
+	switch (_query->GetData(dst, size, 0))
+	{
+	case S_OK:		return true;
+	case S_FALSE:	return false;
+	default:
+		// should not return error when D3DGETDATA_FLUSH is not specified according to DX9 documentation
+		assert(false);
+		__assume(false);
+	}
+}
+#pragma endregion
+
+#pragma region CQueryAccess
+template<typename TResult>
+inline optional<TResult> CCoreRendererDX9::CQueryAccess<TResult>::GetData() noexcept
+{
+	TResult result;
+	const bool available = _GetData(&result, sizeof result);
+#if defined _MSC_VER && _MSC_VER <= 1900
+	return available ? optional<TResult>(result) : none;
+#else
+	return available ? result : nullopt;
+#endif
+}
+#pragma endregion
+
+#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef __cpp_lib_apply
+template<D3DQUERYTYPE firstType, D3DQUERYTYPE ...restTypes>
+inline void CCoreRendererDX9::_DestroyQueriesImpl(CQuery<firstType> &head, CQuery<restTypes> &...tail)
+{
+	head.Destroy();
+	_DestroyQueriesImpl(tail...);
+}
+
+template<D3DQUERYTYPE ...types>
+void CCoreRendererDX9::_DestroyQueries(QueryPack<types...> &pack)
+{
+	apply(_DestroyQueriesImpl<types...>, pack);
+}
+#else
+template<D3DQUERYTYPE firstType, D3DQUERYTYPE ...restTypes, class Pack>
+inline void CCoreRendererDX9::_DestroyQueriesImpl(Pack &pack)
+{
+	_GetQuery<firstType>(pack).Destroy();
+	_DestroyQueriesImpl<restTypes...>(pack);
+}
+
+template<D3DQUERYTYPE ...types>
+void CCoreRendererDX9::_DestroyQueries(QueryPack<types...> &pack)
+{
+	_DestroyQueriesImpl<types...>(pack);
+}
+#endif
+#else
+template<D3DQUERYTYPE ...types>
+void CCoreRendererDX9::_DestroyQueries(QueryPack<types...> &pack)
+{
+	(_GetQuery<types>(pack).Destroy(), ...);
+}
+#endif
+
+#pragma region CQueryQueue
+#if !(defined _MSC_VER && _MSC_VER <= 1900)
+template<D3DQUERYTYPE ...types>
+template<size_t ...idx>
+inline bool CCoreRendererDX9::CQueryQueue<types...>::_Ready(index_sequence<idx...>) noexcept
+{
+	return (get<idx>(_queue.front()).Ready() && ...);
+}
+#endif
+
+template<D3DQUERYTYPE ...types>
+template<size_t ...idx>
+inline auto CCoreRendererDX9::CQueryQueue<types...>::_GetData(index_sequence<idx...>)
+{
+	return make_tuple(get<idx>(_queue.front()).GetData().value()...);
+}
+
+template<D3DQUERYTYPE ...types>
+void CCoreRendererDX9::CQueryQueue<types...>::Insert(TItem &&pack)
+{
+	_queue.push_back(move(pack));
+}
+
+template<D3DQUERYTYPE ...types>
+auto CCoreRendererDX9::CQueryQueue<types...>::Extract() -> optional<tuple<typename QueryTypeTraits<types>::TResult...>>
+{
+	if (_queue.empty())
+#if defined _MSC_VER && _MSC_VER <= 1900
+		return none;
+#else
+		return nullopt;
+#endif
+
+#if CHECK_ALL_QUERIES && !(defined _MSC_VER && _MSC_VER <= 1900)
+	const bool ready = _Ready(make_index_sequence<sizeof...(types)>());
+#else
+	const bool ready = get<sizeof...(types) - 1>(_queue.front()).Ready();
+#endif
+
+	if (!ready)
+#if defined _MSC_VER && _MSC_VER <= 1900
+		return none;
+#else
+		return nullopt;
+#endif
+
+	const auto result = _GetData(make_index_sequence<sizeof...(types)>());
+	_queue.pop_front();
+	return result;
+}
+#pragma endregion
 #pragma endregion
 
 DGLE_RESULT DGLE_API CCoreRendererDX9::SetRenderTarget(ICoreTexture *pTexture)
@@ -3502,6 +3732,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Present()
 
 		_frameEndBroadcast();
 		_PushStates();
+		_ProfilerStopFrame();
 		CheckHR(_device->EndScene());
 		switch (_device->Present(NULL, NULL, NULL, NULL))
 		{
@@ -3514,7 +3745,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Present()
 		default:
 			throw E_FAIL;
 		}
-		CheckHR(_device->BeginScene());
+		CheckHR(_BeginScene());
 		_DiscardStates();
 
 		return S_OK;
@@ -3650,7 +3881,7 @@ void DGLE_API CCoreRendererDX9::EventsHandler(void *pParameter, IBaseEvent *pEve
 					if (!wnd.bFullScreen)
 						renderer->_ConfigureWindow(wnd, res);
 					renderer->_restoreBroadcast(renderer->_device);
-					fail |= FAILED(renderer->_device->BeginScene());
+					fail |= FAILED(renderer->_BeginScene());
 					renderer->_PopStates();
 					fail |= FAILED(renderer->_device->GetRenderTarget(0, &renderer->_screenColorTarget));
 					fail |= FAILED(renderer->_device->GetDepthStencilSurface(&renderer->_screenDepthTarget));
@@ -3672,6 +3903,23 @@ void DGLE_API CCoreRendererDX9::EventsHandler(void *pParameter, IBaseEvent *pEve
 		}
 		else
 			renderer->_cleanBroadcast();
+		break;
+	case ET_ON_PROFILER_DRAW:
+		if (renderer->_profilerState)
+		{
+			AssertHR(renderer->_engineCore.RenderProfilerText("===Core Renderer Profiler==="));
+			if (const auto GPU_time_data = renderer->_GPUTimeQueryQueue.Extract())
+			{
+				if (get<3>(*GPU_time_data))
+					LogWrite(renderer->_engineCore, "Disjoint timestamps across frame duration encountered. Skipping GPU time data for this frame.", LT_WARNING, ExtractFilename(__FILE__), __LINE__);
+				else
+					renderer->_lastGPUTime = (get<1>(*GPU_time_data) - get<0>(*GPU_time_data)) * 1000. / get<2>(*GPU_time_data);
+			}
+			if (renderer->_lastGPUTime)
+				AssertHR(renderer->_engineCore.RenderProfilerText(("GPU frame time estimation: " + to_string(*renderer->_lastGPUTime) + " ms").c_str()));
+			else
+				AssertHR(renderer->_engineCore.RenderProfilerText("GPU frame time data not yet available", ColorRed()));
+		}
 		break;
 	}
 }
