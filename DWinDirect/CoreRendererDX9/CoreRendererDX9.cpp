@@ -1948,8 +1948,8 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Finalize()
 
 	AssertHR(_engineCore.ConsoleUnregister(PROFILER_CMD_NAME));
 
-	_engineCore.RemoveEventListener(ET_ON_PER_SECOND_TIMER, EventsHandler, this);
-	_engineCore.RemoveEventListener(ET_ON_PROFILER_DRAW, EventsHandler, this);
+	AssertHR(_engineCore.RemoveEventListener(ET_ON_PER_SECOND_TIMER, EventsHandler, this));
+	AssertHR(_engineCore.RemoveEventListener(ET_ON_PROFILER_DRAW, EventsHandler, this));
 
 	delete _FFP, _FFP = nullptr;
 

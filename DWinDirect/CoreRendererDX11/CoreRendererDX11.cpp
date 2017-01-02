@@ -1829,7 +1829,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX11::Finalize()
 	if (!_stInitResults)
 		return E_ABORT;
 
-	_engineCore.RemoveEventListener(ET_ON_PER_SECOND_TIMER, EventsHandler, this);
+	AssertHR(_engineCore.RemoveEventListener(ET_ON_PER_SECOND_TIMER, EventsHandler, this));
 
 	delete _FFP, _FFP = nullptr;
 

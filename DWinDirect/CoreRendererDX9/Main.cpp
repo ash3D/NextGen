@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		1.7.2015 (c)Korotkov Andrey
+\date		02.01.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -14,7 +14,7 @@ static std::vector<std::unique_ptr<CPluginCore>> pluginCores;
 
 void LogWrite(IEngineCore &engineCore, const char *pcTxt, E_LOG_TYPE eType, const char *pcSrcFileName, int iSrcLineNumber)
 {
-	engineCore.WriteToLogEx(pcTxt, eType, pcSrcFileName, iSrcLineNumber);
+	AssertHR(engineCore.WriteToLogEx(pcTxt, eType, pcSrcFileName, iSrcLineNumber));
 }
 
 void CALLBACK InitPlugin(IEngineCore *engineCore, ISubSystemPlugin *&plugin)
