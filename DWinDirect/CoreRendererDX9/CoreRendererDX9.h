@@ -55,7 +55,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 
 	unsigned int _maxTexResolution[2], _maxAnisotropy, _maxTexUnits, _maxTexStages, _maxRTs, _maxVertexStreams, _maxClipPlanes, _maxVSFloatConsts;
 	DWORD _textureAddressCaps;
-	bool _NPOTTexSupport, _NSQTexSupport, _mipmapSupport, _anisoSupport;
+	bool _NPOTTexSupport, _NSQTexSupport, _mipmapSupport, _anisoSupport, _GPUTimeQuerySupport;
 
 	TMatrix4x4 _projXform = MatrixIdentity();
 

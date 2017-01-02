@@ -1815,7 +1815,7 @@ void CCoreRendererDX9::_AbortProfiling()
 
 void CCoreRendererDX9::_PrifilerStartFrame(HRESULT &hr)
 {
-	if (_profilerState)
+	if (_profilerState && _GPUTimeQuerySupport)
 		try
 		{
 			_GetQuery<D3DQUERYTYPE_TIMESTAMPDISJOINT>(_GPUTimeFreqQuery) = _GPUTimeQueryPool.GetQuery<D3DQUERYTYPE_TIMESTAMPDISJOINT>(_device);
@@ -1904,6 +1904,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Initialize(TCrRndrInitResults &stResults,
 	_NSQTexSupport = !(caps.TextureCaps & D3DPTEXTURECAPS_SQUAREONLY);
 	_mipmapSupport = caps.TextureCaps & D3DPTEXTURECAPS_MIPMAP;
 	_anisoSupport = caps.RasterCaps & D3DPRASTERCAPS_ANISOTROPY;
+	_GPUTimeQuerySupport = SUCCEEDED(_device->CreateQuery(D3DQUERYTYPE_TIMESTAMP, NULL)) && SUCCEEDED(_device->CreateQuery(D3DQUERYTYPE_TIMESTAMPFREQ, NULL)) && SUCCEEDED(_device->CreateQuery(D3DQUERYTYPE_TIMESTAMPDISJOINT, NULL));
 
 	_FFP = new CFixedFunctionPipelineDX9(*this, _device);
 
@@ -3910,18 +3911,23 @@ void DGLE_API CCoreRendererDX9::EventsHandler(void *pParameter, IBaseEvent *pEve
 	case ET_ON_PROFILER_DRAW:
 		if (renderer->_profilerState)
 		{
-			AssertHR(renderer->_engineCore.RenderProfilerText("===Core Renderer Profiler==="));
-			if (const auto GPU_time_data = renderer->_GPUTimeQueryQueue.Extract())
+			if (renderer->_GPUTimeQuerySupport)
 			{
-				if (get<3>(*GPU_time_data))
-					LogWrite(renderer->_engineCore, "Disjoint timestamps across frame duration encountered. Skipping GPU time data for this frame.", LT_WARNING, ExtractFilename(__FILE__), __LINE__);
+				AssertHR(renderer->_engineCore.RenderProfilerText("===Core Renderer Profiler==="));
+				if (const auto GPU_time_data = renderer->_GPUTimeQueryQueue.Extract())
+				{
+					if (get<3>(*GPU_time_data))
+						LogWrite(renderer->_engineCore, "Disjoint timestamps across frame duration encountered. Skipping GPU time data for this frame.", LT_WARNING, ExtractFilename(__FILE__), __LINE__);
+					else
+						renderer->_lastGPUTime = (get<1>(*GPU_time_data) - get<0>(*GPU_time_data)) * 1000. / get<2>(*GPU_time_data);
+				}
+				if (renderer->_lastGPUTime)
+					AssertHR(renderer->_engineCore.RenderProfilerText(("GPU frame time estimation: " + to_string(*renderer->_lastGPUTime) + " ms").c_str()));
 				else
-					renderer->_lastGPUTime = (get<1>(*GPU_time_data) - get<0>(*GPU_time_data)) * 1000. / get<2>(*GPU_time_data);
+					AssertHR(renderer->_engineCore.RenderProfilerText("GPU frame time data not yet available", ColorRed()));
 			}
-			if (renderer->_lastGPUTime)
-				AssertHR(renderer->_engineCore.RenderProfilerText(("GPU frame time estimation: " + to_string(*renderer->_lastGPUTime) + " ms").c_str()));
 			else
-				AssertHR(renderer->_engineCore.RenderProfilerText("GPU frame time data not yet available", ColorRed()));
+				AssertHR(renderer->_engineCore.RenderProfilerText("GPU frame time query is not supported by GPU/driver", ColorGray()));
 		}
 		break;
 	}
