@@ -1886,7 +1886,9 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Initialize(TCrRndrInitResults &stResults,
 	}
 	DGLE_RESULT res = S_OK;
 	//_ConfigureWindow(stWin, res);
-	AssertHR(_BeginScene());
+	const HRESULT hr = _BeginScene();
+	AssertHR(hr);
+	if (res != S_OK) res = hr;
 
 	D3DCAPS9 caps;
 	AssertHR(_device->GetDeviceCaps(&caps));
@@ -1997,7 +1999,9 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::AdjustMode(TEngineWindow &stNewWin)
 		if (!stNewWin.bFullScreen)
 			_ConfigureWindow(stNewWin, res);
 		_restoreBroadcast(_device);
-		CheckHR(_BeginScene());
+		const HRESULT hr = _BeginScene();
+		CheckHR(hr);
+		if (res != S_OK) res = hr;
 		_PopStates();
 		CheckHR(_device->GetRenderTarget(0, &_screenColorTarget));
 		CheckHR(_device->GetDepthStencilSurface(&_screenDepthTarget));
@@ -3749,7 +3753,9 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Present()
 		default:
 			throw E_FAIL;
 		}
-		CheckHR(_BeginScene());
+		const HRESULT hr = _BeginScene();
+		CheckHR(hr);
+		if (result != S_OK) result = hr;
 		_DiscardStates();
 
 		return result;
