@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		02.01.2017 (c)Andrey Korotkov
+\date		03.01.2017 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1936,8 +1936,8 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Initialize(TCrRndrInitResults &stResults,
 	AssertHR(SetMatrix(MatrixIdentity(), MT_PROJECTION));
 	AssertHR(SetMatrix(MatrixIdentity(), MT_MODELVIEW));
 
-	AssertHR(_engineCore.AddEventListener(ET_ON_PER_SECOND_TIMER, EventsHandler, this));
-	AssertHR(_engineCore.AddEventListener(ET_ON_PROFILER_DRAW, EventsHandler, this));
+	AssertHR(_engineCore.AddEventListener(ET_ON_PER_SECOND_TIMER, _EventsHandler, this));
+	AssertHR(_engineCore.AddEventListener(ET_ON_PROFILER_DRAW, _EventsHandler, this));
 
 	AssertHR(_engineCore.ConsoleRegisterVariable(PROFILER_CMD_NAME, "Displays Core Renderer DirectX 9 subsystems profiler.", &_profilerState, 0, 1));
 
@@ -1955,8 +1955,8 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Finalize()
 
 	AssertHR(_engineCore.ConsoleUnregister(PROFILER_CMD_NAME));
 
-	AssertHR(_engineCore.RemoveEventListener(ET_ON_PER_SECOND_TIMER, EventsHandler, this));
-	AssertHR(_engineCore.RemoveEventListener(ET_ON_PROFILER_DRAW, EventsHandler, this));
+	AssertHR(_engineCore.RemoveEventListener(ET_ON_PER_SECOND_TIMER, _EventsHandler, this));
+	AssertHR(_engineCore.RemoveEventListener(ET_ON_PROFILER_DRAW, _EventsHandler, this));
 
 	delete _FFP, _FFP = nullptr;
 
@@ -3823,89 +3823,6 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::IsFeatureSupported(E_CORE_RENDERER_FEATUR
 	return S_OK;
 }
 
-void DGLE_API CCoreRendererDX9::EventsHandler(void *pParameter, IBaseEvent *pEvent)
-{
-	E_EVENT_TYPE type;
-	AssertHR(pEvent->GetEventType(type));
-	const auto renderer = PTHIS(CCoreRendererDX9);
-	assert(renderer);
-
-	switch (type)
-	{
-	case ET_ON_PER_SECOND_TIMER:
-		if (renderer->_deviceLost)
-		{
-			bool fail = false;
-			switch (renderer->_device->TestCooperativeLevel())
-			{
-			case D3DERR_DEVICELOST:
-				break;
-			case D3DERR_DEVICENOTRESET:
-			{
-				renderer->_clearBroadcast();
-				renderer->_screenColorTarget = NULL;
-				renderer->_screenDepthTarget = NULL;
-				TEngineWindow wnd;
-				AssertHR(renderer->_engineCore.GetCurrentWindow(wnd));
-				D3DPRESENT_PARAMETERS present_params = renderer->_GetPresentParams(wnd);
-				DGLE_RESULT res;
-				if (wnd.bFullScreen)
-					renderer->_ConfigureWindow(wnd, res);
-				switch (renderer->_device->Reset(&present_params))
-				{
-				case S_OK:
-					if (!wnd.bFullScreen)
-						renderer->_ConfigureWindow(wnd, res);
-					renderer->_restoreBroadcast(renderer->_device);
-					fail |= FAILED(renderer->_BeginScene());
-					renderer->_PopStates();
-					fail |= FAILED(renderer->_device->GetRenderTarget(0, &renderer->_screenColorTarget));
-					fail |= FAILED(renderer->_device->GetDepthStencilSurface(&renderer->_screenDepthTarget));
-					renderer->_deviceLost = false;
-					if (!fail)
-						LogWrite(renderer->_engineCore, "Device restored back from lost state to operational one.", LT_INFO, ExtractFilename(__FILE__), __LINE__);
-					break;
-				case D3DERR_DEVICELOST:
-					break;
-				default:
-					fail = true;
-				}
-				break;
-			}
-			default:
-				fail = true;
-			}
-			if (fail)
-				LogWrite(renderer->_engineCore, "Fail to reset device", LT_FATAL, ExtractFilename(__FILE__), __LINE__);
-		}
-		else
-			renderer->_cleanBroadcast();
-		break;
-	case ET_ON_PROFILER_DRAW:
-		if (renderer->_profilerState)
-		{
-			if (renderer->_GPUTimeQuerySupport)
-			{
-				AssertHR(renderer->_engineCore.RenderProfilerText("===Core Renderer Profiler==="));
-				if (const auto GPU_time_data = renderer->_GPUTimeQueryQueue.Extract())
-				{
-					if (get<3>(*GPU_time_data))
-						LogWrite(renderer->_engineCore, "Disjoint timestamps across frame duration encountered. Skipping GPU time data for this frame.", LT_WARNING, ExtractFilename(__FILE__), __LINE__);
-					else
-						renderer->_lastGPUTime = (get<1>(*GPU_time_data) - get<0>(*GPU_time_data)) * 1000. / get<2>(*GPU_time_data);
-				}
-				if (renderer->_lastGPUTime)
-					AssertHR(renderer->_engineCore.RenderProfilerText(("GPU frame time estimation: " + to_string(*renderer->_lastGPUTime) + " ms").c_str()));
-				else
-					AssertHR(renderer->_engineCore.RenderProfilerText("GPU frame time data not yet available", ColorRed()));
-			}
-			else
-				AssertHR(renderer->_engineCore.RenderProfilerText("GPU frame time query is not supported by GPU/driver", ColorGray()));
-		}
-		break;
-	}
-}
-
 DGLE_RESULT DGLE_API CCoreRendererDX9::GetRendererType(E_CORE_RENDERER_TYPE &eType)
 {
 	eType = CRT_DIRECT_3D_9_0c;
@@ -3916,5 +3833,100 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::GetType(E_ENGINE_SUB_SYSTEM &eSubSystemTy
 {
 	eSubSystemType = ESS_CORE_RENDERER;
 	return S_OK;
+}
+
+template<>
+inline void CCoreRendererDX9::_HandleEvent<ET_ON_PER_SECOND_TIMER>(IBaseEvent *pEvent)
+{
+	if (_deviceLost)
+	{
+		bool fail = false;
+		switch (_device->TestCooperativeLevel())
+		{
+		case D3DERR_DEVICELOST:
+			break;
+		case D3DERR_DEVICENOTRESET:
+		{
+			_clearBroadcast();
+			_screenColorTarget = NULL;
+			_screenDepthTarget = NULL;
+			TEngineWindow wnd;
+			AssertHR(_engineCore.GetCurrentWindow(wnd));
+			D3DPRESENT_PARAMETERS present_params = _GetPresentParams(wnd);
+			DGLE_RESULT res;
+			if (wnd.bFullScreen)
+				_ConfigureWindow(wnd, res);
+			switch (_device->Reset(&present_params))
+			{
+			case S_OK:
+				if (!wnd.bFullScreen)
+					_ConfigureWindow(wnd, res);
+				_restoreBroadcast(_device);
+				fail |= FAILED(_BeginScene());
+				_PopStates();
+				fail |= FAILED(_device->GetRenderTarget(0, &_screenColorTarget));
+				fail |= FAILED(_device->GetDepthStencilSurface(&_screenDepthTarget));
+				_deviceLost = false;
+				if (!fail)
+					LOG("Device restored back from lost state to operational one.", LT_INFO);
+				break;
+			case D3DERR_DEVICELOST:
+				break;
+			default:
+				fail = true;
+			}
+			break;
+		}
+		default:
+			fail = true;
+		}
+		if (fail)
+			LOG("Fail to reset device", LT_FATAL);
+	}
+	else
+		_cleanBroadcast();
+}
+
+template<>
+inline void CCoreRendererDX9::_HandleEvent<ET_ON_PROFILER_DRAW>(IBaseEvent *pEvent)
+{
+	if (_profilerState)
+	{
+		if (_GPUTimeQuerySupport)
+		{
+			AssertHR(_engineCore.RenderProfilerText("===Core Renderer Profiler==="));
+			if (const auto GPU_time_data = _GPUTimeQueryQueue.Extract())
+			{
+				if (get<3>(*GPU_time_data))
+					LOG("Disjoint timestamps across frame duration encountered. Skipping GPU time data for this frame.", LT_WARNING);
+				else
+					_lastGPUTime = (get<1>(*GPU_time_data) - get<0>(*GPU_time_data)) * 1000. / get<2>(*GPU_time_data);
+			}
+			if (_lastGPUTime)
+				AssertHR(_engineCore.RenderProfilerText(("GPU frame time estimation: " + to_string(*_lastGPUTime) + " ms").c_str()));
+			else
+				AssertHR(_engineCore.RenderProfilerText("GPU frame time data not yet available", ColorRed()));
+		}
+		else
+			AssertHR(_engineCore.RenderProfilerText("GPU frame time query is not supported by GPU/driver", ColorGray()));
+	}
+}
+
+void DGLE_API CCoreRendererDX9::_EventsHandler(void *pParameter, IBaseEvent *pEvent)
+{
+	E_EVENT_TYPE type;
+	AssertHR(pEvent->GetEventType(type));
+	const auto renderer = PTHIS(CCoreRendererDX9);
+	assert(renderer);
+
+	switch (type)
+	{
+	case ET_ON_PER_SECOND_TIMER:
+		renderer->_HandleEvent<ET_ON_PER_SECOND_TIMER>(pEvent);
+		break;
+	case ET_ON_PROFILER_DRAW:
+		renderer->_HandleEvent<ET_ON_PROFILER_DRAW>(pEvent);
+		break;
+	}
 }
 #pragma endregion

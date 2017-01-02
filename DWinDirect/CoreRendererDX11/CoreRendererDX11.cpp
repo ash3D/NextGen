@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		02.01.2017 (c)Andrey Korotkov
+\date		03.01.2017 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1817,7 +1817,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX11::Initialize(TCrRndrInitResults &stResults
 	AssertHR(SetMatrix(MatrixIdentity(), MT_PROJECTION));
 	AssertHR(SetMatrix(MatrixIdentity(), MT_MODELVIEW));
 
-	AssertHR(_engineCore.AddEventListener(ET_ON_PER_SECOND_TIMER, EventsHandler, this));
+	AssertHR(_engineCore.AddEventListener(ET_ON_PER_SECOND_TIMER, _EventsHandler, this));
 
 	_stInitResults = stResults;
 
@@ -1831,7 +1831,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX11::Finalize()
 	if (!_stInitResults)
 		return E_ABORT;
 
-	AssertHR(_engineCore.RemoveEventListener(ET_ON_PER_SECOND_TIMER, EventsHandler, this));
+	AssertHR(_engineCore.RemoveEventListener(ET_ON_PER_SECOND_TIMER, _EventsHandler, this));
 
 	delete _FFP, _FFP = nullptr;
 
@@ -3527,66 +3527,6 @@ DGLE_RESULT DGLE_API CCoreRendererDX11::IsFeatureSupported(E_CORE_RENDERER_FEATU
 	return S_OK;
 }
 
-void DGLE_API CCoreRendererDX11::EventsHandler(void *pParameter, IBaseEvent *pEvent)
-{
-	E_EVENT_TYPE type;
-	AssertHR(pEvent->GetEventType(type));
-	const auto renderer = PTHIS(CCoreRendererDX11);
-	assert(renderer);
-
-	switch (type)
-	{
-	case ET_ON_PER_SECOND_TIMER:
-		if (renderer->_deviceLost)
-		{
-			bool fail = false;
-			switch (renderer->_device->TestCooperativeLevel())
-			{
-			case D3DERR_DEVICELOST:
-				break;
-			case D3DERR_DEVICENOTRESET:
-			{
-				renderer->_clearBroadcast();
-				renderer->_screenColorTarget.Reset();
-				renderer->_screenDepthTarget.Reset();
-				TEngineWindow wnd;
-				AssertHR(renderer->_engineCore.GetCurrentWindow(wnd));
-				D3DPRESENT_PARAMETERS present_params = renderer->_GetPresentParams(wnd);
-				DGLE_RESULT res;
-				if (wnd.bFullScreen)
-					renderer->_ConfigureWindow(wnd, res);
-				switch (renderer->_device->Reset(&present_params))
-				{
-				case S_OK:
-					if (!wnd.bFullScreen)
-						renderer->_ConfigureWindow(wnd, res);
-					renderer->_restoreBroadcast(renderer->_device);
-					fail |= FAILED(renderer->_device->BeginScene());
-					renderer->_PopStates();
-					fail |= FAILED(renderer->_device->GetRenderTarget(0, &renderer->_screenColorTarget));
-					fail |= FAILED(renderer->_device->GetDepthStencilSurface(&renderer->_screenDepthTarget));
-					renderer->_deviceLost = false;
-					LogWrite(renderer->_engineCore, "Device restored back from lost state to operational one.", LT_INFO, ExtractFilename(__FILE__), __LINE__);
-					break;
-				case D3DERR_DEVICELOST:
-					break;
-				default:
-					fail = true;
-				}
-				break;
-			}
-			default:
-				fail = true;
-			}
-			if (fail)
-				LogWrite(renderer->_engineCore, "Fail to reset device", LT_FATAL, ExtractFilename(__FILE__), __LINE__);
-		}
-		else
-			renderer->_cleanBroadcast();
-		break;
-	}
-}
-
 DGLE_RESULT DGLE_API CCoreRendererDX11::GetRendererType(E_CORE_RENDERER_TYPE &eType)
 {
 	eType = CRT_DIRECT_3D_9_0c;
@@ -3597,5 +3537,71 @@ DGLE_RESULT DGLE_API CCoreRendererDX11::GetType(E_ENGINE_SUB_SYSTEM &eSubSystemT
 {
 	eSubSystemType = ESS_CORE_RENDERER;
 	return S_OK;
+}
+
+template<>
+inline void CCoreRendererDX11::_HandleEvent<ET_ON_PER_SECOND_TIMER>(IBaseEvent *pEvent)
+{
+	if (_deviceLost)
+	{
+		bool fail = false;
+		switch (_device->TestCooperativeLevel())
+		{
+		case D3DERR_DEVICELOST:
+			break;
+		case D3DERR_DEVICENOTRESET:
+		{
+			_clearBroadcast();
+			_screenColorTarget.Reset();
+			_screenDepthTarget.Reset();
+			TEngineWindow wnd;
+			AssertHR(_engineCore.GetCurrentWindow(wnd));
+			D3DPRESENT_PARAMETERS present_params = _GetPresentParams(wnd);
+			DGLE_RESULT res;
+			if (wnd.bFullScreen)
+				_ConfigureWindow(wnd, res);
+			switch (_device->Reset(&present_params))
+			{
+			case S_OK:
+				if (!wnd.bFullScreen)
+					_ConfigureWindow(wnd, res);
+				_restoreBroadcast(_device);
+				fail |= FAILED(_device->BeginScene());
+				_PopStates();
+				fail |= FAILED(_device->GetRenderTarget(0, &_screenColorTarget));
+				fail |= FAILED(_device->GetDepthStencilSurface(&_screenDepthTarget));
+				_deviceLost = false;
+				LOG("Device restored back from lost state to operational one.", LT_INFO);
+				break;
+			case D3DERR_DEVICELOST:
+				break;
+			default:
+				fail = true;
+			}
+			break;
+		}
+		default:
+			fail = true;
+		}
+		if (fail)
+			LOG("Fail to reset device", LT_FATAL);
+	}
+	else
+		_cleanBroadcast();
+}
+
+void DGLE_API CCoreRendererDX11::_EventsHandler(void *pParameter, IBaseEvent *pEvent)
+{
+	E_EVENT_TYPE type;
+	AssertHR(pEvent->GetEventType(type));
+	const auto renderer = PTHIS(CCoreRendererDX11);
+	assert(renderer);
+
+	switch (type)
+	{
+	case ET_ON_PER_SECOND_TIMER:
+		renderer->_HandleEvent<ET_ON_PER_SECOND_TIMER>(pEvent);
+		break;
+	}
 }
 #pragma endregion

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		02.01.2017 (c)Andrey Korotkov
+\date		03.01.2017 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -662,7 +662,11 @@ private:
 
 	void _Draw(class CGeometryProviderBase &geom);
 
-	static void DGLE_API EventsHandler(void *pParameter, IBaseEvent *pEvent);
+	// 1 call site
+	template<E_EVENT_TYPE>
+	inline void _HandleEvent(IBaseEvent *pEvent);
+
+	static void DGLE_API _EventsHandler(void *pParameter, IBaseEvent *pEvent);
 
 public:
 
