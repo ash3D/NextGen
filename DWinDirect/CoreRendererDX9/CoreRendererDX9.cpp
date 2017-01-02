@@ -1797,10 +1797,10 @@ void CCoreRendererDX9::_ConfigureWindow(const TEngineWindow &wnd, DGLE_RESULT &r
 
 HRESULT CCoreRendererDX9::_BeginScene()
 {
-	const HRESULT hr = _device->BeginScene();
+	HRESULT hr = _device->BeginScene();
 	if (FAILED(hr)) return hr;
 	
-	_PrifilerStartFrame();
+	_PrifilerStartFrame(hr);
 
 	return hr;
 }
@@ -1813,7 +1813,7 @@ void CCoreRendererDX9::_AbortProfiling()
 	_DestroyQueries(_GPUTimeFreqQuery);
 }
 
-void CCoreRendererDX9::_PrifilerStartFrame()
+void CCoreRendererDX9::_PrifilerStartFrame(HRESULT &hr)
 {
 	if (_profilerState)
 		try
@@ -1829,6 +1829,7 @@ void CCoreRendererDX9::_PrifilerStartFrame()
 		catch (...)
 		{
 			_AbortProfiling();
+			hr = S_FALSE;
 		}
 	else
 	{
@@ -1842,7 +1843,7 @@ void CCoreRendererDX9::_PrifilerStartFrame()
 	}
 }
 
-void CCoreRendererDX9::_ProfilerStopFrame()
+void CCoreRendererDX9::_ProfilerStopFrame(HRESULT &hr)
 {
 	if (_startGPUTimeQuery)
 		try
@@ -1855,6 +1856,7 @@ void CCoreRendererDX9::_ProfilerStopFrame()
 		catch (...)
 		{
 			_AbortProfiling();
+			hr = S_FALSE;
 		}
 }
 
@@ -3732,7 +3734,8 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Present()
 
 		_frameEndBroadcast();
 		_PushStates();
-		_ProfilerStopFrame();
+		HRESULT result;
+		_ProfilerStopFrame(result);
 		CheckHR(_device->EndScene());
 		switch (_device->Present(NULL, NULL, NULL, NULL))
 		{
@@ -3748,7 +3751,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Present()
 		CheckHR(_BeginScene());
 		_DiscardStates();
 
-		return S_OK;
+		return result;
 	}
 	catch (const HRESULT hr)
 	{

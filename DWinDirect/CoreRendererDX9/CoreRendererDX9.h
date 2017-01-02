@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		31.12.2016 (c)Andrey Korotkov
+\date		02.01.2017 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -668,7 +668,7 @@ private:
 	void _ConfigureWindow(const TEngineWindow &wnd, DGLE_RESULT &res);
 	HRESULT _BeginScene();
 	void _AbortProfiling();
-	void _PrifilerStartFrame(), _ProfilerStopFrame();
+	void _PrifilerStartFrame(HRESULT &hr), _ProfilerStopFrame(HRESULT &hr);
 
 	void _SetProjXform();
 
