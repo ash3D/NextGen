@@ -1811,8 +1811,8 @@ void CCoreRendererDX9::_AbortProfiling()
 {
 	LOG("Fail to launch profiler queries. Disabling profiler...", LT_ERROR);
 	AssertHR(_engineCore.ConsoleExecute(PROFILER_CMD_NAME" 0"));
-	_startGPUTimeQuery.Destroy();
-	_DestroyQueries(_GPUTimeFreqQuery);
+	_startGPUTimeQuery = {};
+	_GPUTimeFreqQuery = {};
 }
 
 void CCoreRendererDX9::_PrifilerStartFrame(HRESULT &hr)
@@ -2709,42 +2709,6 @@ inline optional<TResult> CCoreRendererDX9::CQueryAccess<TResult>::GetData() noex
 #endif
 }
 #pragma endregion
-
-#if defined _MSC_VER && _MSC_VER <= 1900
-#ifdef __cpp_lib_apply
-template<D3DQUERYTYPE firstType, D3DQUERYTYPE ...restTypes>
-inline void CCoreRendererDX9::_DestroyQueriesImpl(CQuery<firstType> &head, CQuery<restTypes> &...tail)
-{
-	head.Destroy();
-	_DestroyQueriesImpl(tail...);
-}
-
-template<D3DQUERYTYPE ...types>
-void CCoreRendererDX9::_DestroyQueries(QueryPack<types...> &pack)
-{
-	apply(_DestroyQueriesImpl<types...>, pack);
-}
-#else
-template<D3DQUERYTYPE firstType, D3DQUERYTYPE ...restTypes, class Pack>
-inline void CCoreRendererDX9::_DestroyQueriesImpl(Pack &pack)
-{
-	_GetQuery<firstType>(pack).Destroy();
-	_DestroyQueriesImpl<restTypes...>(pack);
-}
-
-template<D3DQUERYTYPE ...types>
-void CCoreRendererDX9::_DestroyQueries(QueryPack<types...> &pack)
-{
-	_DestroyQueriesImpl<types...>(pack);
-}
-#endif
-#else
-template<D3DQUERYTYPE ...types>
-void CCoreRendererDX9::_DestroyQueries(QueryPack<types...> &pack)
-{
-	(_GetQuery<types>(pack).Destroy(), ...);
-}
-#endif
 
 #pragma region CQueryQueue
 #if !(defined _MSC_VER && _MSC_VER <= 1900)

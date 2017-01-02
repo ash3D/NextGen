@@ -371,7 +371,6 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		operator bool() const noexcept { return _query; }
 		void Start(), Stop();
 		bool Ready() noexcept;
-		void Destroy() { _query = NULL; }
 	protected:
 		bool _GetData(void *dst, DWORD size) noexcept;
 	};
@@ -416,26 +415,6 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	{
 		return std::get<CQuery<type>>(std::forward<Pack>(pack));
 	}
-
-#if defined _MSC_VER && _MSC_VER <= 1900
-#ifdef __cpp_lib_apply
-	template<D3DQUERYTYPE firstType, D3DQUERYTYPE ...restTypes>
-	static void _DestroyQueriesImpl(CQuery<firstType> &head, CQuery<restTypes> &...tail);
-
-	// terminator
-	static inline void _DestroyQueriesImpl() {}
-#else
-	template<D3DQUERYTYPE firstType, D3DQUERYTYPE ...restTypes, class Pack>
-	static void _DestroyQueriesImpl(Pack &pack);
-
-	// terminator
-	template<class Pack>
-	static inline void _DestroyQueriesImpl(Pack &) {}
-#endif
-#endif
-
-	template<D3DQUERYTYPE ...types>
-	static void _DestroyQueries(QueryPack<types...> &pack);
 
 	template<D3DQUERYTYPE ...types>
 	class CQueryQueue
