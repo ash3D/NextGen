@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		29.12.2016 (c)Andrey Korotkov
+\date		02.01.2017 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -669,23 +669,23 @@ namespace
 #		define DECL_FORMAT_LAYOUT(format, ...) TFormatLayout<decltype(format), format, PackedLayout<__VA_ARGS__>>
 
 		typedef CFormatLayoutArray
-			<
+		<
 			DECL_FORMAT_LAYOUT(D3DFMT_X8R8G8B8, 2, 1, 0, ~0u),
 			DECL_FORMAT_LAYOUT(D3DFMT_X8B8G8R8, 0, 1, 2, ~0u),
 			DECL_FORMAT_LAYOUT(D3DFMT_A8B8G8R8, 0, 1, 2, 3),
 			DECL_FORMAT_LAYOUT(D3DFMT_A8, 0),
 			DECL_FORMAT_LAYOUT(D3DFMT_R8G8B8, 2, 1, 0),
 			DECL_FORMAT_LAYOUT(D3DFMT_A8R8G8B8, 2, 1, 0, 3)
-			> TD3DFormatLayoutArray;
+		> TD3DFormatLayoutArray;
 
 		typedef CFormatLayoutArray
-			<
+		<
 			DECL_FORMAT_LAYOUT(TDF_RGB8, 0, 1, 2),
 			DECL_FORMAT_LAYOUT(TDF_RGBA8, 0, 1, 2, 3),
 			DECL_FORMAT_LAYOUT(TDF_ALPHA8, 0),
 			DECL_FORMAT_LAYOUT(TDF_BGR8, 2, 1, 0),
 			DECL_FORMAT_LAYOUT(TDF_BGRA8, 2, 1, 0, 3)
-			> TDGLEFormatLayoutArray;
+		> TDGLEFormatLayoutArray;
 
 #		undef DECL_FORMAT_LAYOUT
 
