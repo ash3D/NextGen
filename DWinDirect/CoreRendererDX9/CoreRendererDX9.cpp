@@ -478,7 +478,7 @@ namespace
 	template<class Base>
 	void CDynamicBuffer<Base>::_OnGrow(const IDirect3DResource9Ptr &oldBufferBase, unsigned int oldOffset)
 	{
-		const Base::InterfacePtr old_buffer = oldBufferBase;
+		const typename Base::InterfacePtr old_buffer = oldBufferBase;
 		void *locked;
 		const auto size = oldOffset - _offset;
 		AssertHR(old_buffer->Lock(_offset, size, &locked, D3DLOCK_READONLY));
@@ -662,6 +662,8 @@ void CCoreRendererDX9::CCoreGeometryBufferStatic::_ReallocateImpl(const TDrawDat
 #pragma region texture
 namespace
 {
+	void (*RowCopy(bool dgle2d3d))(const void *const src, void *const dst, unsigned length);
+
 	namespace TexFormatImpl
 	{
 		// TODO: redesign for constexpr
@@ -956,12 +958,12 @@ namespace
 #endif
 	}
 
-	void(*RowCopy(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
+	void (*RowCopy(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
 	{
 		return TexFormatImpl::CopyRow;
 	}
 
-	inline void(*(*GetRowConvertion(E_TEXTURE_DATA_FORMAT dgleFormat, D3DFORMAT d3dFormat))(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
+	inline void (*(*GetRowConvertion(E_TEXTURE_DATA_FORMAT dgleFormat, D3DFORMAT d3dFormat))(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
 	{
 		return TexFormatImpl::IterateDGLERowConvertion(dgleFormat, d3dFormat);
 	}

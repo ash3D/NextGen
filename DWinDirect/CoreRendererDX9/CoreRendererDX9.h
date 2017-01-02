@@ -371,7 +371,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		operator bool() const noexcept { return _query; }
 		void Start(), Stop();
 		bool Ready() noexcept;
-		void Destroy() { _query = nullptr; }
+		void Destroy() { _query = NULL; }
 	protected:
 		bool _GetData(void *dst, DWORD size) noexcept;
 	};
@@ -387,7 +387,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	template<typename TResult>
 	class CPointQuery : public CQueryAccess<TResult>
 	{
-		using CQueryAccess::CQueryAccess;
+		using CQueryAccess<TResult>::CQueryAccess;
 		using CQueryBase::Start;
 		using CQueryBase::Stop;
 	public:

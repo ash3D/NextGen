@@ -615,6 +615,8 @@ void CCoreRendererDX11::CCoreGeometryBufferStatic::_ReallocateImpl(const TDrawDa
 #pragma region texture
 namespace
 {
+	void (*RowCopy(bool dgle2d3d))(const void *const src, void *const dst, unsigned length);
+
 	namespace TexFormatImpl
 	{
 		// TODO: redesign for constexpr
@@ -909,12 +911,12 @@ namespace
 #endif
 	}
 
-	void(*RowCopy(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
+	void (*RowCopy(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
 	{
 		return TexFormatImpl::CopyRow;
 	}
 
-	inline void(*(*GetRowConvertion(E_TEXTURE_DATA_FORMAT dgleFormat, D3DFORMAT d3dFormat))(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
+	inline void (*(*GetRowConvertion(E_TEXTURE_DATA_FORMAT dgleFormat, D3DFORMAT d3dFormat))(bool dgle2d3d))(const void *const src, void *const dst, unsigned length)
 	{
 		return TexFormatImpl::IterateDGLERowConvertion(dgleFormat, d3dFormat);
 	}

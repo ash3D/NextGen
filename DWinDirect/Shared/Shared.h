@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		01.04.2016 (c)Korotkov Andrey
+\date		02.01.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -45,15 +45,15 @@ inline size_t HashValue(T &&value)
 
 namespace detail
 {
+	inline size_t HashRange(size_t seed)
+	{
+		return seed;
+	}
+
 	template<typename Cur, typename ...Rest>
 	inline size_t HashRange(size_t seed, Cur &&cur, Rest &&...rest)
 	{
 		return HashRange(seed ^ (HashValue(std::forward<Cur>(cur)) + 0x9e3779b9 + (seed << 6) + (seed >> 2)), std::forward<Rest>(rest)...);
-	}
-
-	inline size_t HashRange(size_t seed)
-	{
-		return seed;
 	}
 }
 
