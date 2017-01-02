@@ -3862,7 +3862,8 @@ void DGLE_API CCoreRendererDX9::EventsHandler(void *pParameter, IBaseEvent *pEve
 					fail |= FAILED(renderer->_device->GetRenderTarget(0, &renderer->_screenColorTarget));
 					fail |= FAILED(renderer->_device->GetDepthStencilSurface(&renderer->_screenDepthTarget));
 					renderer->_deviceLost = false;
-					LogWrite(renderer->_engineCore, "Device restored back from lost state to operational one.", LT_INFO, ExtractFilename(__FILE__), __LINE__);
+					if (!fail)
+						LogWrite(renderer->_engineCore, "Device restored back from lost state to operational one.", LT_INFO, ExtractFilename(__FILE__), __LINE__);
 					break;
 				case D3DERR_DEVICELOST:
 					break;
