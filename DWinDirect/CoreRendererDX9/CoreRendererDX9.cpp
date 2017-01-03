@@ -3903,9 +3903,12 @@ inline void CCoreRendererDX9::_HandleEvent<ET_ON_PROFILER_DRAW>(IBaseEvent *pEve
 					_lastGPUTime = (get<1>(*GPU_time_data) - get<0>(*GPU_time_data)) * 1000. / get<2>(*GPU_time_data);
 			}
 			if (_lastGPUTime)
-				AssertHR(_engineCore.RenderProfilerText(("GPU frame time estimation: " + to_string(*_lastGPUTime) + " ms").c_str()));
+			{
+				const auto color = _lastGPUTime <= 1000.f / 60.f ? ColorGreen() : _lastGPUTime <= 1000.f / 30.f ? ColorYellow() : ColorRed();
+				AssertHR(_engineCore.RenderProfilerText(("GPU frame time estimation: " + to_string(*_lastGPUTime) + " ms").c_str(), color));
+			}
 			else
-				AssertHR(_engineCore.RenderProfilerText("GPU frame time data not yet available", ColorRed()));
+				AssertHR(_engineCore.RenderProfilerText("GPU frame time data not yet available", ColorGray()));
 		}
 		else
 			AssertHR(_engineCore.RenderProfilerText("GPU frame time query is not supported by GPU/driver", ColorGray()));
