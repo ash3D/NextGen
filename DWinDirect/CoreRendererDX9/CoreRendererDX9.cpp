@@ -1837,11 +1837,7 @@ void CCoreRendererDX9::_PrifilerStartFrame(HRESULT &hr)
 	{
 		_GPUTimeQueryQueue.Clear();
 		_GPUTimeQueryPool.Clear();
-#if defined _MSC_VER && _MSC_VER <= 1900
-		_lastGPUTime = none;
-#else
-		_lastGPUTime = nullopt;
-#endif
+		_lastGPUTime.reset();
 	}
 }
 
