@@ -3881,6 +3881,22 @@ inline void CCoreRendererDX9::_HandleEvent<ET_ON_PER_SECOND_TIMER>(IBaseEvent *p
 	}
 	else
 		_cleanBroadcast();
+
+	// update profiler data
+	double accumGPUTime = 0;
+	unsigned int frames = 0;
+	while (const auto GPU_time_data = _GPUTimeQueryQueue.Extract())
+	{
+		if (get<3>(*GPU_time_data))
+			LOG("Disjoint timestamps across frame duration encountered. Skipping GPU time data for this frame.", LT_WARNING);
+		else
+		{
+			accumGPUTime += (get<1>(*GPU_time_data) - get<0>(*GPU_time_data)) * 1000. / get<2>(*GPU_time_data);
+			frames++;
+		}
+	}
+	if (frames)
+		_lastGPUTime = accumGPUTime / frames;
 }
 
 template<>
@@ -3891,13 +3907,6 @@ inline void CCoreRendererDX9::_HandleEvent<ET_ON_PROFILER_DRAW>(IBaseEvent *pEve
 		if (_GPUTimeQuerySupport)
 		{
 			AssertHR(_engineCore.RenderProfilerText("===Core Renderer Profiler==="));
-			if (const auto GPU_time_data = _GPUTimeQueryQueue.Extract())
-			{
-				if (get<3>(*GPU_time_data))
-					LOG("Disjoint timestamps across frame duration encountered. Skipping GPU time data for this frame.", LT_WARNING);
-				else
-					_lastGPUTime = (get<1>(*GPU_time_data) - get<0>(*GPU_time_data)) * 1000. / get<2>(*GPU_time_data);
-			}
 			if (_lastGPUTime)
 			{
 				const auto color = _lastGPUTime <= 1000.f / 60.f ? ColorGreen() : _lastGPUTime <= 1000.f / 30.f ? ColorYellow() : ColorRed();
