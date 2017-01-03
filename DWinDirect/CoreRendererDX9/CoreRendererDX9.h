@@ -406,7 +406,12 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	class CQuery final : public SelectQuery<type>
 	{
 		friend class CQueryPool;
-		CQuery(IDirect3DQuery9Ptr &&ptr) : SelectQuery<type>(std::move(ptr)) {}
+#if defined _MSC_VER && _MSC_VER <= 1900
+		static constexpr D3DQUERYTYPE _type = type;
+		using SelectQuery<_type>::SelectQuery;
+#else
+		using SelectQuery<type>::SelectQuery;
+#endif
 	public:
 		CQuery() = default;
 	};
