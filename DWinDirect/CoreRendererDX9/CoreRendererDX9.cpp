@@ -1802,7 +1802,7 @@ HRESULT CCoreRendererDX9::_BeginScene()
 	HRESULT hr = _device->BeginScene();
 	if (FAILED(hr)) return hr;
 	
-	_PrifilerStartFrame(hr);
+	_ProfilerStartFrame(hr);
 
 	return hr;
 }
@@ -1815,7 +1815,7 @@ void CCoreRendererDX9::_AbortProfiling()
 	_GPUTimeFreqQuery = {};
 }
 
-void CCoreRendererDX9::_PrifilerStartFrame(HRESULT &hr)
+void CCoreRendererDX9::_ProfilerStartFrame(HRESULT &hr)
 {
 	if (_profilerState && _GPUTimeQuerySupport)
 		try

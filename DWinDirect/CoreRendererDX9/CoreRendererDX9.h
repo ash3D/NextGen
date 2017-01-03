@@ -647,7 +647,7 @@ private:
 	void _ConfigureWindow(const TEngineWindow &wnd, DGLE_RESULT &res);
 	HRESULT _BeginScene();
 	void _AbortProfiling();
-	void _PrifilerStartFrame(HRESULT &hr), _ProfilerStopFrame(HRESULT &hr);
+	void _ProfilerStartFrame(HRESULT &hr), _ProfilerStopFrame(HRESULT &hr);
 
 	void _SetProjXform();
 
