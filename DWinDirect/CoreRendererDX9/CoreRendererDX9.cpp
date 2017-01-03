@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		03.01.2017 (c)Andrey Korotkov
+\date		04.01.2017 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -23,7 +23,7 @@ See "DGLE.h" for more details.
 #define PROFILER_CMD_NAME "crdx9_profiler"
 
 using namespace std;
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 using boost::optional;
 using boost::none;
 #endif
@@ -739,7 +739,7 @@ namespace
 #		undef DECL_FORMAT_LAYOUT
 
 		// workoround for VS 2015 Update 2/3 bug
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx, unsigned srcSize = LayoutLength<srcLayout>, unsigned srcIdx = 0>
 		static constexpr unsigned FindSrcIdxImpl = UnpackLayout<srcLayout, srcIdx> == UnpackLayout<dstLayout, dstIdx> ? srcIdx : FindSrcIdxImpl<srcLayout, dstLayout, dstIdx, LayoutLength<srcLayout>, srcIdx + 1>;
 
@@ -2698,7 +2698,7 @@ inline optional<TResult> CCoreRendererDX9::CQueryAccess<TResult>::GetData() noex
 {
 	TResult result;
 	const bool available = _GetData(&result, sizeof result);
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 	return available ? optional<TResult>(result) : none;
 #else
 	return available ? result : nullopt;
@@ -2707,7 +2707,7 @@ inline optional<TResult> CCoreRendererDX9::CQueryAccess<TResult>::GetData() noex
 #pragma endregion
 
 #pragma region CQueryQueue
-#if !(defined _MSC_VER && _MSC_VER <= 1900)
+#ifndef MSVC_LIMITATIONS
 template<D3DQUERYTYPE ...types>
 template<size_t ...idx>
 inline bool CCoreRendererDX9::CQueryQueue<types...>::_Ready(index_sequence<idx...>) noexcept
@@ -2733,20 +2733,20 @@ template<D3DQUERYTYPE ...types>
 auto CCoreRendererDX9::CQueryQueue<types...>::Extract() -> optional<tuple<typename QueryTypeTraits<types>::TResult...>>
 {
 	if (_queue.empty())
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 		return none;
 #else
 		return nullopt;
 #endif
 
-#if CHECK_ALL_QUERIES && !(defined _MSC_VER && _MSC_VER <= 1900)
+#if CHECK_ALL_QUERIES && !defined MSVC_LIMITATIONS
 	const bool ready = _Ready(make_index_sequence<sizeof...(types)>());
 #else
 	const bool ready = get<sizeof...(types) - 1>(_queue.front()).Ready();
 #endif
 
 	if (!ready)
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 		return none;
 #else
 		return nullopt;

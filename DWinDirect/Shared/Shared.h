@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		02.01.2017 (c)Korotkov Andrey
+\date		04.01.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -23,6 +23,10 @@ See "DGLE.h" for more details.
 #include <type_traits>
 #include <cassert>
 #include <cstddef>
+
+#if defined _MSC_VER && _MSC_VER <= 1900 && !defined __clang__
+#	define MSVC_LIMITATIONS
+#endif
 
 using namespace DGLE;
 

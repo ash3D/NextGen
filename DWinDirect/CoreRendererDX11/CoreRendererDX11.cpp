@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		03.01.2017 (c)Andrey Korotkov
+\date		04.01.2017 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -692,7 +692,7 @@ namespace
 #		undef DECL_FORMAT_LAYOUT
 
 		// workoround for VS 2015 Update 2/3 bug
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx, unsigned srcSize = LayoutLength<srcLayout>, unsigned srcIdx = 0>
 		static constexpr unsigned FindSrcIdxImpl = UnpackLayout<srcLayout, srcIdx> == UnpackLayout<dstLayout, dstIdx> ? srcIdx : FindSrcIdxImpl<srcLayout, dstLayout, dstIdx, LayoutLength<srcLayout>, srcIdx + 1>;
 

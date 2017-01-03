@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		03.01.2017 (c)Andrey Korotkov
+\date		04.01.2017 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -10,7 +10,7 @@ See "DGLE.h" for more details.
 #pragma once
 
 #include "Common.h"
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 #include <boost/version.hpp>
 #include <boost/optional.hpp>
 #if BOOST_VERSION < 106300
@@ -406,7 +406,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	class CQuery final : public SelectQuery<type>
 	{
 		friend class CQueryPool;
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 		static constexpr D3DQUERYTYPE _type = type;
 		using SelectQuery<_type>::SelectQuery;
 #else
@@ -432,7 +432,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	public:
 		typedef typename std::enable_if_t<true, decltype(_queue)>::value_type TItem;
 	private:
-#if !(defined _MSC_VER && _MSC_VER <= 1900)
+#ifndef MSVC_LIMITATIONS
 		template<size_t ...idx>
 		bool _Ready(std::index_sequence<idx...>) noexcept;
 #endif
