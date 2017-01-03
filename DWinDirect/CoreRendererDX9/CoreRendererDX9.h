@@ -14,7 +14,7 @@ See "DGLE.h" for more details.
 #include <boost/version.hpp>
 #include <boost/optional.hpp>
 #if BOOST_VERSION < 106300
-#error Old boost version. 1.63.0 or later required
+#error Old boost version. 1.63.0 or later required.
 #endif
 namespace std_boost = boost;
 #else
@@ -25,15 +25,19 @@ namespace std_boost = std;
 #include <deque>
 #include <tuple>
 
-//#define SAVE_ALL_STATES
+#define SAVE_ALL_STATES 0
 
 #include "FixedFunctionPipelineDX9.h"
 
 #include <comdef.h>
 #include <d3d9.h>
 
-//#define LOST_DEVICE_RETURN_CODE E_FAIL
-#define LOST_DEVICE_RETURN_CODE S_FALSE
+#if 0
+#	define LOST_DEVICE_RETURN_CODE E_FAIL
+#else
+#	define LOST_DEVICE_RETURN_CODE S_FALSE
+#endif
+
 #define CHECK_DEVICE(coreRenderer)		\
 	if ((coreRenderer).DeviceLost())	\
 		return LOST_DEVICE_RETURN_CODE
@@ -450,7 +454,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	{
 		std::unique_ptr<IDirect3DSurface9Ptr []> rendertargets;
 		IDirect3DSurface9Ptr deptStensil;
-#ifdef SAVE_ALL_STATES
+#if SAVE_ALL_STATES
 		IDirect3DIndexBuffer9Ptr IB;
 		struct TVertexStream
 		{
@@ -623,7 +627,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		std::unique_ptr<TTextureStates []> textureStates;
 		D3DVIEWPORT9 viewport;
 		RECT scissorRect;
-#ifdef SAVE_ALL_STATES
+#if SAVE_ALL_STATES
 		std::unique_ptr<float [][4]> clipPlanes;
 		DWORD FVF;
 		FLOAT NPatchMode;

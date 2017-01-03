@@ -2763,13 +2763,13 @@ void CCoreRendererDX11::_PushStates()
 	AssertHR(_device->GetViewport(&cur_state.viewport));
 	AssertHR(_device->GetScissorRect(&cur_state.scissorRect));
 
-#ifdef SAVE_ALL_STATES
+#if SAVE_ALL_STATES
 	typedef decltype(cur_state.clipPlanes) TClipPlanes;
 	cur_state.clipPlanes = make_unique<TClipPlanes::element_type[]>(_maxClipPlanes);
 	for (DWORD idx = 0; idx < _maxClipPlanes; idx++)
 		AssertHR(_device->GetClipPlane(idx, cur_state.clipPlanes[idx]));
 #endif
-#ifdef SAVE_ALL_STATES
+#if SAVE_ALL_STATES
 	AssertHR(_device->GetFVF(&cur_state.FVF));
 	cur_state.NPatchMode = _device->GetNPatchMode();
 
@@ -2818,7 +2818,7 @@ void CCoreRendererDX11::_PopStates()
 	AssertHR(_device->SetViewport(&saved_state.viewport));
 	AssertHR(_device->SetScissorRect(&saved_state.scissorRect));
 
-#ifdef SAVE_ALL_STATES
+#if SAVE_ALL_STATES
 	for (DWORD idx = 0; idx < _maxClipPlanes; idx++)
 		AssertHR(_device->SetClipPlane(idx, saved_state.clipPlanes[idx]));
 	AssertHR(_device->SetFVF(saved_state.FVF));
@@ -2875,7 +2875,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX11::PushStates()
 
 	AssertHR(_device->GetDepthStencilSurface(&cur_bindings.deptStensil));
 
-#ifdef SAVE_ALL_STATES
+#if SAVE_ALL_STATES
 	AssertHR(_device->GetIndices(&cur_bindings.IB));
 
 	typedef decltype(cur_bindings.vertexStreams) TVertexStreams;
@@ -2907,7 +2907,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX11::PopStates()
 
 	AssertHR(_device->SetDepthStencilSurface(saved_bindings.deptStensil.Get()));
 
-#ifdef SAVE_ALL_STATES
+#if SAVE_ALL_STATES
 	AssertHR(_device->SetIndices(saved_bindings.IB.Get()));
 
 	for (DWORD idx = 0; idx < _maxVertexStreams; idx++)
