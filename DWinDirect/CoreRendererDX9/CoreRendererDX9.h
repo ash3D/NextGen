@@ -458,7 +458,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	struct TBindings
 	{
 		std::unique_ptr<IDirect3DSurface9Ptr []> rendertargets;
-		IDirect3DSurface9Ptr deptStensil;
+		IDirect3DSurface9Ptr depthStencil;
 #if SAVE_ALL_STATES
 		IDirect3DIndexBuffer9Ptr IB;
 		struct TVertexStream

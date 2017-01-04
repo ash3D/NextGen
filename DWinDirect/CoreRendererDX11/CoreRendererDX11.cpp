@@ -2873,7 +2873,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX11::PushStates()
 		}
 	}
 
-	AssertHR(_device->GetDepthStencilSurface(&cur_bindings.deptStensil));
+	AssertHR(_device->GetDepthStencilSurface(&cur_bindings.depthStencil));
 
 #if SAVE_ALL_STATES
 	AssertHR(_device->GetIndices(&cur_bindings.IB));
@@ -2905,7 +2905,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX11::PopStates()
 	for (DWORD idx = 0; idx < _maxRTs; idx++)
 		AssertHR(_device->SetRenderTarget(idx, saved_bindings.rendertargets[idx].Get()));
 
-	AssertHR(_device->SetDepthStencilSurface(saved_bindings.deptStensil.Get()));
+	AssertHR(_device->SetDepthStencilSurface(saved_bindings.depthStencil.Get()));
 
 #if SAVE_ALL_STATES
 	AssertHR(_device->SetIndices(saved_bindings.IB.Get()));
