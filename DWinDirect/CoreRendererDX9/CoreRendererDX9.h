@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		04.01.2017 (c)Andrey Korotkov
+\date		05.01.2017 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -431,6 +431,10 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		std::deque<QueryPack<types...>> _queue;
 	public:
 		typedef typename std::enable_if_t<true, decltype(_queue)>::value_type TItem;
+	public:
+		CQueryQueue() = default;
+		CQueryQueue(CQueryQueue &) = delete;
+		void operator =(CQueryQueue &) = delete;
 	private:
 #ifndef MSVC_LIMITATIONS
 		template<size_t ...idx>
