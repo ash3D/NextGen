@@ -359,7 +359,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	public:
 		template<D3DQUERYTYPE type>
 		CQuery<type> GetQuery(IDirect3DDevice9 *device) { return _GetQuery(device, type); }
-		void Clear() { _pool.clear(); }
+		void Clear() noexcept { _pool.clear(); }
 	} _GPUTimeQueryPool;
 
 	class CQueryBase
@@ -445,7 +445,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	public:
 		void Insert(TItem &&pack);
 		std_boost::optional<std::tuple<typename QueryTypeTraits<types>::TResult...>> Extract();
-		void Clear() { _queue.clear(); }
+		void Clear() noexcept { _queue.clear(); }
 	};
 	
 	CQueryQueue<D3DQUERYTYPE_TIMESTAMP, D3DQUERYTYPE_TIMESTAMP, D3DQUERYTYPE_TIMESTAMPFREQ, D3DQUERYTYPE_TIMESTAMPDISJOINT> _GPUTimeQueryQueue;
