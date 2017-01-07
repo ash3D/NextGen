@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		05.01.2017 (c)Andrey Korotkov
+\date		07.01.2017 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -26,6 +26,7 @@ namespace std_boost = std;
 #include <tuple>
 
 #define SAVE_ALL_STATES 0
+#define ENABLE_DOWNCAST_TO_WRAPPER 0
 
 #include "FixedFunctionPipelineDX9.h"
 
@@ -360,7 +361,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		template<D3DQUERYTYPE type>
 		CQuery<type> GetQuery(IDirect3DDevice9 *device) { return _GetQuery(device, type); }
 		void Clear() noexcept { _pool.clear(); }
-	} _GPUTimeQueryPool;
+	} _GPUTimeQueryPool, _AdvancedProfilerQueryPool;
 
 	class CQueryBase
 	{
@@ -425,17 +426,25 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		return std::get<CQuery<type>>(std::forward<Pack>(pack));
 	}
 
-	template<D3DQUERYTYPE ...types>
-	class CQueryQueue
+	template<class Item>
+	class CQueryQueueBase
 	{
-		std::deque<QueryPack<types...>> _queue;
+	protected:
+		std::deque<Item> _queue;
+	protected:
+		CQueryQueueBase() = default;
+		CQueryQueueBase(CQueryQueueBase &) = delete;
+		void operator =(CQueryQueueBase &) = delete;
+		~CQueryQueueBase() = default;
 	public:
-		typedef typename std::enable_if_t<true, decltype(_queue)>::value_type TItem;
-	public:
-		CQueryQueue() = default;
-		CQueryQueue(CQueryQueue &) = delete;
-		void operator =(CQueryQueue &) = delete;
-	private:
+		void Insert(Item &&item);
+		void Clear() noexcept { _queue.clear(); }
+	};
+
+	// for query pack
+	template<D3DQUERYTYPE ...types>
+	class CQueryQueue final : public CQueryQueueBase<QueryPack<types...>>
+	{
 #ifndef MSVC_LIMITATIONS
 		template<size_t ...idx>
 		bool _Ready(std::index_sequence<idx...>) noexcept;
@@ -443,15 +452,88 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		template<size_t ...idx>
 		auto _GetData(std::index_sequence<idx...>);
 	public:
-		void Insert(TItem &&pack);
 		std_boost::optional<std::tuple<typename QueryTypeTraits<types>::TResult...>> Extract();
-		void Clear() noexcept { _queue.clear(); }
+	};
+
+	// for single query
+	template<D3DQUERYTYPE type>
+	class CQueryQueue<type> final :
+#if ENABLE_DOWNCAST_TO_WRAPPER
+		public CQueryQueueBase<CQueryBase>	// need to clarify is it legal
+#else
+		public CQueryQueueBase<CQuery<type>>
+#endif
+	{
+	public:
+		std_boost::optional<typename QueryTypeTraits<type>::TResult> Extract();
 	};
 	
+	// GPU time
 	CQueryQueue<D3DQUERYTYPE_TIMESTAMP, D3DQUERYTYPE_TIMESTAMP, D3DQUERYTYPE_TIMESTAMPFREQ, D3DQUERYTYPE_TIMESTAMPDISJOINT> _GPUTimeQueryQueue;
 	CQuery<D3DQUERYTYPE_TIMESTAMP> _startGPUTimeQuery;
 	QueryPack<D3DQUERYTYPE_TIMESTAMPFREQ, D3DQUERYTYPE_TIMESTAMPDISJOINT> _GPUTimeFreqQuery;
 	std_boost::optional<float> _lastGPUTime;
+
+	// advanced profiler queries
+
+	template<D3DQUERYTYPE type>
+	struct TProfilerTask
+	{
+		CQuery<type> query;
+		CQueryQueue<type> queryQueue;
+		std_boost::optional<typename QueryTypeTraits<type>::TResult> result;
+		bool supported;
+	};
+
+	template<D3DQUERYTYPE ...types>
+	using ProfilerTasks = std::tuple<TProfilerTask<types>...>;
+
+	template<D3DQUERYTYPE type, class Tasks>
+	static inline decltype(auto) _GetProfilerTask(Tasks &&tasks) noexcept
+	{
+		return std::get<TProfilerTask<type>>(std::forward<Tasks>(tasks));
+	}
+
+#ifdef MSVC_LIMITATIONS
+#ifdef __cpp_lib_apply
+	template<typename F, D3DQUERYTYPE firstType, D3DQUERYTYPE ...restTypes>
+	static inline void _ProfilerTasksApplyImpl(F f, TProfilerTask<firstType> &head, TProfilerTask<restTypes> &...tail);
+
+	// terminator
+	static inline void _DestroyQueriesImpl() {}
+#else
+	template<D3DQUERYTYPE firstType, D3DQUERYTYPE ...restTypes, typename F, class Tasks>
+	static inline void _ProfilerTasksApplyImpl(F f, Tasks &tasks);
+
+	// terminator
+	template<typename F, class Tasks>
+	static inline void _ProfilerTasksApplyImpl(F, Tasks &) {}
+#endif
+#endif
+
+	// 1 call site per instantiation
+	template<typename F, D3DQUERYTYPE ...types>
+	static inline void _ProfilerTasksApply(F f, ProfilerTasks<types...> &tasks);
+
+	template<D3DQUERYTYPE type>
+	inline void _ProfilerTaskCheckSupport(TProfilerTask<type> &task);
+
+	template<D3DQUERYTYPE type>
+	inline void _ProfilerTaskStart(TProfilerTask<type> &task);
+
+	template<D3DQUERYTYPE type>
+	inline void _ProfilerTaskStop(TProfilerTask<type> &task);
+
+	template<D3DQUERYTYPE type>
+	inline void _ProfilerTaskCollectResults(TProfilerTask<type> &task);
+
+	template<D3DQUERYTYPE type>
+	inline void _ProfilerTaskDestroy(TProfilerTask<type> &task);
+
+	template<D3DQUERYTYPE type>
+	inline void _ProfilerTaskAbort(TProfilerTask<type> &task);
+
+	ProfilerTasks<D3DQUERYTYPE_INTERFACETIMINGS, D3DQUERYTYPE_PIPELINETIMINGS, D3DQUERYTYPE_BANDWIDTHTIMINGS, D3DQUERYTYPE_VERTEXTIMINGS, D3DQUERYTYPE_PIXELTIMINGS, D3DQUERYTYPE_CACHEUTILIZATION> _advancedProfilerTasks;
 
 	static constexpr D3DFORMAT _offscreenDepthFormat = D3DFMT_D24S8;
 	CCoreTexture *_curRenderTarget = nullptr;

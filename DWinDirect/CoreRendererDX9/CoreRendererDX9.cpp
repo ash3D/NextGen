@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		04.01.2017 (c)Andrey Korotkov
+\date		07.01.2017 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -57,6 +57,97 @@ namespace
 
 		// rely on NRVO
 		return surface_desc;
+	}
+
+	inline void operator +=(D3DDEVINFO_D3D9INTERFACETIMINGS &left, const D3DDEVINFO_D3D9INTERFACETIMINGS &right)
+	{
+		left.WaitingForGPUToUseApplicationResourceTimePercent += right.WaitingForGPUToUseApplicationResourceTimePercent;
+		left.WaitingForGPUToAcceptMoreCommandsTimePercent += right.WaitingForGPUToAcceptMoreCommandsTimePercent;
+		left.WaitingForGPUToStayWithinLatencyTimePercent += right.WaitingForGPUToStayWithinLatencyTimePercent;
+		left.WaitingForGPUExclusiveResourceTimePercent += right.WaitingForGPUExclusiveResourceTimePercent;
+		left.WaitingForGPUOtherTimePercent += right.WaitingForGPUOtherTimePercent;
+	}
+
+	inline D3DDEVINFO_D3D9INTERFACETIMINGS operator /(const D3DDEVINFO_D3D9INTERFACETIMINGS &left, unsigned int right)
+	{
+		return
+		{
+			left.WaitingForGPUToUseApplicationResourceTimePercent / right,
+			left.WaitingForGPUToAcceptMoreCommandsTimePercent / right,
+			left.WaitingForGPUToStayWithinLatencyTimePercent / right,
+			left.WaitingForGPUExclusiveResourceTimePercent / right,
+			left.WaitingForGPUOtherTimePercent / right
+		};
+	}
+
+	inline void operator +=(D3DDEVINFO_D3D9PIPELINETIMINGS &left, const D3DDEVINFO_D3D9PIPELINETIMINGS &right)
+	{
+		left.VertexProcessingTimePercent += right.VertexProcessingTimePercent;
+		left.PixelProcessingTimePercent += right.PixelProcessingTimePercent;
+		left.OtherGPUProcessingTimePercent += right.OtherGPUProcessingTimePercent;
+		left.GPUIdleTimePercent += right.GPUIdleTimePercent;
+	}
+
+	inline D3DDEVINFO_D3D9PIPELINETIMINGS operator /(const D3DDEVINFO_D3D9PIPELINETIMINGS &left, unsigned int right)
+	{
+		return
+		{
+			left.VertexProcessingTimePercent / right,
+			left.PixelProcessingTimePercent / right,
+			left.OtherGPUProcessingTimePercent / right,
+			left.GPUIdleTimePercent / right
+		};
+	}
+
+	inline void operator +=(D3DDEVINFO_D3D9BANDWIDTHTIMINGS &left, const D3DDEVINFO_D3D9BANDWIDTHTIMINGS &right)
+	{
+		left.MaxBandwidthUtilized += right.MaxBandwidthUtilized;
+		left.FrontEndUploadMemoryUtilizedPercent += right.FrontEndUploadMemoryUtilizedPercent;
+		left.VertexRateUtilizedPercent += right.VertexRateUtilizedPercent;
+		left.TriangleSetupRateUtilizedPercent += right.TriangleSetupRateUtilizedPercent;
+		left.FillRateUtilizedPercent += right.FillRateUtilizedPercent;
+	}
+
+	inline D3DDEVINFO_D3D9BANDWIDTHTIMINGS operator /(const D3DDEVINFO_D3D9BANDWIDTHTIMINGS &left, unsigned int right)
+	{
+		return
+		{
+			left.MaxBandwidthUtilized / right,
+			left.FrontEndUploadMemoryUtilizedPercent / right,
+			left.VertexRateUtilizedPercent / right,
+			left.TriangleSetupRateUtilizedPercent / right,
+			left.FillRateUtilizedPercent / right
+		};
+	}
+
+	inline void operator +=(D3DDEVINFO_D3D9STAGETIMINGS &left, const D3DDEVINFO_D3D9STAGETIMINGS &right)
+	{
+		left.MemoryProcessingPercent += right.MemoryProcessingPercent;
+		left.ComputationProcessingPercent += right.ComputationProcessingPercent;
+	};
+
+	inline D3DDEVINFO_D3D9STAGETIMINGS operator /(const D3DDEVINFO_D3D9STAGETIMINGS &left, unsigned int right)
+	{
+		return
+		{
+			left.MemoryProcessingPercent / right,
+			left.ComputationProcessingPercent / right
+		};
+	}
+
+	inline void operator +=(D3DDEVINFO_D3D9CACHEUTILIZATION &left, const D3DDEVINFO_D3D9CACHEUTILIZATION &right)
+	{
+		left.TextureCacheHitRate += right.TextureCacheHitRate;
+		left.PostTransformVertexCacheHitRate += right.PostTransformVertexCacheHitRate;
+	};
+
+	inline D3DDEVINFO_D3D9CACHEUTILIZATION operator /(const D3DDEVINFO_D3D9CACHEUTILIZATION &left, unsigned int right)
+	{
+		return
+		{
+			left.TextureCacheHitRate / right,
+			left.PostTransformVertexCacheHitRate / right
+		};
 	}
 }
 
@@ -1813,12 +1904,14 @@ void CCoreRendererDX9::_AbortProfiling()
 	AssertHR(_engineCore.ConsoleExecute(PROFILER_CMD_NAME" 0"));
 	_startGPUTimeQuery = {};
 	_GPUTimeFreqQuery = {};
+	_ProfilerTasksApply([this](auto &task) { _ProfilerTaskAbort(task); }, _advancedProfilerTasks);
 }
 
 void CCoreRendererDX9::_ProfilerStartFrame(HRESULT &hr)
 {
-	if (_profilerState && _GPUTimeQuerySupport)
-		try
+	try
+	{
+		if (_profilerState >= 1 && _GPUTimeQuerySupport)
 		{
 			_GetQuery<D3DQUERYTYPE_TIMESTAMPDISJOINT>(_GPUTimeFreqQuery) = _GPUTimeQueryPool.GetQuery<D3DQUERYTYPE_TIMESTAMPDISJOINT>(_device);
 			_GetQuery<D3DQUERYTYPE_TIMESTAMPFREQ>(_GPUTimeFreqQuery) = _GPUTimeQueryPool.GetQuery<D3DQUERYTYPE_TIMESTAMPFREQ>(_device);
@@ -1828,34 +1921,47 @@ void CCoreRendererDX9::_ProfilerStartFrame(HRESULT &hr)
 			_GetQuery<D3DQUERYTYPE_TIMESTAMPFREQ>(_GPUTimeFreqQuery).Issue();
 			_startGPUTimeQuery.Issue();
 		}
-		catch (...)
+		else
 		{
-			_AbortProfiling();
-			hr = S_FALSE;
+			_GPUTimeQueryPool.Clear();
+			_GPUTimeQueryQueue.Clear();
+			_lastGPUTime.reset();
 		}
-	else
+
+		if (_profilerState >= 2)
+			_ProfilerTasksApply([this](auto &task) { _ProfilerTaskStart(task); }, _advancedProfilerTasks);
+		else
+		{
+			_AdvancedProfilerQueryPool.Clear();
+			_ProfilerTasksApply([this](auto &task) { _ProfilerTaskDestroy(task); }, _advancedProfilerTasks);
+		}
+	}
+	catch (...)
 	{
-		_GPUTimeQueryQueue.Clear();
-		_GPUTimeQueryPool.Clear();
-		_lastGPUTime.reset();
+		_AbortProfiling();
+		hr = S_FALSE;
 	}
 }
 
 void CCoreRendererDX9::_ProfilerStopFrame(HRESULT &hr)
 {
-	if (_startGPUTimeQuery)
-		try
+	try
+	{
+		if (_startGPUTimeQuery)
 		{
 			auto stopGPUTimeQuery = _GPUTimeQueryPool.GetQuery<D3DQUERYTYPE_TIMESTAMP>(_device);
 			stopGPUTimeQuery.Issue();
 			_GetQuery<D3DQUERYTYPE_TIMESTAMPDISJOINT>(_GPUTimeFreqQuery).Stop();
 			_GPUTimeQueryQueue.Insert(tuple_cat(make_tuple(move(_startGPUTimeQuery), move(stopGPUTimeQuery)), move(_GPUTimeFreqQuery)));
 		}
-		catch (...)
-		{
-			_AbortProfiling();
-			hr = S_FALSE;
-		}
+
+		_ProfilerTasksApply([this](auto &task) { _ProfilerTaskStop(task); }, _advancedProfilerTasks);
+	}
+	catch (...)
+	{
+		_AbortProfiling();
+		hr = S_FALSE;
+	}
 }
 
 DGLE_RESULT DGLE_API CCoreRendererDX9::Initialize(TCrRndrInitResults &stResults, TEngineWindow &stWin, E_ENGINE_INIT_FLAGS &eInitFlags)
@@ -1905,6 +2011,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Initialize(TCrRndrInitResults &stResults,
 	_mipmapSupport = caps.TextureCaps & D3DPTEXTURECAPS_MIPMAP;
 	_anisoSupport = caps.RasterCaps & D3DPRASTERCAPS_ANISOTROPY;
 	_GPUTimeQuerySupport = SUCCEEDED(_device->CreateQuery(D3DQUERYTYPE_TIMESTAMP, NULL)) && SUCCEEDED(_device->CreateQuery(D3DQUERYTYPE_TIMESTAMPFREQ, NULL)) && SUCCEEDED(_device->CreateQuery(D3DQUERYTYPE_TIMESTAMPDISJOINT, NULL));
+	_ProfilerTasksApply([this](auto &task) { _ProfilerTaskCheckSupport(task); }, _advancedProfilerTasks);
 
 	_FFP = new CFixedFunctionPipelineDX9(*this, _device);
 
@@ -1935,7 +2042,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Initialize(TCrRndrInitResults &stResults,
 	AssertHR(_engineCore.AddEventListener(ET_ON_PER_SECOND_TIMER, _EventsHandler, this));
 	AssertHR(_engineCore.AddEventListener(ET_ON_PROFILER_DRAW, _EventsHandler, this));
 
-	AssertHR(_engineCore.ConsoleRegisterVariable(PROFILER_CMD_NAME, "Displays Core Renderer DirectX 9 subsystems profiler.", &_profilerState, 0, 1));
+	AssertHR(_engineCore.ConsoleRegisterVariable(PROFILER_CMD_NAME, "Displays Core Renderer DirectX 9 subsystems profiler.", &_profilerState, 0, 2));
 
 	_stInitResults = stResults;
 
@@ -2707,6 +2814,12 @@ inline optional<TResult> CCoreRendererDX9::CQueryAccess<TResult>::GetData() noex
 #pragma endregion
 
 #pragma region CQueryQueue
+template<class Item>
+void CCoreRendererDX9::CQueryQueueBase<Item>::Insert(Item &&item)
+{
+	_queue.push_back(move(item));
+}
+
 #ifndef MSVC_LIMITATIONS
 template<D3DQUERYTYPE ...types>
 template<size_t ...idx>
@@ -2721,12 +2834,6 @@ template<size_t ...idx>
 inline auto CCoreRendererDX9::CQueryQueue<types...>::_GetData(index_sequence<idx...>)
 {
 	return make_tuple(get<idx>(_queue.front()).GetData().value()...);
-}
-
-template<D3DQUERYTYPE ...types>
-void CCoreRendererDX9::CQueryQueue<types...>::Insert(TItem &&pack)
-{
-	_queue.push_back(move(pack));
 }
 
 template<D3DQUERYTYPE ...types>
@@ -2756,7 +2863,109 @@ auto CCoreRendererDX9::CQueryQueue<types...>::Extract() -> optional<tuple<typena
 	_queue.pop_front();
 	return result;
 }
+
+template<D3DQUERYTYPE type>
+auto CCoreRendererDX9::CQueryQueue<type>::Extract() -> optional<typename QueryTypeTraits<type>::TResult>
+{
+	if (_queue.empty())
+#ifdef MSVC_LIMITATIONS
+		return none;
+#else
+		return nullopt;
+#endif
+
+	const auto result = static_cast<CQuery<type> &>(_queue.front()).GetData();
+	if (result/*.has_value()*/)
+		_queue.pop_front();
+	return result;
+}
 #pragma endregion
+
+#ifdef MSVC_LIMITATIONS
+#ifdef __cpp_lib_apply
+template<typename F, D3DQUERYTYPE firstType, D3DQUERYTYPE ...restTypes>
+inline void CCoreRendererDX9::_ProfilerTasksApplyImpl(F f, TProfilerTask<firstType> &head, TProfilerTask<restTypes> &...tail)
+{
+	f(head);
+	_ProfilerTasksApplyImpl(f, tail...);
+}
+
+template<typename F, D3DQUERYTYPE ...types>
+void CCoreRendererDX9::_ProfilerTasksApply(F f, ProfilerTasks<types...> &tasks)
+{
+	apply(_ProfilerTasksApplyImpl<F, types...>, tuple_cat(make_tuple(f), tasks));
+}
+#else
+template<D3DQUERYTYPE firstType, D3DQUERYTYPE ...restTypes, typename F, class Tasks>
+inline void CCoreRendererDX9::_ProfilerTasksApplyImpl(F f, Tasks &tasks)
+{
+	f(_GetProfilerTask<firstType>(tasks));
+	_ProfilerTasksApplyImpl<restTypes...>(f, tasks);
+}
+
+template<typename F, D3DQUERYTYPE ...types>
+void CCoreRendererDX9::_ProfilerTasksApply(F f, ProfilerTasks<types...> &tasks)
+{
+	_ProfilerTasksApplyImpl<types...>(f, tasks);
+}
+#endif
+#else
+template<typename F, D3DQUERYTYPE ...types>
+void CCoreRendererDX9::_ProfilerTasksApply(F f, ProfilerTasks<types...> &tasks)
+{
+	(f(_GetProfilerTask<types>(tasks)), ...);
+}
+#endif
+
+template<D3DQUERYTYPE type>
+inline void CCoreRendererDX9::_ProfilerTaskCheckSupport(TProfilerTask<type> &task)
+{
+	task.supported = SUCCEEDED(_device->CreateQuery(type, NULL));
+}
+
+template<D3DQUERYTYPE type>
+inline void CCoreRendererDX9::_ProfilerTaskStart(TProfilerTask<type> &task)
+{
+	if (task.supported)
+		(task.query = _AdvancedProfilerQueryPool.GetQuery<type>(_device)).Start();
+}
+
+template<D3DQUERYTYPE type>
+inline void CCoreRendererDX9::_ProfilerTaskStop(TProfilerTask<type> &task)
+{
+	if (task.query)
+	{
+		task.query.Stop();
+		task.queryQueue.Insert(move(task.query));
+	}
+}
+
+template<D3DQUERYTYPE type>
+inline void CCoreRendererDX9::_ProfilerTaskCollectResults(TProfilerTask<type> &task)
+{
+	decltype(task.result)::value_type accumResults = {};
+	unsigned int frames = 0;
+	while (const auto task_sample = task.queryQueue.Extract())
+	{
+		accumResults += *task_sample;
+		frames++;
+	}
+	if (frames)
+		task.result = accumResults / frames;
+}
+
+template<D3DQUERYTYPE type>
+inline void CCoreRendererDX9::_ProfilerTaskDestroy(TProfilerTask<type> &task)
+{
+	task.queryQueue.Clear();
+	task.result.reset();
+}
+
+template<D3DQUERYTYPE type>
+inline void CCoreRendererDX9::_ProfilerTaskAbort(TProfilerTask<type> &task)
+{
+	task.query = {};
+}
 #pragma endregion
 
 DGLE_RESULT DGLE_API CCoreRendererDX9::SetRenderTarget(ICoreTexture *pTexture)
@@ -3897,16 +4106,19 @@ inline void CCoreRendererDX9::_HandleEvent<ET_ON_PER_SECOND_TIMER>(IBaseEvent *p
 	}
 	if (frames)
 		_lastGPUTime = accumGPUTime / frames;
+
+	_ProfilerTasksApply([this](auto &task) { _ProfilerTaskCollectResults(task); }, _advancedProfilerTasks);
 }
 
 template<>
 inline void CCoreRendererDX9::_HandleEvent<ET_ON_PROFILER_DRAW>(IBaseEvent *pEvent)
 {
-	if (_profilerState)
+	if (_profilerState >= 1)
 	{
+		AssertHR(_engineCore.RenderProfilerText("===Core Renderer Profiler==="));
+
 		if (_GPUTimeQuerySupport)
 		{
-			AssertHR(_engineCore.RenderProfilerText("===Core Renderer Profiler==="));
 			if (_lastGPUTime)
 			{
 				const auto color = _lastGPUTime <= 1000.f / 60.f ? ColorGreen() : _lastGPUTime <= 1000.f / 30.f ? ColorYellow() : ColorRed();
@@ -3917,6 +4129,118 @@ inline void CCoreRendererDX9::_HandleEvent<ET_ON_PROFILER_DRAW>(IBaseEvent *pEve
 		}
 		else
 			AssertHR(_engineCore.RenderProfilerText("GPU frame time query is not supported by GPU/driver", ColorGray()));
+
+		if (_profilerState >= 2)
+		{
+			const auto &interface_timings_task = _GetProfilerTask<D3DQUERYTYPE_INTERFACETIMINGS>(_advancedProfilerTasks);
+			if (interface_timings_task.supported)
+			{
+				if (interface_timings_task.result)
+				{
+					AssertHR(_engineCore.RenderProfilerText("---Interface Timings---"));
+					AssertHR(_engineCore.RenderProfilerText(("Waiting for locks....................." + to_string(interface_timings_task.result->WaitingForGPUToUseApplicationResourceTimePercent * 100.f) + '%').c_str()));
+					AssertHR(_engineCore.RenderProfilerText(("Waiting for command buffer overflow..." + to_string(interface_timings_task.result->WaitingForGPUToAcceptMoreCommandsTimePercent * 100.f) + '%').c_str()));
+					AssertHR(_engineCore.RenderProfilerText(("Waiting for frame latency recovery...." + to_string(interface_timings_task.result->WaitingForGPUToStayWithinLatencyTimePercent * 100.f) + '%').c_str()));
+					AssertHR(_engineCore.RenderProfilerText(("Waiting for unpipelinable stuff......." + to_string(interface_timings_task.result->WaitingForGPUExclusiveResourceTimePercent * 100.f) + '%').c_str()));
+					AssertHR(_engineCore.RenderProfilerText(("Waiting for other stuff..............." + to_string(interface_timings_task.result->WaitingForGPUOtherTimePercent * 100.f) + '%').c_str()));
+					AssertHR(_engineCore.RenderProfilerText("-----------------------"));
+				}
+				else
+					AssertHR(_engineCore.RenderProfilerText("Interface timings data not yet available", ColorGray()));
+			}
+			else
+				AssertHR(_engineCore.RenderProfilerText("Interface timings query is not supported by GPU/driver", ColorGray()));
+
+			const auto &pipeline_timings_task = _GetProfilerTask<D3DQUERYTYPE_PIPELINETIMINGS>(_advancedProfilerTasks);
+			if (pipeline_timings_task.supported)
+			{
+				if (pipeline_timings_task.result)
+				{
+					AssertHR(_engineCore.RenderProfilerText("---Pipeline  Timings---"));
+					AssertHR(_engineCore.RenderProfilerText(("Vertex processing....................." + to_string(pipeline_timings_task.result->VertexProcessingTimePercent * 100.f) + '%').c_str()));
+					AssertHR(_engineCore.RenderProfilerText(("Pixel processing......................" + to_string(pipeline_timings_task.result->PixelProcessingTimePercent * 100.f) + '%').c_str()));
+					AssertHR(_engineCore.RenderProfilerText(("Other GPU processing.................." + to_string(pipeline_timings_task.result->OtherGPUProcessingTimePercent * 100.f) + '%').c_str()));
+					AssertHR(_engineCore.RenderProfilerText(("GPU idle.............................." + to_string(pipeline_timings_task.result->GPUIdleTimePercent * 100.f) + '%').c_str()));
+					AssertHR(_engineCore.RenderProfilerText("-----------------------"));
+				}
+				else
+					AssertHR(_engineCore.RenderProfilerText("Pipeline timings data not yet available", ColorGray()));
+			}
+			else
+				AssertHR(_engineCore.RenderProfilerText("Pipeline timings query is not supported by GPU/driver", ColorGray()));
+
+			const auto &bandwidth_timings_task = _GetProfilerTask<D3DQUERYTYPE_BANDWIDTHTIMINGS>(_advancedProfilerTasks);
+			if (bandwidth_timings_task.supported)
+			{
+				if (bandwidth_timings_task.result)
+				{
+					AssertHR(_engineCore.RenderProfilerText("---Bandwidth Timings---"));
+					AssertHR(_engineCore.RenderProfilerText(("CPU->GPU bandwidth used..............." + to_string(bandwidth_timings_task.result->MaxBandwidthUtilized)).c_str()));
+					AssertHR(_engineCore.RenderProfilerText(("CPU->GPU upload memory used..........." + to_string(bandwidth_timings_task.result->FrontEndUploadMemoryUtilizedPercent * 100.f) + '%').c_str()));
+					AssertHR(_engineCore.RenderProfilerText(("Vertex throughput used................" + to_string(bandwidth_timings_task.result->VertexRateUtilizedPercent * 100.f) + '%').c_str()));
+					AssertHR(_engineCore.RenderProfilerText(("Triangle setup throughput used........" + to_string(bandwidth_timings_task.result->TriangleSetupRateUtilizedPercent * 100.f) + '%').c_str()));
+					AssertHR(_engineCore.RenderProfilerText(("Fillrate used........................." + to_string(bandwidth_timings_task.result->FillRateUtilizedPercent * 100.f) + '%').c_str()));
+					AssertHR(_engineCore.RenderProfilerText("-----------------------"));
+				}
+				else
+					AssertHR(_engineCore.RenderProfilerText("Bandwidth timings data not yet available", ColorGray()));
+			}
+			else
+				AssertHR(_engineCore.RenderProfilerText("Bandwidth timings query is not supported by GPU/driver", ColorGray()));
+
+			const auto &vertex_timings_task = _GetProfilerTask<D3DQUERYTYPE_VERTEXTIMINGS>(_advancedProfilerTasks);
+			if (vertex_timings_task.supported)
+			{
+				if (vertex_timings_task.result)
+				{
+					AssertHR(_engineCore.RenderProfilerText("----Vertex  Timings----"));
+					AssertHR(_engineCore.RenderProfilerText(("Memory accesses......................." + to_string(vertex_timings_task.result->MemoryProcessingPercent * 100.f) + '%').c_str()));
+					AssertHR(_engineCore.RenderProfilerText(("Computations.........................." + to_string(vertex_timings_task.result->ComputationProcessingPercent * 100.f) + '%').c_str()));
+					AssertHR(_engineCore.RenderProfilerText("-----------------------"));
+				}
+				else
+					AssertHR(_engineCore.RenderProfilerText("Vertex timings data not yet available", ColorGray()));
+			}
+			else
+				AssertHR(_engineCore.RenderProfilerText("Vertex timings query is not supported by GPU/driver", ColorGray()));
+
+			const auto &pixel_timings_task = _GetProfilerTask<D3DQUERYTYPE_PIXELTIMINGS>(_advancedProfilerTasks);
+			if (pixel_timings_task.supported)
+			{
+				if (pixel_timings_task.result)
+				{
+					AssertHR(_engineCore.RenderProfilerText("-----Pixel Timings-----"));
+					AssertHR(_engineCore.RenderProfilerText(("Memory accesses......................." + to_string(pixel_timings_task.result->MemoryProcessingPercent * 100.f) + '%').c_str()));
+					AssertHR(_engineCore.RenderProfilerText(("Computations.........................." + to_string(pixel_timings_task.result->ComputationProcessingPercent * 100.f) + '%').c_str()));
+					AssertHR(_engineCore.RenderProfilerText("-----------------------"));
+				}
+				else
+					AssertHR(_engineCore.RenderProfilerText("Pixel timings data not yet available", ColorGray()));
+			}
+			else
+				AssertHR(_engineCore.RenderProfilerText("Pixel timings query is not supported by GPU/driver", ColorGray()));
+
+			const auto &cache_utilization_task = _GetProfilerTask<D3DQUERYTYPE_CACHEUTILIZATION>(_advancedProfilerTasks);
+			if (cache_utilization_task.supported)
+			{
+				if (cache_utilization_task.result)
+				{
+					const auto GetColor = [](float x)
+					{
+						return x >= .9f ? ColorGreen() : x >= .1f ? ColorYellow() : ColorRed();
+					};
+
+					AssertHR(_engineCore.RenderProfilerText("---Cache Utilization---"));
+					AssertHR(_engineCore.RenderProfilerText(("Texture cache hit rate................" + to_string(cache_utilization_task.result->TextureCacheHitRate * 100.f) + '%').c_str(), GetColor(cache_utilization_task.result->TextureCacheHitRate)));
+					AssertHR(_engineCore.RenderProfilerText(("Posttransform vertex cache hit rate..." + to_string(cache_utilization_task.result->PostTransformVertexCacheHitRate * 100.f) + '%').c_str(), GetColor(cache_utilization_task.result->PostTransformVertexCacheHitRate)));
+					AssertHR(_engineCore.RenderProfilerText("-----------------------"));
+				}
+				else
+					AssertHR(_engineCore.RenderProfilerText("Cache utilization data not yet available", ColorGray()));
+			}
+			else
+				AssertHR(_engineCore.RenderProfilerText("Cache utilization query is not supported by GPU/driver", ColorGray()));
+		}
 	}
 }
 
