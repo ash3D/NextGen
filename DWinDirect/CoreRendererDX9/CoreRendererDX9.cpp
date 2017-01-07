@@ -4115,6 +4115,8 @@ inline void CCoreRendererDX9::_HandleEvent<ET_ON_PROFILER_DRAW>(IBaseEvent *pEve
 {
 	if (_profilerState >= 1)
 	{
+		const auto unavailable_color = ColorGray(), unsupported_color = ColorBrown();
+
 		AssertHR(_engineCore.RenderProfilerText("===Core Renderer Profiler==="));
 
 		if (_GPUTimeQuerySupport)
@@ -4125,10 +4127,10 @@ inline void CCoreRendererDX9::_HandleEvent<ET_ON_PROFILER_DRAW>(IBaseEvent *pEve
 				AssertHR(_engineCore.RenderProfilerText(("GPU frame time estimation: " + to_string(*_lastGPUTime) + " ms").c_str(), color));
 			}
 			else
-				AssertHR(_engineCore.RenderProfilerText("GPU frame time data not yet available", ColorGray()));
+				AssertHR(_engineCore.RenderProfilerText("GPU frame time data not yet available", unavailable_color));
 		}
 		else
-			AssertHR(_engineCore.RenderProfilerText("GPU frame time query is not supported by GPU/driver", ColorGray()));
+			AssertHR(_engineCore.RenderProfilerText("GPU frame time query is not supported by GPU/driver", unsupported_color));
 
 		if (_profilerState >= 2)
 		{
@@ -4146,10 +4148,10 @@ inline void CCoreRendererDX9::_HandleEvent<ET_ON_PROFILER_DRAW>(IBaseEvent *pEve
 					AssertHR(_engineCore.RenderProfilerText("-----------------------"));
 				}
 				else
-					AssertHR(_engineCore.RenderProfilerText("Interface timings data not yet available", ColorGray()));
+					AssertHR(_engineCore.RenderProfilerText("Interface timings data not yet available", unavailable_color));
 			}
 			else
-				AssertHR(_engineCore.RenderProfilerText("Interface timings query is not supported by GPU/driver", ColorGray()));
+				AssertHR(_engineCore.RenderProfilerText("Interface timings query is not supported by GPU/driver", unsupported_color));
 
 			const auto &pipeline_timings_task = _GetProfilerTask<D3DQUERYTYPE_PIPELINETIMINGS>(_advancedProfilerTasks);
 			if (pipeline_timings_task.supported)
@@ -4164,10 +4166,10 @@ inline void CCoreRendererDX9::_HandleEvent<ET_ON_PROFILER_DRAW>(IBaseEvent *pEve
 					AssertHR(_engineCore.RenderProfilerText("-----------------------"));
 				}
 				else
-					AssertHR(_engineCore.RenderProfilerText("Pipeline timings data not yet available", ColorGray()));
+					AssertHR(_engineCore.RenderProfilerText("Pipeline timings data not yet available", unavailable_color));
 			}
 			else
-				AssertHR(_engineCore.RenderProfilerText("Pipeline timings query is not supported by GPU/driver", ColorGray()));
+				AssertHR(_engineCore.RenderProfilerText("Pipeline timings query is not supported by GPU/driver", unsupported_color));
 
 			const auto &bandwidth_timings_task = _GetProfilerTask<D3DQUERYTYPE_BANDWIDTHTIMINGS>(_advancedProfilerTasks);
 			if (bandwidth_timings_task.supported)
@@ -4183,10 +4185,10 @@ inline void CCoreRendererDX9::_HandleEvent<ET_ON_PROFILER_DRAW>(IBaseEvent *pEve
 					AssertHR(_engineCore.RenderProfilerText("-----------------------"));
 				}
 				else
-					AssertHR(_engineCore.RenderProfilerText("Bandwidth timings data not yet available", ColorGray()));
+					AssertHR(_engineCore.RenderProfilerText("Bandwidth timings data not yet available", unavailable_color));
 			}
 			else
-				AssertHR(_engineCore.RenderProfilerText("Bandwidth timings query is not supported by GPU/driver", ColorGray()));
+				AssertHR(_engineCore.RenderProfilerText("Bandwidth timings query is not supported by GPU/driver", unsupported_color));
 
 			const auto &vertex_timings_task = _GetProfilerTask<D3DQUERYTYPE_VERTEXTIMINGS>(_advancedProfilerTasks);
 			if (vertex_timings_task.supported)
@@ -4199,10 +4201,10 @@ inline void CCoreRendererDX9::_HandleEvent<ET_ON_PROFILER_DRAW>(IBaseEvent *pEve
 					AssertHR(_engineCore.RenderProfilerText("-----------------------"));
 				}
 				else
-					AssertHR(_engineCore.RenderProfilerText("Vertex timings data not yet available", ColorGray()));
+					AssertHR(_engineCore.RenderProfilerText("Vertex timings data not yet available", unavailable_color));
 			}
 			else
-				AssertHR(_engineCore.RenderProfilerText("Vertex timings query is not supported by GPU/driver", ColorGray()));
+				AssertHR(_engineCore.RenderProfilerText("Vertex timings query is not supported by GPU/driver", unsupported_color));
 
 			const auto &pixel_timings_task = _GetProfilerTask<D3DQUERYTYPE_PIXELTIMINGS>(_advancedProfilerTasks);
 			if (pixel_timings_task.supported)
@@ -4215,10 +4217,10 @@ inline void CCoreRendererDX9::_HandleEvent<ET_ON_PROFILER_DRAW>(IBaseEvent *pEve
 					AssertHR(_engineCore.RenderProfilerText("-----------------------"));
 				}
 				else
-					AssertHR(_engineCore.RenderProfilerText("Pixel timings data not yet available", ColorGray()));
+					AssertHR(_engineCore.RenderProfilerText("Pixel timings data not yet available", unavailable_color));
 			}
 			else
-				AssertHR(_engineCore.RenderProfilerText("Pixel timings query is not supported by GPU/driver", ColorGray()));
+				AssertHR(_engineCore.RenderProfilerText("Pixel timings query is not supported by GPU/driver", unsupported_color));
 
 			const auto &cache_utilization_task = _GetProfilerTask<D3DQUERYTYPE_CACHEUTILIZATION>(_advancedProfilerTasks);
 			if (cache_utilization_task.supported)
@@ -4236,10 +4238,10 @@ inline void CCoreRendererDX9::_HandleEvent<ET_ON_PROFILER_DRAW>(IBaseEvent *pEve
 					AssertHR(_engineCore.RenderProfilerText("-----------------------"));
 				}
 				else
-					AssertHR(_engineCore.RenderProfilerText("Cache utilization data not yet available", ColorGray()));
+					AssertHR(_engineCore.RenderProfilerText("Cache utilization data not yet available", unavailable_color));
 			}
 			else
-				AssertHR(_engineCore.RenderProfilerText("Cache utilization query is not supported by GPU/driver", ColorGray()));
+				AssertHR(_engineCore.RenderProfilerText("Cache utilization query is not supported by GPU/driver", unsupported_color));
 		}
 	}
 }
