@@ -10,7 +10,7 @@
 #include <memory>
 #include <type_traits>
 
-#define FORCE_NVIDIA_GPU
+#define FORCE_NVIDIA_GPU 1
 
 using namespace DGLE;
 
@@ -39,7 +39,7 @@ static std::unique_ptr<char []> *ppcJoyName;
 
 using std::to_string;
 
-#ifdef FORCE_NVIDIA_GPU
+#if FORCE_NVIDIA_GPU
 extern "C" _declspec(dllexport) const DWORD NvOptimusEnablement = 0x00000001;
 #endif
 
