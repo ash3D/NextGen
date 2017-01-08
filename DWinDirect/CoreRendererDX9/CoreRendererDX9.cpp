@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		08.01.2017 (c)Andrey Korotkov
+\date		09.01.2017 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -648,7 +648,7 @@ CGeometryProviderBase(parent, drawDesc, mode), CCoreGeometryBufferBase(parent, d
 			throw;
 		}
 	}
-	_Reallocate(drawDesc, GetVerticesDataSize(_drawDataDesc, _verticesCount), GetIndicesDataSize(_drawDataDesc, _indicesCount), mode);
+	_Reallocate(drawDesc, verCnt, idxCnt, mode);
 }
 
 void CCoreRendererDX9::CCoreGeometryBufferDynamic::_GetGeometryDataImpl(void *vertexData, uint verticesDataSize, void *indexData, uint indicesDataSize) const
