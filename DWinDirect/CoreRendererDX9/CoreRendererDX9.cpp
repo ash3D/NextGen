@@ -247,11 +247,11 @@ namespace
 		BYTE usage;
 	} vertexElementLUT[] =
 	{
-		{ &TDrawDataDesc::uiNormalOffset, &TDrawDataDesc::uiNormalStride, D3DDECLTYPE_FLOAT3, D3DDECLUSAGE_NORMAL },
-		{ &TDrawDataDesc::uiTextureVertexOffset, &TDrawDataDesc::uiTextureVertexStride, D3DDECLTYPE_FLOAT2, D3DDECLUSAGE_TEXCOORD },
-		{ &TDrawDataDesc::uiColorOffset, &TDrawDataDesc::uiColorStride, D3DDECLTYPE_FLOAT4, D3DDECLUSAGE_COLOR },
-		{ &TDrawDataDesc::uiTangentOffset, &TDrawDataDesc::uiTangentStride, D3DDECLTYPE_FLOAT3, D3DDECLUSAGE_TANGENT },
-		{ &TDrawDataDesc::uiBinormalOffset, &TDrawDataDesc::uiBinormalStride, D3DDECLTYPE_FLOAT3, D3DDECLUSAGE_BINORMAL }
+		{ &TDrawDataDesc::uiNormalOffset,			&TDrawDataDesc::uiNormalStride,			D3DDECLTYPE_FLOAT3, D3DDECLUSAGE_NORMAL		},
+		{ &TDrawDataDesc::uiTextureVertexOffset,	&TDrawDataDesc::uiTextureVertexStride,	D3DDECLTYPE_FLOAT2, D3DDECLUSAGE_TEXCOORD	},
+		{ &TDrawDataDesc::uiColorOffset,			&TDrawDataDesc::uiColorStride,			D3DDECLTYPE_FLOAT4, D3DDECLUSAGE_COLOR		},
+		{ &TDrawDataDesc::uiTangentOffset,			&TDrawDataDesc::uiTangentStride,		D3DDECLTYPE_FLOAT3, D3DDECLUSAGE_TANGENT	},
+		{ &TDrawDataDesc::uiBinormalOffset,			&TDrawDataDesc::uiBinormalStride,		D3DDECLTYPE_FLOAT3, D3DDECLUSAGE_BINORMAL	}
 	};
 }
 
@@ -310,7 +310,7 @@ protected:
 	CDynamicIB *_IB;
 
 protected:
-	// TODO: consider using C++11 inheriting ctor (note: may be prevented due to virtual inheritence)
+	// TODO: consider using C++11 inheriting ctor (note: may be prevented due to virtual inheritance)
 	CGeometryProvider(CCoreRendererDX9 &parent, const TDrawDataDesc &drawDesc, E_CORE_RENDERER_DRAW_MODE mode) :
 		CGeometryProviderBase(parent, drawDesc, mode) {}
 
@@ -346,7 +346,7 @@ class CCoreRendererDX9::CCoreGeometryBufferBase : virtual public CGeometryProvid
 
 	class CDX9BufferContainer : public IDX9BufferContainer
 	{
-		// need to store reference since offsetof() may be unsafe here due to virtual inheritence
+		// need to store reference since offsetof() may be unsafe here due to virtual inheritance
 		const CGeometryProviderBase &_geomProvider;
 
 	public:

@@ -175,7 +175,7 @@ inline void CCoreRendererDX11::CGeometryProviderBase::_UpdateVBDecl()
 class CCoreRendererDX11::CGeometryProvider : virtual public CGeometryProviderBase
 {
 protected:
-	// TODO: consider using C++11 inheriting ctor (note: may be prevented due to virtual inheritence)
+	// TODO: consider using C++11 inheriting ctor (note: may be prevented due to virtual inheritance)
 	CGeometryProvider(CCoreRendererDX11 &parent, const TDrawDataDesc &drawDesc, E_CORE_RENDERER_DRAW_MODE mode) :
 		CGeometryProviderBase(parent, drawDesc, mode) {}
 
@@ -208,7 +208,7 @@ class CCoreRendererDX11::CCoreGeometryBufferBase : virtual public CGeometryProvi
 
 	class CDX11BufferContainer : public IDX11BufferContainer
 	{
-		// need to store reference since offsetof() may be unsafe here due to virtual inheritence
+		// need to store reference since offsetof() may be unsafe here due to virtual inheritance
 		const CGeometryProviderBase &_geomProvider;
 
 	public:
