@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		07.01.2017 (c)Andrey Korotkov
+\date		08.01.2017 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -9,10 +9,14 @@ See "DGLE.h" for more details.
 
 #include "CoreRendererDX9.h"
 #include <d3dx9.h>
+#include <algorithm>
+#include <numeric>
+#include <iterator>
+#include "general math.h"
 
-#define USE_REF_DEVICE		0
-#define SYNC_RT_TEX_LAZY	1
-#define CHECK_ALL_QUERIES	0
+#define USE_REF_DEVICE			0
+#define SYNC_RT_TEX_LAZY		1
+#define WAIT_FOR_ALL_QUERIES	1
 
 #if USE_REF_DEVICE
 #	define DEVTYPE D3DDEVTYPE_REF
@@ -21,6 +25,9 @@ See "DGLE.h" for more details.
 #endif
 
 #define PROFILER_CMD_NAME "crdx9_profiler"
+
+constexpr float GPUTimeGraphScale = 10.f;
+constexpr uint8 GPUTimeGraphAlpha = 128;
 
 using namespace std;
 #ifdef MSVC_LIMITATIONS
@@ -57,6 +64,24 @@ namespace
 
 		// rely on NRVO
 		return surface_desc;
+	}
+
+	inline TColor4 operator +(TColor4 left, const TColor4 &right)
+	{
+		left.r += right.r;
+		left.g += right.g;
+		left.b += right.b;
+		left.a += right.a;
+		return left;
+	}
+
+	inline TColor4 operator *(float factor, TColor4 color)
+	{
+		color.r *= factor;
+		color.g *= factor;
+		color.b *= factor;
+		color.a *= factor;
+		return color;
 	}
 
 	inline void operator +=(D3DDEVINFO_D3D9INTERFACETIMINGS &left, const D3DDEVINFO_D3D9INTERFACETIMINGS &right)
@@ -1886,6 +1911,13 @@ void CCoreRendererDX9::_ConfigureWindow(const TEngineWindow &wnd, DGLE_RESULT &r
 		SetForegroundWindow(hwnd);
 		SetCursorPos(top_x + (rc.right - rc.left) / 2, top_y + (rc.bottom - rc.top) / 2);
 	}
+
+#if USE_CIRCULAR_BUFFER
+	_GPUTimeHistory.rset_capacity(wnd.uiWidth + 1);
+#else
+	if (_GPUTimeHistory.size() > wnd.uiWidth + 1)
+		_GPUTimeHistory.erase(_GPUTimeHistory.begin(), next(_GPUTimeHistory.begin(), _GPUTimeHistory.size() - wnd.uiWidth + 1));
+#endif
 }
 
 HRESULT CCoreRendererDX9::_BeginScene()
@@ -1907,6 +1939,12 @@ void CCoreRendererDX9::_AbortProfiling()
 	_ProfilerTasksApply([this](auto &task) { _ProfilerTaskAbort(task); }, _advancedProfilerTasks);
 }
 
+void CCoreRendererDX9::_AbortGPUTimeGraphProfiling()
+{
+	LOG("Fail to plot GPU time graph. Disabling graph...", LT_ERROR);
+	AssertHR(_engineCore.ConsoleExecute((PROFILER_CMD_NAME + to_string(_profilerState - 1)).c_str()));
+}
+
 void CCoreRendererDX9::_ProfilerStartFrame(HRESULT &hr)
 {
 	try
@@ -1920,15 +1958,22 @@ void CCoreRendererDX9::_ProfilerStartFrame(HRESULT &hr)
 			_GetQuery<D3DQUERYTYPE_TIMESTAMPDISJOINT>(_GPUTimeFreqQuery).Start();
 			_GetQuery<D3DQUERYTYPE_TIMESTAMPFREQ>(_GPUTimeFreqQuery).Issue();
 			_startGPUTimeQuery.Issue();
+
+			if (_profilerState != 2 && _profilerState != 4)
+			{
+				_GPUTimeHistory.clear();
+				_DestroyGPUTimeGraphVB();
+			}
 		}
 		else
 		{
 			_GPUTimeQueryPool.Clear();
 			_GPUTimeQueryQueue.Clear();
-			_lastGPUTime.reset();
+			_lastSecGPUTimeHistory.clear();
+			_avgGPUTime.reset();
 		}
 
-		if (_profilerState >= 2)
+		if (_profilerState >= 3)
 			_ProfilerTasksApply([this](auto &task) { _ProfilerTaskStart(task); }, _advancedProfilerTasks);
 		else
 		{
@@ -1956,12 +2001,50 @@ void CCoreRendererDX9::_ProfilerStopFrame(HRESULT &hr)
 		}
 
 		_ProfilerTasksApply([this](auto &task) { _ProfilerTaskStop(task); }, _advancedProfilerTasks);
+
+		while (const auto GPU_time_data = _GPUTimeQueryQueue.Extract())
+		{
+			if (get<3>(*GPU_time_data))
+				LOG("Disjoint timestamps across frame duration encountered. Skipping GPU time data for this frame.", LT_WARNING);
+			else
+			{
+				_lastSecGPUTimeHistory.push_back((get<1>(*GPU_time_data) - get<0>(*GPU_time_data)) * 1000. / get<2>(*GPU_time_data));
+				if (_profilerState == 2 || _profilerState == 4)
+				{
+#if !USE_CIRCULAR_BUFFER
+					TEngineWindow wnd;
+					AssertHR(_engineCore.GetCurrentWindow(wnd));
+					if (_GPUTimeHistory.size() > wnd.uiWidth)
+						_GPUTimeHistory.pop_front();
+#endif
+					_GPUTimeHistory.push_back(_lastSecGPUTimeHistory.back());
+				}
+			}
+		}
 	}
 	catch (...)
 	{
 		_AbortProfiling();
 		hr = S_FALSE;
 	}
+}
+
+void CCoreRendererDX9::_DestroyGPUTimeGraphVB()
+{
+	if (_GPUTimeGraphVB)
+	{
+		AssertHR(_GPUTimeGraphVB->Free());
+		_GPUTimeGraphVB = NULL;
+	}
+}
+
+IRender2D &CCoreRendererDX9::_GetRender2D()
+{
+	IEngineSubSystem *render;
+	IRender2D *render2D;
+	AssertHR(_engineCore.GetSubSystem(ESS_RENDER, render));
+	AssertHR(static_cast<IRender *>(render)->GetRender2D(render2D));
+	return *render2D;
 }
 
 DGLE_RESULT DGLE_API CCoreRendererDX9::Initialize(TCrRndrInitResults &stResults, TEngineWindow &stWin, E_ENGINE_INIT_FLAGS &eInitFlags)
@@ -1989,7 +2072,14 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Initialize(TCrRndrInitResults &stResults,
 		return E_ABORT;
 	}
 	DGLE_RESULT res = S_OK;
-	//_ConfigureWindow(stWin, res);
+#if 0
+	_ConfigureWindow(stWin, res);
+#elif USE_CIRCULAR_BUFFER
+	_GPUTimeHistory.rset_capacity(stWin.uiWidth + 1);
+#else
+	if (_GPUTimeHistory.size() > stWin.uiWidth + 1)
+		_GPUTimeHistory.erase(_GPUTimeHistory.begin(), next(_GPUTimeHistory.begin(), _GPUTimeHistory.size() - stWin.uiWidth + 1));
+#endif
 	const HRESULT hr = _BeginScene();
 	AssertHR(hr);
 	if (res != S_OK) res = hr;
@@ -2042,7 +2132,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Initialize(TCrRndrInitResults &stResults,
 	AssertHR(_engineCore.AddEventListener(ET_ON_PER_SECOND_TIMER, _EventsHandler, this));
 	AssertHR(_engineCore.AddEventListener(ET_ON_PROFILER_DRAW, _EventsHandler, this));
 
-	AssertHR(_engineCore.ConsoleRegisterVariable(PROFILER_CMD_NAME, "Displays Core Renderer DirectX 9 subsystems profiler.", &_profilerState, 0, 2));
+	AssertHR(_engineCore.ConsoleRegisterVariable(PROFILER_CMD_NAME, "Displays Core Renderer DirectX 9 subsystems profiler.", &_profilerState, 0, 4));
 
 	_stInitResults = stResults;
 
@@ -2069,6 +2159,8 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Finalize()
 	delete _immediateIB32, _immediateIB32 = nullptr;
 	delete _immediatePointsIB16, _immediatePointsIB16 = nullptr;
 	delete _immediatePointsIB32, _immediatePointsIB32 = nullptr;
+
+	_DestroyGPUTimeGraphVB();
 
 	LOG("Core Renderer finalized.", LT_INFO);
 
@@ -2820,7 +2912,26 @@ void CCoreRendererDX9::CQueryQueueBase<Item>::Insert(Item &&item)
 	_queue.push_back(move(item));
 }
 
-#ifndef MSVC_LIMITATIONS
+#ifdef MSVC_LIMITATIONS
+template<typename ...Args>
+static inline bool Conjunction(bool head, Args ...tail)
+{
+	return head && Conjunction(tail...);
+}
+
+// terminator
+static inline bool Conjunction()
+{
+	return true;
+}
+
+template<D3DQUERYTYPE ...types>
+template<size_t ...idx>
+inline bool CCoreRendererDX9::CQueryQueue<types...>::_Ready(index_sequence<idx...>) noexcept
+{
+	return Conjunction(get<idx>(_queue.front()).Ready()...);
+}
+#else
 template<D3DQUERYTYPE ...types>
 template<size_t ...idx>
 inline bool CCoreRendererDX9::CQueryQueue<types...>::_Ready(index_sequence<idx...>) noexcept
@@ -2846,7 +2957,7 @@ auto CCoreRendererDX9::CQueryQueue<types...>::Extract() -> optional<tuple<typena
 		return nullopt;
 #endif
 
-#if CHECK_ALL_QUERIES && !defined MSVC_LIMITATIONS
+#if WAIT_FOR_ALL_QUERIES
 	const bool ready = _Ready(make_index_sequence<sizeof...(types)>());
 #else
 	const bool ready = get<sizeof...(types) - 1>(_queue.front()).Ready();
@@ -4092,20 +4203,13 @@ inline void CCoreRendererDX9::_HandleEvent<ET_ON_PER_SECOND_TIMER>(IBaseEvent *p
 		_cleanBroadcast();
 
 	// update profiler data
-	double accumGPUTime = 0;
-	unsigned int frames = 0;
-	while (const auto GPU_time_data = _GPUTimeQueryQueue.Extract())
+
+	if (!_lastSecGPUTimeHistory.empty())
 	{
-		if (get<3>(*GPU_time_data))
-			LOG("Disjoint timestamps across frame duration encountered. Skipping GPU time data for this frame.", LT_WARNING);
-		else
-		{
-			accumGPUTime += (get<1>(*GPU_time_data) - get<0>(*GPU_time_data)) * 1000. / get<2>(*GPU_time_data);
-			frames++;
-		}
+		// consider using potentially more efficient std::reduce
+		_avgGPUTime = accumulate(_lastSecGPUTimeHistory.cbegin(), _lastSecGPUTimeHistory.cend(), 0.) / _lastSecGPUTimeHistory.size();
+		_lastSecGPUTimeHistory.clear();
 	}
-	if (frames)
-		_lastGPUTime = accumGPUTime / frames;
 
 	_ProfilerTasksApply([this](auto &task) { _ProfilerTaskCollectResults(task); }, _advancedProfilerTasks);
 }
@@ -4121,18 +4225,62 @@ inline void CCoreRendererDX9::_HandleEvent<ET_ON_PROFILER_DRAW>(IBaseEvent *pEve
 
 		if (_GPUTimeQuerySupport)
 		{
-			if (_lastGPUTime)
+			if (_avgGPUTime)
 			{
-				const auto color = _lastGPUTime <= 1000.f / 60.f ? ColorGreen() : _lastGPUTime <= 1000.f / 30.f ? ColorYellow() : ColorRed();
-				AssertHR(_engineCore.RenderProfilerText(("GPU frame time estimation: " + to_string(*_lastGPUTime) + " ms").c_str(), color));
+				const auto color = _avgGPUTime <= 1000.f / 60.f ? ColorGreen() : _avgGPUTime <= 1000.f / 30.f ? ColorYellow() : ColorRed();
+				AssertHR(_engineCore.RenderProfilerText(("GPU frame time estimation: " + to_string(*_avgGPUTime) + " ms").c_str(), color));
 			}
 			else
 				AssertHR(_engineCore.RenderProfilerText("GPU frame time data not yet available", unavailable_color));
+
+			try
+			{
+				if ((_profilerState == 2 || _profilerState == 4) && !_GPUTimeHistory.empty())
+				{
+					IRender2D &render2D = _GetRender2D();
+
+					TEngineWindow wnd;
+					AssertHR(_engineCore.GetCurrentWindow(wnd));
+					const auto FlipY = [shift = wnd.uiHeight - 1](float y) { return shift - y; };
+
+					_GPUTimeGraphVBShadow.clear();
+					_GPUTimeGraphVBShadow.reserve(_GPUTimeHistory.size());
+					transform(_GPUTimeHistory.begin(), _GPUTimeHistory.end(), back_inserter(_GPUTimeGraphVBShadow), [x = 0.f, FlipY](float y) mutable -> decltype(_GPUTimeGraphVBShadow)::value_type
+					{
+						constexpr float lo = 1000.f / 60.f, hi = 1000.f / 30.f;
+						float lerp_factor = y;
+						lerp_factor -= lo;
+						lerp_factor /= hi - lo;
+						const TColor4 color = Math::lerp(ColorGreen(GPUTimeGraphAlpha), ColorRed(GPUTimeGraphAlpha), clamp(lerp_factor, 0.f, 1.f));
+						return
+						{
+							make_pair(TPoint2(x, FlipY(y * GPUTimeGraphScale)), color),
+							make_pair(TPoint2(x++, FlipY(0.f)), color)
+						};
+					});
+
+					TDrawDataDesc VB_data_desc;
+					VB_data_desc.pData = (uint8 *)_GPUTimeGraphVBShadow.data();
+					VB_data_desc.bVertices2D = true;
+					VB_data_desc.uiVertexStride = VB_data_desc.uiColorStride = sizeof(decltype(_GPUTimeGraphVBShadow)::value_type::value_type);
+					VB_data_desc.uiColorOffset = sizeof(decltype(_GPUTimeGraphVBShadow)::value_type::value_type::first_type);
+					if (_GPUTimeGraphVB)
+						CheckHR(_GPUTimeGraphVB->Reallocate(VB_data_desc, _GPUTimeGraphVBShadow.size() * 2, 0, CRDM_TRIANGLE_STRIP));
+					else
+						CheckHR(CreateGeometryBuffer(_GPUTimeGraphVB, VB_data_desc, _GPUTimeGraphVBShadow.size() * 2, 0, CRDM_TRIANGLE_STRIP, CRBT_HARDWARE_DYNAMIC));
+
+					AssertHR(render2D.DrawBuffer(NULL, _GPUTimeGraphVB, {}, EF_BLEND));
+				}
+			}
+			catch (...)
+			{
+				_AbortGPUTimeGraphProfiling();
+			}
 		}
 		else
 			AssertHR(_engineCore.RenderProfilerText("GPU frame time query is not supported by GPU/driver", unsupported_color));
 
-		if (_profilerState >= 2)
+		if (_profilerState >= 3)
 		{
 			const auto &interface_timings_task = _GetProfilerTask<D3DQUERYTYPE_INTERFACETIMINGS>(_advancedProfilerTasks);
 			if (interface_timings_task.supported)

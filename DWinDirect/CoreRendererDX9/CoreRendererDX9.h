@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		07.01.2017 (c)Andrey Korotkov
+\date		08.01.2017 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -8,6 +8,10 @@ See "DGLE.h" for more details.
 */
 
 #pragma once
+
+#define SAVE_ALL_STATES				0
+#define ENABLE_DOWNCAST_TO_WRAPPER	0
+#define USE_CIRCULAR_BUFFER			1
 
 #include "Common.h"
 #ifdef MSVC_LIMITATIONS
@@ -24,9 +28,9 @@ namespace std_boost = std;
 #include <vector>
 #include <deque>
 #include <tuple>
-
-#define SAVE_ALL_STATES 0
-#define ENABLE_DOWNCAST_TO_WRAPPER 0
+#if USE_CIRCULAR_BUFFER
+#include <boost/circular_buffer.hpp>
+#endif
 
 #include "FixedFunctionPipelineDX9.h"
 
@@ -445,10 +449,8 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	template<D3DQUERYTYPE ...types>
 	class CQueryQueue final : public CQueryQueueBase<QueryPack<types...>>
 	{
-#ifndef MSVC_LIMITATIONS
 		template<size_t ...idx>
 		bool _Ready(std::index_sequence<idx...>) noexcept;
-#endif
 		template<size_t ...idx>
 		auto _GetData(std::index_sequence<idx...>);
 	public:
@@ -472,7 +474,16 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	CQueryQueue<D3DQUERYTYPE_TIMESTAMP, D3DQUERYTYPE_TIMESTAMP, D3DQUERYTYPE_TIMESTAMPFREQ, D3DQUERYTYPE_TIMESTAMPDISJOINT> _GPUTimeQueryQueue;
 	CQuery<D3DQUERYTYPE_TIMESTAMP> _startGPUTimeQuery;
 	QueryPack<D3DQUERYTYPE_TIMESTAMPFREQ, D3DQUERYTYPE_TIMESTAMPDISJOINT> _GPUTimeFreqQuery;
-	std_boost::optional<float> _lastGPUTime;
+	std::vector<double> _lastSecGPUTimeHistory;
+#if USE_CIRCULAR_BUFFER
+	boost::circular_buffer<float>
+#else
+	std::deque<float>
+#endif
+		_GPUTimeHistory;
+	ICoreGeometryBuffer *_GPUTimeGraphVB = NULL;
+	std::vector<std::array<std::pair<TPoint2, TColor4>, 2>> _GPUTimeGraphVBShadow;
+	std_boost::optional<float> _avgGPUTime;
 
 	// advanced profiler queries
 
@@ -741,8 +752,11 @@ private:
 	D3DPRESENT_PARAMETERS _GetPresentParams(TEngineWindow &wnd) const;
 	void _ConfigureWindow(const TEngineWindow &wnd, DGLE_RESULT &res);
 	HRESULT _BeginScene();
-	void _AbortProfiling();
+	void _AbortProfiling(), _AbortGPUTimeGraphProfiling();
 	void _ProfilerStartFrame(HRESULT &hr), _ProfilerStopFrame(HRESULT &hr);
+	void _DestroyGPUTimeGraphVB();
+
+	IRender2D &_GetRender2D();
 
 	void _SetProjXform();
 

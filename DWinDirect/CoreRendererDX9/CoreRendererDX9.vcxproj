@@ -59,15 +59,16 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>DX9_LEGACY_BASE_OBJECTS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;WIN32;_DEBUG;_WINDOWS;_USRDLL;CORERENDERERDX9_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\dgle;..\Shared</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\dgle;..\Shared;..\..\DGLE_NextGen\General</AdditionalIncludeDirectories>
       <AdditionalOptions>/std:c++latest /wd4800 %(AdditionalOptions)</AdditionalOptions>
       <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>d3d9.lib;d3dx9.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;d3dx9.lib;General.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>exports.def</ModuleDefinitionFile>
+      <AdditionalLibraryDirectories>..\..\DGLE_NextGen\$(PlatformShortName)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -79,7 +80,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>DX9_LEGACY_BASE_OBJECTS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;WIN32;NDEBUG;_WINDOWS;_USRDLL;CORERENDERERDX9_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\dgle;..\Shared</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\dgle;..\Shared;..\..\DGLE_NextGen\General</AdditionalIncludeDirectories>
       <AdditionalOptions>/std:c++latest /wd4800 %(AdditionalOptions)</AdditionalOptions>
       <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
     </ClCompile>
@@ -88,8 +89,9 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>d3d9.lib;d3dx9.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;d3dx9.lib;General.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>exports.def</ModuleDefinitionFile>
+      <AdditionalLibraryDirectories>..\..\DGLE_NextGen\$(PlatformShortName)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
