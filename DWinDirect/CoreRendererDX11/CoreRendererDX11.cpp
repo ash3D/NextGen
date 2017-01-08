@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		04.01.2017 (c)Andrey Korotkov
+\date		08.01.2017 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -2530,10 +2530,10 @@ DGLE_RESULT DGLE_API CCoreRendererDX11::CreateGeometryBuffer(ICoreGeometryBuffer
 	{
 		switch (eType)
 		{
-		case CRBT_HARDWARE_DYNAMIC:
+		case CRBT_SOFTWARE:
 			prBuffer = new CCoreGeometryBufferSoftware(*this, stDrawDesc, uiVerticesCount, uiIndicesCount, eMode);
 			break;
-		case CRBT_SOFTWARE:
+		case CRBT_HARDWARE_DYNAMIC:
 			prBuffer = new CCoreGeometryBufferDynamic(*this, stDrawDesc, uiVerticesCount, uiIndicesCount, eMode);
 			break;
 		case CRBT_HARDWARE_STATIC:

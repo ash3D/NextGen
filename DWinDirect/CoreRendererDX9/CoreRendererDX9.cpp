@@ -3276,10 +3276,10 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CreateGeometryBuffer(ICoreGeometryBuffer 
 	{
 		switch (eType)
 		{
-		case CRBT_HARDWARE_DYNAMIC:
+		case CRBT_SOFTWARE:
 			prBuffer = new CCoreGeometryBufferSoftware(*this, stDrawDesc, uiVerticesCount, uiIndicesCount, eMode);
 			break;
-		case CRBT_SOFTWARE:
+		case CRBT_HARDWARE_DYNAMIC:
 			prBuffer = new CCoreGeometryBufferDynamic(*this, stDrawDesc, uiVerticesCount, uiIndicesCount, eMode);
 			break;
 		case CRBT_HARDWARE_STATIC:
