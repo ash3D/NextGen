@@ -1912,7 +1912,7 @@ void CCoreRendererDX9::_ConfigureWindow(const TEngineWindow &wnd, DGLE_RESULT &r
 		SetCursorPos(top_x + (rc.right - rc.left) / 2, top_y + (rc.bottom - rc.top) / 2);
 	}
 
-#if USE_CIRCULAR_BUFFER
+#ifdef USE_CIRCULAR_BUFFER
 	_GPUTimeHistory.rset_capacity(wnd.uiWidth + 1);
 #else
 	if (_GPUTimeHistory.size() > wnd.uiWidth + 1)
@@ -2011,7 +2011,7 @@ void CCoreRendererDX9::_ProfilerStopFrame(HRESULT &hr)
 				_lastSecGPUTimeHistory.push_back((get<1>(*GPU_time_data) - get<0>(*GPU_time_data)) * 1000. / get<2>(*GPU_time_data));
 				if (_profilerState == 2 || _profilerState == 4)
 				{
-#if !USE_CIRCULAR_BUFFER
+#ifndef USE_CIRCULAR_BUFFER
 					TEngineWindow wnd;
 					AssertHR(_engineCore.GetCurrentWindow(wnd));
 					if (_GPUTimeHistory.size() > wnd.uiWidth)
@@ -2074,7 +2074,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Initialize(TCrRndrInitResults &stResults,
 	DGLE_RESULT res = S_OK;
 #if 0
 	_ConfigureWindow(stWin, res);
-#elif USE_CIRCULAR_BUFFER
+#elif defined USE_CIRCULAR_BUFFER
 	_GPUTimeHistory.rset_capacity(stWin.uiWidth + 1);
 #else
 	if (_GPUTimeHistory.size() > stWin.uiWidth + 1)

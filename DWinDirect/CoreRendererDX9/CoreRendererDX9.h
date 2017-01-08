@@ -11,7 +11,7 @@ See "DGLE.h" for more details.
 
 #define SAVE_ALL_STATES				0
 #define ENABLE_DOWNCAST_TO_WRAPPER	1
-#define USE_CIRCULAR_BUFFER			1
+#define ENABLE_CIRCULAR_BUFFER		1
 
 #include "Common.h"
 #ifdef MSVC_LIMITATIONS
@@ -28,8 +28,9 @@ namespace std_boost = std;
 #include <vector>
 #include <deque>
 #include <tuple>
-#if USE_CIRCULAR_BUFFER
+#if ENABLE_CIRCULAR_BUFFER && defined MSVC_LIMITATIONS || ENABLE_CIRCULAR_BUFFER && __has_include(<boost/circular_buffer.hpp>)
 #include <boost/circular_buffer.hpp>
+#define USE_CIRCULAR_BUFFER
 #endif
 
 #include "FixedFunctionPipelineDX9.h"
@@ -480,7 +481,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	CQuery<D3DQUERYTYPE_TIMESTAMP> _startGPUTimeQuery;
 	QueryPack<D3DQUERYTYPE_TIMESTAMPFREQ, D3DQUERYTYPE_TIMESTAMPDISJOINT> _GPUTimeFreqQuery;
 	std::vector<double> _lastSecGPUTimeHistory;
-#if USE_CIRCULAR_BUFFER
+#ifdef USE_CIRCULAR_BUFFER
 	boost::circular_buffer<float>
 #else
 	std::deque<float>
