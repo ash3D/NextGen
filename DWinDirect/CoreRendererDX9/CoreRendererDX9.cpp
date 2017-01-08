@@ -4228,7 +4228,7 @@ inline void CCoreRendererDX9::_HandleEvent<ET_ON_PROFILER_DRAW>(IBaseEvent *pEve
 			if (_avgGPUTime)
 			{
 				const auto color = _avgGPUTime <= 1000.f / 60.f ? ColorGreen() : _avgGPUTime <= 1000.f / 30.f ? ColorYellow() : ColorRed();
-				AssertHR(_engineCore.RenderProfilerText(("GPU frame time estimation: " + to_string(*_avgGPUTime) + " ms").c_str(), color));
+				AssertHR(_engineCore.RenderProfilerText(("GPU frame time estimation (can be affected by CPU in CPU bound scenarios): " + to_string(*_avgGPUTime) + " ms").c_str(), color));
 			}
 			else
 				AssertHR(_engineCore.RenderProfilerText("GPU frame time data not yet available", unavailable_color));
