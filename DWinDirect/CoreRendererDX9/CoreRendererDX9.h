@@ -10,7 +10,7 @@ See "DGLE.h" for more details.
 #pragma once
 
 #define SAVE_ALL_STATES				0
-#define ENABLE_DOWNCAST_TO_WRAPPER	0
+#define ENABLE_DOWNCAST_TO_WRAPPER	1
 #define USE_CIRCULAR_BUFFER			1
 
 #include "Common.h"
@@ -370,12 +370,17 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	class CQueryBase
 	{
 		IDirect3DQuery9Ptr _query;
+#if ENABLE_DOWNCAST_TO_WRAPPER
+	public:
+#else
 	protected:
+#endif
 		CQueryBase() = default;
-		CQueryBase(IDirect3DQuery9Ptr &&ptr) : _query(std::move(ptr)) {}
 		CQueryBase(CQueryBase &&) = default;
 		CQueryBase &operator =(CQueryBase &&) = default;
 		~CQueryBase() = default;
+	protected:
+		CQueryBase(IDirect3DQuery9Ptr &&ptr) : _query(std::move(ptr)) {}
 	public:
 		operator bool() const noexcept { return _query; }
 		void Start(), Stop();
