@@ -116,11 +116,11 @@ namespace
 		BYTE usage;
 	} vertexElementLUT[] =
 	{
-		{ &TDrawDataDesc::uiNormalOffset, &TDrawDataDesc::uiNormalStride, D3DDECLTYPE_FLOAT3, D3DDECLUSAGE_NORMAL },
-		{ &TDrawDataDesc::uiTextureVertexOffset, &TDrawDataDesc::uiTextureVertexStride, D3DDECLTYPE_FLOAT2, D3DDECLUSAGE_TEXCOORD },
-		{ &TDrawDataDesc::uiColorOffset, &TDrawDataDesc::uiColorStride, D3DDECLTYPE_FLOAT4, D3DDECLUSAGE_COLOR },
-		{ &TDrawDataDesc::uiTangentOffset, &TDrawDataDesc::uiTangentStride, D3DDECLTYPE_FLOAT3, D3DDECLUSAGE_TANGENT },
-		{ &TDrawDataDesc::uiBinormalOffset, &TDrawDataDesc::uiBinormalStride, D3DDECLTYPE_FLOAT3, D3DDECLUSAGE_BINORMAL }
+		{ &TDrawDataDesc::uiNormalOffset,			&TDrawDataDesc::uiNormalStride,			D3DDECLTYPE_FLOAT3, D3DDECLUSAGE_NORMAL		},
+		{ &TDrawDataDesc::uiTextureVertexOffset,	&TDrawDataDesc::uiTextureVertexStride,	D3DDECLTYPE_FLOAT2, D3DDECLUSAGE_TEXCOORD	},
+		{ &TDrawDataDesc::uiColorOffset,			&TDrawDataDesc::uiColorStride,			D3DDECLTYPE_FLOAT4, D3DDECLUSAGE_COLOR		},
+		{ &TDrawDataDesc::uiTangentOffset,			&TDrawDataDesc::uiTangentStride,		D3DDECLTYPE_FLOAT3, D3DDECLUSAGE_TANGENT	},
+		{ &TDrawDataDesc::uiBinormalOffset,			&TDrawDataDesc::uiBinormalStride,		D3DDECLTYPE_FLOAT3, D3DDECLUSAGE_BINORMAL	}
 	};
 }
 
