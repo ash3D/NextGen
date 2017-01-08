@@ -2132,7 +2132,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Initialize(TCrRndrInitResults &stResults,
 	AssertHR(_engineCore.AddEventListener(ET_ON_PER_SECOND_TIMER, _EventsHandler, this));
 	AssertHR(_engineCore.AddEventListener(ET_ON_PROFILER_DRAW, _EventsHandler, this));
 
-	AssertHR(_engineCore.ConsoleRegisterVariable(PROFILER_CMD_NAME, "Displays Core Renderer DirectX 9 subsystems profiler.", &_profilerState, 0, 4));
+	AssertHR(_engineCore.ConsoleRegisterVariable(PROFILER_CMD_NAME, "Displays Core Renderer DirectX 9 subsystems profiler. Valid values are 0 (disable), 1 (enable bsic statistics), 2 (aneble basic statistics with graph), 3 (enable both basic and advanced statistics), 4 (enable both basic and advanced statistics with graph).", &_profilerState, 0, 4));
 
 	_stInitResults = stResults;
 
