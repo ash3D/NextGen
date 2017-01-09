@@ -1919,11 +1919,10 @@ void CCoreRendererDX9::_ConfigureWindow(const TEngineWindow &wnd, DGLE_RESULT &r
 		SetCursorPos(top_x + (rc.right - rc.left) / 2, top_y + (rc.bottom - rc.top) / 2);
 	}
 
-#ifdef USE_CIRCULAR_BUFFER
-	_GPUTimeHistory.rset_capacity(wnd.uiWidth + 1);
-#else
-	if (_GPUTimeHistory.size() > wnd.uiWidth + 1)
-		_GPUTimeHistory.erase(_GPUTimeHistory.begin(), next(_GPUTimeHistory.begin(), _GPUTimeHistory.size() - wnd.uiWidth + 1));
+#ifndef USE_CIRCULAR_BUFFER
+	const auto max_graph_length = wnd.uiWidth + 1;
+	if (_GPUTimeHistory.size() > max_graph_length)
+		_GPUTimeHistory.erase(_GPUTimeHistory.begin(), next(_GPUTimeHistory.begin(), _GPUTimeHistory.size() - max_graph_length));
 #endif
 }
 
@@ -1956,28 +1955,48 @@ void CCoreRendererDX9::_ProfilerStartFrame(HRESULT &hr)
 {
 	try
 	{
-		if (_profilerState >= 1 && _GPUTimeQuerySupport)
+		if (_GPUTimeQuerySupport)
 		{
-			_GetQuery<D3DQUERYTYPE_TIMESTAMPDISJOINT>(_GPUTimeFreqQuery) = _GPUTimeQueryPool.GetQuery<D3DQUERYTYPE_TIMESTAMPDISJOINT>(_device);
-			_GetQuery<D3DQUERYTYPE_TIMESTAMPFREQ>(_GPUTimeFreqQuery) = _GPUTimeQueryPool.GetQuery<D3DQUERYTYPE_TIMESTAMPFREQ>(_device);
-			_startGPUTimeQuery = _GPUTimeQueryPool.GetQuery<D3DQUERYTYPE_TIMESTAMP>(_device);
-
-			_GetQuery<D3DQUERYTYPE_TIMESTAMPDISJOINT>(_GPUTimeFreqQuery).Start();
-			_GetQuery<D3DQUERYTYPE_TIMESTAMPFREQ>(_GPUTimeFreqQuery).Issue();
-			_startGPUTimeQuery.Issue();
-
-			if (_profilerState != 2 && _profilerState != 4)
+			if (_profilerState >= 1)
 			{
-				_GPUTimeHistory.clear();
-				_DestroyGPUTimeGraphVB();
+				_GetQuery<D3DQUERYTYPE_TIMESTAMPDISJOINT>(_GPUTimeFreqQuery) = _GPUTimeQueryPool.GetQuery<D3DQUERYTYPE_TIMESTAMPDISJOINT>(_device);
+				_GetQuery<D3DQUERYTYPE_TIMESTAMPFREQ>(_GPUTimeFreqQuery) = _GPUTimeQueryPool.GetQuery<D3DQUERYTYPE_TIMESTAMPFREQ>(_device);
+				_startGPUTimeQuery = _GPUTimeQueryPool.GetQuery<D3DQUERYTYPE_TIMESTAMP>(_device);
+
+				_GetQuery<D3DQUERYTYPE_TIMESTAMPDISJOINT>(_GPUTimeFreqQuery).Start();
+				_GetQuery<D3DQUERYTYPE_TIMESTAMPFREQ>(_GPUTimeFreqQuery).Issue();
+				_startGPUTimeQuery.Issue();
 			}
-		}
-		else
-		{
-			_GPUTimeQueryPool.Clear();
-			_GPUTimeQueryQueue.Clear();
-			_lastSecGPUTimeHistory.clear();
-			_avgGPUTime.reset();
+			else
+			{
+				_GPUTimeQueryPool.Clear();
+				_GPUTimeQueryQueue.Clear();
+				_lastSecGPUTimeHistory.clear();
+				_lastSecGPUTimeHistory.shrink_to_fit();
+				_avgGPUTime.reset();
+			}
+
+			if (_profilerState == 2 || _profilerState == 4)
+			{
+				TEngineWindow wnd;
+				AssertHR(_engineCore.GetCurrentWindow(wnd));
+				const auto max_graph_length = wnd.uiWidth + 1;
+				_GPUTimeGraphVBShadow.reserve(max_graph_length);
+#ifdef USE_CIRCULAR_BUFFER
+				_GPUTimeHistory.rset_capacity(max_graph_length);
+#endif
+			}
+			else
+			{
+#ifdef USE_CIRCULAR_BUFFER
+				_GPUTimeHistory.set_capacity(0);
+#else
+				_GPUTimeHistory.clear();
+				_GPUTimeHistory.shrink_to_fit();
+#endif
+				_DestroyGPUTimeGraphVB();
+				_GPUTimeGraphVBShadow.shrink_to_fit();
+			}
 		}
 
 		if (_profilerState >= 3)
@@ -2081,11 +2100,10 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Initialize(TCrRndrInitResults &stResults,
 	DGLE_RESULT res = S_OK;
 #if 0
 	_ConfigureWindow(stWin, res);
-#elif defined USE_CIRCULAR_BUFFER
-	_GPUTimeHistory.rset_capacity(stWin.uiWidth + 1);
-#else
-	if (_GPUTimeHistory.size() > stWin.uiWidth + 1)
-		_GPUTimeHistory.erase(_GPUTimeHistory.begin(), next(_GPUTimeHistory.begin(), _GPUTimeHistory.size() - stWin.uiWidth + 1));
+#elif !defined USE_CIRCULAR_BUFFER
+	const auto max_graph_length = stWin.uiWidth + 1;
+	if (_GPUTimeHistory.size() > max_graph_length)
+		_GPUTimeHistory.erase(_GPUTimeHistory.begin(), next(_GPUTimeHistory.begin(), _GPUTimeHistory.size() - max_graph_length));
 #endif
 	const HRESULT hr = _BeginScene();
 	AssertHR(hr);
@@ -4256,8 +4274,7 @@ inline void CCoreRendererDX9::_HandleEvent<ET_ON_PROFILER_DRAW>(IBaseEvent *pEve
 					AssertHR(_engineCore.GetCurrentWindow(wnd));
 					const auto FlipY = [shift = wnd.uiHeight - 1](float y) { return shift - y; };
 
-					_GPUTimeGraphVBShadow.clear();
-					_GPUTimeGraphVBShadow.reserve(_GPUTimeHistory.size());
+					assert(_GPUTimeGraphVBShadow.empty());
 					transform(_GPUTimeHistory.begin(), _GPUTimeHistory.end(), back_inserter(_GPUTimeGraphVBShadow), [x = 0.f, FlipY](float y) mutable -> decltype(_GPUTimeGraphVBShadow)::value_type
 					{
 						constexpr float lo = 1000.f / 60.f, hi = 1000.f / 30.f;
@@ -4281,12 +4298,14 @@ inline void CCoreRendererDX9::_HandleEvent<ET_ON_PROFILER_DRAW>(IBaseEvent *pEve
 						CheckHR(_GPUTimeGraphVB->Reallocate(VB_data_desc, _GPUTimeGraphVBShadow.size() * 2, 0, CRDM_TRIANGLE_STRIP));
 					else
 						CheckHR(CreateGeometryBuffer(_GPUTimeGraphVB, VB_data_desc, _GPUTimeGraphVBShadow.size() * 2, 0, CRDM_TRIANGLE_STRIP, CRBT_HARDWARE_DYNAMIC));
+					_GPUTimeGraphVBShadow.clear();
 
 					AssertHR(render2D.DrawBuffer(NULL, _GPUTimeGraphVB, {}, EF_BLEND));
 				}
 			}
 			catch (...)
 			{
+				_GPUTimeGraphVBShadow.clear();
 				_AbortGPUTimeGraphProfiling();
 			}
 		}
