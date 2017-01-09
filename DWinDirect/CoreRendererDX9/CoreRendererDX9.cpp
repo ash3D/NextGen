@@ -403,43 +403,11 @@ private:
 public:
 	DGLE_RESULT DGLE_API GetGeometryData(TDrawDataDesc &stDesc, uint uiVerticesDataSize, uint uiIndexesDataSize) override;
 
-	DGLE_RESULT DGLE_API SetGeometryData(const TDrawDataDesc &stDesc, uint uiVerticesDataSize, uint uiIndexesDataSize) override
-	{
-		CHECK_DEVICE(_parent);
+	DGLE_RESULT DGLE_API SetGeometryData(const TDrawDataDesc &stDesc, uint uiVerticesDataSize, uint uiIndexesDataSize) override;
 
-		if (uiVerticesDataSize != GetVerticesDataSize(_drawDataDesc, _verticesCount) || uiIndexesDataSize != GetIndicesDataSize(_drawDataDesc, _indicesCount))
-			return E_INVALIDARG;
+	DGLE_RESULT DGLE_API Reallocate(const TDrawDataDesc &stDesc, uint uiVerticesCount, uint uiIndicesCount, E_CORE_RENDERER_DRAW_MODE eMode) override;
 
-		return Reallocate(stDesc, _verticesCount, _indicesCount, _drawMode);
-	}
-
-	DGLE_RESULT DGLE_API Reallocate(const TDrawDataDesc &stDesc, uint uiVerticesCount, uint uiIndicesCount, E_CORE_RENDERER_DRAW_MODE eMode) override
-	{
-		CHECK_DEVICE(_parent);
-
-		if (bool(_indicesCount) != bool(uiIndicesCount))
-			return E_INVALIDARG;
-
-		try
-		{
-			_Reallocate(stDesc, uiVerticesCount, uiIndicesCount, eMode);
-		}
-		catch (const HRESULT hr)
-		{
-			return hr;
-		}
-
-		return S_OK;
-	}
-
-	DGLE_RESULT DGLE_API GetBufferDimensions(uint &uiVerticesDataSize, uint &uiVerticesCount, uint &uiIndexesDataSize, uint &uiIndicesCount) override
-	{
-		uiVerticesDataSize = GetVerticesDataSize(_drawDataDesc, _verticesCount);
-		uiVerticesCount = _verticesCount;
-		uiIndexesDataSize = GetIndicesDataSize(_drawDataDesc, _indicesCount);
-		uiIndicesCount = _indicesCount;
-		return S_OK;
-	}
+	DGLE_RESULT DGLE_API GetBufferDimensions(uint &uiVerticesDataSize, uint &uiVerticesCount, uint &uiIndexesDataSize, uint &uiIndicesCount) override;
 
 	DGLE_RESULT DGLE_API GetBufferDrawDataDesc(TDrawDataDesc &stDesc) override
 	{
@@ -499,6 +467,45 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::CCoreGeometryBufferBase::GetGeometryData(
 
 	_GetGeometryDataImpl(stDesc.pData, uiVerticesDataSize, stDesc.pIndexBuffer, uiIndexesDataSize);
 
+	return S_OK;
+}
+
+DGLE_RESULT DGLE_API CCoreRendererDX9::CCoreGeometryBufferBase::SetGeometryData(const TDrawDataDesc &stDesc, uint uiVerticesDataSize, uint uiIndexesDataSize)
+{
+	CHECK_DEVICE(_parent);
+
+	if (uiVerticesDataSize != GetVerticesDataSize(_drawDataDesc, _verticesCount) || uiIndexesDataSize != GetIndicesDataSize(_drawDataDesc, _indicesCount))
+		return E_INVALIDARG;
+
+	return Reallocate(stDesc, _verticesCount, _indicesCount, _drawMode);
+}
+
+// inline for call from SetGeometryData
+inline DGLE_RESULT DGLE_API CCoreRendererDX9::CCoreGeometryBufferBase::Reallocate(const TDrawDataDesc &stDesc, uint uiVerticesCount, uint uiIndicesCount, E_CORE_RENDERER_DRAW_MODE eMode)
+{
+	CHECK_DEVICE(_parent);
+
+	if (bool(_indicesCount) != bool(uiIndicesCount))
+		return E_INVALIDARG;
+
+	try
+	{
+		_Reallocate(stDesc, uiVerticesCount, uiIndicesCount, eMode);
+	}
+	catch (const HRESULT hr)
+	{
+		return hr;
+	}
+
+	return S_OK;
+}
+
+DGLE_RESULT DGLE_API CCoreRendererDX9::CCoreGeometryBufferBase::GetBufferDimensions(uint &uiVerticesDataSize, uint &uiVerticesCount, uint &uiIndexesDataSize, uint &uiIndicesCount)
+{
+	uiVerticesDataSize = GetVerticesDataSize(_drawDataDesc, _verticesCount);
+	uiVerticesCount = _verticesCount;
+	uiIndexesDataSize = GetIndicesDataSize(_drawDataDesc, _indicesCount);
+	uiIndicesCount = _indicesCount;
 	return S_OK;
 }
 #pragma endregion
