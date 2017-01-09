@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		08.01.2017 (c)Andrey Korotkov
+\date		09.01.2017 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -248,7 +248,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		virtual IDirect3DResource9Ptr _CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const = 0;
 	};
 
-	class CMSAARendertargetPool : CImagePool
+	class CMSAARendertargetPool final : CImagePool
 	{
 	public:
 		explicit CMSAARendertargetPool(CCoreRendererDX9 &parent);
@@ -257,7 +257,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		IDirect3DResource9Ptr _CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const override;
 	} _MSAARendertargetPool{ *this };
 
-	class CTexturePool : CImagePool
+	class CTexturePool final : CImagePool
 	{
 		const bool _managed, _mipmaps;
 	public:

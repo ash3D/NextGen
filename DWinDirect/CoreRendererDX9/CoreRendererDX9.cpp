@@ -319,9 +319,9 @@ public:
 		CGeometryProviderBase(parent, drawDesc, mode, verCnt, idxCnt), _VB(VB), _IB(IB) {}
 
 public:
-	virtual const IDirect3DVertexBuffer9Ptr &GetVB() const override { assert(_VB);  return _VB->GetVB(); }
-	virtual const IDirect3DIndexBuffer9Ptr &GetIB() const override { assert(_IB); return _IB->GetIB(); }
-	virtual unsigned int SetupVB() override, SetupIB() override;
+	virtual const IDirect3DVertexBuffer9Ptr &GetVB() const override final { assert(_VB);  return _VB->GetVB(); }
+	virtual const IDirect3DIndexBuffer9Ptr &GetIB() const override final { assert(_IB); return _IB->GetIB(); }
+	virtual unsigned int SetupVB() override final, SetupIB() override final;
 };
 
 unsigned int CCoreRendererDX9::CGeometryProvider::SetupVB()
@@ -344,7 +344,7 @@ class CCoreRendererDX9::CCoreGeometryBufferBase : virtual public CGeometryProvid
 	using CGeometryProviderBase::GetIB;
 	using CGeometryProviderBase::GetVBDecl;
 
-	class CDX9BufferContainer : public IDX9BufferContainer
+	class CDX9BufferContainer final : public IDX9BufferContainer
 	{
 		// need to store reference since offsetof() may be unsafe here due to virtual inheritance
 		const CGeometryProviderBase &_geomProvider;
@@ -401,33 +401,33 @@ private:
 	virtual void _ReallocateImpl(const TDrawDataDesc &drawDesc, uint verticesDataSize, uint indicesDataSize, E_CORE_RENDERER_DRAW_MODE drawMode) = 0;
 
 public:
-	DGLE_RESULT DGLE_API GetGeometryData(TDrawDataDesc &stDesc, uint uiVerticesDataSize, uint uiIndexesDataSize) override;
+	DGLE_RESULT DGLE_API GetGeometryData(TDrawDataDesc &stDesc, uint uiVerticesDataSize, uint uiIndexesDataSize) override final;
 
-	DGLE_RESULT DGLE_API SetGeometryData(const TDrawDataDesc &stDesc, uint uiVerticesDataSize, uint uiIndexesDataSize) override;
+	DGLE_RESULT DGLE_API SetGeometryData(const TDrawDataDesc &stDesc, uint uiVerticesDataSize, uint uiIndexesDataSize) override final;
 
-	DGLE_RESULT DGLE_API Reallocate(const TDrawDataDesc &stDesc, uint uiVerticesCount, uint uiIndicesCount, E_CORE_RENDERER_DRAW_MODE eMode) override;
+	DGLE_RESULT DGLE_API Reallocate(const TDrawDataDesc &stDesc, uint uiVerticesCount, uint uiIndicesCount, E_CORE_RENDERER_DRAW_MODE eMode) override final;
 
-	DGLE_RESULT DGLE_API GetBufferDimensions(uint &uiVerticesDataSize, uint &uiVerticesCount, uint &uiIndexesDataSize, uint &uiIndicesCount) override;
+	DGLE_RESULT DGLE_API GetBufferDimensions(uint &uiVerticesDataSize, uint &uiVerticesCount, uint &uiIndexesDataSize, uint &uiIndicesCount) override final;
 
-	DGLE_RESULT DGLE_API GetBufferDrawDataDesc(TDrawDataDesc &stDesc) override
+	DGLE_RESULT DGLE_API GetBufferDrawDataDesc(TDrawDataDesc &stDesc) override final
 	{
 		stDesc = _drawDataDesc;
 		return S_OK;
 	}
 
-	DGLE_RESULT DGLE_API GetBufferDrawMode(E_CORE_RENDERER_DRAW_MODE &eMode) override
+	DGLE_RESULT DGLE_API GetBufferDrawMode(E_CORE_RENDERER_DRAW_MODE &eMode) override final
 	{
 		eMode = _drawMode;
 		return S_OK;
 	}
 
-	DGLE_RESULT DGLE_API GetBaseObject(IBaseRenderObjectContainer *&prObj) override
+	DGLE_RESULT DGLE_API GetBaseObject(IBaseRenderObjectContainer *&prObj) override final
 	{
 		prObj = &_bufferContainer;
 		return S_OK;
 	}
 
-	DGLE_RESULT DGLE_API Free() override
+	DGLE_RESULT DGLE_API Free() override final
 	{
 		delete this;
 		return S_OK;
@@ -1133,7 +1133,7 @@ namespace
 #pragma region CCoreTexture
 class __declspec(uuid("{356F5347-3EF8-40C5-84A4-817993A23196}")) CCoreRendererDX9::CCoreTexture final : public ICoreTexture
 {
-	struct CDX9TextureContainer : public IDX9TextureContainer
+	struct CDX9TextureContainer final : public IDX9TextureContainer
 	{
 		IDirect3DTexture9Ptr texture;
 
