@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		09.01.2017 (c)Andrey Korotkov
+\date		10.01.2017 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -11,7 +11,9 @@ See "DGLE.h" for more details.
 #include <d3dx9.h>
 #include <algorithm>
 #include <numeric>
+#ifndef USE_CIRCULAR_BUFFER
 #include <iterator>
+#endif
 #include "general math.h"
 
 #define USE_REF_DEVICE			0
@@ -1978,11 +1980,10 @@ void CCoreRendererDX9::_ProfilerStartFrame(HRESULT &hr)
 
 			if (_profilerState == 2 || _profilerState == 4)
 			{
+#ifdef USE_CIRCULAR_BUFFER
 				TEngineWindow wnd;
 				AssertHR(_engineCore.GetCurrentWindow(wnd));
 				const auto max_graph_length = wnd.uiWidth + 1;
-				_GPUTimeGraphVBShadow.reserve(max_graph_length);
-#ifdef USE_CIRCULAR_BUFFER
 				_GPUTimeHistory.rset_capacity(max_graph_length);
 #endif
 			}
@@ -4272,10 +4273,13 @@ inline void CCoreRendererDX9::_HandleEvent<ET_ON_PROFILER_DRAW>(IBaseEvent *pEve
 
 					TEngineWindow wnd;
 					AssertHR(_engineCore.GetCurrentWindow(wnd));
+
 					const auto FlipY = [shift = wnd.uiHeight - 1](float y) { return shift - y; };
 
-					assert(_GPUTimeGraphVBShadow.empty());
-					transform(_GPUTimeHistory.begin(), _GPUTimeHistory.end(), back_inserter(_GPUTimeGraphVBShadow), [x = 0.f, FlipY](float y) mutable -> decltype(_GPUTimeGraphVBShadow)::value_type
+					const auto max_graph_length = wnd.uiWidth + 1;
+					_GPUTimeGraphVBShadow.resize(max_graph_length);
+					_GPUTimeGraphVBShadow.shrink_to_fit();
+					transform(_GPUTimeHistory.begin(), _GPUTimeHistory.end(), _GPUTimeGraphVBShadow.begin(), [x = 0.f, FlipY](float y) mutable -> decltype(_GPUTimeGraphVBShadow)::value_type
 					{
 						constexpr float lo = 1000.f / 60.f, hi = 1000.f / 30.f;
 						float lerp_factor = y;
@@ -4294,10 +4298,11 @@ inline void CCoreRendererDX9::_HandleEvent<ET_ON_PROFILER_DRAW>(IBaseEvent *pEve
 					VB_data_desc.bVertices2D = true;
 					VB_data_desc.uiVertexStride = VB_data_desc.uiColorStride = sizeof(decltype(_GPUTimeGraphVBShadow)::value_type::value_type);
 					VB_data_desc.uiColorOffset = sizeof(decltype(_GPUTimeGraphVBShadow)::value_type::value_type::first_type);
+					const uint vcount = _GPUTimeHistory.size() * 2;
 					if (_GPUTimeGraphVB)
-						CheckHR(_GPUTimeGraphVB->Reallocate(VB_data_desc, _GPUTimeGraphVBShadow.size() * 2, 0, CRDM_TRIANGLE_STRIP));
+						CheckHR(_GPUTimeGraphVB->Reallocate(VB_data_desc, vcount, 0, CRDM_TRIANGLE_STRIP));
 					else
-						CheckHR(CreateGeometryBuffer(_GPUTimeGraphVB, VB_data_desc, _GPUTimeGraphVBShadow.size() * 2, 0, CRDM_TRIANGLE_STRIP, CRBT_HARDWARE_DYNAMIC));
+						CheckHR(CreateGeometryBuffer(_GPUTimeGraphVB, VB_data_desc, vcount, 0, CRDM_TRIANGLE_STRIP, CRBT_HARDWARE_DYNAMIC));
 					_GPUTimeGraphVBShadow.clear();
 
 					AssertHR(render2D.DrawBuffer(NULL, _GPUTimeGraphVB, {}, EF_BLEND));
@@ -4305,7 +4310,6 @@ inline void CCoreRendererDX9::_HandleEvent<ET_ON_PROFILER_DRAW>(IBaseEvent *pEve
 			}
 			catch (...)
 			{
-				_GPUTimeGraphVBShadow.clear();
 				_AbortGPUTimeGraphProfiling();
 			}
 		}

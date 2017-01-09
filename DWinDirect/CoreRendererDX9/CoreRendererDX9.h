@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		09.01.2017 (c)Andrey Korotkov
+\date		10.01.2017 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -28,10 +28,42 @@ namespace std_boost = std;
 #include <vector>
 #include <deque>
 #include <tuple>
+#include <memory>
 #if ENABLE_CIRCULAR_BUFFER && defined MSVC_LIMITATIONS || ENABLE_CIRCULAR_BUFFER && __has_include(<boost/circular_buffer.hpp>)
 #include <boost/circular_buffer.hpp>
 #define USE_CIRCULAR_BUFFER
 #endif
+
+// replaces value init with default one\
+useful for avoiding zeroing out in STL containers if it is not needed\
+based on http://stackoverflow.com/a/21028912/273767
+template<class Alloc>
+class default_init_allocator_adaptor : public Alloc
+{
+	using Alloc::Alloc;
+	typedef std::allocator_traits<Alloc> AllocTraits;
+public:
+	template<typename T>
+	struct rebind
+	{
+		typedef default_init_allocator_adaptor<typename AllocTraits::template rebind_alloc<T>> other;
+	};
+public:
+	template<typename X>
+	void construct(X *ptr) noexcept(std::is_nothrow_default_constructible_v<X>)
+	{
+		::new((void *)ptr) X;
+	}
+
+	template<typename X, typename ...Args>
+	void construct(X *ptr, Args &&...args)
+	{
+		AllocTraits::construct(*this, ptr, std::forward<Args>(args)...);
+	}
+};
+
+template<typename T, template<typename> class Alloc = std::allocator>
+using default_init_allocator = default_init_allocator_adaptor<Alloc<T>>;
 
 #include "FixedFunctionPipelineDX9.h"
 
@@ -488,7 +520,8 @@ class CCoreRendererDX9 final : public ICoreRenderer
 #endif
 		_GPUTimeHistory;
 	ICoreGeometryBuffer *_GPUTimeGraphVB = NULL;
-	std::vector<std::array<std::pair<TPoint2, TColor4>, 2>> _GPUTimeGraphVBShadow;
+	typedef std::array<std::pair<TPoint2, TColor4>, 2> GPUTimeGraphVertex;
+	std::vector<GPUTimeGraphVertex, default_init_allocator<GPUTimeGraphVertex>> _GPUTimeGraphVBShadow;
 	std_boost::optional<float> _avgGPUTime;
 
 	// advanced profiler queries
