@@ -226,6 +226,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		TCache _cache;
 	public:
 		const TCache::mapped_type &GetDecl(IDirect3DDevice9 *device, const TDrawDataDesc &desc);
+		auto Size() const noexcept { return _cache.size(); }
 	} _VBDeclCache;
 
 	class CCoreTexture;
@@ -241,6 +242,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		void operator =(CRendertargetCache &) = delete;
 	public:
 		const TCache::mapped_type &GetRendertarget(IDirect3DDevice9 *device, unsigned int width, unsigned int height, TCache::key_type format);
+		auto Size() const noexcept { return _cache.size(); }
 	} _rendertargetCache{ *this };
 
 	class CImagePool
@@ -276,11 +278,13 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		void operator =(CImagePool &) = delete;
 	protected:
 		const IDirect3DResource9Ptr &_GetImage(IDirect3DDevice9 *device, const TPool::key_type &desc);
+	public:
+		auto Size() const noexcept { return _pool.size(); }
 	private:
 		virtual IDirect3DResource9Ptr _CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const = 0;
 	};
 
-	class CMSAARendertargetPool final : CImagePool
+	class CMSAARendertargetPool final : public CImagePool
 	{
 	public:
 		explicit CMSAARendertargetPool(CCoreRendererDX9 &parent);
@@ -289,7 +293,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		IDirect3DResource9Ptr _CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const override;
 	} _MSAARendertargetPool{ *this };
 
-	class CTexturePool final : CImagePool
+	class CTexturePool final : public CImagePool
 	{
 		const bool _managed, _mipmaps;
 	public:

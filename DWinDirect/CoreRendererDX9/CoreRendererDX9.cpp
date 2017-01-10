@@ -1978,7 +1978,7 @@ void CCoreRendererDX9::_ProfilerStartFrame(HRESULT &hr)
 				_avgGPUTime.reset();
 			}
 
-			if (_profilerState == 2 || _profilerState == 4)
+			if (_profilerState > 0 && _profilerState % 2 == 0)
 			{
 #ifdef USE_CIRCULAR_BUFFER
 				TEngineWindow wnd;
@@ -2000,7 +2000,7 @@ void CCoreRendererDX9::_ProfilerStartFrame(HRESULT &hr)
 			}
 		}
 
-		if (_profilerState >= 3)
+		if (_profilerState >= 5)
 			_ProfilerTasksApply([this](auto &task) { _ProfilerTaskStart(task); }, _advancedProfilerTasks);
 		else
 		{
@@ -2036,7 +2036,7 @@ void CCoreRendererDX9::_ProfilerStopFrame(HRESULT &hr)
 			else
 			{
 				_lastSecGPUTimeHistory.push_back((get<1>(*GPU_time_data) - get<0>(*GPU_time_data)) * 1000. / get<2>(*GPU_time_data));
-				if (_profilerState == 2 || _profilerState == 4)
+				if (_profilerState > 0 && _profilerState % 2 == 0)
 				{
 #ifndef USE_CIRCULAR_BUFFER
 					TEngineWindow wnd;
@@ -2160,11 +2160,13 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Initialize(TCrRndrInitResults &stResults,
 
 	static constexpr char help_text[] = R"(Displays Core Renderer DirectX 9 subsystems profiler. Valid values are:
 - '0': disable profiler
-- '1': enable bsic statistics
-- '2': aneble basic statistics with graph
-- '3': enable both basic and advanced statistics
-- '4': enable both basic and advanced statistics with graph)";
-	AssertHR(_engineCore.ConsoleRegisterVariable(PROFILER_CMD_NAME, help_text, &_profilerState, 0, 4));
+- '1': basic statistics
+- '2': basic statistics with graph
+- '3': basic statistics, caches/pools statistics
+- '4': basic statistics with graph, caches/pools statistics
+- '5': basic statistics, caches/pools statistics, advanced statistics
+- '6': basic statistics with graph, caches/pools statistics, advanced statistics)";
+	AssertHR(_engineCore.ConsoleRegisterVariable(PROFILER_CMD_NAME, help_text, &_profilerState, 0, 6));
 
 	_stInitResults = stResults;
 
@@ -4267,7 +4269,7 @@ inline void CCoreRendererDX9::_HandleEvent<ET_ON_PROFILER_DRAW>(IBaseEvent *pEve
 
 			try
 			{
-				if ((_profilerState == 2 || _profilerState == 4) && !_GPUTimeHistory.empty())
+				if (_profilerState % 2 == 0 && !_GPUTimeHistory.empty())
 				{
 					IRender2D &render2D = _GetRender2D();
 
@@ -4318,114 +4320,137 @@ inline void CCoreRendererDX9::_HandleEvent<ET_ON_PROFILER_DRAW>(IBaseEvent *pEve
 
 		if (_profilerState >= 3)
 		{
-			const auto &interface_timings_task = _GetProfilerTask<D3DQUERYTYPE_INTERFACETIMINGS>(_advancedProfilerTasks);
-			if (interface_timings_task.supported)
-			{
-				if (interface_timings_task.result)
-				{
-					AssertHR(_engineCore.RenderProfilerText("---Interface Timings---"));
-					AssertHR(_engineCore.RenderProfilerText(("Waiting for locks....................." + to_string(interface_timings_task.result->WaitingForGPUToUseApplicationResourceTimePercent * 100.f) + '%').c_str()));
-					AssertHR(_engineCore.RenderProfilerText(("Waiting for command buffer overflow..." + to_string(interface_timings_task.result->WaitingForGPUToAcceptMoreCommandsTimePercent * 100.f) + '%').c_str()));
-					AssertHR(_engineCore.RenderProfilerText(("Waiting for frame latency recovery...." + to_string(interface_timings_task.result->WaitingForGPUToStayWithinLatencyTimePercent * 100.f) + '%').c_str()));
-					AssertHR(_engineCore.RenderProfilerText(("Waiting for unpipelinable stuff......." + to_string(interface_timings_task.result->WaitingForGPUExclusiveResourceTimePercent * 100.f) + '%').c_str()));
-					AssertHR(_engineCore.RenderProfilerText(("Waiting for other stuff..............." + to_string(interface_timings_task.result->WaitingForGPUOtherTimePercent * 100.f) + '%').c_str()));
-					AssertHR(_engineCore.RenderProfilerText("-----------------------"));
-				}
-				else
-					AssertHR(_engineCore.RenderProfilerText("Interface timings data not yet available", unavailable_color));
-			}
-			else
-				AssertHR(_engineCore.RenderProfilerText("Interface timings query is not supported by GPU/driver", unsupported_color));
+			AssertHR(_engineCore.RenderProfilerText("-------Caches / Pools-------"));
 
-			const auto &pipeline_timings_task = _GetProfilerTask<D3DQUERYTYPE_PIPELINETIMINGS>(_advancedProfilerTasks);
-			if (pipeline_timings_task.supported)
+			auto RenderProfilerText = [this, text = string()](const char prefix[], auto x, const char postfix[]) mutable
 			{
-				if (pipeline_timings_task.result)
-				{
-					AssertHR(_engineCore.RenderProfilerText("---Pipeline  Timings---"));
-					AssertHR(_engineCore.RenderProfilerText(("Vertex processing....................." + to_string(pipeline_timings_task.result->VertexProcessingTimePercent * 100.f) + '%').c_str()));
-					AssertHR(_engineCore.RenderProfilerText(("Pixel processing......................" + to_string(pipeline_timings_task.result->PixelProcessingTimePercent * 100.f) + '%').c_str()));
-					AssertHR(_engineCore.RenderProfilerText(("Other GPU processing.................." + to_string(pipeline_timings_task.result->OtherGPUProcessingTimePercent * 100.f) + '%').c_str()));
-					AssertHR(_engineCore.RenderProfilerText(("GPU idle.............................." + to_string(pipeline_timings_task.result->GPUIdleTimePercent * 100.f) + '%').c_str()));
-					AssertHR(_engineCore.RenderProfilerText("-----------------------"));
-				}
-				else
-					AssertHR(_engineCore.RenderProfilerText("Pipeline timings data not yet available", unavailable_color));
-			}
-			else
-				AssertHR(_engineCore.RenderProfilerText("Pipeline timings query is not supported by GPU/driver", unsupported_color));
+				text = prefix + to_string(x) + postfix;
+				if (x != 1) text += 's';
+				AssertHR(_engineCore.RenderProfilerText(text.c_str()));
+			};
 
-			const auto &bandwidth_timings_task = _GetProfilerTask<D3DQUERYTYPE_BANDWIDTHTIMINGS>(_advancedProfilerTasks);
-			if (bandwidth_timings_task.supported)
-			{
-				if (bandwidth_timings_task.result)
-				{
-					AssertHR(_engineCore.RenderProfilerText("---Bandwidth Timings---"));
-					AssertHR(_engineCore.RenderProfilerText(("CPU->GPU bandwidth used..............." + to_string(bandwidth_timings_task.result->MaxBandwidthUtilized)).c_str()));
-					AssertHR(_engineCore.RenderProfilerText(("CPU->GPU upload memory used..........." + to_string(bandwidth_timings_task.result->FrontEndUploadMemoryUtilizedPercent * 100.f) + '%').c_str()));
-					AssertHR(_engineCore.RenderProfilerText(("Vertex throughput used................" + to_string(bandwidth_timings_task.result->VertexRateUtilizedPercent * 100.f) + '%').c_str()));
-					AssertHR(_engineCore.RenderProfilerText(("Triangle setup throughput used........" + to_string(bandwidth_timings_task.result->TriangleSetupRateUtilizedPercent * 100.f) + '%').c_str()));
-					AssertHR(_engineCore.RenderProfilerText(("Fillrate used........................." + to_string(bandwidth_timings_task.result->FillRateUtilizedPercent * 100.f) + '%').c_str()));
-					AssertHR(_engineCore.RenderProfilerText("-----------------------"));
-				}
-				else
-					AssertHR(_engineCore.RenderProfilerText("Bandwidth timings data not yet available", unavailable_color));
-			}
-			else
-				AssertHR(_engineCore.RenderProfilerText("Bandwidth timings query is not supported by GPU/driver", unsupported_color));
+			RenderProfilerText("Vertex Declaration Cache...", _VBDeclCache.Size(), " declaration");
+			RenderProfilerText("Render Traget Cache........", _rendertargetCache.Size(), " rendertarget");
+			RenderProfilerText("MSAA Render Target Pool....", _MSAARendertargetPool.Size(), " rendertarget");
+			AssertHR(_engineCore.RenderProfilerText("Texture Pools:"));
+			RenderProfilerText("- Unmanaged................", _texturePools[false][false].Size(), " texture");
+			RenderProfilerText("- Unmanaged Mipmapped......", _texturePools[false][true].Size(), " texture");
+			RenderProfilerText("- Managed..................", _texturePools[true][false].Size(), " texture");
+			RenderProfilerText("- Managed Mipmapped........", _texturePools[true][true].Size(), " texture");
 
-			const auto &vertex_timings_task = _GetProfilerTask<D3DQUERYTYPE_VERTEXTIMINGS>(_advancedProfilerTasks);
-			if (vertex_timings_task.supported)
-			{
-				if (vertex_timings_task.result)
-				{
-					AssertHR(_engineCore.RenderProfilerText("----Vertex  Timings----"));
-					AssertHR(_engineCore.RenderProfilerText(("Memory accesses......................." + to_string(vertex_timings_task.result->MemoryProcessingPercent * 100.f) + '%').c_str()));
-					AssertHR(_engineCore.RenderProfilerText(("Computations.........................." + to_string(vertex_timings_task.result->ComputationProcessingPercent * 100.f) + '%').c_str()));
-					AssertHR(_engineCore.RenderProfilerText("-----------------------"));
-				}
-				else
-					AssertHR(_engineCore.RenderProfilerText("Vertex timings data not yet available", unavailable_color));
-			}
-			else
-				AssertHR(_engineCore.RenderProfilerText("Vertex timings query is not supported by GPU/driver", unsupported_color));
+			AssertHR(_engineCore.RenderProfilerText("----------------------------"));
 
-			const auto &pixel_timings_task = _GetProfilerTask<D3DQUERYTYPE_PIXELTIMINGS>(_advancedProfilerTasks);
-			if (pixel_timings_task.supported)
+			if (_profilerState >= 5)
 			{
-				if (pixel_timings_task.result)
+				const auto &interface_timings_task = _GetProfilerTask<D3DQUERYTYPE_INTERFACETIMINGS>(_advancedProfilerTasks);
+				if (interface_timings_task.supported)
 				{
-					AssertHR(_engineCore.RenderProfilerText("-----Pixel Timings-----"));
-					AssertHR(_engineCore.RenderProfilerText(("Memory accesses......................." + to_string(pixel_timings_task.result->MemoryProcessingPercent * 100.f) + '%').c_str()));
-					AssertHR(_engineCore.RenderProfilerText(("Computations.........................." + to_string(pixel_timings_task.result->ComputationProcessingPercent * 100.f) + '%').c_str()));
-					AssertHR(_engineCore.RenderProfilerText("-----------------------"));
-				}
-				else
-					AssertHR(_engineCore.RenderProfilerText("Pixel timings data not yet available", unavailable_color));
-			}
-			else
-				AssertHR(_engineCore.RenderProfilerText("Pixel timings query is not supported by GPU/driver", unsupported_color));
-
-			const auto &cache_utilization_task = _GetProfilerTask<D3DQUERYTYPE_CACHEUTILIZATION>(_advancedProfilerTasks);
-			if (cache_utilization_task.supported)
-			{
-				if (cache_utilization_task.result)
-				{
-					const auto GetColor = [](float x)
+					if (interface_timings_task.result)
 					{
-						return x >= .9f ? ColorGreen() : x >= .1f ? ColorYellow() : ColorRed();
-					};
-
-					AssertHR(_engineCore.RenderProfilerText("---Cache Utilization---"));
-					AssertHR(_engineCore.RenderProfilerText(("Texture cache hit rate................" + to_string(cache_utilization_task.result->TextureCacheHitRate * 100.f) + '%').c_str(), GetColor(cache_utilization_task.result->TextureCacheHitRate)));
-					AssertHR(_engineCore.RenderProfilerText(("Posttransform vertex cache hit rate..." + to_string(cache_utilization_task.result->PostTransformVertexCacheHitRate * 100.f) + '%').c_str(), GetColor(cache_utilization_task.result->PostTransformVertexCacheHitRate)));
-					AssertHR(_engineCore.RenderProfilerText("-----------------------"));
+						AssertHR(_engineCore.RenderProfilerText("---Interface Timings---"));
+						AssertHR(_engineCore.RenderProfilerText(("Waiting for locks....................." + to_string(interface_timings_task.result->WaitingForGPUToUseApplicationResourceTimePercent * 100.f) + '%').c_str()));
+						AssertHR(_engineCore.RenderProfilerText(("Waiting for command buffer overflow..." + to_string(interface_timings_task.result->WaitingForGPUToAcceptMoreCommandsTimePercent * 100.f) + '%').c_str()));
+						AssertHR(_engineCore.RenderProfilerText(("Waiting for frame latency recovery...." + to_string(interface_timings_task.result->WaitingForGPUToStayWithinLatencyTimePercent * 100.f) + '%').c_str()));
+						AssertHR(_engineCore.RenderProfilerText(("Waiting for unpipelinable stuff......." + to_string(interface_timings_task.result->WaitingForGPUExclusiveResourceTimePercent * 100.f) + '%').c_str()));
+						AssertHR(_engineCore.RenderProfilerText(("Waiting for other stuff..............." + to_string(interface_timings_task.result->WaitingForGPUOtherTimePercent * 100.f) + '%').c_str()));
+						AssertHR(_engineCore.RenderProfilerText("-----------------------"));
+					}
+					else
+						AssertHR(_engineCore.RenderProfilerText("Interface timings data not yet available", unavailable_color));
 				}
 				else
-					AssertHR(_engineCore.RenderProfilerText("Cache utilization data not yet available", unavailable_color));
+					AssertHR(_engineCore.RenderProfilerText("Interface timings query is not supported by GPU/driver", unsupported_color));
+
+				const auto &pipeline_timings_task = _GetProfilerTask<D3DQUERYTYPE_PIPELINETIMINGS>(_advancedProfilerTasks);
+				if (pipeline_timings_task.supported)
+				{
+					if (pipeline_timings_task.result)
+					{
+						AssertHR(_engineCore.RenderProfilerText("---Pipeline  Timings---"));
+						AssertHR(_engineCore.RenderProfilerText(("Vertex processing....................." + to_string(pipeline_timings_task.result->VertexProcessingTimePercent * 100.f) + '%').c_str()));
+						AssertHR(_engineCore.RenderProfilerText(("Pixel processing......................" + to_string(pipeline_timings_task.result->PixelProcessingTimePercent * 100.f) + '%').c_str()));
+						AssertHR(_engineCore.RenderProfilerText(("Other GPU processing.................." + to_string(pipeline_timings_task.result->OtherGPUProcessingTimePercent * 100.f) + '%').c_str()));
+						AssertHR(_engineCore.RenderProfilerText(("GPU idle.............................." + to_string(pipeline_timings_task.result->GPUIdleTimePercent * 100.f) + '%').c_str()));
+						AssertHR(_engineCore.RenderProfilerText("-----------------------"));
+					}
+					else
+						AssertHR(_engineCore.RenderProfilerText("Pipeline timings data not yet available", unavailable_color));
+				}
+				else
+					AssertHR(_engineCore.RenderProfilerText("Pipeline timings query is not supported by GPU/driver", unsupported_color));
+
+				const auto &bandwidth_timings_task = _GetProfilerTask<D3DQUERYTYPE_BANDWIDTHTIMINGS>(_advancedProfilerTasks);
+				if (bandwidth_timings_task.supported)
+				{
+					if (bandwidth_timings_task.result)
+					{
+						AssertHR(_engineCore.RenderProfilerText("---Bandwidth Timings---"));
+						AssertHR(_engineCore.RenderProfilerText(("CPU->GPU bandwidth used..............." + to_string(bandwidth_timings_task.result->MaxBandwidthUtilized)).c_str()));
+						AssertHR(_engineCore.RenderProfilerText(("CPU->GPU upload memory used..........." + to_string(bandwidth_timings_task.result->FrontEndUploadMemoryUtilizedPercent * 100.f) + '%').c_str()));
+						AssertHR(_engineCore.RenderProfilerText(("Vertex throughput used................" + to_string(bandwidth_timings_task.result->VertexRateUtilizedPercent * 100.f) + '%').c_str()));
+						AssertHR(_engineCore.RenderProfilerText(("Triangle setup throughput used........" + to_string(bandwidth_timings_task.result->TriangleSetupRateUtilizedPercent * 100.f) + '%').c_str()));
+						AssertHR(_engineCore.RenderProfilerText(("Fillrate used........................." + to_string(bandwidth_timings_task.result->FillRateUtilizedPercent * 100.f) + '%').c_str()));
+						AssertHR(_engineCore.RenderProfilerText("-----------------------"));
+					}
+					else
+						AssertHR(_engineCore.RenderProfilerText("Bandwidth timings data not yet available", unavailable_color));
+				}
+				else
+					AssertHR(_engineCore.RenderProfilerText("Bandwidth timings query is not supported by GPU/driver", unsupported_color));
+
+				const auto &vertex_timings_task = _GetProfilerTask<D3DQUERYTYPE_VERTEXTIMINGS>(_advancedProfilerTasks);
+				if (vertex_timings_task.supported)
+				{
+					if (vertex_timings_task.result)
+					{
+						AssertHR(_engineCore.RenderProfilerText("----Vertex  Timings----"));
+						AssertHR(_engineCore.RenderProfilerText(("Memory accesses......................." + to_string(vertex_timings_task.result->MemoryProcessingPercent * 100.f) + '%').c_str()));
+						AssertHR(_engineCore.RenderProfilerText(("Computations.........................." + to_string(vertex_timings_task.result->ComputationProcessingPercent * 100.f) + '%').c_str()));
+						AssertHR(_engineCore.RenderProfilerText("-----------------------"));
+					}
+					else
+						AssertHR(_engineCore.RenderProfilerText("Vertex timings data not yet available", unavailable_color));
+				}
+				else
+					AssertHR(_engineCore.RenderProfilerText("Vertex timings query is not supported by GPU/driver", unsupported_color));
+
+				const auto &pixel_timings_task = _GetProfilerTask<D3DQUERYTYPE_PIXELTIMINGS>(_advancedProfilerTasks);
+				if (pixel_timings_task.supported)
+				{
+					if (pixel_timings_task.result)
+					{
+						AssertHR(_engineCore.RenderProfilerText("-----Pixel Timings-----"));
+						AssertHR(_engineCore.RenderProfilerText(("Memory accesses......................." + to_string(pixel_timings_task.result->MemoryProcessingPercent * 100.f) + '%').c_str()));
+						AssertHR(_engineCore.RenderProfilerText(("Computations.........................." + to_string(pixel_timings_task.result->ComputationProcessingPercent * 100.f) + '%').c_str()));
+						AssertHR(_engineCore.RenderProfilerText("-----------------------"));
+					}
+					else
+						AssertHR(_engineCore.RenderProfilerText("Pixel timings data not yet available", unavailable_color));
+				}
+				else
+					AssertHR(_engineCore.RenderProfilerText("Pixel timings query is not supported by GPU/driver", unsupported_color));
+
+				const auto &cache_utilization_task = _GetProfilerTask<D3DQUERYTYPE_CACHEUTILIZATION>(_advancedProfilerTasks);
+				if (cache_utilization_task.supported)
+				{
+					if (cache_utilization_task.result)
+					{
+						const auto GetColor = [](float x)
+						{
+							return x >= .9f ? ColorGreen() : x >= .1f ? ColorYellow() : ColorRed();
+						};
+
+						AssertHR(_engineCore.RenderProfilerText("---Cache Utilization---"));
+						AssertHR(_engineCore.RenderProfilerText(("Texture cache hit rate................" + to_string(cache_utilization_task.result->TextureCacheHitRate * 100.f) + '%').c_str(), GetColor(cache_utilization_task.result->TextureCacheHitRate)));
+						AssertHR(_engineCore.RenderProfilerText(("Posttransform vertex cache hit rate..." + to_string(cache_utilization_task.result->PostTransformVertexCacheHitRate * 100.f) + '%').c_str(), GetColor(cache_utilization_task.result->PostTransformVertexCacheHitRate)));
+						AssertHR(_engineCore.RenderProfilerText("-----------------------"));
+					}
+					else
+						AssertHR(_engineCore.RenderProfilerText("Cache utilization data not yet available", unavailable_color));
+				}
+				else
+					AssertHR(_engineCore.RenderProfilerText("Cache utilization query is not supported by GPU/driver", unsupported_color));
 			}
-			else
-				AssertHR(_engineCore.RenderProfilerText("Cache utilization query is not supported by GPU/driver", unsupported_color));
 		}
 	}
 }
