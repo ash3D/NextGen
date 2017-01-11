@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		10.01.2017 (c)Andrey Korotkov
+\date		11.01.2017 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1957,54 +1957,72 @@ void CCoreRendererDX9::_ProfilerStartFrame(HRESULT &hr)
 {
 	try
 	{
-		if (_GPUTimeQuerySupport)
+		if (_profilerState >= 1)
 		{
-			if (_profilerState >= 1)
+			if (_eventQuerySupport)
 			{
-				_GetQuery<D3DQUERYTYPE_TIMESTAMPDISJOINT>(_GPUTimeFreqQuery) = _GPUTimeQueryPool.GetQuery<D3DQUERYTYPE_TIMESTAMPDISJOINT>(_device);
-				_GetQuery<D3DQUERYTYPE_TIMESTAMPFREQ>(_GPUTimeFreqQuery) = _GPUTimeQueryPool.GetQuery<D3DQUERYTYPE_TIMESTAMPFREQ>(_device);
-				_startGPUTimeQuery = _GPUTimeQueryPool.GetQuery<D3DQUERYTYPE_TIMESTAMP>(_device);
+				auto query = _basicProfilerQueryPool.GetQuery<D3DQUERYTYPE_EVENT>(_device);
+				query.Issue();
+				_startFrameEventQueryQueue.Insert(move(query));
+				_frameCPU++;
+
+				while (_startFrameEventQueryQueue.Extract())
+					_lastSec_CPU_GPU_delayHistory.push_back(_frameCPU - ++_frameGPU);
+			}
+
+			if (_GPUTimeQuerySupport)
+			{
+				_GetQuery<D3DQUERYTYPE_TIMESTAMPDISJOINT>(_GPUTimeFreqQuery) = _basicProfilerQueryPool.GetQuery<D3DQUERYTYPE_TIMESTAMPDISJOINT>(_device);
+				_GetQuery<D3DQUERYTYPE_TIMESTAMPFREQ>(_GPUTimeFreqQuery) = _basicProfilerQueryPool.GetQuery<D3DQUERYTYPE_TIMESTAMPFREQ>(_device);
+				_startGPUTimeQuery = _basicProfilerQueryPool.GetQuery<D3DQUERYTYPE_TIMESTAMP>(_device);
 
 				_GetQuery<D3DQUERYTYPE_TIMESTAMPDISJOINT>(_GPUTimeFreqQuery).Start();
 				_GetQuery<D3DQUERYTYPE_TIMESTAMPFREQ>(_GPUTimeFreqQuery).Issue();
 				_startGPUTimeQuery.Issue();
 			}
-			else
-			{
-				_GPUTimeQueryPool.Clear();
-				_GPUTimeQueryQueue.Clear();
-				_lastSecGPUTimeHistory.clear();
-				_lastSecGPUTimeHistory.shrink_to_fit();
-				_avgGPUTime.reset();
-			}
+		}
+		else
+		{
+			_basicProfilerQueryPool.Clear();
 
-			if (_profilerState > 0 && _profilerState % 2 == 0)
-			{
+			_startFrameEventQueryQueue.Clear();
+			_frameCPU = _frameGPU = 0;
+			_lastSec_CPU_GPU_delayHistory.clear();
+			_lastSec_CPU_GPU_delayHistory.shrink_to_fit();
+			_CPU_GPU_delayRange.reset();
+
+			_GPUTimeQueryQueue.Clear();
+			_lastSecGPUTimeHistory.clear();
+			_lastSecGPUTimeHistory.shrink_to_fit();
+			_avgGPUTime.reset();
+		}
+
+		if (_profilerState > 0 && _profilerState % 2 == 0 && _GPUTimeQuerySupport)
+		{
 #ifdef USE_CIRCULAR_BUFFER
-				TEngineWindow wnd;
-				AssertHR(_engineCore.GetCurrentWindow(wnd));
-				const auto max_graph_length = wnd.uiWidth + 1;
-				_GPUTimeHistory.rset_capacity(max_graph_length);
+			TEngineWindow wnd;
+			AssertHR(_engineCore.GetCurrentWindow(wnd));
+			const auto max_graph_length = wnd.uiWidth + 1;
+			_GPUTimeHistory.rset_capacity(max_graph_length);
 #endif
-			}
-			else
-			{
+		}
+		else
+		{
 #ifdef USE_CIRCULAR_BUFFER
-				_GPUTimeHistory.set_capacity(0);
+			_GPUTimeHistory.set_capacity(0);
 #else
-				_GPUTimeHistory.clear();
-				_GPUTimeHistory.shrink_to_fit();
+			_GPUTimeHistory.clear();
+			_GPUTimeHistory.shrink_to_fit();
 #endif
-				_DestroyGPUTimeGraphVB();
-				_GPUTimeGraphVBShadow.shrink_to_fit();
-			}
+			_DestroyGPUTimeGraphVB();
+			_GPUTimeGraphVBShadow.shrink_to_fit();
 		}
 
 		if (_profilerState >= 5)
 			_ProfilerTasksApply([this](auto &task) { _ProfilerTaskStart(task); }, _advancedProfilerTasks);
 		else
 		{
-			_AdvancedProfilerQueryPool.Clear();
+			_advancedProfilerQueryPool.Clear();
 			_ProfilerTasksApply([this](auto &task) { _ProfilerTaskDestroy(task); }, _advancedProfilerTasks);
 		}
 	}
@@ -2021,7 +2039,7 @@ void CCoreRendererDX9::_ProfilerStopFrame(HRESULT &hr)
 	{
 		if (_startGPUTimeQuery)
 		{
-			auto stopGPUTimeQuery = _GPUTimeQueryPool.GetQuery<D3DQUERYTYPE_TIMESTAMP>(_device);
+			auto stopGPUTimeQuery = _basicProfilerQueryPool.GetQuery<D3DQUERYTYPE_TIMESTAMP>(_device);
 			stopGPUTimeQuery.Issue();
 			_GetQuery<D3DQUERYTYPE_TIMESTAMPDISJOINT>(_GPUTimeFreqQuery).Stop();
 			_GPUTimeQueryQueue.Insert(tuple_cat(make_tuple(move(_startGPUTimeQuery), move(stopGPUTimeQuery)), move(_GPUTimeFreqQuery)));
@@ -2126,6 +2144,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Initialize(TCrRndrInitResults &stResults,
 	_NSQTexSupport = !(caps.TextureCaps & D3DPTEXTURECAPS_SQUAREONLY);
 	_mipmapSupport = caps.TextureCaps & D3DPTEXTURECAPS_MIPMAP;
 	_anisoSupport = caps.RasterCaps & D3DPRASTERCAPS_ANISOTROPY;
+	_eventQuerySupport = SUCCEEDED(_device->CreateQuery(D3DQUERYTYPE_EVENT, NULL));
 	_GPUTimeQuerySupport = SUCCEEDED(_device->CreateQuery(D3DQUERYTYPE_TIMESTAMP, NULL)) && SUCCEEDED(_device->CreateQuery(D3DQUERYTYPE_TIMESTAMPFREQ, NULL)) && SUCCEEDED(_device->CreateQuery(D3DQUERYTYPE_TIMESTAMPDISJOINT, NULL));
 	_ProfilerTasksApply([this](auto &task) { _ProfilerTaskCheckSupport(task); }, _advancedProfilerTasks);
 
@@ -3072,7 +3091,7 @@ template<D3DQUERYTYPE type>
 inline void CCoreRendererDX9::_ProfilerTaskStart(TProfilerTask<type> &task)
 {
 	if (task.supported)
-		(task.query = _AdvancedProfilerQueryPool.GetQuery<type>(_device)).Start();
+		(task.query = _advancedProfilerQueryPool.GetQuery<type>(_device)).Start();
 }
 
 template<D3DQUERYTYPE type>
@@ -4238,6 +4257,16 @@ inline void CCoreRendererDX9::_HandleEvent<ET_ON_PER_SECOND_TIMER>(IBaseEvent *p
 
 	// update profiler data
 
+	if (!_lastSec_CPU_GPU_delayHistory.empty())
+	{
+		const auto delayRange = minmax_element(_lastSec_CPU_GPU_delayHistory.cbegin(), _lastSec_CPU_GPU_delayHistory.cend());
+		_CPU_GPU_delayRange.emplace(*delayRange.first, *delayRange.second);
+		// every item x in delay history estimates delay in range [x-1, x] => need to decrement min delay in order to get conservative range estimation
+		if (_CPU_GPU_delayRange->first > 0)
+			_CPU_GPU_delayRange->first--;
+		_lastSec_CPU_GPU_delayHistory.clear();
+	}
+
 	if (!_lastSecGPUTimeHistory.empty())
 	{
 		// consider using potentially more efficient std::reduce
@@ -4262,10 +4291,23 @@ inline void CCoreRendererDX9::_HandleEvent<ET_ON_PROFILER_DRAW>(IBaseEvent *pEve
 			if (_avgGPUTime)
 			{
 				const auto color = _avgGPUTime <= 1000.f / 60.f ? ColorGreen() : _avgGPUTime <= 1000.f / 30.f ? ColorYellow() : ColorRed();
-				AssertHR(_engineCore.RenderProfilerText(("GPU frame time estimation (can be affected by CPU in CPU bound scenarios): " + to_string(*_avgGPUTime) + " ms").c_str(), color));
+				AssertHR(_engineCore.RenderProfilerText(("GPU frame time estimation (can be affected by CPU in CPU bound scenarios)..." + to_string(*_avgGPUTime) + " ms").c_str(), color));
 			}
 			else
 				AssertHR(_engineCore.RenderProfilerText("GPU frame time data not yet available", unavailable_color));
+
+			if (_CPU_GPU_delayRange)
+			{
+				string text = "CPU-GPU delay...............................................................";
+				if (_CPU_GPU_delayRange->second > 0)
+					text.append(to_string(_CPU_GPU_delayRange->first)).append(1, '-').append(to_string(_CPU_GPU_delayRange->second));
+				else
+					text += '0';
+				text += " frames";
+				AssertHR(_engineCore.RenderProfilerText(text.c_str()));
+			}
+			else
+				AssertHR(_engineCore.RenderProfilerText("CPU-GPU delay data not yet available", unavailable_color));
 
 			try
 			{

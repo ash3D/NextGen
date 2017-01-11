@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		10.01.2017 (c)Andrey Korotkov
+\date		11.01.2017 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -97,7 +97,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 
 	unsigned int _maxTexResolution[2], _maxAnisotropy, _maxTexUnits, _maxTexStages, _maxRTs, _maxVertexStreams, _maxClipPlanes, _maxVSFloatConsts;
 	DWORD _textureAddressCaps;
-	bool _NPOTTexSupport, _NSQTexSupport, _mipmapSupport, _anisoSupport, _GPUTimeQuerySupport;
+	bool _NPOTTexSupport, _NSQTexSupport, _mipmapSupport, _anisoSupport, _eventQuerySupport, _GPUTimeQuerySupport;
 
 	TMatrix4x4 _projXform = MatrixIdentity();
 
@@ -324,6 +324,13 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	struct QueryTypeTraits;
 
 	template<>
+	struct QueryTypeTraits<D3DQUERYTYPE_EVENT>
+	{
+		typedef BOOL TResult;
+		static constexpr bool isRanged = false;
+	};
+
+	template<>
 	struct QueryTypeTraits<D3DQUERYTYPE_TIMESTAMP>
 	{
 		typedef UINT64 TResult;
@@ -402,7 +409,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		template<D3DQUERYTYPE type>
 		CQuery<type> GetQuery(IDirect3DDevice9 *device) { return _GetQuery(device, type); }
 		void Clear() noexcept { _pool.clear(); }
-	} _GPUTimeQueryPool, _AdvancedProfilerQueryPool;
+	} _basicProfilerQueryPool, _advancedProfilerQueryPool;
 
 	class CQueryBase
 	{
@@ -512,6 +519,12 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		std_boost::optional<typename QueryTypeTraits<type>::TResult> Extract();
 	};
 	
+	// CPU-GPU delay
+	CQueryQueue<D3DQUERYTYPE_EVENT> _startFrameEventQueryQueue;
+	uint_least32_t _frameCPU = 0, _frameGPU = 0;
+	std::vector<uint_least8_t> _lastSec_CPU_GPU_delayHistory;
+	std_boost::optional<std::pair<unsigned int, unsigned int>> _CPU_GPU_delayRange;
+
 	// GPU time
 	CQueryQueue<D3DQUERYTYPE_TIMESTAMP, D3DQUERYTYPE_TIMESTAMP, D3DQUERYTYPE_TIMESTAMPFREQ, D3DQUERYTYPE_TIMESTAMPDISJOINT> _GPUTimeQueryQueue;
 	CQuery<D3DQUERYTYPE_TIMESTAMP> _startGPUTimeQuery;
