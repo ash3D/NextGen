@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.03.2016 (c)Korotkov Andrey
+\date		11.01.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -10,7 +10,7 @@ See "DGLE.h" for more details.
 #include "PluginCore.h"
 
 #define PLUGIN_NAME				"CoreRendererDX9"
-#define PLUGIN_VERSION			"0.1 (" __DATE__ ")"
+#define PLUGIN_VERSION			"0.2 (" __DATE__ ")"
 #define PLUGIN_VENDOR			"DGLE Team"
 #define PLUGIN_DESCRIPTION		"ICoreRendererInterface DirectX 9 implementation"
 #define PLUGIN_INTERFACE_NAME	"ISubSystemPlugin"
