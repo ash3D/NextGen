@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		11.01.2017 (c)Andrey Korotkov
+\date		13.01.2017 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -537,7 +537,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 #endif
 		_GPUTimeHistory;
 	ICoreGeometryBuffer *_GPUTimeGraphVB = NULL;
-	typedef std::array<std::pair<TPoint2, TColor4>, 2> GPUTimeGraphVertex;
+	typedef std::array<std::pair<TPoint2, D3DCOLORVALUE>, 2> GPUTimeGraphVertex;
 	std::vector<GPUTimeGraphVertex, default_init_allocator<GPUTimeGraphVertex>> _GPUTimeGraphVBShadow;
 	std_boost::optional<float> _avgGPUTime;
 

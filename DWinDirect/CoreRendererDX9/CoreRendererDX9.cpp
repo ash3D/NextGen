@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		11.01.2017 (c)Andrey Korotkov
+\date		13.01.2017 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -66,24 +66,6 @@ namespace
 
 		// rely on NRVO
 		return surface_desc;
-	}
-
-	inline TColor4 operator +(TColor4 left, const TColor4 &right)
-	{
-		left.r += right.r;
-		left.g += right.g;
-		left.b += right.b;
-		left.a += right.a;
-		return left;
-	}
-
-	inline TColor4 operator *(float factor, TColor4 color)
-	{
-		color.r *= factor;
-		color.g *= factor;
-		color.b *= factor;
-		color.a *= factor;
-		return color;
 	}
 
 	inline void operator +=(D3DDEVINFO_D3D9INTERFACETIMINGS &left, const D3DDEVINFO_D3D9INTERFACETIMINGS &right)
@@ -4329,7 +4311,10 @@ inline void CCoreRendererDX9::_HandleEvent<ET_ON_PROFILER_DRAW>(IBaseEvent *pEve
 						float lerp_factor = y;
 						lerp_factor -= lo;
 						lerp_factor /= hi - lo;
-						const TColor4 color = Math::lerp(ColorGreen(GPUTimeGraphAlpha), ColorRed(GPUTimeGraphAlpha), clamp(lerp_factor, 0.f, 1.f));
+						
+						// D3DX converts D3DXCOLOR to D3DCOLORVALUE via struct aliasing, this invokes UB thus problems possible on compilers aggressive concerning strict aliasing rules
+						const D3DCOLORVALUE color = Math::lerp(D3DXCOLOR(ColorGreen(GPUTimeGraphAlpha).rgba), D3DXCOLOR(ColorRed(GPUTimeGraphAlpha).rgba), clamp(lerp_factor, 0.f, 1.f));
+						
 						return
 						{
 							make_pair(TPoint2(x, FlipY(y * GPUTimeGraphScale)), color),
