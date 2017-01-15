@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		13.01.2017 (c)Andrey Korotkov
+\date		15.01.2017 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -260,10 +260,10 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		};
 		struct TImage
 		{
-			IDirect3DResource9Ptr image;
+			IUnknownPtr image;
 			uint_least32_t idleTime;
 		public:
-			TImage(IDirect3DResource9Ptr &&image) : image(std::move(image)), idleTime() {}
+			TImage(IUnknownPtr &&image) : image(std::move(image)), idleTime() {}
 		};
 	protected:
 		typedef std::unordered_multimap<TImageDesc, TImage, THash> TPool;
@@ -277,11 +277,11 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		CImagePool(CImagePool &) = delete;
 		void operator =(CImagePool &) = delete;
 	protected:
-		const IDirect3DResource9Ptr &_GetImage(IDirect3DDevice9 *device, const TPool::key_type &desc);
+		const IUnknownPtr &_GetImage(IDirect3DDevice9 *device, const TPool::key_type &desc);
 	public:
 		auto Size() const noexcept { return _pool.size(); }
 	private:
-		virtual IDirect3DResource9Ptr _CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const = 0;
+		virtual IUnknownPtr _CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const = 0;
 	};
 
 	class CMSAARendertargetPool final : public CImagePool
@@ -290,7 +290,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		explicit CMSAARendertargetPool(CCoreRendererDX9 &parent);
 		inline IDirect3DSurface9Ptr GetRendertarget(IDirect3DDevice9 *device, const TPool::key_type &desc);
 	private:
-		IDirect3DResource9Ptr _CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const override;
+		IUnknownPtr _CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const override;
 	} _MSAARendertargetPool{ *this };
 
 	class CTexturePool final : public CImagePool
@@ -300,7 +300,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		CTexturePool(CCoreRendererDX9 &parent, bool managed, bool mipmaps);
 		inline IDirect3DTexture9Ptr GetTexture(IDirect3DDevice9 *device, const TPool::key_type &desc);
 	private:
-		IDirect3DResource9Ptr _CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const override;
+		IUnknownPtr _CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const override;
 	}
 	_texturePools[2][2] =
 	{

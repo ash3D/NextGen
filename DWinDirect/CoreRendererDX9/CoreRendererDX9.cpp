@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		13.01.2017 (c)Andrey Korotkov
+\date		15.01.2017 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -2767,7 +2767,7 @@ _cleanCallbackHandle(parent._cleanBroadcast.AddCallback([this]
 }))
 {}
 
-const IDirect3DResource9Ptr &CCoreRendererDX9::CImagePool::_GetImage(IDirect3DDevice9 *device, const TPool::key_type &desc)
+const IUnknownPtr &CCoreRendererDX9::CImagePool::_GetImage(IDirect3DDevice9 *device, const TPool::key_type &desc)
 {
 	const auto range = _pool.equal_range(desc);
 
@@ -2796,7 +2796,7 @@ inline IDirect3DSurface9Ptr CCoreRendererDX9::CMSAARendertargetPool::GetRenderta
 	return _GetImage(device, desc);
 }
 
-IDirect3DResource9Ptr CCoreRendererDX9::CMSAARendertargetPool::_CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const
+IUnknownPtr CCoreRendererDX9::CMSAARendertargetPool::_CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const
 {
 	D3DMULTISAMPLE_TYPE MSAA = D3DMULTISAMPLE_NONE;
 	IDirect3DSwapChain9Ptr swap_chain;
@@ -2820,7 +2820,7 @@ inline IDirect3DTexture9Ptr CCoreRendererDX9::CTexturePool::GetTexture(IDirect3D
 	return _GetImage(device, desc);
 }
 
-IDirect3DResource9Ptr CCoreRendererDX9::CTexturePool::_CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const
+IUnknownPtr CCoreRendererDX9::CTexturePool::_CreateImage(IDirect3DDevice9 *device, const TPool::key_type &desc) const
 {
 	DWORD usage = 0;
 	if (!_managed)
