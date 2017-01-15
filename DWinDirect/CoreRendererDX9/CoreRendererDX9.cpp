@@ -29,7 +29,6 @@ See "DGLE.h" for more details.
 #define PROFILER_CMD_NAME "crdx9_profiler"
 
 constexpr float GPUTimeGraphScale = 10.f;
-constexpr uint8 GPUTimeGraphAlpha = 128;
 
 using namespace std;
 #ifdef MSVC_LIMITATIONS
@@ -2168,6 +2167,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Initialize(TCrRndrInitResults &stResults,
 - '5': basic statistics, caches/pools statistics, advanced statistics
 - '6': basic statistics with graph, caches/pools statistics, advanced statistics)";
 	AssertHR(_engineCore.ConsoleRegisterVariable(PROFILER_CMD_NAME, help_text, &_profilerState, 0, 6));
+	AssertHR(_engineCore.ConsoleRegisterVariable("GPU_time_graph_alpha", "Sets GPU time graph opacity (0-255).", &_GPUTimeGraphAlpha, 0, 255));
 
 	_stInitResults = stResults;
 
@@ -2182,6 +2182,7 @@ DGLE_RESULT DGLE_API CCoreRendererDX9::Finalize()
 		return E_ABORT;
 
 	AssertHR(_engineCore.ConsoleUnregister(PROFILER_CMD_NAME));
+	AssertHR(_engineCore.ConsoleUnregister("GPU_time_graph_alpha"));
 
 	AssertHR(_engineCore.RemoveEventListener(ET_ON_PER_SECOND_TIMER, _EventsHandler, this));
 	AssertHR(_engineCore.RemoveEventListener(ET_ON_PROFILER_DRAW, _EventsHandler, this));
@@ -4305,7 +4306,7 @@ inline void CCoreRendererDX9::_HandleEvent<ET_ON_PROFILER_DRAW>(IBaseEvent *pEve
 					const auto max_graph_length = wnd.uiWidth + 1;
 					_GPUTimeGraphVBShadow.resize(max_graph_length);
 					_GPUTimeGraphVBShadow.shrink_to_fit();
-					transform(_GPUTimeHistory.begin(), _GPUTimeHistory.end(), _GPUTimeGraphVBShadow.begin(), [x = 0.f, FlipY](float y) mutable -> decltype(_GPUTimeGraphVBShadow)::value_type
+					transform(_GPUTimeHistory.begin(), _GPUTimeHistory.end(), _GPUTimeGraphVBShadow.begin(), [x = 0.f, FlipY, this](float y) mutable -> decltype(_GPUTimeGraphVBShadow)::value_type
 					{
 						constexpr float lo = 1000.f / 60.f, hi = 1000.f / 30.f;
 						float lerp_factor = y;
@@ -4313,7 +4314,7 @@ inline void CCoreRendererDX9::_HandleEvent<ET_ON_PROFILER_DRAW>(IBaseEvent *pEve
 						lerp_factor /= hi - lo;
 						
 						// D3DX converts D3DXCOLOR to D3DCOLORVALUE via struct aliasing, this invokes UB thus problems possible on compilers aggressive concerning strict aliasing rules
-						const D3DCOLORVALUE color = Math::lerp(D3DXCOLOR(ColorGreen(GPUTimeGraphAlpha).rgba), D3DXCOLOR(ColorRed(GPUTimeGraphAlpha).rgba), clamp(lerp_factor, 0.f, 1.f));
+						const D3DCOLORVALUE color = Math::lerp(D3DXCOLOR(ColorGreen(_GPUTimeGraphAlpha).rgba), D3DXCOLOR(ColorRed(_GPUTimeGraphAlpha).rgba), clamp(lerp_factor, 0.f, 1.f));
 						
 						return
 						{

@@ -101,7 +101,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 
 	TMatrix4x4 _projXform = MatrixIdentity();
 
-	int _profilerState = 0;
+	int _profilerState = 0, _GPUTimeGraphAlpha = 128;
 
 	CBroadcast<> _frameEndBroadcast, _clearBroadcast, _cleanBroadcast;
 	CBroadcast<const IDirect3DDevice9Ptr &> _restoreBroadcast;
