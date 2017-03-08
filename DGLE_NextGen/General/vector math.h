@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		01.12.2016 (c)Alexey Shaydurov
+\date		08.03.2017 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -278,7 +278,7 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 #	pragma warning(push)
 #	pragma warning(disable: 4003)
 
-#if defined _MSC_VER && _MSC_VER <= 1900 && !defined __clang__
+#if defined _MSC_VER && _MSC_VER <= 1910 && !defined __clang__
 #	define MSVC_LIMITATIONS
 #endif
 
