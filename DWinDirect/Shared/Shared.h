@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		08.03.2017 (c)Korotkov Andrey
+\date		09.03.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -9,8 +9,8 @@ See "DGLE.h" for more details.
 
 #pragma once
 
-#if !defined  __clang__  && defined _MSC_FULL_VER && _MSC_FULL_VER < 190023918
-#error Old MSVC compiler version. Visual Studio 2015 Update 2 or later required.
+#if !defined  __clang__  && defined _MSC_VER && _MSC_VER < 1910
+#error Old MSVC compiler version. Visual Studio 2017 or later required.
 #endif
 
 #include "DGLE.h"
@@ -74,27 +74,16 @@ inline void LogWrite(IEngineCore &engineCore, const std::string &str, E_LOG_TYPE
 	LogWrite(engineCore, str.c_str(), eType, pcSrcFileName, iSrcLineNumber);
 }
 
-namespace detail
-{
-	template<size_t offset>
-	inline constexpr const char *const FindFilename(const char path[])
-	{
-		return path[offset] == '\\' || path[offset] == '/' ? path + offset + 1 : FindFilename<offset - 1>(path);
-	}
-
-	template<>
-	inline constexpr const char *const FindFilename<0>(const char path[])
-	{
-		return path;
-	}
-}
-
-// use C++14 extended constexpr
 template<size_t length>
-inline constexpr const char *const ExtractFilename(const char (&path)[length])
+inline constexpr const char *const ExtractFilename(const char(&path)[length])
 {
 	static_assert(length > 0, "path must be null-terminated string");
-	return detail::FindFilename<length - 1>(path);
+	auto offset = length;
+	do
+		if (path[offset - 1] == '\\' || path[offset - 1] == '/')
+			return path + offset;
+	while (--offset);
+	return path;
 }
 
 #define PTHIS(cl_name) (reinterpret_cast<cl_name *>(pParameter))
