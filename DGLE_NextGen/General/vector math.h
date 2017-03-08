@@ -448,6 +448,19 @@ further investigations needed, including other compilers
 
 		namespace Impl
 		{
+#ifdef MSVC_LIMITATIONS
+			namespace STD
+			{
+				template<typename T>
+				constexpr unsigned int min(T a, T b)
+				{
+					return a < b ? a : b;
+				}
+			}
+#else
+			namespace STD = std;
+#endif
+
 #if USE_BOOST_MPL
 			namespace mpl = boost::mpl;
 			using namespace mpl::placeholders;
@@ -2813,7 +2826,7 @@ further investigations needed, including other compilers
 #endif
 #endif
 #ifdef MSVC_LIMITATIONS
-				typedef matrix<TargetElementType, std::min(lr, rr), std::min(lc, rc)> ResultMatrix;
+				typedef matrix<TargetElementType, STD::min(lr, rr), STD::min(lc, rc)> ResultMatrix;
 #else
 				typedef matrix<TargetElementType, std::min(leftRows, rightRows), std::min(leftColumns, rightColumns)> ResultMatrix;
 #endif
