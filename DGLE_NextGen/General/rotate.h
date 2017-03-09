@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		20.11.2016 (c)Korotkov Andrey
+\date		09.03.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -9,8 +9,8 @@ See "DGLE.h" for more details.
 
 #pragma once
 
-#if !defined  __clang__  && defined _MSC_FULL_VER && _MSC_FULL_VER < 190023918
-#error Old MSVC compiler version. Visual Studio 2015 Update 2 or later required.
+#if !defined  __clang__  && defined _MSC_VER && _MSC_VER < 1910
+#error Old MSVC compiler version. Visual Studio 2017 or later required.
 #endif
 
 #include <type_traits>
@@ -41,7 +41,6 @@ namespace RotImpl
 	template<unsigned width, typename Void = void>
 	struct SelectType
 	{
-		// C++17\
 		static_assert(is_same_v<Void, void>);
 		typedef uintmax_t fast;
 	};

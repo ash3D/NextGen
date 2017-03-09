@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		08.03.2017 (c)Alexey Shaydurov
+\date		09.03.2017 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -269,8 +269,8 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 #	ifndef __VECTOR_MATH_H__
 #	define __VECTOR_MATH_H__
 
-#	if defined _MSC_FULL_VER && _MSC_FULL_VER < 190024210 && !defined  __clang__
-#	error Old MSVC compiler version. Visual Studio 2015 Update 3 or later required.
+#	if defined _MSC_VER && _MSC_VER < 1910 && !defined  __clang__
+#	error Old MSVC compiler version. Visual Studio 2017 or later required.
 #	elif defined __GNUC__ && (__GNUC__ < 4 || (__GNUC__ >= 4 && __GNUC_MINOR__ < 7)) && !defined __clang__
 #	error Old GCC compiler version. GCC 4.7 or later required.	// need to be clarified
 #	endif
@@ -1100,7 +1100,6 @@ further investigations needed, including other compilers
 					>
 					struct DetectSwizzleWARHazard : false_type
 					{
-						// C++17\
 						static_assert(is_same_v<Void, void>);
 					};
 
@@ -1150,7 +1149,6 @@ further investigations needed, including other compilers
 						template<typename DstType, typename SrcType, typename Void = void>
 						struct DetectScalarWARHazard : false_type
 						{
-							// C++17\
 							static_assert(!IsPureScalar<DstType> && Is1x1<SrcType> && is_same_v<Void, void>);
 						};
 
@@ -1596,7 +1594,6 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int rows, unsigned int columns, typename Void>
 			class CDataContainer
 			{
-				// C++17\
 				static_assert(is_same_v<Void, void>);
 
 			public:
@@ -2499,7 +2496,6 @@ further investigations needed, including other compilers
 #endif
 				-> enable_if_t<(srcRows > 1 || srcColumns > 1), TOperationResult &>
 			{
-				// C++17\
 				static_assert(sizeof...(WARHazard) <= 1);
 				constexpr static const bool underflow = SwizzleDesc::dimension > srcRows * srcColumns, overflow = SwizzleDesc::dimension < srcRows * srcColumns;
 				static_assert(!(underflow || overflow && SwizzleDesc::dimension > 1), "'vector = matrix': unmatched sequencing");
@@ -3596,7 +3592,7 @@ further investigations needed, including other compilers
 							CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,													\
 							const matrix<RightElementType, rightRows, rightColumns> &right)																\
 						{																																\
-							/* C++17 static_assert(sizeof...(WARHazard) <= 1);*/																		\
+							static_assert(sizeof...(WARHazard) <= 1);																					\
 							constexpr static const bool																									\
 								underflow = LeftSwizzleDesc::dimension > rightRows * rightColumns,														\
 								overflow = LeftSwizzleDesc::dimension < rightRows * rightColumns;														\
@@ -3637,7 +3633,7 @@ further investigations needed, including other compilers
 						Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,													\
 						const matrix<RightElementType, rightRows, rightColumns> &right)																	\
 					{																																	\
-						/* C++17 static_assert(sizeof...(WARHazard) <= 1);*/																			\
+						static_assert(sizeof...(WARHazard) <= 1);																						\
 						constexpr static const bool																										\
 							underflow = LeftSwizzleDesc::dimension > rightRows * rightColumns,															\
 							overflow = LeftSwizzleDesc::dimension < rightRows * rightColumns;															\
@@ -3679,7 +3675,7 @@ further investigations needed, including other compilers
 						const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)										\
 						-> std::enable_if_t<(RightSwizzleDesc::dimension > 1), decltype(left)>															\
 					{																																	\
-						/* C++17 static_assert(sizeof...(WARHazard) <= 1);*/																			\
+						static_assert(sizeof...(WARHazard) <= 1);																						\
 						constexpr static const auto leftDimension = leftRows * leftColumns;																\
 						constexpr static const bool																										\
 							underflow = leftDimension > RightSwizzleDesc::dimension,																	\
@@ -5307,7 +5303,6 @@ further investigations needed, including other compilers
 #endif
 				-> std::enable_if_t<(SrcSwizzleDesc::dimension > 1), matrix &>
 			{
-				// C++17\
 				static_assert(sizeof...(WARHazard) <= 1);
 				constexpr static const auto dstDimension = rows * columns;
 				constexpr static const bool underflow = dstDimension > SrcSwizzleDesc::dimension, overflow = dstDimension < SrcSwizzleDesc::dimension;
