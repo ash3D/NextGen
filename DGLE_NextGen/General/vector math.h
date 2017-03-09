@@ -1336,7 +1336,7 @@ further investigations needed, including other compilers
 
 #ifdef MSVC_LIMITATIONS
 				template<typename First, typename Second, typename ...Rest>
-				static auto ElementsCountHelper(const First &first, const Second &second, const Rest &...rest)	// enable_if_t - workaround for VS 2015
+				static auto ElementsCountHelper(const First &first, const Second &second, const Rest &...rest)	// enable_if_t - workaround for VS 2015/2017
 					-> integral_constant<unsigned int, enable_if_t<true, decltype(ElementsCountHelper(first))>::value + enable_if_t<true, decltype(ElementsCountHelper(second, rest...))>::value>;
 #endif
 			}
@@ -1385,7 +1385,7 @@ further investigations needed, including other compilers
 
 #ifdef MSVC_LIMITATIONS
 				template<typename First, typename Second, typename ...Rest>
-				static auto ElementsCountHelper(const First &first, const Second &second, const Rest &...rest)	// enable_if_t - workaround for VS 2015
+				static auto ElementsCountHelper(const First &first, const Second &second, const Rest &...rest)	// enable_if_t - workaround for VS 2015/2017
 					-> integral_constant<unsigned int, enable_if_t<true, decltype(ElementsCountHelper(first))>::value + enable_if_t<true, decltype(ElementsCountHelper(second, rest...))>::value>;
 #endif
 
