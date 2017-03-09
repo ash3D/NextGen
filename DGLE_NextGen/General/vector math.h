@@ -3061,13 +3061,6 @@ further investigations needed, including other compilers
 #					undef OPERATOR_DEFINITION
 				}
 
-#ifdef MSVC_LIMITATIONS
-				//	workaround for ICE on VS 2015\
-					this implementation does not allow users to explicitly specify WAR hazard\
-					TODO: try with newer version or x64
-				namespace Workaround = Impl::ScalarOps;
-#else
-				namespace Workaround = VectorMath;
 				// swizzle / 1D swizzle op=<?WARHazard> scalar
 #				define OPERATOR_DEFINITION(op)																											\
 					template																															\
@@ -3085,7 +3078,6 @@ further investigations needed, including other compilers
 					}
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_OP)
 #				undef OPERATOR_DEFINITION
-#endif
 
 				// swizzle / 1D swizzle op= scalar
 #				define OPERATOR_DEFINITION(op)																											\
@@ -3101,7 +3093,7 @@ further investigations needed, including other compilers
 					{																																	\
 						constexpr bool WARHazard =																										\
 							Impl::DetectScalarWARHazard<Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>, RightType>::value;		\
-						return Workaround::operator op##=<WARHazard>(left, right);																		\
+						return operator op##=<WARHazard>(left, right);																					\
 					}
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_OP)
 #				undef OPERATOR_DEFINITION
@@ -3118,7 +3110,7 @@ further investigations needed, including other compilers
 						Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,													\
 						const RightType &&right)																										\
 					{																																	\
-						return Workaround::operator op##=<false>(left, right);																			\
+						return operator op##=<false>(left, right);																						\
 					}
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_OP)
 #				undef OPERATOR_DEFINITION
@@ -3311,27 +3303,6 @@ further investigations needed, including other compilers
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_OP)
 #				undef OPERATOR_DEFINITION
 
-#ifdef MSVC_LIMITATIONS
-				namespace Impl::ScalarOps
-				{
-					// matrix / 1x1 matrix op=<?WARHazard> scalar
-#					define OPERATOR_DEFINITION(op)																										\
-						template																														\
-						<																																\
-							bool WARHazard,																												\
-							typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,													\
-							typename RightType																											\
-						>																																\
-						inline decltype(auto) operator op##=(																							\
-							matrix<LeftElementType, leftRows, leftColumns> &left,																		\
-							const RightType &right)																										\
-						{																																\
-							return left.TEMPLATE operator op##=<WARHazard>(right);																		\
-						}
-					GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_OP)
-#					undef OPERATOR_DEFINITION
-				}
-#else
 				// matrix / 1x1 matrix op=<?WARHazard> scalar
 #				define OPERATOR_DEFINITION(op)																											\
 					template																															\
@@ -3349,7 +3320,6 @@ further investigations needed, including other compilers
 					}
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_OP)
 #				undef OPERATOR_DEFINITION
-#endif
 
 				// matrix / 1x1 matrix op= scalar
 #				define OPERATOR_DEFINITION(op)																											\
@@ -3364,7 +3334,7 @@ further investigations needed, including other compilers
 						-> std::enable_if_t<Impl::IsScalar<RightType>, decltype(left)>																	\
 					{																																	\
 						constexpr bool WARHazard = Impl::DetectScalarWARHazard<matrix<LeftElementType, leftRows, leftColumns>, RightType>::value;		\
-						return Workaround::operator op##=<WARHazard>(left, right);																		\
+						return operator op##=<WARHazard>(left, right);																					\
 					}
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_OP)
 #				undef OPERATOR_DEFINITION
@@ -3381,7 +3351,7 @@ further investigations needed, including other compilers
 						const RightType &&right)																										\
 						-> std::enable_if_t<Impl::IsScalar<RightType>, decltype(left)>																	\
 					{																																	\
-						return Workaround::operator op##=<false>(left, right);																			\
+						return operator op##=<false>(left, right);																						\
 					}
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_OP)
 #				undef OPERATOR_DEFINITION
@@ -4718,7 +4688,6 @@ further investigations needed, including other compilers
 			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION, F_2_OP)
 #			undef OPERATOR_DECLARATION
 
-#ifdef MSVC_LIMITATIONS
 			// matrix / 1x1 matrix op=<?WARHazard> scalar
 #			define OPERATOR_DECLARATION(op)																\
 				template																				\
@@ -4727,27 +4696,12 @@ further investigations needed, including other compilers
 					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,			\
 					typename RightType																	\
 				>																						\
-				friend inline decltype(auto) Impl::ScalarOps::operator op##=(							\
-					matrix<LeftElementType, leftRows, leftColumns> &left,								\
-					const RightType &right);
-			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION, F_2_OP)
-#			undef OPERATOR_DECLARATION
-#else
-			// matrix / 1x1 matrix op=<?WARHazard> scalar
-#			define OPERATOR_DECLARATION(op)																\
-				template																				\
-				<																						\
-					bool WARHazard,																		\
-					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,			\
-					typename RightType																	\
-				>																						\
-				friend inline auto Workaround::operator op##=(											\
+				friend inline auto operator op##=(														\
 					matrix<LeftElementType, leftRows, leftColumns> &left,								\
 					const RightType &right)																\
 					-> std::enable_if_t<Impl::IsScalar<RightType>, decltype(left)>;
 			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION, F_2_OP)
 #			undef OPERATOR_DECLARATION
-#endif
 #pragma endregion
 
 		public:
