@@ -949,7 +949,7 @@ namespace
 		}
 
 		/*
-		workaround for VS 2013/2015 bug (auto ... ->)
+		workaround for VS 2013/2015/2017 bug (auto ... ->)
 		TODO: try with newer version
 		*/
 		template<>
