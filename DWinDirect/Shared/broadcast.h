@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.10.2015 (c)Korotkov Andrey
+\date		09.03.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -56,8 +56,8 @@ class CBroadcast<Params...>::CCallbackHandle final
 
 private:
 	CBroadcast *_parent;
-	// enable_if - workaround for VS 2013/2015
-	typename std::enable_if<true, decltype(_callbacks)>::type::const_iterator _iter;
+	// enable_if_t - workaround for VS 2017
+	typename std::enable_if_t<true, decltype(_callbacks)>::const_iterator _iter;
 
 private:
 	inline CCallbackHandle(CBroadcast *parent, decltype(_iter) iter) noexcept;
