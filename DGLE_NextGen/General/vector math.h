@@ -1393,57 +1393,6 @@ further investigations needed, including other compilers
 #endif
 #endif
 
-#ifdef MSVC_LIMITATIONS
-				// SFINAE leads to internal comiler error on VS 2015, use tagging as workaround
-			private:
-				enum class Dispatch
-				{
-					Skip,
-					Scalar,
-					Other,
-				};
-
-				template<Dispatch dispatch>
-				using DispatchTag = integral_constant<Dispatch, dispatch>;
-
-				// next
-				template<unsigned idx, typename First, typename ...Rest>
-				static inline decltype(auto) GetElementImpl(DispatchTag<Dispatch::Skip>, const First &, const Rest &...rest) noexcept
-				{
-					return GetElement<idx - ElementsCount<const First &>>(rest...);
-				}
-
-				// scalar
-				template<unsigned idx, typename SrcType, typename ...Rest>
-				static inline decltype(auto) GetElementImpl(DispatchTag<Dispatch::Scalar>, const SrcType &scalar, const Rest &...rest) noexcept
-				{
-					return scalar;
-				}
-
-				// swizzle
-				template<unsigned idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, typename ...Rest>
-				static inline decltype(auto) GetElementImpl(DispatchTag<Dispatch::Other>, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src, const Rest &...rest) noexcept
-				{
-					return src[idx];
-				}
-
-				// matrix
-				template<unsigned idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, typename ...Rest>
-				static inline decltype(auto) GetElementImpl(DispatchTag<Dispatch::Other>, const matrix<SrcElementType, srcRows, srcColumns> &src, const Rest &...rest) noexcept
-				{
-					return src[idx / srcColumns][idx % srcColumns];
-				}
-
-			protected:
-				// clamp
-				template<unsigned idx, typename First, typename ...Rest>
-				static inline decltype(auto) GetElement(const First &first, const Rest &...rest) noexcept
-				{
-					constexpr auto count = ElementsCount<decltype(first)> + ElementsCount<decltype(rest)...>;
-					constexpr auto clampedIdx = idx < count ? idx : count - 1u;
-					return GetElementImpl<clampedIdx>(DispatchTag<clampedIdx < ElementsCount<decltype(first)> ? IsPureScalar<First> ? Dispatch::Scalar : Dispatch::Other : Dispatch::Skip>(), first, rest...);
-				}
-#else
 			private:
 				// scalar
 				template<unsigned idx, typename SrcType>
@@ -1495,7 +1444,6 @@ further investigations needed, including other compilers
 					constexpr auto count = ElementsCount<const Args &...>;
 					return GetElementFind<idx < count ? idx : count - 1u>(args...);
 				}
-#endif
 			};
 
 			// generic for matrix
