@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		29.11.2016 (c)Korotkov Andrey
+\date		09.03.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -523,8 +523,7 @@ extern auto Collision::SphereCollide(const IGeometryProvider &geometryProvider, 
 
 	// ensure result.dist >= 1 after += then -= dir_scaled_skin_width
 	const auto default_rounddir = fegetround();
-	// uncomment upon C++17 support is appeared
-	/*[[maybe_unused]*/ int status = fesetround(FE_UPWARD);
+	[[maybe_unused]] int status = fesetround(FE_UPWARD);
 	assert(status == 0);
 
 	const nv_scalar dir_scaled_skin_width = skinWidth / dir.norm();
