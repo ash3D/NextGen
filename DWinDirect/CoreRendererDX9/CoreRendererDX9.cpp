@@ -841,23 +841,11 @@ namespace
 
 #		undef DECL_FORMAT_LAYOUT
 
-		// workoround for VS 2015 Update 2/3 bug
-#ifdef MSVC_LIMITATIONS
-		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx, unsigned srcSize = LayoutLength<srcLayout>, unsigned srcIdx = 0>
-		static constexpr unsigned FindSrcIdxImpl = UnpackLayout<srcLayout, srcIdx> == UnpackLayout<dstLayout, dstIdx> ? srcIdx : FindSrcIdxImpl<srcLayout, dstLayout, dstIdx, LayoutLength<srcLayout>, srcIdx + 1>;
-
-		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx, unsigned srcSize>
-		static constexpr unsigned FindSrcIdxImpl<srcLayout, dstLayout, dstIdx, srcSize, srcSize> = ~0u;
-
-		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx>
-		static constexpr unsigned FindSrcIdx = FindSrcIdxImpl<srcLayout, dstLayout, dstIdx, LayoutLength<srcLayout>>;
-#else
 		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx, unsigned srcIdx = 0, unsigned srcSize = LayoutLength<srcLayout>>
 		static constexpr unsigned FindSrcIdx = UnpackLayout<srcLayout, srcIdx> == UnpackLayout<dstLayout, dstIdx> ? srcIdx : FindSrcIdx<srcLayout, dstLayout, dstIdx, srcIdx + 1>;
 
 		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx, unsigned srcSize>
 		static constexpr unsigned FindSrcIdx<srcLayout, dstLayout, dstIdx, srcSize, srcSize> = ~0u;
-#endif
 
 		template<TPackedLayout srcLayout, TPackedLayout dstLayout, unsigned dstIdx = 0, unsigned dstSize = LayoutLength<dstLayout>>
 		struct FillTexel
