@@ -578,41 +578,25 @@ further investigations needed, including other compilers
 			struct plus_assign
 			{
 				template<typename Dst, typename Src>
-#ifdef MSVC_LIMITATIONS
-				void operator ()(Dst &dst, const Src &src) const { dst += src; }
-#else
 				constexpr void operator ()(Dst &dst, const Src &src) const { dst += src; }
-#endif
 			};
 
 			struct minus_assign
 			{
 				template<typename Dst, typename Src>
-#ifdef MSVC_LIMITATIONS
-				void operator ()(Dst &dst, const Src &src) const { dst -= src; }
-#else
 				constexpr void operator ()(Dst &dst, const Src &src) const { dst -= src; }
-#endif
 			};
 
 			struct multiplies_assign
 			{
 				template<typename Dst, typename Src>
-#ifdef MSVC_LIMITATIONS
-				void operator ()(Dst &dst, const Src &src) const { dst *= src; }
-#else
 				constexpr void operator ()(Dst &dst, const Src &src) const { dst *= src; }
-#endif
 			};
 
 			struct divides_assign
 			{
 				template<typename Dst, typename Src>
-#ifdef MSVC_LIMITATIONS
-				void operator ()(Dst &dst, const Src &src) const { dst /= src; }
-#else
 				constexpr void operator ()(Dst &dst, const Src &src) const { dst /= src; }
-#endif
 			};
 
 #if USE_BOOST_MPL
