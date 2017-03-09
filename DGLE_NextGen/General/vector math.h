@@ -808,11 +808,7 @@ further investigations needed, including other compilers
 				template<unsigned int ...seq>
 				struct IntSeq2SwizzleVec<integer_sequence<unsigned int, seq...>>
 				{
-#ifdef MSVC_LIMITATIONS
-					typedef mpl::vector_c<unsigned int, seq * 0 + scalarSwizzle ...> type;
-#else
 					typedef mpl::vector_c<unsigned int, (seq, scalarSwizzle)...> type;
-#endif
 				};
 
 			public:
@@ -828,11 +824,7 @@ further investigations needed, including other compilers
 				template<unsigned int ...rep>
 				struct PackedSwizzle<integer_sequence<unsigned int, rep...>>
 				{
-#ifdef MSVC_LIMITATIONS
-					typedef CPackedSwizzle<rep * 0 + scalarSwizzle ...> type;
-#else
 					typedef CPackedSwizzle<(rep, scalarSwizzle)...> type;
-#endif
 				};
 
 			public:
