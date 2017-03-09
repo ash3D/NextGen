@@ -282,12 +282,6 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 #	define MSVC_LIMITATIONS
 #endif
 
-#ifdef MSVC_LIMITATIONS
-#	define TEMPLATE
-#else
-#	define TEMPLATE template
-#endif
-
 // ugly workaround for operations like 'vec4.xy += int4(4).xxx;'
 #ifdef MSVC_LIMITATIONS
 #	define MSVC_NAMESPACE_WORKAROUND
@@ -3316,7 +3310,7 @@ further investigations needed, including other compilers
 						const RightType &right)																											\
 						-> std::enable_if_t<Impl::IsScalar<RightType>, decltype(left)>																	\
 					{																																	\
-						return left.TEMPLATE operator op##=<WARHazard>(right);																			\
+						return left.template operator op##=<WARHazard>(right);																			\
 					}
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_OP)
 #				undef OPERATOR_DEFINITION
@@ -5204,7 +5198,7 @@ further investigations needed, including other compilers
 				constexpr static const bool underflow = dstDimension > SrcSwizzleDesc::dimension, overflow = dstDimension < SrcSwizzleDesc::dimension;
 				static_assert(!(underflow || overflow && dstDimension > 1), "'matrix = vector': unmatched sequencing");
 				auto &seq = reinterpret_cast<Impl::CSequencingSwizzle<ElementType, rows, columns> &>(data);
-				seq.TEMPLATE operator =<WARHazard...>(src);
+				seq.template operator =<WARHazard...>(src);
 				return *this;
 			}
 
@@ -5551,7 +5545,6 @@ further investigations needed, including other compilers
 		};
 	}
 
-#	undef TEMPLATE
 #	undef MSVC_NAMESPACE_WORKAROUND
 #	undef EBCO
 #	undef INIT_LIST_ITEM_OVERFLOW_MSG
