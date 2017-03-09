@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		15.01.2017 (c)Andrey Korotkov
+\date		09.03.2017 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -14,17 +14,7 @@ See "DGLE.h" for more details.
 #define ENABLE_CIRCULAR_BUFFER		1
 
 #include "Common.h"
-#ifdef MSVC_LIMITATIONS
-#include <boost/version.hpp>
-#include <boost/optional.hpp>
-#if BOOST_VERSION < 106300
-#error Old boost version. 1.63.0 or later required.
-#endif
-namespace std_boost = boost;
-#else
 #include <optional>
-namespace std_boost = std;
-#endif
 #include <vector>
 #include <deque>
 #include <tuple>
@@ -438,7 +428,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	{
 		using CQueryBase::CQueryBase;
 	public:
-		std_boost::optional<TResult> GetData() noexcept;
+		std::optional<TResult> GetData() noexcept;
 	};
 
 	template<typename TResult>
@@ -503,7 +493,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 		template<size_t ...idx>
 		auto _GetData(std::index_sequence<idx...>);
 	public:
-		std_boost::optional<std::tuple<typename QueryTypeTraits<types>::TResult...>> Extract();
+		std::optional<std::tuple<typename QueryTypeTraits<types>::TResult...>> Extract();
 	};
 
 	// for single query
@@ -516,14 +506,14 @@ class CCoreRendererDX9 final : public ICoreRenderer
 #endif
 	{
 	public:
-		std_boost::optional<typename QueryTypeTraits<type>::TResult> Extract();
+		std::optional<typename QueryTypeTraits<type>::TResult> Extract();
 	};
 	
 	// CPU-GPU delay
 	CQueryQueue<D3DQUERYTYPE_EVENT> _startFrameEventQueryQueue;
 	uint_least32_t _frameCPU = 0, _frameGPU = 0;
 	std::vector<uint_least8_t> _lastSec_CPU_GPU_delayHistory;
-	std_boost::optional<std::pair<unsigned int, unsigned int>> _CPU_GPU_delayRange;
+	std::optional<std::pair<unsigned int, unsigned int>> _CPU_GPU_delayRange;
 
 	// GPU time
 	CQueryQueue<D3DQUERYTYPE_TIMESTAMP, D3DQUERYTYPE_TIMESTAMP, D3DQUERYTYPE_TIMESTAMPFREQ, D3DQUERYTYPE_TIMESTAMPDISJOINT> _GPUTimeQueryQueue;
@@ -539,7 +529,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	ICoreGeometryBuffer *_GPUTimeGraphVB = NULL;
 	typedef std::array<std::pair<TPoint2, D3DCOLORVALUE>, 2> GPUTimeGraphVertex;
 	std::vector<GPUTimeGraphVertex, default_init_allocator<GPUTimeGraphVertex>> _GPUTimeGraphVBShadow;
-	std_boost::optional<float> _avgGPUTime;
+	std::optional<float> _avgGPUTime;
 
 	// advanced profiler queries
 
@@ -548,7 +538,7 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	{
 		CQuery<type> query;
 		CQueryQueue<type> queryQueue;
-		std_boost::optional<typename QueryTypeTraits<type>::TResult> result;
+		std::optional<typename QueryTypeTraits<type>::TResult> result;
 		bool supported;
 	};
 

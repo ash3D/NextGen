@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		15.01.2017 (c)Andrey Korotkov
+\date		09.03.2017 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -14,6 +14,7 @@ See "DGLE.h" for more details.
 #ifndef USE_CIRCULAR_BUFFER
 #include <iterator>
 #endif
+#include <intrin.h>
 #include "general math.h"
 
 #define USE_REF_DEVICE			0
@@ -31,10 +32,6 @@ See "DGLE.h" for more details.
 constexpr float GPUTimeGraphScale = 10.f;
 
 using namespace std;
-#ifdef MSVC_LIMITATIONS
-using boost::optional;
-using boost::none;
-#endif
 
 const IDirect3D9Ptr d3d(Direct3DCreate9(D3D_SDK_VERSION));
 
@@ -2933,11 +2930,7 @@ inline optional<TResult> CCoreRendererDX9::CQueryAccess<TResult>::GetData() noex
 {
 	TResult result;
 	const bool available = _GetData(&result, sizeof result);
-#ifdef MSVC_LIMITATIONS
-	return available ? optional<TResult>(result) : none;
-#else
-	return available ? result : nullopt;
-#endif
+	return available ? optional<TResult>(result) : nullopt;
 }
 #pragma endregion
 
@@ -2976,22 +2969,33 @@ inline bool CCoreRendererDX9::CQueryQueue<types...>::_Ready(index_sequence<idx..
 }
 #endif
 
+#ifdef MSVC_LIMITATIONS
+template<typename T>
+static inline const T &PassThrough(const T &x)
+{
+	return x;
+}
+
+template<D3DQUERYTYPE ...types>
+template<size_t ...idx>
+inline auto CCoreRendererDX9::CQueryQueue<types...>::_GetData(index_sequence<idx...>)
+{
+	return make_tuple(PassThrough(get<idx>(_queue.front()).GetData()).value()...);
+}
+#else
 template<D3DQUERYTYPE ...types>
 template<size_t ...idx>
 inline auto CCoreRendererDX9::CQueryQueue<types...>::_GetData(index_sequence<idx...>)
 {
 	return make_tuple(get<idx>(_queue.front()).GetData().value()...);
 }
+#endif
 
 template<D3DQUERYTYPE ...types>
 auto CCoreRendererDX9::CQueryQueue<types...>::Extract() -> optional<tuple<typename QueryTypeTraits<types>::TResult...>>
 {
 	if (_queue.empty())
-#ifdef MSVC_LIMITATIONS
-		return none;
-#else
 		return nullopt;
-#endif
 
 #if WAIT_FOR_ALL_QUERIES
 	const bool ready = _Ready(make_index_sequence<sizeof...(types)>());
@@ -3000,11 +3004,7 @@ auto CCoreRendererDX9::CQueryQueue<types...>::Extract() -> optional<tuple<typena
 #endif
 
 	if (!ready)
-#ifdef MSVC_LIMITATIONS
-		return none;
-#else
 		return nullopt;
-#endif
 
 	const auto result = _GetData(make_index_sequence<sizeof...(types)>());
 	_queue.pop_front();
@@ -3015,11 +3015,7 @@ template<D3DQUERYTYPE type>
 auto CCoreRendererDX9::CQueryQueue<type>::Extract() -> optional<typename QueryTypeTraits<type>::TResult>
 {
 	if (_queue.empty())
-#ifdef MSVC_LIMITATIONS
-		return none;
-#else
 		return nullopt;
-#endif
 
 	const auto result = static_cast<CQuery<type> &>(_queue.front()).GetData();
 	if (result/*.has_value()*/)
