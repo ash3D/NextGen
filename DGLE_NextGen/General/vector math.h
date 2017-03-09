@@ -941,14 +941,8 @@ further investigations needed, including other compilers
 				return src;
 			}
 
-#ifdef MSVC_LIMITATIONS
-			// workaround for lack of expression SFINAE support in VS 2015 for MatrixOpScalarResult/ScalarOpMatrixResult
-			template<typename ElementType, unsigned int rows, unsigned int columns>
-			inline const ElementType &ExtractScalar(const matrix<ElementType, rows, columns> &src) noexcept
-#else
 			template<typename ElementType>
 			inline const ElementType &ExtractScalar(const matrix<ElementType, 1, 1> &src) noexcept
-#endif
 			{
 				return src;
 			}
