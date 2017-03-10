@@ -724,12 +724,6 @@ further investigations needed, including other compilers
 				using CPackedSwizzle::FetchIdx;
 
 			private:
-#ifdef MSVC_LIMITATIONS
-				static constexpr bool IsWriteMaskValid(unsigned i = 0, unsigned j = 1)
-				{
-					return i < dimension ? j < dimension ? FetchIdx(i) != FetchIdx(j) && IsWriteMaskValid(i, j + 1) : IsWriteMaskValid(i + 1, i + 2) : true;
-				}
-#else
 				static constexpr bool IsWriteMaskValid()
 				{
 					for (unsigned i = 0; i < dimension; i++)
@@ -738,7 +732,6 @@ further investigations needed, including other compilers
 								return false;
 					return true;
 				}
-#endif
 
 			public:
 				static constexpr bool isWriteMaskValid = IsWriteMaskValid();
@@ -971,19 +964,6 @@ further investigations needed, including other compilers
 
 					private:
 						// searches until srcSwizzleIdx, returns srcSwizzleIdx if not found
-#ifdef MSVC_LIMITATIONS
-						static constexpr unsigned FindDstSwizzleIdx(unsigned srcSwizzleIdx, unsigned dstSwizzleIdx = 0)
-						{
-							return
-								dstSwizzleIdx < srcSwizzleIdx ?
-									PackedDstSwizzle::FetchIdx(dstSwizzleIdx) == PackedSrcSwizzle::FetchIdx(srcSwizzleIdx) ?
-										dstSwizzleIdx
-									:
-										FindDstSwizzleIdx(srcSwizzleIdx, dstSwizzleIdx + 1)
-								:
-									srcSwizzleIdx;
-						}
-#else
 						static constexpr unsigned FindDstSwizzleIdx(unsigned srcSwizzleIdx)
 						{
 							unsigned dstSwizzleIdx = 0;
@@ -992,7 +972,6 @@ further investigations needed, including other compilers
 								dstSwizzleIdx++;
 							return dstSwizzleIdx;
 						}
-#endif
 
 						static constexpr bool DstWasAlreadyWritten(unsigned dstSwizzleIdx, unsigned srcSwizzleIdx)
 						{
@@ -1004,22 +983,6 @@ further investigations needed, including other compilers
 							return PackedDstSwizzle::FetchIdx(dstSwizzleIdx) != PackedSrcSwizzle::FetchIdx(dstSwizzleIdx);
 						}
 
-#ifdef MSVC_LIMITATIONS
-						static constexpr bool Iterate(unsigned dstSwizzleIdx, unsigned srcSwizzleIdx, bool dstWasAlreadyWritten)
-						{
-							return (assign && dstWasAlreadyWritten ? DstWasModified(dstSwizzleIdx) : dstWasAlreadyWritten) || Result(srcSwizzleIdx + 1);
-						}
-
-						static constexpr bool Iterate(unsigned dstSwizzleIdx, unsigned srcSwizzleIdx)
-						{
-							return Iterate(dstSwizzleIdx, srcSwizzleIdx, DstWasAlreadyWritten(dstSwizzleIdx, srcSwizzleIdx));
-						}
-
-						static constexpr bool Result(unsigned srcSwizzleIdx = 0)
-						{
-							return srcSwizzleIdx < cuttedSrcDimension ? Iterate(FindDstSwizzleIdx(srcSwizzleIdx), srcSwizzleIdx) : false;
-						}
-#else
 						static constexpr bool Result()
 						{
 							for (unsigned srcSwizzleIdx = 0; srcSwizzleIdx < cuttedSrcDimension; srcSwizzleIdx++)
@@ -1031,7 +994,6 @@ further investigations needed, including other compilers
 							}
 							return false;
 						}
-#endif
 
 					public:
 						static constexpr bool value = Result();
