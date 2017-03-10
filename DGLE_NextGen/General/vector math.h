@@ -119,11 +119,7 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 				TRANSFORM_SWIZZLE(NAMING_SET_1, swizzle_seq),						\
 				TRANSFORM_SWIZZLE(NAMING_SET_2, swizzle_seq);
 
-#ifdef MSVC_LIMITATIONS
-#		define TRIVIAL_CTOR_FORWARD CDataContainer() = default; template<typename First, typename ...Rest> CDataContainer(const First &first, const Rest &...rest) : data(first, rest...) {}
-#else
 #		define TRIVIAL_CTOR_FORWARD CDataContainer() = default; NONTRIVIAL_CTOR_FORWARD
-#endif
 #		define NONTRIVIAL_CTOR_FORWARD template<typename ...Args> CDataContainer(const Args &...args) : data(args...) {}
 
 		// specialization for graphics vectors/matrices
@@ -1476,11 +1472,7 @@ further investigations needed, including other compilers
 				CDataContainer() = default;
 				CDataContainer(const CDataContainer &) = default;
 				CDataContainer(CDataContainer &&) = default;
-#ifdef MSVC_LIMITATIONS
-				template<typename First, typename ...Rest> CDataContainer(const First &first, const Rest &...rest) : data(first, rest...) {}
-#else
 				template<typename ...Args> CDataContainer(const Args &...args) : data(args...) {}
-#endif
 #ifdef __GNUC__
 				CDataContainer &operator =(const CDataContainer &) = default;
 				CDataContainer &operator =(CDataContainer &&) = default;
