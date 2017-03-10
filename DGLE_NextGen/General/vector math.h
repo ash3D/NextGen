@@ -1685,14 +1685,6 @@ further investigations needed, including other compilers
 #
 #		define LOOKUP_SYMBOL_0(idx, ...) LOOKUP_SYMBOL_0_##idx
 #		define LOOKUP_SYMBOL_1(idx, ...) LOOKUP_SYMBOL_1_##idx
-#ifdef MSVC_LIMITATIONS
-		constexpr unsigned int ExtractSwizzleIdx(unsigned int dec, unsigned int bcd)
-		{
-			return bcd;
-		}
-#		define LOOKUP_SYMBOL_0_ExtractSwizzleIdx(idx, ...) LOOKUP_SYMBOL_0_##idx
-#		define LOOKUP_SYMBOL_1_ExtractSwizzleIdx(idx, ...) LOOKUP_SYMBOL_1_##idx
-#endif
 #
 #		define IDX_SEQ_2_SYMBOLS_1(xform, i0) xform i0
 #		define IDX_SEQ_2_SYMBOLS_2(xform, i0, i1) CONCAT(IDX_SEQ_2_SYMBOLS_1(xform, i0), xform i1)
@@ -1713,11 +1705,7 @@ further investigations needed, including other compilers
 #		define DEC_2_BIN_1 01
 #		define DEC_2_BIN_2 10
 #		define DEC_2_BIN_3 11
-#ifdef MSVC_LIMITATIONS
-#		define ENCODE_RC_IDX(r, c) (ExtractSwizzleIdx(r ## c, CONCAT(0b, CONCAT(DEC_2_BIN_##r, DEC_2_BIN_##c))))
-#else
 #		define ENCODE_RC_IDX(r, c) (r ## c, CONCAT(0b, CONCAT(DEC_2_BIN_##r, DEC_2_BIN_##c)))
-#endif
 #
 #		define SWIZZLE_4_GENERATE(rows, columns, r0, c0, r1, c1, r2, c2, r3, c4) GENERATE_SWIZZLE(rows, columns, 4, ENCODE_RC_IDX(r0, c0), ENCODE_RC_IDX(r1, c1), ENCODE_RC_IDX(r2, c2), ENCODE_RC_IDX(r3, c4))
 #		define SWIZZLE_3_ITERATE_COLUMN_1(rows, columns, r0, c0, r1, c1, r2, c2, r3) /*-----------------------terminate iteration-----------------------*/ SWIZZLE_4_GENERATE(rows, columns, r0, c0, r1, c1, r2, c2, r3, 0)
@@ -1844,10 +1832,6 @@ further investigations needed, including other compilers
 #
 #		undef LOOKUP_SYMBOL_0
 #		undef LOOKUP_SYMBOL_1
-#ifdef MSVC_LIMITATIONS
-#		undef LOOKUP_SYMBOL_0_ExtractSwizzleIdx
-#		undef LOOKUP_SYMBOL_1_ExtractSwizzleIdx
-#endif
 #
 #		undef IDX_SEQ_2_SYMBOLS_1
 #		undef IDX_SEQ_2_SYMBOLS_2
