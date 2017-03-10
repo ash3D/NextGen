@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		09.03.2017 (c)Alexey Shaydurov
+\date		10.03.2017 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1278,7 +1278,7 @@ further investigations needed, including other compilers
 #				pragma endregion NOTE: assert should not be triggered if WAR hazard is not detected except for scalars.
 #			pragma endregion
 
-#if !defined _MSC_VER || defined __clang__ || defined MSVC_LIMITATIONS && !_DEBUG
+#if !defined _MSC_VER || defined __clang__
 			namespace ElementsCountHelpers
 			{
 #ifdef MSVC_LIMITATIONS
@@ -1327,8 +1327,7 @@ further investigations needed, including other compilers
 				template<InitType, class IdxSeq, unsigned offset = 0>
 				class InitTag {};
 
-				// unresolved external symbols on VS 2015 under whole program optimizations
-#if defined _MSC_VER && !defined __clang__ && (!defined MSVC_LIMITATIONS || _DEBUG)
+#if defined _MSC_VER && !defined __clang__
 			private:
 #ifdef MSVC_LIMITATIONS
 				// empty
@@ -4928,7 +4927,7 @@ further investigations needed, including other compilers
 			return{ f((*this)[idx])... };
 		}
 
-#if !defined _MSC_VER || defined __clang__ || defined MSVC_LIMITATIONS && !_DEBUG
+#if !defined _MSC_VER || defined __clang__
 #	define ELEMENTS_COUNT_PREFIX Impl::
 #elif 1
 #	define ELEMENTS_COUNT_PREFIX Data::
