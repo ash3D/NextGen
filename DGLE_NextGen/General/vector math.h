@@ -2300,12 +2300,6 @@ further investigations needed, including other compilers
 				template<typename SrcType>
 #ifdef __GNUC__
 				inline enable_if_t<IsScalar<SrcType>, TOperationResult &> operator =(const SrcType &scalar);
-#elif defined MSVC_LIMITATIONS
-				inline enable_if_t<IsScalar<SrcType>, TOperationResult &> operator =(const SrcType &scalar) &
-				{
-					AssignScalar(make_index_sequence<SwizzleDesc::dimension>(), ExtractScalar(scalar));
-					return *this;
-				}
 #else
 				inline enable_if_t<IsScalar<SrcType>, TOperationResult &> operator =(const SrcType &scalar) &;
 #endif
@@ -2384,7 +2378,6 @@ further investigations needed, including other compilers
 				return operator =<false>(vector<SrcElementType, SwizzleDesc::dimension>(src));
 			}
 
-#ifndef MSVC_LIMITATIONS
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			template<typename SrcType>
 #ifdef __GNUC__
@@ -2396,7 +2389,6 @@ further investigations needed, including other compilers
 				AssignScalar(make_index_sequence<SwizzleDesc::dimension>(), ExtractScalar(scalar));
 				return *this;
 			}
-#endif
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			template<bool ...WARHazard, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
@@ -4506,12 +4498,6 @@ further investigations needed, including other compilers
 			template<typename SrcType>
 #ifdef __GNUC__
 			std::enable_if_t<Impl::IsScalar<SrcType>, matrix &> operator =(const SrcType &scalar);
-#elif defined MSVC_LIMITATIONS
-			std::enable_if_t<Impl::IsScalar<SrcType>, matrix &> operator =(const SrcType &scalar) &
-			{
-				AssignSwizzle(std::make_index_sequence<rows>(), scalar);
-				return *this;
-			}
 #else
 			std::enable_if_t<Impl::IsScalar<SrcType>, matrix &> operator =(const SrcType &scalar) &;
 #endif
@@ -5145,7 +5131,6 @@ further investigations needed, including other compilers
 				return *this;
 			}
 
-#ifndef MSVC_LIMITATIONS
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<typename SrcType>
 #ifdef __GNUC__
@@ -5157,7 +5142,6 @@ further investigations needed, including other compilers
 				AssignScalar(std::make_index_sequence<rows>(), scalar);
 				return *this;
 			}
-#endif
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<bool ...WARHazard, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
