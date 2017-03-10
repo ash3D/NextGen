@@ -259,6 +259,7 @@
       <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
       <WarningLevel>Level3</WarningLevel>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <StrictAliasing>true</StrictAliasing>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -299,6 +300,7 @@
       <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
       <WarningLevel>Level3</WarningLevel>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <StrictAliasing>true</StrictAliasing>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
