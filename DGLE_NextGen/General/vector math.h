@@ -4338,13 +4338,8 @@ further investigations needed, including other compilers
 			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, typename = std::enable_if_t<(srcRows > 1 || srcColumns > 1)>>
 			vector(const matrix<SrcElementType, srcRows, srcColumns> &src);
 
-#ifdef MSVC_LIMITATIONS
-			template<typename First, typename Second, typename ...Rest>
-			vector(const First &first, const Second &second, const Rest &...rest);
-#else
 			template<typename ...Args, typename = std::enable_if_t<(sizeof...(Args) > 1)>>
 			vector(const Args &...args);
-#endif
 
 #if INIT_LIST_SUPPORT_TIER >= 2
 			vector(std::initializer_list<Impl::CInitListItem<ElementType, dimension>> initList);
@@ -4410,13 +4405,8 @@ further investigations needed, including other compilers
 			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, typename = std::enable_if_t<(SrcSwizzleDesc::dimension > 1)>>
 			matrix(const Impl::CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
 
-#ifdef MSVC_LIMITATIONS
-			template<typename First, typename Second, typename ...Rest>
-			matrix(const First &first, const Second &second, const Rest &...rest);
-#else
 			template<typename ...Args, typename = std::enable_if_t<(sizeof...(Args) > 1)>>
 			matrix(const Args &...args);
-#endif
 
 #if INIT_LIST_SUPPORT_TIER >= 2
 			matrix(std::initializer_list<Impl::CInitListItem<ElementType, rows * columns>> initList);
@@ -4892,17 +4882,6 @@ further investigations needed, including other compilers
 				static_assert(srcRows * srcColumns <= dimension || !checkOverflow, "sequencing ctor: too many src elements");
 			}
 
-#ifdef MSVC_LIMITATIONS
-			template<typename ElementType, unsigned int dimension>
-			template<typename First, typename Second, typename ...Rest>
-			inline vector<ElementType, dimension>::vector(const First &first, const Second &second, const Rest &...rest) :
-				DataContainer(typename Data::template InitTag<Data::InitType::Sequencing, IdxSeq>(), first, second, rest...)
-			{
-				constexpr auto srcElements = ELEMENTS_COUNT_PREFIX ElementsCount<const First &, const Second, const Rest &...>;
-				static_assert(srcElements >= dimension, "sequencing ctor: too few src elements");
-				static_assert(srcElements <= dimension, "sequencing ctor: too many src elements");
-			}
-#else
 			template<typename ElementType, unsigned int dimension>
 			template<typename ...Args, typename>
 			inline vector<ElementType, dimension>::vector(const Args &...args) :
@@ -4912,7 +4891,6 @@ further investigations needed, including other compilers
 				static_assert(srcElements >= dimension, "sequencing ctor: too few src elements");
 				static_assert(srcElements <= dimension, "sequencing ctor: too many src elements");
 			}
-#endif
 
 			//template<typename ElementType, unsigned int dimension>
 			//template<typename TIterator>
@@ -5016,17 +4994,6 @@ further investigations needed, including other compilers
 				static_assert(srcElements <= rows * columns || !checkOverflow, "sequencing ctor: too many src elements");
 			}
 
-#ifdef MSVC_LIMITATIONS
-			template<typename ElementType, unsigned int rows, unsigned int columns>
-			template<typename First, typename Second, typename ...Rest>
-			inline matrix<ElementType, rows, columns>::matrix(const First &first, const Second &second, const Rest &...rest) :
-				DataContainer(typename Data::template InitTag<Data::InitType::Sequencing, IdxSeq>(), first, second, rest...)
-			{
-				constexpr auto srcElements = ELEMENTS_COUNT_PREFIX ElementsCount<const First &, const Second &, const Rest &...>;
-				static_assert(srcElements >= rows * columns, "sequencing ctor: too few src elements");
-				static_assert(srcElements <= rows * columns, "sequencing ctor: too many src elements");
-			}
-#else
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<typename ...Args, typename>
 			inline matrix<ElementType, rows, columns>::matrix(const Args &...args) :
@@ -5036,7 +5003,6 @@ further investigations needed, including other compilers
 				static_assert(srcElements >= rows * columns, "sequencing ctor: too few src elements");
 				static_assert(srcElements <= rows * columns, "sequencing ctor: too many src elements");
 			}
-#endif
 
 			//template<typename ElementType, unsigned int rows, unsigned int columns>
 			//template<typename TIterator>
