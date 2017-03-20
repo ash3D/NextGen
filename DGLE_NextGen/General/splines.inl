@@ -15,7 +15,7 @@ See "DGLE.h" for more details.
 #include <functional>
 #include <cmath>			// for fmin/fmax
 #include <cassert>
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 #include <boost/math/special_functions/binomial.hpp>
 #endif
 #include "general math.h"	// for lerp
@@ -56,7 +56,7 @@ namespace Math::Splines
 	template<class Pos, class ...Attribs>
 	template<class Functor, size_t ...idx>
 	inline auto CompositePoint<Pos, Attribs...>::OpPoint(std::index_sequence<idx...>) const
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 		-> CompositePoint<Pos, Attribs...>
 #else
 		-> CompositePoint<std::decay_t<decltype(std::declval<Functor>()(pos))>, std::decay_t<decltype(std::declval<Functor>()(std::get<idx>(attribs)))>...>
@@ -70,7 +70,7 @@ namespace Math::Splines
 	template<class Pos, class ...Attribs>
 	template<class Functor, size_t ...idx, class RightPos, class ...RightAttribs>
 	inline auto CompositePoint<Pos, Attribs...>::PointOpPoint(std::index_sequence<idx...>, const CompositePoint<Pos, Attribs...> &left, const CompositePoint<RightPos, RightAttribs...> &right)
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 		-> CompositePoint<Pos, Attribs...>
 #else
 		-> CompositePoint<std::decay_t<decltype(std::declval<Functor>()(left.pos, right.pos))>, std::decay_t<decltype(std::declval<Functor>()(std::get<idx>(left.attribs), std::get<idx>(right.attribs)))>...>
@@ -84,7 +84,7 @@ namespace Math::Splines
 	template<class Pos, class ...Attribs>
 	template<class Functor, size_t ...idx, typename Scalar>
 	inline auto CompositePoint<Pos, Attribs...>::PointOpScalar(std::index_sequence<idx...>, const CompositePoint<Pos, Attribs...> &left, const Scalar &right)
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 		-> CompositePoint<Pos, Attribs...>
 #else
 		-> CompositePoint<std::decay_t<decltype(std::declval<Functor>()(left.pos, right))>, std::decay_t<decltype(std::declval<Functor>()(std::get<idx>(left.attribs), right))>...>
@@ -98,7 +98,7 @@ namespace Math::Splines
 	template<class Pos, class ...Attribs>
 	template<class Functor, size_t ...idx, typename Scalar>
 	inline auto CompositePoint<Pos, Attribs...>::ScalarOpPoint(std::index_sequence<idx...>, const Scalar &left, const CompositePoint<Pos, Attribs...> &right)
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 		-> CompositePoint<Pos, Attribs...>
 #else
 		-> CompositePoint<std::decay_t<decltype(std::declval<Functor>()(left, right.pos))>, std::decay_t<decltype(std::declval<Functor>()(left, std::get<idx>(right.attribs)))>...>
@@ -111,14 +111,14 @@ namespace Math::Splines
 	// point op= point
 	template<class Pos, class ...Attribs>
 	template<class Functor, size_t idx, class SrcPos, class ...SrcAttribs>
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 	inline auto CompositePoint<Pos, Attribs...>::PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src, std::true_type) -> CompositePoint &
 #else
 	inline auto CompositePoint<Pos, Attribs...>::PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src) -> std::enable_if_t<idx < sizeof...(Attribs), CompositePoint &>
 #endif
 	{
 		Functor()(std::get<idx>(attribs), std::get<idx>(src.attribs));
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 		constexpr auto nextIdx = idx + 1;
 		return PointOpPoint<Functor, nextIdx>(src, std::bool_constant<nextIdx < sizeof...(Attribs)>());
 #else
@@ -128,7 +128,7 @@ namespace Math::Splines
 
 	template<class Pos, class ...Attribs>
 	template<class Functor, size_t idx, class SrcPos, class ...SrcAttribs>
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 	inline auto CompositePoint<Pos, Attribs...>::PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src, std::false_type) -> CompositePoint &
 #else
 	inline auto CompositePoint<Pos, Attribs...>::PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src) -> std::enable_if_t<idx == sizeof...(Attribs), CompositePoint &>
@@ -141,14 +141,14 @@ namespace Math::Splines
 	// point op= scalar
 	template<class Pos, class ...Attribs>
 	template<class Functor, size_t idx, typename Scalar>
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 	inline auto CompositePoint<Pos, Attribs...>::PointOpScalar(const Scalar &src, std::true_type) -> CompositePoint &
 #else
 	inline auto CompositePoint<Pos, Attribs...>::PointOpScalar(const Scalar &src) -> std::enable_if_t<idx < sizeof...(Attribs), CompositePoint &>
 #endif
 	{
 		Functor()(std::get<idx>(attribs), src);
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 		constexpr auto nextIdx = idx + 1;
 		return PointOpScalar<Functor, nextIdx>(src, std::bool_constant<nextIdx < sizeof...(Attribs)>());
 #else
@@ -158,7 +158,7 @@ namespace Math::Splines
 
 	template<class Pos, class ...Attribs>
 	template<class Functor, size_t idx, typename Scalar>
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 	inline auto CompositePoint<Pos, Attribs...>::PointOpScalar(const Scalar &src, std::false_type)->CompositePoint &
 #else
 	inline auto CompositePoint<Pos, Attribs...>::PointOpScalar(const Scalar &src) -> std::enable_if_t<idx == sizeof...(Attribs), CompositePoint &>
@@ -303,7 +303,7 @@ controlPoints{ std::forward<Points>(controlPoints)... }
 	static_assert(sizeof...(Points) <= cout, "too many control points");
 }
 
-#if !(defined _MSC_VER && _MSC_VER <= 1900)
+#ifndef MSVC_LIMITATIONS
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
 template<size_t ...idx>
 inline auto Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::operator ()(ScalarType u, std::index_sequence<idx...>) const -> typename ControlPoints::value_type
@@ -321,7 +321,7 @@ inline auto Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::o
 template<typename ScalarType, unsigned int dimension, unsigned int degree, class ...Attribs>
 auto Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::operator ()(ScalarType u) const -> typename ControlPoints::value_type
 {
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 	ScalarType factor1 = 1, factors2[degree + 1];
 	factors2[degree] = 1;
 	for (signed i = degree - 1; i >= 0; i--)
@@ -363,7 +363,7 @@ void Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::Subdiv(I
 
 	const auto stop_test = [&point_line_dist, &controlPoints, delta]() -> bool
 	{
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 		for (unsigned i = 1; i < degree; i++)
 		{
 			if (point_line_dist(controlPoints[i], controlPoints[0], controlPoints[degree]) > delta)

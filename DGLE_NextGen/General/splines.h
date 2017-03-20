@@ -54,7 +54,7 @@ namespace Math::Splines
 		// op point
 		template<class Functor, size_t ...idx>
 		inline auto OpPoint(std::index_sequence<idx...>) const
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 			-> CompositePoint<Pos, Attribs...>;
 #else
 			-> CompositePoint<std::decay_t<decltype(std::declval<Functor>()(pos))>, std::decay_t<decltype(std::declval<Functor>()(std::get<idx>(attribs)))>...>;
@@ -63,7 +63,7 @@ namespace Math::Splines
 		// point op point
 		template<class Functor, size_t ...idx, class RightPos, class ...RightAttribs>
 		static inline auto PointOpPoint(std::index_sequence<idx...>, const CompositePoint<Pos, Attribs...> &left, const CompositePoint<RightPos, RightAttribs...> &right)
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 			-> CompositePoint<Pos, Attribs...>;
 #else
 			-> CompositePoint<std::decay_t<decltype(std::declval<Functor>()(left.pos, right.pos))>, std::decay_t<decltype(std::declval<Functor>()(std::get<idx>(left.attribs), std::get<idx>(right.attribs)))>...>;
@@ -72,7 +72,7 @@ namespace Math::Splines
 		// point op scalar
 		template<class Functor, size_t ...idx, typename Scalar>
 		static inline auto PointOpScalar(std::index_sequence<idx...>, const CompositePoint<Pos, Attribs...> &left, const Scalar &right)
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 			-> CompositePoint<Pos, Attribs...>;
 #else
 			-> CompositePoint<std::decay_t<decltype(std::declval<Functor>()(left.pos, right))>, std::decay_t<decltype(std::declval<Functor>()(std::get<idx>(left.attribs), right))>...>;
@@ -81,7 +81,7 @@ namespace Math::Splines
 		// scalar op point
 		template<class Functor, size_t ...idx, typename Scalar>
 		static inline auto ScalarOpPoint(std::index_sequence<idx...>, const Scalar &left, const CompositePoint<Pos, Attribs...> &right)
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 			-> CompositePoint<Pos, Attribs...>;
 #else
 			-> CompositePoint<std::decay_t<decltype(std::declval<Functor>()(left, right.pos))>, std::decay_t<decltype(std::declval<Functor>()(left, std::get<idx>(right.attribs)))>...>;
@@ -89,14 +89,14 @@ namespace Math::Splines
 
 		// point op= point
 		template<class Functor, size_t idx = 0, class SrcPos, class ...SrcAttribs>
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 		inline CompositePoint &PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src, std::true_type = std::true_type());
 #else
 		inline std::enable_if_t<idx < sizeof...(Attribs), CompositePoint &> PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src);
 #endif
 
 		template<class Functor, size_t idx = 0, class SrcPos, class ...SrcAttribs>
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 		inline CompositePoint &PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src, std::false_type);
 #else
 		inline std::enable_if_t<idx == sizeof...(Attribs), CompositePoint &> PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src);
@@ -104,14 +104,14 @@ namespace Math::Splines
 
 		// point op= scalar
 		template<class Functor, size_t idx = 0, typename Scalar>
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 		inline CompositePoint &PointOpScalar(const Scalar &src, std::true_type = std::true_type());
 #else
 		inline std::enable_if_t<idx < sizeof...(Attribs), CompositePoint &> PointOpScalar(const Scalar &src);
 #endif
 
 		template<class Functor, size_t idx = 0, typename Scalar>
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 		inline CompositePoint &PointOpScalar(const Scalar &src, std::false_type);
 #else
 		inline std::enable_if_t<idx == sizeof...(Attribs), CompositePoint &> PointOpScalar(const Scalar &src);
@@ -222,7 +222,7 @@ namespace Math::Splines
 		void Tessellate(Iterator output, ScalarType delta, bool emitFirstPoint = true) const;
 
 	private:
-#if !(defined _MSC_VER && _MSC_VER <= 1900)
+#ifndef MSVC_LIMITATIONS
 		template<size_t ...idx>
 		typename ControlPoints::value_type operator ()(ScalarType u, std::index_sequence<idx...>) const;
 #endif
@@ -251,7 +251,7 @@ namespace Math::Splines
 		template<template<typename ScalarType, unsigned int dimension, class ...Attribs> class CBezierInterpolationImpl, typename ScalarType, unsigned int dimension, class ...Attribs>
 		class CBezierInterpolationCommon : public CBezierInterpolationImpl<ScalarType, dimension, Attribs...>
 		{
-#if defined _MSC_VER && _MSC_VER <= 1900
+#ifdef MSVC_LIMITATIONS
 #if 0
 			typedef CBezierInterpolationImpl<ScalarType, dimension, Attribs...> Base;
 
