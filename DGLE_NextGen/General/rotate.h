@@ -89,7 +89,7 @@ namespace RotImpl
 #	define INTRINSICS_WIDTH_LIST
 #endif
 
-#if defined _MSC_VER && _MSC_VER <= 1900 && !defined __clang__
+#if defined _MSC_VER && _MSC_VER <= 1910 && !defined __clang__
 	template<bool ...notFound>
 	constexpr bool IntrinsicsNotFoundImpl = conjunction_v<bool_constant<notFound>...>;
 
