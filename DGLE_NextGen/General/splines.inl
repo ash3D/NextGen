@@ -455,14 +455,14 @@ template<typename Iterator>
 void Math::Splines::Impl::CBesselOverhauser<ScalarType, dimension, Attribs...>::Init(Iterator begin, Iterator end)
 {
 	assert(begin != end);
-	points.emplace_back(Points::value_type(0, *begin));
+	points.emplace_back(typename Points::value_type(0, *begin));
 	transform(std::next(begin), end, std::back_inserter(points), [this](const Point &curPoint)
 	{
 		/*
 			it seems that 'std' namespace used here ('VectorMath::' before 'distance' required)
 			TODO: try with other compilers
 		*/
-		return Points::value_type(points.back().first + VectorMath::distance(GetPos(points.back().second), GetPos(curPoint)), curPoint);
+		return typename Points::value_type(points.back().first + VectorMath::distance(GetPos(points.back().second), GetPos(curPoint)), curPoint);
 	});
 	assert(points.size() >= 4);
 }
@@ -478,11 +478,11 @@ auto Math::Splines::Impl::CBesselOverhauser<ScalarType, dimension, Attribs...>::
 	//u = fmin(fmax(u, u_begin), u_end);
 	struct
 	{
-		bool operator ()(ScalarType left, Points::const_reference right) const
+		bool operator ()(ScalarType left, typename Points::const_reference right) const
 		{
 			return left < right.first;
 		}
-		bool operator ()(Points::const_reference left, ScalarType right) const
+		bool operator ()(typename Points::const_reference left, ScalarType right) const
 		{
 			return left.first < right;
 		}
@@ -500,12 +500,12 @@ template<typename ScalarType, unsigned int dimension, class ...Attribs>
 auto Math::Splines::Impl::CBesselOverhauser<ScalarType, dimension, Attribs...>::Segment(typename Points::size_type i) const -> Bezier
 {
 	assert(i >= 1 && i < points.size() - 2);
-	const auto v_segment = [this](Points::size_type j)
+	const auto v_segment = [this](typename Points::size_type j)
 	{
 		return (points[j + 1].second - points[j].second) / (points[j + 1].first - points[j].first);
 	};
 	const Point segment_vels[3] = {v_segment(i - 1), v_segment(i), v_segment(i + 1)};
-	const auto offset = [this, &segment_vels, i](Points::size_type shift)
+	const auto offset = [this, &segment_vels, i](typename Points::size_type shift)
 	{
 		return
 			(
