@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		10.03.2017 (c)Alexey Shaydurov
+\date		20.03.2017 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -2054,7 +2054,7 @@ further investigations needed, including other compilers
 			};
 
 			/*
-			CVectorSwizzleDesc<vectorDimension> required for VS 2013/2015
+			CVectorSwizzleDesc<vectorDimension> required for VS 2013/2015/2017
 			TODO: try with newer version
 			*/
 			template<typename ElementType, unsigned int vectorDimension>
@@ -2510,7 +2510,7 @@ further investigations needed, including other compilers
 #endif
 			// this specialization used as base class for CDataContainer to eliminate need for various overloads
 			/*
-			CVectorSwizzleDesc<vectorDimension> required for VS 2013/2015
+			CVectorSwizzleDesc<vectorDimension> required for VS 2013/2015/2017
 			TODO: try with newer version
 			*/
 			template<typename ElementType, unsigned int vectorDimension>
