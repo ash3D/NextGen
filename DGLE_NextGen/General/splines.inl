@@ -446,7 +446,7 @@ Math::Splines::Impl::CBesselOverhauser<ScalarType, dimension, Attribs...>::CBess
 template<typename ScalarType, unsigned int dimension, class ...Attribs>
 Math::Splines::Impl::CBesselOverhauser<ScalarType, dimension, Attribs...>::CBesselOverhauser(std::initializer_list<Point> points)
 {
-	points.reserve(points.size());
+	this->points.reserve(points.size());
 	Init(points.begin(), points.end());
 }
 
