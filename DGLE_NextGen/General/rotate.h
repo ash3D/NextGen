@@ -224,9 +224,8 @@ namespace RotImpl
 		return rot_dispatch<dir, width>(value, shift);
 	}
 
-	// auto does not work with VS 2015 Update 2/3 in cases such as 'const auto i = rol(1, 2);'
 	template<typename Value>
-	static constexpr /*auto*/size_t Width = numeric_limits<make_unsigned_t<Value>>::digits;
+	static constexpr auto Width = numeric_limits<make_unsigned_t<Value>>::digits;
 }
 
 template<unsigned width, typename Value, typename Shift>
