@@ -252,20 +252,10 @@ namespace Math::Splines
 		class CBezierInterpolationCommon : public CBezierInterpolationImpl<ScalarType, dimension, Attribs...>
 		{
 #ifdef MSVC_LIMITATIONS
-#if 0
 			typedef CBezierInterpolationImpl<ScalarType, dimension, Attribs...> Base;
 
 		protected:
 			using Base::Base;
-#else
-		public:
-			template<typename Iterator>
-			CBezierInterpolationCommon(Iterator begin, Iterator end) :
-				CBezierInterpolationImpl<ScalarType, dimension, Attribs...>(begin, end) {}
-
-			CBezierInterpolationCommon(std::initializer_list<typename CBezierInterpolationImpl<ScalarType, dimension, Attribs...>::Point> points) :
-				CBezierInterpolationImpl<ScalarType, dimension, Attribs...>(points) {}
-#endif
 #else
 			using CBezierInterpolationImpl<ScalarType, dimension, Attribs...>::CBezierInterpolationImpl;
 #endif
