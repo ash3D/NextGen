@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		01.12.2016 (c)Korotkov Andrey
+\date		20.03.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -15,7 +15,9 @@ See "DGLE.h" for more details.
 #include <functional>
 #include <cmath>			// for fmin/fmax
 #include <cassert>
+#if defined _MSC_VER && _MSC_VER <= 1900
 #include <boost/math/special_functions/binomial.hpp>
+#endif
 #include "general math.h"	// for lerp
 #include "misc.h"			// for Reserve()
 
