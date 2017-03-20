@@ -89,33 +89,17 @@ namespace Math::Splines
 
 		// point op= point
 		template<class Functor, size_t idx = 0, class SrcPos, class ...SrcAttribs>
-#ifdef MSVC_LIMITATIONS
-		inline CompositePoint &PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src, std::true_type = std::true_type());
-#else
 		inline std::enable_if_t<idx < sizeof...(Attribs), CompositePoint &> PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src);
-#endif
 
 		template<class Functor, size_t idx = 0, class SrcPos, class ...SrcAttribs>
-#ifdef MSVC_LIMITATIONS
-		inline CompositePoint &PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src, std::false_type);
-#else
 		inline std::enable_if_t<idx == sizeof...(Attribs), CompositePoint &> PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src);
-#endif
 
 		// point op= scalar
 		template<class Functor, size_t idx = 0, typename Scalar>
-#ifdef MSVC_LIMITATIONS
-		inline CompositePoint &PointOpScalar(const Scalar &src, std::true_type = std::true_type());
-#else
 		inline std::enable_if_t<idx < sizeof...(Attribs), CompositePoint &> PointOpScalar(const Scalar &src);
-#endif
 
 		template<class Functor, size_t idx = 0, typename Scalar>
-#ifdef MSVC_LIMITATIONS
-		inline CompositePoint &PointOpScalar(const Scalar &src, std::false_type);
-#else
 		inline std::enable_if_t<idx == sizeof...(Attribs), CompositePoint &> PointOpScalar(const Scalar &src);
-#endif
 
 	public:
 		CompositePoint() = default;

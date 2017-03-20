@@ -111,28 +111,15 @@ namespace Math::Splines
 	// point op= point
 	template<class Pos, class ...Attribs>
 	template<class Functor, size_t idx, class SrcPos, class ...SrcAttribs>
-#ifdef MSVC_LIMITATIONS
-	inline auto CompositePoint<Pos, Attribs...>::PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src, std::true_type) -> CompositePoint &
-#else
 	inline auto CompositePoint<Pos, Attribs...>::PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src) -> std::enable_if_t<idx < sizeof...(Attribs), CompositePoint &>
-#endif
 	{
 		Functor()(std::get<idx>(attribs), std::get<idx>(src.attribs));
-#ifdef MSVC_LIMITATIONS
-		constexpr auto nextIdx = idx + 1;
-		return PointOpPoint<Functor, nextIdx>(src, std::bool_constant<nextIdx < sizeof...(Attribs)>());
-#else
 		return PointOpPoint<Functor, idx + 1>(src);
-#endif
 	}
 
 	template<class Pos, class ...Attribs>
 	template<class Functor, size_t idx, class SrcPos, class ...SrcAttribs>
-#ifdef MSVC_LIMITATIONS
-	inline auto CompositePoint<Pos, Attribs...>::PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src, std::false_type) -> CompositePoint &
-#else
 	inline auto CompositePoint<Pos, Attribs...>::PointOpPoint(const CompositePoint<SrcPos, SrcAttribs...> &src) -> std::enable_if_t<idx == sizeof...(Attribs), CompositePoint &>
-#endif
 	{
 		Functor()(pos, src.pos);
 		return *this;
@@ -141,28 +128,15 @@ namespace Math::Splines
 	// point op= scalar
 	template<class Pos, class ...Attribs>
 	template<class Functor, size_t idx, typename Scalar>
-#ifdef MSVC_LIMITATIONS
-	inline auto CompositePoint<Pos, Attribs...>::PointOpScalar(const Scalar &src, std::true_type) -> CompositePoint &
-#else
 	inline auto CompositePoint<Pos, Attribs...>::PointOpScalar(const Scalar &src) -> std::enable_if_t<idx < sizeof...(Attribs), CompositePoint &>
-#endif
 	{
 		Functor()(std::get<idx>(attribs), src);
-#ifdef MSVC_LIMITATIONS
-		constexpr auto nextIdx = idx + 1;
-		return PointOpScalar<Functor, nextIdx>(src, std::bool_constant<nextIdx < sizeof...(Attribs)>());
-#else
 		return PointOpScalar<Functor, idx + 1>(src);
-#endif
 	}
 
 	template<class Pos, class ...Attribs>
 	template<class Functor, size_t idx, typename Scalar>
-#ifdef MSVC_LIMITATIONS
-	inline auto CompositePoint<Pos, Attribs...>::PointOpScalar(const Scalar &src, std::false_type)->CompositePoint &
-#else
 	inline auto CompositePoint<Pos, Attribs...>::PointOpScalar(const Scalar &src) -> std::enable_if_t<idx == sizeof...(Attribs), CompositePoint &>
-#endif
 	{
 		Functor()(pos, src);
 		return *this;
