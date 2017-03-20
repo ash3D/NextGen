@@ -432,7 +432,7 @@ template<typename ScalarType, unsigned int dimension, class ...Attribs>
 auto Math::Splines::Impl::CCatmullRom<ScalarType, dimension, Attribs...>::Segment(typename Points::size_type i) const -> Bezier
 {
 	assert(i >= 1 && i < points.size() - 2);
-	return Bezier(points[i], points[i] + (points[i + 1] - points[i - 1]) / 6, points[i + 1] - (points[i + 2] - points[i]) / 6, points[i + 1]);
+	return { points[i], points[i] + (points[i + 1] - points[i - 1]) / 6, points[i + 1] - (points[i + 2] - points[i]) / 6, points[i + 1] };
 }
 
 template<typename ScalarType, unsigned int dimension, class ...Attribs>
@@ -515,5 +515,5 @@ auto Math::Splines::Impl::CBesselOverhauser<ScalarType, dimension, Attribs...>::
 			((points[i + 1 + shift].first - points[i - 1 + shift].first) * 3) *
 			(points[i + 1].first - points[i].first);
 	};
-	return Bezier(points[i].second, points[i].second + offset(0), points[i + 1].second - offset(1), points[i + 1].second);
+	return { points[i].second, points[i].second + offset(0), points[i + 1].second - offset(1), points[i + 1].second };
 }
