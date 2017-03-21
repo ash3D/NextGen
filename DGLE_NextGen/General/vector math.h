@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		20.03.2017 (c)Alexey Shaydurov
+\date		21.03.2017 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -290,7 +290,7 @@ further investigations needed, including other compilers
 #define INIT_LIST_ITEM_COPY 1
 #endif
 
-#if defined _MSC_VER && !defined __clang__
+#ifdef _MSC_VER
 #	define EBCO __declspec(empty_bases)
 #else
 #	define EBCO
