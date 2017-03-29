@@ -100,7 +100,7 @@
       <AdditionalIncludeDirectories>$(VCInstallDir)UnitTest\include;..\General</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <UseFullPaths>true</UseFullPaths>
-      <AdditionalOptions>/Zm545 /std:c++latest %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Zm545 /std:c++latest /permissive- %(AdditionalOptions)</AdditionalOptions>
       <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
       <WarningLevel>Level3</WarningLevel>
     </ClCompile>
@@ -117,7 +117,7 @@
       <AdditionalIncludeDirectories>$(VCInstallDir)UnitTest\include;..\General</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <UseFullPaths>true</UseFullPaths>
-      <AdditionalOptions>/Zm545 /std:c++latest %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Zm545 /std:c++latest /permissive- %(AdditionalOptions)</AdditionalOptions>
       <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
       <WarningLevel>Level3</WarningLevel>
     </ClCompile>
@@ -136,7 +136,7 @@
       <AdditionalIncludeDirectories>$(VCInstallDir)UnitTest\include;..\General</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <UseFullPaths>true</UseFullPaths>
-      <AdditionalOptions>/Zm545 /std:c++latest %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Zm545 /std:c++latest /permissive- %(AdditionalOptions)</AdditionalOptions>
       <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
       <WarningLevel>Level3</WarningLevel>
     </ClCompile>
@@ -157,7 +157,7 @@
       <AdditionalIncludeDirectories>$(VCInstallDir)UnitTest\include;..\General</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <UseFullPaths>true</UseFullPaths>
-      <AdditionalOptions>/Zm545 /std:c++latest %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Zm545 /std:c++latest /permissive- %(AdditionalOptions)</AdditionalOptions>
       <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
       <WarningLevel>Level3</WarningLevel>
     </ClCompile>
