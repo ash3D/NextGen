@@ -14,7 +14,7 @@ using std::endl;
 namespace VectorMath = Math::VectorMath;
 using namespace VectorMath::HLSL;
 
-constexpr auto iters = 8ull * 1024 * 1024 * 1024;
+constexpr auto iters = 2'000'000'000;
 
 //extern template VectorMath::HLSL::int4;
 //extern template VectorMath::GLSL::vec3;
