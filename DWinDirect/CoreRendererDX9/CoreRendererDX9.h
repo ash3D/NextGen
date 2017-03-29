@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		09.03.2017 (c)Andrey Korotkov
+\date		29.03.2017 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -488,6 +488,8 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	template<D3DQUERYTYPE ...types>
 	class CQueryQueue final : public CQueryQueueBase<QueryPack<types...>>
 	{
+		using CQueryQueueBase<QueryPack<types...>>::_queue;
+	private:
 		template<size_t ...idx>
 		bool _Ready(std::index_sequence<idx...>) noexcept;
 		template<size_t ...idx>
@@ -501,10 +503,13 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	class CQueryQueue<type> final :
 #if ENABLE_DOWNCAST_TO_WRAPPER
 		public CQueryQueueBase<CQueryBase>	// need to clarify is it legal
+	{
+		using CQueryQueueBase<CQueryBase>::_queue;
 #else
 		public CQueryQueueBase<CQuery<type>>
-#endif
 	{
+		using CQueryQueueBase<CQuery<type>>::_queue;
+#endif
 	public:
 		std::optional<typename QueryTypeTraits<type>::TResult> Extract();
 	};
