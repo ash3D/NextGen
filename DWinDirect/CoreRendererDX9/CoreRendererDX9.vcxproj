@@ -60,8 +60,9 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>DX9_LEGACY_BASE_OBJECTS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;WIN32;_DEBUG;_WINDOWS;_USRDLL;CORERENDERERDX9_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>..\dgle;..\Shared;..\..\DGLE_NextGen\General</AdditionalIncludeDirectories>
-      <AdditionalOptions>/std:c++latest /permissive- /wd4800 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/permissive- /wd4800 %(AdditionalOptions)</AdditionalOptions>
       <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -81,8 +82,9 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>DX9_LEGACY_BASE_OBJECTS;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;WIN32;NDEBUG;_WINDOWS;_USRDLL;CORERENDERERDX9_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>..\dgle;..\Shared;..\..\DGLE_NextGen\General</AdditionalIncludeDirectories>
-      <AdditionalOptions>/std:c++latest /permissive- /wd4800 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/permissive- /wd4800 %(AdditionalOptions)</AdditionalOptions>
       <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
