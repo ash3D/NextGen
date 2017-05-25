@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		21.03.2017 (c)Alexey Shaydurov
+\date		25.05.2017 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -4065,7 +4065,7 @@ further investigations needed, including other compilers
 				// terminator
 				template
 				<
-					unsigned i, size_t ...idx,
+					unsigned i = 0, size_t ...idx,
 					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,
 					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc
 				>
