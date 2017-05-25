@@ -3671,6 +3671,22 @@ further investigations needed, including other compilers
 #		pragma region min/max functions
 			// std::min/max requires explicit template param if used for different types => provide scalar version\
 			this version also has option to return copy or reference
+#ifdef MSVC_LIMITATIONS	// workaround for lack of expression SFINAE
+			namespace Impl
+			{
+				template<bool copy, typename F>
+				using CopyOrRef = conditional_t<copy, typename F::type, const typename F::type &>;
+			}
+
+#			define FUNCTION_DEFINITION(f)																							\
+				template<bool copy = false, typename LeftType, typename RightType>													\
+				inline auto f(const LeftType &left, const RightType &right)															\
+				-> Impl::CopyOrRef<copy, std::enable_if_t<Impl::IsPureScalar<LeftType> && Impl::IsPureScalar<RightType>,			\
+					std::common_type<LeftType, RightType>>>																			\
+				{																													\
+					return std::f<std::common_type_t<LeftType, RightType>>(left, right);											\
+				};
+#else
 #			define FUNCTION_DEFINITION(f)																							\
 				template<bool copy = false, typename LeftType, typename RightType>													\
 				inline auto f(const LeftType &left, const RightType &right)															\
@@ -3679,6 +3695,7 @@ further investigations needed, including other compilers
 				{																													\
 					return std::f<std::common_type_t<LeftType, RightType>>(left, right);											\
 				};
+#endif
 			FUNCTION_DEFINITION(min)
 			FUNCTION_DEFINITION(max)
 #			undef FUNCTION_DEFINITION

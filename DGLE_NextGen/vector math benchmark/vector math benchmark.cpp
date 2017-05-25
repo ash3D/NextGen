@@ -34,6 +34,7 @@ int main(int argc, _TCHAR *argv[])
 	vec3.apply(floor);
 	min(vec4, 0.);
 	min(vec4, vec3);
+	min(vec4.x, vec4.y);
 	VectorMath::max(0ul, 0l);
 	vec4 < vec3;
 	vec4 > 0;
