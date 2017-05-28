@@ -1,13 +1,15 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+# Visual Studio 15
+VisualStudioVersion = 15.0.26430.6
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "General", "General\General.vcxproj", "{9E10BAC6-2AEB-4A56-A500-2ABC22A4EC70}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vector math benchmark", "vector math benchmark\vector math benchmark.vcxproj", "{298AE0A1-CE47-4233-B06C-945E6FB9D260}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vector math unit tests", "vector math unit tests\vector math unit tests.vcxproj", "{3AFE0214-CF91-4292-B567-5F864622E52B}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Renderer", "Renderer\Renderer.vcxproj", "{5A740A1E-4FD2-439F-8C97-882530751626}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -69,6 +71,22 @@ Global
 		{3AFE0214-CF91-4292-B567-5F864622E52B}.Release|x64.Build.0 = Release|x64
 		{3AFE0214-CF91-4292-B567-5F864622E52B}.Release|x86.ActiveCfg = Release|Win32
 		{3AFE0214-CF91-4292-B567-5F864622E52B}.Release|x86.Build.0 = Release|Win32
+		{5A740A1E-4FD2-439F-8C97-882530751626}.Debug clang|x64.ActiveCfg = Debug|x64
+		{5A740A1E-4FD2-439F-8C97-882530751626}.Debug clang|x64.Build.0 = Debug|x64
+		{5A740A1E-4FD2-439F-8C97-882530751626}.Debug clang|x86.ActiveCfg = Debug|Win32
+		{5A740A1E-4FD2-439F-8C97-882530751626}.Debug clang|x86.Build.0 = Debug|Win32
+		{5A740A1E-4FD2-439F-8C97-882530751626}.Debug|x64.ActiveCfg = Debug|x64
+		{5A740A1E-4FD2-439F-8C97-882530751626}.Debug|x64.Build.0 = Debug|x64
+		{5A740A1E-4FD2-439F-8C97-882530751626}.Debug|x86.ActiveCfg = Debug|Win32
+		{5A740A1E-4FD2-439F-8C97-882530751626}.Debug|x86.Build.0 = Debug|Win32
+		{5A740A1E-4FD2-439F-8C97-882530751626}.Release clang|x64.ActiveCfg = Release|x64
+		{5A740A1E-4FD2-439F-8C97-882530751626}.Release clang|x64.Build.0 = Release|x64
+		{5A740A1E-4FD2-439F-8C97-882530751626}.Release clang|x86.ActiveCfg = Release|Win32
+		{5A740A1E-4FD2-439F-8C97-882530751626}.Release clang|x86.Build.0 = Release|Win32
+		{5A740A1E-4FD2-439F-8C97-882530751626}.Release|x64.ActiveCfg = Release|x64
+		{5A740A1E-4FD2-439F-8C97-882530751626}.Release|x64.Build.0 = Release|x64
+		{5A740A1E-4FD2-439F-8C97-882530751626}.Release|x86.ActiveCfg = Release|Win32
+		{5A740A1E-4FD2-439F-8C97-882530751626}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
