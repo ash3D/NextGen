@@ -45,9 +45,9 @@ extern "C" _declspec(dllexport) const DWORD NvOptimusEnablement = 0x00000001;
 
 void KeyboardTest()
 {
-	uint y = 0;
+	uint y = 250;
 
-	pFnt->Draw2DSimple(screenRes[0] - 100, 0, "Keyboard test: ");
+	pFnt->Draw2DSimple(screenRes[0] - 100, y, "Keyboard test: ");
 
 	for (uint i = 0; i < 256; ++i)
 		if (bPressed[i])
@@ -56,11 +56,11 @@ void KeyboardTest()
 
 void MouseTest()
 {
-	uint y = 0;
+	uint y = 250;
 	
 	std::string strTemp = "Mouse coordinate X:" + to_string(stMouse.iX) + " Y: " + to_string(stMouse.iY);
 	
-	pFnt->Draw2DSimple(0 , 0, strTemp.c_str());
+	pFnt->Draw2DSimple(0 , y, strTemp.c_str());
 
 	if(stMouse.bLeftButton)
 		pFnt->Draw2DSimple(0 , y += 12, "LeftButton mouse is pressed");
@@ -209,6 +209,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		{
 			pEngineCore->ConsoleVisible(true);
 			pEngineCore->ConsoleExecute("core_fps_in_caption 1");
+			pEngineCore->ConsoleExecute("crdx9_profiler 6");
 			
 			pEngineCore->AddProcedure(EPT_INIT, &Init);
 			pEngineCore->AddProcedure(EPT_FREE, &Free);
