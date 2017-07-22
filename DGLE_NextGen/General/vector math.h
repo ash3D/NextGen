@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.05.2017 (c)Alexey Shaydurov
+\date		22.07.2017 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -2449,9 +2449,26 @@ further investigations needed, including other compilers
 				}
 
 			public:
+#ifdef MSVC_LIMITATIONS
+				auto operator +() const
+				{
+					return Op(make_index_sequence<SwizzleDesc::dimension>(), positive());
+				}
+
+				auto operator -() const
+				{
+					return Op(make_index_sequence<SwizzleDesc::dimension>(), std::negate<>());
+				}
+
+				auto operator !() const
+				{
+					return Op(make_index_sequence<SwizzleDesc::dimension>(), std::logical_not<>());
+				}
+#else
 				auto operator +() const;
 				auto operator -() const;
 				auto operator !() const;
+#endif
 
 			public:
 				template<typename F>
@@ -2484,6 +2501,7 @@ further investigations needed, including other compilers
 				inline vector<result_of_t<F &(ElementType)>, SwizzleDesc::dimension> apply(F f, index_sequence<idx...>) const;
 			};
 
+#ifndef MSVC_LIMITATIONS
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			inline auto CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>::operator +() const
 			{
@@ -2501,6 +2519,7 @@ further investigations needed, including other compilers
 			{
 				return Op(make_index_sequence<SwizzleDesc::dimension>(), std::logical_not<>());
 			}
+#endif
 
 #ifdef MSVC_NAMESPACE_WORKAROUND
 		}
