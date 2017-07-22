@@ -324,6 +324,7 @@
     <ClInclude Include="nv_algebra.h" />
     <ClInclude Include="misc.h" />
     <ClInclude Include="rotate.h" />
+    <ClInclude Include="SIMD.h" />
     <ClInclude Include="splines.h" />
     <ClInclude Include="vector math generate stuff.h" />
     <ClInclude Include="vector math.h" />
@@ -335,6 +336,7 @@
   <ItemGroup>
     <None Include="gauss.inl" />
     <None Include="general math.inl" />
+    <None Include="SIMD.inl" />
     <None Include="splines.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
