@@ -38,7 +38,7 @@ namespace Renderer
 
 		private:
 			Tile *parent;
-			unsigned short int layer = 0;
+			unsigned short int tileLayer = 0, childrenPropagatedLayer = 0;			// keep childrenPropagatedLayer >= tileLayer
 			unsigned short int tileOcclusion = 0, childrenPropagatedOcclusion = 0;	// for current layer only, need to reset when layer is updated
 
 		public:

@@ -41,30 +41,32 @@ void OcclusionTree::Tile::Insert(unsigned short occlusion, unsigned short occlus
 
 	// select insertion layer
 
-	unsigned short insertLayer = layer;
-	unsigned accumulatedOcclusion = tileOcclusion + OcclusionDelta(tileOcclusion, childrenPropagatedOcclusion);
+	unsigned short insertLayer = childrenPropagatedLayer;
+	unsigned accumulatedOcclusion = childrenPropagatedOcclusion;
+
+	assert(tileLayer <= childrenPropagatedLayer);
+	__assume(tileLayer <= childrenPropagatedLayer);
+	if (tileLayer == childrenPropagatedLayer)
+		accumulatedOcclusion += OcclusionDelta(accumulatedOcclusion, tileOcclusion);
 	
 	// walk up the tree
 	for (const Tile *ancestor = parent; ancestor; ancestor = ancestor->parent)
 	{
-		// ancestor layers can be in non-decreasing order
-		assert(ancestor->layer >= insertLayer);
-		__assume(ancestor->layer >= insertLayer);
-		if (ancestor->layer > insertLayer)
+		if (ancestor->tileLayer > insertLayer)
 		{
-			insertLayer = ancestor->layer;
+			insertLayer = ancestor->tileLayer;
 			accumulatedOcclusion = ancestor->tileOcclusion;
 		}
-		else
+		else if (ancestor->tileLayer == insertLayer)
 			accumulatedOcclusion += OcclusionDelta(accumulatedOcclusion, ancestor->tileOcclusion);
 	}
 
 	if (accumulatedOcclusion >= occlusionThreshold)
 		insertLayer++;
 
-	if (insertLayer > layer)
+	if (insertLayer > childrenPropagatedLayer)
 	{
-		layer = insertLayer;
+		tileLayer = childrenPropagatedLayer = insertLayer;	// keep childrenPropagatedLayer at least as tileLayer
 		tileOcclusion = occlusion;
 		childrenPropagatedOcclusion = 0;
 	}
@@ -75,17 +77,13 @@ void OcclusionTree::Tile::Insert(unsigned short occlusion, unsigned short occlus
 	for (Tile *ancestor = parent; ancestor; ancestor = ancestor->parent)
 	{
 		occlusion /= 4;
-		// inserted layer is at least max of all ancestors (established in previous tree walk)
-		assert(ancestor->layer <= insertLayer);
-		__assume(ancestor->layer <= insertLayer);
-		if (ancestor->layer < insertLayer)
+		if (ancestor->childrenPropagatedLayer < insertLayer)
 		{
 			// update layer for ancestor
-			ancestor->layer = insertLayer;
-			ancestor->tileOcclusion = 0;
+			ancestor->childrenPropagatedLayer = insertLayer;
 			ancestor->childrenPropagatedOcclusion = occlusion;
 		}
-		else
+		else if (ancestor->childrenPropagatedLayer == insertLayer)
 			ancestor->childrenPropagatedOcclusion += OcclusionDelta(ancestor->childrenPropagatedOcclusion, occlusion);
 	}
 }
