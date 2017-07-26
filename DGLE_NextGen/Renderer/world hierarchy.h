@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.07.2017 (c)Korotkov Andrey
+\date		26.07.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -133,6 +133,7 @@ namespace Renderer::Impl::Hierarchy
 			typename std::enable_if_t<true, decltype(objects)>::const_iterator objBegin, objEnd;
 			WRL::ComPtr<ID3D12CommandList> bundle;
 			bool visible;
+			mutable bool cullExlusiveObjects;
 
 		private:
 			template<std::remove_extent_t<decltype(childrenOrder)> ...idx>
@@ -157,8 +158,9 @@ namespace Renderer::Impl::Hierarchy
 		public:
 			const auto &GetAABB() const noexcept { return aabb; }
 			auto GetObjectsRange() const noexcept { return std::make_pair(objBegin, objEnd); }
-			unsigned long int GetTriCount() const noexcept;
+			unsigned long int GetExclusiveTriCount() const noexcept, GetInclusiveTriCount() const noexcept;
 			float GetOcclusion() const noexcept;	// exclusive
+			bool CullExclusiveObjects() const noexcept { return cullExlusiveObjects; }
 
 		public:
 			void TraverseOrdered(const std::function<void (Node &node)> &nodeHandler);

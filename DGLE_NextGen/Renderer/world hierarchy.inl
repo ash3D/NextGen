@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.07.2017 (c)Korotkov Andrey
+\date		26.07.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -321,7 +321,7 @@ namespace Renderer::Impl::Hierarchy
 		const auto boxesCount = distance(boxesBegin, boxesEnd);
 		const float thisNodeMeasure = aabb.Measure();
 		
-		if (visibleChildrenCount > 0 && boxesCount >= visibleChildrenCount)
+		if (visibleChildrenCount > 0 && boxesCount >= visibleChildrenCount && GetExclusiveTriCount() <= OcclusionCulling::exclusiveTriCountCullThreshold)
 		{
 			float accumulatedChildrenMeasure = 0.f;
 			const auto collectFromChild = [minBoxesPerNode = boxesCount / visibleChildrenCount, additionalBoxes = boxesCount % visibleChildrenCount, segmentBegin = boxesBegin, &accumulatedChildrenMeasure](const remove_extent_t<decltype(children)> &child) mutable
@@ -346,11 +346,15 @@ namespace Renderer::Impl::Hierarchy
 
 			// return children boxes only if they are smaller than this node's box
 			if (accumulatedChildrenMeasure / thisNodeMeasure < OcclusionCulling::accumulatedChildrenMeasureThreshold)
+			{
+				cullExlusiveObjects = false;
 				return accumulatedChildrenMeasure;
+			}
 		}
 
 		*boxesBegin = this;
 		fill(next(boxesBegin), boxesEnd, nullptr);
+		cullExlusiveObjects = true;
 		return thisNodeMeasure;
 	}
 

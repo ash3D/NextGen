@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.07.2017 (c)Korotkov Andrey
+\date		26.07.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -203,7 +203,7 @@ void Impl::World::Render(const float (&viewXform)[4][3], const float (&projXform
 			const float2 aabbProjSize = NDCSpaceAABB.Size();
 			aabbProjSquare = aabbProjSize.x * aabbProjSize.y;
 			// TODO: replace 'z >= 0 && w > 0' with 'w >= znear' and use 2D NDC space AABB
-			if (shceduleOcclusionQuery = NDCSpaceAABB.min.z >= 0.f && clipSpaceAABB.MinW() > 0.f && OcclusionCulling::QueryBenefit(aabbProjSquare, node.GetTriCount()) &&
+			if (shceduleOcclusionQuery = NDCSpaceAABB.min.z >= 0.f && clipSpaceAABB.MinW() > 0.f && OcclusionCulling::QueryBenefit(aabbProjSquare, node.GetInclusiveTriCount()) &&
 				aabbProjSquare / parentOcclusionCulledSquare < OcclusionCulling::nestedNodeSquareThreshold && parentOcclusion >= OcclusionCulling::parentOcclusionThreshold)
 			{
 				parentOcclusionCulledSquare = aabbProjSquare;
@@ -217,9 +217,9 @@ void Impl::World::Render(const float (&viewXform)[4][3], const float (&projXform
 		unsigned long int Post(decltype(bvh)::Node &node, unsigned long int childrenOcclusionCulledTris)
 		{
 			if (shceduleOcclusionQuery)
-				if (shceduleOcclusionQuery = OcclusionCulling::QueryBenefit(aabbProjSquare, node.GetTriCount() - childrenOcclusionCulledTris))
+				if (shceduleOcclusionQuery = OcclusionCulling::QueryBenefit(aabbProjSquare, node.GetInclusiveTriCount() - childrenOcclusionCulledTris))
 				{
-					childrenOcclusionCulledTris = node.GetTriCount();
+					childrenOcclusionCulledTris = node.GetInclusiveTriCount();
 
 					const decltype(bvh)::Node *boxes[OcclusionCulling::maxOcclusionQueryBoxes];
 					node.CollectOcclusionQueryBoxes(begin(boxes), end(boxes));

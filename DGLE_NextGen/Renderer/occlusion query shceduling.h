@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.07.2017 (c)Korotkov Andrey
+\date		26.07.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -14,6 +14,7 @@ namespace Renderer::Impl::OcclusionCulling
 	// C++17
 	/*inline*/ constexpr float nestedNodeSquareThreshold = .1f, parentOcclusionThreshold = .8f, accumulatedChildrenMeasureThreshold = .8f;
 	/*inline*/ constexpr unsigned maxOcclusionQueryBoxes = 64;
+	/*inline*/ constexpr unsigned long int exclusiveTriCountCullThreshold = 256;
 
 	inline bool QueryBenefit(float aabbSquare, unsigned long int triCount)
 	{
