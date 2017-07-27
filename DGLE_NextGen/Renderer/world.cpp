@@ -189,6 +189,7 @@ void Impl::World::Render(const float (&viewXform)[4][3], const float (&projXform
 		const float4x4 &frustumTransform;
 		AABB<2> screenSpaceAABB;
 		float aabbProjSquare;
+		bool cancelQueryDueToParent = false;
 
 	public:
 		explicit NodeShceduler(const float4x4 &frustumTransform) : frustumTransform(frustumTransform)
@@ -203,7 +204,7 @@ void Impl::World::Render(const float (&viewXform)[4][3], const float (&projXform
 			aabbProjSquare = aabbProjSize.x * aabbProjSize.y;
 			// TODO: replace 'z >= 0 && w > 0' with 'w >= znear' and use 2D NDC space AABB
 			if (node.shceduleOcclusionQuery = NDCSpaceAABB.min.z >= 0.f && clipSpaceAABB.MinW() > 0.f && OcclusionCulling::QueryBenefit(aabbProjSquare, node.GetInclusiveTriCount()) &&
-				aabbProjSquare / parentOcclusionCulledSquare < OcclusionCulling::nestedNodeSquareThreshold && parentOcclusion >= OcclusionCulling::parentOcclusionThreshold)
+				!(cancelQueryDueToParent = aabbProjSquare / parentOcclusionCulledSquare >= OcclusionCulling::nestedNodeSquareThreshold || parentOcclusion < OcclusionCulling::parentOcclusionThreshold))
 			{
 				parentOcclusionCulledSquare = aabbProjSquare;
 				parentOcclusion = node.GetOcclusion();
@@ -213,24 +214,38 @@ void Impl::World::Render(const float (&viewXform)[4][3], const float (&projXform
 			return { parentOcclusionCulledSquare, parentOcclusion };
 		}
 
-		unsigned long int Post(decltype(bvh)::Node &node, unsigned long int childrenOcclusionCulledTris)
+		pair<unsigned long int, bool> Post(decltype(bvh)::Node &node, unsigned long int childrenOcclusionCulledTris, bool childQueryCanceled)
 		{
-			if (node.shceduleOcclusionQuery)
+			assert(!(node.shceduleOcclusionQuery && cancelQueryDueToParent));
+			__assume(!(node.shceduleOcclusionQuery && cancelQueryDueToParent));
+			/*
+			node.shceduleOcclusionQuery == true (=> cancelQueryDueToParent == false)								|	reevaluate node.shceduleOcclusionQuery if childQueryCanceled == false, otherwise keep shceduled unconditionally
+			cancelQueryDueToParent == true (=> node.shceduleOcclusionQuery == false) && childQueryCanceled == false	|	reevaluate cancelQueryDueToParent and propagate it as childQueryCanceled
+			node.shceduleOcclusionQuery == false && childQueryCanceled == true										|	propagate childQueryCanceled == true unconditionally
+			*/
+			if (node.shceduleOcclusionQuery || cancelQueryDueToParent && !childQueryCanceled)
 			{
 				const unsigned long int restTris = node.GetInclusiveTriCount() - childrenOcclusionCulledTris;
-				if (node.shceduleOcclusionQuery = OcclusionCulling::QueryBenefit(aabbProjSquare, restTris))
+				bool queryNeeded = childQueryCanceled || OcclusionCulling::QueryBenefit(aabbProjSquare, restTris);
+				if (queryNeeded)
 				{
 					const decltype(bvh)::Node *boxes[OcclusionCulling::maxOcclusionQueryBoxes];
 					const unsigned long int exludedTris = node.CollectOcclusionQueryBoxes(begin(boxes), end(boxes)).first;
 					// reevaluate query benefit after excluding cheap objects during box collection
-					if (node.shceduleOcclusionQuery = OcclusionCulling::QueryBenefit(aabbProjSquare, restTris - exludedTris))
+					if (queryNeeded = childQueryCanceled || OcclusionCulling::QueryBenefit(aabbProjSquare, restTris - exludedTris))
 					{
-						const auto boxesEnd = remove(begin(boxes), end(boxes), nullptr);
-						childrenOcclusionCulledTris = node.GetInclusiveTriCount();
+						childQueryCanceled = cancelQueryDueToParent;	// propagate if 'cancelQueryDueToParent == true', reset to false otherwise (node.shceduleOcclusionQuery == true)
+						if (node.shceduleOcclusionQuery)
+						{
+							childrenOcclusionCulledTris = node.GetInclusiveTriCount();
+							const auto boxesEnd = remove(begin(boxes), end(boxes), nullptr);
+							// ...
+						}
 					}
 				}
+				node.shceduleOcclusionQuery &= queryNeeded;
 			}
-			return childrenOcclusionCulledTris;
+			return { childrenOcclusionCulledTris, childQueryCanceled };
 		}
 	} nodeSheduler(frustumTransform);
 	bvh.TraverseParallel(bind(&World::ScheduleNode, this, _1), &frustumTransform, &viewTransform);
