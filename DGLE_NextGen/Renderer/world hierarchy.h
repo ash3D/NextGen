@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		26.07.2017 (c)Korotkov Andrey
+\date		27.07.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -132,8 +132,11 @@ namespace Renderer::Impl::Hierarchy
 			unsigned int childrenCount;
 			typename std::enable_if_t<true, decltype(objects)>::const_iterator objBegin, objEnd;
 			WRL::ComPtr<ID3D12CommandList> bundle;
-			bool visible;
 			mutable bool cullExlusiveObjects;
+			bool visible;
+
+		public:
+			bool shceduleOcclusionQuery;
 
 		private:
 			template<std::remove_extent_t<decltype(childrenOrder)> ...idx>

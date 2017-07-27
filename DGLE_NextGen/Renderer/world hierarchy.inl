@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		26.07.2017 (c)Korotkov Andrey
+\date		27.07.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -317,16 +317,17 @@ namespace Renderer::Impl::Hierarchy
 	{
 		using namespace std;
 
-		const auto visibleChildrenCount = count_if(cbegin(children), next(cbegin(children), childrenCount), [](const remove_extent_t<decltype(children)> &child) { return child->visible; });
+		const auto childrenFilter = [](const remove_extent_t<decltype(children)> &child) { return child->visible && !child->shceduleOcclusionQuery; };
+		const auto filteredChildrenCount = count_if(cbegin(children), next(cbegin(children), childrenCount), childrenFilter);
 		const auto boxesCount = distance(boxesBegin, boxesEnd);
 		const float thisNodeMeasure = aabb.Measure();
 		
-		if (visibleChildrenCount > 0 && boxesCount >= visibleChildrenCount && GetExclusiveTriCount() <= OcclusionCulling::exclusiveTriCountCullThreshold)
+		if (filteredChildrenCount > 0 && boxesCount >= filteredChildrenCount && GetExclusiveTriCount() <= OcclusionCulling::exclusiveTriCountCullThreshold)
 		{
 			float accumulatedChildrenMeasure = 0.f;
-			const auto collectFromChild = [minBoxesPerNode = boxesCount / visibleChildrenCount, additionalBoxes = boxesCount % visibleChildrenCount, segmentBegin = boxesBegin, &accumulatedChildrenMeasure](const remove_extent_t<decltype(children)> &child) mutable
+			const auto collectFromChild = [minBoxesPerNode = boxesCount / filteredChildrenCount, additionalBoxes = boxesCount % filteredChildrenCount, segmentBegin = boxesBegin, &accumulatedChildrenMeasure, childrenFilter](const remove_extent_t<decltype(children)> &child) mutable
 			{
-				if (child->visible)
+				if (childrenFilter(child))
 				{
 					auto segmentEnd = next(segmentBegin, minBoxesPerNode);
 					if (additionalBoxes)
