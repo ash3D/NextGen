@@ -168,7 +168,7 @@ namespace Renderer::Impl::Hierarchy
 		public:
 			void TraverseOrdered(const std::function<void (Node &node)> &nodeHandler);
 			void TraverseParallel(const std::function<void (Node &node)> &nodeHandler, const std::optional<const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension>> &frustumCuller, const HLSL::float4x3 *depthSortXform, bool parentFullyVisible = false);
-			float CollectOcclusionQueryBoxes(const Node **boxesBegin, const Node **boxesEnd) const;
+			std::pair<unsigned long int, float> CollectOcclusionQueryBoxes(const Node **boxesBegin, const Node **boxesEnd) const;
 		};
 
 	private:

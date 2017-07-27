@@ -216,14 +216,20 @@ void Impl::World::Render(const float (&viewXform)[4][3], const float (&projXform
 		unsigned long int Post(decltype(bvh)::Node &node, unsigned long int childrenOcclusionCulledTris)
 		{
 			if (node.shceduleOcclusionQuery)
-				if (node.shceduleOcclusionQuery = OcclusionCulling::QueryBenefit(aabbProjSquare, node.GetInclusiveTriCount() - childrenOcclusionCulledTris))
+			{
+				const unsigned long int restTris = node.GetInclusiveTriCount() - childrenOcclusionCulledTris;
+				if (node.shceduleOcclusionQuery = OcclusionCulling::QueryBenefit(aabbProjSquare, restTris))
 				{
-					childrenOcclusionCulledTris = node.GetInclusiveTriCount();
-
 					const decltype(bvh)::Node *boxes[OcclusionCulling::maxOcclusionQueryBoxes];
-					node.CollectOcclusionQueryBoxes(begin(boxes), end(boxes));
-					const auto boxesEnd = remove(begin(boxes), end(boxes), nullptr);
+					const unsigned long int exludedTris = node.CollectOcclusionQueryBoxes(begin(boxes), end(boxes)).first;
+					// reevaluate query benefit after excluding cheap objects during box collection
+					if (node.shceduleOcclusionQuery = OcclusionCulling::QueryBenefit(aabbProjSquare, restTris - exludedTris))
+					{
+						const auto boxesEnd = remove(begin(boxes), end(boxes), nullptr);
+						childrenOcclusionCulledTris = node.GetInclusiveTriCount();
+					}
 				}
+			}
 			return childrenOcclusionCulledTris;
 		}
 	} nodeSheduler(frustumTransform);

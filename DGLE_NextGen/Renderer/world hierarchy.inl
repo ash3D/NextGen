@@ -311,9 +311,9 @@ namespace Renderer::Impl::Hierarchy
 		}
 	}
 
-	// returns accumulated AABB measure
+	// returns <exluded tris, accumulated AABB measure>
 	template<class Object, TreeStructure treeStructure>
-	float BVH<Object, treeStructure>::Node::CollectOcclusionQueryBoxes(const Node **boxesBegin, const Node **boxesEnd) const
+	std::pair<unsigned long int, float> BVH<Object, treeStructure>::Node::CollectOcclusionQueryBoxes(const Node **boxesBegin, const Node **boxesEnd) const
 	{
 		using namespace std;
 
@@ -324,8 +324,10 @@ namespace Renderer::Impl::Hierarchy
 		
 		if (filteredChildrenCount > 0 && boxesCount >= filteredChildrenCount && GetExclusiveTriCount() <= OcclusionCulling::exclusiveTriCountCullThreshold)
 		{
+			unsigned long int excludedTris = 0;
 			float accumulatedChildrenMeasure = 0.f;
-			const auto collectFromChild = [minBoxesPerNode = boxesCount / filteredChildrenCount, additionalBoxes = boxesCount % filteredChildrenCount, segmentBegin = boxesBegin, &accumulatedChildrenMeasure, childrenFilter](const remove_extent_t<decltype(children)> &child) mutable
+			const auto collectFromChild = [minBoxesPerNode = boxesCount / filteredChildrenCount, additionalBoxes = boxesCount % filteredChildrenCount, segmentBegin = boxesBegin,
+				&excludedTris, &accumulatedChildrenMeasure, childrenFilter](const remove_extent_t<decltype(children)> &child) mutable
 			{
 				if (childrenFilter(child))
 				{
@@ -335,7 +337,9 @@ namespace Renderer::Impl::Hierarchy
 						advance(segmentEnd, 1);
 						additionalBoxes--;
 					}
-					accumulatedChildrenMeasure += child->CollectOcclusionQueryBoxes(segmentBegin, segmentEnd);
+					const auto collectResults = child->CollectOcclusionQueryBoxes(segmentBegin, segmentEnd);
+					excludedTris += collectResults.first;
+					accumulatedChildrenMeasure += collectResults.second;
 					segmentBegin = segmentEnd;
 				}
 			};
@@ -349,14 +353,14 @@ namespace Renderer::Impl::Hierarchy
 			if (accumulatedChildrenMeasure / thisNodeMeasure < OcclusionCulling::accumulatedChildrenMeasureThreshold)
 			{
 				cullExlusiveObjects = false;
-				return accumulatedChildrenMeasure;
+				return { excludedTris, accumulatedChildrenMeasure };
 			}
 		}
 
 		*boxesBegin = this;
 		fill(next(boxesBegin), boxesEnd, nullptr);
 		cullExlusiveObjects = true;
-		return thisNodeMeasure;
+		return { 0ul, thisNodeMeasure };
 	}
 
 	template<class Object, TreeStructure treeStructure>
