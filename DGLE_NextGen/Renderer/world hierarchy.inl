@@ -311,7 +311,7 @@ namespace Renderer::Impl::Hierarchy
 		}
 	}
 
-	// returns accumulated projected AABB square
+	// returns accumulated AABB measure
 	template<class Object, TreeStructure treeStructure>
 	float BVH<Object, treeStructure>::Node::CollectOcclusionQueryBoxes(const Node **boxesBegin, const Node **boxesEnd) const
 	{
