@@ -15,7 +15,7 @@ See "DGLE.h" for more details.
 namespace Renderer::Impl::OcclusionCulling
 {
 	// C++17
-	/*inline*/ constexpr float nodeProjLengthThreshold = 5e-2f, nestedNodeProjLengthShrinkThreshold = .4f, parentOcclusionThreshold = .8f, accumulatedChildrenMeasureShrinkThreshold = .8f;
+	/*inline*/ constexpr float nodeProjLengthThreshold = 5e-2f, nestedNodeProjLengthShrinkThreshold = .4f, parentOcclusionThreshold = .8f, accumulatedChildrenMeasureShrinkThreshold = .7f;
 	/*inline*/ constexpr unsigned maxOcclusionQueryBoxes = 64;
 	/*inline*/ constexpr unsigned long int exclusiveTriCountCullThreshold = 256;
 
