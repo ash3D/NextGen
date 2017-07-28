@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		27.07.2017 (c)Korotkov Andrey
+\date		28.07.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -350,7 +350,7 @@ namespace Renderer::Impl::Hierarchy
 #endif
 
 			// return children boxes only if they are smaller than this node's box
-			if (accumulatedChildrenMeasure / thisNodeMeasure < OcclusionCulling::accumulatedChildrenMeasureThreshold)
+			if (accumulatedChildrenMeasure / thisNodeMeasure < OcclusionCulling::accumulatedChildrenMeasureShrinkThreshold)
 			{
 				cullExlusiveObjects = false;
 				return { excludedTris, accumulatedChildrenMeasure };

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		27.07.2017 (c)Korotkov Andrey
+\date		28.07.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -196,22 +196,23 @@ void Impl::World::Render(const float (&viewXform)[4][3], const float (&projXform
 		{}
 
 	public:
-		pair<float, float> Pre(decltype(bvh)::Node &node, float parentOcclusionCulledSquare = INFINITY, float parentOcclusion  = INFINITY)
+		pair<float, float> Pre(decltype(bvh)::Node &node, float parentOcclusionCulledProjLength = INFINITY, float parentOcclusion = 0)
 		{
 			const ClipSpaceAABB<3> clipSpaceAABB(frustumTransform, node.GetAABB());
 			const AABB<3> NDCSpaceAABB(clipSpaceAABB);
 			const float2 aabbProjSize = NDCSpaceAABB.Size();
 			aabbProjSquare = aabbProjSize.x * aabbProjSize.y;
+			const float aabbProjLength = fmax(aabbProjSize.x, aabbProjSize.y);
 			// TODO: replace 'z >= 0 && w > 0' with 'w >= znear' and use 2D NDC space AABB
 			if (node.shceduleOcclusionQuery = NDCSpaceAABB.min.z >= 0.f && clipSpaceAABB.MinW() > 0.f && OcclusionCulling::QueryBenefit(aabbProjSquare, node.GetInclusiveTriCount()) &&
-				!(cancelQueryDueToParent = aabbProjSquare / parentOcclusionCulledSquare >= OcclusionCulling::nestedNodeSquareThreshold || parentOcclusion < OcclusionCulling::parentOcclusionThreshold))
+				!(cancelQueryDueToParent = (parentOcclusionCulledProjLength <= OcclusionCulling::nodeProjLengthThreshold || aabbProjLength / parentOcclusionCulledProjLength >= OcclusionCulling::nestedNodeProjLengthShrinkThreshold) && parentOcclusion < OcclusionCulling::parentOcclusionThreshold))
 			{
-				parentOcclusionCulledSquare = aabbProjSquare;
+				parentOcclusionCulledProjLength = aabbProjLength;
 				parentOcclusion = node.GetOcclusion();
 			}
 			else
 				parentOcclusion += node.GetOcclusion() - parentOcclusion * node.GetOcclusion();
-			return { parentOcclusionCulledSquare, parentOcclusion };
+			return { parentOcclusionCulledProjLength, parentOcclusion };
 		}
 
 		pair<unsigned long int, bool> Post(decltype(bvh)::Node &node, unsigned long int childrenOcclusionCulledTris, bool childQueryCanceled)
