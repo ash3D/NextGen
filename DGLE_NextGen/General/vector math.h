@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.07.2017 (c)Alexey Shaydurov
+\date		19.08.2017 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -274,7 +274,7 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 #	pragma warning(push)
 #	pragma warning(disable: 4003)
 
-#if defined _MSC_VER && _MSC_VER <= 1910 && !defined __clang__
+#if defined _MSC_VER && _MSC_VER <= 1911 && !defined __clang__
 #	define MSVC_LIMITATIONS
 #endif
 
@@ -660,8 +660,25 @@ further investigations needed, including other compilers
 				static constexpr bool isWriteMaskValid = true;
 			};
 #else
+#if defined _MSC_VER && _MSC_VER == 1911
+			class CPackedSwizzleBase
+			{
+				using TPackedSwizzle = unsigned long long int;
+
+			protected:
+				template<unsigned int shift, TPackedSwizzle swizzleHead, TPackedSwizzle ...swizzleTail>
+				static constexpr TPackedSwizzle PackSwizzleSeq = swizzleHead << shift | PackSwizzleSeq<shift + 4u, swizzleTail...>;
+
+				template<unsigned int shift, TPackedSwizzle swizzleLast>
+				static constexpr TPackedSwizzle PackSwizzleSeq<shift, swizzleLast> = swizzleLast << shift;
+			};
+#endif
+
 			template<unsigned int ...swizzleSeq>
 			class CPackedSwizzle
+#if defined _MSC_VER && _MSC_VER == 1911
+				: CPackedSwizzleBase
+#endif
 			{
 			public:
 				static constexpr unsigned int dimension = sizeof...(swizzleSeq);
@@ -680,11 +697,19 @@ further investigations needed, including other compilers
 
 			private:
 #ifdef MSVC_LIMITATIONS
+#if _MSC_VER != 1911
+//				template<unsigned int shift, TPackedSwizzle swizzleHead, TPackedSwizzle ...swizzleTail>
+//				static constexpr TPackedSwizzle PackSwizzleSeq() { return swizzleHead << shift | PackSwizzleSeq<shift + 4u, swizzleTail...>(); }
+//
+//				template<unsigned int shift, TPackedSwizzle swizzleLast>
+//				static constexpr TPackedSwizzle PackSwizzleSeq<shift, swizzleLast>() { return swizzleLast << shift; }
+//#else
 				template<unsigned int shift, TPackedSwizzle swizzleHead, TPackedSwizzle ...swizzleTail>
 				static constexpr TPackedSwizzle PackSwizzleSeq = swizzleHead << shift | PackSwizzleSeq<shift + 4u, swizzleTail...>;
 
 				template<unsigned int shift, TPackedSwizzle swizzleLast>
 				static constexpr TPackedSwizzle PackSwizzleSeq<shift, swizzleLast> = swizzleLast << shift;
+#endif
 #else
 				template<typename IdxSeq>
 				static constexpr TPackedSwizzle PackSwizzleSeq = 0;
@@ -695,7 +720,11 @@ further investigations needed, including other compilers
 
 			private:
 #ifdef MSVC_LIMITATIONS
+//#if _MSC_VER == 1911
+//				static constexpr TPackedSwizzle packedSwizzle = PackSwizzleSeq<0u, swizzleSeq...>();
+//#else
 				static constexpr TPackedSwizzle packedSwizzle = PackSwizzleSeq<0u, swizzleSeq...>;
+//#endif
 #else
 				static constexpr TPackedSwizzle packedSwizzle = PackSwizzleSeq<make_integer_sequence<unsigned int, dimension>>;
 #endif
@@ -1037,6 +1066,29 @@ further investigations needed, including other compilers
 						SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign> {};
 #endif
 
+#if defined _MSC_VER && _MSC_VER == 1911
+					class DetectSwizzleWARHazardBase
+					{
+					protected:
+						template
+						<
+							unsigned int dstRows, unsigned int srcRows,
+							class DstSwizzleDesc, class SrcSwizzleDesc, bool assign,
+							unsigned int rows, unsigned rowIdx = 0
+						>
+						static constexpr auto FoldRows = DetectRowVsMatrixWARHazard<DstSwizzleDesc, bool(dstRows), SrcSwizzleDesc, bool(srcRows), rowIdx, assign>::value || FoldRows<dstRows, srcRows, DstSwizzleDesc, SrcSwizzleDesc, assign, rows, rowIdx + 1>;
+
+						// terminator
+						template
+						<
+							unsigned int dstRows, unsigned int srcRows,
+							class DstSwizzleDesc, class SrcSwizzleDesc, bool assign,
+							unsigned int rows
+						>
+						static constexpr auto FoldRows<dstRows, srcRows, DstSwizzleDesc, SrcSwizzleDesc, assign, rows, rows> = false;
+					};
+#endif
+
 					// mixed vector/matrix swizzles
 					template
 					<
@@ -1044,8 +1096,15 @@ further investigations needed, including other compilers
 						class DstSwizzleDesc, class SrcSwizzleDesc, bool assign
 					>
 					class DetectSwizzleWARHazard<ElementType, dstRows, columns, DstSwizzleDesc, ElementType, srcRows, columns, SrcSwizzleDesc, assign, enable_if_t<bool(dstRows) != bool(srcRows)>>
+#if defined _MSC_VER && _MSC_VER == 1911
+						: DetectSwizzleWARHazardBase
+#endif
 					{
 #ifdef MSVC_LIMITATIONS
+#if _MSC_VER == 1911
+					public:
+						static constexpr auto value = FoldRows<dstRows, srcRows, DstSwizzleDesc, SrcSwizzleDesc, assign, dstRows ? dstRows : srcRows>;
+#else
 						template<unsigned int rows, unsigned rowIdx = 0>
 						static constexpr auto FoldRows = DetectRowVsMatrixWARHazard<DstSwizzleDesc, bool(dstRows), SrcSwizzleDesc, bool(srcRows), rowIdx, assign>::value || FoldRows<rows, rowIdx + 1>;
 
@@ -1055,6 +1114,7 @@ further investigations needed, including other compilers
 
 					public:
 						static constexpr auto value = FoldRows<dstRows ? dstRows : srcRows>;
+#endif
 #else
 						template<typename Seq>
 						static constexpr bool FoldRows = false;
@@ -2876,21 +2936,6 @@ further investigations needed, including other compilers
 				namespace Impl::ScalarOps
 				{
 #ifdef MSVC_LIMITATIONS
-					template
-					<
-						unsigned i = 0, size_t ...idx, class F,
-						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,
-						typename RightType
-					>
-					inline enable_if_t<i < sizeof...(idx)> SwizzleOpAssignScalar(
-						index_sequence<idx...> seq, F f,
-						CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,
-						const RightType &right)
-					{
-						f(left[i], right);
-						SwizzleOpAssignScalar<i + 1>(seq, f, left, right);
-					}
-
 					// terminator
 					template
 					<
@@ -2904,6 +2949,21 @@ further investigations needed, including other compilers
 						const RightType &right)
 					{
 						assert(!TriggerScalarWARHazard(left, &right));
+					}
+
+					template
+					<
+						unsigned i = 0, size_t ...idx, class F,
+						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,
+						typename RightType
+					>
+					inline enable_if_t<i < sizeof...(idx)> SwizzleOpAssignScalar(
+						index_sequence<idx...> seq, F f,
+						CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,
+						const RightType &right)
+					{
+						f(left[i], right);
+						SwizzleOpAssignScalar<i + 1>(seq, f, left, right);
 					}
 #else
 					template

@@ -55,7 +55,6 @@
       </PrecompiledHeaderOutputFile>
       <AdditionalIncludeDirectories>..\dgle</AdditionalIncludeDirectories>
       <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
-      <AdditionalOptions>/permissive- %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DiagnosticsFormat>Column</DiagnosticsFormat>
     </ClCompile>
@@ -75,7 +74,6 @@
       </PrecompiledHeaderOutputFile>
       <AdditionalIncludeDirectories>..\dgle</AdditionalIncludeDirectories>
       <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
-      <AdditionalOptions>/permissive- %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DiagnosticsFormat>Column</DiagnosticsFormat>
     </ClCompile>

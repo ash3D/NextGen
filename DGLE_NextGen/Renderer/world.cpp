@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		28.07.2017 (c)Korotkov Andrey
+\date		19.08.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -322,7 +322,7 @@ auto Impl::World::AddTerrainVectorLayer(unsigned int layerIdx, const float (&col
 	but constructs containing object directly via placement new which does not have access to private members.
 	GCC meanwhile compiles it fine.
 */
-#if defined _MSC_VER && _MSC_VER <= 1910
+#if defined _MSC_VER && _MSC_VER <= 1911
 shared_ptr<World> __cdecl Renderer::MakeWorld(const float (&terrainXform)[4][3])
 {
 	return make_shared<World>(World::tag(), terrainXform);

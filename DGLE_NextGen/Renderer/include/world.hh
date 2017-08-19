@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.07.2017 (c)Korotkov Andrey
+\date		19.08.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -116,7 +116,7 @@ namespace Renderer
 		friend class TerrainVectorLayer;	// for Allocator
 		friend class TerrainVectorQuad;		// for Allocator
 
-#if defined _MSC_VER && _MSC_VER <= 1910
+#if defined _MSC_VER && _MSC_VER <= 1911
 	private:
 		struct tag {};
 
