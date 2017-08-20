@@ -19,7 +19,7 @@ std::pair<Resource, unsigned long> Renderer::GPUMemoryStreamedAllocator<Resource
 	for (;;)
 	{
 		shared_lock<decltype(mtx)> sharedLock(mtx);
-		const auto oldFreeBegin = freeBegin.fetch_add(count), newFreeBegin = oldFreeBegin + count;
+		const auto oldFreeBegin = freeBegin.fetch_add(count, memory_order_relaxed), newFreeBegin = oldFreeBegin + count;
 		const bool wrap = newFreeBegin > chunkSize;
 		if (wrap)
 			newFreeBegin = count;
@@ -39,12 +39,12 @@ std::pair<Resource, unsigned long> Renderer::GPUMemoryStreamedAllocator<Resource
 					const auto deficit = newFreeBegin - freeEnd;
 					chunk = Resource::Allocate(chunkSize += (deficit + Resource::allocGranularity) / Resource::allocGranularity);
 					retiredFrames.clear();
-					freeBegin.store(freeEnd = 0);
+					freeBegin.store(freeEnd = 0, memory_order_relaxed);
 					freeRangeReversed = true;
 				}
 				else // wrap
 				{
-					freeBegin.store(newFreeBegin);
+					freeBegin.store(newFreeBegin, memory_order_relaxed);
 					if (!retiredFrames.empty())
 						retiredFrames.back().freeEnd = 0;	// remove bubble
 					freeRangeReversed = false;
@@ -71,11 +71,11 @@ void Renderer::GPUMemoryStreamedAllocator<Resource>::OnFrameEnd(UINT64 fenceValu
 	}
 	if (retiredFrames.empty())
 	{
-		freeBegin.store(freeEnd = 0);
+		freeBegin.store(freeEnd = 0, std::memory_order_relaxed);
 		freeRangeReversed = true;
 	}
 
-	const auto nextEnd = freeBegin.load();
+	const auto nextEnd = freeBegin.load(std::memory_order_relaxed);
 	if (retiredFrames.empty() || nextEnd != retiredFrames.front().freeEnd)
 		retiredFrames.push({ fenceValue, nextEnd });
 }
