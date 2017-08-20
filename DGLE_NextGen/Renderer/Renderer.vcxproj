@@ -205,6 +205,7 @@
     <ClInclude Include="AABB.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="frustum culling.h" />
+    <ClInclude Include="GPU memory allocator.h" />
     <ClInclude Include="HRESULT.h" />
     <ClInclude Include="include\instance.hh" />
     <ClInclude Include="include\terrain.hh" />
@@ -265,6 +266,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="AABB.inl" />
+    <None Include="GPU memory allocator.inl" />
     <None Include="world hierarchy.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

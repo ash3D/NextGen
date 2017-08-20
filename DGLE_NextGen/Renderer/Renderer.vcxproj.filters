@@ -68,6 +68,9 @@
     <ClInclude Include="occlusion query shceduling.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="GPU memory allocator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -117,6 +120,9 @@
       <Filter>Header Files</Filter>
     </None>
     <None Include="AABB.inl">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="GPU memory allocator.inl">
       <Filter>Header Files</Filter>
     </None>
   </ItemGroup>
