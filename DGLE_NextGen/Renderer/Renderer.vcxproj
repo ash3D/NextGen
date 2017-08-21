@@ -96,6 +96,7 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <AdditionalIncludeDirectories>include;$(IntDir)shaders\;..\General;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CallingConvention>VectorCall</CallingConvention>
+      <DiagnosticsFormat>Column</DiagnosticsFormat>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -122,6 +123,7 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <AdditionalIncludeDirectories>include;$(IntDir)shaders\;..\General;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CallingConvention>VectorCall</CallingConvention>
+      <DiagnosticsFormat>Column</DiagnosticsFormat>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
