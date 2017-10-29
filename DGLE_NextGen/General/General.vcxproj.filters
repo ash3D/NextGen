@@ -60,6 +60,9 @@
     <ClInclude Include="vector math generate stuff.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="SIMD.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="collision.cpp">
@@ -77,6 +80,9 @@
       <Filter>Header Files</Filter>
     </None>
     <None Include="splines.inl">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="SIMD.inl">
       <Filter>Header Files</Filter>
     </None>
   </ItemGroup>
