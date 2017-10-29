@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		19.08.2017 (c)Korotkov Andrey
+\date		29.10.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -12,6 +12,7 @@ See "DGLE.h" for more details.
 #include <memory>
 #include <list>
 #include <utility>	// for std::forward
+#include <functional>
 #include <wrl/client.h>
 #include "../AABB.h"
 #include "../world hierarchy.h"
@@ -79,6 +80,7 @@ namespace Renderer
 #endif
 			float terrainXform[4][3];
 			std::list<TerrainVectorLayer, Allocator<TerrainVectorLayer>> terrainVectorLayers;
+			mutable unsigned short ringBufferIdx = 0;
 
 		private:
 			class Instance
@@ -88,7 +90,11 @@ namespace Renderer
 			public:
 				auto GetAABB() const { return aabb; }
 			};
-			mutable Hierarchy::BVH<Instance, Hierarchy::QUADTREE> bvh;
+			class NodeData
+			{
+				WRL::ComPtr<ID3D12GraphicsCommandList1> bundle;
+			};
+			//mutable Hierarchy::BVH<Instance, NodeData, Hierarchy::QUADTREE> bvh;
 
 		protected:
 			World(const float (&terrainXform)[4][3]);
@@ -97,10 +103,10 @@ namespace Renderer
 			void operator =(World &) = delete;
 
 		protected:
-			void Render(const float (&viewXform)[4][3], const float (&projXform)[4][4], ID3D12GraphicsCommandList1 *cmdList, unsigned overlapIdx) const;
+			std::function<void (ID3D12GraphicsCommandList1 *target)> Render(const float (&viewXform)[4][3], const float (&projXform)[4][4], const std::function<void (ID3D12GraphicsCommandList1 *target)> &setupRenderOutputCallback) const;
 
 		private:
-			void ScheduleNode(decltype(bvh)::Node &node) const;
+			//void ScheduleNode(decltype(bvh)::Node &node) const;
 
 		public:
 			std::shared_ptr<Renderer::Viewport> CreateViewport() const;

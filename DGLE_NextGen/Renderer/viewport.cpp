@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.07.2017 (c)Korotkov Andrey
+\date		29.10.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -10,37 +10,77 @@ See "DGLE.h" for more details.
 #include "stdafx.h"
 #include "viewport.hh"
 #include "world.hh"
+#include "GPU work submission.h"
+#include "render pipeline.h"
 
 using namespace std;
 using namespace Renderer;
 using WRL::ComPtr;
+namespace RenderPipeline = Impl::RenderPipeline;
 
 extern ComPtr<ID3D12Device2> device;
 
-Impl::Viewport::EventHandle::EventHandle() : handle(CreateEvent(NULL, FALSE, FALSE, NULL))
+static inline RenderPipeline::PipelineStage Pre(ID3D12GraphicsCommandList1 *cmdList, ID3D12Resource *rt, D3D12_CPU_DESCRIPTOR_HANDLE rtv, const function<void (ID3D12GraphicsCommandList1 *target)> &terrainBaseRenderCallback)
 {
-	if (!handle)
-		throw HRESULT_FROM_WIN32(GetLastError());
+	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(rt, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+	const float color[4] = { .0f, .2f, .4f, 1.f };
+	cmdList->ClearRenderTargetView(rtv, color, 0, NULL);
+	if (terrainBaseRenderCallback)
+		terrainBaseRenderCallback(cmdList);
+	CheckHR(cmdList->Close());
+	return cmdList;
 }
 
-Impl::Viewport::EventHandle::~EventHandle()
+static inline RenderPipeline::PipelineStage Post(ID3D12GraphicsCommandList1 *cmdList, ID3D12Resource *rt)
 {
-	if (!CloseHandle(handle))
-		cerr << "Fail to close event handle (hr=" << HRESULT_FROM_WIN32(GetLastError()) << ")." << endl;
+	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(rt, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+	CheckHR(cmdList->Close());
+	return cmdList;
+}
+
+Impl::Viewport::CmdListsManager::CmdListsManager()
+{
+	auto &allocs = GetCmdAllocators();
+	CheckHR(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, allocs.pre.Get(), NULL, IID_PPV_ARGS(&cmdLists.pre)));
+	CheckHR(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, allocs.post.Get(), NULL, IID_PPV_ARGS(&cmdLists.post)));
+}
+
+// result valid until call to 'OnFrameFinish()'
+auto Impl::Viewport::CmdListsManager::OnFrameStart() -> PrePostCmds<ID3D12GraphicsCommandList1 *>
+{
+	assert(cmdLists.pre && cmdLists.post);
+	FrameVersioning::OnFrameStart();
+
+	// skip first time (list created ready to use in ctor)
+	if (GetCurFrameID() > 1)
+	{
+		auto &allocs = GetCmdAllocators();
+		CheckHR(cmdLists.pre->Reset(allocs.pre.Get(), NULL));
+		CheckHR(cmdLists.post->Reset(allocs.post.Get(), NULL));
+	}
+
+	return { cmdLists.pre.Get(), cmdLists.post.Get() };
+}
+
+auto Impl::Viewport::CmdListsManager::GetCmdAllocators() -> decltype(GetCurFrameDataVersion())
+{
+	auto &allocs = GetCurFrameDataVersion();
+	if (allocs.pre && allocs.post)
+	{
+		CheckHR(allocs.pre->Reset());
+		CheckHR(allocs.post->Reset());
+	}
+	else
+	{
+		CheckHR(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&allocs.pre)));
+		CheckHR(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&allocs.post)));
+	}
+	return allocs;
 }
 
 Impl::Viewport::Viewport(shared_ptr<const Renderer::World> world) : world(move(world)), viewXform(), projXform()
 {
-	CheckHR(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
-	CheckHR(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&cmdAllocsStore[0])));
-	CheckHR(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, cmdAllocsStore[0].Get(), NULL, IID_PPV_ARGS(&cmdList)));
-
 	viewXform[0][0] = viewXform[1][1] = viewXform[2][2] = projXform[0][0] = projXform[1][1] = projXform[2][2] = projXform[3][3] = 1.f;
-}
-
-Impl::Viewport::~Viewport()
-{
-	WaitForGPU();
 }
 
 void Impl::Viewport::SetViewTransform(const float (&matrix)[4][3])
@@ -71,59 +111,28 @@ void Impl::Viewport::UpdateAspect(double invAspect)
 
 void Impl::Viewport::Render(ID3D12Resource *rt, const D3D12_CPU_DESCRIPTOR_HANDLE &rtv, UINT width, UINT height) const
 {
-	extern ComPtr<ID3D12CommandQueue> cmdQueue;
-	if (fenceValue++)
+	auto cmdLits = cmdListsManager.OnFrameStart();
+	GPUWorkSubmission::Prepare();
+
+	function<void (ID3D12GraphicsCommandList1 *target)> terrainBaseRenderCallback;
+	GPUWorkSubmission::AppendCmdList(Pre, cmdLits.pre, rt, rtv, cref(terrainBaseRenderCallback));
+
+	const function<void (ID3D12GraphicsCommandList1 *target)> setupRenderOutputCallback =
+		[
+			rtv,
+			viewport = CD3DX12_VIEWPORT(0.f, 0.f, width, height),
+			scissorRect = CD3DX12_RECT(0, 0, width, height)
+		](ID3D12GraphicsCommandList1 *cmdList)
 	{
-		// prepare command allocator
-		const auto oldestFenceValue = fenceValue - cmdAllocCount;
-		if (fence->GetCompletedValue() < oldestFenceValue)
-		{
-			if (cmdAllocCount < cmdListOverlapLimit)
-			{
-				const auto begin = cmdAllocsStore + curCmdAllocIdx, end = cmdAllocsStore + cmdAllocCount++;
-				move_backward(begin, end, end + 1);
-				CheckHR(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(begin->ReleaseAndGetAddressOf())));
-			}
-			else
-			{
-				WaitForGPU(oldestFenceValue);
-				CheckHR(cmdAllocsStore[curCmdAllocIdx]->Reset());
-			}
-		}
-		else
-			CheckHR(cmdAllocsStore[curCmdAllocIdx]->Reset());
-
-		CheckHR(cmdList->Reset(cmdAllocsStore[curCmdAllocIdx].Get(), NULL));
-		++curCmdAllocIdx %= cmdAllocCount;
-	}
-
-	D3D12_RESOURCE_BARRIER rtBarrier = CD3DX12_RESOURCE_BARRIER::Transition(rt, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	cmdList->ResourceBarrier(1, &rtBarrier);
-	const float color[4] = { .0f, .2f, .4f, 1.f };
-	cmdList->ClearRenderTargetView(rtv, color, 0, NULL);
-	cmdList->OMSetRenderTargets(1, &rtv, TRUE, NULL);
-	const CD3DX12_VIEWPORT viewport(0.f, 0.f, width, height);
-	cmdList->RSSetViewports(1, &viewport);
-	cmdList->RSSetScissorRects(1, &CD3DX12_RECT(0, 0, width, height));
+		cmdList->OMSetRenderTargets(1, &rtv, TRUE, NULL);
+		cmdList->RSSetViewports(1, &viewport);
+		cmdList->RSSetScissorRects(1, &scissorRect);
+	};
 	if (world)
-		world->Render(viewXform, projXform, cmdList.Get(), curCmdAllocIdx);
-	swap(rtBarrier.Transition.StateBefore, rtBarrier.Transition.StateAfter);
-	cmdList->ResourceBarrier(1, &rtBarrier);
-	CheckHR(cmdList->Close());
-	ID3D12CommandList *const listToExecute = cmdList.Get();
-	cmdQueue->ExecuteCommandLists(1, &listToExecute);
-	//CheckHR(cmdQueue->Signal(fence.Get(), fenceValue));
-}
+		terrainBaseRenderCallback = world->Render(viewXform, projXform, setupRenderOutputCallback);
 
-void Impl::Viewport::Signal() const
-{
-	extern ComPtr<ID3D12CommandQueue> cmdQueue;
-	CheckHR(cmdQueue->Signal(fence.Get(), fenceValue));
-}
+	GPUWorkSubmission::AppendCmdList(Post, cmdLits.post, rt);
 
-void Impl::Viewport::WaitForGPU(UINT64 waitFenceValue) const
-{
-	CheckHR(fence->SetEventOnCompletion(waitFenceValue, fenceEvent));
-	if (WaitForSingleObject(fenceEvent, INFINITE) == WAIT_FAILED)
-		throw HRESULT_FROM_WIN32(GetLastError());
+	GPUWorkSubmission::Run();
+	cmdListsManager.OnFrameFinish();
 }

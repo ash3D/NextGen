@@ -71,6 +71,21 @@
     <ClInclude Include="GPU memory allocator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="tracked resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GPU work submission.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cmdlist pool.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="render pipeline.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="frame versioning.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -98,6 +113,21 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="occlusion tree.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="tracked resource.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GPU work submission.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="cmdlist pool.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="render pipeline.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="frame versioning.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

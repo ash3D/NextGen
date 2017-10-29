@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.07.2017 (c)Korotkov Andrey
+\date		29.10.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -8,8 +8,10 @@ See "DGLE.h" for more details.
 */
 
 #include "stdafx.h"
+#include "frame versioning.h"
 
 using namespace std;
+using Renderer::Impl::globalFrameVersioning;
 using Microsoft::WRL::ComPtr;
 
 static auto CreateFactory()
@@ -102,6 +104,38 @@ static inline ComPtr<ID3D12CommandQueue> TryCreateCommandQueue()
 ComPtr<IDXGIFactory5> factory = TryCreateFactory();
 ComPtr<ID3D12Device2> device = TryCreateDevice();
 ComPtr<ID3D12CommandQueue> cmdQueue = TryCreateCommandQueue();
+namespace Renderer::Impl
+{
+#if defined _MSC_VER && _MSC_VER <= 1911
+	decltype(globalFrameVersioning) globalFrameVersioning;
+#else
+	// guaranteed copy elision required
+	decltype(globalFrameVersioning) globalFrameVersioning(device ? decltype(globalFrameVersioning)(in_place) : nullopt);
+#endif
+}
+
+struct RetiredResource
+{
+	UINT64 frameID;
+	ComPtr<ID3D12Pageable> resource;
+};
+static queue<RetiredResource> retiredResources;
+
+// keeps resource alive while accessed by GPU
+void RetireResource(ComPtr<ID3D12Pageable> resource)
+{
+	static mutex mtx;
+	lock_guard<decltype(mtx)> lck(mtx);
+	retiredResources.push({ globalFrameVersioning->GetCurFrameID(), move(resource) });
+}
+
+// NOTE: not thread-safe
+void OnFrameFinish()
+{
+	const UINT64 completedFrameID = globalFrameVersioning->GetCompletedFrameID();
+	while (!retiredResources.empty() && retiredResources.front().frameID <= completedFrameID)
+		retiredResources.pop();
+}
 
 extern void __cdecl InitRenderer()
 {
@@ -112,5 +146,6 @@ extern void __cdecl InitRenderer()
 	{
 		device = CreateDevice();
 		cmdQueue = CreateCommandQueue();
+		globalFrameVersioning.emplace();
 	}
 }

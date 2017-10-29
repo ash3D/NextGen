@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.07.2017 (c)Korotkov Andrey
+\date		29.10.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -10,9 +10,12 @@ See "DGLE.h" for more details.
 #include "stdafx.h"
 #include "render output.hh"
 #include "viewport.hh"
+#include "frame versioning.h"
+#include "cmdlist pool.h"
 
 using namespace std;
 using namespace Renderer;
+using Impl::globalFrameVersioning;
 using WRL::ComPtr;
 
 extern ComPtr<IDXGIFactory5> factory;
@@ -115,10 +118,10 @@ void RenderOutput::OnResize()
 		/*
 		wait until GPU has finished using swap chain buffers as rendertargets
 		TODO: invistigate if it worth to wait
-		- until Present() (it seems that without it device gets hanged sometimes)
+		- until Present() (it seems that without it device gets hung sometimes)
 		- for the case of modification source region via SetSourceSize()
 		*/
-		viewport->WaitForGPU();
+		globalFrameVersioning->WaitForGPU();
 
 		vector<UINT> nodeMasks(swapChainDesc.BufferCount);
 		vector<IUnknown *> cmdQueues(swapChainDesc.BufferCount, cmdQueue.Get());
@@ -143,9 +146,11 @@ void RenderOutput::NextFrame(bool vsync)
 	ComPtr<ID3D12Resource> rt;
 	CheckHR(swapChain->GetBuffer(idx, IID_PPV_ARGS(&rt)));
 	const auto rtvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	globalFrameVersioning->OnFrameStart();
 	viewport->Render(rt.Get(), CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvHeap->GetCPUDescriptorHandleForHeapStart(), idx, rtvDescriptorSize), width, height);
 	CheckHR(swapChain->Present(vsync, 0));
-	viewport->Signal();
+	CmdListPool::OnFrameFinish();
+	globalFrameVersioning->OnFrameFinish();
 }
 
 void RenderOutput::Fill_RTV_Heap(unsigned int bufferCount)

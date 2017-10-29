@@ -13,9 +13,9 @@
 
 // TODO: reference additional headers your program requires here
 #include <cassert>
+#include <cstdarg>
 #include <cstdint>
 #include <climits>
-#include <cstdarg>
 #include <cstring>
 #include <cmath>
 #include <utility>
@@ -24,11 +24,20 @@
 #include <memory>
 #include <iterator>
 #include <vector>
+#include <queue>
+#include <deque>
 #include <list>
 #include <algorithm>
+#include <numeric>
 #include <functional>
 #include <optional>
+#include <variant>
 #include <future>
+#include <mutex>
+#include <shared_mutex>
+#include <condition_variable>
+#include <thread>
+#include <atomic>
 #include <iostream>
 #include <stdexcept>
 #include <wrl/client.h>

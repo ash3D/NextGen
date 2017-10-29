@@ -205,9 +205,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AABB.h" />
+    <ClInclude Include="cmdlist pool.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="frustum culling.h" />
     <ClInclude Include="GPU memory allocator.h" />
+    <ClInclude Include="GPU work submission.h" />
     <ClInclude Include="HRESULT.h" />
     <ClInclude Include="include\instance.hh" />
     <ClInclude Include="include\terrain.hh" />
@@ -215,16 +217,22 @@
     <ClInclude Include="include\world.hh" />
     <ClInclude Include="occlusion query shceduling.h" />
     <ClInclude Include="occlusion tree.h" />
+    <ClInclude Include="render pipeline.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="tracked resource.h" />
+    <ClInclude Include="frame versioning.h" />
     <ClInclude Include="world hierarchy.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="cmdlist pool.cpp" />
     <ClCompile Include="frustum culling.cpp" />
+    <ClCompile Include="GPU work submission.cpp" />
     <ClCompile Include="instance.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="occlusion tree.cpp" />
     <ClCompile Include="render output.cpp" />
+    <ClCompile Include="render pipeline.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
@@ -232,6 +240,8 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="terrain.cpp" />
+    <ClCompile Include="tracked resource.cpp" />
+    <ClCompile Include="frame versioning.cpp" />
     <ClCompile Include="viewport.cpp" />
     <ClCompile Include="world.cpp" />
   </ItemGroup>

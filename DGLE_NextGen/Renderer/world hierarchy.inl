@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		28.07.2017 (c)Korotkov Andrey
+\date		29.10.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -54,14 +54,15 @@ namespace Renderer::Impl::Hierarchy
 		return AABBHandler::operator ()(object.GetAABB());
 	}
 
-	template<class Object, TreeStructure treeStructure>
+	template<class Object, class CustomNodeData, TreeStructure treeStructure>
 	template<std::remove_extent_t<decltype(childrenOrder)> ...idx>
-	inline BVH<Object, treeStructure>::Node::Node(std::integer_sequence<std::remove_extent_t<decltype(childrenOrder)>, idx...>) : childrenOrder{idx...}
+	inline BVH<Object, CustomNodeData, treeStructure>::Node::Node(std::integer_sequence<std::remove_extent_t<decltype(childrenOrder)>, idx...>, typename std::enable_if_t<true, decltype(objects)>::iterator srcBegin, typename std::enable_if_t<true, decltype(objects)>::iterator srcEnd) :
+		childrenOrder{idx...}, objBegin(srcBegin), objEnd(srcEnd)
 	{}
 
-	template<class Object, TreeStructure treeStructure>
-	BVH<Object, treeStructure>::Node::Node(typename std::enable_if_t<true, decltype(objects)>::iterator srcBegin, typename std::enable_if_t<true, decltype(objects)>::iterator srcEnd, SplitTechnique splitTechnique, ...) :
-		Node(std::make_integer_sequence<std::remove_extent_t<decltype(childrenOrder)>, std::extent_v<decltype(childrenOrder)>>())
+	template<class Object, class CustomNodeData, TreeStructure treeStructure>
+	BVH<Object, CustomNodeData, treeStructure>::Node::Node(typename std::enable_if_t<true, decltype(objects)>::iterator srcBegin, typename std::enable_if_t<true, decltype(objects)>::iterator srcEnd, SplitTechnique splitTechnique, ...) :
+		Node(std::make_integer_sequence<std::remove_extent_t<decltype(childrenOrder)>, std::extent_v<decltype(childrenOrder)>>(), srcBegin, srcEnd)
 	{
 		using namespace std;
 
@@ -77,10 +78,9 @@ namespace Renderer::Impl::Hierarchy
 		meanPoint /= distance(srcBegin, srcEnd);
 
 		// place big objects into current node
-		objBegin = srcBegin;
-		objEnd = srcBegin = partition(srcBegin, srcEnd, Object2AABB<AABBSizeSeparator<decltype(aabb)>>(aabb.Size()));
+		objExclusiveSeparator = srcBegin = partition(srcBegin, srcEnd, Object2AABB<AABBSizeSeparator<decltype(aabb)>>(aabb.Size()));
 
-		// split if feasible
+		// try to split if feasible
 		if (distance(srcBegin, srcEnd) > 1)
 		{
 			const auto splitPoint = [&, splitTechnique]
@@ -94,14 +94,15 @@ namespace Renderer::Impl::Hierarchy
 				}
 			}();
 
+			bool splitted = false;
 			// consider using C++17 constexpr if
 			switch (treeStructure)
 			{
 			case ENNEATREE:
-				SplitEneaTree(srcBegin, srcEnd, splitTechnique, splitPoint);
+				SplitEneaTree(splitted, srcBegin, srcEnd, splitTechnique, splitPoint);
 				break;
 			case ICOSEPTREE:
-				SplitIcoseptree(srcBegin, srcEnd, splitTechnique, splitPoint);
+				SplitIcoseptree(splitted, srcBegin, srcEnd, splitTechnique, splitPoint);
 				break;
 			case QUADTREE:
 			case OCTREE:
@@ -112,33 +113,54 @@ namespace Renderer::Impl::Hierarchy
 				switch (treeStructure)
 				{
 				case QUADTREE:
-					SplitQuadtree(srcBegin, srcEnd, splitTechnique, splitPoint, overlapThreshold);
+					SplitQuadtree(splitted, srcBegin, srcEnd, splitTechnique, splitPoint, overlapThreshold);
 					break;
 				case OCTREE:
-					SplitOctree(srcBegin, srcEnd, splitTechnique, splitPoint, overlapThreshold);
+					SplitOctree(splitted, srcBegin, srcEnd, splitTechnique, splitPoint, overlapThreshold);
 					break;
 				}
 				break;
 			}
 
-			childrenCount = distance(begin(children), remove(begin(children), end(children), nullptr));
+			if (splitted)
+				childrenCount = distance(begin(children), remove(begin(children), end(children), nullptr));
+			else
+				objExclusiveSeparator = objEnd;
 		}
-		else
+
+		// calculate tri count and occlusion
 		{
-			objEnd = srcEnd;
-			childrenCount = 0;
+			// TODO: use C++17 structured bindings
+			const auto accumulated = accumulate(objBegin, objExclusiveSeparator, make_pair(0ul, 0.f), [renormalizationFactor = 1.f / aabb.Measure()](auto left, const Object &right)
+			{
+				left.first += right.GetTriCount();
+
+				// renormalize occlusion and perform increment
+				const float renormalizedOcclusionIncrement = right.GetOcclusion() * right.GetAABB().Measure() * renormalizationFactor;
+				left.second += fma(-left.second, renormalizedOcclusionIncrement, renormalizedOcclusionIncrement);
+
+				return left;
+			});
+			exclusiveTriCount = accumulated.first;
+			occlusion = accumulated.second;
+
+			inclusiveTriCount = accumulate(objExclusiveSeparator, objEnd, exclusiveTriCount, [](unsigned long int left, const Object &right) noexcept
+			{
+				return left + right.GetTriCount();
+			});
 		}
 	}
 
-	template<class Object, TreeStructure treeStructure>
-	inline void BVH<Object, treeStructure>::Node::CreateChildNode(typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, double overlapThreshold, unsigned int idxOffset)
+	template<class Object, class CustomNodeData, TreeStructure treeStructure>
+	inline void BVH<Object, CustomNodeData, treeStructure>::Node::CreateChildNode(bool splitted, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, double overlapThreshold, unsigned int idxOffset)
 	{
-		children[idxOffset] = make_unique<Node>(begin, end, splitTechnique, overlapThreshold);
+		if (splitted)
+			children[idxOffset] = make_unique<Node>(begin, end, splitTechnique, overlapThreshold);
 	}
 
-	template<class Object, TreeStructure treeStructure>
+	template<class Object, class CustomNodeData, TreeStructure treeStructure>
 	template<Axis axis, class F>
-	inline void BVH<Object, treeStructure>::Node::Split2(const F &action, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, decltype(aabb.Center()) splitPoint, double overlapThreshold, unsigned int idxOffset)
+	inline void BVH<Object, CustomNodeData, treeStructure>::Node::Split2(const F &action, bool &splitted, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, decltype(aabb.Center()) splitPoint, double overlapThreshold, unsigned int idxOffset)
 	{
 		using namespace std;
 
@@ -154,43 +176,44 @@ namespace Renderer::Impl::Hierarchy
 			if ((max[0] - min[1]) / fmin(max[0] - min[0], max[1] - min[1]) > overlapThreshold)
 				split = end;
 		}
+		splitted |= split != begin && split != end;
 		if (split != begin)
-			action(begin, split, overlapThreshold, idxOffset);
+			action(splitted, begin, split, overlapThreshold, idxOffset);
 		if (split != end)
-			action(split, end, overlapThreshold, idxOffset + idxOffsetStride);
+			action(splitted, split, end, overlapThreshold, idxOffset + idxOffsetStride);
 	}
 
-	template<class Object, TreeStructure treeStructure>
-	inline void BVH<Object, treeStructure>::Node::SplitQuadtree(typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, decltype(aabb.Center()) splitPoint, double overlapThreshold, unsigned int idxOffset)
+	template<class Object, class CustomNodeData, TreeStructure treeStructure>
+	inline void BVH<Object, CustomNodeData, treeStructure>::Node::SplitQuadtree(bool &splitted, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, decltype(aabb.Center()) splitPoint, double overlapThreshold, unsigned int idxOffset)
 	{
 		using namespace std;
 		using namespace placeholders;
 
 		// problem with nested bind
 #if 0
-		const auto createChildNode = bind(&Node::CreateChildNode, this, _1/*begin*/, _2/*end*/, splitTechnique, _3/*overlapThreshold*/, _4/*idxOffset*/);
+		const auto createChildNode = bind(&Node::CreateChildNode, this, _1/*splitted*/, _2/*begin*/, _3/*end*/, splitTechnique, _4/*overlapThreshold*/, _5/*idxOffset*/);
 #else
-		const auto createChildNode = [this, splitTechnique](typename enable_if_t<true, decltype(objects)>::iterator begin, typename enable_if_t<true, decltype(objects)>::iterator end, double overlapThreshold, unsigned int idxOffset)
+		const auto createChildNode = [this, splitTechnique](bool splitted, typename enable_if_t<true, decltype(objects)>::iterator begin, typename enable_if_t<true, decltype(objects)>::iterator end, double overlapThreshold, unsigned int idxOffset)
 		{
-			CreateChildNode(begin, end, splitTechnique, overlapThreshold, idxOffset);
+			CreateChildNode(splitted, begin, end, splitTechnique, overlapThreshold, idxOffset);
 		};
 #endif
-		Split2<Axis::Y>(bind(&Node::Split2<Axis::X, decltype(createChildNode)>, this, createChildNode, _1/*begin*/, _2/*end*/, splitPoint, _3/*overlapThreshold*/, _4/*idxOffset*/), begin, end, splitPoint, overlapThreshold, idxOffset);
+		Split2<Axis::Y>(bind(&Node::Split2<Axis::X, decltype(createChildNode)>, this, createChildNode, _1/*slpitted*/, _2/*begin*/, _3/*end*/, splitPoint, _4/*overlapThreshold*/, _5/*idxOffset*/), splitted, begin, end, splitPoint, overlapThreshold, idxOffset);
 	}
 
 	// 1 call site
-	template<class Object, TreeStructure treeStructure>
-	inline void BVH<Object, treeStructure>::Node::SplitOctree(typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, decltype(aabb.Center()) splitPoint, double overlapThreshold)
+	template<class Object, class CustomNodeData, TreeStructure treeStructure>
+	inline void BVH<Object, CustomNodeData, treeStructure>::Node::SplitOctree(bool &splitted, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, decltype(aabb.Center()) splitPoint, double overlapThreshold)
 	{
 		using namespace std;
 		using namespace placeholders;
 
-		Split2<Axis::Z>(bind(&Node::SplitQuadtree, this, _1/*begin*/, _2/*end*/, splitTechnique, splitPoint, _3/*overlapThreshold*/, _4/*idxOffset*/), begin, end, splitPoint, overlapThreshold);
+		Split2<Axis::Z>(bind(&Node::SplitQuadtree, this, _1/*slpitted*/, _2/*begin*/, _3/*end*/, splitTechnique, splitPoint, _4/*overlapThreshold*/, _5/*idxOffset*/), splitted, begin, end, splitPoint, overlapThreshold);
 	}
 
-	template<class Object, TreeStructure treeStructure>
+	template<class Object, class CustomNodeData, TreeStructure treeStructure>
 	template<Axis axis, class F>
-	void BVH<Object, treeStructure>::Node::Split3(const F &action, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, decltype(aabb.Center()) splitPoint, unsigned int idxOffset)
+	void BVH<Object, CustomNodeData, treeStructure>::Node::Split3(const F &action, bool &splitted, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, decltype(aabb.Center()) splitPoint, unsigned int idxOffset)
 	{
 		using namespace std;
 
@@ -198,96 +221,121 @@ namespace Renderer::Impl::Hierarchy
 		constexpr unsigned int idxOffsetStride = 1u | axisIdx << axisIdx;	// [1, 3, 9]
 
 		const auto splitInternal = partition(begin, end, Object2AABB<AAABBInternalSplitter<axis>>(splitPoint[axisIdx]));
-		if (splitInternal != begin)
-			action(begin, splitInternal, idxOffset);
+		splitted |= splitInternal != end;
 		if (splitInternal != end)
 		{
 			const auto split = partition(splitInternal, end, Object2AABB<AAABBSplitter<axis>>(splitPoint[axisIdx]));
 			if (split != splitInternal)
-				action(splitInternal, split, idxOffset += idxOffsetStride);
+				action(splitted, splitInternal, split, idxOffset += idxOffsetStride);
 			if (split != end)
-				action(split, end, idxOffset += idxOffsetStride);
+				action(splitted, split, end, idxOffset += idxOffsetStride);
 		}
+		if (splitInternal != begin)
+			action(splitted, begin, splitInternal, idxOffset);
 	}
 
-	template<class Object, TreeStructure treeStructure>
-	inline void BVH<Object, treeStructure>::Node::SplitEneaTree(typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, decltype(aabb.Center()) splitPoint, unsigned int idxOffset)
+	template<class Object, class CustomNodeData, TreeStructure treeStructure>
+	inline void BVH<Object, CustomNodeData, treeStructure>::Node::SplitEneaTree(bool &splitted, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, decltype(aabb.Center()) splitPoint, unsigned int idxOffset)
 	{
 		using namespace std;
 		using namespace placeholders;
 
-		const auto createChildNode = [this, splitTechnique](typename enable_if_t<true, decltype(objects)>::iterator begin, typename enable_if_t<true, decltype(objects)>::iterator end, unsigned int idxOffset)
+		const auto createChildNode = [this, splitTechnique](bool splitted, typename enable_if_t<true, decltype(objects)>::iterator begin, typename enable_if_t<true, decltype(objects)>::iterator end, unsigned int idxOffset)
 		{
-			children[idxOffset] = make_unique<Node>(begin, end, splitTechnique);
+			if (splitted)
+				children[idxOffset] = make_unique<Node>(begin, end, splitTechnique);
 		};
-		Split3<Axis::Y>(bind(&Node::Split3<Axis::X, decltype(createChildNode)>, this, createChildNode, _1/*begin*/, _2/*end*/, splitPoint, _3/*idxOffset*/), begin, end, splitPoint, idxOffset);
+		Split3<Axis::Y>(bind(&Node::Split3<Axis::X, decltype(createChildNode)>, this, createChildNode, _1/*splitted*/, _2/*begin*/, _3/*end*/, splitPoint, _4/*idxOffset*/), splitted, begin, end, splitPoint, idxOffset);
 	}
 
 	// 1 call site
-	template<class Object, TreeStructure treeStructure>
-	inline void BVH<Object, treeStructure>::Node::SplitIcoseptree(typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, decltype(aabb.Center()) splitPoint)
+	template<class Object, class CustomNodeData, TreeStructure treeStructure>
+	inline void BVH<Object, CustomNodeData, treeStructure>::Node::SplitIcoseptree(bool &splitted, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, decltype(aabb.Center()) splitPoint)
 	{
 		using namespace std;
 		using namespace placeholders;
 
-		Split3<Axis::Z>(bind(&Node::SplitEneaTree, this, _1/*begin*/, _2/*end*/, splitTechnique, splitPoint, _3/*idxOffset*/), begin, end, splitPoint);
+		Split3<Axis::Z>(bind(&Node::SplitEneaTree, this, _1/*splitted*/, _2/*begin*/, _3/*end*/, splitTechnique, splitPoint, _4/*idxOffset*/), splitted, begin, end, splitPoint);
 	}
 
-	template<class Object, TreeStructure treeStructure>
-	void BVH<Object, treeStructure>::Node::TraverseOrdered(const std::function<void (Node &node)> &nodeHandler)
+	template<class Object, class CustomNodeData, TreeStructure treeStructure>
+	template<typename ...Args, typename F>
+	void BVH<Object, CustomNodeData, treeStructure>::Node::Traverse(F &nodeHandler, Args ...args)
 	{
 		using namespace std;
 
-		if (visible)
+		if (nodeHandler(*this, args...))
 		{
-			nodeHandler(*this);
-
-			for_each(cbegin(childrenOrder), next(cbegin(childrenOrder), childrenCount), [](remove_extent_t<decltype(childrenOrder)> idx)
+#if _MSC_VER && _MSC_VER <= 1910
+			for_each(cbegin(childrenOrder), next(cbegin(childrenOrder), childrenCount), [&](remove_extent_t<decltype(childrenOrder)> idx)
+#else
+			for_each_n(cbegin(childrenOrder), childrenCount, [&](remove_extent_t<decltype(childrenOrder)> idx)
+#endif
 			{
-				TraverseOrdered(children[idx], nodeHandler);
+				children[idx]->Traverse(nodeHandler, args...);
 			});
 		}
 	}
 
-	template<class Object, TreeStructure treeStructure>
-	void BVH<Object, treeStructure>::Node::TraverseParallel(const std::function<void (Node &node)> &nodeHandler, const std::optional<const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension>> &frustumCuller, const HLSL::float4x3 *depthSortXform, bool parentFullyVisible)
+	template<class Object, class CustomNodeData, TreeStructure treeStructure>
+	std::pair<unsigned long int, bool> BVH<Object, CustomNodeData, treeStructure>::Node::Shcedule(const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
+		bool parentInsideFrustum, float parentOcclusionCulledProjLength, float parentOcclusion)
 	{
 		using namespace std;
 
 		// cull if necessary
-		if (!parentFullyVisible)
+		if (!parentInsideFrustum)
 		{
-			if (frustumCuller)
+			switch (frustumCuller.Cull<false>(aabb))
 			{
-				switch (frustumCuller->Cull<false>(aabb))
-				{
-				case CullResult::OUTSIDE:
-					visible = false;
-					break;
-				case CullResult::INSIDE:
-					parentFullyVisible = true;
-					[[fallthrough]];
-				case CullResult::UNDETERMINED:
-					visible = true;
-					break;
-				}
+			case CullResult::OUTSIDE:
+				visibility = Visibility::Culled;
+				return { GetInclusiveTriCount(), false };
+			case CullResult::INSIDE:
+				parentInsideFrustum = true;
+				break;
 			}
-			if (!visible)
-				return;
 		}
+
+		// pre
+#if 1
+		const auto clipSpaceAABB = MakeClipSpaceAABB(frustumXform, GetAABB());
+#else
+		const ClipSpaceAABB clipSpaceAABB(frustumXform, GetAABB());
+#endif
+		const AABB<3> NDCSpaceAABB(clipSpaceAABB);
+		const HLSL::float2 aabbProjSize = NDCSpaceAABB.Size();
+		const float aabbProjSquare = aabbProjSize.x * aabbProjSize.y;
+		const float aabbProjLength = fmax(aabbProjSize.x, aabbProjSize.y);
+		bool cancelQueryDueToParent = false;
+		// TODO: replace 'z >= 0 && w > 0' with 'w >= znear' and use 2D NDC space AABB
+		if (shceduleOcclusionQuery = NDCSpaceAABB.min.z >= 0.f && clipSpaceAABB.MinW() > 0.f && OcclusionCulling::QueryBenefit(aabbProjSquare, GetInclusiveTriCount()) &&
+			!(cancelQueryDueToParent = (parentOcclusionCulledProjLength <= OcclusionCulling::nodeProjLengthThreshold || aabbProjLength / parentOcclusionCulledProjLength >= OcclusionCulling::nestedNodeProjLengthShrinkThreshold) && parentOcclusion < OcclusionCulling::parentOcclusionThreshold))
+		{
+			parentOcclusionCulledProjLength = aabbProjLength;
+			parentOcclusion = GetOcclusion();
+		}
+		else
+			parentOcclusion += GetOcclusion() - parentOcclusion * GetOcclusion();
+
+		unsigned long int childrenCulledTris = 0;
+		bool childQueryCanceled = false;
 
 		if (childrenCount)
 		{
 			// consider using thread pool instead of async
-			future<void> childrenResults[extent_v<decltype(children)>];
+			future<pair<unsigned long int, bool>> childrenResults[extent_v<decltype(children)>];
 			// launch
-			transform(next(cbegin(children)), next(cbegin(children), childrenCount), begin(childrenResults), [&nodeHandler, &frustumCuller, depthSortXform, parentFullyVisible](const remove_extent_t<decltype(children)> &child)
+			transform(next(cbegin(children)), next(cbegin(children), childrenCount), begin(childrenResults), [=, /*&nodeHandler, */&frustumCuller, &frustumXform](const remove_extent_t<decltype(children)> &child)
 			{
-				return async(&Node::TraverseParallel, child.get(), cref(nodeHandler), cref(frustumCuller), depthSortXform, parentFullyVisible);
+				return async(&Node::Shcedule, child.get(), /*cref(nodeHandler), */cref(frustumCuller), cref(frustumXform), depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
 			});
 
 			// traverse first child in this thread
-			children[0]->TraverseParallel(nodeHandler, frustumCuller, depthSortXform, parentFullyVisible);
+			// TODO: use C++17 structured bindings
+			const auto childResult = children[0]->Shcedule(/*nodeHandler, */frustumCuller, frustumXform, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
+			childrenCulledTris = childResult.first;
+			childQueryCanceled = childResult.second;
 
 			// sort if necessary
 			if (depthSortXform)
@@ -306,25 +354,68 @@ namespace Renderer::Impl::Hierarchy
 				});
 			}
 
-			// wait (maybe future dtor is sufficient?)
-			for_each(begin(childrenResults), next(begin(childrenResults), childrenCount - 1), mem_fn(&future<void>::get));
+#if _MSC_VER && _MSC_VER <= 1910
+			for_each(begin(childrenResults), next(begin(childrenResults), childrenCount - 1), [&childrenCulledTris, &childQueryCanceled](remove_extent_t<decltype(childrenResults)> &childResult)
+#else
+			for_each_n(begin(childrenResults), childrenCount - 1, [&childrenCulledTris, &childQueryCanceled](remove_extent_t<decltype(childrenResults)> &childResult)
+#endif
+			{
+				const auto resolvedResult = childResult.get();
+				childrenCulledTris += resolvedResult.first;
+				childQueryCanceled |= resolvedResult.second;
+			});
 		}
+
+		// post
+		visibility = childrenCulledTris ? Visibility::Composite : Visibility::Atomic;
+		assert(!(shceduleOcclusionQuery && cancelQueryDueToParent));
+		__assume(!(shceduleOcclusionQuery && cancelQueryDueToParent));
+		/*
+		shceduleOcclusionQuery == true (=> cancelQueryDueToParent == false)									|	reevaluate shceduleOcclusionQuery if childQueryCanceled == false, otherwise keep shceduled unconditionally
+		cancelQueryDueToParent == true (=> shceduleOcclusionQuery == false) && childQueryCanceled == false	|	reevaluate cancelQueryDueToParent and propagate it as childQueryCanceled
+		shceduleOcclusionQuery == false && childQueryCanceled == true										|	propagate childQueryCanceled == true unconditionally
+		*/
+		if (shceduleOcclusionQuery || cancelQueryDueToParent && !childQueryCanceled)
+		{
+			const unsigned long int restTris = GetInclusiveTriCount() - childrenCulledTris;
+			bool queryNeeded = childQueryCanceled || OcclusionCulling::QueryBenefit(aabbProjSquare, restTris);
+			if (queryNeeded)
+			{
+				const Node *boxes[OcclusionCulling::maxOcclusionQueryBoxes];
+				const unsigned long int exludedTris = CollectOcclusionQueryBoxes(begin(boxes), end(boxes)).first;
+				// reevaluate query benefit after excluding cheap objects during box collection
+				if (queryNeeded = childQueryCanceled || OcclusionCulling::QueryBenefit(aabbProjSquare, restTris - exludedTris))
+				{
+					childQueryCanceled = cancelQueryDueToParent;	// propagate if 'cancelQueryDueToParent == true', reset to false otherwise (shceduleOcclusionQuery == true)
+					if (shceduleOcclusionQuery)
+					{
+						if (exludedTris && exludedTris != GetExclusiveTriCount())
+							visibility = Visibility::Composite;
+						childrenCulledTris = GetInclusiveTriCount();	// ' - exludedTris' ?
+						const auto boxesEnd = remove(begin(boxes), end(boxes), nullptr);
+						// ...
+					}
+				}
+			}
+			shceduleOcclusionQuery &= queryNeeded;
+		}
+		return { childrenCulledTris, childQueryCanceled };
 	}
 
 	// returns <exluded tris, accumulated AABB measure>
-	template<class Object, TreeStructure treeStructure>
-	std::pair<unsigned long int, float> BVH<Object, treeStructure>::Node::CollectOcclusionQueryBoxes(const Node **boxesBegin, const Node **boxesEnd) const
+	template<class Object, class CustomNodeData, TreeStructure treeStructure>
+	std::pair<unsigned long int, float> BVH<Object, CustomNodeData, treeStructure>::Node::CollectOcclusionQueryBoxes(const Node **boxesBegin, const Node **boxesEnd)
 	{
 		using namespace std;
 
-		const auto childrenFilter = [](const remove_extent_t<decltype(children)> &child) { return child->visible && !child->shceduleOcclusionQuery; };
+		const auto childrenFilter = [](const remove_extent_t<decltype(children)> &child) { return child->visibility != Visibility::Culled && !child->shceduleOcclusionQuery; };
 		const auto filteredChildrenCount = count_if(cbegin(children), next(cbegin(children), childrenCount), childrenFilter);
 		const auto boxesCount = distance(boxesBegin, boxesEnd);
 		const float thisNodeMeasure = aabb.Measure();
 		
 		if (filteredChildrenCount > 0 && boxesCount >= filteredChildrenCount && GetExclusiveTriCount() <= OcclusionCulling::exclusiveTriCountCullThreshold)
 		{
-			unsigned long int excludedTris = 0;
+			unsigned long int excludedTris = GetExclusiveTriCount();
 			float accumulatedChildrenMeasure = 0.f;
 			const auto collectFromChild = [minBoxesPerNode = boxesCount / filteredChildrenCount, additionalBoxes = boxesCount % filteredChildrenCount, segmentBegin = boxesBegin,
 				&excludedTris, &accumulatedChildrenMeasure, childrenFilter](const remove_extent_t<decltype(children)> &child) mutable
@@ -352,19 +443,20 @@ namespace Renderer::Impl::Hierarchy
 			// return children boxes only if they are smaller than this node's box
 			if (accumulatedChildrenMeasure / thisNodeMeasure < OcclusionCulling::accumulatedChildrenMeasureShrinkThreshold)
 			{
-				cullExlusiveObjects = false;
+				cullWholeNode = false;
 				return { excludedTris, accumulatedChildrenMeasure };
 			}
 		}
 
 		*boxesBegin = this;
 		fill(next(boxesBegin), boxesEnd, nullptr);
-		cullExlusiveObjects = true;
+		cullWholeNode = true;
 		return { 0ul, thisNodeMeasure };
 	}
 
-	template<class Object, TreeStructure treeStructure>
-	BVH<Object, treeStructure>::BVH(SplitTechnique splitTechnique, ...)
+	template<class Object, class CustomNodeData, TreeStructure treeStructure>
+	template<typename Iterator>
+	BVH<Object, CustomNodeData, treeStructure>::BVH(Iterator objBegin, Iterator objEnd, SplitTechnique splitTechnique, ...) : objects(objBegin, objEnd)
 	{
 		switch (treeStructure)
 		{
@@ -385,18 +477,25 @@ namespace Renderer::Impl::Hierarchy
 		}
 	}
 
-	template<class Object, TreeStructure treeStructure>
-	inline void BVH<Object, treeStructure>::TraverseOrdered(const std::function<void (Node &node)> &nodeHandler)
+	// nodeHandler returns false to stop traversal
+	template<class Object, class CustomNodeData, TreeStructure treeStructure>
+	template<typename ...Args, typename F>
+	inline void BVH<Object, CustomNodeData, treeStructure>::Traverse(F &nodeHandler, const Args &...args)
 	{
-		root->TraverseOrdered(nodeHandler);
+		root->Traverse(nodeHandler, args...);
 	}
 
-	template<class Object, TreeStructure treeStructure>
-	inline void BVH<Object, treeStructure>::TraverseParallel(const std::function<void (Node &node)> &nodeHandler, const HLSL::float4x4 *frustumXform, const HLSL::float4x3 *depthSortXform)
+	template<class Object, class CustomNodeData, TreeStructure treeStructure>
+	inline void BVH<Object, CustomNodeData, treeStructure>::Shcedule(const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform)
 	{
-		std::optional<const FrustumCuller<decltype(std::declval<Object>().GetAABB().Center())::dimension>> frustumCuller;
-		if (frustumXform)
-			frustumCuller.emplace(*frustumXform);
-		root->TraverseParallel(nodeHandler, frustumCuller, depthSortXform);
+		const FrustumCuller<decltype(std::declval<Object>().GetAABB().Center())::dimension> frustumCuller(frustumXform);
+		root->Shcedule(frustumCuller, frustumXform, depthSortXform);
+	}
+
+	template<class Object, class CustomNodeData, TreeStructure treeStructure>
+	void BVH<Object, CustomNodeData, treeStructure>::FreeObjects()
+	{
+		objects.clear();
+		objects.shrink_to_fit();
 	}
 }

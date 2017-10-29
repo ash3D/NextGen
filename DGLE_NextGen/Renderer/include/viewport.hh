@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.07.2017 (c)Korotkov Andrey
+\date		29.10.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -12,6 +12,7 @@ See "DGLE.h" for more details.
 #include <limits>
 #include <memory>
 #include <wrl/client.h>
+#include "../frame versioning.h"
 
 struct ID3D12Fence;
 struct ID3D12CommandAllocator;
@@ -37,27 +38,25 @@ namespace Renderer
 
 		class Viewport
 		{
-			static constexpr unsigned int cmdListOverlapLimit = 3;
-
-		private:
-			mutable UINT64 fenceValue = 0;
-			class EventHandle
+			template<class Cmd>
+			struct PrePostCmds
 			{
-				const HANDLE handle;
+				Cmd pre, post;
+			};
+			mutable class CmdListsManager : FrameVersioning<PrePostCmds<ComPtr<ID3D12CommandAllocator>>>
+			{
+				PrePostCmds<ComPtr<ID3D12GraphicsCommandList1>> cmdLists;
 
 			public:
-				EventHandle();
-				~EventHandle();
-				EventHandle(EventHandle &) = delete;
-				void operator =(EventHandle &) = delete;
+				CmdListsManager();
 
 			public:
-				operator HANDLE () const noexcept { return handle; }
-			} fenceEvent;
-			ComPtr<ID3D12Fence> fence;
-			mutable ComPtr<ID3D12CommandAllocator> cmdAllocsStore[cmdListOverlapLimit];
-			mutable unsigned short cmdAllocCount = 1, curCmdAllocIdx = 0;
-			ComPtr<ID3D12GraphicsCommandList1> cmdList;
+				PrePostCmds<ID3D12GraphicsCommandList1 *> OnFrameStart();
+				using FrameVersioning::OnFrameFinish;
+
+			private:
+				auto GetCmdAllocators() -> decltype(GetCurFrameDataVersion());
+			} cmdListsManager;
 
 		private:
 			const shared_ptr<const class Renderer::World> world;
@@ -66,7 +65,7 @@ namespace Renderer
 		protected:
 		public:
 			explicit Viewport(shared_ptr<const Renderer::World> world);
-			~Viewport();
+			~Viewport() = default;
 			void operator =(Viewport &) = delete;
 			void operator =(Viewport &&) = delete;
 
@@ -77,11 +76,6 @@ namespace Renderer
 		protected:
 			void UpdateAspect(double invAspect);
 			void Render(ID3D12Resource *rt, const D3D12_CPU_DESCRIPTOR_HANDLE &rtv, UINT width, UINT height) const;
-			void Signal() const;
-			void WaitForGPU() const { WaitForGPU(fenceValue); }
-
-		private:
-			void WaitForGPU(UINT64 waitFenceValue) const;
 		};
 	}
 

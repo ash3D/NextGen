@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		20.08.2017 (c)Korotkov Andrey
+\date		29.10.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -59,7 +59,7 @@ std::pair<Resource, unsigned long> Renderer::GPUMemoryStreamedAllocator<Resource
 
 // NOTE: not thread-safe
 template<class Resource>
-void Renderer::GPUMemoryStreamedAllocator<Resource>::OnFrameEnd(UINT64 fenceValue)
+void Renderer::GPUMemoryStreamedAllocator<Resource>::OnFrameFinish(UINT64 fenceValue)
 {
 	const UINT64 reachedFenceFalue;
 	while (!retiredFrames.empty() && retiredFrames.front().fenceValue <= reachedFenceFalue)

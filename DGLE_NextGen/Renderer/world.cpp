@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		19.08.2017 (c)Korotkov Andrey
+\date		29.10.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -13,6 +13,7 @@ See "DGLE.h" for more details.
 #include "terrain.hh"
 #include "world hierarchy.inl"
 #include "occlusion query shceduling.h"
+#include "frame versioning.h"
 
 #include "terrainBaseVS.csh"
 #include "terrainBasePS.csh"
@@ -46,7 +47,7 @@ static constexpr inline auto AlignSize(UInt x)
 
 static constexpr unsigned int CB_overlap = 3, terrainCB_dataSize = sizeof(float[4][4]) * 3, terrainCB_storeSize = AlignSize<D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT>(terrainCB_dataSize);
 
-Impl::World::World(const float(&terrainXform)[4][3]) : bvh(Hierarchy::SplitTechnique::MEAN, .5f)
+Impl::World::World(const float(&terrainXform)[4][3])// : bvh(Hierarchy::SplitTechnique::MEAN, .5f)
 {
 	extern ComPtr<ID3D12Device2> device;
 
@@ -178,80 +179,16 @@ Impl::World::World(const float(&terrainXform)[4][3]) : bvh(Hierarchy::SplitTechn
 
 Impl::World::~World() = default;
 
-void Impl::World::Render(const float (&viewXform)[4][3], const float (&projXform)[4][4], ID3D12GraphicsCommandList1 *cmdList, unsigned overlapIdx) const
+function<void (ID3D12GraphicsCommandList1 *target)> Impl::World::Render(const float (&viewXform)[4][3], const float (&projXform)[4][4], const function<void (ID3D12GraphicsCommandList1 *target)> &setupRenderOutputCallback) const
 {
 	using namespace placeholders;
 
 	const float4x3 viewTransform(viewXform);
 	const float4x4 frustumTransform = mul(float4x4(viewTransform[0], 0.f, viewTransform[1], 0.f, viewTransform[2], 0.f, viewTransform[3], 1.f), float4x4(projXform));
-	class NodeShceduler
-	{
-		const float4x4 &frustumTransform;
-		AABB<2> screenSpaceAABB;
-		float aabbProjSquare;
-		bool cancelQueryDueToParent = false;
+	//bvh.Shcedule(/*bind(&World::ScheduleNode, this, _1),*/ frustumTransform, &viewTransform);
 
-	public:
-		explicit NodeShceduler(const float4x4 &frustumTransform) : frustumTransform(frustumTransform)
-		{}
-
-	public:
-		pair<float, float> Pre(decltype(bvh)::Node &node, float parentOcclusionCulledProjLength = INFINITY, float parentOcclusion = 0)
-		{
-			const ClipSpaceAABB<3> clipSpaceAABB(frustumTransform, node.GetAABB());
-			const AABB<3> NDCSpaceAABB(clipSpaceAABB);
-			const float2 aabbProjSize = NDCSpaceAABB.Size();
-			aabbProjSquare = aabbProjSize.x * aabbProjSize.y;
-			const float aabbProjLength = fmax(aabbProjSize.x, aabbProjSize.y);
-			// TODO: replace 'z >= 0 && w > 0' with 'w >= znear' and use 2D NDC space AABB
-			if (node.shceduleOcclusionQuery = NDCSpaceAABB.min.z >= 0.f && clipSpaceAABB.MinW() > 0.f && OcclusionCulling::QueryBenefit(aabbProjSquare, node.GetInclusiveTriCount()) &&
-				!(cancelQueryDueToParent = (parentOcclusionCulledProjLength <= OcclusionCulling::nodeProjLengthThreshold || aabbProjLength / parentOcclusionCulledProjLength >= OcclusionCulling::nestedNodeProjLengthShrinkThreshold) && parentOcclusion < OcclusionCulling::parentOcclusionThreshold))
-			{
-				parentOcclusionCulledProjLength = aabbProjLength;
-				parentOcclusion = node.GetOcclusion();
-			}
-			else
-				parentOcclusion += node.GetOcclusion() - parentOcclusion * node.GetOcclusion();
-			return { parentOcclusionCulledProjLength, parentOcclusion };
-		}
-
-		pair<unsigned long int, bool> Post(decltype(bvh)::Node &node, unsigned long int childrenOcclusionCulledTris, bool childQueryCanceled)
-		{
-			assert(!(node.shceduleOcclusionQuery && cancelQueryDueToParent));
-			__assume(!(node.shceduleOcclusionQuery && cancelQueryDueToParent));
-			/*
-			node.shceduleOcclusionQuery == true (=> cancelQueryDueToParent == false)								|	reevaluate node.shceduleOcclusionQuery if childQueryCanceled == false, otherwise keep shceduled unconditionally
-			cancelQueryDueToParent == true (=> node.shceduleOcclusionQuery == false) && childQueryCanceled == false	|	reevaluate cancelQueryDueToParent and propagate it as childQueryCanceled
-			node.shceduleOcclusionQuery == false && childQueryCanceled == true										|	propagate childQueryCanceled == true unconditionally
-			*/
-			if (node.shceduleOcclusionQuery || cancelQueryDueToParent && !childQueryCanceled)
-			{
-				const unsigned long int restTris = node.GetInclusiveTriCount() - childrenOcclusionCulledTris;
-				bool queryNeeded = childQueryCanceled || OcclusionCulling::QueryBenefit(aabbProjSquare, restTris);
-				if (queryNeeded)
-				{
-					const decltype(bvh)::Node *boxes[OcclusionCulling::maxOcclusionQueryBoxes];
-					const unsigned long int exludedTris = node.CollectOcclusionQueryBoxes(begin(boxes), end(boxes)).first;
-					// reevaluate query benefit after excluding cheap objects during box collection
-					if (queryNeeded = childQueryCanceled || OcclusionCulling::QueryBenefit(aabbProjSquare, restTris - exludedTris))
-					{
-						childQueryCanceled = cancelQueryDueToParent;	// propagate if 'cancelQueryDueToParent == true', reset to false otherwise (node.shceduleOcclusionQuery == true)
-						if (node.shceduleOcclusionQuery)
-						{
-							childrenOcclusionCulledTris = node.GetInclusiveTriCount();
-							const auto boxesEnd = remove(begin(boxes), end(boxes), nullptr);
-							// ...
-						}
-					}
-				}
-				node.shceduleOcclusionQuery &= queryNeeded;
-			}
-			return { childrenOcclusionCulledTris, childQueryCanceled };
-		}
-	} nodeSheduler(frustumTransform);
-	bvh.TraverseParallel(bind(&World::ScheduleNode, this, _1), &frustumTransform, &viewTransform);
-
-	const auto CB_offset = terrainCB_storeSize * overlapIdx;
+	const auto CB_offset = terrainCB_storeSize * ringBufferIdx++;
+	ringBufferIdx %= maxFrameLatency;
 
 	// update CB
 	{
@@ -274,23 +211,36 @@ void Impl::World::Render(const float (&viewXform)[4][3], const float (&projXform
 #endif
 	}
 
-	cmdList->SetPipelineState(terrainBasePSO.Get());
-	cmdList->SetGraphicsRootSignature(terrainBaseRootSig.Get());
-	cmdList->SetGraphicsRootConstantBufferView(0, terrainCB->GetGPUVirtualAddress() + CB_offset);
-	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-	cmdList->DrawInstanced(4, 1, 0, 0);
-
-	cmdList->SetPipelineState(terrainVectorLayerPSO.Get());
-	cmdList->SetGraphicsRootSignature(terrainVectorLayerRootSig.Get());
-	cmdList->SetGraphicsRootConstantBufferView(0, terrainCB->GetGPUVirtualAddress() + CB_offset);
-	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	const float4x3 terrainTransform(terrainXform);
+	const float4x4 terrainFrustumXform = mul(float4x4(terrainTransform[0], 0.f, terrainTransform[1], 0.f, terrainTransform[2], 0.f, terrainTransform[3], 1.f), frustumTransform);
+	const function<void (ID3D12GraphicsCommandList1 *target)> terrainMainPassSetupCallback =
+		[
+			&setupRenderOutputCallback,
+			rootSig = terrainVectorLayerRootSig,
+			CB_location = terrainCB->GetGPUVirtualAddress() + CB_offset
+		](ID3D12GraphicsCommandList1 *cmdList)
+	{
+		setupRenderOutputCallback(cmdList);
+		cmdList->SetGraphicsRootSignature(rootSig.Get());
+		cmdList->SetGraphicsRootConstantBufferView(0, CB_location);
+	};
 	for (const auto &layer : terrainVectorLayers)
-		layer.Render(cmdList);
+		layer.ShceduleRenderStage(terrainFrustumXform, terrainMainPassSetupCallback);
+
+	return [&setupRenderOutputCallback, PSO = terrainBasePSO, rootSig = terrainBaseRootSig, CB_location = terrainCB->GetGPUVirtualAddress() + CB_offset](ID3D12GraphicsCommandList1 *cmdList)
+	{
+		setupRenderOutputCallback(cmdList);
+		cmdList->SetPipelineState(PSO.Get());
+		cmdList->SetGraphicsRootSignature(rootSig.Get());
+		cmdList->SetGraphicsRootConstantBufferView(0, CB_location);
+		cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+		cmdList->DrawInstanced(4, 1, 0, 0);
+	};
 }
 
-void Impl::World::ScheduleNode(decltype(bvh)::Node &node) const
-{
-}
+//void Impl::World::ScheduleNode(decltype(bvh)::Node &node) const
+//{
+//}
 
 shared_ptr<Renderer::Viewport> Impl::World::CreateViewport() const
 {
@@ -312,7 +262,7 @@ auto Impl::World::AddTerrainVectorLayer(unsigned int layerIdx, const float (&col
 		operator unsigned int () const noexcept { return idx; }
 	};
 	const auto insertLocation = upper_bound(terrainVectorLayers.cbegin(), terrainVectorLayers.cend(), layerIdx, less<Idx>());
-	const auto inserted = terrainVectorLayers.emplace(insertLocation, shared_from_this(), layerIdx, color);
+	const auto inserted = terrainVectorLayers.emplace(insertLocation, shared_from_this(), layerIdx, color, terrainVectorLayerPSO);
 	// consider using custom allocator for shared_ptr's internal data in order to improve memory management
 	return { &*inserted, [inserted](TerrainVectorLayer *layerToRemove) { layerToRemove->world->terrainVectorLayers.erase(inserted); } };
 }

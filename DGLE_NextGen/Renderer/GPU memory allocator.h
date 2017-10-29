@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		20.08.2017 (c)Korotkov Andrey
+\date		29.10.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -35,7 +35,7 @@ namespace Renderer
 
 	public:
 		std::pair<Resource, unsigned long> Allocate(unsigned long count);
-		void OnFrameEnd(UINT64 fenceValue);
+		void OnFrameFinish(UINT64 fenceValue);
 	};
 }
 
