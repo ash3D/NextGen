@@ -16,14 +16,13 @@ namespace Renderer::CmdListPool
 {
 	class CmdList
 	{
-		size_t allocIdx, listIdx;
+		size_t poolIdx;
 		void (CmdList::*setup)(ID3D12PipelineState *PSO) = &CmdList::Init;
 
 	public:
 		explicit CmdList();
-		CmdList(CmdList &&src);
-		CmdList &operator =(CmdList &&src);
-		~CmdList();
+		CmdList(CmdList &&src) = default;
+		CmdList &operator =(CmdList &&src) = default;
 
 	public:
 		operator ID3D12GraphicsCommandList1 *() const;

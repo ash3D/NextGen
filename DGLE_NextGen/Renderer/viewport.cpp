@@ -38,44 +38,34 @@ static inline RenderPipeline::PipelineStage Post(ID3D12GraphicsCommandList1 *cmd
 	return cmdList;
 }
 
-Impl::Viewport::CmdListsManager::CmdListsManager()
-{
-	auto &allocs = GetCmdAllocators();
-	CheckHR(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, allocs.pre.Get(), NULL, IID_PPV_ARGS(&cmdLists.pre)));
-	CheckHR(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, allocs.post.Get(), NULL, IID_PPV_ARGS(&cmdLists.post)));
-}
-
 // result valid until call to 'OnFrameFinish()'
 auto Impl::Viewport::CmdListsManager::OnFrameStart() -> PrePostCmds<ID3D12GraphicsCommandList1 *>
 {
-	assert(cmdLists.pre && cmdLists.post);
 	FrameVersioning::OnFrameStart();
+	auto &cmdBuffers = GetCurFrameDataVersion();
 
-	// skip first time (list created ready to use in ctor)
-	if (GetCurFrameID() > 1)
+	if (cmdBuffers.pre.allocator && cmdBuffers.post.allocator && cmdBuffers.pre.list && cmdBuffers.post.list)
 	{
-		auto &allocs = GetCmdAllocators();
-		CheckHR(cmdLists.pre->Reset(allocs.pre.Get(), NULL));
-		CheckHR(cmdLists.post->Reset(allocs.post.Get(), NULL));
-	}
+		// reset allocators
+		CheckHR(cmdBuffers.pre.allocator->Reset());
+		CheckHR(cmdBuffers.post.allocator->Reset());
 
-	return { cmdLists.pre.Get(), cmdLists.post.Get() };
-}
-
-auto Impl::Viewport::CmdListsManager::GetCmdAllocators() -> decltype(GetCurFrameDataVersion())
-{
-	auto &allocs = GetCurFrameDataVersion();
-	if (allocs.pre && allocs.post)
-	{
-		CheckHR(allocs.pre->Reset());
-		CheckHR(allocs.post->Reset());
+		// reset lists
+		CheckHR(cmdBuffers.pre.list->Reset(cmdBuffers.pre.allocator.Get(), NULL));
+		CheckHR(cmdBuffers.post.list->Reset(cmdBuffers.post.allocator.Get(), NULL));
 	}
 	else
 	{
-		CheckHR(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&allocs.pre)));
-		CheckHR(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&allocs.post)));
+		// create allocators
+		CheckHR(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&cmdBuffers.pre.allocator)));
+		CheckHR(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&cmdBuffers.post.allocator)));
+
+		// create lists
+		CheckHR(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, cmdBuffers.pre.allocator.Get(), NULL, IID_PPV_ARGS(&cmdBuffers.pre.list)));
+		CheckHR(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, cmdBuffers.post.allocator.Get(), NULL, IID_PPV_ARGS(&cmdBuffers.post.list)));
 	}
-	return allocs;
+
+	return { cmdBuffers.pre.list.Get(), cmdBuffers.post.list.Get() };
 }
 
 Impl::Viewport::Viewport(shared_ptr<const Renderer::World> world) : world(move(world)), viewXform(), projXform()

@@ -16,6 +16,7 @@ See "DGLE.h" for more details.
 
 struct ID3D12Fence;
 struct ID3D12CommandAllocator;
+struct ID3D12GraphicsCommandList1;
 
 namespace Renderer::Impl
 {
@@ -75,8 +76,13 @@ namespace Renderer::Impl
 		void OnFrameFinish();
 	};
 
-	// Data here is a cmd list pool
-	extern std::optional<FrameVersioning<std::vector<WRL::ComPtr<ID3D12CommandAllocator>>>> globalFrameVersioning;
+	struct CmdBuffer
+	{
+		WRL::ComPtr<ID3D12CommandAllocator> allocator;
+		WRL::ComPtr<ID3D12GraphicsCommandList1> list;
+	};
+	// Data here is a cmd buffer pool
+	extern std::optional<FrameVersioning<std::vector<CmdBuffer>>> globalFrameVersioning;
 
 	// template impl
 	template<class Data>

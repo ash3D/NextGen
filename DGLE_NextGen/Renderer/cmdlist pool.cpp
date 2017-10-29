@@ -17,62 +17,39 @@ using namespace CmdListPool;
 using Impl::globalFrameVersioning;
 using Microsoft::WRL::ComPtr;
 
-static remove_reference_t<decltype(globalFrameVersioning->GetCurFrameDataVersion())>::size_type firstFreeAllocIdx;
-static vector<ComPtr<ID3D12GraphicsCommandList1>> lstPool;
-static decltype(lstPool)::size_type firstUsedListIdx;
+static remove_reference_t<decltype(globalFrameVersioning->GetCurFrameDataVersion())>::size_type firstFreePoolIdx;
 
-CmdList::CmdList() : allocIdx(firstFreeAllocIdx++), listIdx(firstUsedListIdx ? --firstUsedListIdx : lstPool.size())
+CmdList::CmdList() : poolIdx(firstFreePoolIdx++)
 {
-	auto &curFrameAllocPool = globalFrameVersioning->GetCurFrameDataVersion();
-	if (curFrameAllocPool.size() < firstFreeAllocIdx)
-		curFrameAllocPool.emplace_back();
-	if (listIdx == lstPool.size())
-		lstPool.emplace_back();
-}
-
-CmdList::CmdList(CmdList &&src) : allocIdx(src.allocIdx), listIdx(src.listIdx), setup(src.setup)
-{
-	src.setup = nullptr;
-}
-
-CmdList &CmdList::operator =(CmdList &&src)
-{
-	CmdList temp(move(src));
-	swap(allocIdx, temp.allocIdx);
-	swap(listIdx, temp.listIdx);
-	swap(setup, temp.setup);
-	return *this;
-}
-
-CmdList::~CmdList()
-{
-	if (setup)
-		lstPool[listIdx].Swap(lstPool[firstUsedListIdx++]);
+	auto &curFramePool = globalFrameVersioning->GetCurFrameDataVersion();
+	if (curFramePool.size() < firstFreePoolIdx)
+		curFramePool.emplace_back();
 }
 
 CmdList::operator ID3D12GraphicsCommandList1 *() const
 {
-	assert(lstPool[listIdx]);
-	return lstPool[listIdx].Get();
+	const auto &list = globalFrameVersioning->GetCurFrameDataVersion()[poolIdx].list;
+	assert(list);
+	return list.Get();
 }
 
 void CmdList::Init(ID3D12PipelineState *PSO)
 {
 	extern ComPtr<ID3D12Device2> device;
 
-	// get allocator
-	auto &alloc = globalFrameVersioning->GetCurFrameDataVersion()[allocIdx];
-	if (alloc)
-		CheckHR(alloc->Reset());
+	auto &curFramePool = globalFrameVersioning->GetCurFrameDataVersion()[poolIdx];
+	if (curFramePool.allocator && curFramePool.list)
+	{
+		// reset
+		CheckHR(curFramePool.allocator->Reset());
+		CheckHR(curFramePool.list->Reset(curFramePool.allocator.Get(), PSO));
+	}
 	else
-		CheckHR(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(alloc.GetAddressOf())));
-
-	// get list
-	auto &lst = lstPool[listIdx];
-	if (lst)
-		CheckHR(lst->Reset(alloc.Get(), PSO));
-	else
-		CheckHR(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, alloc.Get(), PSO, IID_PPV_ARGS(lst.GetAddressOf())));
+	{
+		// create
+		CheckHR(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(curFramePool.allocator.GetAddressOf())));
+		CheckHR(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, curFramePool.allocator.Get(), PSO, IID_PPV_ARGS(curFramePool.list.GetAddressOf())));
+	}
 
 	setup = &CmdList::Update;
 }
@@ -85,5 +62,5 @@ void CmdList::Update(ID3D12PipelineState *PSO)
 
 void CmdListPool::OnFrameFinish()
 {
-	firstFreeAllocIdx = 0;
+	firstFreePoolIdx = 0;
 }

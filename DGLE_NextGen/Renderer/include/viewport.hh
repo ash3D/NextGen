@@ -43,19 +43,11 @@ namespace Renderer
 			{
 				Cmd pre, post;
 			};
-			mutable class CmdListsManager : FrameVersioning<PrePostCmds<ComPtr<ID3D12CommandAllocator>>>
+			mutable class CmdListsManager : FrameVersioning<PrePostCmds<CmdBuffer>>
 			{
-				PrePostCmds<ComPtr<ID3D12GraphicsCommandList1>> cmdLists;
-
-			public:
-				CmdListsManager();
-
 			public:
 				PrePostCmds<ID3D12GraphicsCommandList1 *> OnFrameStart();
 				using FrameVersioning::OnFrameFinish;
-
-			private:
-				auto GetCmdAllocators() -> decltype(GetCurFrameDataVersion());
 			} cmdListsManager;
 
 		private:
