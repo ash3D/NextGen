@@ -14,6 +14,9 @@ See "DGLE.h" for more details.
 #include "frustum culling.h"
 #include "occlusion query shceduling.h"
 
+// thread pool based MSVC's std::async implementation can lead to deadlocks during tree traverse, alternative technique needed
+#define MULTITHREADED_TREE_TRAVERSE 0
+
 namespace Renderer::Impl::Hierarchy
 {
 	template<class AABB>
@@ -323,6 +326,7 @@ namespace Renderer::Impl::Hierarchy
 
 		if (childrenCount)
 		{
+#if MULTITHREADED_TREE_TRAVERSE
 			// consider using thread pool instead of async
 			future<pair<unsigned long int, bool>> childrenResults[extent_v<decltype(children)>];
 			// launch
@@ -336,6 +340,18 @@ namespace Renderer::Impl::Hierarchy
 			const auto childResult = children[0]->Shcedule(/*nodeHandler, */frustumCuller, frustumXform, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
 			childrenCulledTris = childResult.first;
 			childQueryCanceled = childResult.second;
+#else
+#if _MSC_VER && _MSC_VER <= 1910
+			for_each(cbegin(children), next(cbegin(children), childrenCount), [&, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion](const remove_extent_t<decltype(children)> &child)
+#else
+			for_each_n(cbegin(children), childrenCount, [&, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion](const remove_extent_t<decltype(children)> &child)
+#endif
+			{
+				const auto childResult = child->Shcedule(/*nodeHandler, */frustumCuller, frustumXform, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
+				childrenCulledTris += childResult.first;
+				childQueryCanceled |= childResult.second;
+			});
+#endif
 
 			// sort if necessary
 			if (depthSortXform)
@@ -354,6 +370,7 @@ namespace Renderer::Impl::Hierarchy
 				});
 			}
 
+#if MULTITHREADED_TREE_TRAVERSE
 #if _MSC_VER && _MSC_VER <= 1910
 			for_each(begin(childrenResults), next(begin(childrenResults), childrenCount - 1), [&childrenCulledTris, &childQueryCanceled](remove_extent_t<decltype(childrenResults)> &childResult)
 #else
@@ -364,6 +381,7 @@ namespace Renderer::Impl::Hierarchy
 				childrenCulledTris += resolvedResult.first;
 				childQueryCanceled |= resolvedResult.second;
 			});
+#endif
 		}
 
 		// post
@@ -499,3 +517,5 @@ namespace Renderer::Impl::Hierarchy
 		objects.shrink_to_fit();
 	}
 }
+
+#undef MULTITHREADED_TREE_TRAVERSE
