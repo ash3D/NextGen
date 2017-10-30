@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.07.2017 (c)Korotkov Andrey
+\date		30.10.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -130,7 +130,7 @@ namespace Renderer::Impl
 	inline std::conditional_t<earlyOut, bool, CullResult> FrustumCuller<dimension>::Cull(const AABB<dimension> &aabb) const
 	{
 		// temp for MSVC
-		typedef std::conditional_t<earlyOut, bool, CullResult> Reult;
+		typedef std::conditional_t<earlyOut, bool, CullResult> Result;
 
 		const auto aabbCenter = aabb.Center();
 		const auto aaabbExtent = aabb.Size() * .5f;
@@ -140,9 +140,9 @@ namespace Renderer::Impl
 		if (leftCenterDist - leftCornerOffset > 0.f)
 		{
 			if /*constexpr*/ (earlyOut)
-				return (Reult)true;
+				return (Result)true;
 			else
-				return (Reult)CullResult::OUTSIDE;
+				return (Result)CullResult::OUTSIDE;
 		}
 
 		const float rightCenterDist = dot(frustumPlanes[1], aabbCenter) + frustumPlanes[1][dimension];
@@ -150,9 +150,9 @@ namespace Renderer::Impl
 		if (rightCenterDist - rightCornerOffset > 0.f)
 		{
 			if /*constexpr*/ (earlyOut)
-				return (Reult)true;
+				return (Result)true;
 			else
-				return (Reult)CullResult::OUTSIDE;
+				return (Result)CullResult::OUTSIDE;
 		}
 
 		const float bottomCenterDist = dot(frustumPlanes[2], aabbCenter) + frustumPlanes[2][dimension];
@@ -160,9 +160,9 @@ namespace Renderer::Impl
 		if (bottomCenterDist - bottomCornerOffset > 0.f)
 		{
 			if /*constexpr*/ (earlyOut)
-				return (Reult)true;
+				return (Result)true;
 			else
-				return (Reult)CullResult::OUTSIDE;
+				return (Result)CullResult::OUTSIDE;
 		}
 
 		const float topCenterDist = dot(frustumPlanes[3], aabbCenter) + frustumPlanes[3][dimension];
@@ -170,9 +170,9 @@ namespace Renderer::Impl
 		if (topCenterDist - topCornerOffset > 0.f)
 		{
 			if /*constexpr*/ (earlyOut)
-				return (Reult)true;
+				return (Result)true;
 			else
-				return (Reult)CullResult::OUTSIDE;
+				return (Result)CullResult::OUTSIDE;
 		}
 
 		const float nearCenterDist = dot(frustumPlanes[4], aabbCenter) + frustumPlanes[4][dimension];
@@ -180,9 +180,9 @@ namespace Renderer::Impl
 		if (nearCenterDist - nearCornerOffset > 0.f)
 		{
 			if /*constexpr*/ (earlyOut)
-				return (Reult)true;
+				return (Result)true;
 			else
-				return (Reult)CullResult::OUTSIDE;
+				return (Result)CullResult::OUTSIDE;
 		}
 
 		const float farCenterDist = dot(frustumPlanes[5], aabbCenter) + frustumPlanes[5][dimension];
@@ -190,13 +190,13 @@ namespace Renderer::Impl
 		if (farCenterDist - farCornerOffset > 0.f)
 		{
 			if /*constexpr*/ (earlyOut)
-				return (Reult)true;
+				return (Result)true;
 			else
-				return (Reult)CullResult::OUTSIDE;
+				return (Result)CullResult::OUTSIDE;
 		}
 
 		if /*constexpr*/ (earlyOut)
-			return (Reult)false;
+			return (Result)false;
 		else
 		{
 			const bool inside =
@@ -206,7 +206,7 @@ namespace Renderer::Impl
 				topCenterDist + topCornerOffset <= 0.f &&
 				nearCenterDist + nearCornerOffset <= 0.f &&
 				farCenterDist + farCornerOffset <= 0.f;
-			return Reult(inside ? CullResult::INSIDE : CullResult::UNDETERMINED);
+			return Result(inside ? CullResult::INSIDE : CullResult::UNDETERMINED);
 		}
 	}
 }
