@@ -3439,49 +3439,6 @@ further investigations needed, including other compilers
 
 #			pragma region sequencing
 				// swizzle / 1D swizzle op= matrix
-#ifdef MSVC_LIMITATIONS
-				namespace Impl::SequencingOps
-				{
-#					define OPERATOR_DEFINITION(op)																										\
-						template																														\
-						<																																\
-							bool ...WARHazard,																											\
-							typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,							\
-							typename RightElementType, unsigned int rightRows, unsigned int rightColumns												\
-						>																																\
-						inline decltype(auto) operator op##=(																							\
-							CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,													\
-							const matrix<RightElementType, rightRows, rightColumns> &right)																\
-						{																																\
-							static_assert(sizeof...(WARHazard) <= 1);																					\
-							constexpr static const bool																									\
-								underflow = LeftSwizzleDesc::dimension > rightRows * rightColumns,														\
-								overflow = LeftSwizzleDesc::dimension < rightRows * rightColumns;														\
-							static_assert(!(underflow || overflow && LeftSwizzleDesc::dimension > 1), "'vector "#op"= matrix': unmatched sequencing");	\
-							const auto &seq = reinterpret_cast<const CSequencingSwizzle<RightElementType, rightRows, rightColumns> &>(right.data);		\
-							return operator op##=<WARHazard...>(left, seq);																				\
-						}
-					GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_OP)
-#					undef OPERATOR_DEFINITION
-				}
-
-#				define OPERATOR_DEFINITION(op)																											\
-					template																															\
-					<																																	\
-						bool ...WARHazard,																												\
-						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,								\
-						typename RightElementType, unsigned int rightRows, unsigned int rightColumns													\
-					>																																	\
-					inline std::enable_if_t<(rightRows > 1 || rightColumns > 1),																		\
-					typename Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::TOperationResult &> operator op##=(				\
-						Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,													\
-						const matrix<RightElementType, rightRows, rightColumns> &right)																	\
-					{																																	\
-						return Impl::SequencingOps::operator op##=<WARHazard...>(left, right);															\
-					}
-				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_OP)
-#				undef OPERATOR_DEFINITION
-#else
 #				define OPERATOR_DEFINITION(op)																											\
 					template																															\
 					<																																	\
@@ -3504,7 +3461,6 @@ further investigations needed, including other compilers
 					}
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_OP)
 #				undef OPERATOR_DEFINITION
-#endif
 
 				// swizzle / 1D swizzle op= temp matrix
 #				define OPERATOR_DEFINITION(op)																											\
@@ -3567,54 +3523,6 @@ further investigations needed, including other compilers
 #				undef OPERATOR_DEFINITION
 
 				// swizzle op matrix / 1D swizzle op 1x1 matrix
-#ifdef MSVC_LIMITATIONS
-				namespace Impl::SequencingOps
-				{
-#					define OPERATOR_DEFINITION(op)																										\
-						template																														\
-						<																																\
-							typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,							\
-							typename RightElementType, unsigned int rightRows, unsigned int rightColumns												\
-						>																																\
-						inline auto operator op(																										\
-							const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,												\
-							const matrix<RightElementType, rightRows, rightColumns> &right)																\
-						{																																\
-							constexpr static const bool matched = LeftSwizzleDesc::dimension == rightRows * rightColumns;								\
-							static_assert(matched || rightRows == 1 || rightColumns == 1, "'vector "#op" matrix': unmatched sequencing");				\
-							const auto &seq = reinterpret_cast<const CSequencingSwizzle<RightElementType, rightRows, rightColumns> &>(right.data);		\
-							return left op seq;																											\
-						}
-					GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_OP)
-					GENERATE_MASK_OPERATORS(OPERATOR_DEFINITION, F_2_OP)
-#					undef OPERATOR_DEFINITION
-				}
-
-#				define OPERATOR_DEFINITION(op, IsMaskOp)																								\
-					template																															\
-					<																																	\
-						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,								\
-						typename RightElementType, unsigned int rightRows, unsigned int rightColumns													\
-					>																																	\
-					inline std::enable_if_t<(LeftSwizzleDesc::dimension > 1 == (rightRows > 1 || rightColumns > 1)),									\
-					Impl::SwizzleOpMatrixResult																											\
-					<																																	\
-						LeftElementType, LeftSwizzleDesc::dimension,																					\
-						RightElementType, rightRows, rightColumns,																						\
-						std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>, IsMaskOp							\
-					>> operator op(																														\
-						const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,											\
-						const matrix<RightElementType, rightRows, rightColumns> &right)																	\
-					{																																	\
-						return Impl::SequencingOps::operator op(left, right);																			\
-					}
-#				define ADAPTOR(F) F_2_OP(F), false
-				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, ADAPTOR)
-#				define ADAPTOR(F) F_2_OP(F), true
-				GENERATE_MASK_OPERATORS(OPERATOR_DEFINITION, ADAPTOR)
-#				undef ADAPTOR
-#				undef OPERATOR_DEFINITION
-#else
 #			define OPERATOR_DEFINITION(op, F)																											\
 					template																															\
 					<																																	\
@@ -3639,57 +3547,8 @@ further investigations needed, including other compilers
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
 				GENERATE_MASK_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
 #				undef OPERATOR_DEFINITION
-#endif
 
 				// matrix op swizzle / 1x1 matrix op 1D swizzle
-#ifdef MSVC_LIMITATIONS
-				namespace Impl::SequencingOps
-				{
-#					define OPERATOR_DEFINITION(op)																										\
-						template																														\
-						<																																\
-							typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,													\
-							typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc						\
-						>																																\
-						inline auto operator op(																										\
-							const matrix<LeftElementType, leftRows, leftColumns> &left,																	\
-							const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)											\
-						{																																\
-							constexpr static const bool matched = leftRows * leftColumns == RightSwizzleDesc::dimension;								\
-							static_assert(matched || leftRows == 1 || leftColumns == 1, "'matrix "#op" vector': unmatched sequencing");					\
-							const auto &seq = reinterpret_cast<const CSequencingSwizzle<LeftElementType, leftRows, leftColumns> &>(left.data);			\
-							return seq op right;																										\
-						}
-					GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_OP)
-					GENERATE_MASK_OPERATORS(OPERATOR_DEFINITION, F_2_OP)
-#					undef OPERATOR_DEFINITION
-				}
-
-#				define OPERATOR_DEFINITION(op, IsMaskOp)																								\
-					template																															\
-					<																																	\
-						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,														\
-						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc							\
-					>																																	\
-					inline std::enable_if_t<((leftRows > 1 || leftColumns > 1) == RightSwizzleDesc::dimension > 1),										\
-					Impl::MatrixOpSwizzleResult																											\
-					<																																	\
-						LeftElementType, leftRows, leftColumns,																							\
-						RightElementType, RightSwizzleDesc::dimension,																					\
-						std::decay_t<decltype(std::declval<LeftElementType>() op std::declval<RightElementType>())>, IsMaskOp							\
-					>> operator op(																														\
-						const matrix<LeftElementType, leftRows, leftColumns> &left,																		\
-						const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)										\
-					{																																	\
-						return Impl::SequencingOps::operator op(left, right);																			\
-					}
-#				define ADAPTOR(F) F_2_OP(F), false
-				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, ADAPTOR)
-#				define ADAPTOR(F) F_2_OP(F), true
-				GENERATE_MASK_OPERATORS(OPERATOR_DEFINITION, ADAPTOR)
-#				undef ADAPTOR
-#				undef OPERATOR_DEFINITION
-#else
 #				define OPERATOR_DEFINITION(op, F)																										\
 					template																															\
 					<																																	\
@@ -3714,7 +3573,6 @@ further investigations needed, including other compilers
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
 				GENERATE_MASK_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
 #				undef OPERATOR_DEFINITION
-#endif
 #			pragma endregion
 #		pragma endregion
 
@@ -4725,20 +4583,6 @@ further investigations needed, including other compilers
 
 #pragma region generate operators
 			// swizzle / 1D swizzle op= matrix
-#ifdef MSVC_LIMITATIONS
-#			define OPERATOR_DECLARATION(op)																									\
-				template																													\
-				<																															\
-					bool ...WARHazard,																										\
-					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,						\
-					typename RightElementType, unsigned int rightRows, unsigned int rightColumns											\
-				>																															\
-				friend inline decltype(auto) Impl::SequencingOps::operator op##=(															\
-					Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,											\
-					const matrix<RightElementType, rightRows, rightColumns> &right);
-			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION, F_2_OP)
-#			undef OPERATOR_DECLARATION
-#else
 #			define OPERATOR_DECLARATION(op)																									\
 				template																													\
 				<																															\
@@ -4752,7 +4596,6 @@ further investigations needed, including other compilers
 					const matrix<RightElementType, rightRows, rightColumns> &right);
 			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION, F_2_OP)
 #			undef OPERATOR_DECLARATION
-#endif
 
 			// matrix / 1x1 matrix op= matrix
 #ifdef MSVC_LIMITATIONS
@@ -4796,20 +4639,6 @@ further investigations needed, including other compilers
 #			undef OPERATOR_DECLARATION
 
 			// swizzle op matrix / 1D swizzle op 1x1 matrix
-#ifdef MSVC_LIMITATIONS
-#			define OPERATOR_DECLARATION(op)																									\
-				template																													\
-				<																															\
-					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,						\
-					typename RightElementType, unsigned int rightRows, unsigned int rightColumns											\
-				>																															\
-				friend inline auto Impl::SequencingOps::operator op(																		\
-					const Impl::CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,									\
-					const matrix<RightElementType, rightRows, rightColumns> &right);
-			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION, F_2_OP)
-			GENERATE_MASK_OPERATORS(OPERATOR_DECLARATION, F_2_OP)
-#			undef OPERATOR_DECLARATION
-#else
 #			define OPERATOR_DECLARATION(op, F)																								\
 				template																													\
 				<																															\
@@ -4828,23 +4657,8 @@ further investigations needed, including other compilers
 			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION, F_2_PAIR)
 			GENERATE_MASK_OPERATORS(OPERATOR_DECLARATION, F_2_PAIR)
 #			undef OPERATOR_DECLARATION
-#endif
 
 			// matrix op swizzle / 1x1 matrix op 1D swizzle
-#ifdef MSVC_LIMITATIONS
-#			define OPERATOR_DECLARATION(op)																									\
-				template																													\
-				<																															\
-					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,												\
-					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc					\
-				>																															\
-				friend inline auto Impl::SequencingOps::operator op(																		\
-					const matrix<LeftElementType, leftRows, leftColumns> &left,																\
-					const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right);
-			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION, F_2_OP)
-			GENERATE_MASK_OPERATORS(OPERATOR_DECLARATION, F_2_OP)
-#			undef OPERATOR_DECLARATION
-#else
 #			define OPERATOR_DECLARATION(op, F)																								\
 				template																													\
 				<																															\
@@ -4863,7 +4677,6 @@ further investigations needed, including other compilers
 			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION, F_2_PAIR)
 			GENERATE_MASK_OPERATORS(OPERATOR_DECLARATION, F_2_PAIR)
 #			undef OPERATOR_DECLARATION
-#endif
 #pragma endregion
 
 #ifdef MSVC_LIMITATIONS
