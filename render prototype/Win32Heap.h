@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		10.01.2016 (c)Korotkov Andrey
+\date		30.10.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -53,7 +53,10 @@ namespace Win32Heap
 	{
 		template<typename T>
 		friend class CWin32HeapAllocator;
+		typedef std::allocator<T> allocator;
 	public:
+		using allocator::pointer;
+		using allocator::size_type;
 		template<typename Other>
 		struct rebind
 		{

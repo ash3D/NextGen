@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		29.10.2017 (c)Korotkov Andrey
+\date		30.10.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -50,6 +50,9 @@ namespace
 		// use reference_wrapper instead of plain ref in order to make iterator copy assignable (required by Iterator concept)
 		reference_wrapper<const function<TerrainVectorLayer::ObjectData (unsigned int objIdx)>> getObjectData;
 		unsigned int objIdx;
+
+	private:
+		typedef iterator<random_access_iterator_tag, Object, signed int> iterator;
 
 	public:
 		using iterator::value_type;
@@ -390,6 +393,7 @@ void TerrainVectorQuad::Dispatch(const HLSL::float4x4 &frustumXform) const
 	using namespace placeholders;
 
 	subtree.Shcedule(frustumXform);
-	subtree.Traverse<void *, void *>(bind(&TerrainVectorLayer::CRenderStage::IssueNode<decltype(subtree)::Node>, ref(layer->renderStage), _1, _2, _3, _4), nullptr, nullptr, false);
+	const auto issueNode = bind(&TerrainVectorLayer::CRenderStage::IssueNode<decltype(subtree)::Node>, ref(layer->renderStage), _1, _2, _3, _4);
+	subtree.Traverse<void *, void *>(issueNode, nullptr, nullptr, false);
 	layer->renderStage.IssueQuad(VIB.Get(), VB_size, IB_size, IB32bit);
 }
