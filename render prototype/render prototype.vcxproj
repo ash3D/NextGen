@@ -104,6 +104,7 @@
       <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DiagnosticsFormat>Column</DiagnosticsFormat>
+      <AdditionalOptions>/permissive- %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <AdditionalDependencies>D3D11.lib;DXGI.lib;d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -129,6 +130,7 @@
       <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DiagnosticsFormat>Column</DiagnosticsFormat>
+      <AdditionalOptions>/permissive- %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <AdditionalDependencies>D3D11.lib;DXGI.lib;d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -154,6 +156,7 @@
       <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DiagnosticsFormat>Column</DiagnosticsFormat>
+      <AdditionalOptions>/permissive- %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <AdditionalDependencies>D3D11.lib;DXGI.lib;d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -182,6 +185,7 @@
       <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DiagnosticsFormat>Column</DiagnosticsFormat>
+      <AdditionalOptions>/permissive- %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <AdditionalDependencies>D3D11.lib;DXGI.lib;d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>

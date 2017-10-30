@@ -97,6 +97,7 @@
       <AdditionalIncludeDirectories>include;$(IntDir)shaders\;..\General;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CallingConvention>VectorCall</CallingConvention>
       <DiagnosticsFormat>Column</DiagnosticsFormat>
+      <AdditionalOptions>/permissive- %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -124,6 +125,7 @@
       <AdditionalIncludeDirectories>include;$(IntDir)shaders\;..\General;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CallingConvention>VectorCall</CallingConvention>
       <DiagnosticsFormat>Column</DiagnosticsFormat>
+      <AdditionalOptions>/permissive- %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -152,6 +154,7 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <AdditionalIncludeDirectories>include;$(IntDir)shaders\;..\General;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CallingConvention>VectorCall</CallingConvention>
+      <AdditionalOptions>/permissive- %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -182,6 +185,7 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <AdditionalIncludeDirectories>include;$(IntDir)shaders\;..\General;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CallingConvention>VectorCall</CallingConvention>
+      <AdditionalOptions>/permissive- %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
