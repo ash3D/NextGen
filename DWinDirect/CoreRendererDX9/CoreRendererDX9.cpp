@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		09.03.2017 (c)Andrey Korotkov
+\date		30.10.2017 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -2957,27 +2957,12 @@ inline bool CCoreRendererDX9::CQueryQueue<types...>::_Ready(index_sequence<idx..
 }
 #endif
 
-#ifdef MSVC_LIMITATIONS
-template<typename T>
-static inline const T &PassThrough(const T &x)
-{
-	return x;
-}
-
-template<D3DQUERYTYPE ...types>
-template<size_t ...idx>
-inline auto CCoreRendererDX9::CQueryQueue<types...>::_GetData(index_sequence<idx...>)
-{
-	return make_tuple(PassThrough(get<idx>(_queue.front()).GetData()).value()...);
-}
-#else
 template<D3DQUERYTYPE ...types>
 template<size_t ...idx>
 inline auto CCoreRendererDX9::CQueryQueue<types...>::_GetData(index_sequence<idx...>)
 {
 	return make_tuple(get<idx>(_queue.front()).GetData().value()...);
 }
-#endif
 
 template<D3DQUERYTYPE ...types>
 auto CCoreRendererDX9::CQueryQueue<types...>::Extract() -> optional<tuple<typename QueryTypeTraits<types>::TResult...>>

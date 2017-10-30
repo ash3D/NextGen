@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		19.08.2017 (c)Alexey Shaydurov
+\date		30.10.2017 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -265,8 +265,8 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 #	ifndef __VECTOR_MATH_H__
 #	define __VECTOR_MATH_H__
 
-#	if defined _MSC_VER && _MSC_VER < 1910 && !defined  __clang__
-#	error Old MSVC compiler version. Visual Studio 2017 or later required.
+#	if defined _MSC_VER && _MSC_VER < 1911 && !defined  __clang__
+#	error Old MSVC compiler version. Visual Studio 2017 15.3 or later required.
 #	elif defined __GNUC__ && (__GNUC__ < 4 || (__GNUC__ >= 4 && __GNUC_MINOR__ < 7)) && !defined __clang__
 #	error Old GCC compiler version. GCC 4.7 or later required.	// need to be clarified
 #	endif
@@ -438,19 +438,6 @@ further investigations needed, including other compilers
 
 		namespace Impl
 		{
-#ifdef MSVC_LIMITATIONS
-			namespace STD
-			{
-				template<typename T>
-				constexpr unsigned int min(T a, T b)
-				{
-					return a < b ? a : b;
-				}
-			}
-#else
-			namespace STD = std;
-#endif
-
 #if USE_BOOST_MPL
 			namespace mpl = boost::mpl;
 			using namespace mpl::placeholders;
@@ -685,15 +672,10 @@ further investigations needed, including other compilers
 
 			private:
 				static constexpr unsigned int bitsRequired = dimension * 4;
-#ifdef MSVC_LIMITATIONS
-				using TPackedSwizzle = unsigned long long int;
-#else
-				// ICE on VS 2015
 				using TPackedSwizzle =
 					conditional_t<bitsRequired <= numeric_limits<unsigned int>::digits, unsigned int,
 					conditional_t<bitsRequired <= numeric_limits<unsigned long int>::digits, unsigned long int,
 					unsigned long long int>>;
-#endif
 
 			private:
 #ifdef MSVC_LIMITATIONS
@@ -2728,24 +2710,13 @@ further investigations needed, including other compilers
 			>
 			class MatrixOpMatrixResultImpl
 			{
-#ifdef MSVC_LIMITATIONS
-				constexpr static const unsigned int lr = leftRows, lc = leftColumns, rr = rightRows, rc = rightColumns;
-#endif
 				constexpr static const bool dimensionalMismatch =
 #if ENABLE_UNMATCHED_MATRICES
 					false;
 #else
-#ifdef MSVC_LIMITATIONS
-					!(lr <= rr && lc <= rc || lr >= rr && lc >= rc);
-#else
 					!(leftRows <= rightRows && leftColumns <= rightColumns || leftRows >= rightRows && leftColumns >= rightColumns);
 #endif
-#endif
-#ifdef MSVC_LIMITATIONS
-				typedef matrix<TargetElementType, STD::min(lr, rr), STD::min(lc, rc)> ResultMatrix;
-#else
 				typedef matrix<TargetElementType, std::min(leftRows, rightRows), std::min(leftColumns, rightColumns)> ResultMatrix;
-#endif
 				typedef vector<typename ResultMatrix::ElementType, ResultMatrix::columns> ResultVector;
 				typedef _1xN_2_vec<ResultMatrix, LeftElementType, RightElementType, force_1xN_2_vec> Result;
 				constexpr static const bool vecMatMismatch = is_same_v<_1xN_2_vec<ResultMatrix, LeftElementType, RightElementType, false>, ResultVector> && (leftRows > 1 || rightRows > 1);
@@ -3750,22 +3721,6 @@ further investigations needed, including other compilers
 #		pragma region min/max functions
 			// std::min/max requires explicit template param if used for different types => provide scalar version\
 			this version also has option to return copy or reference
-#ifdef MSVC_LIMITATIONS	// workaround for lack of expression SFINAE
-			namespace Impl
-			{
-				template<bool copy, typename F>
-				using CopyOrRef = conditional_t<copy, typename F::type, const typename F::type &>;
-			}
-
-#			define FUNCTION_DEFINITION(f)																							\
-				template<bool copy = false, typename LeftType, typename RightType>													\
-				inline auto f(const LeftType &left, const RightType &right)															\
-				-> Impl::CopyOrRef<copy, std::enable_if_t<Impl::IsPureScalar<LeftType> && Impl::IsPureScalar<RightType>,			\
-					std::common_type<LeftType, RightType>>>																			\
-				{																													\
-					return std::f<std::common_type_t<LeftType, RightType>>(left, right);											\
-				};
-#else
 #			define FUNCTION_DEFINITION(f)																							\
 				template<bool copy = false, typename LeftType, typename RightType>													\
 				inline auto f(const LeftType &left, const RightType &right)															\
@@ -3774,7 +3729,6 @@ further investigations needed, including other compilers
 				{																													\
 					return std::f<std::common_type_t<LeftType, RightType>>(left, right);											\
 				};
-#endif
 			FUNCTION_DEFINITION(min)
 			FUNCTION_DEFINITION(max)
 #			undef FUNCTION_DEFINITION
@@ -5440,22 +5394,11 @@ further investigations needed, including other compilers
 		};
 
 		// vector/vector
-#ifdef MSVC_LIMITATIONS
-		template<typename LeftElementType, unsigned int leftDimension, typename RightElementType, unsigned int rightDimension>
-		class common_type<Math::VectorMath::vector<LeftElementType, leftDimension>, Math::VectorMath::vector<RightElementType, rightDimension>>
-		{
-			static constexpr unsigned int dimension = min(leftDimension, rightDimension);
-
-		public:
-			typedef Math::VectorMath::vector<common_type_t<LeftElementType, RightElementType>, dimension> type;
-		};
-#else
 		template<typename LeftElementType, unsigned int leftDimension, typename RightElementType, unsigned int rightDimension>
 		struct common_type<Math::VectorMath::vector<LeftElementType, leftDimension>, Math::VectorMath::vector<RightElementType, rightDimension>>
 		{
 			typedef Math::VectorMath::vector<common_type_t<LeftElementType, RightElementType>, min(leftDimension, rightDimension)> type;
 		};
-#endif
 
 		// vector/scalar
 		template<typename LeftElementType, unsigned int leftDimension, typename RightType>
@@ -5472,22 +5415,11 @@ further investigations needed, including other compilers
 		};
 
 		// matrix/matrix
-#ifdef MSVC_LIMITATIONS
-		template<typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, typename RightElementType, unsigned int rightRows, unsigned int rightColumns>
-		class common_type<Math::VectorMath::matrix<LeftElementType, leftRows, leftColumns>, Math::VectorMath::matrix<RightElementType, rightRows, rightColumns>>
-		{
-			static constexpr unsigned int rows = min(leftRows, rightRows), columns = min(leftColumns, rightColumns);
-
-		public:
-			typedef Math::VectorMath::matrix<common_type_t<LeftElementType, RightElementType>, rows, columns> type;
-		};
-#else
 		template<typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, typename RightElementType, unsigned int rightRows, unsigned int rightColumns>
 		struct common_type<Math::VectorMath::matrix<LeftElementType, leftRows, leftColumns>, Math::VectorMath::matrix<RightElementType, rightRows, rightColumns>>
 		{
 			typedef Math::VectorMath::matrix<common_type_t<LeftElementType, RightElementType>, min(leftRows, rightRows), min(leftColumns, rightColumns)> type;
 		};
-#endif
 
 		// matrix/scalar
 		template<typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, typename RightType>

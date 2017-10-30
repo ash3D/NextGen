@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		29.03.2017 (c)Andrey Korotkov
+\date		30.10.2017 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -19,7 +19,7 @@ See "DGLE.h" for more details.
 #include <deque>
 #include <tuple>
 #include <memory>
-#if ENABLE_CIRCULAR_BUFFER && defined MSVC_LIMITATIONS || ENABLE_CIRCULAR_BUFFER && __has_include(<boost/circular_buffer.hpp>)
+#if ENABLE_CIRCULAR_BUFFER && __has_include(<boost/circular_buffer.hpp>)
 #include <boost/circular_buffer.hpp>
 #define USE_CIRCULAR_BUFFER
 #endif
