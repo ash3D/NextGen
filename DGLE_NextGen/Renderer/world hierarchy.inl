@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		29.10.2017 (c)Korotkov Andrey
+\date		30.10.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -133,7 +133,6 @@ namespace Renderer::Impl::Hierarchy
 
 		// calculate tri count and occlusion
 		{
-			// TODO: use C++17 structured bindings
 			const auto accumulated = accumulate(objBegin, objExclusiveSeparator, make_pair(0ul, 0.f), [renormalizationFactor = 1.f / aabb.Measure()](auto left, const Object &right)
 			{
 				left.first += right.GetTriCount();
@@ -269,11 +268,7 @@ namespace Renderer::Impl::Hierarchy
 
 		if (nodeHandler(*this, args...))
 		{
-#if _MSC_VER && _MSC_VER <= 1910
-			for_each(cbegin(childrenOrder), next(cbegin(childrenOrder), childrenCount), [&](remove_extent_t<decltype(childrenOrder)> idx)
-#else
 			for_each_n(cbegin(childrenOrder), childrenCount, [&](remove_extent_t<decltype(childrenOrder)> idx)
-#endif
 			{
 				children[idx]->Traverse(nodeHandler, args...);
 			});
@@ -336,16 +331,11 @@ namespace Renderer::Impl::Hierarchy
 			});
 
 			// traverse first child in this thread
-			// TODO: use C++17 structured bindings
 			const auto childResult = children[0]->Shcedule(/*nodeHandler, */frustumCuller, frustumXform, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
 			childrenCulledTris = childResult.first;
 			childQueryCanceled = childResult.second;
 #else
-#if _MSC_VER && _MSC_VER <= 1910
-			for_each(cbegin(children), next(cbegin(children), childrenCount), [&, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion](const remove_extent_t<decltype(children)> &child)
-#else
 			for_each_n(cbegin(children), childrenCount, [&, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion](const remove_extent_t<decltype(children)> &child)
-#endif
 			{
 				const auto childResult = child->Shcedule(/*nodeHandler, */frustumCuller, frustumXform, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
 				childrenCulledTris += childResult.first;
@@ -371,11 +361,7 @@ namespace Renderer::Impl::Hierarchy
 			}
 
 #if MULTITHREADED_TREE_TRAVERSE
-#if _MSC_VER && _MSC_VER <= 1910
-			for_each(begin(childrenResults), next(begin(childrenResults), childrenCount - 1), [&childrenCulledTris, &childQueryCanceled](remove_extent_t<decltype(childrenResults)> &childResult)
-#else
 			for_each_n(begin(childrenResults), childrenCount - 1, [&childrenCulledTris, &childQueryCanceled](remove_extent_t<decltype(childrenResults)> &childResult)
-#endif
 			{
 				const auto resolvedResult = childResult.get();
 				childrenCulledTris += resolvedResult.first;
@@ -452,11 +438,7 @@ namespace Renderer::Impl::Hierarchy
 					segmentBegin = segmentEnd;
 				}
 			};
-#if _MSC_VER && _MSC_VER <= 1910
-			for_each(cbegin(children), next(cbegin(children), childrenCount), collectFromChild);
-#else
 			for_each_n(cbegin(children), childrenCount, collectFromChild);
-#endif
 
 			// return children boxes only if they are smaller than this node's box
 			if (accumulatedChildrenMeasure / thisNodeMeasure < OcclusionCulling::accumulatedChildrenMeasureShrinkThreshold)

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		29.10.2017 (c)Korotkov Andrey
+\date		30.10.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -40,9 +40,8 @@ static inline auto GetNextRenderRange(unsigned int &length) -> decltype(GetNext(
 	if (length)
 	{
 		signed long int curRenderRangeEnd = curRenderRangeBegin + length;
-		// TODO: use C++17 init in 'if'
-		const signed long int passLength = (*curRenderStage)[curRenderPassIdx].Length(), tail = curRenderRangeEnd - passLength;
-		if (tail > 0)
+		const signed long int passLength = (*curRenderStage)[curRenderPassIdx].Length();
+		if (const signed long int tail = curRenderRangeEnd - passLength; tail > 0)
 		{
 			curRenderRangeEnd = passLength;
 			length = tail;
