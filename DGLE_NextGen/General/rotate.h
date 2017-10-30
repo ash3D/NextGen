@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		20.03.2017 (c)Korotkov Andrey
+\date		30.10.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -89,7 +89,7 @@ namespace RotImpl
 #	define INTRINSICS_WIDTH_LIST
 #endif
 
-#if defined _MSC_VER && _MSC_VER <= 1910 && !defined __clang__
+#if defined _MSC_VER && _MSC_VER <= 1911 && !defined __clang__
 	template<bool ...notFound>
 	constexpr bool IntrinsicsNotFoundImpl = conjunction_v<bool_constant<notFound>...>;
 

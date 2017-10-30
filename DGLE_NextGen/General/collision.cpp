@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		09.03.2017 (c)Korotkov Andrey
+\date		30.10.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -507,7 +507,7 @@ void Collision::CVertexCollider::operator ()(const CSphereXformHandler &sphereXf
 // finite param:
 // true - segment intersection [0, 1)
 // false - ray intersection (-inf, +1)
-#if defined _MSC_VER && _MSC_VER <= 1910 && !__clang__
+#if defined _MSC_VER && _MSC_VER <= 1911 && !__clang__
 #pragma fenv_access(on)
 #else
 #pragma STDC FENV_ACCESS ON
@@ -541,7 +541,7 @@ extern auto Collision::SphereCollide(const IGeometryProvider &geometryProvider, 
 	assert(status == 0);
 	return result;
 }
-#if defined _MSC_VER && _MSC_VER <= 1910 && !__clang__
+#if defined _MSC_VER && _MSC_VER <= 1911 && !__clang__
 #pragma fenv_access(off)
 #else
 #pragma STDC FENV_ACCESS DEFAULT
