@@ -126,7 +126,7 @@ namespace Renderer::Impl::Hierarchy
 			friend class BVH;
 
 		private:
-			decltype(std::declval<Object>().GetAABB()) aabb;
+			std::decay_t<decltype(std::declval<Object>().GetAABB())> aabb;
 			std::unique_ptr<Node> children[treeStructure];
 			unsigned char childrenOrder[treeStructure];
 			unsigned int childrenCount{};

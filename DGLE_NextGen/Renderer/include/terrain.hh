@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		29.10.2017 (c)Korotkov Andrey
+\date		31.10.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -145,7 +145,7 @@ namespace Renderer
 			const AABB<2> &aabb;
 		};
 		typedef std::unique_ptr<class TerrainVectorQuad, QuadDeleter> QuadPtr;
-		QuadPtr AddQuad(unsigned long int vcount, std::function<void __cdecl(volatile float verts[][2])> fillVB, unsigned int objCount, bool IB32bit, std::function<ObjectData __cdecl(unsigned int objIdx)> getObjectData);
+		QuadPtr AddQuad(unsigned long int vcount, const std::function<void __cdecl(volatile float verts[][2])> &fillVB, unsigned int objCount, bool IB32bit, const std::function<ObjectData __cdecl(unsigned int objIdx)> &getObjectData);
 
 	private:
 		void Render(ID3D12GraphicsCommandList1 *cmdList) const;
@@ -169,7 +169,7 @@ namespace Renderer
 
 			// interface for BVH
 		public:
-			auto GetAABB() const { return aabb; }
+			const auto &GetAABB() const { return aabb; }
 			unsigned long int GetTriCount() const noexcept { return triCount; }
 			float GetOcclusion() const noexcept { return .7f; }
 		};
@@ -184,7 +184,7 @@ namespace Renderer
 		const unsigned long int VB_size, IB_size;
 
 	private:
-		TerrainVectorQuad(std::shared_ptr<TerrainVectorLayer> layer, unsigned long int vcount, std::function<void (volatile float verts[][2])> fillVB, unsigned int objCount, bool IB32bit, std::function<TerrainVectorLayer::ObjectData (unsigned int objIdx)> getObjectData);
+		TerrainVectorQuad(std::shared_ptr<TerrainVectorLayer> layer, unsigned long int vcount, const std::function<void (volatile float verts[][2])> &fillVB, unsigned int objCount, bool IB32bit, const std::function<TerrainVectorLayer::ObjectData (unsigned int objIdx)> &getObjectData);
 		~TerrainVectorQuad();
 		TerrainVectorQuad(TerrainVectorQuad &) = delete;
 		void operator =(TerrainVectorQuad &) = delete;

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		30.10.2017 (c)Korotkov Andrey
+\date		31.10.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -322,7 +322,7 @@ TerrainVectorLayer::TerrainVectorLayer(shared_ptr<class World> world, unsigned i
 
 TerrainVectorLayer::~TerrainVectorLayer() = default;
 
-auto TerrainVectorLayer::AddQuad(unsigned long int vcount, function<void __cdecl(volatile float verts[][2])> fillVB, unsigned int objCount, bool IB32bit, function<ObjectData __cdecl(unsigned int objIdx)> getObjectData) -> QuadPtr
+auto TerrainVectorLayer::AddQuad(unsigned long int vcount, const function<void __cdecl(volatile float verts[][2])> &fillVB, unsigned int objCount, bool IB32bit, const function<ObjectData __cdecl(unsigned int objIdx)> &getObjectData) -> QuadPtr
 {
 	quads.emplace_back(shared_from_this(), vcount, fillVB, objCount, IB32bit, getObjectData);
 	return { &quads.back(), { prev(quads.cend()) } };
@@ -341,7 +341,7 @@ void TerrainVectorLayer::ShceduleRenderStage(const HLSL::float4x4 &frustumXform,
 	GPUWorkSubmission::AppendRenderStage(&TerrainVectorLayer::BuildRenderStage, this, /*cref*/(frustumXform), move(mainPassSetupCallback));
 }
 
-TerrainVectorQuad::TerrainVectorQuad(shared_ptr<TerrainVectorLayer> layer, unsigned long int vcount, function<void (volatile float verts[][2])> fillVB, unsigned int objCount, bool srcIB32bit, function<TerrainVectorLayer::ObjectData (unsigned int objIdx)> getObjectData) :
+TerrainVectorQuad::TerrainVectorQuad(shared_ptr<TerrainVectorLayer> layer, unsigned long int vcount, const function<void (volatile float verts[][2])> &fillVB, unsigned int objCount, bool srcIB32bit, const function<TerrainVectorLayer::ObjectData (unsigned int objIdx)> &getObjectData) :
 	layer(move(layer)), subtree(ObjIterator<Object>(getObjectData, 0), ObjIterator<Object>(getObjectData, objCount), Impl::Hierarchy::SplitTechnique::MEAN, .5f),
 	IB32bit(vcount > UINT16_MAX), VB_size(vcount * sizeof(float [2])), IB_size(subtree.GetTriCount() * 3 * (IB32bit ? sizeof(uint32_t) : sizeof(uint16_t)))
 {
