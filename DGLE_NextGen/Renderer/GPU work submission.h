@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		29.10.2017 (c)Korotkov Andrey
+\date		31.10.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -29,11 +29,8 @@ namespace Renderer::GPUWorkSubmission
 	void AppendRenderStage(F &&f, Args &&...args)
 	{
 		using namespace std;
-		extern void LaunchBuildRenderStage(packaged_task<RenderPipeline::PipelineStage ()> &&buildRenderStage);
-		extern vector<future<void>> pendingAsyncRefs;
-		packaged_task<RenderPipeline::PipelineStage ()> buildRenderStage(bind(forward<F>(f), forward<Args>(args)...));
-		RenderPipeline::AppendStage(buildRenderStage.get_future());
-		pendingAsyncRefs.push_back(async(launch::async, LaunchBuildRenderStage, move(buildRenderStage)));
+		extern void AppendRenderStage(packaged_task<RenderPipeline::PipelineStage()> &&buildRenderStage);
+		AppendRenderStage(packaged_task<RenderPipeline::PipelineStage()>(bind(forward<F>(f), forward<Args>(args)...)));
 	}
 
 	void Run();

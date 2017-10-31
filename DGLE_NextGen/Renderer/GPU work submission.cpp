@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		29.10.2017 (c)Korotkov Andrey
+\date		31.10.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -40,6 +40,7 @@ namespace
 	mutex mtx;
 	condition_variable workReadyEvent;
 	vector<RenderPipeline::RenderRange> workAccumulator;
+	vector<future<void>> pendingAsyncRefs;
 	const unsigned int targetTaskCount = max(thread::hardware_concurrency(), 1u);
 	unsigned int accumulatedWorkFreeSpace = targetCmdListWorkSize, runningTaskCount;
 
@@ -110,6 +111,14 @@ namespace
 		workReadyEvent.notify_one();
 	}
 
+	inline void LaunchBuildRenderStage(packaged_task<RenderPipeline::PipelineStage ()> &&buildRenderStage)
+	{
+		buildRenderStage();
+		mtx.lock();
+		mtx.unlock();
+		workReadyEvent.notify_one();
+	}
+
 	struct PipelineStageVisitor
 	{
 		// 1 call site
@@ -132,15 +141,11 @@ void GPUWorkSubmission::Prepare()
 
 namespace Renderer::GPUWorkSubmission
 {
-	void LaunchBuildRenderStage(packaged_task<RenderPipeline::PipelineStage ()> &&buildRenderStage)
+	void AppendRenderStage(packaged_task<RenderPipeline::PipelineStage()> &&buildRenderStage)
 	{
-		buildRenderStage();
-		mtx.lock();
-		mtx.unlock();
-		workReadyEvent.notify_one();
+		RenderPipeline::AppendStage(buildRenderStage.get_future());
+		pendingAsyncRefs.push_back(async(launch::async, LaunchBuildRenderStage, move(buildRenderStage)));
 	}
-
-	vector<future<void>> pendingAsyncRefs;
 }
 
 void GPUWorkSubmission::Run()
