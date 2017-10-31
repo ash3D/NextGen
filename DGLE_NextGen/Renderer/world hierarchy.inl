@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		30.10.2017 (c)Korotkov Andrey
+\date		31.10.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -146,9 +146,9 @@ namespace Renderer::Impl::Hierarchy
 			exclusiveTriCount = accumulated.first;
 			occlusion = accumulated.second;
 
-			inclusiveTriCount = accumulate(objExclusiveSeparator, objEnd, exclusiveTriCount, [](unsigned long int left, const Object &right) noexcept
+			inclusiveTriCount = accumulate(cbegin(children), next(cbegin(children), childrenCount), exclusiveTriCount, [](unsigned long int left, const remove_extent_t<decltype(children)> &right) noexcept
 			{
-				return left + right.GetTriCount();
+				return left + right->GetInclusiveTriCount();
 			});
 		}
 	}
