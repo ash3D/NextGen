@@ -192,10 +192,9 @@ void TerrainVectorLayer::CRenderStage::CMainPass::operator()(unsigned long int r
 		cmdList->SetGraphicsRoot32BitConstants(1, size(color), color, 0);
 		cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-		auto quadIdx = renderStream[rangeBegin].startQuadIdx;
 		do
 		{
-			const auto &quad = quads[quadIdx++];
+			const auto &quad = quads[renderStream[rangeBegin].startQuadIdx];
 
 			// setup VB/IB
 			{
@@ -215,11 +214,12 @@ void TerrainVectorLayer::CRenderStage::CMainPass::operator()(unsigned long int r
 				cmdList->IASetIndexBuffer(&IB_view);
 			}
 
-			for (const auto quadRangeEnd = min(rangeEnd, quad.streamEnd); rangeBegin < quadRangeEnd; rangeBegin++)
+			const auto quadRangeEnd = min(rangeEnd, quad.streamEnd);
+			do
 			{
 				const auto &renderData = renderStream[rangeBegin];
 				cmdList->DrawIndexedInstanced(renderData.triCount * 3, 1, renderData.startIdx, 0, 0);
-			}
+			} while (++rangeBegin < quadRangeEnd);
 		} while (rangeBegin < rangeEnd);
 	}
 }
