@@ -132,12 +132,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="terrainBaseVS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="terrainBasePS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
     <FxCompile Include="vectorLayerVS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>

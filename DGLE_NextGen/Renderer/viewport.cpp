@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		29.10.2017 (c)Korotkov Andrey
+\date		31.10.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -20,13 +20,11 @@ namespace RenderPipeline = Impl::RenderPipeline;
 
 extern ComPtr<ID3D12Device2> device;
 
-static inline RenderPipeline::PipelineStage Pre(ID3D12GraphicsCommandList1 *cmdList, ID3D12Resource *rt, D3D12_CPU_DESCRIPTOR_HANDLE rtv, const function<void (ID3D12GraphicsCommandList1 *target)> &terrainBaseRenderCallback)
+static inline RenderPipeline::PipelineStage Pre(ID3D12GraphicsCommandList1 *cmdList, ID3D12Resource *rt, D3D12_CPU_DESCRIPTOR_HANDLE rtv)
 {
 	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(rt, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 	const float color[4] = { .0f, .2f, .4f, 1.f };
 	cmdList->ClearRenderTargetView(rtv, color, 0, NULL);
-	if (terrainBaseRenderCallback)
-		terrainBaseRenderCallback(cmdList);
 	CheckHR(cmdList->Close());
 	return cmdList;
 }
@@ -104,8 +102,7 @@ void Impl::Viewport::Render(ID3D12Resource *rt, const D3D12_CPU_DESCRIPTOR_HANDL
 	auto cmdLits = cmdListsManager.OnFrameStart();
 	GPUWorkSubmission::Prepare();
 
-	function<void (ID3D12GraphicsCommandList1 *target)> terrainBaseRenderCallback;
-	GPUWorkSubmission::AppendCmdList(Pre, cmdLits.pre, rt, rtv, cref(terrainBaseRenderCallback));
+	GPUWorkSubmission::AppendCmdList(Pre, cmdLits.pre, rt, rtv);
 
 	const function<void (ID3D12GraphicsCommandList1 *target)> setupRenderOutputCallback =
 		[
@@ -119,7 +116,7 @@ void Impl::Viewport::Render(ID3D12Resource *rt, const D3D12_CPU_DESCRIPTOR_HANDL
 		cmdList->RSSetScissorRects(1, &scissorRect);
 	};
 	if (world)
-		terrainBaseRenderCallback = world->Render(viewXform, projXform, setupRenderOutputCallback);
+		world->Render(viewXform, projXform, setupRenderOutputCallback);
 
 	GPUWorkSubmission::AppendCmdList(Post, cmdLits.post, rt);
 

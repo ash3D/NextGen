@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		29.10.2017 (c)Korotkov Andrey
+\date		31.10.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -15,8 +15,6 @@ See "DGLE.h" for more details.
 #include "occlusion query shceduling.h"
 #include "frame versioning.h"
 
-#include "terrainBaseVS.csh"
-#include "terrainBasePS.csh"
 #include "vectorLayerVS.csh"
 #include "vectorLayerPS.csh"
 
@@ -51,45 +49,23 @@ Impl::World::World(const float(&terrainXform)[4][3])// : bvh(Hierarchy::SplitTec
 {
 	extern ComPtr<ID3D12Device2> device;
 
-	// create terrain root signatures
+	// create terrain root signature
 	{
 		CD3DX12_ROOT_PARAMETER1 CBV_params[2];
 		CBV_params[0].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
 		CBV_params[1].InitAsConstants(3, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+		const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(2, CBV_params, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 		ComPtr<ID3DBlob> sig, error;
-
-		// terrain base
+		const HRESULT hr = D3D12SerializeVersionedRootSignature(&sigDesc, &sig, &error);
+		if (error)
 		{
-			constexpr auto sigFlags =
-				D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
-				D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
-				D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
-				D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
-
-			const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(1, CBV_params, 0, NULL, sigFlags);
-			const HRESULT hr = D3D12SerializeVersionedRootSignature(&sigDesc, &sig, &error);
-			if (error)
-			{
-				cerr.write((const char *)error->GetBufferPointer(), error->GetBufferSize()) << endl;
-			}
-			CheckHR(hr);
-			CheckHR(device->CreateRootSignature(0, sig->GetBufferPointer(), sig->GetBufferSize(), IID_PPV_ARGS(&terrainBaseRootSig)));
+			cerr.write((const char *)error->GetBufferPointer(), error->GetBufferSize()) << endl;
 		}
-
-		// vector layer
-		{
-			const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(2, CBV_params, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-			const HRESULT hr = D3D12SerializeVersionedRootSignature(&sigDesc, &sig, &error);
-			if (error)
-			{
-				cerr.write((const char *)error->GetBufferPointer(), error->GetBufferSize()) << endl;
-			}
-			CheckHR(hr);
-			CheckHR(device->CreateRootSignature(0, sig->GetBufferPointer(), sig->GetBufferSize(), IID_PPV_ARGS(&terrainVectorLayerRootSig)));
-		}
+		CheckHR(hr);
+		CheckHR(device->CreateRootSignature(0, sig->GetBufferPointer(), sig->GetBufferSize(), IID_PPV_ARGS(&terrainVectorLayerRootSig)));
 	}
 
-	// create terrain PSOs
+	// create terrain PSO
 	{
 		const CD3DX12_RASTERIZER_DESC rasterDesc
 		(
@@ -105,6 +81,7 @@ Impl::World::World(const float(&terrainXform)[4][3])// : bvh(Hierarchy::SplitTec
 			0,											// force sample count
 			D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF
 		);
+
 		const CD3DX12_DEPTH_STENCIL_DESC dsDesc
 		(
 			FALSE,																								// depth
@@ -117,12 +94,16 @@ Impl::World::World(const float(&terrainXform)[4][3])// : bvh(Hierarchy::SplitTec
 			D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_COMPARISON_FUNC_ALWAYS	// back
 		);
 
-		// itit for terrain base
+		const D3D12_INPUT_ELEMENT_DESC VB_decl[] =
+		{
+			{ "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+		};
+
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
 		{
-			terrainBaseRootSig.Get(),										// root signature
-			CD3DX12_SHADER_BYTECODE(terrainBaseVS, sizeof terrainBaseVS),	// VS
-			CD3DX12_SHADER_BYTECODE(terrainBasePS, sizeof terrainBasePS),	// PS
+			terrainVectorLayerRootSig.Get(),								// root signature
+			CD3DX12_SHADER_BYTECODE(vectorLayerVS, sizeof vectorLayerVS),	// VS
+			CD3DX12_SHADER_BYTECODE(vectorLayerPS, sizeof vectorLayerPS),	// PS
 			{},																// DS
 			{},																// HS
 			{},																// GS
@@ -131,7 +112,7 @@ Impl::World::World(const float(&terrainXform)[4][3])// : bvh(Hierarchy::SplitTec
 			UINT_MAX,														// sample mask
 			rasterDesc,														// rasterizer
 			dsDesc,															// depth stencil
-			{},																// IA
+			{ VB_decl, size(VB_decl) },										// IA
 			D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,					// restart primtive
 			D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,							// primitive topology
 			1,																// render targets
@@ -139,19 +120,6 @@ Impl::World::World(const float(&terrainXform)[4][3])// : bvh(Hierarchy::SplitTec
 			DXGI_FORMAT_UNKNOWN,											// depth stencil format
 			{1}																// MSAA
 		};
-
-		CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(&terrainBasePSO)));
-
-		// patch for vector layer
-		const D3D12_INPUT_ELEMENT_DESC VB_decl[] =
-		{
-			{ "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-		};
-		PSO_desc.pRootSignature = terrainVectorLayerRootSig.Get();
-		PSO_desc.VS = CD3DX12_SHADER_BYTECODE(vectorLayerVS, sizeof vectorLayerVS);
-		PSO_desc.PS = CD3DX12_SHADER_BYTECODE(vectorLayerPS, sizeof vectorLayerPS);
-		PSO_desc.InputLayout.pInputElementDescs = VB_decl;
-		PSO_desc.InputLayout.NumElements = size(VB_decl);
 
 		CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(&terrainVectorLayerPSO)));
 	}
@@ -179,7 +147,7 @@ Impl::World::World(const float(&terrainXform)[4][3])// : bvh(Hierarchy::SplitTec
 
 Impl::World::~World() = default;
 
-function<void (ID3D12GraphicsCommandList1 *target)> Impl::World::Render(const float (&viewXform)[4][3], const float (&projXform)[4][4], const function<void (ID3D12GraphicsCommandList1 *target)> &setupRenderOutputCallback) const
+void Impl::World::Render(const float (&viewXform)[4][3], const float (&projXform)[4][4], const function<void (ID3D12GraphicsCommandList1 *target)> &setupRenderOutputCallback) const
 {
 	using namespace placeholders;
 
@@ -226,16 +194,6 @@ function<void (ID3D12GraphicsCommandList1 *target)> Impl::World::Render(const fl
 	};
 	for (const auto &layer : terrainVectorLayers)
 		layer.ShceduleRenderStage(terrainFrustumXform, terrainMainPassSetupCallback);
-
-	return [&setupRenderOutputCallback, PSO = terrainBasePSO, rootSig = terrainBaseRootSig, CB_location = terrainCB->GetGPUVirtualAddress() + CB_offset](ID3D12GraphicsCommandList1 *cmdList)
-	{
-		setupRenderOutputCallback(cmdList);
-		cmdList->SetPipelineState(PSO.Get());
-		cmdList->SetGraphicsRootSignature(rootSig.Get());
-		cmdList->SetGraphicsRootConstantBufferView(0, CB_location);
-		cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-		cmdList->DrawInstanced(4, 1, 0, 0);
-	};
 }
 
 //void Impl::World::ScheduleNode(decltype(bvh)::Node &node) const
