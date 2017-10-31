@@ -60,8 +60,8 @@ namespace Renderer
 		public:
 			explicit Viewport(shared_ptr<const Renderer::World> world);
 			~Viewport() = default;
+			Viewport(Viewport &) = delete;
 			void operator =(Viewport &) = delete;
-			void operator =(Viewport &&) = delete;
 
 		public:
 			void SetViewTransform(const float (&matrix)[4][3]);
