@@ -118,20 +118,6 @@ namespace
 		mtx.unlock();
 		workReadyEvent.notify_one();
 	}
-
-	struct PipelineStageVisitor
-	{
-		// 1 call site
-		inline void operator ()(ID3D12GraphicsCommandList1 *cmdList) const, operator ()(RenderPipeline::RenderRange &&renderRange) const;
-	};
-
-	void PipelineStageVisitor::operator ()(ID3D12GraphicsCommandList1 *cmdList) const
-	{
-	}
-
-	void PipelineStageVisitor::operator ()(RenderPipeline::RenderRange &&range) const
-	{
-	}
 }
 
 void GPUWorkSubmission::Prepare()
