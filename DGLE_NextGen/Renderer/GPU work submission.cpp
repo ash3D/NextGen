@@ -122,6 +122,11 @@ namespace
 
 void GPUWorkSubmission::Prepare()
 {
+	/*
+	This makes renderer non-reinterable after exception thrown during pipeline construction.
+	But currently there is no recovery mechanism so renderer left in invalid state anyway, application should be aborted on exception.
+	In the future however when recovery will be implemented std::unique_lock or similar should be used to provide exception guarantee.
+	*/
 	mtx.lock();
 }
 
@@ -130,7 +135,10 @@ namespace Renderer::GPUWorkSubmission
 	void AppendRenderStage(packaged_task<RenderPipeline::PipelineStage()> &&buildRenderStage)
 	{
 		RenderPipeline::AppendStage(buildRenderStage.get_future());
-		pendingAsyncRefs.push_back(async(launch::async, LaunchBuildRenderStage, move(buildRenderStage)));
+		auto asyncRef = async(launch::async, LaunchBuildRenderStage, move(buildRenderStage));
+		unique_lock<decltype(mtx)> lckSentry(mtx, adopt_lock);
+		pendingAsyncRefs.push_back(move(asyncRef));
+		lckSentry.release();
 	}
 }
 
@@ -156,7 +164,12 @@ void GPUWorkSubmission::Run()
 						RecordCmdListTask task(RecordCmdList);
 						const auto reserved = workAccumulator.capacity();
 						ROB.emplace_back(PendingWork{ task.get_future(), targetCmdListWorkSize - accumulatedWorkFreeSpace });
-						pendingAsyncRefs.push_back(async(launch::async, LaunchRecordCmdList, move(task), move(workAccumulator), CmdListPool::CmdList()));
+
+						auto asyncRef = async(launch::async, LaunchRecordCmdList, move(task), move(workAccumulator), CmdListPool::CmdList());
+						auto lckSentry(move(lck));
+						pendingAsyncRefs.push_back(move(asyncRef));
+						lckSentry.swap(lck);
+
 						accumulatedWorkFreeSpace = targetCmdListWorkSize;
 						runningTaskCount++;
 						workAccumulator.reserve(reserved);
