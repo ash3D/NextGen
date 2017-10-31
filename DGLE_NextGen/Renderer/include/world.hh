@@ -9,6 +9,8 @@ See "DGLE.h" for more details.
 
 #pragma once
 
+#define NOMINMAX
+
 #include <memory>
 #include <list>
 #include <utility>	// for std::forward

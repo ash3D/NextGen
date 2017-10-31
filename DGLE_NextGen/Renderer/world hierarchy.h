@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		29.10.2017 (c)Korotkov Andrey
+\date		31.10.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -9,13 +9,13 @@ See "DGLE.h" for more details.
 
 #pragma once
 
+#define NOMINMAX
+
 #include <utility>
 #include <type_traits>
 #include <memory>
 #include <vector>
 #include <wrl/client.h>
-#undef min
-#undef max
 #define DISABLE_MATRIX_SWIZZLES
 #if !__INTELLISENSE__ 
 #include "vector math.h"

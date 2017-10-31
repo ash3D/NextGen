@@ -8,6 +8,7 @@
 #include "targetver.h"
 
 #define WIN32_LEAN_AND_MEAN             // Exclude rarely-used stuff from Windows headers
+#define NOMINMAX
 
 
 
@@ -45,8 +46,6 @@
 #include <d3d12.h>
 #include "d3dx12.h"
 #include "HRESULT.h"
-#undef min
-#undef max
 #define DISABLE_MATRIX_SWIZZLES
 #if !__INTELLISENSE__ 
 #include "vector math.h"
