@@ -39,10 +39,10 @@ namespace
 
 	mutex mtx;
 	condition_variable workReadyEvent;
-	vector<RenderPipeline::RenderRange> workAccumulator;
+	vector<RenderPipeline::RenderRange> workBatch;
 	vector<future<void>> pendingAsyncRefs;
 	const unsigned int targetTaskCount = max(thread::hardware_concurrency(), 1u);
-	unsigned int accumulatedWorkFreeSpace = targetCmdListWorkSize, runningTaskCount;
+	unsigned int workBatchFreeSpace = targetCmdListWorkSize, runningTaskCount;
 
 	struct PendingWork
 	{
@@ -86,7 +86,7 @@ namespace
 		return visit(converter, static_cast<variant &>(*this));
 	}
 
-	inline CmdListPool::CmdList RecordCmdList(decltype(workAccumulator) &&work, CmdListPool::CmdList &&target)
+	inline CmdListPool::CmdList RecordCmdList(decltype(workBatch) &&work, CmdListPool::CmdList &&target)
 	{
 		for (const auto &range : work)
 			range(target);
@@ -96,12 +96,12 @@ namespace
 
 #if WRAP_CMD_LIST
 	// MSVC perform default construction for return value in shared state
-	typedef packaged_task<optional<CmdListPool::CmdList> (decltype(workAccumulator) &&work, CmdListPool::CmdList &&target)> RecordCmdListTask;
+	typedef packaged_task<optional<CmdListPool::CmdList> (decltype(workBatch) &&work, CmdListPool::CmdList &&target)> RecordCmdListTask;
 #else
 	typedef packaged_task<decltype(RecordCmdList)> RecordCmdListTask;
 #endif
 
-	inline void LaunchRecordCmdList(RecordCmdListTask &&task, decltype(workAccumulator) &&work, CmdListPool::CmdList &&target)
+	inline void LaunchRecordCmdList(RecordCmdListTask &&task, decltype(workBatch) &&work, CmdListPool::CmdList &&target)
 	{
 		task(move(work), move(target));
 		{
@@ -152,27 +152,27 @@ void GPUWorkSubmission::Run()
 			workReadyEvent.wait(lck);
 
 			// launch command lists recording
-			while (workAccumulator.empty() || runningTaskCount < targetTaskCount)
+			while (workBatch.empty() || runningTaskCount < targetTaskCount)
 			{
-				const auto item = RenderPipeline::GetNext(accumulatedWorkFreeSpace);
+				const auto item = RenderPipeline::GetNext(workBatchFreeSpace);
 				if (const auto cmdList = get_if<ID3D12GraphicsCommandList1 *>(&item))
 				{
-					// flush accumulated work if needed
-					const bool flushAccumulatedWork = accumulatedWorkFreeSpace == 0 || !workAccumulator.empty() && (*cmdList || RenderPipeline::Empty());
+					// flush work batch if needed
+					const bool flushAccumulatedWork = workBatchFreeSpace == 0 || !workBatch.empty() && (*cmdList || RenderPipeline::Empty());
 					if (flushAccumulatedWork)
 					{
 						RecordCmdListTask task(RecordCmdList);
-						const auto reserved = workAccumulator.capacity();
-						ROB.emplace_back(PendingWork{ task.get_future(), targetCmdListWorkSize - accumulatedWorkFreeSpace });
+						const auto reserved = workBatch.capacity();
+						ROB.emplace_back(PendingWork{ task.get_future(), targetCmdListWorkSize - workBatchFreeSpace });
 
-						auto asyncRef = async(launch::async, LaunchRecordCmdList, move(task), move(workAccumulator), CmdListPool::CmdList());
+						auto asyncRef = async(launch::async, LaunchRecordCmdList, move(task), move(workBatch), CmdListPool::CmdList());
 						auto lckSentry(move(lck));
 						pendingAsyncRefs.push_back(move(asyncRef));
 						lckSentry.swap(lck);
 
-						accumulatedWorkFreeSpace = targetCmdListWorkSize;
+						workBatchFreeSpace = targetCmdListWorkSize;
 						runningTaskCount++;
-						workAccumulator.reserve(reserved);
+						workBatch.reserve(reserved);
 					}
 
 					if (*cmdList)
@@ -181,7 +181,7 @@ void GPUWorkSubmission::Run()
 						break;
 				}
 				else // item is render range
-					workAccumulator.push_back(get<RenderPipeline::RenderRange>(move(item)));
+					workBatch.push_back(get<RenderPipeline::RenderRange>(move(item)));
 			}
 
 			// submit command list batch if ready
