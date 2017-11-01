@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		30.10.2017 (c)Korotkov Andrey
+\date		01.11.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -113,7 +113,7 @@ namespace Renderer::Impl
 		Math::VectorMath::vector<float, dimension> absFrustumPlanes[6];
 
 	public:
-		FrustumCuller(const HLSL::float4x4 &frustumXform);
+		explicit FrustumCuller(const HLSL::float4x4 &frustumXform);
 
 	public:
 		// with earlyOut returns true if culled
