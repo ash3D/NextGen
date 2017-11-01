@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		31.10.2017 (c)Korotkov Andrey
+\date		01.11.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -154,10 +154,11 @@ namespace Renderer::Impl::Hierarchy
 	}
 
 	template<class Object, class CustomNodeData, TreeStructure treeStructure>
-	inline void BVH<Object, CustomNodeData, treeStructure>::Node::CreateChildNode(bool splitted, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, double overlapThreshold, unsigned int idxOffset)
+	template<typename ...Params>
+	inline void BVH<Object, CustomNodeData, treeStructure>::Node::CreateChildNode(bool splitted, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, unsigned int idxOffset, Params ...params)
 	{
 		if (splitted)
-			children[idxOffset] = make_unique<Node>(begin, end, splitTechnique, overlapThreshold);
+			children[idxOffset] = make_unique<Node>(begin, end, splitTechnique, params...);
 	}
 
 	template<class Object, class CustomNodeData, TreeStructure treeStructure>
@@ -191,16 +192,8 @@ namespace Renderer::Impl::Hierarchy
 		using namespace std;
 		using namespace placeholders;
 
-		// problem with nested bind
-#if 0
-		const auto createChildNode = bind(&Node::CreateChildNode, this, _1/*splitted*/, _2/*begin*/, _3/*end*/, splitTechnique, _4/*overlapThreshold*/, _5/*idxOffset*/);
-#else
-		const auto createChildNode = [this, splitTechnique](bool splitted, typename enable_if_t<true, decltype(objects)>::iterator begin, typename enable_if_t<true, decltype(objects)>::iterator end, double overlapThreshold, unsigned int idxOffset)
-		{
-			CreateChildNode(splitted, begin, end, splitTechnique, overlapThreshold, idxOffset);
-		};
-#endif
-		Split2<Axis::Y>(bind(&Node::Split2<Axis::X, decltype(createChildNode)>, this, createChildNode, _1/*slpitted*/, _2/*begin*/, _3/*end*/, splitPoint, _4/*overlapThreshold*/, _5/*idxOffset*/), splitted, begin, end, splitPoint, overlapThreshold, idxOffset);
+		const auto createChildNode = bind(&Node::CreateChildNode<double>, this, _1/*splitted*/, _2/*begin*/, _3/*end*/, splitTechnique, _5/*idxOffset*/, _4/*overlapThreshold*/);
+		Split2<Axis::Y>(bind(&Node::Split2<Axis::X, decltype(cref(createChildNode))>, this, cref(createChildNode), _1/*slpitted*/, _2/*begin*/, _3/*end*/, splitPoint, _4/*overlapThreshold*/, _5/*idxOffset*/), splitted, begin, end, splitPoint, overlapThreshold, idxOffset);
 	}
 
 	// 1 call site
@@ -242,12 +235,8 @@ namespace Renderer::Impl::Hierarchy
 		using namespace std;
 		using namespace placeholders;
 
-		const auto createChildNode = [this, splitTechnique](bool splitted, typename enable_if_t<true, decltype(objects)>::iterator begin, typename enable_if_t<true, decltype(objects)>::iterator end, unsigned int idxOffset)
-		{
-			if (splitted)
-				children[idxOffset] = make_unique<Node>(begin, end, splitTechnique);
-		};
-		Split3<Axis::Y>(bind(&Node::Split3<Axis::X, decltype(createChildNode)>, this, createChildNode, _1/*splitted*/, _2/*begin*/, _3/*end*/, splitPoint, _4/*idxOffset*/), splitted, begin, end, splitPoint, idxOffset);
+		const auto createChildNode = bind(&Node::CreateChildNode<>, this, _1/*splitted*/, _2/*begin*/, _3/*end*/, splitTechnique, _4/*idxOffset*/);
+		Split3<Axis::Y>(bind(&Node::Split3<Axis::X, decltype(cref(createChildNode))>, this, cref(createChildNode), _1/*splitted*/, _2/*begin*/, _3/*end*/, splitPoint, _4/*idxOffset*/), splitted, begin, end, splitPoint, idxOffset);
 	}
 
 	// 1 call site
