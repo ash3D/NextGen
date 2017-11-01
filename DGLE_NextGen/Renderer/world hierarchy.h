@@ -193,7 +193,7 @@ namespace Renderer::Impl::Hierarchy
 	public:
 		template<typename ...Args, typename F>
 		void Traverse(F &nodeHandler, const Args &...args);
-		void Shcedule(const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform = nullptr);
+		void Shcedule(const FrustumCuller<std::enable_if_t<true, decltype(std::declval<Object>().GetAABB().Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform = nullptr);
 		void FreeObjects();
 		unsigned long int GetTriCount() const { return root->GetInclusiveTriCount(); }
 	};

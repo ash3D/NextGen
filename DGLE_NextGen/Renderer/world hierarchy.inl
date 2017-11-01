@@ -475,9 +475,8 @@ namespace Renderer::Impl::Hierarchy
 	}
 
 	template<class Object, class CustomNodeData, TreeStructure treeStructure>
-	inline void BVH<Object, CustomNodeData, treeStructure>::Shcedule(const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform)
+	inline void BVH<Object, CustomNodeData, treeStructure>::Shcedule(const FrustumCuller<std::enable_if_t<true, decltype(std::declval<Object>().GetAABB().Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform)
 	{
-		const FrustumCuller<decltype(std::declval<Object>().GetAABB().Center())::dimension> frustumCuller(frustumXform);
 		root->Shcedule(frustumCuller, frustumXform, depthSortXform);
 	}
 

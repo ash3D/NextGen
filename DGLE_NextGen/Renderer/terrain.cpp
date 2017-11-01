@@ -328,17 +328,17 @@ auto TerrainVectorLayer::AddQuad(unsigned long int vcount, const function<void _
 	return { &quads.back(), { prev(quads.cend()) } };
 }
 
-const RenderPipeline::IRenderStage *TerrainVectorLayer::BuildRenderStage(const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const
+const RenderPipeline::IRenderStage *TerrainVectorLayer::BuildRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const
 {
 	using namespace placeholders;
 	renderStage.Setup(move(mainPassSetupCallback));
-	for_each(quads.begin(), quads.end(), bind(&TerrainVectorQuad::Dispatch, _1, cref(frustumXform)));
+	for_each(quads.begin(), quads.end(), bind(&TerrainVectorQuad::Dispatch, _1, cref(frustumCuller), cref(frustumXform)));
 	return &renderStage;
 }
 
-void TerrainVectorLayer::ShceduleRenderStage(const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList1 *target)> mainPassSetupCallback) const
+void TerrainVectorLayer::ShceduleRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList1 *target)> mainPassSetupCallback) const
 {
-	GPUWorkSubmission::AppendRenderStage(&TerrainVectorLayer::BuildRenderStage, this, /*cref*/(frustumXform), move(mainPassSetupCallback));
+	GPUWorkSubmission::AppendRenderStage(&TerrainVectorLayer::BuildRenderStage, this, /*cref*/(frustumCuller), /*cref*/(frustumXform), move(mainPassSetupCallback));
 }
 
 TerrainVectorQuad::TerrainVectorQuad(shared_ptr<TerrainVectorLayer> layer, unsigned long int vcount, const function<void (volatile float verts[][2])> &fillVB, unsigned int objCount, bool srcIB32bit, const function<TerrainVectorLayer::ObjectData (unsigned int objIdx)> &getObjectData) :
@@ -388,11 +388,11 @@ TerrainVectorQuad::TerrainVectorQuad(shared_ptr<TerrainVectorLayer> layer, unsig
 
 TerrainVectorQuad::~TerrainVectorQuad() = default;
 
-void TerrainVectorQuad::Dispatch(const HLSL::float4x4 &frustumXform) const
+void TerrainVectorQuad::Dispatch(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform) const
 {
 	using namespace placeholders;
 
-	subtree.Shcedule(frustumXform);
+	subtree.Shcedule(frustumCuller, frustumXform);
 	const auto issueNode = bind(&TerrainVectorLayer::CRenderStage::IssueNode<decltype(subtree)::Node>, ref(layer->renderStage), _1, _2, _3, _4);
 	subtree.Traverse<void *, void *>(issueNode, nullptr, nullptr, false);
 	layer->renderStage.IssueQuad(VIB.Get(), VB_size, IB_size, IB32bit);

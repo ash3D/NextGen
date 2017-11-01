@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		31.10.2017 (c)Korotkov Andrey
+\date		01.11.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -35,6 +35,9 @@ namespace Renderer
 	namespace Impl
 	{
 		class World;
+
+		template<unsigned int dimension>
+		class FrustumCuller;
 	}
 
 	class TerrainVectorLayer final : public std::enable_shared_from_this<TerrainVectorLayer>
@@ -149,8 +152,8 @@ namespace Renderer
 
 	private:
 		void Render(ID3D12GraphicsCommandList1 *cmdList) const;
-		const Impl::RenderPipeline::IRenderStage *BuildRenderStage(const HLSL::float4x4 &frustumXform, std::function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const;
-		void ShceduleRenderStage(const HLSL::float4x4 &frustumXform, std::function<void (ID3D12GraphicsCommandList1 *target)> mainPassSetupCallback) const;
+		const Impl::RenderPipeline::IRenderStage *BuildRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, std::function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const;
+		void ShceduleRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, std::function<void (ID3D12GraphicsCommandList1 *target)> mainPassSetupCallback) const;
 	};
 
 	class TerrainVectorQuad final
@@ -169,7 +172,11 @@ namespace Renderer
 
 			// interface for BVH
 		public:
+#if defined _MSC_VER && _MSC_VER <= 1911
+			const AABB<2> &GetAABB() const { return aabb; }
+#else
 			const auto &GetAABB() const { return aabb; }
+#endif
 			unsigned long int GetTriCount() const noexcept { return triCount; }
 			float GetOcclusion() const noexcept { return .7f; }
 		};
@@ -190,6 +197,6 @@ namespace Renderer
 		void operator =(TerrainVectorQuad &) = delete;
 
 	private:
-		void Dispatch(const HLSL::float4x4 &frustumXform) const;
+		void Dispatch(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform) const;
 	};
 }

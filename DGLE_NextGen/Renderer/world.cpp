@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		31.10.2017 (c)Korotkov Andrey
+\date		01.11.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -12,6 +12,7 @@ See "DGLE.h" for more details.
 #include "viewport.hh"
 #include "terrain.hh"
 #include "world hierarchy.inl"
+#include "frustum culling.h"
 #include "occlusion query shceduling.h"
 #include "frame versioning.h"
 
@@ -181,6 +182,7 @@ void Impl::World::Render(const float (&viewXform)[4][3], const float (&projXform
 
 	const float4x3 terrainTransform(terrainXform);
 	const float4x4 terrainFrustumXform = mul(float4x4(terrainTransform[0], 0.f, terrainTransform[1], 0.f, terrainTransform[2], 0.f, terrainTransform[3], 1.f), frustumTransform);
+	const FrustumCuller<2> terrainFrustumCuller(terrainFrustumXform);
 	const function<void (ID3D12GraphicsCommandList1 *target)> terrainMainPassSetupCallback =
 		[
 			&setupRenderOutputCallback,
@@ -193,7 +195,7 @@ void Impl::World::Render(const float (&viewXform)[4][3], const float (&projXform
 		cmdList->SetGraphicsRootConstantBufferView(0, CB_location);
 	};
 	for (const auto &layer : terrainVectorLayers)
-		layer.ShceduleRenderStage(terrainFrustumXform, terrainMainPassSetupCallback);
+		layer.ShceduleRenderStage(terrainFrustumCuller, terrainFrustumXform, terrainMainPassSetupCallback);
 }
 
 //void Impl::World::ScheduleNode(decltype(bvh)::Node &node) const
