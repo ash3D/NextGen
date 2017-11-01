@@ -22,7 +22,8 @@ namespace Renderer::Impl::Hierarchy
 	template<class AABB>
 	inline bool AABBSizeSeparator<AABB>::operator ()(const AABB &aabb) const
 	{
-		return all(aabb.Size() > size);
+		// '>=' required (not '>') to handle degenerate AABBs correctly
+		return all(aabb.Size() >= size);
 	}
 
 	template<Axis axis>
@@ -68,6 +69,8 @@ namespace Renderer::Impl::Hierarchy
 		Node(std::make_integer_sequence<std::remove_extent_t<decltype(childrenOrder)>, std::extent_v<decltype(childrenOrder)>>(), srcBegin, srcEnd)
 	{
 		using namespace std;
+
+		assert(srcBegin != srcEnd);
 
 		// calculate AABB and mean pos\
 			consider calculating mean pos after big objects being separated
@@ -150,6 +153,8 @@ namespace Renderer::Impl::Hierarchy
 			{
 				return left + right->GetInclusiveTriCount();
 			});
+
+			assert(inclusiveTriCount);
 		}
 	}
 
