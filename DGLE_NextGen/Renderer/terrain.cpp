@@ -12,6 +12,10 @@ See "DGLE.h" for more details.
 #include "world hierarchy.inl"
 #include "GPU work submission.h"
 
+// !: need to investigate for deadlocks possibility due to MSVC's std::async threadpool overflow
+#define MULTITHREADED_QUADS_SHCEDULE 1
+
+
 using namespace std;
 using namespace Renderer;
 using WRL::ComPtr;
@@ -332,7 +336,28 @@ const RenderPipeline::IRenderStage *TerrainVectorLayer::BuildRenderStage(const I
 {
 	using namespace placeholders;
 	renderStage.Setup(move(mainPassSetupCallback));
+#if MULTITHREADED_QUADS_SHCEDULE
+#if 0
+	for_each(execution::par, quads.begin(), quads.end(), bind(&TerrainVectorQuad::Shcedule, _1, cref(frustumCuller), cref(frustumXform)));
+#else
+	vector<future<void>> pendingAsyncs;
+	pendingAsyncs.reserve(quads.size());
+	transform(quads.cbegin(), quads.cend(), back_inserter(pendingAsyncs), [&](decltype(quads)::const_reference quad)
+	{
+		return async(&TerrainVectorQuad::Shcedule, cref(quad), cref(frustumCuller), cref(frustumXform));
+	});
+	// wait for pending asyncs
+#if 0
+	// relying on future's dtor is probably not robust with default launch policy
+	pendingAsyncs.clear();
+#else
+	for_each(pendingAsyncs.begin(), pendingAsyncs.end(), mem_fn(&decltype(pendingAsyncs)::value_type::wait));
+#endif
+#endif
+	for_each(quads.begin(), quads.end(), mem_fn(&TerrainVectorQuad::Issue));
+#else
 	for_each(quads.begin(), quads.end(), bind(&TerrainVectorQuad::Dispatch, _1, cref(frustumCuller), cref(frustumXform)));
+#endif
 	return &renderStage;
 }
 
@@ -388,11 +413,26 @@ TerrainVectorQuad::TerrainVectorQuad(shared_ptr<TerrainVectorLayer> layer, unsig
 
 TerrainVectorQuad::~TerrainVectorQuad() = default;
 
-void TerrainVectorQuad::Dispatch(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform) const
+#if !MULTITHREADED_QUADS_SHCEDULE
+// 1 call site
+inline void TerrainVectorQuad::Dispatch(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform) const
+{
+	Shcedule(frustumCuller, frustumXform);
+	Issue();
+}
+#endif
+
+// 1 call site
+inline void TerrainVectorQuad::Shcedule(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform) const
+{
+	subtree.Shcedule(frustumCuller, frustumXform);
+}
+
+// 1 call site
+inline void TerrainVectorQuad::Issue() const
 {
 	using namespace placeholders;
 
-	subtree.Shcedule(frustumCuller, frustumXform);
 	const auto issueNode = bind(&TerrainVectorLayer::CRenderStage::IssueNode<decltype(subtree)::Node>, ref(layer->renderStage), _1, _2, _3, _4);
 	subtree.Traverse<void *, void *>(issueNode, nullptr, nullptr, false);
 	layer->renderStage.IssueQuad(VIB.Get(), VB_size, IB_size, IB32bit);

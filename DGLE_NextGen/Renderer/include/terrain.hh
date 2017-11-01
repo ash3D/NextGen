@@ -198,5 +198,6 @@ namespace Renderer
 
 	private:
 		void Dispatch(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform) const;
+		void Shcedule(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform) const, Issue() const;
 	};
 }
