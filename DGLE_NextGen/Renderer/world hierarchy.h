@@ -135,7 +135,7 @@ namespace Renderer::Impl::Hierarchy
 			unsigned char childrenCount{};
 			enum struct Visibility : unsigned char
 			{
-				Culled		= 0b11,	// completely culled by frustum
+				Culled		= 0b10,	// completely culled by frustum
 				Atomic		= 0b01,	// all children (and possibly node's exclusive objects) has the same visibility
 				Composite	= 0b00,	// traverse for children required
 			} visibility;
@@ -143,7 +143,7 @@ namespace Renderer::Impl::Hierarchy
 			{
 				WholeNode		= 0b1111,
 				ChildrenOnly	= 0b0111,
-				ForceComposite	= 0b0000,
+				ForceComposite	= 0b0010,
 			} occlusionCullDomain{};	// can be overriden by parent during tree traverse; need to init in order to eliminate possible UB due to uninit read in OverrideOcclusionCullDomain()
 			bool shceduleOcclusionQuery;
 

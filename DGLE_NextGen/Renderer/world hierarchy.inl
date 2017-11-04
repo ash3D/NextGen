@@ -263,6 +263,8 @@ namespace Renderer::Impl::Hierarchy
 	template<class Object, class CustomNodeData, TreeStructure treeStructure>
 	inline void BVH<Object, CustomNodeData, treeStructure>::Node::OverrideOcclusionCullDomain(OcclusionCullDomain &overriden) const noexcept
 	{
+		// ChildrenOnly -> ForceComposite is senseless
+		assert(overriden != OcclusionCullDomain::ChildrenOnly || occlusionCullDomain != OcclusionCullDomain::ForceComposite);
 		reinterpret_cast<underlying_type_t<OcclusionCullDomain> &>(overriden) |= underlying_type_t<OcclusionCullDomain>(occlusionCullDomain);	// strict aliasing rules violation?
 	}
 
@@ -294,6 +296,7 @@ namespace Renderer::Impl::Hierarchy
 			{
 			case CullResult::OUTSIDE:
 				visibility = Visibility::Culled;
+				shceduleOcclusionQuery = false;	// accessed during Issue
 				return { GetInclusiveTriCount(), false };
 			case CullResult::INSIDE:
 				parentInsideFrustum = true;
