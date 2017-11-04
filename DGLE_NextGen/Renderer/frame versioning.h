@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		31.10.2017 (c)Korotkov Andrey
+\date		04.11.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -12,7 +12,7 @@ See "DGLE.h" for more details.
 #define NOMINMAX
 
 #include <algorithm>
-#include <vector>
+#include <deque>
 #include <optional>
 #include <wrl/client.h>
 
@@ -84,7 +84,7 @@ namespace Renderer::Impl
 		WRL::ComPtr<ID3D12GraphicsCommandList1> list;
 	};
 	// Data here is a cmd buffer pool
-	extern std::optional<FrameVersioning<std::vector<CmdBuffer>>> globalFrameVersioning;
+	extern std::optional<FrameVersioning<std::deque<CmdBuffer>>> globalFrameVersioning;
 
 	// template impl
 	template<class Data>

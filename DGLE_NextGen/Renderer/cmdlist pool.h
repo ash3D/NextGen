@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		29.10.2017 (c)Korotkov Andrey
+\date		04.11.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -10,13 +10,14 @@ See "DGLE.h" for more details.
 #pragma once
 
 #include "stdafx.h"
+#include "frame versioning.h"
 
 // not thread-safe
 namespace Renderer::CmdListPool
 {
 	class CmdList
 	{
-		size_t poolIdx;
+		Impl::CmdBuffer *cmdBuffer;
 		void (CmdList::*setup)(ID3D12PipelineState *PSO) = &CmdList::Init;
 
 	public:
