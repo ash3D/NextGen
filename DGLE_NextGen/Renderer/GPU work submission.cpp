@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		31.10.2017 (c)Korotkov Andrey
+\date		04.11.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -41,7 +41,11 @@ namespace
 	condition_variable workReadyEvent;
 	vector<RenderPipeline::RenderRange> workBatch;
 	vector<future<void>> pendingAsyncRefs;
-	const unsigned int targetTaskCount = max(thread::hardware_concurrency(), 1u);
+	const unsigned int targetTaskCount = []
+	{
+		const unsigned int maxThreads = thread::hardware_concurrency();
+		return maxThreads ? maxThreads : UINT_MAX;
+	}();
 	unsigned int workBatchFreeSpace = targetCmdListWorkSize, runningTaskCount;
 
 	struct PendingWork
