@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		20.03.2017 (c)Korotkov Andrey
+\date		04.11.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -335,7 +335,7 @@ void Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::Subdiv(I
 		return length(point_dir - proj);
 	};
 
-	const auto stop_test = [&point_line_dist, &controlPoints, delta]() -> bool
+	const auto stop_test = [&point_line_dist, &controlPoints, delta]
 	{
 #ifdef MSVC_LIMITATIONS
 		for (unsigned i = 1; i < degree; i++)
