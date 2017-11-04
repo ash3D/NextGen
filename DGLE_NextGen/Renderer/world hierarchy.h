@@ -129,17 +129,17 @@ namespace Renderer::Impl::Hierarchy
 			std::decay_t<decltype(std::declval<Object>().GetAABB())> aabb;
 			std::unique_ptr<Node> children[treeStructure];
 			unsigned char childrenOrder[treeStructure];
-			unsigned int childrenCount{};
 			typename std::enable_if_t<true, decltype(objects)>::const_iterator objBegin, objExclusiveSeparator, objEnd;
 			unsigned long int exclusiveTriCount, inclusiveTriCount;
 			float occlusion;
-			enum struct Visibility
+			unsigned char childrenCount{};
+			enum struct Visibility : unsigned char
 			{
 				Culled		= 0b11,	// completely culled by frustum
 				Atomic		= 0b01,	// all children (and possibly node's exclusive objects) has the same visibility
 				Composite	= 0b00,	// traverse for children required
 			} visibility;
-			enum struct OcclusionCullDomain
+			enum struct OcclusionCullDomain : unsigned char
 			{
 				WholeNode		= 0b1111,
 				ChildrenOnly	= 0b0111,
