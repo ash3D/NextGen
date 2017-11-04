@@ -27,9 +27,9 @@ CmdList::CmdList()
 
 CmdList::operator ID3D12GraphicsCommandList1 *() const
 {
-	const auto &list = cmdBuffer->list;
-	assert(list);
-	return list.Get();
+	assert(cmdBuffer);
+	assert(cmdBuffer->list);
+	return cmdBuffer->list.Get();
 }
 
 void CmdList::Init(ID3D12PipelineState *PSO)

@@ -22,17 +22,38 @@ namespace Renderer::CmdListPool
 
 	public:
 		explicit CmdList();
-		CmdList(CmdList &&src) = default;
-		CmdList &operator =(CmdList &&src) = default;
+		CmdList(CmdList &&src);
+		CmdList &operator =(CmdList &&src);
 
 	public:
 		operator ID3D12GraphicsCommandList1 *() const;
 		ID3D12GraphicsCommandList1 *operator ->() const { return *this; }
-		void Setup(ID3D12PipelineState *PSO) { (this->*setup)(PSO); }
+		void Setup(ID3D12PipelineState *PSO);
 
 	private:
 		void Init(ID3D12PipelineState *PSO), Update(ID3D12PipelineState *PSO);
 	};
 
 	void OnFrameFinish();
+
+	// inline impl
+
+	inline CmdList::CmdList(CmdList &&src) : cmdBuffer(src.cmdBuffer), setup(src.setup)
+	{
+		src.cmdBuffer = nullptr;
+	}
+
+	inline CmdList &CmdList::operator =(CmdList &&src)
+	{
+		cmdBuffer = src.cmdBuffer;
+		setup = src.setup;
+		src.cmdBuffer = nullptr;
+		return *this;
+	}
+
+	inline void CmdList::Setup(ID3D12PipelineState *PSO)
+	{
+		assert(cmdBuffer);
+		(this->*setup)(PSO);
+	}
 }
