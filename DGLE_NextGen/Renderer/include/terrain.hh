@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		01.11.2017 (c)Korotkov Andrey
+\date		04.11.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -114,7 +114,7 @@ namespace Renderer
 			void Setup(std::function<void (ID3D12GraphicsCommandList1 *target)> &&mainPassSetupCallback);
 			void IssueQuad(ID3D12Resource *VIB, unsigned long int VB_size, unsigned long int IB_size, bool IB32bit);
 			template<class Node>
-			bool IssueNode(const Node &node, void *&coarseOcclusion, void *&fineOcclusion, bool &cullWholeNodeOverriden);
+			bool IssueNode(const Node &node, void *&coarseOcclusion, void *&fineOcclusion, decltype(node.GetOcclusionCullDomain()) &cullWholeNodeOverriden);
 
 		private:
 			template<class Node>

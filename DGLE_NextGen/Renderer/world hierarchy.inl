@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		01.11.2017 (c)Korotkov Andrey
+\date		04.11.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -255,6 +255,18 @@ namespace Renderer::Impl::Hierarchy
 	}
 
 	template<class Object, class CustomNodeData, TreeStructure treeStructure>
+	inline auto BVH<Object, CustomNodeData, treeStructure>::Node::GetVisibility(OcclusionCullDomain override) const noexcept -> Visibility
+	{
+		return Visibility(underlying_type_t<Visibility>(visibility) & underlying_type_t<OcclusionCullDomain>(override));
+	}
+
+	template<class Object, class CustomNodeData, TreeStructure treeStructure>
+	inline void BVH<Object, CustomNodeData, treeStructure>::Node::OverrideOcclusionCullDomain(OcclusionCullDomain &overriden) const noexcept
+	{
+		reinterpret_cast<underlying_type_t<OcclusionCullDomain> &>(overriden) |= underlying_type_t<OcclusionCullDomain>(occlusionCullDomain);	// strict aliasing rules violation?
+	}
+
+	template<class Object, class CustomNodeData, TreeStructure treeStructure>
 	template<typename ...Args, typename F>
 	void BVH<Object, CustomNodeData, treeStructure>::Node::Traverse(F &nodeHandler, Args ...args)
 	{
@@ -387,8 +399,6 @@ namespace Renderer::Impl::Hierarchy
 					childQueryCanceled = cancelQueryDueToParent;	// propagate if 'cancelQueryDueToParent == true', reset to false otherwise (shceduleOcclusionQuery == true)
 					if (shceduleOcclusionQuery)
 					{
-						if (exludedTris && exludedTris != GetExclusiveTriCount())
-							visibility = Visibility::Composite;
 						childrenCulledTris = GetInclusiveTriCount();	// ' - exludedTris' ?
 						const auto boxesEnd = remove(begin(boxes), end(boxes), nullptr);
 						// ...
@@ -437,14 +447,16 @@ namespace Renderer::Impl::Hierarchy
 			// return children boxes only if they are smaller than this node's box
 			if (accumulatedChildrenMeasure / thisNodeMeasure < OcclusionCulling::accumulatedChildrenMeasureShrinkThreshold)
 			{
-				cullWholeNode = false;
+				occlusionCullDomain = excludedTris ?
+					excludedTris == GetExclusiveTriCount() ? OcclusionCullDomain::ChildrenOnly : OcclusionCullDomain::ForceComposite
+					: OcclusionCullDomain::WholeNode;
 				return { excludedTris, accumulatedChildrenMeasure };
 			}
 		}
 
 		*boxesBegin = this;
 		fill(next(boxesBegin), boxesEnd, nullptr);
-		cullWholeNode = true;
+		occlusionCullDomain = OcclusionCullDomain::WholeNode;
 		return { 0ul, thisNodeMeasure };
 	}
 

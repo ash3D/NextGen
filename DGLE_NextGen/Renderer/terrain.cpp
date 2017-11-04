@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		01.11.2017 (c)Korotkov Andrey
+\date		04.11.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -266,23 +266,23 @@ void TerrainVectorLayer::CRenderStage::IssueQuad(ID3D12Resource *VIB, unsigned l
 }
 
 template<class Node>
-bool TerrainVectorLayer::CRenderStage::IssueNode(const Node &node, void *&coarseOcclusion, void *&fineOcclusion, bool &cullWholeNodeOverriden)
+bool TerrainVectorLayer::CRenderStage::IssueNode(const Node &node, void *&coarseOcclusion, void *&fineOcclusion, decltype(node.GetOcclusionCullDomain()) &occlusionCullDomainOverriden)
 {
 	if (node.OcclusionQueryShceduled())
 	{
-		cullWholeNodeOverriden = node.CullWholeNode();
+		occlusionCullDomainOverriden = node.GetOcclusionCullDomain();
 		occlusionQueryPass.IssueOcclusion(fineOcclusion = this);
 	}
 	else if (fineOcclusion)
-		cullWholeNodeOverriden = cullWholeNodeOverriden || node.CullWholeNode();	// |= may lead to UB due to uninit read
-	if (cullWholeNodeOverriden)
+		node.OverrideOcclusionCullDomain(occlusionCullDomainOverriden);
+	if (occlusionCullDomainOverriden == decltype(node.GetOcclusionCullDomain())::WholeNode)
 		coarseOcclusion = fineOcclusion;
-	switch (node.GetVisibility())
+	switch (node.GetVisibility(occlusionCullDomainOverriden))
 	{
-	case decltype(node.GetVisibility())::Composite:
+	case decltype(node.GetVisibility(occlusionCullDomainOverriden))::Composite:
 		IssueExclusiveObjects(node, coarseOcclusion);
 		return true;
-	case decltype(node.GetVisibility())::Atomic:
+	case decltype(node.GetVisibility(occlusionCullDomainOverriden))::Atomic:
 		if (coarseOcclusion == fineOcclusion)
 			IssueWholeNode(node, coarseOcclusion);
 		else
@@ -434,6 +434,6 @@ inline void TerrainVectorQuad::Issue() const
 	using namespace placeholders;
 
 	const auto issueNode = bind(&TerrainVectorLayer::CRenderStage::IssueNode<decltype(subtree)::Node>, ref(layer->renderStage), _1, _2, _3, _4);
-	subtree.Traverse<void *, void *>(issueNode, nullptr, nullptr, false);
+	subtree.Traverse<void *, void *>(issueNode, nullptr, nullptr, decltype(declval<decltype(subtree)::Node>().GetOcclusionCullDomain())::ChildrenOnly);
 	layer->renderStage.IssueQuad(VIB.Get(), VB_size, IB_size, IB32bit);
 }

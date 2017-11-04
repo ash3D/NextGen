@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		01.11.2017 (c)Korotkov Andrey
+\date		04.11.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -133,13 +133,19 @@ namespace Renderer::Impl::Hierarchy
 			typename std::enable_if_t<true, decltype(objects)>::const_iterator objBegin, objExclusiveSeparator, objEnd;
 			unsigned long int exclusiveTriCount, inclusiveTriCount;
 			float occlusion;
-			enum class Visibility
+			enum struct Visibility
 			{
-				Culled,		// completely culled by frustum
-				Composite,	// traverse for children required
-				Atomic,		// all children (and possibly node's exclusive objects) has the same visibility
+				Culled		= 0b11,	// completely culled by frustum
+				Atomic		= 0b01,	// all children (and possibly node's exclusive objects) has the same visibility
+				Composite	= 0b00,	// traverse for children required
 			} visibility;
-			bool shceduleOcclusionQuery, cullWholeNode/*can be overriden by parent*/;
+			enum struct OcclusionCullDomain
+			{
+				WholeNode		= 0b1111,
+				ChildrenOnly	= 0b0111,
+				ForceComposite	= 0b0000,
+			} occlusionCullDomain{};	// can be overriden by parent during tree traverse; need to init in order to eliminate possible UB due to uninit read in OverrideOcclusionCullDomain()
+			bool shceduleOcclusionQuery;
 
 		private:
 			template<std::remove_extent_t<decltype(childrenOrder)> ...idx>
@@ -169,9 +175,10 @@ namespace Renderer::Impl::Hierarchy
 			inline unsigned long int GetExclusiveTriCount() const noexcept { return exclusiveTriCount; }
 			inline unsigned long int GetInclusiveTriCount() const noexcept { return inclusiveTriCount; }
 			inline float GetOcclusion() const noexcept { return occlusion; }	// exclusive
-			inline Visibility GetVisibility() const noexcept { return visibility; }
+			inline OcclusionCullDomain GetOcclusionCullDomain() const noexcept { return occlusionCullDomain; }
 			inline bool OcclusionQueryShceduled() const noexcept { return shceduleOcclusionQuery; }
-			inline bool CullWholeNode() const noexcept { return cullWholeNode; }
+			Visibility GetVisibility(OcclusionCullDomain override) const noexcept;
+			void OverrideOcclusionCullDomain(OcclusionCullDomain &domain) const noexcept;
 
 		private:
 			template<typename ...Args, typename F>
