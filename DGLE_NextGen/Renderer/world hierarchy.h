@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		04.11.2017 (c)Korotkov Andrey
+\date		05.11.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -128,10 +128,10 @@ namespace Renderer::Impl::Hierarchy
 		private:
 			std::decay_t<decltype(std::declval<Object>().GetAABB())> aabb;
 			std::unique_ptr<Node> children[treeStructure];
-			unsigned char childrenOrder[treeStructure];
 			typename std::enable_if_t<true, decltype(objects)>::const_iterator objBegin, objExclusiveSeparator, objEnd;
 			unsigned long int exclusiveTriCount, inclusiveTriCount;
 			float occlusion;
+			unsigned char childrenOrder[treeStructure];
 			unsigned char childrenCount{};
 			enum struct Visibility : unsigned char
 			{
