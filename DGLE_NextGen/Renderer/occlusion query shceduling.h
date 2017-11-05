@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		28.07.2017 (c)Korotkov Andrey
+\date		05.11.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -18,16 +18,25 @@ namespace Renderer::Impl::OcclusionCulling
 	/*inline*/ constexpr float nodeProjLengthThreshold = 5e-2f, nestedNodeProjLengthShrinkThreshold = .4f, parentOcclusionThreshold = .8f, accumulatedChildrenMeasureShrinkThreshold = .7f;
 	/*inline*/ constexpr unsigned maxOcclusionQueryBoxes = 64;
 	/*inline*/ constexpr unsigned long int exclusiveTriCountCullThreshold = 256;
+	/*inline*/ constexpr unsigned int minTriCount = 4096u;
 
+	inline bool EarlyOut(unsigned long int triCount) noexcept
+	{
+		return triCount < minTriCount;
+	}
+
+	template<bool checkEarlyOut>
 	inline bool QueryBenefit(float aabbSquare, unsigned long int triCount)
 	{
 		// need research
-		constexpr unsigned int minTriCount = 4096u;
 		constexpr float threshold = minTriCount / .2f;
 
-		if (triCount < minTriCount)
-			return false;
-
 		return triCount / sqrt(aabbSquare) >= threshold;
+	}
+
+	template<>
+	inline bool QueryBenefit<true>(float aabbSquare, unsigned long int triCount)
+	{
+		return !EarlyOut(triCount) && QueryBenefit<false>(aabbSquare, triCount);
 	}
 }

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		04.11.2017 (c)Korotkov Andrey
+\date		05.11.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -264,7 +264,7 @@ namespace Renderer::Impl::Hierarchy
 	inline void BVH<Object, CustomNodeData, treeStructure>::Node::OverrideOcclusionCullDomain(OcclusionCullDomain &overriden) const noexcept
 	{
 		// ChildrenOnly -> ForceComposite is senseless
-		assert(overriden != OcclusionCullDomain::ChildrenOnly || occlusionCullDomain != OcclusionCullDomain::ForceComposite);
+		assert(visibility == Visibility::Culled || overriden != OcclusionCullDomain::ChildrenOnly || occlusionCullDomain != OcclusionCullDomain::ForceComposite);
 		reinterpret_cast<underlying_type_t<OcclusionCullDomain> &>(overriden) |= underlying_type_t<OcclusionCullDomain>(occlusionCullDomain);	// strict aliasing rules violation?
 	}
 
@@ -304,122 +304,156 @@ namespace Renderer::Impl::Hierarchy
 			}
 		}
 
-		// pre
-#if 1
-		const auto clipSpaceAABB = MakeClipSpaceAABB(frustumXform, GetAABB());
-#else
-		const ClipSpaceAABB clipSpaceAABB(frustumXform, GetAABB());
-#endif
-		const AABB<3> NDCSpaceAABB(clipSpaceAABB);
-		const HLSL::float2 aabbProjSize = NDCSpaceAABB.Size();
-		const float aabbProjSquare = aabbProjSize.x * aabbProjSize.y;
-		const float aabbProjLength = fmax(aabbProjSize.x, aabbProjSize.y);
-		bool cancelQueryDueToParent = false;
-		// TODO: replace 'z >= 0 && w > 0' with 'w >= znear' and use 2D NDC space AABB
-		if (shceduleOcclusionQuery = NDCSpaceAABB.min.z >= 0.f && clipSpaceAABB.MinW() > 0.f && OcclusionCulling::QueryBenefit(aabbProjSquare, GetInclusiveTriCount()) &&
-			!(cancelQueryDueToParent = (parentOcclusionCulledProjLength <= OcclusionCulling::nodeProjLengthThreshold || aabbProjLength / parentOcclusionCulledProjLength >= OcclusionCulling::nestedNodeProjLengthShrinkThreshold) && parentOcclusion < OcclusionCulling::parentOcclusionThreshold))
-		{
-			parentOcclusionCulledProjLength = aabbProjLength;
-			parentOcclusion = GetOcclusion();
-		}
-		else
-			parentOcclusion += GetOcclusion() - parentOcclusion * GetOcclusion();
-
 		unsigned long int childrenCulledTris = 0;
 		bool childQueryCanceled = false;
 
-		if (childrenCount)
+		const auto traverseChildren = [&]
 		{
+			if (childrenCount)
+			{
 #if MULTITHREADED_TREE_TRAVERSE
-			// consider using thread pool instead of async
-			future<pair<unsigned long int, bool>> childrenResults[extent_v<decltype(children)>];
-			// launch
-			transform(next(cbegin(children)), next(cbegin(children), childrenCount), begin(childrenResults), [=, /*&nodeHandler, */&frustumCuller, &frustumXform](const remove_extent_t<decltype(children)> &child)
-			{
-				return async(&Node::Shcedule, child.get(), /*cref(nodeHandler), */cref(frustumCuller), cref(frustumXform), depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
-			});
+				// consider using thread pool instead of async
+				future<pair<unsigned long int, bool>> childrenResults[extent_v<decltype(children)>];
+				// launch
+				transform(next(cbegin(children)), next(cbegin(children), childrenCount), begin(childrenResults), [=, /*&nodeHandler, */&frustumCuller, &frustumXform](const remove_extent_t<decltype(children)> &child)
+				{
+					return async(&Node::Shcedule, child.get(), /*cref(nodeHandler), */cref(frustumCuller), cref(frustumXform), depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
+				});
 
-			// traverse first child in this thread
-			const auto childResult = children[0]->Shcedule(/*nodeHandler, */frustumCuller, frustumXform, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
-			childrenCulledTris = childResult.first;
-			childQueryCanceled = childResult.second;
+				// traverse first child in this thread
+				const auto childResult = children[0]->Shcedule(/*nodeHandler, */frustumCuller, frustumXform, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
+				childrenCulledTris = childResult.first;
+				childQueryCanceled = childResult.second;
 #else
-			for_each_n(cbegin(children), childrenCount, [&, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion](const remove_extent_t<decltype(children)> &child)
-			{
-				const auto childResult = child->Shcedule(/*nodeHandler, */frustumCuller, frustumXform, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
-				childrenCulledTris += childResult.first;
-				childQueryCanceled |= childResult.second;
-			});
+				for_each_n(cbegin(children), childrenCount, [&, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion](const remove_extent_t<decltype(children)> &child)
+				{
+					const auto childResult = child->Shcedule(/*nodeHandler, */frustumCuller, frustumXform, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
+					childrenCulledTris += childResult.first;
+					childQueryCanceled |= childResult.second;
+				});
 #endif
 
-			// sort if necessary
-			if (depthSortXform)
-			{
-				// xform AABBs to view space
-				AABB<3> viewSpaceAABBs[extent_v<decltype(children)>];
-				transform(cbegin(children), next(cbegin(children), childrenCount), viewSpaceAABBs, [depthSortXform](const remove_extent_t<decltype(children)> &child)
+				// sort if necessary
+				if (depthSortXform)
 				{
-					return TransformAABB(child->aabb, *depthSortXform);
-				});
+					// xform AABBs to view space
+					AABB<3> viewSpaceAABBs[extent_v<decltype(children)>];
+					transform(cbegin(children), next(cbegin(children), childrenCount), viewSpaceAABBs, [depthSortXform](const remove_extent_t<decltype(children)> &child)
+					{
+						return TransformAABB(child->aabb, *depthSortXform);
+					});
 
-				// sort by near AABB z (needed for occlusion culling to work properly for nested objects)
-				sort(begin(childrenOrder), next(begin(childrenOrder), childrenCount), [&viewSpaceAABBs](remove_extent_t<decltype(childrenOrder)> left, remove_extent_t<decltype(childrenOrder)> right) -> bool
+					// sort by near AABB z (needed for occlusion culling to work properly for nested objects)
+					sort(begin(childrenOrder), next(begin(childrenOrder), childrenCount), [&viewSpaceAABBs](remove_extent_t<decltype(childrenOrder)> left, remove_extent_t<decltype(childrenOrder)> right) -> bool
+					{
+						return viewSpaceAABBs[left].min.z < viewSpaceAABBs[right].min.z;
+					});
+				}
+
+#if MULTITHREADED_TREE_TRAVERSE
+				for_each_n(begin(childrenResults), childrenCount - 1, [&childrenCulledTris, &childQueryCanceled](remove_extent_t<decltype(childrenResults)> &childResult)
 				{
-					return viewSpaceAABBs[left].min.z < viewSpaceAABBs[right].min.z;
+					const auto resolvedResult = childResult.get();
+					childrenCulledTris += resolvedResult.first;
+					childQueryCanceled |= resolvedResult.second;
 				});
+#endif
 			}
 
-#if MULTITHREADED_TREE_TRAVERSE
-			for_each_n(begin(childrenResults), childrenCount - 1, [&childrenCulledTris, &childQueryCanceled](remove_extent_t<decltype(childrenResults)> &childResult)
-			{
-				const auto resolvedResult = childResult.get();
-				childrenCulledTris += resolvedResult.first;
-				childQueryCanceled |= resolvedResult.second;
-			});
-#endif
-		}
+			visibility = childrenCulledTris ? Visibility::Composite : Visibility::Atomic;
+		};
 
-		// post
-		visibility = childrenCulledTris ? Visibility::Composite : Visibility::Atomic;
-		assert(!(shceduleOcclusionQuery && cancelQueryDueToParent));
-		__assume(!(shceduleOcclusionQuery && cancelQueryDueToParent));
-		/*
-		shceduleOcclusionQuery == true (=> cancelQueryDueToParent == false)									|	reevaluate shceduleOcclusionQuery if childQueryCanceled == false, otherwise keep shceduled unconditionally
-		cancelQueryDueToParent == true (=> shceduleOcclusionQuery == false) && childQueryCanceled == false	|	reevaluate cancelQueryDueToParent and propagate it as childQueryCanceled
-		shceduleOcclusionQuery == false && childQueryCanceled == true										|	propagate childQueryCanceled == true unconditionally
-		*/
-		if (shceduleOcclusionQuery || cancelQueryDueToParent && !childQueryCanceled)
+		if (OcclusionCulling::EarlyOut(GetInclusiveTriCount()))
 		{
-			const unsigned long int restTris = GetInclusiveTriCount() - childrenCulledTris;
-			bool queryNeeded = childQueryCanceled || OcclusionCulling::QueryBenefit(aabbProjSquare, restTris);
-			if (queryNeeded)
+			// parentInsideFrustum now relates to this node
+			if (parentInsideFrustum)
 			{
-				const Node *boxes[OcclusionCulling::maxOcclusionQueryBoxes];
-				const unsigned long int exludedTris = CollectOcclusionQueryBoxes(begin(boxes), end(boxes)).first;
-				// reevaluate query benefit after excluding cheap objects during box collection
-				if (queryNeeded = childQueryCanceled || OcclusionCulling::QueryBenefit(aabbProjSquare, restTris - exludedTris))
+				visibility = Visibility::Atomic;
+				shceduleOcclusionQuery = false;
+			}
+			else
+				traverseChildren();
+		}
+		else
+		{
+			// pre
+#if 1
+			const auto clipSpaceAABB = MakeClipSpaceAABB(frustumXform, GetAABB());
+#else
+			const ClipSpaceAABB clipSpaceAABB(frustumXform, GetAABB());
+#endif
+			const AABB<3> NDCSpaceAABB(clipSpaceAABB);
+			const HLSL::float2 aabbProjSize = NDCSpaceAABB.Size();
+			const float aabbProjSquare = aabbProjSize.x * aabbProjSize.y;
+			const float aabbProjLength = fmax(aabbProjSize.x, aabbProjSize.y);
+			bool cancelQueryDueToParent = false;
+			// TODO: replace 'z >= 0 && w > 0' with 'w >= znear' and use 2D NDC space AABB
+			if (shceduleOcclusionQuery = NDCSpaceAABB.min.z >= 0.f && clipSpaceAABB.MinW() > 0.f && OcclusionCulling::QueryBenefit<false>(aabbProjSquare, GetInclusiveTriCount()) &&
+				!(cancelQueryDueToParent = (parentOcclusionCulledProjLength <= OcclusionCulling::nodeProjLengthThreshold || aabbProjLength / parentOcclusionCulledProjLength >= OcclusionCulling::nestedNodeProjLengthShrinkThreshold) && parentOcclusion < OcclusionCulling::parentOcclusionThreshold))
+			{
+				parentOcclusionCulledProjLength = aabbProjLength;
+				parentOcclusion = GetOcclusion();
+			}
+			else
+				parentOcclusion += GetOcclusion() - parentOcclusion * GetOcclusion();
+
+			traverseChildren();
+
+			// post
+			assert(!(shceduleOcclusionQuery && cancelQueryDueToParent));
+			__assume(!(shceduleOcclusionQuery && cancelQueryDueToParent));
+			/*
+			shceduleOcclusionQuery == true (=> cancelQueryDueToParent == false)									|	reevaluate shceduleOcclusionQuery if childQueryCanceled == false, otherwise keep shceduled unconditionally
+			cancelQueryDueToParent == true (=> shceduleOcclusionQuery == false) && childQueryCanceled == false	|	reevaluate cancelQueryDueToParent and propagate it as childQueryCanceled
+			shceduleOcclusionQuery == false && childQueryCanceled == true										|	propagate childQueryCanceled == true unconditionally
+			*/
+			if (shceduleOcclusionQuery || cancelQueryDueToParent && !childQueryCanceled)
+			{
+				const unsigned long int restTris = GetInclusiveTriCount() - childrenCulledTris;
+				bool queryNeeded = childQueryCanceled || OcclusionCulling::QueryBenefit<true>(aabbProjSquare, restTris);
+				if (queryNeeded)
 				{
-					childQueryCanceled = cancelQueryDueToParent;	// propagate if 'cancelQueryDueToParent == true', reset to false otherwise (shceduleOcclusionQuery == true)
-					if (shceduleOcclusionQuery)
+					const Node *boxes[OcclusionCulling::maxOcclusionQueryBoxes];
+					const unsigned long int exludedTris = CollectOcclusionQueryBoxes(begin(boxes), end(boxes)).first;
+					// reevaluate query benefit after excluding cheap objects during box collection
+					if (queryNeeded = childQueryCanceled || OcclusionCulling::QueryBenefit<true>(aabbProjSquare, restTris - exludedTris))
 					{
-						childrenCulledTris = GetInclusiveTriCount();	// ' - exludedTris' ?
-						const auto boxesEnd = remove(begin(boxes), end(boxes), nullptr);
-						// ...
+						childQueryCanceled = cancelQueryDueToParent;	// propagate if 'cancelQueryDueToParent == true', reset to false otherwise (shceduleOcclusionQuery == true)
+						if (shceduleOcclusionQuery)
+						{
+							childrenCulledTris = GetInclusiveTriCount();	// ' - exludedTris' ?
+							const auto boxesEnd = remove(begin(boxes), end(boxes), nullptr);
+							// ...
+						}
 					}
 				}
+				shceduleOcclusionQuery &= queryNeeded;
 			}
-			shceduleOcclusionQuery &= queryNeeded;
 		}
+
 		return { childrenCulledTris, childQueryCanceled };
 	}
 
 	// returns <exluded tris, accumulated AABB measure>
 	template<class Object, class CustomNodeData, TreeStructure treeStructure>
-	std::pair<unsigned long int, float> BVH<Object, CustomNodeData, treeStructure>::Node::CollectOcclusionQueryBoxes(const Node **boxesBegin, const Node **boxesEnd)
+	std::pair<unsigned long int, float> BVH<Object, CustomNodeData, treeStructure>::Node::CollectOcclusionQueryBoxes(const Node **boxesBegin, const Node **boxesEnd, Visibility parentVisibilityOverride)
 	{
 		using namespace std;
 
-		const auto childrenFilter = [](const remove_extent_t<decltype(children)> &child) { return child->visibility != Visibility::Culled && !child->shceduleOcclusionQuery; };
+		assert(parentVisibilityOverride != Visibility::Culled);
+
+		// reset 'culled' bit which can potetially be set in previous frame and not updated yet during Shcedule() due to early out
+		reinterpret_cast<underlying_type_t<Visibility> &>(visibility) &= 0b01;
+		
+		reinterpret_cast<underlying_type_t<Visibility> &>(visibility) |= underlying_type_t<Visibility>(parentVisibilityOverride);
+
+		if (parentVisibilityOverride == Visibility::Atomic)
+			shceduleOcclusionQuery = false;	// need to set here because it may not be set in Shcedule() due to early out
+
+		const auto childrenFilter = [parentAtomic = visibility == Visibility::Atomic](const remove_extent_t<decltype(children)> &child)
+		{
+			return parentAtomic || child->visibility != Visibility::Culled && !child->shceduleOcclusionQuery;
+		};
 		const auto filteredChildrenCount = count_if(cbegin(children), next(cbegin(children), childrenCount), childrenFilter);
 		const auto boxesCount = distance(boxesBegin, boxesEnd);
 		const float thisNodeMeasure = aabb.Measure();
@@ -428,8 +462,8 @@ namespace Renderer::Impl::Hierarchy
 		{
 			unsigned long int excludedTris = GetExclusiveTriCount();
 			float accumulatedChildrenMeasure = 0.f;
-			const auto collectFromChild = [minBoxesPerNode = boxesCount / filteredChildrenCount, additionalBoxes = boxesCount % filteredChildrenCount, segmentBegin = boxesBegin,
-				&excludedTris, &accumulatedChildrenMeasure, childrenFilter](const remove_extent_t<decltype(children)> &child) mutable
+			const auto collectFromChild = [&, childrenFilter, minBoxesPerNode = boxesCount / filteredChildrenCount, additionalBoxes = boxesCount % filteredChildrenCount, segmentBegin = boxesBegin]
+			(const remove_extent_t<decltype(children)> &child) mutable
 			{
 				if (childrenFilter(child))
 				{
@@ -439,7 +473,7 @@ namespace Renderer::Impl::Hierarchy
 						advance(segmentEnd, 1);
 						additionalBoxes--;
 					}
-					const auto collectResults = child->CollectOcclusionQueryBoxes(segmentBegin, segmentEnd);
+					const auto collectResults = child->CollectOcclusionQueryBoxes(segmentBegin, segmentEnd, visibility);
 					excludedTris += collectResults.first;
 					accumulatedChildrenMeasure += collectResults.second;
 					segmentBegin = segmentEnd;

@@ -138,7 +138,7 @@ namespace Renderer::Impl::Hierarchy
 				Culled		= 0b10,	// completely culled by frustum
 				Atomic		= 0b01,	// all children (and possibly node's exclusive objects) has the same visibility
 				Composite	= 0b00,	// traverse for children required
-			} visibility;
+			} visibility{};	// need to init since it can be accessed in CollectOcclusionQueryBoxes()
 			enum struct OcclusionCullDomain : unsigned char
 			{
 				WholeNode		= 0b1111,
@@ -185,7 +185,7 @@ namespace Renderer::Impl::Hierarchy
 			void Traverse(F &nodeHandler, Args ...args);
 			std::pair<unsigned long int, bool> Shcedule(const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
 				bool parentInsideFrustum = false, float parentOcclusionCulledProjLength = INFINITY, float parentOcclusion = 0);
-			std::pair<unsigned long int, float> CollectOcclusionQueryBoxes(const Node **boxesBegin, const Node **boxesEnd);
+			std::pair<unsigned long int, float> CollectOcclusionQueryBoxes(const Node **boxesBegin, const Node **boxesEnd, Visibility parentVisibilityOverride = {});
 		};
 
 	private:
