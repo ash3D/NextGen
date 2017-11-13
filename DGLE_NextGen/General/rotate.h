@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		30.10.2017 (c)Korotkov Andrey
+\date		13.11.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -84,7 +84,7 @@ namespace RotImpl
 #endif
 
 #ifdef _MSC_VER
-#	define INTRINSICS_WIDTH_LIST 8, 16, 32, 64
+#	define INTRINSICS_WIDTH_LIST , 8, 16, 32, 64
 #else	// empty
 #	define INTRINSICS_WIDTH_LIST
 #endif
@@ -101,7 +101,7 @@ namespace RotImpl
 #endif
 
 	template<unsigned width>
-	constexpr bool IsGeneric = IntrinsicsNotFound<width, INTRINSICS_WIDTH_LIST>;
+	constexpr bool IsGeneric = IntrinsicsNotFound<width INTRINSICS_WIDTH_LIST>;
 
 #undef INTRINSICS_WIDTH_LIST
 
