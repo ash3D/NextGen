@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		01.11.2017 (c)Korotkov Andrey
+\date		13.11.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -15,6 +15,7 @@ See "DGLE.h" for more details.
 #include "frustum culling.h"
 #include "occlusion query shceduling.h"
 #include "frame versioning.h"
+#include "align.h"
 
 #include "vectorLayerVS.csh"
 #include "vectorLayerPS.csh"
@@ -23,26 +24,6 @@ using namespace std;
 using namespace Renderer;
 using namespace Math::VectorMath::HLSL;
 using WRL::ComPtr;
-
-template<typename Int>
-static constexpr inline unsigned BitCount(Int x)
-{
-	static_assert(is_integral_v<Int>, "x should be integral");
-	typedef make_unsigned_t<Int> UInt;
-	UInt y = x;
-	unsigned count = 0;
-	for (unsigned i = 0; i < numeric_limits<UInt>::digits; i++, y >>= 1)
-		count += y & 1u;
-	return count;
-}
-
-template<unsigned alignment, typename UInt>
-static constexpr inline auto AlignSize(UInt x)
-{
-	static_assert(is_unsigned_v<UInt>, "alignment should be unsigned integral");
-	static_assert(BitCount(alignment) == 1, "alignemt should be power of 2");
-	return x + alignment - 1 & ~(alignment - 1);
-}
 
 static constexpr unsigned int CB_overlap = 3, terrainCB_dataSize = sizeof(float[4][4]) * 3, terrainCB_storeSize = AlignSize<D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT>(terrainCB_dataSize);
 

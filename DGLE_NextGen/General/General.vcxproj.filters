@@ -63,6 +63,12 @@
     <ClInclude Include="SIMD.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="popcnt.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="align.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="collision.cpp">

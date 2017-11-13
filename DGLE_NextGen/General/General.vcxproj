@@ -314,6 +314,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AABB.h" />
+    <ClInclude Include="align.h" />
     <ClInclude Include="binaryIO.h" />
     <ClInclude Include="collision.h" />
     <ClInclude Include="CompilerCheck.h" />
@@ -323,6 +324,7 @@
     <ClInclude Include="hermite.h" />
     <ClInclude Include="nv_algebra.h" />
     <ClInclude Include="misc.h" />
+    <ClInclude Include="popcnt.h" />
     <ClInclude Include="rotate.h" />
     <ClInclude Include="SIMD.h" />
     <ClInclude Include="splines.h" />
