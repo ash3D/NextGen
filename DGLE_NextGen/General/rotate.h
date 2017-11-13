@@ -12,7 +12,6 @@ See "DGLE.h" for more details.
 #include "CompilerCheck.h"
 #include <type_traits>
 #include <limits>
-#include <functional>
 #include <cstdint>
 #if USE_BOOST_TYPE_SELECTOR
 #include <boost/integer.hpp>
@@ -47,7 +46,7 @@ namespace RotImpl
 		template<unsigned width>											\
 		struct SelectType<width, enable_if_t<(width > a && width <= b)>>	\
 		{																	\
-			typedef uint_fast##b##_t fast;									\
+			typedef uint_fast##b##_t fast, type;							\
 		};
 
 	SELECT_TYPE_RANGE(0, 8)
@@ -57,11 +56,11 @@ namespace RotImpl
 
 #	undef SELECT_TYPE_RANGE
 
-#	define SELECT_TYPE_EXACT(x)			\
-		template<>						\
-		struct SelectType<x>			\
-		{								\
-			typedef uint##x##_t exact;	\
+#	define SELECT_TYPE_EXACT(x)					\
+		template<>								\
+		struct SelectType<x>					\
+		{										\
+			typedef uint##x##_t exact, type;	\
 		};
 
 #	ifdef UINT8_MAX
@@ -83,35 +82,20 @@ namespace RotImpl
 #	undef SELECT_TYPE_EXACT
 #endif
 
-#ifdef _MSC_VER
-#	define INTRINSICS_WIDTH_LIST , 8, 16, 32, 64
-#else	// empty
-#	define INTRINSICS_WIDTH_LIST
-#endif
-
-#if defined _MSC_VER && _MSC_VER <= 1911 && !defined __clang__
-	template<bool ...notFound>
-	constexpr bool IntrinsicsNotFoundImpl = conjunction_v<bool_constant<notFound>...>;
-
-	template<unsigned width, unsigned ...intrinsicWidth>
-	constexpr bool IntrinsicsNotFound = IntrinsicsNotFoundImpl<width != intrinsicWidth ...>;
-#else
-	template<unsigned width, unsigned ...intrinsicWidth>
-	constexpr bool IntrinsicsNotFound = conjunction_v<bool_constant<width != intrinsicWidth>...>;
-#endif
-
-	template<unsigned width>
-	constexpr bool IsGeneric = IntrinsicsNotFound<width INTRINSICS_WIDTH_LIST>;
-
-#undef INTRINSICS_WIDTH_LIST
-
 	template<unsigned width>
 #if USE_BOOST_TYPE_SELECTOR
 	inline auto rol(typename boost::uint_t<width>::fast value, unsigned int shift) noexcept ->
-		enable_if_t<IsGeneric<width> && !Has_exact<typename boost::uint_t<width>>::value, decltype(value)>
+#if defined _MSC_VER && _MSC_VER <= 1911 && !defined __clang__
+		enable_if_t<!Has_exact<typename boost::uint_t<width>>::value, typename boost::uint_t<width>::fast>
 #else
-	inline auto rol(typename SelectType<width>::fast value, unsigned int shift) noexcept ->
-		enable_if_t<IsGeneric<width>, decltype(value)>
+		enable_if_t<!Has_exact<typename boost::uint_t<width>>::value, decltype(value)>
+#endif
+#else
+#if defined _MSC_VER && _MSC_VER <= 1911 && !defined __clang__
+	inline typename SelectType<width>::fast rol(typename SelectType<width>::fast value, unsigned int shift) noexcept
+#else
+	inline auto rol(typename SelectType<width>::fast value, unsigned int shift) noexcept -> decltype(value)
+#endif
 #endif
 	{
 		shift %= width;
@@ -121,11 +105,18 @@ namespace RotImpl
 
 	template<unsigned width>
 #if USE_BOOST_TYPE_SELECTOR
-	inline auto rol(typename boost::uint_t<width>::exact value, unsigned int shift) noexcept ->
+#if defined _MSC_VER && _MSC_VER <= 1911 && !defined __clang__
+	inline typename boost::uint_t<width>::exact rol(typename boost::uint_t<width>::exact value, unsigned int shift) noexcept
 #else
-	inline auto rol(typename SelectType<width>::exact value, unsigned int shift) noexcept ->
+	inline auto rol(typename boost::uint_t<width>::exact value, unsigned int shift) noexcept -> decltype(value)
 #endif
-		enable_if_t<IsGeneric<width>, decltype(value)>
+#else
+#if defined _MSC_VER && _MSC_VER <= 1911 && !defined __clang__
+	inline typename SelectType<width>::exact rol(typename SelectType<width>::exact value, unsigned int shift) noexcept
+#else
+	inline auto rol(typename SelectType<width>::exact value, unsigned int shift) noexcept -> decltype(value)
+#endif
+#endif
 	{
 		shift %= width;
 		return value << shift | value >> width - shift;
@@ -134,10 +125,17 @@ namespace RotImpl
 	template<unsigned width>
 #if USE_BOOST_TYPE_SELECTOR
 	inline auto ror(typename boost::uint_t<width>::fast value, unsigned int shift) noexcept ->
-		enable_if_t<IsGeneric<width> && !Has_exact<typename boost::uint_t<width>>::value, decltype(value)>
+#if defined _MSC_VER && _MSC_VER <= 1911 && !defined __clang__
+		enable_if_t<!Has_exact<typename boost::uint_t<width>>::value, typename boost::uint_t<width>::fast>
 #else
-	inline auto ror(typename SelectType<width>::fast value, unsigned int shift) noexcept ->
-		enable_if_t<IsGeneric<width>, decltype(value)>
+		enable_if_t<!Has_exact<typename boost::uint_t<width>>::value, decltype(value)>
+#endif
+#else
+#if defined _MSC_VER && _MSC_VER <= 1911 && !defined __clang__
+	inline typename SelectType<width>::fast ror(typename SelectType<width>::fast value, unsigned int shift) noexcept
+#else
+	inline auto ror(typename SelectType<width>::fast value, unsigned int shift) noexcept -> decltype(value)
+#endif
 #endif
 	{
 		shift %= width;
@@ -147,46 +145,53 @@ namespace RotImpl
 
 	template<unsigned width>
 #if USE_BOOST_TYPE_SELECTOR
-	inline auto ror(typename boost::uint_t<width>::exact value, unsigned int shift) noexcept ->
+#if defined _MSC_VER && _MSC_VER <= 1911 && !defined __clang__
+	inline typename boost::uint_t<width>::exact ror(typename boost::uint_t<width>::exact value, unsigned int shift) noexcept
 #else
-	inline auto ror(typename SelectType<width>::exact value, unsigned int shift) noexcept ->
+	inline auto ror(typename boost::uint_t<width>::exact value, unsigned int shift) noexcept -> decltype(value)
 #endif
-		enable_if_t<IsGeneric<width>, decltype(value)>
+#else
+#if defined _MSC_VER && _MSC_VER <= 1911 && !defined __clang__
+	inline typename SelectType<width>::exact ror(typename SelectType<width>::exact value, unsigned int shift) noexcept
+#else
+	inline auto ror(typename SelectType<width>::exact value, unsigned int shift) noexcept -> decltype(value)
+#endif
+#endif
 	{
 		shift %= width;
 		return value >> shift | value << width - shift;
 	}
 
 #ifdef _MSC_VER
+#if USE_BOOST_TYPE_SELECTOR
+	template<unsigned width>
+	using SelectIntrinType = typename boost::uint_t<width>::exact;
+#else
+	template<unsigned width>
+	using SelectIntrinType = typename SelectType<width>::type;
+#endif
+
 #define ROT_SPECIALIZATIONS(dir)																		\
-	template<unsigned width>																			\
-	inline enable_if_t<width == 8, typename function<decltype(_rot##dir##8)>::result_type> ro##dir(		\
-		typename function<decltype(_rot##dir##8)>::first_argument_type value,							\
-		typename function<decltype(_rot##dir##8)>::second_argument_type shift)							\
+	template<>																							\
+	inline auto ro##dir<8>(SelectIntrinType<8> value, unsigned int shift) noexcept -> decltype(value)	\
 	{																									\
 		return _rot##dir##8(value, shift);																\
 	}																									\
 																										\
-	template<unsigned width>																			\
-	inline enable_if_t<width == 16, typename function<decltype(_rot##dir##16)>::result_type> ro##dir(	\
-		typename function<decltype(_rot##dir##16)>::first_argument_type value,							\
-		typename function<decltype(_rot##dir##16)>::second_argument_type shift)							\
+	template<>																							\
+	inline auto ro##dir<16>(SelectIntrinType<16> value, unsigned int shift) noexcept -> decltype(value)	\
 	{																									\
 		return _rot##dir##16(value, shift);																\
 	}																									\
 																										\
-	template<unsigned width>																			\
-	inline enable_if_t<width == 32, typename function<decltype(_rot##dir)>::result_type> ro##dir(		\
-		typename function<decltype(_rot##dir)>::first_argument_type value,								\
-		typename function<decltype(_rot##dir)>::second_argument_type shift)								\
+	template<>																							\
+	inline auto ro##dir<32>(SelectIntrinType<32> value, unsigned int shift) noexcept -> decltype(value)	\
 	{																									\
 		return _rot##dir(value, shift);																	\
 	}																									\
 																										\
-	template<unsigned width>																			\
-	inline enable_if_t<width == 64, typename function<decltype(_rot##dir##64)>::result_type> ro##dir(	\
-		typename function<decltype(_rot##dir##64)>::first_argument_type value,							\
-		typename function<decltype(_rot##dir##64)>::second_argument_type shift)							\
+	template<>																							\
+	inline auto ro##dir<64>(SelectIntrinType<64> value, unsigned int shift) noexcept -> decltype(value)	\
 	{																									\
 		return _rot##dir##64(value, shift);																\
 	}
