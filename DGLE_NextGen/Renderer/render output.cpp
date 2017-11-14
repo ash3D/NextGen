@@ -151,8 +151,8 @@ void RenderOutput::NextFrame(bool vsync)
 	globalFrameVersioning->OnFrameStart();
 	viewport->Render(rt.Get(), CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvHeap->GetCPUDescriptorHandleForHeapStart(), idx, rtvDescriptorSize), width, height);
 	CheckHR(swapChain->Present(vsync, 0));
-	CmdListPool::OnFrameFinish();
 	globalFrameVersioning->OnFrameFinish();
+	CmdListPool::OnFrameFinish();
 	OnFrameFinish();
 }
 
