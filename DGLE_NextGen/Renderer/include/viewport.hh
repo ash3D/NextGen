@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		31.10.2017 (c)Korotkov Andrey
+\date		15.11.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -9,23 +9,16 @@ See "DGLE.h" for more details.
 
 #pragma once
 
-#define NOMINMAX
-
 #include <limits>
 #include <memory>
-#include <wrl/client.h>
 #include "../frame versioning.h"
 
-struct ID3D12Fence;
-struct ID3D12CommandAllocator;
 struct ID3D12GraphicsCommandList1;
 struct ID3D12Resource;
 struct D3D12_CPU_DESCRIPTOR_HANDLE;
 
 namespace Renderer
 {
-	namespace WRL = Microsoft::WRL;
-
 	class World;
 
 	namespace Impl
@@ -34,7 +27,6 @@ namespace Renderer
 
 		using std::numeric_limits;
 		using std::shared_ptr;
-		using WRL::ComPtr;
 
 		static_assert(numeric_limits<double>::has_infinity);
 
