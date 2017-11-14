@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		29.10.2017 (c)Korotkov Andrey
+\date		15.11.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -104,15 +104,6 @@ static inline ComPtr<ID3D12CommandQueue> TryCreateCommandQueue()
 ComPtr<IDXGIFactory5> factory = TryCreateFactory();
 ComPtr<ID3D12Device2> device = TryCreateDevice();
 ComPtr<ID3D12CommandQueue> cmdQueue = TryCreateCommandQueue();
-namespace Renderer::Impl
-{
-#if defined _MSC_VER && _MSC_VER <= 1911
-	decltype(globalFrameVersioning) globalFrameVersioning;
-#else
-	// guaranteed copy elision required
-	decltype(globalFrameVersioning) globalFrameVersioning(device ? decltype(globalFrameVersioning)(in_place) : nullopt);
-#endif
-}
 
 struct RetiredResource
 {
@@ -135,6 +126,16 @@ void OnFrameFinish()
 	const UINT64 completedFrameID = globalFrameVersioning->GetCompletedFrameID();
 	while (!retiredResources.empty() && retiredResources.front().frameID <= completedFrameID)
 		retiredResources.pop();
+}
+
+namespace Renderer::Impl
+{
+#if defined _MSC_VER && _MSC_VER <= 1911
+	decltype(globalFrameVersioning) globalFrameVersioning;
+#else
+	// guaranteed copy elision required
+	decltype(globalFrameVersioning) globalFrameVersioning(device ? decltype(globalFrameVersioning)(in_place) : nullopt);
+#endif
 }
 
 extern void __cdecl InitRenderer()
