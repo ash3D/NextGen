@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		29.10.2017 (c)Korotkov Andrey
+\date		15.11.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -137,6 +137,8 @@ void RenderOutput::OnResize()
 
 void RenderOutput::NextFrame(bool vsync)
 {
+	extern void OnFrameFinish();
+
 	if (!viewport)
 		throw logic_error("Attempt to render without viewport being attached.");
 
@@ -151,6 +153,7 @@ void RenderOutput::NextFrame(bool vsync)
 	CheckHR(swapChain->Present(vsync, 0));
 	CmdListPool::OnFrameFinish();
 	globalFrameVersioning->OnFrameFinish();
+	OnFrameFinish();
 }
 
 void RenderOutput::Fill_RTV_Heap(unsigned int bufferCount)
