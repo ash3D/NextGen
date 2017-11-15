@@ -31,6 +31,7 @@ namespace Renderer::Impl
 		void Retire();
 
 	public:
+		using Resource::Resource;
 		TrackedResource() = default;
 		TrackedResource(const TrackedResource &) = default;
 		TrackedResource(TrackedResource &&) = default;
@@ -138,7 +139,6 @@ namespace Renderer::Impl
 	template<class Interface>
 	inline auto TrackedResource<Interface>::operator &()
 	{
-		// '&' itself does not releases reference (it released if reference is used) => disable move and keep reference
 		Retire<false>();
 		return Resource::operator &();
 	}
