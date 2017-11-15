@@ -7,7 +7,7 @@ under the terms of the GNU Lesser General Public License.
 See "DGLE.h" for more details.
 */
 
-//#include "stdafx.h"
+#include "stdafx.h"
 #include "tracked resource.h"
 
 using Microsoft::WRL::ComPtr;
