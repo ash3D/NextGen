@@ -46,6 +46,7 @@ namespace Renderer::Impl
 		TrackedResource &operator =(const TrackedResource &src), &operator =(TrackedResource &&src);
 
 	public:
+		using Resource::operator &;	// for const version
 		auto operator &();
 
 	public:
@@ -137,6 +138,7 @@ namespace Renderer::Impl
 	template<class Interface>
 	inline auto TrackedResource<Interface>::operator &()
 	{
+		// '&' itself does not releases reference (it released if reference is used) => disable move and keep reference
 		Retire<false>();
 		return Resource::operator &();
 	}
