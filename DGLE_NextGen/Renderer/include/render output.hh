@@ -9,22 +9,18 @@ See "DGLE.h" for more details.
 
 #pragma once
 
-#define NOMINMAX
-
 #include <memory>
-#include <wrl/client.h>
+#include "../tracked resource.h"
 
 struct IDXGISwapChain4;
 struct ID3D12DescriptorHeap;
 
 namespace Renderer
 {
-	namespace WRL = Microsoft::WRL;
-
 	class RenderOutput
 	{
-		WRL::ComPtr<IDXGISwapChain4> swapChain;
-		WRL::ComPtr<ID3D12DescriptorHeap> rtvHeap;
+		Impl::TrackedResource<IDXGISwapChain4> swapChain;
+		Impl::TrackedResource<ID3D12DescriptorHeap> rtvHeap;	// is tracking really needed?
 		std::shared_ptr<class Viewport> viewport;
 
 	public:

@@ -16,7 +16,7 @@ See "DGLE.h" for more details.
 using namespace std;
 using namespace Renderer;
 using Impl::globalFrameVersioning;
-using WRL::ComPtr;
+using Microsoft::WRL::ComPtr;
 
 extern ComPtr<IDXGIFactory5> factory;
 extern ComPtr<ID3D12Device2> device;
