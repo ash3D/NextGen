@@ -18,6 +18,12 @@ namespace Renderer::Impl
 {
 	namespace WRL = Microsoft::WRL;
 
+	/*
+	ComPtr is publically accessible but it should be treated cautiously.
+	Do not perform actions that causes to reference loosing or ownership transfer. It can results in GPU accessing to destroyed resource.
+	In particular do not move construct or move assign ComPtr from tracked ressource. Copy construct/assign on the other hand is valid.
+	It is possible to remove public access to ComPtr to prevent invalid usage but it would be less concise; therewith direct access to ComPtr is probably rarely needed.
+	*/
 	template<class Interface>
 	class TrackedResource : public WRL::ComPtr<Interface>
 	{
@@ -139,6 +145,7 @@ namespace Renderer::Impl
 	template<class Interface>
 	inline auto TrackedResource<Interface>::operator &()
 	{
+		// '&' itself does not releases reference (it released if reference is used) => disable move and keep reference
 		Retire<false>();
 		return Resource::operator &();
 	}
