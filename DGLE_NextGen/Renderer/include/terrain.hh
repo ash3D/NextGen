@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		04.11.2017 (c)Korotkov Andrey
+\date		15.11.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -186,7 +186,7 @@ namespace Renderer
 		};
 		const std::shared_ptr<TerrainVectorLayer> layer;
 		mutable Impl::Hierarchy::BVH<Object, NodeCluster, Impl::Hierarchy::QUADTREE> subtree;
-		Impl::TrackedResource VIB;	// Vertex/Index Buffer
+		Impl::TrackedResource<ID3D12Resource> VIB;	// Vertex/Index Buffer
 		const bool IB32bit;
 		const unsigned long int VB_size, IB_size;
 

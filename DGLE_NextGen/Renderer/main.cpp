@@ -108,12 +108,12 @@ ComPtr<ID3D12CommandQueue> cmdQueue = TryCreateCommandQueue();
 struct RetiredResource
 {
 	UINT64 frameID;
-	ComPtr<ID3D12Pageable> resource;
+	ComPtr<IUnknown> resource;
 };
 static queue<RetiredResource> retiredResources;
 
 // keeps resource alive while accessed by GPU
-void RetireResource(ComPtr<ID3D12Pageable> resource)
+void RetireResource(ComPtr<IUnknown> resource)
 {
 	static mutex mtx;
 	lock_guard<decltype(mtx)> lck(mtx);

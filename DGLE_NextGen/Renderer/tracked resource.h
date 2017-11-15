@@ -14,15 +14,17 @@ See "DGLE.h" for more details.
 #include <utility>
 #include <wrl/client.h>
 
-struct ID3D12Resource;
-
 namespace Renderer::Impl
 {
 	namespace WRL = Microsoft::WRL;
 
-	class TrackedResource : public WRL::ComPtr<ID3D12Resource>
+	template<class Interface>
+	class TrackedResource : public WRL::ComPtr<Interface>
 	{
-		typedef WRL::ComPtr<ID3D12Resource> Resource;
+		typedef WRL::ComPtr<Interface> Resource;
+
+	public:
+		using typename Resource::InterfaceType;
 
 	private:
 		template<bool move>
@@ -36,7 +38,7 @@ namespace Renderer::Impl
 
 	public:
 		TrackedResource &operator =(nullptr_t src);
-		TrackedResource &operator =(Resource::InterfaceType *src), &operator =(const Resource &src), &operator =(Resource &&src);
+		TrackedResource &operator =(InterfaceType *src), &operator =(const Resource &src), &operator =(Resource &&src);
 		template<class Other>
 		TrackedResource &operator =(const WRL::ComPtr<Other> &src);
 		template<class Other>
@@ -47,7 +49,7 @@ namespace Renderer::Impl
 		auto operator &();
 
 	public:
-		void Attach(Resource::InterfaceType *src);
+		void Attach(InterfaceType *src);
 		auto Detach();
 		auto ReleaseAndGetAddressOf();
 		auto Reset();
@@ -55,117 +57,144 @@ namespace Renderer::Impl
 		void Swap(TrackedResource &src), Swap(TrackedResource &&src);
 	};
 
-	inline TrackedResource::~TrackedResource()
+	template<class Interface>
+	template<bool move>
+	void TrackedResource<Interface>::Retire()
+	{
+		extern void RetireTrackedResource(WRL::ComPtr<struct IUnknown> resource);
+		typedef Resource &Copy, &&Move;
+		RetireTrackedResource(static_cast<std::conditional_t<move, Move, Copy>>(*this));
+	}
+
+	template<class Interface>
+	inline TrackedResource<Interface>::~TrackedResource()
 	{
 		Retire<true>();
 	}
 
-	inline TrackedResource &TrackedResource::operator =(nullptr_t src)
+	template<class Interface>
+	inline auto TrackedResource<Interface>::operator =(nullptr_t src) -> TrackedResource &
 	{
 		Retire<noexcept(Resource::operator =(src))>();
 		Resource::operator =(src);
 		return *this;
 	}
 
-	inline TrackedResource &TrackedResource::operator =(Resource::InterfaceType *src)
+	template<class Interface>
+	inline auto TrackedResource<Interface>::operator =(InterfaceType *src) -> TrackedResource &
 	{
 		Retire<noexcept(Resource::operator =(src))>();
 		Resource::operator =(src);
 		return *this;
 	}
 
-	inline TrackedResource &TrackedResource::operator =(const Resource &src)
+	template<class Interface>
+	inline auto TrackedResource<Interface>::operator =(const Resource &src) -> TrackedResource &
 	{
 		Retire<noexcept(Resource::operator =(src))>();
 		Resource::operator =(src);
 		return *this;
 	}
 
-	inline TrackedResource &TrackedResource::operator =(Resource &&src)
+	template<class Interface>
+	inline auto TrackedResource<Interface>::operator =(Resource &&src) -> TrackedResource &
 	{
 		Retire<noexcept(Resource::operator =(std::move(src)))>();
 		Resource::operator =(std::move(src));
 		return *this;
 	}
 
+	template<class Interface>
 	template<class Other>
-	TrackedResource &TrackedResource::operator =(const WRL::ComPtr<Other> &src)
+	inline auto TrackedResource<Interface>::operator =(const WRL::ComPtr<Other> &src) -> TrackedResource &
 	{
 		Retire<noexcept(Resource::operator =(src))>();
 		Resource::operator =(src);
 		return *this;
 	}
 
+	template<class Interface>
 	template<class Other>
-	TrackedResource &TrackedResource::operator =(WRL::ComPtr<Other> &&src)
+	inline auto TrackedResource<Interface>::operator =(WRL::ComPtr<Other> &&src) -> TrackedResource &
 	{
 		Retire<noexcept(Resource::operator =(src))>();
 		Resource::operator =(src);
 		return *this;
 	}
 
-	inline TrackedResource &TrackedResource::operator =(const TrackedResource &src)
+	template<class Interface>
+	inline auto TrackedResource<Interface>::operator =(const TrackedResource &src) -> TrackedResource &
 	{
 		return operator =(static_cast<const Resource &>(src));
 	}
 
-	inline TrackedResource &TrackedResource::operator =(TrackedResource &&src)
+	template<class Interface>
+	inline auto TrackedResource<Interface>::operator =(TrackedResource &&src) -> TrackedResource &
 	{
 		return operator =(static_cast<Resource &&>(src));
 	}
 
-	inline auto TrackedResource::operator &()
+	template<class Interface>
+	inline auto TrackedResource<Interface>::operator &()
 	{
 		Retire<false>();
 		return Resource::operator &();
 	}
 
-	inline void TrackedResource::Attach(Resource::InterfaceType *src)
+	template<class Interface>
+	inline void TrackedResource<Interface>::Attach(InterfaceType *src)
 	{
 		Retire<noexcept(Resource::Attach(src))>();
 		Resource::Attach(src);
 	}
 
-	inline auto TrackedResource::Detach()
+	template<class Interface>
+	inline auto TrackedResource<Interface>::Detach()
 	{
 		// force copy as reference returned outside
 		Retire<false>();
 		return Resource::Detach();
 	}
 
-	inline auto TrackedResource::ReleaseAndGetAddressOf()
+	template<class Interface>
+	inline auto TrackedResource<Interface>::ReleaseAndGetAddressOf()
 	{
 		Retire<noexcept(Resource::ReleaseAndGetAddressOf())>();
 		return Resource::ReleaseAndGetAddressOf();
 	}
 
-	inline auto TrackedResource::Reset()
+	template<class Interface>
+	inline auto TrackedResource<Interface>::Reset()
 	{
 		Retire<noexcept(Resource::Reset())>();
 		return Resource::Reset();
 	}
 
-	inline void TrackedResource::Swap(Resource &src)
+	template<class Interface>
+	inline void TrackedResource<Interface>::Swap(Resource &src)
 	{
 		// force copy as reference goes to src
 		Retire<false>();
 		Resource::Swap(src);
 	}
 
-	inline void TrackedResource::Swap(Resource &&src)
+	template<class Interface>
+	inline void TrackedResource<Interface>::Swap(Resource &&src)
 	{
 		// allow move as src is temp
 		Retire<noexcept(Resource::Swap(std::move(src)))>();
 		Resource::Swap(std::move(src));
 	}
 
-	inline void TrackedResource::Swap(TrackedResource &src)
+	template<class Interface>
+	inline void TrackedResource<Interface>::Swap(TrackedResource &src)
 	{
 		// no need to retire as all resources are still tracked
 		Resource::Swap(src);
 	}
 
-	inline void TrackedResource::Swap(TrackedResource &&src)
+	template<class Interface>
+	inline void TrackedResource<Interface>::Swap(TrackedResource &&src)
 	{
 		// no need to retire as all resources are still tracked
 		Resource::Swap(std::move(src));

@@ -7,19 +7,14 @@ under the terms of the GNU Lesser General Public License.
 See "DGLE.h" for more details.
 */
 
-#include "stdafx.h"
+//#include "stdafx.h"
 #include "tracked resource.h"
 
-using Renderer::Impl::TrackedResource;
+using Microsoft::WRL::ComPtr;
 
-template<bool move>
-void TrackedResource::Retire()
+void RetireTrackedResource(ComPtr<IUnknown> resource)
 {
-	extern void RetireResource(WRL::ComPtr<ID3D12Pageable> resource);
-	typedef Resource &Copy, &&Move;
-	if (*this)
-		RetireResource(static_cast<std::conditional_t<move, Move, Copy>>(*this));
+	extern void RetireResource(ComPtr<IUnknown> resource);
+	if (resource)
+		RetireResource(std::move(resource));
 }
-
-template void TrackedResource::Retire<false>();
-template void TrackedResource::Retire<true>();
