@@ -100,11 +100,12 @@
       <AdditionalIncludeDirectories>$(VCInstallDir)UnitTest\include;..\General</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <UseFullPaths>true</UseFullPaths>
-      <AdditionalOptions>/Zm545 /permissive- %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Zm545 %(AdditionalOptions)</AdditionalOptions>
       <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
       <WarningLevel>Level3</WarningLevel>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DiagnosticsFormat>Column</DiagnosticsFormat>
+      <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -119,11 +120,12 @@
       <AdditionalIncludeDirectories>$(VCInstallDir)UnitTest\include;..\General</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <UseFullPaths>true</UseFullPaths>
-      <AdditionalOptions>/Zm545 /permissive- %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Zm545 %(AdditionalOptions)</AdditionalOptions>
       <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
       <WarningLevel>Level3</WarningLevel>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DiagnosticsFormat>Column</DiagnosticsFormat>
+      <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -140,11 +142,12 @@
       <AdditionalIncludeDirectories>$(VCInstallDir)UnitTest\include;..\General</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <UseFullPaths>true</UseFullPaths>
-      <AdditionalOptions>/Zm545 /permissive- %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Zm545 %(AdditionalOptions)</AdditionalOptions>
       <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
       <WarningLevel>Level3</WarningLevel>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DiagnosticsFormat>Column</DiagnosticsFormat>
+      <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -163,11 +166,12 @@
       <AdditionalIncludeDirectories>$(VCInstallDir)UnitTest\include;..\General</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <UseFullPaths>true</UseFullPaths>
-      <AdditionalOptions>/Zm545 /permissive- %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Zm545 %(AdditionalOptions)</AdditionalOptions>
       <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
       <WarningLevel>Level3</WarningLevel>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DiagnosticsFormat>Column</DiagnosticsFormat>
+      <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

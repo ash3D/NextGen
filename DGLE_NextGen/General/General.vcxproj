@@ -164,9 +164,9 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>../dgle;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
-      <AdditionalOptions>/permissive- %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DiagnosticsFormat>Column</DiagnosticsFormat>
+      <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -198,9 +198,9 @@
       <PreprocessorDefinitions>_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>../dgle;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
-      <AdditionalOptions>/permissive- %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DiagnosticsFormat>Column</DiagnosticsFormat>
+      <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -234,9 +234,9 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>../dgle;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
-      <AdditionalOptions>/permissive- %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DiagnosticsFormat>Column</DiagnosticsFormat>
+      <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -277,9 +277,9 @@
       <PreprocessorDefinitions>NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>../dgle;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
-      <AdditionalOptions>/permissive- %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DiagnosticsFormat>Column</DiagnosticsFormat>
+      <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
