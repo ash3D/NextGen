@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		15.11.2017 (c)Korotkov Andrey
+\date		18.12.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -172,7 +172,7 @@ namespace Renderer
 
 			// interface for BVH
 		public:
-#if defined _MSC_VER && _MSC_VER <= 1911
+#if defined _MSC_VER && _MSC_VER <= 1912
 			const AABB<2> &GetAABB() const { return aabb; }
 #else
 			const auto &GetAABB() const { return aabb; }

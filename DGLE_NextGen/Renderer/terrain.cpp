@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		04.11.2017 (c)Korotkov Andrey
+\date		18.12.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -72,7 +72,7 @@ namespace
 
 	public:
 		value_type operator *() const;
-#if defined _MSC_VER && _MSC_VER <= 1911
+#if defined _MSC_VER && _MSC_VER <= 1912
 		friend bool operator ==<>(ObjIterator left, ObjIterator right);
 		friend bool operator !=<>(ObjIterator left, ObjIterator right);
 		friend bool operator < <>(ObjIterator left, ObjIterator right);

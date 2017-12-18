@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		30.10.2017 (c)Alexey Shaydurov
+\date		18.12.2017 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -274,7 +274,7 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 #	pragma warning(push)
 #	pragma warning(disable: 4003)
 
-#if defined _MSC_VER && _MSC_VER <= 1911 && !defined __clang__
+#if defined _MSC_VER && _MSC_VER <= 1912 && !defined __clang__
 #	define MSVC_LIMITATIONS
 #endif
 
@@ -647,7 +647,7 @@ further investigations needed, including other compilers
 				static constexpr bool isWriteMaskValid = true;
 			};
 #else
-#if defined _MSC_VER && _MSC_VER == 1911
+#if defined _MSC_VER && (_MSC_VER == 1911 || _MSC_VER == 1912)
 			class CPackedSwizzleBase
 			{
 				using TPackedSwizzle = unsigned long long int;
@@ -663,7 +663,7 @@ further investigations needed, including other compilers
 
 			template<unsigned int ...swizzleSeq>
 			class CPackedSwizzle
-#if defined _MSC_VER && _MSC_VER == 1911
+#if defined _MSC_VER && (_MSC_VER == 1911 || _MSC_VER == 1912)
 				: CPackedSwizzleBase
 #endif
 			{
@@ -679,7 +679,7 @@ further investigations needed, including other compilers
 
 			private:
 #ifdef MSVC_LIMITATIONS
-#if _MSC_VER != 1911
+#if _MSC_VER != 1911 && _MSC_VER != 1912
 //				template<unsigned int shift, TPackedSwizzle swizzleHead, TPackedSwizzle ...swizzleTail>
 //				static constexpr TPackedSwizzle PackSwizzleSeq() { return swizzleHead << shift | PackSwizzleSeq<shift + 4u, swizzleTail...>(); }
 //
@@ -702,7 +702,7 @@ further investigations needed, including other compilers
 
 			private:
 #ifdef MSVC_LIMITATIONS
-//#if _MSC_VER == 1911
+//#if _MSC_VER == 1911 || _MSC_VER == 1912
 //				static constexpr TPackedSwizzle packedSwizzle = PackSwizzleSeq<0u, swizzleSeq...>();
 //#else
 				static constexpr TPackedSwizzle packedSwizzle = PackSwizzleSeq<0u, swizzleSeq...>;
@@ -1048,7 +1048,7 @@ further investigations needed, including other compilers
 						SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign> {};
 #endif
 
-#if defined _MSC_VER && _MSC_VER == 1911
+#if defined _MSC_VER && (_MSC_VER == 1911 || _MSC_VER == 1912)
 					class DetectSwizzleWARHazardBase
 					{
 					protected:
@@ -1078,12 +1078,12 @@ further investigations needed, including other compilers
 						class DstSwizzleDesc, class SrcSwizzleDesc, bool assign
 					>
 					class DetectSwizzleWARHazard<ElementType, dstRows, columns, DstSwizzleDesc, ElementType, srcRows, columns, SrcSwizzleDesc, assign, enable_if_t<bool(dstRows) != bool(srcRows)>>
-#if defined _MSC_VER && _MSC_VER == 1911
+#if defined _MSC_VER && (_MSC_VER == 1911 || _MSC_VER == 1912)
 						: DetectSwizzleWARHazardBase
 #endif
 					{
 #ifdef MSVC_LIMITATIONS
-#if _MSC_VER == 1911
+#if _MSC_VER == 1911 || _MSC_VER == 1912
 					public:
 						static constexpr auto value = FoldRows<dstRows, srcRows, DstSwizzleDesc, SrcSwizzleDesc, assign, dstRows ? dstRows : srcRows>;
 #else

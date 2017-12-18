@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		15.11.2017 (c)Korotkov Andrey
+\date		18.12.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -130,7 +130,7 @@ void OnFrameFinish()
 
 namespace Renderer::Impl
 {
-#if defined _MSC_VER && _MSC_VER <= 1911
+#if defined _MSC_VER && _MSC_VER <= 1912
 	decltype(globalFrameVersioning) globalFrameVersioning;
 #else
 	// guaranteed copy elision required

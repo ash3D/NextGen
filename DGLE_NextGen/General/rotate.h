@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		13.11.2017 (c)Korotkov Andrey
+\date		18.12.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -91,7 +91,7 @@ namespace RotImpl
 		enable_if_t<!Has_exact<typename boost::uint_t<width>>::value, decltype(value)>
 #endif
 #else
-#if defined _MSC_VER && _MSC_VER <= 1911 && !defined __clang__
+#if defined _MSC_VER && _MSC_VER <= 1912 && !defined __clang__
 	inline typename SelectType<width>::fast rol(typename SelectType<width>::fast value, unsigned int shift) noexcept
 #else
 	inline auto rol(typename SelectType<width>::fast value, unsigned int shift) noexcept -> decltype(value)
@@ -105,13 +105,13 @@ namespace RotImpl
 
 	template<unsigned width>
 #if USE_BOOST_TYPE_SELECTOR
-#if defined _MSC_VER && _MSC_VER <= 1911 && !defined __clang__
+#if defined _MSC_VER && _MSC_VER <= 1912 && !defined __clang__
 	inline typename boost::uint_t<width>::exact rol(typename boost::uint_t<width>::exact value, unsigned int shift) noexcept
 #else
 	inline auto rol(typename boost::uint_t<width>::exact value, unsigned int shift) noexcept -> decltype(value)
 #endif
 #else
-#if defined _MSC_VER && _MSC_VER <= 1911 && !defined __clang__
+#if defined _MSC_VER && _MSC_VER <= 1912 && !defined __clang__
 	inline typename SelectType<width>::exact rol(typename SelectType<width>::exact value, unsigned int shift) noexcept
 #else
 	inline auto rol(typename SelectType<width>::exact value, unsigned int shift) noexcept -> decltype(value)
@@ -131,7 +131,7 @@ namespace RotImpl
 		enable_if_t<!Has_exact<typename boost::uint_t<width>>::value, decltype(value)>
 #endif
 #else
-#if defined _MSC_VER && _MSC_VER <= 1911 && !defined __clang__
+#if defined _MSC_VER && _MSC_VER <= 1912 && !defined __clang__
 	inline typename SelectType<width>::fast ror(typename SelectType<width>::fast value, unsigned int shift) noexcept
 #else
 	inline auto ror(typename SelectType<width>::fast value, unsigned int shift) noexcept -> decltype(value)
@@ -145,13 +145,13 @@ namespace RotImpl
 
 	template<unsigned width>
 #if USE_BOOST_TYPE_SELECTOR
-#if defined _MSC_VER && _MSC_VER <= 1911 && !defined __clang__
+#if defined _MSC_VER && _MSC_VER <= 1912 && !defined __clang__
 	inline typename boost::uint_t<width>::exact ror(typename boost::uint_t<width>::exact value, unsigned int shift) noexcept
 #else
 	inline auto ror(typename boost::uint_t<width>::exact value, unsigned int shift) noexcept -> decltype(value)
 #endif
 #else
-#if defined _MSC_VER && _MSC_VER <= 1911 && !defined __clang__
+#if defined _MSC_VER && _MSC_VER <= 1912 && !defined __clang__
 	inline typename SelectType<width>::exact ror(typename SelectType<width>::exact value, unsigned int shift) noexcept
 #else
 	inline auto ror(typename SelectType<width>::exact value, unsigned int shift) noexcept -> decltype(value)
