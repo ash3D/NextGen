@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.12.2017 (c)Alexey Shaydurov
+\date		19.12.2017 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -265,8 +265,8 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 #	ifndef __VECTOR_MATH_H__
 #	define __VECTOR_MATH_H__
 
-#	if defined _MSC_VER && _MSC_VER < 1911 && !defined  __clang__
-#	error Old MSVC compiler version. Visual Studio 2017 15.3 or later required.
+#	if defined _MSC_VER && _MSC_VER < 1912 && !defined  __clang__
+#	error Old MSVC compiler version. Visual Studio 2017 15.5 or later required.
 #	elif defined __GNUC__ && (__GNUC__ < 4 || (__GNUC__ >= 4 && __GNUC_MINOR__ < 7)) && !defined __clang__
 #	error Old GCC compiler version. GCC 4.7 or later required.	// need to be clarified
 #	endif
@@ -307,9 +307,6 @@ further investigations needed, including other compilers
 #	include <algorithm>
 #if INIT_LIST_SUPPORT_TIER > 0
 #	include <initializer_list>
-#endif
-#ifdef MSVC_LIMITATIONS
-#	include <iterator>
 #endif
 #if USE_BOOST_PREPROCESSOR
 #	include <boost/preprocessor/cat.hpp>
@@ -647,7 +644,7 @@ further investigations needed, including other compilers
 				static constexpr bool isWriteMaskValid = true;
 			};
 #else
-#if defined _MSC_VER && (_MSC_VER == 1911 || _MSC_VER == 1912)
+#if defined _MSC_VER && _MSC_VER == 1912
 			class CPackedSwizzleBase
 			{
 				using TPackedSwizzle = unsigned long long int;
@@ -663,7 +660,7 @@ further investigations needed, including other compilers
 
 			template<unsigned int ...swizzleSeq>
 			class CPackedSwizzle
-#if defined _MSC_VER && (_MSC_VER == 1911 || _MSC_VER == 1912)
+#if defined _MSC_VER && _MSC_VER == 1912
 				: CPackedSwizzleBase
 #endif
 			{
@@ -679,7 +676,7 @@ further investigations needed, including other compilers
 
 			private:
 #ifdef MSVC_LIMITATIONS
-#if _MSC_VER != 1911 && _MSC_VER != 1912
+#if _MSC_VER != 1912
 //				template<unsigned int shift, TPackedSwizzle swizzleHead, TPackedSwizzle ...swizzleTail>
 //				static constexpr TPackedSwizzle PackSwizzleSeq() { return swizzleHead << shift | PackSwizzleSeq<shift + 4u, swizzleTail...>(); }
 //
@@ -702,7 +699,7 @@ further investigations needed, including other compilers
 
 			private:
 #ifdef MSVC_LIMITATIONS
-//#if _MSC_VER == 1911 || _MSC_VER == 1912
+//#if _MSC_VER == 1912
 //				static constexpr TPackedSwizzle packedSwizzle = PackSwizzleSeq<0u, swizzleSeq...>();
 //#else
 				static constexpr TPackedSwizzle packedSwizzle = PackSwizzleSeq<0u, swizzleSeq...>;
@@ -1048,7 +1045,7 @@ further investigations needed, including other compilers
 						SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign> {};
 #endif
 
-#if defined _MSC_VER && (_MSC_VER == 1911 || _MSC_VER == 1912)
+#if defined _MSC_VER && _MSC_VER == 1912
 					class DetectSwizzleWARHazardBase
 					{
 					protected:
@@ -1078,12 +1075,12 @@ further investigations needed, including other compilers
 						class DstSwizzleDesc, class SrcSwizzleDesc, bool assign
 					>
 					class DetectSwizzleWARHazard<ElementType, dstRows, columns, DstSwizzleDesc, ElementType, srcRows, columns, SrcSwizzleDesc, assign, enable_if_t<bool(dstRows) != bool(srcRows)>>
-#if defined _MSC_VER && (_MSC_VER == 1911 || _MSC_VER == 1912)
+#if defined _MSC_VER && _MSC_VER == 1912
 						: DetectSwizzleWARHazardBase
 #endif
 					{
 #ifdef MSVC_LIMITATIONS
-#if _MSC_VER == 1911 || _MSC_VER == 1912
+#if _MSC_VER == 1912
 					public:
 						static constexpr auto value = FoldRows<dstRows, srcRows, DstSwizzleDesc, SrcSwizzleDesc, assign, dstRows ? dstRows : srcRows>;
 #else
@@ -2209,20 +2206,11 @@ further investigations needed, including other compilers
 				}
 #endif
 
-#ifdef MSVC_LIMITATIONS
-				template<unsigned i = 0, size_t ...idx, typename SrcType>
-				enable_if_t<i < sizeof...(idx)> AssignScalar(index_sequence<idx...> seq, const SrcType &scalar) &;
-
-				// terminator
-				template<unsigned i, size_t ...idx, typename SrcType>
-				enable_if_t<i == sizeof...(idx)> AssignScalar(index_sequence<idx...>, const SrcType &) & {}
-#else
 				template<size_t ...idx, typename SrcType>
 #ifdef __GNUC__
 				void AssignScalar(index_sequence<idx...>, const SrcType &scalar);
 #else
 				void AssignScalar(index_sequence<idx...>, const SrcType &scalar) &;
-#endif
 #endif
 
 			public:
@@ -2310,20 +2298,11 @@ further investigations needed, including other compilers
 #endif
 
 			private:
-#ifdef MSVC_LIMITATIONS
-				template<unsigned i = 0, size_t ...idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-				enable_if_t<i < sizeof...(idx)> AssignSwizzle(index_sequence<idx...> seq, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &;
-
-				// terminator
-				template<unsigned i, size_t ...idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-				enable_if_t<i == sizeof...(idx)> AssignSwizzle(index_sequence<idx...>, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &) & {}
-#else
 				template<size_t ...idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
 #ifdef __GNUC__
 				void AssignSwizzle(index_sequence<idx...>, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
 #else
 				void AssignSwizzle(index_sequence<idx...>, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &;
-#endif
 #endif
 
 			public:
@@ -2403,15 +2382,6 @@ further investigations needed, including other compilers
 			}
 #endif
 
-#ifdef MSVC_LIMITATIONS
-			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			template<unsigned i, size_t ...idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-			inline enable_if_t<i < sizeof...(idx)> CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::AssignSwizzle(index_sequence<idx...> seq, const CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &
-			{
-				(*this)[i] = src[i];
-				AssignSwizzle<i + 1>(seq, src);
-			}
-#else
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			template<size_t ...idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
 #ifdef __GNUC__
@@ -2422,17 +2392,7 @@ further investigations needed, including other compilers
 			{
 				(((*this)[idx] = src[idx]), ...);
 			}
-#endif
 
-#ifdef MSVC_LIMITATIONS
-			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			template<unsigned i, size_t ...idx, typename SrcType>
-			inline enable_if_t<i < sizeof...(idx)> CSwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::AssignScalar(index_sequence<idx...> seq, const SrcType &scalar) &
-			{
-				(*this)[i] = scalar;
-				AssignScalar<i + 1>(seq, scalar);
-			}
-#else
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			template<size_t ...idx, typename SrcType>
 #ifdef __GNUC__
@@ -2443,7 +2403,6 @@ further investigations needed, including other compilers
 			{
 				(((*this)[idx] = scalar), ...);
 			}
-#endif
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc = CVectorSwizzleDesc<columns>>
 			class EBCO CSwizzleCommon :
@@ -2613,78 +2572,6 @@ further investigations needed, including other compilers
 		{
 #endif
 
-#ifdef MSVC_LIMITATIONS
-			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			class CSwizzleIteratorImpl : public std::iterator<std::forward_iterator_tag, const ElementType>
-			{
-				const CSwizzle<ElementType, rows, columns, SwizzleDesc> &swizzle;
-				unsigned i;
-
-			protected:
-				CSwizzleIteratorImpl(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &swizzle, unsigned i) :
-					swizzle(swizzle), i(i) {}
-
-			public:	// required by stl => public
-				conditional_t
-				<
-					sizeof(typename CSwizzleIteratorImpl::value_type) <= sizeof(void *),
-					typename CSwizzleIteratorImpl::value_type,
-					typename CSwizzleIteratorImpl::reference
-				> operator *() const
-				{
-					return swizzle[i];
-				}
-
-				typename CSwizzleIteratorImpl::pointer operator ->() const
-				{
-					return &swizzle[i];
-				}
-
-				bool operator ==(CSwizzleIteratorImpl<ElementType, rows, columns, SwizzleDesc> src) const noexcept
-				{
-					assert(&swizzle == &src.swizzle);
-					return i == src.i;
-				}
-
-				bool operator !=(CSwizzleIteratorImpl<ElementType, rows, columns, SwizzleDesc> src) const noexcept
-				{
-					assert(&swizzle == &src.swizzle);
-					return i != src.i;
-				}
-#ifdef __GNUC__
-				CSwizzleIteratorImpl &operator ++()
-#else
-				CSwizzleIteratorImpl &operator ++() &
-#endif
-				{
-					++i;
-					return *this;
-				}
-
-#ifdef __GNUC__
-				CSwizzleIteratorImpl operator ++(int)
-#else
-				CSwizzleIteratorImpl operator ++(int) &
-#endif
-				{
-					CSwizzleIteratorImpl old(*this);
-					operator ++();
-					return old;
-				}
-			};
-
-			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			class CSwizzleIterator final : public CSwizzleIteratorImpl<ElementType, rows, columns, SwizzleDesc>
-			{
-				friend bool VectorMath::all<>(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
-				friend bool VectorMath::any<>(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
-				friend bool VectorMath::none<>(const CSwizzle<ElementType, rows, columns, SwizzleDesc> &src);
-
-				using CSwizzleIteratorImpl<ElementType, rows, columns, SwizzleDesc>::CSwizzleIteratorImpl;
-				// copy ctor/dtor required by stl => public
-			};
-#endif
-
 			template<class Src>
 			struct _1xN_2_vec_impl
 			{
@@ -2777,37 +2664,6 @@ further investigations needed, including other compilers
 
 				namespace Impl
 				{
-#ifdef MSVC_LIMITATIONS
-					template
-					<
-						unsigned i = 0, size_t ...idx, class F,
-						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,
-						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc
-					>
-					inline enable_if_t<i < sizeof...(idx)> SwizzleOpAssignSwizzle(
-						index_sequence<idx...> seq, F f,
-						CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,
-						const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)
-					{
-						f(left[i], right[i]);
-						SwizzleOpAssignSwizzle<i + 1>(seq, f, left, right);
-					}
-
-					// terminator
-					template
-					<
-						unsigned i, size_t ...idx, class F,
-						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,
-						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc
-					>
-					inline enable_if_t<i == sizeof...(idx)> SwizzleOpAssignSwizzle(
-						index_sequence<idx...>, F,
-						CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,
-						const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)
-					{
-						assert(!TriggerWARHazard<false>(left, right));
-					}
-#else
 					template
 					<
 						size_t ...idx, class F,
@@ -2822,7 +2678,6 @@ further investigations needed, including other compilers
 						assert(!TriggerWARHazard<false>(left, right));
 						(f(left[idx], right[idx]), ...);
 					}
-#endif
 				}
 
 				// swizzle / 1D swizzle op=<!WARHazard> swizzle
@@ -2906,37 +2761,6 @@ further investigations needed, including other compilers
 
 				namespace Impl::ScalarOps
 				{
-#ifdef MSVC_LIMITATIONS
-					// terminator
-					template
-					<
-						unsigned i, size_t ...idx, class F,
-						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,
-						typename RightType
-					>
-					inline enable_if_t<i == sizeof...(idx)> SwizzleOpAssignScalar(
-						index_sequence<idx...>, F,
-						CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,
-						const RightType &right)
-					{
-						assert(!TriggerScalarWARHazard(left, &right));
-					}
-
-					template
-					<
-						unsigned i = 0, size_t ...idx, class F,
-						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,
-						typename RightType
-					>
-					inline enable_if_t<i < sizeof...(idx)> SwizzleOpAssignScalar(
-						index_sequence<idx...> seq, F f,
-						CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,
-						const RightType &right)
-					{
-						f(left[i], right);
-						SwizzleOpAssignScalar<i + 1>(seq, f, left, right);
-					}
-#else
 					template
 					<
 						size_t ...idx, class F,
@@ -2951,7 +2775,6 @@ further investigations needed, including other compilers
 						assert(!TriggerScalarWARHazard(left, &right));
 						(f(left[idx], right), ...);
 					}
-#endif
 
 					// swizzle / 1D swizzle op=<!WARHazard, !extractScalar> scalar
 #					define OPERATOR_DEFINITION(op, F)																									\
@@ -3197,7 +3020,7 @@ further investigations needed, including other compilers
 							matrix<LeftElementType, leftRows, leftColumns> &left,																		\
 							const matrix<RightElementType, rightRows, rightColumns> &right)																\
 						{																																\
-							left.OpAssignMatrix(VectorMath::operator op##=, right);																		\
+							left.OpAssignMatrix(make_index_sequence<leftRows>(), VectorMath::operator op##=, right);									\
 						}
 					GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_OP)
 #					undef OPERATOR_DEFINITION
@@ -3896,37 +3719,6 @@ further investigations needed, including other compilers
 #		pragma endregion
 
 #		pragma region all/any/none functions
-#ifdef MSVC_LIMITATIONS
-#			define FUNCTION_DEFINITION(f)																												\
-				template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>												\
-				inline bool f(const Impl::CSwizzle<ElementType, rows, columns, SwizzleDesc> &src)														\
-				{																																		\
-					typedef Impl::CSwizzleIterator<ElementType, rows, columns, SwizzleDesc> TSwizzleIterator;											\
-					return std::f##_of(TSwizzleIterator(src, 0), TSwizzleIterator(src, SwizzleDesc::dimension), [](std::conditional_t					\
-					<																																	\
-						sizeof(typename TSwizzleIterator::value_type) <= sizeof(void *),																\
-						typename TSwizzleIterator::value_type,																							\
-						typename TSwizzleIterator::reference																							\
-					> element) -> bool {return element;});																								\
-				};
-			FUNCTION_DEFINITION(all)
-			FUNCTION_DEFINITION(any)
-			FUNCTION_DEFINITION(none)
-#			undef FUNCTION_DEFINITION
-
-#			define FUNCTION_DEFINITION1(f) FUNCTION_DEFINITION2(f, f)
-#			define FUNCTION_DEFINITION2(f1, f2)																											\
-				template<typename ElementType, unsigned int rows, unsigned int columns>																	\
-				bool f1(const matrix<ElementType, rows, columns> &src)																					\
-				{																																		\
-					return std::f2##_of(src.data.rowsData, src.data.rowsData + rows, f1<ElementType, 0, columns, Impl::CVectorSwizzleDesc<columns>>);	\
-				};
-			FUNCTION_DEFINITION1(all)
-			FUNCTION_DEFINITION1(any)
-			FUNCTION_DEFINITION2(none, all)	// none for matrix requires special handling
-#			undef FUNCTION_DEFINITION1
-#			undef FUNCTION_DEFINITION2
-#else
 			namespace Impl
 			{
 				template<size_t ...idx, typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
@@ -3989,48 +3781,11 @@ further investigations needed, including other compilers
 			{
 				return !any(src);
 			}
-#endif
 #		pragma endregion TODO: consider bool SWAR (packed specializations for bool vectors/matrices and replace std::all/any/none functions/fold expressions with bit operations)
 
 #		pragma region mul functions
 			namespace Impl
 			{
-#ifdef MSVC_LIMITATIONS
-				template<unsigned i, class Seq, class Left, class Right>
-				struct SwizzleMulSwizzleResult
-				{
-					typedef decltype(declval<Left>()[i] * declval<Right>()[i] + mul<i + 1>(declval<Seq>(), declval<Left>(), declval<Right>())) type;
-				};
-
-				template
-				<
-					unsigned i = 0, size_t ...idx,
-					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,
-					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc
-				>
-				inline auto mul(index_sequence<idx...> seq,
-					const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,
-					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)
-					-> typename enable_if_t<i < sizeof...(idx) - 1, SwizzleMulSwizzleResult<i, index_sequence<idx...>, decltype(left), decltype(right)>>::type
-				{
-					return left[i] * right[i] + mul<i + 1>(seq, left, right);
-				}
-
-				// terminator
-				template
-				<
-					unsigned i = 0, size_t ...idx,
-					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,
-					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc
-				>
-				inline auto mul(index_sequence<idx...>,
-					const CSwizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,
-					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)
-					-> enable_if_t<i == sizeof...(idx) - 1, decltype(left[i] * right[i])>
-				{
-					return left[i] * right[i];
-				}
-#else
 				template
 				<
 					size_t ...idx,
@@ -4043,7 +3798,6 @@ further investigations needed, including other compilers
 				{
 					return ((left[idx] * right[idx]) + ...);
 				}
-#endif
 			}
 
 			template
@@ -4416,49 +4170,20 @@ further investigations needed, including other compilers
 			auto operator !() const;
 
 		private:
-#ifdef MSVC_LIMITATIONS
-			template<unsigned r = 0, size_t ...rowIdx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-			std::enable_if_t<r < sizeof...(rowIdx)> AssignSwizzle(std::index_sequence<rowIdx...> seq, const Impl::CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &;
-
-			// terminator
-			template<unsigned r, size_t ...rowIdx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-			std::enable_if_t<r == sizeof...(rowIdx)> AssignSwizzle(std::index_sequence<rowIdx...>, const Impl::CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &) & {}
-#else
 			template<size_t ...rowIdx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
 #ifdef __GNUC__
 			void AssignSwizzle(std::index_sequence<rowIdx...>, const Impl::CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
 #else
 			void AssignSwizzle(std::index_sequence<rowIdx...>, const Impl::CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &;
 #endif
-#endif
 
-#ifdef MSVC_LIMITATIONS
-			template<unsigned r = 0, size_t ...rowIdx, typename SrcType>
-			std::enable_if_t<r < sizeof...(rowIdx)> AssignScalar(std::index_sequence<rowIdx...> seq, const SrcType &scalar) &;
-
-			// terminator
-			template<unsigned r, size_t ...rowIdx, typename SrcType>
-			std::enable_if_t<r == sizeof...(rowIdx)> AssignScalar(std::index_sequence<rowIdx...>, const SrcType &) & {}
-#else
 			template<size_t ...rowIdx, typename SrcType>
 #ifdef __GNUC__
 			void AssignScalar(std::index_sequence<rowIdx...>, const SrcType &scalar);
 #else
 			void AssignScalar(std::index_sequence<rowIdx...>, const SrcType &scalar) &;
 #endif
-#endif
 
-#ifdef MSVC_LIMITATIONS
-			template<unsigned r = 0, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
-			std::enable_if_t<r < rows> OpAssignMatrix(
-				typename Impl::CSwizzle<ElementType, 0, columns>::TOperationResult &f(
-					Impl::CSwizzle<ElementType, 0, columns> &, const Impl::CSwizzle<SrcElementType, 0, srcColumns> &),
-				const matrix<SrcElementType, srcRows, srcColumns> &src) &;
-
-			// terminator
-			template<unsigned r, typename F, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
-			std::enable_if_t<r == rows> OpAssignMatrix(F, const matrix<SrcElementType, srcRows, srcColumns> &) & {}
-#else
 			template<size_t ...rowIdx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
 #ifdef __GNUC__
 			void OpAssignMatrix(
@@ -4473,18 +4198,7 @@ further investigations needed, including other compilers
 					Impl::CSwizzle<ElementType, 0, columns> &, const Impl::CSwizzle<SrcElementType, 0, srcColumns> &),
 				const matrix<SrcElementType, srcRows, srcColumns> &src) &;
 #endif
-#endif
 
-#ifdef MSVC_LIMITATIONS
-			template<unsigned r = 0, typename SrcType>
-			std::enable_if_t<r < rows> OpAssignScalar(
-				typename Impl::CSwizzle<ElementType, 0, columns>::TOperationResult &f(Impl::CSwizzle<ElementType, 0, columns> &, const SrcType &),
-				const SrcType &scalar);
-
-			// terminator
-			template<unsigned r, typename F, typename SrcType>
-			std::enable_if_t<r == rows> OpAssignScalar(F, const SrcType &scalar);
-#else
 			template<size_t ...rowIdx, typename SrcType>
 #ifdef __GNUC__
 			void OpAssignScalar(
@@ -4496,7 +4210,6 @@ further investigations needed, including other compilers
 				std::index_sequence<rowIdx...>,
 				typename Impl::CSwizzle<ElementType, 0, columns>::TOperationResult &f(Impl::CSwizzle<ElementType, 0, columns> &, const SrcType &),
 				const SrcType &scalar) &;
-#endif
 #endif
 
 		private:
@@ -4739,12 +4452,6 @@ further investigations needed, including other compilers
 			GENERATE_MASK_OPERATORS(OPERATOR_DECLARATION, F_2_PAIR)
 #			undef OPERATOR_DECLARATION
 #pragma endregion
-
-#ifdef MSVC_LIMITATIONS
-			friend bool VectorMath::all<>(const matrix<ElementType, rows, columns> &);
-			friend bool VectorMath::any<>(const matrix<ElementType, rows, columns> &);
-			friend bool VectorMath::none<>(const matrix<ElementType, rows, columns> &);
-#endif
 
 			using DataContainer::data;
 		};
@@ -5043,15 +4750,6 @@ further investigations needed, including other compilers
 				return Op(IdxSeq(), std::logical_not<>());
 			}
 
-#ifdef MSVC_LIMITATIONS
-			template<typename ElementType, unsigned int rows, unsigned int columns>
-			template<unsigned r, size_t ...rowIdx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-			inline std::enable_if_t < r < sizeof...(rowIdx)> matrix<ElementType, rows, columns>::AssignSwizzle(std::index_sequence<rowIdx...> seq, const Impl::CSwizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &
-			{
-				operator [](r) = src[r];
-				AssignSwizzle<r + 1>(seq, src);
-			}
-#else
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<size_t ...rowIdx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
 #ifdef __GNUC__
@@ -5062,17 +4760,7 @@ further investigations needed, including other compilers
 			{
 				((operator [](rowIdx) = src[rowIdx]), ...);
 			}
-#endif
 
-#ifdef MSVC_LIMITATIONS
-			template<typename ElementType, unsigned int rows, unsigned int columns>
-			template<unsigned r, size_t ...rowIdx, typename SrcType>
-			inline std::enable_if_t < r < sizeof...(rowIdx)> matrix<ElementType, rows, columns>::AssignScalar(std::index_sequence<rowIdx...> seq, const SrcType &scalar) &
-			{
-				operator [](r) = scalar;
-				AssignScalar<r + 1>(seq, scalar);
-			}
-#else
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<size_t ...rowIdx, typename SrcType>
 #ifdef __GNUC__
@@ -5083,20 +4771,7 @@ further investigations needed, including other compilers
 			{
 				((operator [](rowIdx) = scalar), ...);
 			}
-#endif
 
-#ifdef MSVC_LIMITATIONS
-			template<typename ElementType, unsigned int rows, unsigned int columns>
-			template<unsigned r, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
-			inline auto matrix<ElementType, rows, columns>::OpAssignMatrix(
-				typename Impl::CSwizzle<ElementType, 0, columns>::TOperationResult &f(
-					Impl::CSwizzle<ElementType, 0, columns> &, const Impl::CSwizzle<SrcElementType, 0, srcColumns> &),
-				const matrix<SrcElementType, srcRows, srcColumns> &src) & -> std::enable_if_t<r < rows>
-			{
-				f(operator [](r), src[r]);
-				OpAssignMatrix<r + 1>(f, src);
-			}
-#else
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<size_t ...rowIdx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
 #ifdef __GNUC__
@@ -5115,30 +4790,7 @@ further investigations needed, including other compilers
 			{
 				(f(operator [](rowIdx), src[rowIdx]), ...);
 			}
-#endif
 
-#ifdef MSVC_LIMITATIONS
-			// trailing return type used here because it seems that 'rows' is inaccessible in regular declaration\
-			C++ standard core language defect?
-
-			template<typename ElementType, unsigned int rows, unsigned int columns>
-			template<unsigned r, typename SrcType>
-			inline auto matrix<ElementType, rows, columns>::OpAssignScalar(
-				typename Impl::CSwizzle<ElementType, 0, columns>::TOperationResult &f(Impl::CSwizzle<ElementType, 0, columns> &, const SrcType &),
-				const SrcType &scalar) -> std::enable_if_t<r < rows>
-			{
-				f(operator [](r), scalar);
-				OpAssignScalar<r + 1>(f, scalar);
-			}
-
-			// terminator
-			template<typename ElementType, unsigned int rows, unsigned int columns>
-			template<unsigned r, typename F, typename SrcType>
-			inline auto matrix<ElementType, rows, columns>::OpAssignScalar(F, const SrcType &scalar) -> std::enable_if_t<r == rows>
-			{
-				assert(!TriggerScalarWARHazard(*this, &scalar));
-			}
-#else
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<size_t ...rowIdx, typename SrcType>
 #ifdef __GNUC__
@@ -5156,7 +4808,6 @@ further investigations needed, including other compilers
 				assert(!TriggerScalarWARHazard(*this, &scalar));
 				(f(operator [](rowIdx), scalar), ...);
 			}
-#endif
 
 			// matrix / 1x1 matrix op=<!WARHazard, !extractScalar> scalar
 #ifdef MSVC_LIMITATIONS
@@ -5166,7 +4817,7 @@ further investigations needed, including other compilers
 				inline auto matrix<ElementType, rows, columns>::operator op##=(const SrcType &scalar)								\
 				-> std::enable_if_t<!WARHazard && !extractScalar/* && Impl::IsScalar<SrcType>*/, matrix &>							\
 				{																													\
-					OpAssignScalar(Impl::ScalarOps::operator op##=																	\
+					OpAssignScalar(std::make_index_sequence<rows>(), Impl::ScalarOps::operator op##=								\
 						<false, false, ElementType, 0, columns, Impl::CVectorSwizzleDesc<columns>, SrcType>, scalar);				\
 					return *this;																									\
 				}
