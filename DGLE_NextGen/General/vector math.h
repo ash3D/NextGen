@@ -3008,24 +3008,6 @@ further investigations needed, including other compilers
 #			pragma region matrix
 				// matrix / 1x1 matrix op= matrix
 #ifdef MSVC_LIMITATIONS
-				namespace Impl::MatrixOps
-				{
-#					define OPERATOR_DEFINITION(op)																										\
-						template																														\
-						<																																\
-							typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,													\
-							typename RightElementType, unsigned int rightRows, unsigned int rightColumns												\
-						>																																\
-						inline void operator op##=(																										\
-							matrix<LeftElementType, leftRows, leftColumns> &left,																		\
-							const matrix<RightElementType, rightRows, rightColumns> &right)																\
-						{																																\
-							left.OpAssignMatrix(make_index_sequence<leftRows>(), VectorMath::operator op##=, right);									\
-						}
-					GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_OP)
-#					undef OPERATOR_DEFINITION
-				}
-
 #				define OPERATOR_DEFINITION(op)																											\
 					template																															\
 					<																																	\
@@ -3045,7 +3027,7 @@ further investigations needed, including other compilers
 							LeftElementType, false>>;																									\
 						static_assert(!(vecMatMismatch && leftRows == 1), "'matrix1xN -> vectorN "#op"= matrix': cannot convert matrix to vector");		\
 						static_assert(!(vecMatMismatch && rightRows == 1), "'matrix "#op"= matrix1xN -> vectorN': cannot convert matrix to vector");	\
-						Impl::MatrixOps::operator op##=(left, right);																					\
+						left.OpAssignMatrix(std::make_index_sequence<leftRows>(), operator op##=, right);												\
 						return left;																													\
 					}
 #else
@@ -3303,51 +3285,6 @@ further investigations needed, including other compilers
 #				undef OPERATOR_DEFINITION
 
 				// matrix / 1x1 matrix op= swizzle
-#ifdef MSVC_LIMITATIONS
-				namespace Impl::SequencingOps
-				{
-#					define OPERATOR_DEFINITION(op)																										\
-						template																														\
-						<																																\
-							bool ...WARHazard,																											\
-							typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,													\
-							typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc						\
-						>																																\
-						inline decltype(auto) operator op##=(																							\
-							matrix<LeftElementType, leftRows, leftColumns> &left,																		\
-							const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)											\
-						{																																\
-							static_assert(sizeof...(WARHazard) <= 1);																					\
-							constexpr static const auto leftDimension = leftRows * leftColumns;															\
-							constexpr static const bool																									\
-								underflow = leftDimension > RightSwizzleDesc::dimension,																\
-								overflow = leftDimension < RightSwizzleDesc::dimension;																	\
-							static_assert(!(underflow || overflow && leftDimension > 1), "'matrix "#op"= vector': unmatched sequencing");				\
-							auto &seq = reinterpret_cast<Impl::CSequencingSwizzle<LeftElementType, leftRows, leftColumns> &>(left.data);				\
-							operator op##=<WARHazard...>(seq, right);																					\
-							return left;																												\
-						}
-					GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_OP)
-#					undef OPERATOR_DEFINITION
-				}
-
-#				define OPERATOR_DEFINITION(op)																											\
-					template																															\
-					<																																	\
-						bool ...WARHazard,																												\
-						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,														\
-						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc							\
-					>																																	\
-					inline auto operator op##=(																											\
-						matrix<LeftElementType, leftRows, leftColumns> &left,																			\
-						const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)										\
-						-> std::enable_if_t<(RightSwizzleDesc::dimension > 1), decltype(left)>															\
-					{																																	\
-						return Impl::SequencingOps::operator op##=<WARHazard...>(left, right);															\
-					}
-				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_OP)
-#				undef OPERATOR_DEFINITION
-#else
 #				define OPERATOR_DEFINITION(op)																											\
 					template																															\
 					<																																	\
@@ -3372,7 +3309,6 @@ further investigations needed, including other compilers
 					}
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_OP)
 #				undef OPERATOR_DEFINITION
-#endif
 
 				// matrix / 1x1 matrix op= temp swizzle
 #				define OPERATOR_DEFINITION(op)																											\
@@ -4357,17 +4293,6 @@ further investigations needed, including other compilers
 #			undef OPERATOR_DECLARATION
 
 			// matrix / 1x1 matrix op= matrix
-#ifdef MSVC_LIMITATIONS
-#			define OPERATOR_DECLARATION(op)																									\
-				template																													\
-				<																															\
-					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,												\
-					typename RightElementType, unsigned int rightRows, unsigned int rightColumns											\
-				>																															\
-				friend inline void Impl::MatrixOps::operator op##=(																			\
-					matrix<LeftElementType, leftRows, leftColumns> &left,																	\
-					const matrix<RightElementType, rightRows, rightColumns> &right);
-#else
 #			define OPERATOR_DECLARATION(op)																									\
 				template																													\
 				<																															\
@@ -4378,25 +4303,10 @@ further investigations needed, including other compilers
 					matrix<LeftElementType, leftRows, leftColumns> &left,																	\
 					const matrix<RightElementType, rightRows, rightColumns> &right)															\
 					-> std::enable_if_t<(rightRows > 1 || rightColumns > 1), decltype(left)>;
-#endif
 			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION, F_2_OP)
 #			undef OPERATOR_DECLARATION
 
 			// matrix / 1x1 matrix op= swizzle
-#ifdef MSVC_LIMITATIONS
-#			define OPERATOR_DECLARATION(op)																									\
-				template																													\
-				<																															\
-					bool ...WARHazard,																										\
-					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,												\
-					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc					\
-				>																															\
-				friend inline decltype(auto) Impl::SequencingOps::operator op##=(															\
-					matrix<LeftElementType, leftRows, leftColumns> &left,																	\
-					const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right);
-			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION, F_2_OP)
-#			undef OPERATOR_DECLARATION
-#else
 #			define OPERATOR_DECLARATION(op)																									\
 				template																													\
 				<																															\
@@ -4410,7 +4320,6 @@ further investigations needed, including other compilers
 					-> std::enable_if_t<(RightSwizzleDesc::dimension > 1), decltype(left)>;
 			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION, F_2_OP)
 #			undef OPERATOR_DECLARATION
-#endif
 
 			// swizzle op matrix / 1D swizzle op 1x1 matrix
 #			define OPERATOR_DECLARATION(op, F)																								\
