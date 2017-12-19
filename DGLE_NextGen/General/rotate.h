@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.12.2017 (c)Korotkov Andrey
+\date		19.12.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -85,11 +85,7 @@ namespace RotImpl
 	template<unsigned width>
 #if USE_BOOST_TYPE_SELECTOR
 	inline auto rol(typename boost::uint_t<width>::fast value, unsigned int shift) noexcept ->
-#if defined _MSC_VER && _MSC_VER <= 1911 && !defined __clang__
-		enable_if_t<!Has_exact<typename boost::uint_t<width>>::value, typename boost::uint_t<width>::fast>
-#else
 		enable_if_t<!Has_exact<typename boost::uint_t<width>>::value, decltype(value)>
-#endif
 #else
 #if defined _MSC_VER && _MSC_VER <= 1912 && !defined __clang__
 	inline typename SelectType<width>::fast rol(typename SelectType<width>::fast value, unsigned int shift) noexcept
@@ -125,11 +121,7 @@ namespace RotImpl
 	template<unsigned width>
 #if USE_BOOST_TYPE_SELECTOR
 	inline auto ror(typename boost::uint_t<width>::fast value, unsigned int shift) noexcept ->
-#if defined _MSC_VER && _MSC_VER <= 1911 && !defined __clang__
-		enable_if_t<!Has_exact<typename boost::uint_t<width>>::value, typename boost::uint_t<width>::fast>
-#else
 		enable_if_t<!Has_exact<typename boost::uint_t<width>>::value, decltype(value)>
-#endif
 #else
 #if defined _MSC_VER && _MSC_VER <= 1912 && !defined __clang__
 	inline typename SelectType<width>::fast ror(typename SelectType<width>::fast value, unsigned int shift) noexcept

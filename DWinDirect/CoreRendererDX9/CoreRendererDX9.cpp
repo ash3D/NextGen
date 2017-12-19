@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		30.10.2017 (c)Andrey Korotkov
+\date		19.12.2017 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -2929,33 +2929,12 @@ void CCoreRendererDX9::CQueryQueueBase<Item>::Insert(Item &&item)
 	_queue.push_back(move(item));
 }
 
-#ifdef MSVC_LIMITATIONS
-template<typename ...Args>
-static inline bool Conjunction(bool head, Args ...tail)
-{
-	return head && Conjunction(tail...);
-}
-
-// terminator
-static inline bool Conjunction()
-{
-	return true;
-}
-
-template<D3DQUERYTYPE ...types>
-template<size_t ...idx>
-inline bool CCoreRendererDX9::CQueryQueue<types...>::_Ready(index_sequence<idx...>) noexcept
-{
-	return Conjunction(get<idx>(_queue.front()).Ready()...);
-}
-#else
 template<D3DQUERYTYPE ...types>
 template<size_t ...idx>
 inline bool CCoreRendererDX9::CQueryQueue<types...>::_Ready(index_sequence<idx...>) noexcept
 {
 	return (get<idx>(_queue.front()).Ready() && ...);
 }
-#endif
 
 template<D3DQUERYTYPE ...types>
 template<size_t ...idx>
@@ -2997,41 +2976,11 @@ auto CCoreRendererDX9::CQueryQueue<type>::Extract() -> optional<typename QueryTy
 }
 #pragma endregion
 
-#ifdef MSVC_LIMITATIONS
-#ifdef __cpp_lib_apply
-template<typename F, D3DQUERYTYPE firstType, D3DQUERYTYPE ...restTypes>
-inline void CCoreRendererDX9::_ProfilerTasksApplyImpl(F f, TProfilerTask<firstType> &head, TProfilerTask<restTypes> &...tail)
-{
-	f(head);
-	_ProfilerTasksApplyImpl(f, tail...);
-}
-
-template<typename F, D3DQUERYTYPE ...types>
-void CCoreRendererDX9::_ProfilerTasksApply(F f, ProfilerTasks<types...> &tasks)
-{
-	apply(_ProfilerTasksApplyImpl<F, types...>, tuple_cat(make_tuple(f), tasks));
-}
-#else
-template<D3DQUERYTYPE firstType, D3DQUERYTYPE ...restTypes, typename F, class Tasks>
-inline void CCoreRendererDX9::_ProfilerTasksApplyImpl(F f, Tasks &tasks)
-{
-	f(_GetProfilerTask<firstType>(tasks));
-	_ProfilerTasksApplyImpl<restTypes...>(f, tasks);
-}
-
-template<typename F, D3DQUERYTYPE ...types>
-void CCoreRendererDX9::_ProfilerTasksApply(F f, ProfilerTasks<types...> &tasks)
-{
-	_ProfilerTasksApplyImpl<types...>(f, tasks);
-}
-#endif
-#else
 template<typename F, D3DQUERYTYPE ...types>
 void CCoreRendererDX9::_ProfilerTasksApply(F f, ProfilerTasks<types...> &tasks)
 {
 	(f(_GetProfilerTask<types>(tasks)), ...);
 }
-#endif
 
 template<D3DQUERYTYPE type>
 inline void CCoreRendererDX9::_ProfilerTaskCheckSupport(TProfilerTask<type> &task)

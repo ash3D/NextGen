@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		30.10.2017 (c)Andrey Korotkov
+\date		19.12.2017 (c)Andrey Korotkov
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -555,23 +555,6 @@ class CCoreRendererDX9 final : public ICoreRenderer
 	{
 		return std::get<TProfilerTask<type>>(std::forward<Tasks>(tasks));
 	}
-
-#ifdef MSVC_LIMITATIONS
-#ifdef __cpp_lib_apply
-	template<typename F, D3DQUERYTYPE firstType, D3DQUERYTYPE ...restTypes>
-	static inline void _ProfilerTasksApplyImpl(F f, TProfilerTask<firstType> &head, TProfilerTask<restTypes> &...tail);
-
-	// terminator
-	static inline void _DestroyQueriesImpl() {}
-#else
-	template<D3DQUERYTYPE firstType, D3DQUERYTYPE ...restTypes, typename F, class Tasks>
-	static inline void _ProfilerTasksApplyImpl(F f, Tasks &tasks);
-
-	// terminator
-	template<typename F, class Tasks>
-	static inline void _ProfilerTasksApplyImpl(F, Tasks &) {}
-#endif
-#endif
 
 	// 1 call site per instantiation
 	template<typename F, D3DQUERYTYPE ...types>
