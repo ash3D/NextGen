@@ -155,5 +155,8 @@
     <None Include="GPU memory allocator.inl">
       <Filter>Header Files</Filter>
     </None>
+    <None Include="tracked resource.inl">
+      <Filter>Header Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

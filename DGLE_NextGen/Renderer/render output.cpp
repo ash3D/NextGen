@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		15.11.2017 (c)Korotkov Andrey
+\date		21.12.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -10,6 +10,7 @@ See "DGLE.h" for more details.
 #include "stdafx.h"
 #include "render output.hh"
 #include "viewport.hh"
+#include "tracked resource.inl"
 #include "frame versioning.h"
 #include "cmdlist pool.h"
 

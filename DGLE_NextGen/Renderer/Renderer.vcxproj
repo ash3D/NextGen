@@ -273,6 +273,7 @@
   <ItemGroup>
     <None Include="AABB.inl" />
     <None Include="GPU memory allocator.inl" />
+    <None Include="tracked resource.inl" />
     <None Include="world hierarchy.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
