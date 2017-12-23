@@ -341,7 +341,8 @@ const RenderPipeline::IRenderStage *TerrainVectorLayer::BuildRenderStage(const I
 #if 0
 	for_each(execution::par, quads.begin(), quads.end(), bind(&TerrainVectorQuad::Shcedule, _1, cref(frustumCuller), cref(frustumXform)));
 #else
-	vector<future<void>> pendingAsyncs;
+	static vector<future<void>> pendingAsyncs;
+	pendingAsyncs.clear();
 	pendingAsyncs.reserve(quads.size());
 	try
 	{
