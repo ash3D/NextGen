@@ -343,15 +343,24 @@ const RenderPipeline::IRenderStage *TerrainVectorLayer::BuildRenderStage(const I
 #else
 	vector<future<void>> pendingAsyncs;
 	pendingAsyncs.reserve(quads.size());
-	transform(quads.cbegin(), quads.cend(), back_inserter(pendingAsyncs), [&](decltype(quads)::const_reference quad)
+	try
 	{
-		return async(&TerrainVectorQuad::Shcedule, cref(quad), cref(frustumCuller), cref(frustumXform));
-	});
-	// wait for pending asyncs
-	for_each(pendingAsyncs.begin(), pendingAsyncs.end(), mem_fn(&decltype(pendingAsyncs)::value_type::wait));
-	// propagate exceptions (first only)\
-	waiting above is still needed to prevent access to quads from worker threads after an exception was thrown
-	for_each(pendingAsyncs.begin(), pendingAsyncs.end(), mem_fn(&decltype(pendingAsyncs)::value_type::get));
+		transform(quads.cbegin(), quads.cend(), back_inserter(pendingAsyncs), [&](decltype(quads)::const_reference quad)
+		{
+			return async(&TerrainVectorQuad::Shcedule, cref(quad), cref(frustumCuller), cref(frustumXform));
+		});
+		// wait for pending asyncs\
+		use 'get' instead of 'wait' in order to propagate exceptions (first only)
+		for_each(pendingAsyncs.begin(), pendingAsyncs.end(), mem_fn(&decltype(pendingAsyncs)::value_type::get));
+	}
+	catch (...)
+	{
+		// needed to prevent access to quads from worker threads after an exception was thrown
+		for (const auto &pendingAsync : pendingAsyncs)
+			if (pendingAsync.valid())
+				pendingAsync.wait();
+		throw;
+	}
 #endif
 	for_each(quads.begin(), quads.end(), mem_fn(&TerrainVectorQuad::Issue));
 #else
