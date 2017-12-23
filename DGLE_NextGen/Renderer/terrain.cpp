@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		21.12.2017 (c)Korotkov Andrey
+\date		23.12.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -348,12 +348,10 @@ const RenderPipeline::IRenderStage *TerrainVectorLayer::BuildRenderStage(const I
 		return async(&TerrainVectorQuad::Shcedule, cref(quad), cref(frustumCuller), cref(frustumXform));
 	});
 	// wait for pending asyncs
-#if 0
-	// relying on future's dtor is probably not robust with default launch policy
-	pendingAsyncs.clear();
-#else
 	for_each(pendingAsyncs.begin(), pendingAsyncs.end(), mem_fn(&decltype(pendingAsyncs)::value_type::wait));
-#endif
+	// propagate exceptions (first only)\
+	waiting above is still needed to prevent access to quads from worker threads after an exception was thrown
+	for_each(pendingAsyncs.begin(), pendingAsyncs.end(), mem_fn(&decltype(pendingAsyncs)::value_type::get));
 #endif
 	for_each(quads.begin(), quads.end(), mem_fn(&TerrainVectorQuad::Issue));
 #else
