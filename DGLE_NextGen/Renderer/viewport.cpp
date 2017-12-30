@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		31.10.2017 (c)Korotkov Andrey
+\date		30.12.2017 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -99,10 +99,10 @@ void Impl::Viewport::UpdateAspect(double invAspect)
 
 void Impl::Viewport::Render(ID3D12Resource *rt, const D3D12_CPU_DESCRIPTOR_HANDLE &rtv, UINT width, UINT height) const
 {
-	auto cmdLits = cmdListsManager.OnFrameStart();
+	auto cmdLists = cmdListsManager.OnFrameStart();
 	GPUWorkSubmission::Prepare();
 
-	GPUWorkSubmission::AppendCmdList(Pre, cmdLits.pre, rt, rtv);
+	GPUWorkSubmission::AppendCmdList(Pre, cmdLists.pre, rt, rtv);
 
 	const function<void (ID3D12GraphicsCommandList1 *target)> setupRenderOutputCallback =
 		[
@@ -118,7 +118,7 @@ void Impl::Viewport::Render(ID3D12Resource *rt, const D3D12_CPU_DESCRIPTOR_HANDL
 	if (world)
 		world->Render(viewXform, projXform, setupRenderOutputCallback);
 
-	GPUWorkSubmission::AppendCmdList(Post, cmdLits.post, rt);
+	GPUWorkSubmission::AppendCmdList(Post, cmdLists.post, rt);
 
 	GPUWorkSubmission::Run();
 	cmdListsManager.OnFrameFinish();
