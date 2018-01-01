@@ -17,15 +17,23 @@ inline Renderer::Impl::GPUStreamBufferAllocatorBase::GPUStreamBufferAllocatorBas
 	AllocateChunk(CD3DX12_RESOURCE_DESC::Buffer(allocGranularity));
 }
 
-template<unsigned itemSize>
-inline const unsigned long Renderer::Impl::GPUStreamBufferAllocator<itemSize>::allocGranularity = std::lcm(itemSize, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT);
+inline std::pair<ID3D12Resource *, unsigned long> Renderer::Impl::GPUStreamBufferCountedAllocator::Allocate(unsigned long count, unsigned itemSize, unsigned long allocGranularity)
+{
+	const auto result = GPUStreamBufferAllocatorBase::Allocate(count, itemSize, allocGranularity);
+	// place after Allocate() for exception safety (fetch_add is noexcept => if Allocate() succeeds it will be guaranteed reflected in allocatedItemsCount)
+	allocatedItemsCount.fetch_add(count, std::memory_order_relaxed);
+	return result;
+}
 
-template<unsigned itemSize>
-inline Renderer::Impl::GPUStreamBufferAllocator<itemSize>::GPUStreamBufferAllocator() : GPUStreamBufferAllocatorBase(allocGranularity)
+template<unsigned itemSize, bool counted>
+inline const unsigned long Renderer::Impl::GPUStreamBufferAllocator<itemSize, counted>::allocGranularity = std::lcm(itemSize, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT);
+
+template<unsigned itemSize, bool counted>
+inline Renderer::Impl::GPUStreamBufferAllocator<itemSize, counted>::GPUStreamBufferAllocator() : Base(allocGranularity)
 {}
 
-template<unsigned itemSize>
-inline std::pair<ID3D12Resource *, unsigned long> Renderer::Impl::GPUStreamBufferAllocator<itemSize>::Allocate(unsigned long count)
+template<unsigned itemSize, bool counted>
+inline std::pair<ID3D12Resource *, unsigned long> Renderer::Impl::GPUStreamBufferAllocator<itemSize, counted>::Allocate(unsigned long count)
 {
-	return GPUStreamBufferAllocatorBase::Allocate(count, itemSize, allocGranularity);
+	return Base::Allocate(count, itemSize, allocGranularity);
 }

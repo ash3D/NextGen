@@ -10,6 +10,7 @@ See "DGLE.h" for more details.
 #pragma once
 
 #include <utility>
+#include <type_traits>
 #include <deque>
 #include <shared_mutex>
 #include <atomic>
@@ -51,9 +52,27 @@ namespace Renderer::Impl
 		void OnFrameFinish();
 	};
 
-	template<unsigned itemSize>
-	class GPUStreamBufferAllocator : public GPUStreamBufferAllocatorBase
+	class GPUStreamBufferCountedAllocator : public GPUStreamBufferAllocatorBase
 	{
+		std::atomic<unsigned long> allocatedItemsCount;
+
+	protected:
+		using GPUStreamBufferAllocatorBase::GPUStreamBufferAllocatorBase;
+		GPUStreamBufferCountedAllocator(GPUStreamBufferCountedAllocator &&) = default;
+		GPUStreamBufferCountedAllocator &operator =(GPUStreamBufferCountedAllocator &&) = default;
+		~GPUStreamBufferCountedAllocator() = default;
+
+	protected:
+		std::pair<ID3D12Resource *, unsigned long> Allocate(unsigned long count, unsigned itemSize, unsigned long allocGranularity);
+
+	public:
+		unsigned long GetAllocatedItemCount() const { return allocatedItemsCount.load(); }
+	};
+
+	template<unsigned itemSize, bool counted>
+	class GPUStreamBufferAllocator : public std::conditional_t<counted, GPUStreamBufferCountedAllocator, GPUStreamBufferAllocatorBase>
+	{
+		typedef std::conditional_t<counted, GPUStreamBufferCountedAllocator, GPUStreamBufferAllocatorBase> Base;
 		// use const instead of constexpr to allow out-of-class definition (to avoid dependency on D3D12 header here)
 		static const unsigned long allocGranularity;
 
