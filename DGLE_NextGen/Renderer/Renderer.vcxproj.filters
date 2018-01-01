@@ -68,9 +68,6 @@
     <ClInclude Include="occlusion query shceduling.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GPU memory allocator.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="tracked resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -87,6 +84,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="query pool.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GPU stream buffer allocator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -136,6 +136,9 @@
     <ClCompile Include="query pool.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="GPU stream buffer allocator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="vectorLayerVS.hlsl">
@@ -152,10 +155,10 @@
     <None Include="AABB.inl">
       <Filter>Header Files</Filter>
     </None>
-    <None Include="GPU memory allocator.inl">
+    <None Include="tracked resource.inl">
       <Filter>Header Files</Filter>
     </None>
-    <None Include="tracked resource.inl">
+    <None Include="GPU stream buffer allocator.inl">
       <Filter>Header Files</Filter>
     </None>
   </ItemGroup>

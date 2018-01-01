@@ -212,7 +212,7 @@
     <ClInclude Include="cmdlist pool.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="frustum culling.h" />
-    <ClInclude Include="GPU memory allocator.h" />
+    <ClInclude Include="GPU stream buffer allocator.h" />
     <ClInclude Include="GPU work submission.h" />
     <ClInclude Include="HRESULT.h" />
     <ClInclude Include="include\instance.hh" />
@@ -232,6 +232,7 @@
   <ItemGroup>
     <ClCompile Include="cmdlist pool.cpp" />
     <ClCompile Include="frustum culling.cpp" />
+    <ClCompile Include="GPU stream buffer allocator.cpp" />
     <ClCompile Include="GPU work submission.cpp" />
     <ClCompile Include="instance.cpp" />
     <ClCompile Include="main.cpp" />
@@ -272,7 +273,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="AABB.inl" />
-    <None Include="GPU memory allocator.inl" />
+    <None Include="GPU stream buffer allocator.inl" />
     <None Include="tracked resource.inl" />
     <None Include="world hierarchy.inl" />
   </ItemGroup>
