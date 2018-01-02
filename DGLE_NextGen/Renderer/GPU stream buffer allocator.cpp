@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		01.01.2018 (c)Korotkov Andrey
+\date		02.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -13,9 +13,9 @@ See "DGLE.h" for more details.
 #include "frame versioning.h"
 
 using namespace std;
-using namespace Renderer::Impl;
+using namespace Renderer::Impl::GPUStreamBuffer;
 
-void GPUStreamBufferAllocatorBase::AllocateChunk(const D3D12_RESOURCE_DESC &chunkDesc)
+void AllocatorBase::AllocateChunk(const D3D12_RESOURCE_DESC &chunkDesc)
 {
 	extern Microsoft::WRL::ComPtr<ID3D12Device2> device;
 
@@ -28,7 +28,7 @@ void GPUStreamBufferAllocatorBase::AllocateChunk(const D3D12_RESOURCE_DESC &chun
 		IID_PPV_ARGS(chunk.ReleaseAndGetAddressOf())));
 }
 
-pair<ID3D12Resource *, unsigned long> GPUStreamBufferAllocatorBase::Allocate(unsigned long count, unsigned itemSize, unsigned long allocGranularity)
+pair<ID3D12Resource *, unsigned long> AllocatorBase::Allocate(unsigned long count, unsigned itemSize, unsigned long allocGranularity)
 {
 	for (;;)
 	{
@@ -76,7 +76,7 @@ pair<ID3D12Resource *, unsigned long> GPUStreamBufferAllocatorBase::Allocate(uns
 }
 
 // NOTE: not thread-safe
-void GPUStreamBufferAllocatorBase::OnFrameFinish()
+void AllocatorBase::OnFrameFinish()
 {
 	for (const UINT64 completedFrameID = globalFrameVersioning->GetCompletedFrameID(); !retiredFrames.empty() && retiredFrames.front().frameID <= completedFrameID; retiredFrames.pop_front())
 	{

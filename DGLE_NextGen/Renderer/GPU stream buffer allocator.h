@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		01.01.2018 (c)Korotkov Andrey
+\date		02.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -10,7 +10,6 @@ See "DGLE.h" for more details.
 #pragma once
 
 #include <utility>
-#include <type_traits>
 #include <deque>
 #include <shared_mutex>
 #include <atomic>
@@ -19,9 +18,9 @@ See "DGLE.h" for more details.
 struct ID3D12Resource;
 struct D3D12_RESOURCE_DESC;
 
-namespace Renderer::Impl
+namespace Renderer::Impl::GPUStreamBuffer
 {
-	class GPUStreamBufferAllocatorBase
+	class AllocatorBase
 	{
 		struct RetiredFrame
 		{
@@ -37,10 +36,10 @@ namespace Renderer::Impl
 		bool freeRangeReversed = true;
 
 	protected:
-		GPUStreamBufferAllocatorBase(unsigned long allocGranularity);
-		GPUStreamBufferAllocatorBase(GPUStreamBufferAllocatorBase &&) = default;
-		GPUStreamBufferAllocatorBase &operator =(GPUStreamBufferAllocatorBase &&) = default;
-		~GPUStreamBufferAllocatorBase() = default;
+		AllocatorBase(unsigned long allocGranularity);
+		AllocatorBase(AllocatorBase &) = delete;
+		AllocatorBase &operator =(AllocatorBase &) = delete;
+		~AllocatorBase() = default;
 
 	private:
 		void AllocateChunk(const D3D12_RESOURCE_DESC &chunkDesc);
@@ -52,37 +51,34 @@ namespace Renderer::Impl
 		void OnFrameFinish();
 	};
 
-	class GPUStreamBufferCountedAllocator : public GPUStreamBufferAllocatorBase
+	template<unsigned itemSize>
+	class Allocator : public AllocatorBase
 	{
-		std::atomic<unsigned long> allocatedItemsCount;
-
-	protected:
-		using GPUStreamBufferAllocatorBase::GPUStreamBufferAllocatorBase;
-		GPUStreamBufferCountedAllocator(GPUStreamBufferCountedAllocator &&) = default;
-		GPUStreamBufferCountedAllocator &operator =(GPUStreamBufferCountedAllocator &&) = default;
-		~GPUStreamBufferCountedAllocator() = default;
-
-	protected:
-		std::pair<ID3D12Resource *, unsigned long> Allocate(unsigned long count, unsigned itemSize, unsigned long allocGranularity);
-
-	public:
-		unsigned long GetAllocatedItemCount() const { return allocatedItemsCount.load(); }
-	};
-
-	template<unsigned itemSize, bool counted>
-	class GPUStreamBufferAllocator : public std::conditional_t<counted, GPUStreamBufferCountedAllocator, GPUStreamBufferAllocatorBase>
-	{
-		typedef std::conditional_t<counted, GPUStreamBufferCountedAllocator, GPUStreamBufferAllocatorBase> Base;
 		// use const instead of constexpr to allow out-of-class definition (to avoid dependency on D3D12 header here)
 		static const unsigned long allocGranularity;
 
 	public:
-		GPUStreamBufferAllocator();
-		GPUStreamBufferAllocator(GPUStreamBufferAllocator &&) = default;
-		GPUStreamBufferAllocator &operator =(GPUStreamBufferAllocator &&) = default;
+		Allocator();
+		Allocator(Allocator &) = delete;
+		Allocator &operator =(Allocator &) = delete;
 
 	public:
 		// result valid during current frame only
 		std::pair<ID3D12Resource *, unsigned long> Allocate(unsigned long count);
+	};
+
+	template<unsigned itemSize>
+	class CountedAllocatorWrapper
+	{
+		std::atomic<unsigned long> allocatedItemsCount;
+		Allocator &allocator;
+
+	public:
+		explicit CountedAllocatorWrapper(Allocator<itemSize> &allocator) noexcept : allocator(allocator) {}
+		CountedAllocatorWrapper(CountedAllocatorWrapper &&) = default;
+
+	public:
+		std::pair<ID3D12Resource *, unsigned long> Allocate(unsigned long count, unsigned itemSize, unsigned long allocGranularity);
+		unsigned long GetAllocatedItemCount() const noexcept { return allocatedItemsCount.load(); }
 	};
 }
