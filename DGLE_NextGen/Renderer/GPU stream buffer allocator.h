@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		02.01.2018 (c)Korotkov Andrey
+\date		04.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -71,14 +71,14 @@ namespace Renderer::Impl::GPUStreamBuffer
 	class CountedAllocatorWrapper
 	{
 		std::atomic<unsigned long> allocatedItemsCount;
-		Allocator &allocator;
+		Allocator<itemSize> &allocator;
 
 	public:
 		explicit CountedAllocatorWrapper(Allocator<itemSize> &allocator) noexcept : allocator(allocator) {}
 		CountedAllocatorWrapper(CountedAllocatorWrapper &&) = default;
 
 	public:
-		std::pair<ID3D12Resource *, unsigned long> Allocate(unsigned long count, unsigned itemSize, unsigned long allocGranularity);
+		std::pair<ID3D12Resource *, unsigned long> Allocate(unsigned long count);
 		unsigned long GetAllocatedItemCount() const noexcept { return allocatedItemsCount.load(); }
 	};
 }
