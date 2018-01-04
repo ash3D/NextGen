@@ -83,10 +83,10 @@
     <ClInclude Include="frame versioning.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="query pool.h">
+    <ClInclude Include="GPU stream buffer allocator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GPU stream buffer allocator.h">
+    <ClInclude Include="occlusion query batch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -133,10 +133,10 @@
     <ClCompile Include="frame versioning.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="query pool.cpp">
+    <ClCompile Include="GPU stream buffer allocator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="GPU stream buffer allocator.cpp">
+    <ClCompile Include="occlusion query batch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

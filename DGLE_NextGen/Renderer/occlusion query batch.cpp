@@ -8,16 +8,16 @@ See "DGLE.h" for more details.
 */
 
 #include "stdafx.h"
-#include "query pool.h"
+#include "occlusion query batch.h"
 #include "tracked resource.inl"
 #include "align.h"
 
 using namespace std;
-using namespace Renderer::Impl::QueryPool;
+using namespace Renderer::Impl::OcclusionCulling;
 using Microsoft::WRL::ComPtr;
 
 // not thread-safe, must be called sequentially in render stage order
-OcclusionQueryBatch::OcclusionQueryBatch(unsigned long count) : count(count)
+QueryBatch::QueryBatch(unsigned long count) : count(count)
 {
 	extern ComPtr<ID3D12Device2> device;
 
@@ -41,7 +41,7 @@ OcclusionQueryBatch::OcclusionQueryBatch(unsigned long count) : count(count)
 	}
 }
 
-void OcclusionQueryBatch::Resolve(ID3D12GraphicsCommandList1 *cmdList)
+void QueryBatch::Resolve(ID3D12GraphicsCommandList1 *cmdList)
 {
 	if (count)
 	{
@@ -52,7 +52,7 @@ void OcclusionQueryBatch::Resolve(ID3D12GraphicsCommandList1 *cmdList)
 	}
 }
 
-void OcclusionQueryBatch::Finish(ID3D12GraphicsCommandList1 *cmdList)
+void QueryBatch::Finish(ID3D12GraphicsCommandList1 *cmdList)
 {
 	if (count)
 		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(batchResults, D3D12_RESOURCE_STATE_PREDICATION, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY));
