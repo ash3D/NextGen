@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		04.11.2017 (c)Korotkov Andrey
+\date		09.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -55,7 +55,7 @@ void CmdList::Init(ID3D12PipelineState *PSO)
 void CmdList::Update(ID3D12PipelineState *PSO)
 {
 	if (PSO)
-		operator ID3D12GraphicsCommandList1 *()->SetPipelineState(PSO);
+		operator ID3D12GraphicsCommandList1 *()->ClearState(PSO);
 }
 
 void CmdListPool::OnFrameFinish()
