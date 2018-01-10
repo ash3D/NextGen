@@ -168,7 +168,7 @@ namespace Renderer
 		};
 
 	private:
-		TerrainVectorLayer(std::shared_ptr<class World> world, unsigned int layerIdx, const float (&color)[3], WRL::ComPtr<ID3D12PipelineState> &cullPSO, WRL::ComPtr<ID3D12PipelineState> &mainPSO);
+		TerrainVectorLayer(std::shared_ptr<class World> world, unsigned int layerIdx, const float (&color)[3], const WRL::ComPtr<ID3D12PipelineState> &cullPSO, const WRL::ComPtr<ID3D12PipelineState> &mainPSO);
 		~TerrainVectorLayer();
 		TerrainVectorLayer(TerrainVectorLayer &) = delete;
 		void operator =(TerrainVectorLayer &) = delete;

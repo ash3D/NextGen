@@ -391,7 +391,7 @@ void TerrainVectorLayer::QuadDeleter::operator()(TerrainVectorQuad *quadToRemove
 	quadToRemove->layer->quads.erase(quadLocation);
 }
 
-TerrainVectorLayer::TerrainVectorLayer(shared_ptr<class World> world, unsigned int layerIdx, const float (&color)[3], ComPtr<ID3D12PipelineState> &cullPSO, ComPtr<ID3D12PipelineState> &mainPSO) :
+TerrainVectorLayer::TerrainVectorLayer(shared_ptr<class World> world, unsigned int layerIdx, const float (&color)[3], const ComPtr<ID3D12PipelineState> &cullPSO, const ComPtr<ID3D12PipelineState> &mainPSO) :
 	world(move(world)), layerIdx(layerIdx), renderStage(color, cullPSO, mainPSO)
 {
 }
