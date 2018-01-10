@@ -136,7 +136,7 @@ namespace Renderer::Impl::Hierarchy
 
 		// calculate tri count and occlusion
 		{
-			const auto accumulated = accumulate(objBegin, objExclusiveSeparator, make_pair(0ul, 0.f), [renormalizationFactor = 1.f / aabb.Measure()](auto left, const Object &right)
+			tie(exclusiveTriCount, occlusion) = accumulate(objBegin, objExclusiveSeparator, make_pair(0ul, 0.f), [renormalizationFactor = 1.f / aabb.Measure()](auto left, const Object &right)
 			{
 				left.first += right.GetTriCount();
 
@@ -146,8 +146,6 @@ namespace Renderer::Impl::Hierarchy
 
 				return left;
 			});
-			exclusiveTriCount = accumulated.first;
-			occlusion = accumulated.second;
 
 			inclusiveTriCount = accumulate(cbegin(children), next(cbegin(children), childrenCount), exclusiveTriCount, [](unsigned long int left, const remove_extent_t<decltype(children)> &right) noexcept
 			{
@@ -327,9 +325,7 @@ namespace Renderer::Impl::Hierarchy
 				});
 
 				// traverse first child in this thread
-				const auto childResult = children[0]->Shcedule(/*nodeHandler, */GPU_AABB_allocator, frustumCuller, frustumXform, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
-				childrenCulledTris = childResult.first;
-				childQueryCanceled = childResult.second;
+				tie(childrenCulledTris, childQueryCanceled) = children[0]->Shcedule(/*nodeHandler, */GPU_AABB_allocator, frustumCuller, frustumXform, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
 #else
 				for_each_n(cbegin(children), childrenCount, [&, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion](const remove_extent_t<decltype(children)> &child)
 				{

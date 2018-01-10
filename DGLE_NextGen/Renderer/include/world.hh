@@ -76,15 +76,18 @@ namespace Renderer
 		private:
 			struct
 			{
-				ComPtr<ID3D12RootSignature>	cullPassRootSig, mainPassRootSig;
-				ComPtr<ID3D12PipelineState>	cullPassPSO, mainPassPSO;
-			} terrainVectorLayerD3DObjs;
-			ComPtr<ID3D12Resource>		terrainCB;
+				struct
+				{
+					ComPtr<ID3D12RootSignature>	cullPassRootSig, mainPassRootSig;
+					ComPtr<ID3D12PipelineState>	cullPassPSO, mainPassPSO;
+				} vectorLayerD3DObjs;
+				ComPtr<ID3D12Resource>		CB;
 #if PERSISTENT_MAPS
-			volatile void				*terrainCB_CPU_ptr;
+				volatile void				*CB_CPU_ptr;
 #endif
-			float terrainXform[4][3];
-			std::list<TerrainVectorLayer, Allocator<TerrainVectorLayer>> terrainVectorLayers;
+				float xform[4][3];
+				std::list<TerrainVectorLayer, Allocator<TerrainVectorLayer>> vectorLayers;
+			} terrain;
 			mutable unsigned short ringBufferIdx = 0;
 
 		private:

@@ -136,7 +136,7 @@ namespace Renderer
 				occlusionQueryPass(occlusionQueryPSO), mainPass(color, mainPSO) {}
 
 		private:
-			// interface implementation
+			// Inherited via IRenderStage
 			unsigned int RenderPassCount() const noexcept override { return 2; }
 			const Impl::RenderPipeline::IRenderPass &operator [](unsigned renderPassIdx) const override;
 

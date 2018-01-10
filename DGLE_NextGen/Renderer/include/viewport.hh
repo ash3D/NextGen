@@ -61,7 +61,7 @@ namespace Renderer
 
 		protected:
 			void UpdateAspect(double invAspect);
-			void Render(ID3D12Resource *rt, const D3D12_CPU_DESCRIPTOR_HANDLE &rtv, const D3D12_CPU_DESCRIPTOR_HANDLE &dsv, UINT width, UINT height) const;
+			void Render(ID3D12Resource *rt, const D3D12_CPU_DESCRIPTOR_HANDLE rtv, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, UINT width, UINT height) const;
 			void OnFrameFinish() const;
 		};
 	}

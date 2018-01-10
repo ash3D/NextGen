@@ -98,7 +98,7 @@ void Impl::Viewport::UpdateAspect(double invAspect)
 	projXform[0][0] = projXform[1][1] * invAspect;
 }
 
-void Impl::Viewport::Render(ID3D12Resource *rt, const D3D12_CPU_DESCRIPTOR_HANDLE &rtv, const D3D12_CPU_DESCRIPTOR_HANDLE &dsv, UINT width, UINT height) const
+void Impl::Viewport::Render(ID3D12Resource *rt, const D3D12_CPU_DESCRIPTOR_HANDLE rtv, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, UINT width, UINT height) const
 {
 	auto cmdLists = cmdListsManager.OnFrameStart();
 	GPUWorkSubmission::Prepare();
