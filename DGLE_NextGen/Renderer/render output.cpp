@@ -61,7 +61,7 @@ RenderOutput::RenderOutput(HWND wnd, bool allowModeSwitch, unsigned int bufferCo
 			D3D12_DESCRIPTOR_HEAP_FLAG_NONE
 		};
 
-		CheckHR(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&rtvHeap)));
+		CheckHR(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(rtvHeap.GetAddressOf())));
 
 		Fill_RTV_Heap(bufferCount);
 	}
@@ -75,7 +75,7 @@ RenderOutput::RenderOutput(HWND wnd, bool allowModeSwitch, unsigned int bufferCo
 			D3D12_DESCRIPTOR_HEAP_FLAG_NONE
 		};
 
-		CheckHR(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&dsvHeap)));
+		CheckHR(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(dsvHeap.GetAddressOf())));
 
 		DXGI_SWAP_CHAIN_DESC1 swapChainDesc;
 		CheckHR(swapChain->GetDesc1(&swapChainDesc));
