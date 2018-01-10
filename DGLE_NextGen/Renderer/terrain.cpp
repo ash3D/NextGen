@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		23.12.2017 (c)Korotkov Andrey
+\date		10.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -11,6 +11,7 @@ See "DGLE.h" for more details.
 #include "terrain.hh"
 #include "tracked resource.inl"
 #include "world hierarchy.inl"
+#include "GPU stream buffer allocator.inl"
 #include "GPU work submission.h"
 
 // !: need to investigate for deadlocks possibility due to MSVC's std::async threadpool overflow
@@ -20,10 +21,13 @@ See "DGLE.h" for more details.
 using namespace std;
 using namespace Renderer;
 using WRL::ComPtr;
+namespace GPUStreamBuffer = Impl::GPUStreamBuffer;
+namespace OcclusionCulling = Impl::OcclusionCulling;
 namespace RenderPipeline = Impl::RenderPipeline;
 
 namespace
 {
+#	pragma region ObjIterator
 	// make it templated in order to avoid access to quad's private 'Object' and making it possible to put the definition to anonymous namespace
 	template<class Object>
 	class ObjIterator;
@@ -73,6 +77,7 @@ namespace
 
 	public:
 		value_type operator *() const;
+		// replace with C++20 <=>
 #if defined _MSC_VER && _MSC_VER <= 1912
 		friend bool operator ==<>(ObjIterator left, ObjIterator right);
 		friend bool operator !=<>(ObjIterator left, ObjIterator right);
@@ -161,6 +166,7 @@ namespace
 		assert(&left.getObjectData.get() == &right.getObjectData.get());
 		return left.objIdx >= right.objIdx;
 	}
+#	pragma endregion
 
 	template<bool src32bit, bool dst32bit>
 	void CopyIB(const void *src, volatile void *&dst, unsigned long int count)
@@ -172,15 +178,65 @@ namespace
 	}
 }
 
-// 1 call site
-inline void TerrainVectorLayer::CRenderStage::COcclusionQueryPass::Setup()
+TerrainVectorLayer::CRenderStage::COcclusionQueryPass::COcclusionQueryPass(const WRL::ComPtr<ID3D12PipelineState> &PSO) : PSO(PSO)
+{}
+
+TerrainVectorLayer::CRenderStage::COcclusionQueryPass::~COcclusionQueryPass() = default;
+
+/*
+	Hardware occlusion query technique used here.
+	It has advantage over shader based batched occlusoin test in that it does not stresses UAV writes in PS for visible objects -
+		hardware occlusion query does not incur any overhead in addition to regular depth/stencil test.
+*/
+void TerrainVectorLayer::CRenderStage::COcclusionQueryPass::operator()(const IRenderStage &parent, unsigned long int rangeBegin, unsigned long int rangeEnd, ID3D12GraphicsCommandList1 *cmdList) const
 {
+	const auto &occlusionQueryBatch = static_cast<const CRenderStage &>(parent).occlusionQueryBatch;
+
+	if (rangeBegin < rangeEnd)
+	{
+		setupCallback(cmdList);
+		cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+		ID3D12Resource *curVB = NULL;
+		do
+		{
+			const auto &renderData = renderStream[rangeBegin];
+
+			// setup VB if changed
+			if (curVB != renderData.VB)
+			{
+				const D3D12_VERTEX_BUFFER_VIEW VB_view =
+				{
+					(curVB = renderData.VB)->GetGPUVirtualAddress(),
+					curVB->GetDesc().Width,
+					sizeof(AABB<2>)
+				};
+				cmdList->IASetVertexBuffers(0, 1, &VB_view);
+			}
+
+			occlusionQueryBatch.Start(rangeBegin, cmdList);
+			cmdList->DrawInstanced(4, renderData.count, 0, renderData.startIdx);
+			occlusionQueryBatch.Stop(rangeBegin, cmdList);
+
+		} while (++rangeBegin < rangeEnd);
+	}
+
+	// on pass finish
+	if (rangeEnd == renderStream.size())
+		occlusionQueryBatch.Resolve(cmdList);
+}
+
+// 1 call site
+inline void TerrainVectorLayer::CRenderStage::COcclusionQueryPass::Setup(function<void (ID3D12GraphicsCommandList1 *target)> &&setupCallback)
+{
+	this->setupCallback = move(setupCallback);
 	renderStream.clear();
 }
 
 // 1 call site
-inline void TerrainVectorLayer::CRenderStage::COcclusionQueryPass::IssueOcclusion(void *occlusion)
+inline void TerrainVectorLayer::CRenderStage::COcclusionQueryPass::IssueOcclusion(const OcclusionQueryGeometry &queryGeometry)
 {
+	renderStream.push_back(queryGeometry);
 }
 
 TerrainVectorLayer::CRenderStage::CMainPass::CMainPass(const float (&color)[3], const ComPtr<ID3D12PipelineState> &PSO) :
@@ -189,14 +245,17 @@ TerrainVectorLayer::CRenderStage::CMainPass::CMainPass(const float (&color)[3], 
 
 TerrainVectorLayer::CRenderStage::CMainPass::~CMainPass() = default;
 
-void TerrainVectorLayer::CRenderStage::CMainPass::operator()(unsigned long int rangeBegin, unsigned long int rangeEnd, ID3D12GraphicsCommandList1 *cmdList) const
+void TerrainVectorLayer::CRenderStage::CMainPass::operator()(const IRenderStage &parent, unsigned long int rangeBegin, unsigned long int rangeEnd, ID3D12GraphicsCommandList1 *cmdList) const
 {
+	const auto &occlusionQueryBatch = static_cast<const CRenderStage &>(parent).occlusionQueryBatch;
+
 	if (rangeBegin < rangeEnd)
 	{
 		setupCallback(cmdList);
 		cmdList->SetGraphicsRoot32BitConstants(1, size(color), color, 0);
 		cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
+		auto curOcclusionQueryIdx = OcclusionCulling::QueryBatch::npos;
 		do
 		{
 			const auto &quad = quads[renderStream[rangeBegin].startQuadIdx];
@@ -223,10 +282,16 @@ void TerrainVectorLayer::CRenderStage::CMainPass::operator()(unsigned long int r
 			do
 			{
 				const auto &renderData = renderStream[rangeBegin];
+				if (curOcclusionQueryIdx != renderData.occlusion)
+					occlusionQueryBatch.Set(curOcclusionQueryIdx = renderData.occlusion, cmdList);
 				cmdList->DrawIndexedInstanced(renderData.triCount * 3, 1, renderData.startIdx, 0, 0);
 			} while (++rangeBegin < quadRangeEnd);
 		} while (rangeBegin < rangeEnd);
 	}
+
+	// on pass finish
+	if (rangeEnd == renderStream.size())
+		occlusionQueryBatch.Finish(cmdList);
 }
 
 // 1 call site
@@ -243,7 +308,7 @@ inline void TerrainVectorLayer::CRenderStage::CMainPass::IssueQuad(ID3D12Resourc
 	quads.push_back({ renderStream.size(), VIB, VB_size, IB_size, IB32bit });
 }
 
-void TerrainVectorLayer::CRenderStage::CMainPass::IssueCluster(unsigned long int startIdx, unsigned long int triCount, void *occlusion)
+void TerrainVectorLayer::CRenderStage::CMainPass::IssueCluster(unsigned long int startIdx, unsigned long int triCount, decltype(OcclusionCulling::QueryBatch::npos) occlusion)
 {
 	assert(triCount);
 	renderStream.push_back({ startIdx, triCount, occlusion, quads.size() });
@@ -255,10 +320,15 @@ const RenderPipeline::IRenderPass &TerrainVectorLayer::CRenderStage::operator []
 	return *renderPasses[renderPassIdx];
 }
 
-void TerrainVectorLayer::CRenderStage::Setup(function<void (ID3D12GraphicsCommandList1 *target)> &&mainPassSetupCallback)
+void TerrainVectorLayer::CRenderStage::Setup(function<void (ID3D12GraphicsCommandList1 *target)> &&cullPassSetupCallback, function<void (ID3D12GraphicsCommandList1 *target)> &&mainPassSetupCallback)
 {
-	occlusionQueryPass.Setup();
+	occlusionQueryPass.Setup(move(cullPassSetupCallback));
 	mainPass.Setup(move(mainPassSetupCallback));
+}
+
+inline void TerrainVectorLayer::CRenderStage::SetupOcclusionQueryBatch(unsigned long queryCount)
+{
+	occlusionQueryBatch = OcclusionCulling::QueryBatch(queryCount);
 }
 
 void TerrainVectorLayer::CRenderStage::IssueQuad(ID3D12Resource *VIB, unsigned long int VB_size, unsigned long int IB_size, bool IB32bit)
@@ -267,14 +337,15 @@ void TerrainVectorLayer::CRenderStage::IssueQuad(ID3D12Resource *VIB, unsigned l
 }
 
 template<class Node>
-bool TerrainVectorLayer::CRenderStage::IssueNode(const Node &node, void *&coarseOcclusion, void *&fineOcclusion, decltype(node.GetOcclusionCullDomain()) &occlusionCullDomainOverriden)
+bool TerrainVectorLayer::CRenderStage::IssueNode(const Node &node, remove_const_t<decltype(OcclusionCulling::QueryBatch::npos)> &occlusionProvider, remove_const_t<decltype(OcclusionCulling::QueryBatch::npos)> &coarseOcclusion, remove_const_t<decltype(OcclusionCulling::QueryBatch::npos)> &fineOcclusion, decltype(node.GetOcclusionCullDomain()) &occlusionCullDomainOverriden)
 {
-	if (node.OcclusionQueryShceduled())
+	if (const auto &occlusionQueryGeometry = node.GetOcclusionQueryGeometry())
 	{
 		occlusionCullDomainOverriden = node.GetOcclusionCullDomain();
-		occlusionQueryPass.IssueOcclusion(fineOcclusion = this);
+		occlusionQueryPass.IssueOcclusion({ occlusionQueryGeometry.VB, occlusionQueryGeometry.startIdx, occlusionQueryGeometry.count });
+		fineOcclusion = ++occlusionProvider;
 	}
-	else if (fineOcclusion)
+	else if (fineOcclusion != OcclusionCulling::QueryBatch::npos)
 		node.OverrideOcclusionCullDomain(occlusionCullDomainOverriden);
 	if (occlusionCullDomainOverriden == decltype(node.GetOcclusionCullDomain())::WholeNode)
 		coarseOcclusion = fineOcclusion;
@@ -297,20 +368,20 @@ bool TerrainVectorLayer::CRenderStage::IssueNode(const Node &node, void *&coarse
 }
 
 template<class Node>
-void TerrainVectorLayer::CRenderStage::IssueExclusiveObjects(const Node &node, void *occlusion)
+void TerrainVectorLayer::CRenderStage::IssueExclusiveObjects(const Node &node, decltype(OcclusionCulling::QueryBatch::npos) occlusion)
 {
 	if (node.GetExclusiveTriCount())
 		mainPass.IssueCluster(node.startIdx, node.GetExclusiveTriCount(), occlusion);
 }
 
 template<class Node>
-void TerrainVectorLayer::CRenderStage::IssueChildren(const Node &node, void *occlusion)
+void TerrainVectorLayer::CRenderStage::IssueChildren(const Node &node, decltype(OcclusionCulling::QueryBatch::npos) occlusion)
 {
 	mainPass.IssueCluster(node.startIdx + node.GetExclusiveTriCount() * 3, node.GetInclusiveTriCount() - node.GetExclusiveTriCount(), occlusion);
 }
 
 template<class Node>
-void TerrainVectorLayer::CRenderStage::IssueWholeNode(const Node &node, void *occlusion)
+void TerrainVectorLayer::CRenderStage::IssueWholeNode(const Node &node, decltype(OcclusionCulling::QueryBatch::npos) occlusion)
 {
 	mainPass.IssueCluster(node.startIdx, node.GetInclusiveTriCount(), occlusion);
 }
@@ -320,8 +391,8 @@ void TerrainVectorLayer::QuadDeleter::operator()(TerrainVectorQuad *quadToRemove
 	quadToRemove->layer->quads.erase(quadLocation);
 }
 
-TerrainVectorLayer::TerrainVectorLayer(shared_ptr<class World> world, unsigned int layerIdx, const float (&color)[3], ComPtr<ID3D12PipelineState> &mainPSO) :
-	world(move(world)), layerIdx(layerIdx), renderStage(color, mainPSO)
+TerrainVectorLayer::TerrainVectorLayer(shared_ptr<class World> world, unsigned int layerIdx, const float (&color)[3], ComPtr<ID3D12PipelineState> &cullPSO, ComPtr<ID3D12PipelineState> &mainPSO) :
+	world(move(world)), layerIdx(layerIdx), renderStage(color, cullPSO, mainPSO)
 {
 }
 
@@ -333,22 +404,28 @@ auto TerrainVectorLayer::AddQuad(unsigned long int vcount, const function<void _
 	return { &quads.back(), { prev(quads.cend()) } };
 }
 
-const RenderPipeline::IRenderStage *TerrainVectorLayer::BuildRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const
+#ifdef PACKAGED_TASK_MOVE_WORKAROUND
+const RenderPipeline::IRenderStage *TerrainVectorLayer::BuildRenderStage(shared_future<void> &stageSync, shared_ptr<promise<void>> &resume, const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList1 *target)> &cullPassSetupCallback, function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const
+#else
+const RenderPipeline::IRenderStage *TerrainVectorLayer::BuildRenderStage(future<void> &stageSync, promise<void> &resume, const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList1 *target)> &cullPassSetupCallback, function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const
+#endif
 {
 	using namespace placeholders;
-	renderStage.Setup(move(mainPassSetupCallback));
+	renderStage.Setup(move(cullPassSetupCallback), move(mainPassSetupCallback));
+	// use C++17 template deduction
+	GPUStreamBuffer::CountedAllocatorWrapper<sizeof AABB<2>> GPU_AABB_countedAllocator(*GPU_AABB_allocator);
 #if MULTITHREADED_QUADS_SHCEDULE
 #if 0
-	for_each(execution::par, quads.begin(), quads.end(), bind(&TerrainVectorQuad::Shcedule, _1, cref(frustumCuller), cref(frustumXform)));
+	for_each(execution::par, quads.begin(), quads.end(), bind(&TerrainVectorQuad::Shcedule, _1, ref(GPU_AABB_countedAllocator), cref(frustumCuller), cref(frustumXform)));
 #else
-	static vector<future<void>> pendingAsyncs;
+	static thread_local vector<future<void>> pendingAsyncs;
 	pendingAsyncs.clear();
 	pendingAsyncs.reserve(quads.size());
 	try
 	{
 		transform(quads.cbegin(), quads.cend(), back_inserter(pendingAsyncs), [&](decltype(quads)::const_reference quad)
 		{
-			return async(&TerrainVectorQuad::Shcedule, cref(quad), cref(frustumCuller), cref(frustumXform));
+			return async(&TerrainVectorQuad::Shcedule, cref(quad), ref(GPU_AABB_countedAllocator), cref(frustumCuller), cref(frustumXform));
 		});
 		// wait for pending asyncs\
 		use 'get' instead of 'wait' in order to propagate exceptions (first only)
@@ -363,16 +440,32 @@ const RenderPipeline::IRenderStage *TerrainVectorLayer::BuildRenderStage(const I
 		throw;
 	}
 #endif
-	for_each(quads.begin(), quads.end(), mem_fn(&TerrainVectorQuad::Issue));
 #else
-	for_each(quads.begin(), quads.end(), bind(&TerrainVectorQuad::Dispatch, _1, cref(frustumCuller), cref(frustumXform)));
+	for_each(quads.begin(), quads.end(), bind(&TerrainVectorQuad::Shcedule, _1, ref(GPU_AABB_countedAllocator), cref(frustumCuller), cref(frustumXform)));
 #endif
+	stageSync.get();	// wait for previous stage has finished with occlusion query batch
+	renderStage.SetupOcclusionQueryBatch(GPU_AABB_countedAllocator.GetAllocatedItemCount());
+#ifdef PACKAGED_TASK_MOVE_WORKAROUND
+	resume->set_value();// let subsequent stages to proceed
+	resume.reset();
+#else
+	resume.set_value();	// let subsequent stages to proceed
+#endif
+	using namespace placeholders;
+	for_each(quads.begin(), quads.end(), bind(&TerrainVectorQuad::Issue, _1, OcclusionCulling::QueryBatch::npos));
 	return &renderStage;
 }
 
-void TerrainVectorLayer::ShceduleRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList1 *target)> mainPassSetupCallback) const
+void TerrainVectorLayer::ShceduleRenderStage(future<void> &stageSync, const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList1 *target)> cullPassSetupCallback, function<void (ID3D12GraphicsCommandList1 *target)> mainPassSetupCallback) const
 {
-	GPUWorkSubmission::AppendRenderStage(&TerrainVectorLayer::BuildRenderStage, this, /*cref*/(frustumCuller), /*cref*/(frustumXform), move(mainPassSetupCallback));
+	promise<void> resume;
+	future<void> sync = resume.get_future();
+#ifdef PACKAGED_TASK_MOVE_WORKAROUND
+	GPUWorkSubmission::AppendRenderStage(&TerrainVectorLayer::BuildRenderStage, this, move(stageSync.share()), move(make_shared<promise<void>>(move(resume))), /*cref*/(frustumCuller), /*cref*/(frustumXform), move(cullPassSetupCallback), move(mainPassSetupCallback));
+#else
+	GPUWorkSubmission::AppendRenderStage(&TerrainVectorLayer::BuildRenderStage, this, move(stageSync), move(resume), /*cref*/(frustumCuller), /*cref*/(frustumXform), move(cullPassSetupCallback), move(mainPassSetupCallback));
+#endif
+	stageSync = move(sync);
 }
 
 TerrainVectorQuad::TerrainVectorQuad(shared_ptr<TerrainVectorLayer> layer, unsigned long int vcount, const function<void (volatile float verts[][2])> &fillVB, unsigned int objCount, bool srcIB32bit, const function<TerrainVectorLayer::ObjectData (unsigned int objIdx)> &getObjectData) :
@@ -422,27 +515,18 @@ TerrainVectorQuad::TerrainVectorQuad(shared_ptr<TerrainVectorLayer> layer, unsig
 
 TerrainVectorQuad::~TerrainVectorQuad() = default;
 
-#if !MULTITHREADED_QUADS_SHCEDULE
 // 1 call site
-inline void TerrainVectorQuad::Dispatch(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform) const
+inline void TerrainVectorQuad::Shcedule(GPUStreamBuffer::CountedAllocatorWrapper<sizeof AABB<2>> &GPU_AABB_allocator, const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform) const
 {
-	Shcedule(frustumCuller, frustumXform);
-	Issue();
-}
-#endif
-
-// 1 call site
-inline void TerrainVectorQuad::Shcedule(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform) const
-{
-	subtree.Shcedule(frustumCuller, frustumXform);
+	subtree.Shcedule(GPU_AABB_allocator, frustumCuller, frustumXform);
 }
 
 // 1 call site
-inline void TerrainVectorQuad::Issue() const
+inline void TerrainVectorQuad::Issue(remove_const_t<decltype(OcclusionCulling::QueryBatch::npos)> &occlusionProvider) const
 {
 	using namespace placeholders;
 
-	const auto issueNode = bind(&TerrainVectorLayer::CRenderStage::IssueNode<decltype(subtree)::Node>, ref(layer->renderStage), _1, _2, _3, _4);
-	subtree.Traverse<void *, void *>(issueNode, nullptr, nullptr, decltype(declval<decltype(subtree)::Node>().GetOcclusionCullDomain())::ChildrenOnly);
+	const auto issueNode = bind(&TerrainVectorLayer::CRenderStage::IssueNode<decltype(subtree)::Node>, ref(layer->renderStage), _1, ref(occlusionProvider), _2, _3, _4);
+	subtree.Traverse(issueNode, OcclusionCulling::QueryBatch::npos, OcclusionCulling::QueryBatch::npos, decltype(declval<decltype(subtree)::Node>().GetOcclusionCullDomain())::ChildrenOnly);
 	layer->renderStage.IssueQuad(VIB.Get(), VB_size, IB_size, IB32bit);
 }

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		05.11.2017 (c)Korotkov Andrey
+\date		10.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -20,6 +20,9 @@ See "DGLE.h" for more details.
 #if !__INTELLISENSE__ 
 #include "vector math.h"
 #endif
+#include "GPU stream buffer allocator.h"
+
+struct ID3D12Resource;
 
 namespace Renderer::Impl
 {
@@ -145,7 +148,19 @@ namespace Renderer::Impl::Hierarchy
 				ChildrenOnly	= 0b0111,
 				ForceComposite	= 0b0010,
 			} occlusionCullDomain{};	// can be overriden by parent during tree traverse; need to init in order to eliminate possible UB due to uninit read in OverrideOcclusionCullDomain()
-			bool shceduleOcclusionQuery;
+			struct
+			{
+				ID3D12Resource *VB;
+#if 0
+				volatile decltype(aabb) *VB_CPU_ptr;
+#endif
+				unsigned long int startIdx;
+				unsigned int count;
+
+			public:
+				operator bool() const noexcept { return VB; }
+				void operator =(std::nullptr_t src) noexcept { VB = src; }
+			} occlusionQueryGeometry;
 
 		private:
 			template<std::remove_extent_t<decltype(childrenOrder)> ...idx>
@@ -176,15 +191,20 @@ namespace Renderer::Impl::Hierarchy
 			inline unsigned long int GetInclusiveTriCount() const noexcept { return inclusiveTriCount; }
 			inline float GetOcclusion() const noexcept { return occlusion; }	// exclusive
 			inline OcclusionCullDomain GetOcclusionCullDomain() const noexcept { return occlusionCullDomain; }
-			inline bool OcclusionQueryShceduled() const noexcept { return shceduleOcclusionQuery; }
+			inline const auto &GetOcclusionQueryGeometry() const noexcept { return occlusionQueryGeometry; }
 			Visibility GetVisibility(OcclusionCullDomain override) const noexcept;
 			void OverrideOcclusionCullDomain(OcclusionCullDomain &domain) const noexcept;
 
 		private:
 			template<typename ...Args, typename F>
 			void Traverse(F &nodeHandler, Args ...args);
-			std::pair<unsigned long int, bool> Shcedule(const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
+#if defined _MSC_VER && _MSC_VER <= 1912
+			std::pair<unsigned long int, bool> Shcedule(GPUStreamBuffer::CountedAllocatorWrapper<sizeof std::declval<Object>().GetAABB()> &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
 				bool parentInsideFrustum = false, float parentOcclusionCulledProjLength = INFINITY, float parentOcclusion = 0);
+#else
+			std::pair<unsigned long int, bool> Shcedule(GPUStreamBuffer::CountedAllocatorWrapper<sizeof aabb> &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
+				bool parentInsideFrustum = false, float parentOcclusionCulledProjLength = INFINITY, float parentOcclusion = 0);
+#endif
 			std::pair<unsigned long int, float> CollectOcclusionQueryBoxes(const Node **boxesBegin, const Node **boxesEnd, Visibility parentVisibilityOverride = {});
 		};
 
@@ -200,7 +220,7 @@ namespace Renderer::Impl::Hierarchy
 	public:
 		template<typename ...Args, typename F>
 		void Traverse(F &nodeHandler, const Args &...args);
-		void Shcedule(const FrustumCuller<std::enable_if_t<true, decltype(std::declval<Object>().GetAABB().Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform = nullptr);
+		void Shcedule(GPUStreamBuffer::CountedAllocatorWrapper<sizeof std::declval<Object>().GetAABB()> &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(std::declval<Object>().GetAABB().Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform = nullptr);
 		void FreeObjects();
 		unsigned long int GetTriCount() const { return root->GetInclusiveTriCount(); }
 	};

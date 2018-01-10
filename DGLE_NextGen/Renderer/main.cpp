@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.12.2017 (c)Korotkov Andrey
+\date		10.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -9,6 +9,10 @@ See "DGLE.h" for more details.
 
 #include "stdafx.h"
 #include "frame versioning.h"
+#include "occlusion query batch.h"
+#include "terrain.hh"
+#include "tracked resource.inl"
+#include "GPU stream buffer allocator.inl"
 
 using namespace std;
 using Renderer::Impl::globalFrameVersioning;
@@ -138,6 +142,19 @@ namespace Renderer::Impl
 #endif
 }
 
+// tracked resource should be destroyed before globalFrameVersioning => should be defined after globalFrameVersioning
+using Renderer::Impl::OcclusionCulling::QueryBatch;
+decltype(QueryBatch::heapPool) QueryBatch::heapPool;
+decltype(QueryBatch::resultsPool) QueryBatch::resultsPool;
+using Renderer::TerrainVectorLayer;
+// allocator contains tracked resource
+#if defined _MSC_VER && _MSC_VER <= 1912
+decltype(TerrainVectorLayer::GPU_AABB_allocator) TerrainVectorLayer::GPU_AABB_allocator;
+#else
+// guaranteed copy elision required
+decltype(TerrainVectorLayer::GPU_AABB_allocator) TerrainVectorLayer::GPU_AABB_allocator(device ? decltype(TerrainVectorLayer::GPU_AABB_allocator)(in_place) : nullopt);
+#endif
+
 extern void __cdecl InitRenderer()
 {
 	if (!factory)
@@ -148,5 +165,6 @@ extern void __cdecl InitRenderer()
 		device = CreateDevice();
 		cmdQueue = CreateCommandQueue();
 		globalFrameVersioning.emplace();
+		TerrainVectorLayer::GPU_AABB_allocator.emplace();
 	}
 }

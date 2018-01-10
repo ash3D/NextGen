@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		04.01.2018 (c)Korotkov Andrey
+\date		10.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -70,7 +70,7 @@ namespace Renderer::Impl::GPUStreamBuffer
 	template<unsigned itemSize>
 	class CountedAllocatorWrapper
 	{
-		std::atomic<unsigned long> allocatedItemsCount;
+		std::atomic<unsigned long> allocatedItemsCount = 0;
 		Allocator<itemSize> &allocator;
 
 	public:

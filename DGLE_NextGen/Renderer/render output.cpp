@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		21.12.2017 (c)Korotkov Andrey
+\date		10.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -65,6 +65,22 @@ RenderOutput::RenderOutput(HWND wnd, bool allowModeSwitch, unsigned int bufferCo
 
 		Fill_RTV_Heap(bufferCount);
 	}
+
+	// z/stencil descriptor heap
+	{
+		const D3D12_DESCRIPTOR_HEAP_DESC desc =
+		{
+			D3D12_DESCRIPTOR_HEAP_TYPE_DSV,
+			1,
+			D3D12_DESCRIPTOR_HEAP_FLAG_NONE
+		};
+
+		CheckHR(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&dsvHeap)));
+
+		DXGI_SWAP_CHAIN_DESC1 swapChainDesc;
+		CheckHR(swapChain->GetDesc1(&swapChainDesc));
+		CreateZBuffer(swapChainDesc.Width, swapChainDesc.Height);
+	}
 }
 
 RenderOutput::RenderOutput(const RenderOutput &) = default;
@@ -128,6 +144,7 @@ void RenderOutput::OnResize()
 		vector<IUnknown *> cmdQueues(swapChainDesc.BufferCount, cmdQueue.Get());
 		CheckHR(swapChain->ResizeBuffers1(swapChainDesc.BufferCount, newWidth, newHeight, DXGI_FORMAT_UNKNOWN, swapChainDesc.Flags, nodeMasks.data(), cmdQueues.data()));
 		Fill_RTV_Heap(swapChainDesc.BufferCount);
+		CreateZBuffer(newWidth, newHeight);
 	}
 	else
 		CheckHR(swapChain->SetSourceSize(newWidth, newHeight));
@@ -150,9 +167,10 @@ void RenderOutput::NextFrame(bool vsync)
 	CheckHR(swapChain->GetBuffer(idx, IID_PPV_ARGS(&rt)));
 	const auto rtvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	globalFrameVersioning->OnFrameStart();
-	viewport->Render(rt.Get(), CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvHeap->GetCPUDescriptorHandleForHeapStart(), idx, rtvDescriptorSize), width, height);
+	viewport->Render(rt.Get(), CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvHeap->GetCPUDescriptorHandleForHeapStart(), idx, rtvDescriptorSize), dsvHeap->GetCPUDescriptorHandleForHeapStart(), width, height);
 	CheckHR(swapChain->Present(vsync, 0));
 	globalFrameVersioning->OnFrameFinish();
+	viewport->OnFrameFinish();
 	CmdListPool::OnFrameFinish();
 	OnFrameFinish();
 }
@@ -168,4 +186,20 @@ void RenderOutput::Fill_RTV_Heap(unsigned int bufferCount)
 		CheckHR(swapChain->GetBuffer(i, IID_PPV_ARGS(&rt)));
 		device->CreateRenderTargetView(rt.Get(), NULL, rtvHandle);
 	}
+}
+
+void RenderOutput::CreateZBuffer(UINT width, UINT height)
+{
+	// create z/stencil buffer
+	CheckHR(device->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D24_UNORM_S8_UINT, width, height, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
+		D3D12_RESOURCE_STATE_DEPTH_WRITE,
+		&CD3DX12_CLEAR_VALUE(DXGI_FORMAT_D24_UNORM_S8_UINT, 1.f, UINT8_MAX),
+		IID_PPV_ARGS(ZBuffer.ReleaseAndGetAddressOf())
+	));
+
+	// fill DSV heap
+	device->CreateDepthStencilView(ZBuffer.Get(), NULL, dsvHeap->GetCPUDescriptorHandleForHeapStart());
 }

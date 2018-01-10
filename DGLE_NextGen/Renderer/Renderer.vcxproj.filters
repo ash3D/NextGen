@@ -147,6 +147,9 @@
     <FxCompile Include="vectorLayerPS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="AABB_2D.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="world hierarchy.inl">

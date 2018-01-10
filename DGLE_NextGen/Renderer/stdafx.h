@@ -21,6 +21,7 @@
 #include <cmath>
 #include <utility>
 #include <type_traits>
+#include <tuple>
 #include <limits>
 #include <memory>
 #include <iterator>

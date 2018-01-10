@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		30.10.2017 (c)Korotkov Andrey
+\date		10.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -72,7 +72,7 @@ void RenderRange::operator ()(CmdListPool::CmdList &target) const
 	assert(renderStage);
 	const IRenderPass &renderPass = (*renderStage)[renderPassIdx];
 	target.Setup(renderPass.GetPSO(rangeBegin));
-	renderPass(rangeBegin, rangeEnd, target);
+	renderPass(*renderStage, rangeBegin, rangeEnd, target);
 }
 
 auto RenderPipeline::GetNext(unsigned int &length) -> decltype(GetNext(length))

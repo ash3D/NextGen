@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		04.01.2018 (c)Korotkov Andrey
+\date		10.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -9,7 +9,7 @@ See "DGLE.h" for more details.
 
 #pragma once
 
-#include <Climits>
+#include <climits>
 #include "tracked resource.h"
 
 struct ID3D12QueryHeap;
@@ -33,13 +33,13 @@ namespace Renderer::Impl::OcclusionCulling
 		bool fresh;
 
 	public:
-		explicit QueryBatch(unsigned long count);
+		explicit QueryBatch(unsigned long count = 0);
 		QueryBatch(QueryBatch &&) = default;
 		QueryBatch &operator =(QueryBatch &&) = default;
 
 	public:
-		void Start(unsigned long queryIdx, ID3D12GraphicsCommandList1 *target), Stop(unsigned long queryIdx, ID3D12GraphicsCommandList1 *target);
-		void Set(unsigned long queryIdx, ID3D12GraphicsCommandList1 *target);
-		void Resolve(ID3D12GraphicsCommandList1 *target), Finish(ID3D12GraphicsCommandList1 *target);
+		void Start(unsigned long queryIdx, ID3D12GraphicsCommandList1 *target) const, Stop(unsigned long queryIdx, ID3D12GraphicsCommandList1 *target) const;
+		void Set(unsigned long queryIdx, ID3D12GraphicsCommandList1 *target) const;
+		void Resolve(ID3D12GraphicsCommandList1 *target) const, Finish(ID3D12GraphicsCommandList1 *target) const;
 	};
 }

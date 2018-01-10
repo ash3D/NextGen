@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		05.11.2017 (c)Korotkov Andrey
+\date		10.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -284,10 +284,17 @@ namespace Renderer::Impl::Hierarchy
 	}
 
 	template<class Object, class CustomNodeData, TreeStructure treeStructure>
-	std::pair<unsigned long int, bool> BVH<Object, CustomNodeData, treeStructure>::Node::Shcedule(const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
+#if defined _MSC_VER && _MSC_VER <= 1912
+	std::pair<unsigned long int, bool> BVH<Object, CustomNodeData, treeStructure>::Node::Shcedule(GPUStreamBuffer::CountedAllocatorWrapper<sizeof std::declval<Object>().GetAABB()> &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
 		bool parentInsideFrustum, float parentOcclusionCulledProjLength, float parentOcclusion)
+#else
+	std::pair<unsigned long int, bool> BVH<Object, CustomNodeData, treeStructure>::Node::Shcedule(GPUStreamBuffer::CountedAllocatorWrapper<sizeof aabb> &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
+		bool parentInsideFrustum, float parentOcclusionCulledProjLength, float parentOcclusion)
+#endif
 	{
 		using namespace std;
+
+		occlusionQueryGeometry = nullptr;
 
 		// cull if necessary
 		if (!parentInsideFrustum)
@@ -296,7 +303,6 @@ namespace Renderer::Impl::Hierarchy
 			{
 			case CullResult::OUTSIDE:
 				visibility = Visibility::Culled;
-				shceduleOcclusionQuery = false;	// accessed during Issue
 				return { GetInclusiveTriCount(), false };
 			case CullResult::INSIDE:
 				parentInsideFrustum = true;
@@ -317,17 +323,17 @@ namespace Renderer::Impl::Hierarchy
 				// launch
 				transform(next(cbegin(children)), next(cbegin(children), childrenCount), begin(childrenResults), [=, /*&nodeHandler, */&frustumCuller, &frustumXform](const remove_extent_t<decltype(children)> &child)
 				{
-					return async(&Node::Shcedule, child.get(), /*cref(nodeHandler), */cref(frustumCuller), cref(frustumXform), depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
+					return async(&Node::Shcedule, child.get(), /*cref(nodeHandler), */ref(GPU_AABB_allocator), cref(frustumCuller), cref(frustumXform), depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
 				});
 
 				// traverse first child in this thread
-				const auto childResult = children[0]->Shcedule(/*nodeHandler, */frustumCuller, frustumXform, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
+				const auto childResult = children[0]->Shcedule(/*nodeHandler, */GPU_AABB_allocator, frustumCuller, frustumXform, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
 				childrenCulledTris = childResult.first;
 				childQueryCanceled = childResult.second;
 #else
 				for_each_n(cbegin(children), childrenCount, [&, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion](const remove_extent_t<decltype(children)> &child)
 				{
-					const auto childResult = child->Shcedule(/*nodeHandler, */frustumCuller, frustumXform, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
+					const auto childResult = child->Shcedule(/*nodeHandler, */GPU_AABB_allocator, frustumCuller, frustumXform, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
 					childrenCulledTris += childResult.first;
 					childQueryCanceled |= childResult.second;
 				});
@@ -367,10 +373,7 @@ namespace Renderer::Impl::Hierarchy
 		{
 			// parentInsideFrustum now relates to this node
 			if (parentInsideFrustum)
-			{
 				visibility = Visibility::Atomic;
-				shceduleOcclusionQuery = false;
-			}
 			else
 				traverseChildren();
 		}
@@ -386,10 +389,10 @@ namespace Renderer::Impl::Hierarchy
 			const HLSL::float2 aabbProjSize = NDCSpaceAABB.Size();
 			const float aabbProjSquare = aabbProjSize.x * aabbProjSize.y;
 			const float aabbProjLength = fmax(aabbProjSize.x, aabbProjSize.y);
-			bool cancelQueryDueToParent = false;
 			// TODO: replace 'z >= 0 && w > 0' with 'w >= znear' and use 2D NDC space AABB
-			if (shceduleOcclusionQuery = NDCSpaceAABB.min.z >= 0.f && clipSpaceAABB.MinW() > 0.f && OcclusionCulling::QueryBenefit<false>(aabbProjSquare, GetInclusiveTriCount()) &&
-				!(cancelQueryDueToParent = (parentOcclusionCulledProjLength <= OcclusionCulling::nodeProjLengthThreshold || aabbProjLength / parentOcclusionCulledProjLength >= OcclusionCulling::nestedNodeProjLengthShrinkThreshold) && parentOcclusion < OcclusionCulling::parentOcclusionThreshold))
+			bool cancelQueryDueToParent = false, shceduleOcclusionQuery = NDCSpaceAABB.min.z >= 0.f && clipSpaceAABB.MinW() > 0.f && OcclusionCulling::QueryBenefit<false>(aabbProjSquare, GetInclusiveTriCount()) &&
+				!(cancelQueryDueToParent = (parentOcclusionCulledProjLength <= OcclusionCulling::nodeProjLengthThreshold || aabbProjLength / parentOcclusionCulledProjLength >= OcclusionCulling::nestedNodeProjLengthShrinkThreshold) && parentOcclusion < OcclusionCulling::parentOcclusionThreshold);
+			if (shceduleOcclusionQuery)
 			{
 				parentOcclusionCulledProjLength = aabbProjLength;
 				parentOcclusion = GetOcclusion();
@@ -423,11 +426,18 @@ namespace Renderer::Impl::Hierarchy
 						{
 							childrenCulledTris = GetInclusiveTriCount();	// ' - exludedTris' ?
 							const auto boxesEnd = remove(begin(boxes), end(boxes), nullptr);
-							// ...
+							tie(occlusionQueryGeometry.VB, occlusionQueryGeometry.startIdx) = GPU_AABB_allocator.Allocate(occlusionQueryGeometry.count = distance(begin(boxes), boxesEnd));
+							// TODO: use persistent maps for release builds as optimization
+							CD3DX12_RANGE range(occlusionQueryGeometry.startIdx * sizeof aabb, occlusionQueryGeometry.startIdx * sizeof aabb);
+							// volatile requires corresponding overloads for AABB and vector math classes assignment
+							/*volatile*/ decltype(aabb) *VB_CPU_ptr;
+							CheckHR(occlusionQueryGeometry.VB->Map(0, &range, reinterpret_cast<void **>(/*const_cast<decltype(aabb) **>*/(&VB_CPU_ptr))));
+							transform(begin(boxes), boxesEnd, VB_CPU_ptr + occlusionQueryGeometry.startIdx, [](remove_extent_t<decltype(boxes)> box) noexcept { return box->aabb; });
+							range.End += occlusionQueryGeometry.count * sizeof aabb;
+							occlusionQueryGeometry.VB->Unmap(0, &range);	// exception safety (RAII) is not critical for Unmap as it used for tools and debug layer and Maps are ref-counted
 						}
 					}
 				}
-				shceduleOcclusionQuery &= queryNeeded;
 			}
 		}
 
@@ -448,11 +458,11 @@ namespace Renderer::Impl::Hierarchy
 		reinterpret_cast<underlying_type_t<Visibility> &>(visibility) |= underlying_type_t<Visibility>(parentVisibilityOverride);
 
 		if (parentVisibilityOverride == Visibility::Atomic)
-			shceduleOcclusionQuery = false;	// need to set here because it may not be set in Shcedule() due to early out
+			occlusionQueryGeometry = nullptr;	// need to set here because it may not be set in Shcedule() due to early out
 
 		const auto childrenFilter = [parentAtomic = visibility == Visibility::Atomic](const remove_extent_t<decltype(children)> &child)
 		{
-			return parentAtomic || child->visibility != Visibility::Culled && !child->shceduleOcclusionQuery;
+			return parentAtomic || child->visibility != Visibility::Culled && !child->occlusionQueryGeometry;
 		};
 		const auto filteredChildrenCount = count_if(cbegin(children), next(cbegin(children), childrenCount), childrenFilter);
 		const auto boxesCount = distance(boxesBegin, boxesEnd);
@@ -529,9 +539,9 @@ namespace Renderer::Impl::Hierarchy
 	}
 
 	template<class Object, class CustomNodeData, TreeStructure treeStructure>
-	inline void BVH<Object, CustomNodeData, treeStructure>::Shcedule(const FrustumCuller<std::enable_if_t<true, decltype(std::declval<Object>().GetAABB().Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform)
+	inline void BVH<Object, CustomNodeData, treeStructure>::Shcedule(GPUStreamBuffer::CountedAllocatorWrapper<sizeof std::declval<Object>().GetAABB()> &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(std::declval<Object>().GetAABB().Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform)
 	{
-		root->Shcedule(frustumCuller, frustumXform, depthSortXform);
+		root->Shcedule(GPU_AABB_allocator, frustumCuller, frustumXform, depthSortXform);
 	}
 
 	template<class Object, class CustomNodeData, TreeStructure treeStructure>

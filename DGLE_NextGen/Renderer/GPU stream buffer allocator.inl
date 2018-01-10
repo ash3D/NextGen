@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		04.01.2018 (c)Korotkov Andrey
+\date		10.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -37,7 +37,7 @@ namespace Renderer::Impl::GPUStreamBuffer
 	{
 		const auto result = allocator.Allocate(count);
 		// place after Allocate() for exception safety (fetch_add is noexcept => if Allocate() succeeds it will be guaranteed reflected in allocatedItemsCount)
-		allocatedItemsCount.fetch_add(count, std::memory_order_relaxed);
+		allocatedItemsCount.fetch_add(1, std::memory_order_relaxed);
 		return result;
 	}
 }

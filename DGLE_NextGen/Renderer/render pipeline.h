@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		29.10.2017 (c)Korotkov Andrey
+\date		10.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -39,7 +39,7 @@ namespace Renderer::Impl::RenderPipeline
 	{
 		virtual unsigned long int Length() const noexcept = 0;
 		virtual ID3D12PipelineState *GetPSO(unsigned long int i) const = 0;
-		virtual void operator ()(unsigned long int rangeBegin, unsigned long int rangeEnd, ID3D12GraphicsCommandList1 *target) const = 0;
+		virtual void operator ()(const IRenderStage &parent, unsigned long int rangeBegin, unsigned long int rangeEnd, ID3D12GraphicsCommandList1 *target) const = 0;
 
 	protected:
 		IRenderPass() = default;

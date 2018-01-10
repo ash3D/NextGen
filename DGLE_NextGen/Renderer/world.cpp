@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.12.2017 (c)Korotkov Andrey
+\date		10.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -17,6 +17,7 @@ See "DGLE.h" for more details.
 #include "frame versioning.h"
 #include "align.h"
 
+#include "AABB_2d.csh"
 #include "vectorLayerVS.csh"
 #include "vectorLayerPS.csh"
 
@@ -25,29 +26,120 @@ using namespace Renderer;
 using namespace Math::VectorMath::HLSL;
 using WRL::ComPtr;
 
+extern ComPtr<ID3D12Device2> device;
+
 static constexpr unsigned int CB_overlap = 3, terrainCB_dataSize = sizeof(float[4][4]) * 3, terrainCB_storeSize = AlignSize<D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT>(terrainCB_dataSize);
+
+static void CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC &desc, ComPtr<ID3D12RootSignature> &target)
+{
+	ComPtr<ID3DBlob> sig, error;
+	const HRESULT hr = D3D12SerializeVersionedRootSignature(&desc, &sig, &error);
+	if (error)
+	{
+		cerr.write((const char *)error->GetBufferPointer(), error->GetBufferSize()) << endl;
+	}
+	CheckHR(hr);
+	CheckHR(device->CreateRootSignature(0, sig->GetBufferPointer(), sig->GetBufferSize(), IID_PPV_ARGS(&target)));
+}
 
 Impl::World::World(const float(&terrainXform)[4][3])// : bvh(Hierarchy::SplitTechnique::MEAN, .5f)
 {
-	extern ComPtr<ID3D12Device2> device;
+	// create terrain cull pass root signature
+	{
+		CD3DX12_ROOT_PARAMETER1 CBV_param;
+		CBV_param.InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
+		const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(1, &CBV_param, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+		CreateRootSignature(sigDesc, terrainVectorLayerD3DObjs.cullPassRootSig);
+	}
 
-	// create terrain root signature
+	// create terrain main pass root signature
 	{
 		CD3DX12_ROOT_PARAMETER1 CBV_params[2];
 		CBV_params[0].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
 		CBV_params[1].InitAsConstants(3, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
 		const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(2, CBV_params, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-		ComPtr<ID3DBlob> sig, error;
-		const HRESULT hr = D3D12SerializeVersionedRootSignature(&sigDesc, &sig, &error);
-		if (error)
-		{
-			cerr.write((const char *)error->GetBufferPointer(), error->GetBufferSize()) << endl;
-		}
-		CheckHR(hr);
-		CheckHR(device->CreateRootSignature(0, sig->GetBufferPointer(), sig->GetBufferSize(), IID_PPV_ARGS(&terrainVectorLayerRootSig)));
+		CreateRootSignature(sigDesc, terrainVectorLayerD3DObjs.mainPassRootSig);
 	}
 
-	// create terrain PSO
+	// create terrain cull pass PSO
+	{
+		const D3D12_BLEND_DESC blendDesc
+		{
+			FALSE,						// alpha2covarage
+			FALSE,						// independent blend
+			{
+				FALSE,					// blend enable
+				FALSE,					// logic op enable
+				D3D12_BLEND_ONE,		// src blend
+				D3D12_BLEND_ZERO,		// dst blend
+				D3D12_BLEND_OP_ADD,		// blend op
+				D3D12_BLEND_ONE,		// src blend alpha
+				D3D12_BLEND_ZERO,		// dst blend alpha
+				D3D12_BLEND_OP_ADD,		// blend op alpha
+				D3D12_LOGIC_OP_NOOP,	// logic op
+				0						// write mask
+			}
+		};
+
+		const CD3DX12_RASTERIZER_DESC rasterDesc
+		(
+			D3D12_FILL_MODE_SOLID,
+			D3D12_CULL_MODE_NONE,
+			FALSE,										// front CCW
+			D3D12_DEFAULT_DEPTH_BIAS,
+			D3D12_DEFAULT_DEPTH_BIAS_CLAMP,
+			D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
+			TRUE,										// depth clip
+			FALSE,										// MSAA
+			FALSE,										// AA line
+			0,											// force sample count
+			D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF
+		);
+
+		const CD3DX12_DEPTH_STENCIL_DESC dsDesc
+		(
+			FALSE,																									// depth
+			D3D12_DEPTH_WRITE_MASK_ZERO,
+			D3D12_COMPARISON_FUNC_ALWAYS,
+			TRUE,																									// stencil
+			D3D12_DEFAULT_STENCIL_READ_MASK,																		// stencil read mask
+			0,																										// stencil write mask
+			D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_COMPARISON_FUNC_NOT_EQUAL,	// front
+			D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_COMPARISON_FUNC_NOT_EQUAL	// back
+		);
+
+		const D3D12_INPUT_ELEMENT_DESC VB_decl[] =
+		{
+			{ "AABB_min", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 },
+			{ "AABB_max", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 }
+		};
+
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
+		{
+			terrainVectorLayerD3DObjs.cullPassRootSig.Get(),				// root signature
+			CD3DX12_SHADER_BYTECODE(AABB_2D, sizeof AABB_2D),				// VS
+			{},																// PS
+			{},																// DS
+			{},																// HS
+			{},																// GS
+			{},																// SO
+			blendDesc,														// blend
+			UINT_MAX,														// sample mask
+			rasterDesc,														// rasterizer
+			dsDesc,															// depth stencil
+			{ VB_decl, size(VB_decl) },										// IA
+			D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,					// restart primtive
+			D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,							// primitive topology
+			0,																// render targets
+			{},																// RT formats
+			DXGI_FORMAT_D24_UNORM_S8_UINT,									// depth stencil format
+			{1}																// MSAA
+		};
+
+		CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(&terrainVectorLayerD3DObjs.cullPassPSO)));
+	}
+
+	// create terrain main pass PSO
 	{
 		const CD3DX12_RASTERIZER_DESC rasterDesc
 		(
@@ -66,14 +158,14 @@ Impl::World::World(const float(&terrainXform)[4][3])// : bvh(Hierarchy::SplitTec
 
 		const CD3DX12_DEPTH_STENCIL_DESC dsDesc
 		(
-			FALSE,																								// depth
+			FALSE,																									// depth
 			D3D12_DEPTH_WRITE_MASK_ZERO,
 			D3D12_COMPARISON_FUNC_ALWAYS,
-			FALSE,																								// stencil
-			D3D12_DEFAULT_STENCIL_READ_MASK,
-			D3D12_DEFAULT_STENCIL_WRITE_MASK,
-			D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_COMPARISON_FUNC_ALWAYS,	// front
-			D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_COMPARISON_FUNC_ALWAYS	// back
+			TRUE,																									// stencil
+			D3D12_DEFAULT_STENCIL_READ_MASK,																		// stencil read mask
+			D3D12_DEFAULT_STENCIL_WRITE_MASK,																		// stencil write mask
+			D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_ZERO, D3D12_COMPARISON_FUNC_NOT_EQUAL,	// front
+			D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_ZERO, D3D12_COMPARISON_FUNC_NOT_EQUAL	// back
 		);
 
 		const D3D12_INPUT_ELEMENT_DESC VB_decl[] =
@@ -83,7 +175,7 @@ Impl::World::World(const float(&terrainXform)[4][3])// : bvh(Hierarchy::SplitTec
 
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
 		{
-			terrainVectorLayerRootSig.Get(),								// root signature
+			terrainVectorLayerD3DObjs.mainPassRootSig.Get(),				// root signature
 			CD3DX12_SHADER_BYTECODE(vectorLayerVS, sizeof vectorLayerVS),	// VS
 			CD3DX12_SHADER_BYTECODE(vectorLayerPS, sizeof vectorLayerPS),	// PS
 			{},																// DS
@@ -99,11 +191,11 @@ Impl::World::World(const float(&terrainXform)[4][3])// : bvh(Hierarchy::SplitTec
 			D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,							// primitive topology
 			1,																// render targets
 			{ DXGI_FORMAT_R8G8B8A8_UNORM },									// RT formats
-			DXGI_FORMAT_UNKNOWN,											// depth stencil format
+			DXGI_FORMAT_D24_UNORM_S8_UINT,									// depth stencil format
 			{1}																// MSAA
 		};
 
-		CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(&terrainVectorLayerPSO)));
+		CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(&terrainVectorLayerD3DObjs.mainPassPSO)));
 	}
 
 	// create terrain CB
@@ -129,7 +221,7 @@ Impl::World::World(const float(&terrainXform)[4][3])// : bvh(Hierarchy::SplitTec
 
 Impl::World::~World() = default;
 
-void Impl::World::Render(const float (&viewXform)[4][3], const float (&projXform)[4][4], const function<void (ID3D12GraphicsCommandList1 *target)> &setupRenderOutputCallback) const
+void Impl::World::Render(const float (&viewXform)[4][3], const float (&projXform)[4][4], const function<void (bool enableRT, ID3D12GraphicsCommandList1 *target)> &setupRenderOutputCallback) const
 {
 	using namespace placeholders;
 
@@ -164,19 +256,40 @@ void Impl::World::Render(const float (&viewXform)[4][3], const float (&projXform
 	const float4x3 terrainTransform(terrainXform);
 	const float4x4 terrainFrustumXform = mul(float4x4(terrainTransform[0], 0.f, terrainTransform[1], 0.f, terrainTransform[2], 0.f, terrainTransform[3], 1.f), frustumTransform);
 	const FrustumCuller<2> terrainFrustumCuller(terrainFrustumXform);
-	const function<void (ID3D12GraphicsCommandList1 *target)> terrainMainPassSetupCallback =
+	const function<void (ID3D12GraphicsCommandList1 *target)> cullPassSetupCallback =
 		[
 			&setupRenderOutputCallback,
-			rootSig = terrainVectorLayerRootSig,
+			rootSig = terrainVectorLayerD3DObjs.cullPassRootSig,
 			CB_location = terrainCB->GetGPUVirtualAddress() + CB_offset
 		](ID3D12GraphicsCommandList1 *cmdList)
 	{
-		setupRenderOutputCallback(cmdList);
+		setupRenderOutputCallback(false, cmdList);
 		cmdList->SetGraphicsRootSignature(rootSig.Get());
 		cmdList->SetGraphicsRootConstantBufferView(0, CB_location);
 	};
+	const function<void (ID3D12GraphicsCommandList1 *target)> terrainMainPassSetupCallback =
+		[
+			&setupRenderOutputCallback,
+			rootSig = terrainVectorLayerD3DObjs.mainPassRootSig,
+			CB_location = terrainCB->GetGPUVirtualAddress() + CB_offset
+		](ID3D12GraphicsCommandList1 *cmdList)
+	{
+		setupRenderOutputCallback(true, cmdList);
+		cmdList->SetGraphicsRootSignature(rootSig.Get());
+		cmdList->SetGraphicsRootConstantBufferView(0, CB_location);
+	};
+	// make_ready_future() from concurrency TS would be appropriate here
+	promise<void> start;
+	start.set_value();
+	future<void> stageSync = start.get_future();	// move this to 'for' init-statement (C++20)
 	for (const auto &layer : terrainVectorLayers)
-		layer.ShceduleRenderStage(terrainFrustumCuller, terrainFrustumXform, terrainMainPassSetupCallback);
+		layer.ShceduleRenderStage(stageSync, terrainFrustumCuller, terrainFrustumXform, cullPassSetupCallback, terrainMainPassSetupCallback);
+}
+
+// "world.hh" currently does not #include "terrain.hh" (TerrainVectorLayer forward declared) => out-of-line
+void Impl::World::OnFrameFinish() const
+{
+	TerrainVectorLayer::OnFrameFinish();
 }
 
 //void Impl::World::ScheduleNode(decltype(bvh)::Node &node) const
@@ -202,8 +315,8 @@ auto Impl::World::AddTerrainVectorLayer(unsigned int layerIdx, const float (&col
 	public:
 		operator unsigned int () const noexcept { return idx; }
 	};
-	const auto insertLocation = upper_bound(terrainVectorLayers.cbegin(), terrainVectorLayers.cend(), layerIdx, less<Idx>());
-	const auto inserted = terrainVectorLayers.emplace(insertLocation, shared_from_this(), layerIdx, color, terrainVectorLayerPSO);
+	const auto insertLocation = lower_bound(terrainVectorLayers.cbegin(), terrainVectorLayers.cend(), layerIdx, greater<Idx>());
+	const auto inserted = terrainVectorLayers.emplace(insertLocation, shared_from_this(), layerIdx, color, terrainVectorLayerD3DObjs.cullPassPSO, terrainVectorLayerD3DObjs.mainPassPSO);
 	// consider using custom allocator for shared_ptr's internal data in order to improve memory management
 	return { &*inserted, [inserted](TerrainVectorLayer *layerToRemove) { layerToRemove->world->terrainVectorLayers.erase(inserted); } };
 }

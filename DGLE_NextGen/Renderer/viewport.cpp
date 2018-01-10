@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		30.12.2017 (c)Korotkov Andrey
+\date		10.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -20,11 +20,12 @@ namespace RenderPipeline = Impl::RenderPipeline;
 
 extern ComPtr<ID3D12Device2> device;
 
-static inline RenderPipeline::PipelineStage Pre(ID3D12GraphicsCommandList1 *cmdList, ID3D12Resource *rt, D3D12_CPU_DESCRIPTOR_HANDLE rtv)
+static inline RenderPipeline::PipelineStage Pre(ID3D12GraphicsCommandList1 *cmdList, ID3D12Resource *rt, D3D12_CPU_DESCRIPTOR_HANDLE rtv, D3D12_CPU_DESCRIPTOR_HANDLE dsv)
 {
 	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(rt, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 	const float color[4] = { .0f, .2f, .4f, 1.f };
 	cmdList->ClearRenderTargetView(rtv, color, 0, NULL);
+	cmdList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_STENCIL, 1.f, UINT8_MAX, 0, NULL);
 	CheckHR(cmdList->Close());
 	return cmdList;
 }
@@ -97,21 +98,21 @@ void Impl::Viewport::UpdateAspect(double invAspect)
 	projXform[0][0] = projXform[1][1] * invAspect;
 }
 
-void Impl::Viewport::Render(ID3D12Resource *rt, const D3D12_CPU_DESCRIPTOR_HANDLE &rtv, UINT width, UINT height) const
+void Impl::Viewport::Render(ID3D12Resource *rt, const D3D12_CPU_DESCRIPTOR_HANDLE &rtv, const D3D12_CPU_DESCRIPTOR_HANDLE &dsv, UINT width, UINT height) const
 {
 	auto cmdLists = cmdListsManager.OnFrameStart();
 	GPUWorkSubmission::Prepare();
 
-	GPUWorkSubmission::AppendCmdList(Pre, cmdLists.pre, rt, rtv);
+	GPUWorkSubmission::AppendCmdList(Pre, cmdLists.pre, rt, rtv, dsv);
 
-	const function<void (ID3D12GraphicsCommandList1 *target)> setupRenderOutputCallback =
+	const function<void (bool enableRT, ID3D12GraphicsCommandList1 *target)> setupRenderOutputCallback =
 		[
-			rtv,
+			rtv, dsv,
 			viewport = CD3DX12_VIEWPORT(0.f, 0.f, width, height),
 			scissorRect = CD3DX12_RECT(0, 0, width, height)
-		](ID3D12GraphicsCommandList1 *cmdList)
+		](bool enableRT, ID3D12GraphicsCommandList1 *cmdList)
 	{
-		cmdList->OMSetRenderTargets(1, &rtv, TRUE, NULL);
+		cmdList->OMSetRenderTargets(enableRT, &rtv, TRUE, &dsv);
 		cmdList->RSSetViewports(1, &viewport);
 		cmdList->RSSetScissorRects(1, &scissorRect);
 	};
@@ -122,4 +123,10 @@ void Impl::Viewport::Render(ID3D12Resource *rt, const D3D12_CPU_DESCRIPTOR_HANDL
 
 	GPUWorkSubmission::Run();
 	cmdListsManager.OnFrameFinish();
+}
+
+void Impl::Viewport::OnFrameFinish() const
+{
+	if (world)
+		world->OnFrameFinish();
 }

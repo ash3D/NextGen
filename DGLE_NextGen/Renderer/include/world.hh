@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.12.2017 (c)Korotkov Andrey
+\date		10.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -74,8 +74,11 @@ namespace Renderer
 			};
 
 		private:
-			ComPtr<ID3D12RootSignature>	terrainVectorLayerRootSig;
-			ComPtr<ID3D12PipelineState>	terrainVectorLayerPSO;
+			struct
+			{
+				ComPtr<ID3D12RootSignature>	cullPassRootSig, mainPassRootSig;
+				ComPtr<ID3D12PipelineState>	cullPassPSO, mainPassPSO;
+			} terrainVectorLayerD3DObjs;
 			ComPtr<ID3D12Resource>		terrainCB;
 #if PERSISTENT_MAPS
 			volatile void				*terrainCB_CPU_ptr;
@@ -105,7 +108,8 @@ namespace Renderer
 			void operator =(World &) = delete;
 
 		protected:
-			void Render(const float (&viewXform)[4][3], const float (&projXform)[4][4], const std::function<void (ID3D12GraphicsCommandList1 *target)> &setupRenderOutputCallback) const;
+			void Render(const float (&viewXform)[4][3], const float (&projXform)[4][4], const std::function<void (bool enableRT, ID3D12GraphicsCommandList1 *target)> &setupRenderOutputCallback) const;
+			void OnFrameFinish() const;
 
 		private:
 			//void ScheduleNode(decltype(bvh)::Node &node) const;
