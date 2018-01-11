@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		10.01.2018 (c)Korotkov Andrey
+\date		11.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -442,19 +442,9 @@ namespace Renderer::Impl::Hierarchy
 
 	// returns <exluded tris, accumulated AABB measure>
 	template<class Object, class CustomNodeData, TreeStructure treeStructure>
-	std::pair<unsigned long int, float> BVH<Object, CustomNodeData, treeStructure>::Node::CollectOcclusionQueryBoxes(const Node **boxesBegin, const Node **boxesEnd, Visibility parentVisibilityOverride)
+	std::pair<unsigned long int, float> BVH<Object, CustomNodeData, treeStructure>::Node::CollectOcclusionQueryBoxes(const Node **boxesBegin, const Node **boxesEnd)
 	{
 		using namespace std;
-
-		assert(parentVisibilityOverride != Visibility::Culled);
-
-		// reset 'culled' bit which can potetially be set in previous frame and not updated yet during Shcedule() due to early out
-		reinterpret_cast<underlying_type_t<Visibility> &>(visibility) &= 0b01;
-		
-		reinterpret_cast<underlying_type_t<Visibility> &>(visibility) |= underlying_type_t<Visibility>(parentVisibilityOverride);
-
-		if (parentVisibilityOverride == Visibility::Atomic)
-			occlusionQueryGeometry = nullptr;	// need to set here because it may not be set in Shcedule() due to early out
 
 		const auto childrenFilter = [parentAtomic = visibility == Visibility::Atomic](const remove_extent_t<decltype(children)> &child)
 		{
@@ -473,15 +463,28 @@ namespace Renderer::Impl::Hierarchy
 			{
 				if (childrenFilter(child))
 				{
+					assert(visibility != Visibility::Culled);
+
+					// reset 'culled' bit which can potetially be set in previous frame and not updated yet during Shcedule() due to early out
+					reinterpret_cast<underlying_type_t<Visibility> &>(child->visibility) &= 0b01;
+		
+					// ensure Atomic visibility propagated for early out nodes
+					reinterpret_cast<underlying_type_t<Visibility> &>(child->visibility) |= underlying_type_t<Visibility>(visibility);
+
+					if (visibility == Visibility::Atomic)
+						child->occlusionQueryGeometry = nullptr;	// need to set here because it may not be set in Shcedule() due to early out
+
 					auto segmentEnd = next(segmentBegin, minBoxesPerNode);
 					if (additionalBoxes)
 					{
 						advance(segmentEnd, 1);
 						additionalBoxes--;
 					}
-					const auto collectResults = child->CollectOcclusionQueryBoxes(segmentBegin, segmentEnd, visibility);
+
+					const auto collectResults = child->CollectOcclusionQueryBoxes(segmentBegin, segmentEnd);
 					excludedTris += collectResults.first;
 					accumulatedChildrenMeasure += collectResults.second;
+
 					segmentBegin = segmentEnd;
 				}
 			};

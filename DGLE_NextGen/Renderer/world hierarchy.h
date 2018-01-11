@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		10.01.2018 (c)Korotkov Andrey
+\date		11.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -205,7 +205,7 @@ namespace Renderer::Impl::Hierarchy
 			std::pair<unsigned long int, bool> Shcedule(GPUStreamBuffer::CountedAllocatorWrapper<sizeof aabb> &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
 				bool parentInsideFrustum = false, float parentOcclusionCulledProjLength = INFINITY, float parentOcclusion = 0);
 #endif
-			std::pair<unsigned long int, float> CollectOcclusionQueryBoxes(const Node **boxesBegin, const Node **boxesEnd, Visibility parentVisibilityOverride = {});
+			std::pair<unsigned long int, float> CollectOcclusionQueryBoxes(const Node **boxesBegin, const Node **boxesEnd);
 		};
 
 	private:
