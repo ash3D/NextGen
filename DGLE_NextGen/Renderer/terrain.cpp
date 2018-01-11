@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		10.01.2018 (c)Korotkov Andrey
+\date		11.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -404,11 +404,7 @@ auto TerrainVectorLayer::AddQuad(unsigned long int vcount, const function<void _
 	return { &quads.back(), { prev(quads.cend()) } };
 }
 
-#ifdef PACKAGED_TASK_MOVE_WORKAROUND
-const RenderPipeline::IRenderStage *TerrainVectorLayer::BuildRenderStage(shared_future<void> &stageSync, shared_ptr<promise<void>> &resume, const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList1 *target)> &cullPassSetupCallback, function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const
-#else
-const RenderPipeline::IRenderStage *TerrainVectorLayer::BuildRenderStage(future<void> &stageSync, promise<void> &resume, const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList1 *target)> &cullPassSetupCallback, function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const
-#endif
+const RenderPipeline::IRenderStage *TerrainVectorLayer::BuildRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList1 *target)> &cullPassSetupCallback, function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const
 {
 	using namespace placeholders;
 	renderStage.Setup(move(cullPassSetupCallback), move(mainPassSetupCallback));
@@ -443,29 +439,15 @@ const RenderPipeline::IRenderStage *TerrainVectorLayer::BuildRenderStage(future<
 #else
 	for_each(quads.begin(), quads.end(), bind(&TerrainVectorQuad::Shcedule, _1, ref(GPU_AABB_countedAllocator), cref(frustumCuller), cref(frustumXform)));
 #endif
-	stageSync.get();	// wait for previous stage has finished with occlusion query batch
 	renderStage.SetupOcclusionQueryBatch(GPU_AABB_countedAllocator.GetAllocatedItemCount());
-#ifdef PACKAGED_TASK_MOVE_WORKAROUND
-	resume->set_value();// let subsequent stages to proceed
-	resume.reset();
-#else
-	resume.set_value();	// let subsequent stages to proceed
-#endif
 	using namespace placeholders;
 	for_each(quads.begin(), quads.end(), bind(&TerrainVectorQuad::Issue, _1, OcclusionCulling::QueryBatch::npos));
 	return &renderStage;
 }
 
-void TerrainVectorLayer::ShceduleRenderStage(future<void> &stageSync, const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList1 *target)> cullPassSetupCallback, function<void (ID3D12GraphicsCommandList1 *target)> mainPassSetupCallback) const
+void TerrainVectorLayer::ShceduleRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList1 *target)> cullPassSetupCallback, function<void (ID3D12GraphicsCommandList1 *target)> mainPassSetupCallback) const
 {
-	promise<void> resume;
-	future<void> sync = resume.get_future();
-#ifdef PACKAGED_TASK_MOVE_WORKAROUND
-	GPUWorkSubmission::AppendRenderStage(&TerrainVectorLayer::BuildRenderStage, this, move(stageSync.share()), move(make_shared<promise<void>>(move(resume))), /*cref*/(frustumCuller), /*cref*/(frustumXform), move(cullPassSetupCallback), move(mainPassSetupCallback));
-#else
-	GPUWorkSubmission::AppendRenderStage(&TerrainVectorLayer::BuildRenderStage, this, move(stageSync), move(resume), /*cref*/(frustumCuller), /*cref*/(frustumXform), move(cullPassSetupCallback), move(mainPassSetupCallback));
-#endif
-	stageSync = move(sync);
+	GPUWorkSubmission::AppendRenderStage(&TerrainVectorLayer::BuildRenderStage, this, /*cref*/(frustumCuller), /*cref*/(frustumXform), move(cullPassSetupCallback), move(mainPassSetupCallback));
 }
 
 TerrainVectorQuad::TerrainVectorQuad(shared_ptr<TerrainVectorLayer> layer, unsigned long int vcount, const function<void (volatile float verts[][2])> &fillVB, unsigned int objCount, bool srcIB32bit, const function<TerrainVectorLayer::ObjectData (unsigned int objIdx)> &getObjectData) :

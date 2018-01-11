@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		10.01.2018 (c)Korotkov Andrey
+\date		11.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -25,6 +25,7 @@ namespace Renderer::Impl::RenderPipeline
 {
 	struct IRenderStage
 	{
+		virtual void Sync() const = 0;
 		virtual unsigned int RenderPassCount() const noexcept = 0;
 		virtual const struct IRenderPass &operator [](unsigned renderPassIdx) const = 0;
 

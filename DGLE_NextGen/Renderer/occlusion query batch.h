@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		10.01.2018 (c)Korotkov Andrey
+\date		11.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -30,7 +30,7 @@ namespace Renderer::Impl::OcclusionCulling
 		ID3D12QueryHeap *batchHeap;
 		ID3D12Resource *batchResults;
 		unsigned long count;
-		bool fresh;
+		mutable bool fresh;
 
 	public:
 		explicit QueryBatch(unsigned long count = 0);
@@ -38,6 +38,7 @@ namespace Renderer::Impl::OcclusionCulling
 		QueryBatch &operator =(QueryBatch &&) = default;
 
 	public:
+		void Sync() const;
 		void Start(unsigned long queryIdx, ID3D12GraphicsCommandList1 *target) const, Stop(unsigned long queryIdx, ID3D12GraphicsCommandList1 *target) const;
 		void Set(unsigned long queryIdx, ID3D12GraphicsCommandList1 *target) const;
 		void Resolve(ID3D12GraphicsCommandList1 *target) const, Finish(ID3D12GraphicsCommandList1 *target) const;

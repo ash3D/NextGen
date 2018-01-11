@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		10.01.2018 (c)Korotkov Andrey
+\date		11.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -15,7 +15,6 @@ See "DGLE.h" for more details.
 #include <list>
 #include <functional>
 #include <optional>
-#include <future>
 #include "world.hh"	// temp for Allocator
 #include "../tracked resource.h"
 #include "../AABB.h"
@@ -26,10 +25,6 @@ See "DGLE.h" for more details.
 #define DISABLE_MATRIX_SWIZZLES
 #if !__INTELLISENSE__ 
 #include "vector math.h"
-#endif
-
-#if defined _MSC_VER && _MSC_VER <= 1912
-#define PACKAGED_TASK_MOVE_WORKAROUND
 #endif
 
 struct ID3D12PipelineState;
@@ -137,6 +132,7 @@ namespace Renderer
 
 		private:
 			// Inherited via IRenderStage
+			virtual void Sync() const override { occlusionQueryBatch.Sync(); }
 			unsigned int RenderPassCount() const noexcept override { return 2; }
 			const Impl::RenderPipeline::IRenderPass &operator [](unsigned renderPassIdx) const override;
 
@@ -185,12 +181,8 @@ namespace Renderer
 
 	private:
 		void Render(ID3D12GraphicsCommandList1 *cmdList) const;
-#ifdef PACKAGED_TASK_MOVE_WORKAROUND
-		const Impl::RenderPipeline::IRenderStage *BuildRenderStage(std::shared_future<void> &stageSync, std::shared_ptr<std::promise<void>> &resume, const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, std::function<void (ID3D12GraphicsCommandList1 *target)> &cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const;
-#else
-		const Impl::RenderPipeline::IRenderStage *BuildRenderStage(std::future<void> &stageSync, std::promise<void> &resume, const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, std::function<void (ID3D12GraphicsCommandList1 *target)> &cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const;
-#endif
-		void ShceduleRenderStage(std::future<void> &stageSync, const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, std::function<void (ID3D12GraphicsCommandList1 *target)> cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList1 *target)> mainPassSetupCallback) const;
+		const Impl::RenderPipeline::IRenderStage *BuildRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, std::function<void (ID3D12GraphicsCommandList1 *target)> &cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const;
+		void ShceduleRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, std::function<void (ID3D12GraphicsCommandList1 *target)> cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList1 *target)> mainPassSetupCallback) const;
 		static void OnFrameFinish() { GPU_AABB_allocator->OnFrameFinish(); }
 	};
 

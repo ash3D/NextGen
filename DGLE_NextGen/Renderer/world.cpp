@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		10.01.2018 (c)Korotkov Andrey
+\date		11.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -277,11 +277,8 @@ void Impl::World::Render(const float (&viewXform)[4][3], const float (&projXform
 		cmdList->SetGraphicsRootSignature(rootSig.Get());
 		cmdList->SetGraphicsRootConstantBufferView(0, CB_location);
 	};
-	// make_ready_future() from concurrency TS would be appropriate here
-	promise<void> start;
-	start.set_value();
 	for_each(terrain.vectorLayers.cbegin(), terrain.vectorLayers.cend(), bind(&decltype(terrain.vectorLayers)::value_type::ShceduleRenderStage,
-		_1, start.get_future(), FrustumCuller<2>(terrainFrustumXform), cref(terrainFrustumXform), cref(cullPassSetupCallback), cref(terrainMainPassSetupCallback)));
+		_1, FrustumCuller<2>(terrainFrustumXform), cref(terrainFrustumXform), cref(cullPassSetupCallback), cref(terrainMainPassSetupCallback)));
 }
 
 // "world.hh" currently does not #include "terrain.hh" (TerrainVectorLayer forward declared) => out-of-line

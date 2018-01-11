@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		10.01.2018 (c)Korotkov Andrey
+\date		11.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -90,6 +90,7 @@ auto RenderPipeline::GetNext(unsigned int &length) -> decltype(GetNext(length))
 
 			// else pipeline stage is render stage
 			curRenderStage = get<const IRenderStage *>(stage);
+			curRenderStage->Sync();
 		}
 	}
 	return curRenderStage ? GetNextRenderRange(length) : decltype(GetNext(length)){};
