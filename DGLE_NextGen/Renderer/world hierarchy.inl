@@ -471,7 +471,15 @@ namespace Renderer::Impl::Hierarchy
 					// ensure Atomic visibility propagated for early out nodes
 					reinterpret_cast<underlying_type_t<Visibility> &>(child->visibility) |= underlying_type_t<Visibility>(visibility);
 
+					/*
+						'childrenFilter' guarantees that it is either required to clear 'occlusionQueryGeometry' or it is already cleared (=> additional clear here has not effect)
+						so additional check is not necessary and is can only serve as optimization to avoid redundant clear
+						but clear itself is currently cheap and additional chek would probably be an anti-optimization
+						another more costly clear implementation though can potentially benefit from additional check
+					*/
+#if 0
 					if (visibility == Visibility::Atomic)
+#endif
 						child->occlusionQueryGeometry = nullptr;	// need to set here because it may not be set in Shcedule() due to early out
 
 					auto segmentEnd = next(segmentBegin, minBoxesPerNode);
