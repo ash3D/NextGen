@@ -20,12 +20,25 @@ QueryBatch::QueryBatch(unsigned long count) : count(count)
 {
 	extern ComPtr<ID3D12Device2> device;
 
-	if (count)
+	if (const unsigned long requiredSize = count * sizeof(UINT64))
 	{
+		/*
+			try to reduce pool realloc count by accounting for other render stages requests
+			reset every frame is not necessary since currently there is no pool shrinking mechanism, it grwos monotonically
+		*/
+		static atomic<unsigned long> globalSizeRequest;
+		// perform atomic max
+		for (auto stored = globalSizeRequest.load(memory_order_relaxed); stored < requiredSize && !globalSizeRequest.compare_exchange_weak(stored, requiredSize, memory_order_relaxed););
+
 		static shared_mutex mtx;
 		shared_lock<decltype(mtx)> sharedLock(mtx);
 
-		if (const UINT64 requiredSize = count * sizeof(UINT64); !resultsPool || requiredSize > resultsPool->GetDesc().Width)
+		/*
+			check local request here
+			do not consider global one - use it if actual reallocation is required
+			it would reduce unnecessary pool reallocs
+		*/
+		if (!resultsPool || requiredSize > resultsPool->GetDesc().Width)
 		{
 			sharedLock.unlock();
 			{
@@ -34,7 +47,8 @@ QueryBatch::QueryBatch(unsigned long count) : count(count)
 				if (!resultsPool || requiredSize > resultsPool->GetDesc().Width)
 				{
 					static_assert(D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT % sizeof(UINT64) == 0);
-					const auto newResultsSize = AlignSize<D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT>(requiredSize);
+					// use global request for actual reallocation
+					const auto newResultsSize = AlignSize<D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT>(globalSizeRequest.load(memory_order_relaxed));
 
 					const D3D12_QUERY_HEAP_DESC heapDesk = { D3D12_QUERY_HEAP_TYPE_OCCLUSION, newResultsSize / sizeof(UINT64), 0 };
 					const CD3DX12_RESOURCE_DESC resultsDesc(
