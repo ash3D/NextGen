@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		02.01.2018 (c)Korotkov Andrey
+\date		12.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -78,6 +78,9 @@ pair<ID3D12Resource *, unsigned long> AllocatorBase::Allocate(unsigned long coun
 // NOTE: not thread-safe
 void AllocatorBase::OnFrameFinish()
 {
+	if (const auto nextEnd = freeBegin.load(memory_order_relaxed); retiredFrames.empty() || nextEnd != retiredFrames.front().freeEnd)
+		retiredFrames.push_back({ globalFrameVersioning->GetCurFrameID(), nextEnd });
+
 	for (const UINT64 completedFrameID = globalFrameVersioning->GetCompletedFrameID(); !retiredFrames.empty() && retiredFrames.front().frameID <= completedFrameID; retiredFrames.pop_front())
 	{
 		if (retiredFrames.front().freeEnd < freeEnd)
@@ -89,7 +92,4 @@ void AllocatorBase::OnFrameFinish()
 		freeBegin.store(freeEnd = 0, memory_order_relaxed);
 		freeRangeReversed = true;
 	}
-
-	if (const auto nextEnd = freeBegin.load(memory_order_relaxed); retiredFrames.empty() || nextEnd != retiredFrames.front().freeEnd)
-		retiredFrames.push_back({ globalFrameVersioning->GetCurFrameID(), nextEnd });
 }
