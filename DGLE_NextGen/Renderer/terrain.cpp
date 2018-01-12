@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		11.01.2018 (c)Korotkov Andrey
+\date		12.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -15,7 +15,12 @@ See "DGLE.h" for more details.
 #include "GPU work submission.h"
 
 // !: need to investigate for deadlocks possibility due to MSVC's std::async threadpool overflow
-#define MULTITHREADED_QUADS_SHCEDULE 1
+/*
+0 - disable
+1 - async
+2 - execution::par
+*/
+#define MULTITHREADED_QUADS_SHCEDULE 2
 
 
 using namespace std;
@@ -410,10 +415,9 @@ const RenderPipeline::IRenderStage *TerrainVectorLayer::BuildRenderStage(const I
 	renderStage.Setup(move(cullPassSetupCallback), move(mainPassSetupCallback));
 	// use C++17 template deduction
 	GPUStreamBuffer::CountedAllocatorWrapper<sizeof AABB<2>> GPU_AABB_countedAllocator(*GPU_AABB_allocator);
-#if MULTITHREADED_QUADS_SHCEDULE
-#if 0
-	for_each(execution::par, quads.begin(), quads.end(), bind(&TerrainVectorQuad::Shcedule, _1, ref(GPU_AABB_countedAllocator), cref(frustumCuller), cref(frustumXform)));
-#else
+#if MULTITHREADED_QUADS_SHCEDULE == 0
+	for_each(quads.begin(), quads.end(), bind(&TerrainVectorQuad::Shcedule, _1, ref(GPU_AABB_countedAllocator), cref(frustumCuller), cref(frustumXform)));
+#elif MULTITHREADED_QUADS_SHCEDULE == 1
 	static thread_local vector<future<void>> pendingAsyncs;
 	pendingAsyncs.clear();
 	pendingAsyncs.reserve(quads.size());
@@ -435,9 +439,11 @@ const RenderPipeline::IRenderStage *TerrainVectorLayer::BuildRenderStage(const I
 				pendingAsync.wait();
 		throw;
 	}
-#endif
+#elif MULTITHREADED_QUADS_SHCEDULE == 2
+	// exceptions would currently lead to terminate()
+	for_each(execution::par, quads.begin(), quads.end(), bind(&TerrainVectorQuad::Shcedule, _1, ref(GPU_AABB_countedAllocator), cref(frustumCuller), cref(frustumXform)));
 #else
-	for_each(quads.begin(), quads.end(), bind(&TerrainVectorQuad::Shcedule, _1, ref(GPU_AABB_countedAllocator), cref(frustumCuller), cref(frustumXform)));
+#error invalid MULTITHREADED_QUADS_SHCEDULE value
 #endif
 	renderStage.SetupOcclusionQueryBatch(GPU_AABB_countedAllocator.GetAllocatedItemCount());
 	using namespace placeholders;
