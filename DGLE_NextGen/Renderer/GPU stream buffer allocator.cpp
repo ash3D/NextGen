@@ -30,63 +30,65 @@ void AllocatorBase::AllocateChunk(const D3D12_RESOURCE_DESC &chunkDesc)
 
 pair<ID3D12Resource *, unsigned long> AllocatorBase::Allocate(unsigned long count, unsigned itemSize, unsigned long allocGranularity)
 {
-	for (;;)
+start:
+	shared_lock<decltype(mtx)> sharedLock(mtx);
+	auto chunkDesc = chunk->GetDesc();
+	const auto oldFreeBegin = freeBegin.fetch_add(count, memory_order_relaxed);
+	auto newFreeBegin = oldFreeBegin + count;
+	const bool wrap = newFreeBegin * itemSize > chunkDesc.Width;
+	if (wrap)
+		newFreeBegin = count;
+	const bool overflow = freeRangeReversed == wrap ? newFreeBegin > freeEnd : wrap;
+	if (wrap || overflow)
 	{
-		shared_lock<decltype(mtx)> sharedLock(mtx);
-		auto chunkDesc = chunk->GetDesc();
-		const auto oldFreeBegin = freeBegin.fetch_add(count, memory_order_relaxed);
-		auto newFreeBegin = oldFreeBegin + count;
-		const bool wrap = newFreeBegin * itemSize > chunkDesc.Width;
-		if (wrap)
-			newFreeBegin = count;
-		const bool overflow = freeRangeReversed == wrap ? newFreeBegin > freeEnd : wrap;
-		if (wrap || overflow)
-		{
-			const unsigned savedLockId = lockId;
-			sharedLock.unlock();
-			lock_guard<decltype(mtx)> exclusiveLock(mtx);
-			if (lockId != savedLockId)
-				continue;	// try again
-			else
-			{
-				lockId++;
-				if (overflow)
-				{
-					const auto deficit = (newFreeBegin - freeEnd) * itemSize;
-					chunkDesc.Width += (deficit + allocGranularity - 1) / allocGranularity;
-					AllocateChunk(chunkDesc);
-					retiredFrames.clear();
-					freeBegin.store(freeEnd = 0, memory_order_relaxed);
-					freeRangeReversed = true;
-				}
-				else // wrap
-				{
-					assert(wrap);
-					freeBegin.store(newFreeBegin, memory_order_relaxed);
-					if (!retiredFrames.empty())
-						retiredFrames.back().freeEnd = 0;	// remove bubble
-					freeRangeReversed = false;
-				}
-				return { chunk.Get(), 0 };
-			}
-		}
+		const unsigned savedLockId = lockId;
+		sharedLock.unlock();
+		lock_guard<decltype(mtx)> exclusiveLock(mtx);
+		if (lockId != savedLockId)
+			goto start;	// try again
 		else
-			return { chunk.Get(), oldFreeBegin };
+		{
+			lockId++;
+			if (overflow)
+			{
+				const auto deficit = (newFreeBegin - freeEnd) * itemSize;
+				chunkDesc.Width += (deficit + allocGranularity - 1) / allocGranularity;
+				AllocateChunk(chunkDesc);
+				retiredFrames.clear();
+				freeBegin.store(freeEnd = 0, memory_order_relaxed);
+				freeRangeReversed = true;
+			}
+			else // wrap
+			{
+				assert(wrap);
+				freeBegin.store(newFreeBegin, memory_order_relaxed);
+				if (!retiredFrames.empty())
+					retiredFrames.back().usedEnd = 0;	// remove bubble
+				freeRangeReversed = false;
+			}
+			return { chunk.Get(), 0 };
+		}
 	}
+	else
+		return { chunk.Get(), oldFreeBegin };
 }
 
 // NOTE: not thread-safe
 void AllocatorBase::OnFrameFinish()
 {
-	if (const auto nextEnd = freeBegin.load(memory_order_relaxed); retiredFrames.empty() || nextEnd != retiredFrames.front().freeEnd)
-		retiredFrames.push_back({ globalFrameVersioning->GetCurFrameID(), nextEnd });
+	// register current frame allocations
+	if (const auto curFrameUsedEnd = freeBegin.load(memory_order_relaxed); retiredFrames.empty() || curFrameUsedEnd != retiredFrames.front().usedEnd)
+		retiredFrames.push_back({ globalFrameVersioning->GetCurFrameID(), curFrameUsedEnd });
 
+	// free completed frames
 	for (const UINT64 completedFrameID = globalFrameVersioning->GetCompletedFrameID(); !retiredFrames.empty() && retiredFrames.front().frameID <= completedFrameID; retiredFrames.pop_front())
 	{
-		if (retiredFrames.front().freeEnd < freeEnd)
+		if (retiredFrames.front().usedEnd < freeEnd)
 			freeRangeReversed = true;
-		freeEnd = retiredFrames.front().freeEnd;
+		freeEnd = retiredFrames.front().usedEnd;
 	}
+
+	// reset start allocatin position if chunk is completely free - it can reduce the chance of overflow when large continuous ranges being allocated
 	if (retiredFrames.empty())
 	{
 		freeBegin.store(freeEnd = 0, memory_order_relaxed);

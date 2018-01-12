@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		10.01.2018 (c)Korotkov Andrey
+\date		12.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -25,7 +25,7 @@ namespace Renderer::Impl::GPUStreamBuffer
 		struct RetiredFrame
 		{
 			UINT64 frameID;
-			unsigned long freeEnd;
+			unsigned long usedEnd;
 		};
 		std::deque<RetiredFrame> retiredFrames;
 		Impl::TrackedResource<ID3D12Resource> chunk;
