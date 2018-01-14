@@ -10,8 +10,8 @@ See "DGLE.h" for more details.
 #include "stdafx.h"
 #include "frame versioning.h"
 #include "occlusion query batch.h"
-#include "terrain.hh"
 #include "world.hh"
+#include "terrain.hh"
 #include "tracked resource.inl"
 #include "GPU stream buffer allocator.inl"
 
@@ -128,6 +128,22 @@ void OnFrameFinish()
 		retiredResources.pop();
 }
 
+// should be defined before globalFrameVersioning in order to be destroyed after waiting in globalFrameVersioning dtor completes
+using Renderer::Impl::World;
+ComPtr<ID3D12Resource> World::perFrameCB = World::TryCreatePerFrameCB();
+// define Try...() functions here to enable inline
+inline ComPtr<ID3D12Resource> World::TryCreatePerFrameCB()
+{
+	return device ? CreatePerFrameCB() : nullptr;
+}
+#if PERSISTENT_MAPS
+volatile World::PerFrameData *World::perFrameCB_CPU_ptr = World::TryMapPerFrameCB();
+inline volatile World::PerFrameData *World::TryMapPerFrameCB()
+{
+	return perFrameCB ? MapPerFrameCB(&CD3DX12_RANGE(0, 0)) : nullptr;
+}
+#endif
+
 namespace Renderer::Impl
 {
 #if defined _MSC_VER && _MSC_VER <= 1912
@@ -152,22 +168,6 @@ decltype(TerrainVectorLayer::GPU_AABB_allocator) TerrainVectorLayer::GPU_AABB_al
 decltype(TerrainVectorLayer::GPU_AABB_allocator) TerrainVectorLayer::GPU_AABB_allocator(device ? decltype(TerrainVectorLayer::GPU_AABB_allocator)(in_place) : nullopt);
 #endif
 
-// accesses globalFrameVersioning
-using Renderer::Impl::World;
-ComPtr<ID3D12Resource> World::perFrameCB = World::TryCreatePerFrameCB();
-// define Try...() functions here to enable inline
-inline ComPtr<ID3D12Resource> World::TryCreatePerFrameCB()
-{
-	return device ? CreatePerFrameCB() : nullptr;
-}
-#if PERSISTENT_MAPS
-volatile World::PerFrameData *World::perFrameCB_CPU_ptr = World::TryMapPerFrameCB();
-inline volatile World::PerFrameData *World::TryMapPerFrameCB()
-{
-	return perFrameCB ? MapPerFrameCB(&CD3DX12_RANGE(0, 0)) : nullptr;
-}
-#endif
-
 extern void __cdecl InitRenderer()
 {
 	if (!factory)
@@ -177,11 +177,11 @@ extern void __cdecl InitRenderer()
 	{
 		device = CreateDevice();
 		cmdQueue = CreateCommandQueue();
-		globalFrameVersioning.emplace();
-		TerrainVectorLayer::GPU_AABB_allocator.emplace();
 		World::perFrameCB = World::CreatePerFrameCB();
 #if PERSISTENT_MAPS
 		World::perFrameCB_CPU_ptr = World::MapPerFrameCB();
 #endif
+		globalFrameVersioning.emplace();
+		TerrainVectorLayer::GPU_AABB_allocator.emplace();
 	}
 }
