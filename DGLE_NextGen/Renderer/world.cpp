@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		11.01.2018 (c)Korotkov Andrey
+\date		14.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -15,7 +15,6 @@ See "DGLE.h" for more details.
 #include "frustum culling.h"
 #include "occlusion query shceduling.h"
 #include "frame versioning.h"
-#include "align.h"
 
 #include "AABB_2d.csh"
 #include "vectorLayerVS.csh"
@@ -28,7 +27,43 @@ using WRL::ComPtr;
 
 extern ComPtr<ID3D12Device2> device;
 
-static constexpr unsigned int CB_overlap = 3, terrainCB_dataSize = sizeof(float[4][4]) * 3, terrainCB_storeSize = AlignSize<D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT>(terrainCB_dataSize);
+static constexpr unsigned int CBRegisterBits = D3D12_COMMONSHADER_CONSTANT_BUFFER_COMPONENTS * D3D12_COMMONSHADER_CONSTANT_BUFFER_COMPONENT_BIT_COUNT, CBRegisterAlign = CBRegisterBits / CHAR_BIT;
+static_assert(CBRegisterBits % CHAR_BIT == 0);
+
+template<unsigned int length>
+struct alignas(CBRegisterAlign) CBRegisterAlignedRow : array<float, length>
+{
+	void operator =(const float (&src)[length]) volatile noexcept
+	{
+		memcpy(const_cast<CBRegisterAlignedRow *>(this)->data(), src, sizeof src);
+	}
+};
+
+struct alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) Impl::World::PerFrameData
+{
+	CBRegisterAlignedRow<4> projXform[4];
+	CBRegisterAlignedRow<3> viewXform[4], worldXform[4];
+};
+
+ComPtr<ID3D12Resource> Impl::World::CreatePerFrameCB()
+{
+	ComPtr<ID3D12Resource> CB;
+	CheckHR(device->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Buffer(sizeof(PerFrameData) * Impl::maxFrameLatency/*, D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE*/),
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		NULL,	// clear value
+		IID_PPV_ARGS(CB.GetAddressOf())));
+	return move(CB);
+}
+
+auto Impl::World::MapPerFrameCB(const D3D12_RANGE *readRange) -> volatile PerFrameData *
+{
+	volatile PerFrameData *CPU_ptr;
+	CheckHR(perFrameCB->Map(0, readRange, const_cast<void **>(reinterpret_cast<volatile void **>(&CPU_ptr))));
+	return CPU_ptr;
+}
 
 static void CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC &desc, ComPtr<ID3D12RootSignature> &target)
 {
@@ -198,28 +233,16 @@ Impl::World::World(const float(&terrainXform)[4][3])// : bvh(Hierarchy::SplitTec
 		CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(&terrain.vectorLayerD3DObjs.mainPassPSO)));
 	}
 
-	// create terrain CB
-	{
-		// create buffer
-		CheckHR(device->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(terrainCB_storeSize * CB_overlap/*, D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE*/),
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			NULL,	// clear value
-			IID_PPV_ARGS(&terrain.CB)));
-
-#if PERSISTENT_MAPS
-		// map buffer
-		const CD3DX12_RANGE readRange(0, 0);
-		CheckHR(terrainCB->Map(0, &readRange, const_cast<void **>(&terrainCB_CPU_ptr)));
-#endif
-	}
-
 	memcpy(terrain.xform, terrainXform, sizeof terrainXform);
 }
 
 Impl::World::~World() = default;
+
+template<unsigned int rows, unsigned int columns>
+static inline void CopyMatrix2CB(const float (&src)[rows][columns], volatile CBRegisterAlignedRow<columns> (&dst)[rows]) noexcept
+{
+	copy_n(src, rows, dst);
+}
 
 void Impl::World::Render(const float (&viewXform)[4][3], const float (&projXform)[4][4], const function<void (bool enableRT, ID3D12GraphicsCommandList1 *target)> &setupRenderOutputCallback) const
 {
@@ -229,27 +252,20 @@ void Impl::World::Render(const float (&viewXform)[4][3], const float (&projXform
 	const float4x4 frustumTransform = mul(float4x4(viewTransform[0], 0.f, viewTransform[1], 0.f, viewTransform[2], 0.f, viewTransform[3], 1.f), float4x4(projXform));
 	//bvh.Shcedule(/*bind(&World::ScheduleNode, this, _1),*/ frustumTransform, &viewTransform);
 
-	const auto CB_offset = terrainCB_storeSize * ringBufferIdx++;
-	ringBufferIdx %= maxFrameLatency;
-
-	// update CB
+	// update per-frame CB
+	const auto curFrameCB_offset = sizeof(PerFrameData) * globalFrameVersioning->GetRingBufferIdx();
 	{
 #if !PERSISTENT_MAPS
-		volatile void *terrainCB_CPU_ptr;
-		CD3DX12_RANGE range(0, 0);
-		CheckHR(terrain.CB->Map(0, &range, const_cast<void **>(&terrainCB_CPU_ptr)));
+		CD3DX12_RANGE range(curFrameCB_offset, curFrameCB_offset);
+		volatile PerFrameData *const perFrameCB_CPU_ptr = MapPerFrameCB(&range);
 #endif
-		const auto curCB_region = reinterpret_cast<volatile unsigned char *>(terrainCB_CPU_ptr) + CB_offset;
-		auto CB_writePtr = reinterpret_cast<volatile float *>(curCB_region);
-		memcpy(const_cast<float *>(CB_writePtr), projXform, sizeof projXform), CB_writePtr += 16;
-		for (unsigned i = 0; i < extent_v<remove_reference_t<decltype(viewXform)>, 0>; i++, CB_writePtr += 4)
-			memcpy(const_cast<float *>(CB_writePtr), viewXform[i], sizeof viewXform[i]);
-		for (unsigned i = 0; i < extent_v<remove_reference_t<decltype(terrain.xform)>, 0>; i++, CB_writePtr += 4)
-			memcpy(const_cast<float *>(CB_writePtr), terrain.xform[i], sizeof terrain.xform[i]);
+		auto &curFrameCB_region = perFrameCB_CPU_ptr[globalFrameVersioning->GetRingBufferIdx()];
+		CopyMatrix2CB(projXform, curFrameCB_region.projXform);
+		CopyMatrix2CB(viewXform, curFrameCB_region.viewXform);
+		CopyMatrix2CB(terrain.xform, curFrameCB_region.worldXform);
 #if !PERSISTENT_MAPS
-		range.Begin = CB_offset;
-		range.End = range.Begin + terrainCB_dataSize;
-		terrain.CB->Unmap(0, &range);
+		range.End += sizeof(PerFrameData);
+		perFrameCB->Unmap(0, &range);
 #endif
 	}
 
@@ -259,7 +275,7 @@ void Impl::World::Render(const float (&viewXform)[4][3], const float (&projXform
 		[
 			&setupRenderOutputCallback,
 			rootSig = terrain.vectorLayerD3DObjs.cullPassRootSig,
-			CB_location = terrain.CB->GetGPUVirtualAddress() + CB_offset
+			CB_location = perFrameCB->GetGPUVirtualAddress() + curFrameCB_offset
 		](ID3D12GraphicsCommandList1 *cmdList)
 	{
 		setupRenderOutputCallback(false, cmdList);
@@ -270,7 +286,7 @@ void Impl::World::Render(const float (&viewXform)[4][3], const float (&projXform
 		[
 			&setupRenderOutputCallback,
 			rootSig = terrain.vectorLayerD3DObjs.mainPassRootSig,
-			CB_location = terrain.CB->GetGPUVirtualAddress() + CB_offset
+			CB_location = perFrameCB->GetGPUVirtualAddress() + curFrameCB_offset
 		](ID3D12GraphicsCommandList1 *cmdList)
 	{
 		setupRenderOutputCallback(true, cmdList);

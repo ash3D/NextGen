@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		04.11.2017 (c)Korotkov Andrey
+\date		14.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -63,6 +63,7 @@ namespace Renderer::Impl
 		~FrameVersioning();
 
 	public:
+		unsigned short GetRingBufferIdx() const noexcept { return ringBufferIdx; }
 		UINT64 GetCurFrameID() const noexcept { return frameID; }
 		UINT64 GetCompletedFrameID() const;
 		void WaitForGPU() const { WaitForGPU(frameID); }
@@ -71,7 +72,6 @@ namespace Renderer::Impl
 		void WaitForGPU(UINT64 waitFrameID) const;
 
 	protected:
-		unsigned short GetRingBufferIdx() const noexcept { return ringBufferIdx; }
 		unsigned short OnFrameStart();
 
 	public:

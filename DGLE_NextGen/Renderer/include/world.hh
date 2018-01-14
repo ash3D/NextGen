@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		10.01.2018 (c)Korotkov Andrey
+\date		14.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -11,6 +11,7 @@ See "DGLE.h" for more details.
 
 #define NOMINMAX
 
+#include <cstddef>
 #include <memory>
 #include <list>
 #include <utility>	// for std::forward
@@ -23,10 +24,13 @@ struct ID3D12RootSignature;
 struct ID3D12PipelineState;
 struct ID3D12Resource;
 struct ID3D12GraphicsCommandList1;
+struct D3D12_RANGE;
 
 #if !_DEBUG
 #define PERSISTENT_MAPS 1
 #endif
+
+extern void __cdecl InitRenderer();
 
 namespace Renderer
 {
@@ -44,6 +48,8 @@ namespace Renderer
 
 		class World : public std::enable_shared_from_this<Renderer::World>
 		{
+			friend extern void __cdecl ::InitRenderer();
+
 		protected:
 			// custom allocator needed because standard one does not have access to private ctor/dtor
 			template<typename T>
@@ -74,6 +80,16 @@ namespace Renderer
 			};
 
 		private:
+			// hazard tracking is not needed here - all the waiting required perormed in globalFrameVersioning dtor
+			static ComPtr<ID3D12Resource> perFrameCB, TryCreatePerFrameCB(), CreatePerFrameCB();
+			struct PerFrameData;
+			static volatile struct PerFrameData
+#if PERSISTENT_MAPS
+				*perFrameCB_CPU_ptr, *TryMapPerFrameCB(),
+#endif
+				*MapPerFrameCB(const D3D12_RANGE *readRange = NULL);
+
+		private:
 			struct
 			{
 				struct
@@ -81,10 +97,6 @@ namespace Renderer
 					ComPtr<ID3D12RootSignature>	cullPassRootSig, mainPassRootSig;
 					ComPtr<ID3D12PipelineState>	cullPassPSO, mainPassPSO;
 				} vectorLayerD3DObjs;
-				ComPtr<ID3D12Resource>		CB;
-#if PERSISTENT_MAPS
-				volatile void				*CB_CPU_ptr;
-#endif
 				float xform[4][3];
 				std::list<TerrainVectorLayer, Allocator<TerrainVectorLayer>> vectorLayers;
 			} terrain;

@@ -26,6 +26,7 @@
 #include <limits>
 #include <memory>
 #include <iterator>
+#include <array>
 #include <vector>
 #include <queue>
 #include <deque>
