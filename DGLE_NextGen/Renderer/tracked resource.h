@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		21.12.2017 (c)Korotkov Andrey
+\date		14.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -11,6 +11,7 @@ See "DGLE.h" for more details.
 
 #define NOMINMAX
 
+#include <cstddef>
 #include <wrl/client.h>
 
 namespace Renderer::Impl
