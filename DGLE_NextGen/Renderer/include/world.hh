@@ -100,7 +100,6 @@ namespace Renderer
 				float xform[4][3];
 				std::list<TerrainVectorLayer, Allocator<TerrainVectorLayer>> vectorLayers;
 			} terrain;
-			mutable unsigned short ringBufferIdx = 0;
 
 		private:
 			class Instance
