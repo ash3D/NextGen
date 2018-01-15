@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		11.01.2018 (c)Korotkov Andrey
+\date		15.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -64,17 +64,24 @@ namespace Renderer
 		const std::shared_ptr<class World> world;
 		const unsigned int layerIdx;
 		std::list<class TerrainVectorQuad, World::Allocator<class TerrainVectorQuad>> quads;
+
+	private:
 		mutable class CRenderStage final : public Impl::RenderPipeline::IRenderStage
 		{
+			friend extern void __cdecl ::InitRenderer();
+
+		private:
 			class COcclusionQueryPass final : public Impl::RenderPipeline::IRenderPass
 			{
-				WRL::ComPtr<ID3D12PipelineState> PSO;
+				friend extern void __cdecl ::InitRenderer();
+
+			private:
+				static WRL::ComPtr<ID3D12RootSignature> rootSig, TryCreateRootSig(), CreateRootSig();
+				static WRL::ComPtr<ID3D12PipelineState> PSO, TryCreatePSO(), CreatePSO();
+
+			private:
 				std::function<void (ID3D12GraphicsCommandList1 *target)> setupCallback;
 				std::vector<OcclusionQueryGeometry> renderStream;
-
-			public:
-				inline COcclusionQueryPass(const WRL::ComPtr<ID3D12PipelineState> &PSO);
-				inline ~COcclusionQueryPass();
 
 			private:
 				// Inherited via IRenderPass
@@ -89,9 +96,15 @@ namespace Renderer
 
 			class CMainPass final : public Impl::RenderPipeline::IRenderPass
 			{
-				const float color[3];
-				WRL::ComPtr<ID3D12PipelineState> PSO;
+				friend extern void __cdecl ::InitRenderer();
+
+			private:
+				static WRL::ComPtr<ID3D12RootSignature> rootSig, TryCreateRootSig(), CreateRootSig();
+				static WRL::ComPtr<ID3D12PipelineState> PSO, TryCreatePSO(), CreatePSO();
+
+			private:
 				std::function<void (ID3D12GraphicsCommandList1 *target)> setupCallback;
+				const float color[3];
 				struct RenderData
 				{
 					unsigned long int startIdx, triCount;
@@ -109,8 +122,7 @@ namespace Renderer
 				std::vector<Quad> quads;
 
 			public:
-				inline CMainPass(const float (&color)[3], const WRL::ComPtr<ID3D12PipelineState> &PSO);
-				inline ~CMainPass();
+				inline CMainPass(const float (&color)[3]) noexcept : color{ color[0], color[1], color[2] } {}
 
 			private:
 				// Inherited via IRenderPass
@@ -127,8 +139,7 @@ namespace Renderer
 			Impl::OcclusionCulling::QueryBatch occlusionQueryBatch;
 
 		public:
-			inline CRenderStage(const float (&color)[3], const WRL::ComPtr<ID3D12PipelineState> &occlusionQueryPSO, const WRL::ComPtr<ID3D12PipelineState> &mainPSO) :
-				occlusionQueryPass(occlusionQueryPSO), mainPass(color, mainPSO) {}
+			inline CRenderStage(const float (&color)[3]) : mainPass(color) {}
 
 		private:
 			// Inherited via IRenderStage
@@ -164,7 +175,7 @@ namespace Renderer
 		};
 
 	private:
-		TerrainVectorLayer(std::shared_ptr<class World> world, unsigned int layerIdx, const float (&color)[3], const WRL::ComPtr<ID3D12PipelineState> &cullPSO, const WRL::ComPtr<ID3D12PipelineState> &mainPSO);
+		TerrainVectorLayer(std::shared_ptr<class World> world, unsigned int layerIdx, const float (&color)[3]);
 		~TerrainVectorLayer();
 		TerrainVectorLayer(TerrainVectorLayer &) = delete;
 		void operator =(TerrainVectorLayer &) = delete;

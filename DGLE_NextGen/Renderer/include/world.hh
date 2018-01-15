@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		14.01.2018 (c)Korotkov Andrey
+\date		15.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -79,10 +79,15 @@ namespace Renderer
 				}
 			};
 
-		private:
+		protected:
 			// hazard tracking is not needed here - all the waiting required perormed in globalFrameVersioning dtor
-			static ComPtr<ID3D12Resource> perFrameCB, TryCreatePerFrameCB(), CreatePerFrameCB();
-			struct PerFrameData;
+			static ComPtr<ID3D12Resource> perFrameCB;
+			struct PerFrameData;	// defined in "per-frame data.h" to eliminate dependencies on d3d12.h here
+
+		private:
+			static ComPtr<ID3D12Resource> TryCreatePerFrameCB(), CreatePerFrameCB();
+
+		private:
 			static volatile struct PerFrameData
 #if PERSISTENT_MAPS
 				*perFrameCB_CPU_ptr, *TryMapPerFrameCB(),
@@ -90,16 +95,9 @@ namespace Renderer
 				*MapPerFrameCB(const D3D12_RANGE *readRange = NULL);
 
 		private:
-			struct
-			{
-				struct
-				{
-					ComPtr<ID3D12RootSignature>	cullPassRootSig, mainPassRootSig;
-					ComPtr<ID3D12PipelineState>	cullPassPSO, mainPassPSO;
-				} vectorLayerD3DObjs;
-				float xform[4][3];
-				std::list<TerrainVectorLayer, Allocator<TerrainVectorLayer>> vectorLayers;
-			} terrain;
+			// terrain
+			float terrainXform[4][3];
+			std::list<TerrainVectorLayer, Allocator<TerrainVectorLayer>> terrainVectorLayers;
 
 		private:
 			class Instance

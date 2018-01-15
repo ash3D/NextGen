@@ -89,6 +89,9 @@
     <ClInclude Include="occlusion query batch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="per-frame data.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">

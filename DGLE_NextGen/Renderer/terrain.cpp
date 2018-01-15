@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		12.01.2018 (c)Korotkov Andrey
+\date		15.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -9,10 +9,16 @@ See "DGLE.h" for more details.
 
 #include "stdafx.h"
 #include "terrain.hh"
+#include "world.hh"	// for perFrameCB
 #include "tracked resource.inl"
 #include "world hierarchy.inl"
 #include "GPU stream buffer allocator.inl"
+#include "per-frame data.h"
 #include "GPU work submission.h"
+
+#include "AABB_2d.csh"
+#include "vectorLayerVS.csh"
+#include "vectorLayerPS.csh"
 
 // !: need to investigate for deadlocks possibility due to MSVC's std::async threadpool overflow
 /*
@@ -29,6 +35,8 @@ using WRL::ComPtr;
 namespace GPUStreamBuffer = Impl::GPUStreamBuffer;
 namespace OcclusionCulling = Impl::OcclusionCulling;
 namespace RenderPipeline = Impl::RenderPipeline;
+
+extern ComPtr<ID3D12Device2> device;
 
 namespace
 {
@@ -183,10 +191,109 @@ namespace
 	}
 }
 
-TerrainVectorLayer::CRenderStage::COcclusionQueryPass::COcclusionQueryPass(const WRL::ComPtr<ID3D12PipelineState> &PSO) : PSO(PSO)
-{}
+static ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC &desc)
+{
+	ComPtr<ID3D12RootSignature> result;
+	ComPtr<ID3DBlob> sig, error;
+	const HRESULT hr = D3D12SerializeVersionedRootSignature(&desc, &sig, &error);
+	if (error)
+	{
+		cerr.write((const char *)error->GetBufferPointer(), error->GetBufferSize()) << endl;
+	}
+	CheckHR(hr);
+	CheckHR(device->CreateRootSignature(0, sig->GetBufferPointer(), sig->GetBufferSize(), IID_PPV_ARGS(result.GetAddressOf())));
+	return move(result);
+}
 
-TerrainVectorLayer::CRenderStage::COcclusionQueryPass::~COcclusionQueryPass() = default;
+#pragma region CRenderStage
+#pragma region COcclusionQueryPass
+ComPtr<ID3D12RootSignature> TerrainVectorLayer::CRenderStage::COcclusionQueryPass::CreateRootSig()
+{
+	CD3DX12_ROOT_PARAMETER1 CBV_param;
+	CBV_param.InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
+	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(1, &CBV_param, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	return CreateRootSignature(sigDesc);
+}
+
+ComPtr<ID3D12PipelineState> TerrainVectorLayer::CRenderStage::COcclusionQueryPass::CreatePSO()
+{
+	const D3D12_BLEND_DESC blendDesc
+	{
+		FALSE,						// alpha2covarage
+		FALSE,						// independent blend
+		{
+			FALSE,					// blend enable
+			FALSE,					// logic op enable
+			D3D12_BLEND_ONE,		// src blend
+			D3D12_BLEND_ZERO,		// dst blend
+			D3D12_BLEND_OP_ADD,		// blend op
+			D3D12_BLEND_ONE,		// src blend alpha
+			D3D12_BLEND_ZERO,		// dst blend alpha
+			D3D12_BLEND_OP_ADD,		// blend op alpha
+			D3D12_LOGIC_OP_NOOP,	// logic op
+			0						// write mask
+		}
+	};
+
+	const CD3DX12_RASTERIZER_DESC rasterDesc
+	(
+		D3D12_FILL_MODE_SOLID,
+		D3D12_CULL_MODE_NONE,
+		FALSE,										// front CCW
+		D3D12_DEFAULT_DEPTH_BIAS,
+		D3D12_DEFAULT_DEPTH_BIAS_CLAMP,
+		D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
+		TRUE,										// depth clip
+		FALSE,										// MSAA
+		FALSE,										// AA line
+		0,											// force sample count
+		D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF
+	);
+
+	const CD3DX12_DEPTH_STENCIL_DESC dsDesc
+	(
+		FALSE,																									// depth
+		D3D12_DEPTH_WRITE_MASK_ZERO,
+		D3D12_COMPARISON_FUNC_ALWAYS,
+		TRUE,																									// stencil
+		D3D12_DEFAULT_STENCIL_READ_MASK,																		// stencil read mask
+		0,																										// stencil write mask
+		D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_COMPARISON_FUNC_NOT_EQUAL,	// front
+		D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_COMPARISON_FUNC_NOT_EQUAL	// back
+	);
+
+	const D3D12_INPUT_ELEMENT_DESC VB_decl[] =
+	{
+		{ "AABB_min", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 },
+	{ "AABB_max", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 }
+	};
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
+	{
+		rootSig.Get(),													// root signature
+		CD3DX12_SHADER_BYTECODE(AABB_2D, sizeof AABB_2D),				// VS
+		{},																// PS
+		{},																// DS
+		{},																// HS
+		{},																// GS
+		{},																// SO
+		blendDesc,														// blend
+		UINT_MAX,														// sample mask
+		rasterDesc,														// rasterizer
+		dsDesc,															// depth stencil
+		{ VB_decl, size(VB_decl) },										// IA
+		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,					// restart primtive
+		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,							// primitive topology
+		0,																// render targets
+		{},																// RT formats
+		DXGI_FORMAT_D24_UNORM_S8_UINT,									// depth stencil format
+		{1}																// MSAA
+	};
+
+	ComPtr<ID3D12PipelineState> result;
+	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result.GetAddressOf())));
+	return move(result);
+}
 
 /*
 	Hardware occlusion query technique used here.
@@ -200,6 +307,8 @@ void TerrainVectorLayer::CRenderStage::COcclusionQueryPass::operator()(const IRe
 	if (rangeBegin < rangeEnd)
 	{
 		setupCallback(cmdList);
+		cmdList->SetGraphicsRootSignature(rootSig.Get());
+		cmdList->SetGraphicsRootConstantBufferView(0, World::perFrameCB->GetGPUVirtualAddress() + World::PerFrameData::CurFrameCB_offset());
 		cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
 		ID3D12Resource *curVB = NULL;
@@ -243,12 +352,78 @@ inline void TerrainVectorLayer::CRenderStage::COcclusionQueryPass::IssueOcclusio
 {
 	renderStream.push_back(queryGeometry);
 }
+#pragma endregion
 
-TerrainVectorLayer::CRenderStage::CMainPass::CMainPass(const float (&color)[3], const ComPtr<ID3D12PipelineState> &PSO) :
-	color{ color[0], color[1], color[2] }, PSO(PSO)
-{}
+#pragma region CMainPass
+ComPtr<ID3D12RootSignature> TerrainVectorLayer::CRenderStage::CMainPass::CreateRootSig()
+{
+	CD3DX12_ROOT_PARAMETER1 rootParams[2];
+	rootParams[0].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
+	rootParams[1].InitAsConstants(3, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(size(rootParams), rootParams, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	return CreateRootSignature(sigDesc);
+}
 
-TerrainVectorLayer::CRenderStage::CMainPass::~CMainPass() = default;
+ComPtr<ID3D12PipelineState> TerrainVectorLayer::CRenderStage::CMainPass::CreatePSO()
+{
+	const CD3DX12_RASTERIZER_DESC rasterDesc
+	(
+		D3D12_FILL_MODE_SOLID,
+		D3D12_CULL_MODE_NONE,
+		FALSE,										// front CCW
+		D3D12_DEFAULT_DEPTH_BIAS,
+		D3D12_DEFAULT_DEPTH_BIAS_CLAMP,
+		D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
+		TRUE,										// depth clip
+		FALSE,										// MSAA
+		FALSE,										// AA line
+		0,											// force sample count
+		D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF
+	);
+
+	const CD3DX12_DEPTH_STENCIL_DESC dsDesc
+	(
+		FALSE,																									// depth
+		D3D12_DEPTH_WRITE_MASK_ZERO,
+		D3D12_COMPARISON_FUNC_ALWAYS,
+		TRUE,																									// stencil
+		D3D12_DEFAULT_STENCIL_READ_MASK,																		// stencil read mask
+		D3D12_DEFAULT_STENCIL_WRITE_MASK,																		// stencil write mask
+		D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_ZERO, D3D12_COMPARISON_FUNC_NOT_EQUAL,	// front
+		D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_ZERO, D3D12_COMPARISON_FUNC_NOT_EQUAL	// back
+	);
+
+	const D3D12_INPUT_ELEMENT_DESC VB_decl[] =
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+	};
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
+	{
+		rootSig.Get(),													// root signature
+		CD3DX12_SHADER_BYTECODE(vectorLayerVS, sizeof vectorLayerVS),	// VS
+		CD3DX12_SHADER_BYTECODE(vectorLayerPS, sizeof vectorLayerPS),	// PS
+		{},																// DS
+		{},																// HS
+		{},																// GS
+		{},																// SO
+		CD3DX12_BLEND_DESC(D3D12_DEFAULT),								// blend
+		UINT_MAX,														// sample mask
+		rasterDesc,														// rasterizer
+		dsDesc,															// depth stencil
+		{ VB_decl, size(VB_decl) },										// IA
+		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,					// restart primtive
+		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,							// primitive topology
+		1,																// render targets
+		{ DXGI_FORMAT_R8G8B8A8_UNORM },									// RT formats
+		DXGI_FORMAT_D24_UNORM_S8_UINT,									// depth stencil format
+		{1}																// MSAA
+	};
+
+	ComPtr<ID3D12PipelineState> result;
+	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result.GetAddressOf())));
+	return move(result);
+}
 
 void TerrainVectorLayer::CRenderStage::CMainPass::operator()(const IRenderStage &parent, unsigned long int rangeBegin, unsigned long int rangeEnd, ID3D12GraphicsCommandList1 *cmdList) const
 {
@@ -257,6 +432,8 @@ void TerrainVectorLayer::CRenderStage::CMainPass::operator()(const IRenderStage 
 	if (rangeBegin < rangeEnd)
 	{
 		setupCallback(cmdList);
+		cmdList->SetGraphicsRootSignature(rootSig.Get());
+		cmdList->SetGraphicsRootConstantBufferView(0, World::perFrameCB->GetGPUVirtualAddress() + World::PerFrameData::CurFrameCB_offset());
 		cmdList->SetGraphicsRoot32BitConstants(1, size(color), color, 0);
 		cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -318,6 +495,8 @@ void TerrainVectorLayer::CRenderStage::CMainPass::IssueCluster(unsigned long int
 	assert(triCount);
 	renderStream.push_back({ startIdx, triCount, occlusion, quads.size() });
 }
+#pragma endregion
+#pragma endregion
 
 const RenderPipeline::IRenderPass &TerrainVectorLayer::CRenderStage::operator [](unsigned renderPassIdx) const
 {
@@ -396,8 +575,8 @@ void TerrainVectorLayer::QuadDeleter::operator()(TerrainVectorQuad *quadToRemove
 	quadToRemove->layer->quads.erase(quadLocation);
 }
 
-TerrainVectorLayer::TerrainVectorLayer(shared_ptr<class World> world, unsigned int layerIdx, const float (&color)[3], const ComPtr<ID3D12PipelineState> &cullPSO, const ComPtr<ID3D12PipelineState> &mainPSO) :
-	world(move(world)), layerIdx(layerIdx), renderStage(color, cullPSO, mainPSO)
+TerrainVectorLayer::TerrainVectorLayer(shared_ptr<class World> world, unsigned int layerIdx, const float (&color)[3]) :
+	world(move(world)), layerIdx(layerIdx), renderStage(color)
 {
 }
 
@@ -460,8 +639,6 @@ TerrainVectorQuad::TerrainVectorQuad(shared_ptr<TerrainVectorLayer> layer, unsig
 	layer(move(layer)), subtree(ObjIterator<Object>(getObjectData, 0), ObjIterator<Object>(getObjectData, objCount), Impl::Hierarchy::SplitTechnique::MEAN, .5),
 	IB32bit(vcount > UINT16_MAX), VB_size(vcount * sizeof(float [2])), IB_size(subtree.GetTriCount() * 3 * (IB32bit ? sizeof(uint32_t) : sizeof(uint16_t)))
 {
-	extern ComPtr<ID3D12Device2> device;
-
 	// create and fill VIB
 	{
 		CheckHR(device->CreateCommittedResource(

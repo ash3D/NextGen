@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		14.01.2018 (c)Korotkov Andrey
+\date		15.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -20,6 +20,7 @@ See "DGLE.h" for more details.
 
 using namespace std;
 using Renderer::Impl::globalFrameVersioning;
+using Renderer::TerrainVectorLayer;
 using Microsoft::WRL::ComPtr;
 
 static auto CreateFactory()
@@ -128,6 +129,37 @@ void OnFrameFinish()
 		retiredResources.pop();
 }
 
+#pragma region root sigs & PSOs
+ComPtr<ID3D12RootSignature>
+	TerrainVectorLayer::CRenderStage::COcclusionQueryPass	::rootSig	= TerrainVectorLayer::CRenderStage::COcclusionQueryPass	::TryCreateRootSig(),
+	TerrainVectorLayer::CRenderStage::CMainPass				::rootSig	= TerrainVectorLayer::CRenderStage::CMainPass			::TryCreateRootSig();
+ComPtr<ID3D12PipelineState>
+	TerrainVectorLayer::CRenderStage::COcclusionQueryPass	::PSO		= TerrainVectorLayer::CRenderStage::COcclusionQueryPass	::TryCreatePSO(),
+	TerrainVectorLayer::CRenderStage::CMainPass				::PSO		= TerrainVectorLayer::CRenderStage::CMainPass			::TryCreatePSO();
+
+#pragma region TryCreate...()
+inline ComPtr<ID3D12RootSignature> TerrainVectorLayer::CRenderStage::COcclusionQueryPass::TryCreateRootSig()
+{
+	return device ? CreateRootSig() : nullptr;
+}
+
+inline ComPtr<ID3D12RootSignature> TerrainVectorLayer::CRenderStage::CMainPass::TryCreateRootSig()
+{
+	return device ? CreateRootSig() : nullptr;
+}
+
+inline ComPtr<ID3D12PipelineState> TerrainVectorLayer::CRenderStage::COcclusionQueryPass::TryCreatePSO()
+{
+	return device ? CreatePSO() : nullptr;
+}
+
+inline ComPtr<ID3D12PipelineState> TerrainVectorLayer::CRenderStage::CMainPass::TryCreatePSO()
+{
+	return device ? CreatePSO() : nullptr;
+}
+#pragma endregion define here to enable inline
+#pragma endregion
+
 // should be defined before globalFrameVersioning in order to be destroyed after waiting in globalFrameVersioning dtor completes
 using Renderer::Impl::World;
 ComPtr<ID3D12Resource> World::perFrameCB = World::TryCreatePerFrameCB();
@@ -160,7 +192,6 @@ decltype(QueryBatch::heapPool) QueryBatch::heapPool;
 decltype(QueryBatch::resultsPool) QueryBatch::resultsPool;
 
 // allocator contains tracked resource
-using Renderer::TerrainVectorLayer;
 #if defined _MSC_VER && _MSC_VER <= 1912
 decltype(TerrainVectorLayer::GPU_AABB_allocator) TerrainVectorLayer::GPU_AABB_allocator;
 #else
@@ -177,6 +208,10 @@ extern void __cdecl InitRenderer()
 	{
 		device = CreateDevice();
 		cmdQueue = CreateCommandQueue();
+		TerrainVectorLayer::CRenderStage::COcclusionQueryPass	::rootSig	= TerrainVectorLayer::CRenderStage::COcclusionQueryPass	::CreateRootSig();
+		TerrainVectorLayer::CRenderStage::CMainPass				::rootSig	= TerrainVectorLayer::CRenderStage::CMainPass			::CreateRootSig();
+		TerrainVectorLayer::CRenderStage::COcclusionQueryPass	::PSO		= TerrainVectorLayer::CRenderStage::COcclusionQueryPass	::CreatePSO();
+		TerrainVectorLayer::CRenderStage::CMainPass				::PSO		= TerrainVectorLayer::CRenderStage::CMainPass			::CreatePSO();
 		World::perFrameCB = World::CreatePerFrameCB();
 #if PERSISTENT_MAPS
 		World::perFrameCB_CPU_ptr = World::MapPerFrameCB();
