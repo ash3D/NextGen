@@ -661,7 +661,6 @@ const RenderPipeline::IRenderStage *TerrainVectorLayer::BuildRenderStage(const I
 
 	// issue
 	{
-		using namespace placeholders;
 		PIXScopedEvent(PIX_COLOR_INDEX(PIXEvents::TerrainIssue), "issue");
 		for_each(quads.begin(), quads.end(), bind(&TerrainVectorQuad::Issue, _1, OcclusionCulling::QueryBatch::npos));
 	}
