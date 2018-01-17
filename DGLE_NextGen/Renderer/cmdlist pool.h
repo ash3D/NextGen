@@ -39,7 +39,7 @@ namespace Renderer::CmdListPool
 
 	// inline impl
 
-	inline CmdList::CmdList(CmdList &&src) : cmdBuffer(src.cmdBuffer), setup(src.setup)
+	inline CmdList::CmdList(CmdList &&src) : cmdBuffer(src.cmdBuffer), setup(src.setup), poolIdx(src.poolIdx)
 	{
 		src.cmdBuffer = nullptr;
 	}
@@ -48,6 +48,7 @@ namespace Renderer::CmdListPool
 	{
 		cmdBuffer = src.cmdBuffer;
 		setup = src.setup;
+		poolIdx = src.poolIdx;
 		src.cmdBuffer = nullptr;
 		return *this;
 	}
