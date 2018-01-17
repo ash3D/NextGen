@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		11.01.2018 (c)Korotkov Andrey
+\date		17.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -19,6 +19,7 @@ using Microsoft::WRL::ComPtr;
 QueryBatch::QueryBatch(unsigned long count) : count(count)
 {
 	extern ComPtr<ID3D12Device2> device;
+	void NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
 
 	if (const unsigned long requiredSize = count * sizeof(UINT64))
 	{
@@ -50,6 +51,8 @@ QueryBatch::QueryBatch(unsigned long count) : count(count)
 					// use global request for actual reallocation
 					const auto newResultsSize = AlignSize<D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT>(globalSizeRequest.load(memory_order_relaxed));
 
+					static unsigned long version;
+
 					const D3D12_QUERY_HEAP_DESC heapDesk = { D3D12_QUERY_HEAP_TYPE_OCCLUSION, newResultsSize / sizeof(UINT64), 0 };
 					const CD3DX12_RESOURCE_DESC resultsDesc(
 						D3D12_RESOURCE_DIMENSION_BUFFER,
@@ -63,6 +66,7 @@ QueryBatch::QueryBatch(unsigned long count) : count(count)
 						D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
 						D3D12_RESOURCE_FLAG_NONE);
 					CheckHR(device->CreateQueryHeap(&heapDesk, IID_PPV_ARGS(heapPool.ReleaseAndGetAddressOf())));
+					NameObjectF(heapPool.Get(), L"occlusion query heap [%lu]", version);
 					CheckHR(device->CreateCommittedResource(
 						&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 						D3D12_HEAP_FLAG_NONE,
@@ -70,6 +74,7 @@ QueryBatch::QueryBatch(unsigned long count) : count(count)
 						D3D12_RESOURCE_STATE_COPY_DEST,
 						NULL,	// clear value
 						IID_PPV_ARGS(resultsPool.ReleaseAndGetAddressOf())));
+					NameObjectF(resultsPool.Get(), L"occlusion query results [%lu]", version++);
 				}
 			}
 			sharedLock.lock();

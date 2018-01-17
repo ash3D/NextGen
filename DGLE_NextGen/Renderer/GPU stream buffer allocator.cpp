@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		12.01.2018 (c)Korotkov Andrey
+\date		17.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -15,9 +15,10 @@ See "DGLE.h" for more details.
 using namespace std;
 using namespace Renderer::Impl::GPUStreamBuffer;
 
-void AllocatorBase::AllocateChunk(const D3D12_RESOURCE_DESC &chunkDesc)
+void AllocatorBase::AllocateChunk(const D3D12_RESOURCE_DESC &chunkDesc, LPCWSTR resourceName)
 {
 	extern Microsoft::WRL::ComPtr<ID3D12Device2> device;
+	void NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
 
 	CheckHR(device->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
@@ -26,9 +27,10 @@ void AllocatorBase::AllocateChunk(const D3D12_RESOURCE_DESC &chunkDesc)
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		NULL,	// clear value
 		IID_PPV_ARGS(chunk.ReleaseAndGetAddressOf())));
+	NameObjectF(chunk.Get(), L"%s (chunk[%lu])", resourceName, chunkVersion++);
 }
 
-pair<ID3D12Resource *, unsigned long> AllocatorBase::Allocate(unsigned long count, unsigned itemSize, unsigned long allocGranularity)
+pair<ID3D12Resource *, unsigned long> AllocatorBase::Allocate(unsigned long count, unsigned itemSize, unsigned long allocGranularity, LPCWSTR resourceName)
 {
 start:
 	shared_lock<decltype(mtx)> sharedLock(mtx);
@@ -53,7 +55,7 @@ start:
 			{
 				const auto deficit = (newFreeBegin - freeEnd) * itemSize;
 				chunkDesc.Width += (deficit + allocGranularity - 1) / allocGranularity;
-				AllocateChunk(chunkDesc);
+				AllocateChunk(chunkDesc, resourceName);
 				retiredFrames.clear();
 				freeBegin.store(freeEnd = 0, memory_order_relaxed);
 				freeRangeReversed = true;

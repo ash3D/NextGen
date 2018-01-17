@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		15.01.2018 (c)Korotkov Andrey
+\date		17.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -22,6 +22,40 @@ using namespace std;
 using Renderer::Impl::globalFrameVersioning;
 using Renderer::TerrainVectorLayer;
 using Microsoft::WRL::ComPtr;
+
+static constexpr size_t maxD3D12NameLength = 256;
+
+void NameObject(ID3D12Object *object, LPCWSTR name) noexcept
+{
+	if (const HRESULT hr = object->SetName(name); FAILED(hr))
+	{
+		if (fwide(stderr, 0) < 0)
+		{
+			[[maybe_unused]] const auto reopened = freopen(NULL, "w", stderr);
+			assert(reopened);
+		}
+
+		wcerr << "Fail to set name " << quoted(name) << " for D3D12 object \'" << object << "\' (hr=" << hr << ")." << endl;
+
+		// reopen again to reset orientation
+		[[maybe_unused]] const auto reopened = freopen(NULL, "w", stderr);
+		assert(reopened);
+	}
+}
+
+void NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept
+{
+	WCHAR buf[maxD3D12NameLength];
+	va_list args;
+	va_start(args, format);
+	const int length = vswprintf(buf, size(buf), format, args);
+	if (length < 0)
+		perror("Fail to compose name for D3D12 object");
+	else
+		NameObject(object, buf);
+	assert(length >= 0 && length < maxD3D12NameLength);
+	va_end(args);
+}
 
 static auto CreateFactory()
 {
@@ -65,6 +99,7 @@ static auto CreateCommandQueue()
 	};
 	ComPtr<ID3D12CommandQueue> cmdQueue;
 	CheckHR(device->CreateCommandQueue(&desc, IID_PPV_ARGS(cmdQueue.GetAddressOf())));
+	NameObject(cmdQueue.Get(), L"main GFX command queue");
 	return cmdQueue;
 }
 

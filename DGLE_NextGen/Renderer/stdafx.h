@@ -19,6 +19,8 @@
 #include <cstdint>
 #include <climits>
 #include <cstring>
+#include <cstdio>
+#include <cwchar>
 #include <cmath>
 #include <utility>
 #include <type_traits>
@@ -44,6 +46,7 @@
 #include <thread>
 #include <atomic>
 #include <iostream>
+#include <iomanip>
 #include <stdexcept>
 #include <wrl/client.h>
 #include <dxgi1_6.h>

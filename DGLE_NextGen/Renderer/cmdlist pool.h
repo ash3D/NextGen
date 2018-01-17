@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		04.11.2017 (c)Korotkov Andrey
+\date		17.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -19,6 +19,7 @@ namespace Renderer::CmdListPool
 	{
 		Impl::CmdBuffer *cmdBuffer;
 		void (CmdList::*setup)(ID3D12PipelineState *PSO) = &CmdList::Init;
+		size_t poolIdx;	// for name generation
 
 	public:
 		explicit CmdList();

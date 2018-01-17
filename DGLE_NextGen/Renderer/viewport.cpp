@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		10.01.2018 (c)Korotkov Andrey
+\date		17.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -13,12 +13,16 @@ See "DGLE.h" for more details.
 #include "GPU work submission.h"
 #include "render pipeline.h"
 
+// offsetof is conditionally supported for non-standard layout types since C++17
+#define ENABLE_NONSTDLAYOUT_OFFSETOF 1
+
 using namespace std;
 using namespace Renderer;
 using WRL::ComPtr;
 namespace RenderPipeline = Impl::RenderPipeline;
 
 extern ComPtr<ID3D12Device2> device;
+void NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
 
 static inline RenderPipeline::PipelineStage Pre(ID3D12GraphicsCommandList1 *cmdList, ID3D12Resource *rt, D3D12_CPU_DESCRIPTOR_HANDLE rtv, D3D12_CPU_DESCRIPTOR_HANDLE dsv)
 {
@@ -55,13 +59,23 @@ auto Impl::Viewport::CmdListsManager::OnFrameStart() -> PrePostCmds<ID3D12Graphi
 	}
 	else
 	{
+#if ENABLE_NONSTDLAYOUT_OFFSETOF
+		const void *const ptr = reinterpret_cast<const std::byte *>(this) - offsetof(Viewport, cmdListsManager);
+#else
+		const void *const ptr = this;
+#endif
+
 		// create allocators
 		CheckHR(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&cmdBuffers.pre.allocator)));
+		NameObjectF(cmdBuffers.pre.allocator.Get(), L"viewport %p pre command allocator [%hu]", ptr, GetRingBufferIdx());
 		CheckHR(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&cmdBuffers.post.allocator)));
+		NameObjectF(cmdBuffers.post.allocator.Get(), L"viewport %p post command allocator [%hu]", ptr, GetRingBufferIdx());
 
 		// create lists
 		CheckHR(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, cmdBuffers.pre.allocator.Get(), NULL, IID_PPV_ARGS(&cmdBuffers.pre.list)));
+		NameObjectF(cmdBuffers.pre.list.Get(), L"viewport %p pre command list [%hu]", ptr, GetRingBufferIdx());
 		CheckHR(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, cmdBuffers.post.allocator.Get(), NULL, IID_PPV_ARGS(&cmdBuffers.post.list)));
+		NameObjectF(cmdBuffers.post.list.Get(), L"viewport %p post command list [%hu]", ptr, GetRingBufferIdx());
 	}
 
 	return { cmdBuffers.pre.list.Get(), cmdBuffers.post.list.Get() };

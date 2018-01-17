@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		09.01.2018 (c)Korotkov Andrey
+\date		17.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -18,11 +18,11 @@ using Microsoft::WRL::ComPtr;
 
 static remove_reference_t<decltype(globalFrameVersioning->GetCurFrameDataVersion())>::size_type firstFreePoolIdx;
 
-CmdList::CmdList()
+CmdList::CmdList() : poolIdx(firstFreePoolIdx)
 {
 	auto &curFramePool = globalFrameVersioning->GetCurFrameDataVersion();
 	cmdBuffer = curFramePool.size() <= firstFreePoolIdx ? &curFramePool.emplace_back() : &curFramePool[firstFreePoolIdx];
-	firstFreePoolIdx++;
+	firstFreePoolIdx++;	// increment after insertion improves exception safety guarantee
 }
 
 CmdList::operator ID3D12GraphicsCommandList1 *() const
@@ -35,6 +35,7 @@ CmdList::operator ID3D12GraphicsCommandList1 *() const
 void CmdList::Init(ID3D12PipelineState *PSO)
 {
 	extern ComPtr<ID3D12Device2> device;
+	void NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
 
 	if (cmdBuffer->allocator && cmdBuffer->list)
 	{
@@ -46,7 +47,9 @@ void CmdList::Init(ID3D12PipelineState *PSO)
 	{
 		// create
 		CheckHR(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(cmdBuffer->allocator.GetAddressOf())));
+		NameObjectF(cmdBuffer->allocator.Get(), L"pool command allocator [%hu][%zu]", globalFrameVersioning->GetRingBufferIdx(), poolIdx);
 		CheckHR(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, cmdBuffer->allocator.Get(), PSO, IID_PPV_ARGS(cmdBuffer->list.GetAddressOf())));
+		NameObjectF(cmdBuffer->list.Get(), L"pool command list [%hu][%zu]", globalFrameVersioning->GetRingBufferIdx(), poolIdx);
 	}
 
 	setup = &CmdList::Update;

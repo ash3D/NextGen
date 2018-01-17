@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		15.01.2018 (c)Korotkov Andrey
+\date		17.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -23,6 +23,7 @@ using namespace Math::VectorMath::HLSL;
 using WRL::ComPtr;
 
 extern ComPtr<ID3D12Device2> device;
+void NameObject(ID3D12Object *object, LPCWSTR name) noexcept;
 
 ComPtr<ID3D12Resource> Impl::World::CreatePerFrameCB()
 {
@@ -34,6 +35,7 @@ ComPtr<ID3D12Resource> Impl::World::CreatePerFrameCB()
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		NULL,	// clear value
 		IID_PPV_ARGS(CB.GetAddressOf())));
+	NameObject(CB.Get(), L"per-frame CB");
 	return move(CB);
 }
 

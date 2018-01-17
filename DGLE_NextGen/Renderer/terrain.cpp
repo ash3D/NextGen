@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		15.01.2018 (c)Korotkov Andrey
+\date		17.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -37,6 +37,7 @@ namespace OcclusionCulling = Impl::OcclusionCulling;
 namespace RenderPipeline = Impl::RenderPipeline;
 
 extern ComPtr<ID3D12Device2> device;
+void NameObject(ID3D12Object *object, LPCWSTR name) noexcept, NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
 
 namespace
 {
@@ -191,7 +192,7 @@ namespace
 	}
 }
 
-static ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC &desc)
+static ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC &desc, LPCWSTR name)
 {
 	ComPtr<ID3D12RootSignature> result;
 	ComPtr<ID3DBlob> sig, error;
@@ -202,6 +203,7 @@ static ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROO
 	}
 	CheckHR(hr);
 	CheckHR(device->CreateRootSignature(0, sig->GetBufferPointer(), sig->GetBufferSize(), IID_PPV_ARGS(result.GetAddressOf())));
+	NameObject(result.Get(), name);
 	return move(result);
 }
 
@@ -212,7 +214,7 @@ ComPtr<ID3D12RootSignature> TerrainVectorLayer::CRenderStage::COcclusionQueryPas
 	CD3DX12_ROOT_PARAMETER1 CBV_param;
 	CBV_param.InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
 	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(1, &CBV_param, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-	return CreateRootSignature(sigDesc);
+	return CreateRootSignature(sigDesc, L"terrain occlusion query root signature");
 }
 
 ComPtr<ID3D12PipelineState> TerrainVectorLayer::CRenderStage::COcclusionQueryPass::CreatePSO()
@@ -292,6 +294,7 @@ ComPtr<ID3D12PipelineState> TerrainVectorLayer::CRenderStage::COcclusionQueryPas
 
 	ComPtr<ID3D12PipelineState> result;
 	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result.GetAddressOf())));
+	NameObject(result.Get(), L"terrain occlusion query PSO");
 	return move(result);
 }
 
@@ -361,7 +364,7 @@ ComPtr<ID3D12RootSignature> TerrainVectorLayer::CRenderStage::CMainPass::CreateR
 	rootParams[0].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
 	rootParams[1].InitAsConstants(3, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
 	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(size(rootParams), rootParams, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-	return CreateRootSignature(sigDesc);
+	return CreateRootSignature(sigDesc, L"terrain main pass root signature");
 }
 
 ComPtr<ID3D12PipelineState> TerrainVectorLayer::CRenderStage::CMainPass::CreatePSO()
@@ -422,6 +425,7 @@ ComPtr<ID3D12PipelineState> TerrainVectorLayer::CRenderStage::CMainPass::CreateP
 
 	ComPtr<ID3D12PipelineState> result;
 	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result.GetAddressOf())));
+	NameObject(result.Get(), L"terrain main pass PSO");
 	return move(result);
 }
 
@@ -593,7 +597,7 @@ const RenderPipeline::IRenderStage *TerrainVectorLayer::BuildRenderStage(const I
 	using namespace placeholders;
 	renderStage.Setup(move(cullPassSetupCallback), move(mainPassSetupCallback));
 	// use C++17 template deduction
-	GPUStreamBuffer::CountedAllocatorWrapper<sizeof AABB<2>> GPU_AABB_countedAllocator(*GPU_AABB_allocator);
+	GPUStreamBuffer::CountedAllocatorWrapper<sizeof AABB<2>, AABB_VB_name> GPU_AABB_countedAllocator(*GPU_AABB_allocator);
 #if MULTITHREADED_QUADS_SHCEDULE == 0
 	for_each(quads.begin(), quads.end(), bind(&TerrainVectorQuad::Shcedule, _1, ref(GPU_AABB_countedAllocator), cref(frustumCuller), cref(frustumXform)));
 #elif MULTITHREADED_QUADS_SHCEDULE == 1
@@ -648,6 +652,9 @@ TerrainVectorQuad::TerrainVectorQuad(shared_ptr<TerrainVectorLayer> layer, unsig
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			NULL,	// clear value
 			IID_PPV_ARGS(&VIB)));
+		const auto &aabb = subtree.GetAABB();
+		// explicitly convert to floats since .x/.y are swizzles which can not be passed to variadic function
+		NameObjectF(VIB.Get(), L"terrain layer[%u] quad[<%f:%f>-<%f:%f>]", this->layer->layerIdx, float(aabb.min.x), float(aabb.min.y), float(aabb.max.x), float(aabb.max.y));
 
 		volatile void *writePtr;
 		CheckHR(VIB->Map(0, &CD3DX12_RANGE(0, 0), const_cast<void **>(&writePtr)));
@@ -681,7 +688,7 @@ TerrainVectorQuad::TerrainVectorQuad(shared_ptr<TerrainVectorLayer> layer, unsig
 TerrainVectorQuad::~TerrainVectorQuad() = default;
 
 // 1 call site
-inline void TerrainVectorQuad::Shcedule(GPUStreamBuffer::CountedAllocatorWrapper<sizeof AABB<2>> &GPU_AABB_allocator, const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform) const
+inline void TerrainVectorQuad::Shcedule(GPUStreamBuffer::CountedAllocatorWrapper<sizeof AABB<2>, TerrainVectorLayer::AABB_VB_name> &GPU_AABB_allocator, const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform) const
 {
 	subtree.Shcedule(GPU_AABB_allocator, frustumCuller, frustumXform);
 }

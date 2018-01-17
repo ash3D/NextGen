@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		12.01.2018 (c)Korotkov Andrey
+\date		17.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -32,26 +32,26 @@ namespace Renderer::Impl::GPUStreamBuffer
 		std::shared_mutex mtx;
 		std::atomic<unsigned long> freeBegin = 0;
 		unsigned long freeEnd = 0;
-		unsigned long lockId = 0;
+		unsigned long lockId = 0, chunkVersion = 0;
 		bool freeRangeReversed = true;
 
 	protected:
-		AllocatorBase(unsigned long allocGranularity);
+		AllocatorBase(unsigned long allocGranularity, LPCWSTR resourceName);
 		AllocatorBase(AllocatorBase &) = delete;
 		AllocatorBase &operator =(AllocatorBase &) = delete;
 		~AllocatorBase() = default;
 
 	private:
-		void AllocateChunk(const D3D12_RESOURCE_DESC &chunkDesc);
+		void AllocateChunk(const D3D12_RESOURCE_DESC &chunkDesc, LPCWSTR resourceName);
 
 	protected:
-		std::pair<ID3D12Resource *, unsigned long> Allocate(unsigned long count, unsigned itemSize, unsigned long allocGranularity);
+		std::pair<ID3D12Resource *, unsigned long> Allocate(unsigned long count, unsigned itemSize, unsigned long allocGranularity, LPCWSTR resourceName);
 
 	public:
 		void OnFrameFinish();
 	};
 
-	template<unsigned itemSize>
+	template<unsigned itemSize, LPCWSTR resourceName>
 	class Allocator : public AllocatorBase
 	{
 		// use const instead of constexpr to allow out-of-class definition (to avoid dependency on D3D12 header here)
@@ -67,14 +67,14 @@ namespace Renderer::Impl::GPUStreamBuffer
 		std::pair<ID3D12Resource *, unsigned long> Allocate(unsigned long count);
 	};
 
-	template<unsigned itemSize>
+	template<unsigned itemSize, LPCWSTR resourceName>
 	class CountedAllocatorWrapper
 	{
 		std::atomic<unsigned long> allocatedItemsCount = 0;
-		Allocator<itemSize> &allocator;
+		Allocator<itemSize, resourceName> &allocator;
 
 	public:
-		explicit CountedAllocatorWrapper(Allocator<itemSize> &allocator) noexcept : allocator(allocator) {}
+		explicit CountedAllocatorWrapper(Allocator<itemSize, resourceName> &allocator) noexcept : allocator(allocator) {}
 		CountedAllocatorWrapper(CountedAllocatorWrapper &&) = default;
 
 	public:

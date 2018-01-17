@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		15.01.2018 (c)Korotkov Andrey
+\date		17.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -163,7 +163,8 @@ namespace Renderer
 		} renderStage;
 
 	private:
-		static std::optional<Impl::GPUStreamBuffer::Allocator<sizeof(AABB<2>)>> GPU_AABB_allocator;
+		static constexpr const WCHAR AABB_VB_name[] = L"terrain occlusion query quads";
+		static std::optional<Impl::GPUStreamBuffer::Allocator<sizeof(AABB<2>), AABB_VB_name>> GPU_AABB_allocator;
 
 	private:
 		struct QuadDeleter final
@@ -238,6 +239,6 @@ namespace Renderer
 		void operator =(TerrainVectorQuad &) = delete;
 
 	private:
-		void Shcedule(Impl::GPUStreamBuffer::CountedAllocatorWrapper<sizeof AABB<2>> &GPU_AABB_allocator, const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform) const, Issue(std::remove_const_t<decltype(Impl::OcclusionCulling::QueryBatch::npos)> &occlusionProvider) const;
+		void Shcedule(Impl::GPUStreamBuffer::CountedAllocatorWrapper<sizeof AABB<2>, TerrainVectorLayer::AABB_VB_name> &GPU_AABB_allocator, const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform) const, Issue(std::remove_const_t<decltype(Impl::OcclusionCulling::QueryBatch::npos)> &occlusionProvider) const;
 	};
 }
