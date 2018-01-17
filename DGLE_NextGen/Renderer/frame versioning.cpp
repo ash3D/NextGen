@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		29.10.2017 (c)Korotkov Andrey
+\date		17.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -32,10 +32,7 @@ FrameVersioning<void>::FrameVersioning()
 	CheckHR(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
 }
 
-FrameVersioning<void>::~FrameVersioning()
-{
-	WaitForGPU();
-}
+FrameVersioning<void>::~FrameVersioning() = default;
 
 UINT64 FrameVersioning<void>::GetCompletedFrameID() const
 {

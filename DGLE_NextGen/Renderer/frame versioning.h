@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		14.01.2018 (c)Korotkov Andrey
+\date		17.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -30,6 +30,9 @@ namespace Renderer::Impl
 	class FrameVersioning : public FrameVersioning<void>
 	{
 		Data ringBuffer[maxFrameLatency];
+
+	public:
+		~FrameVersioning() { WaitForGPU(); }
 
 	public:
 		void OnFrameStart();
