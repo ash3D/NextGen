@@ -167,5 +167,6 @@
     <None Include="GPU stream buffer allocator.inl">
       <Filter>Header Files</Filter>
     </None>
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>

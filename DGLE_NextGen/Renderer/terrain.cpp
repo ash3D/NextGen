@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.01.2018 (c)Korotkov Andrey
+\date		18.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -305,6 +305,13 @@ ComPtr<ID3D12PipelineState> TerrainVectorLayer::CRenderStage::COcclusionQueryPas
 */
 void TerrainVectorLayer::CRenderStage::COcclusionQueryPass::operator()(const IRenderStage &parent, unsigned long int rangeBegin, unsigned long int rangeEnd, ID3D12GraphicsCommandList1 *cmdList) const
 {
+	// on pass start
+	if (rangeBegin == 0)
+	{
+		PIXBeginEvent(cmdList, PIX_COLOR_INDEX(PIXEvents::TerrainLayer), "terrain layer [%u]", static_cast<const CRenderStage &>(parent).parent.layerIdx);
+		PIXBeginEvent(cmdList, PIX_COLOR_INDEX(PIXEvents::TerrainOcclusionQueryPass), "occlusion query pass");
+	}
+
 	const auto &occlusionQueryBatch = static_cast<const CRenderStage &>(parent).occlusionQueryBatch;
 
 	if (rangeBegin < rangeEnd)
@@ -340,7 +347,10 @@ void TerrainVectorLayer::CRenderStage::COcclusionQueryPass::operator()(const IRe
 
 	// on pass finish
 	if (rangeEnd == renderStream.size())
+	{
 		occlusionQueryBatch.Resolve(cmdList);
+		PIXEndEvent(cmdList);	// occlusion query pass
+	}
 }
 
 // 1 call site
@@ -431,6 +441,13 @@ ComPtr<ID3D12PipelineState> TerrainVectorLayer::CRenderStage::CMainPass::CreateP
 
 void TerrainVectorLayer::CRenderStage::CMainPass::operator()(const IRenderStage &parent, unsigned long int rangeBegin, unsigned long int rangeEnd, ID3D12GraphicsCommandList1 *cmdList) const
 {
+	// on pass start
+	if (rangeBegin == 0)
+	{
+		const auto float2BYTE = [](float val) noexcept {return val * numeric_limits<BYTE>::max(); };
+		PIXBeginEvent(cmdList, PIX_COLOR(float2BYTE(color[0]), float2BYTE(color[1]), float2BYTE(color[2])), "main pass");
+	}
+
 	const auto &occlusionQueryBatch = static_cast<const CRenderStage &>(parent).occlusionQueryBatch;
 
 	if (rangeBegin < rangeEnd)
@@ -477,7 +494,11 @@ void TerrainVectorLayer::CRenderStage::CMainPass::operator()(const IRenderStage 
 
 	// on pass finish
 	if (rangeEnd == renderStream.size())
+	{
 		occlusionQueryBatch.Finish(cmdList);
+		PIXEndEvent(cmdList);	// main pass
+		PIXEndEvent(cmdList);	// stage
+	}
 }
 
 // 1 call site
@@ -580,7 +601,7 @@ void TerrainVectorLayer::QuadDeleter::operator()(TerrainVectorQuad *quadToRemove
 }
 
 TerrainVectorLayer::TerrainVectorLayer(shared_ptr<class World> world, unsigned int layerIdx, const float (&color)[3]) :
-	world(move(world)), layerIdx(layerIdx), renderStage(color)
+	world(move(world)), layerIdx(layerIdx), renderStage(*this, color)
 {
 }
 
@@ -595,42 +616,56 @@ auto TerrainVectorLayer::AddQuad(unsigned long int vcount, const function<void _
 const RenderPipeline::IRenderStage *TerrainVectorLayer::BuildRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList1 *target)> &cullPassSetupCallback, function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const
 {
 	using namespace placeholders;
+
+	PIXScopedEvent(PIX_COLOR_INDEX(PIXEvents::TerrainBuildRenderStage), "terrain layer [%u] build render stage", layerIdx);
 	renderStage.Setup(move(cullPassSetupCallback), move(mainPassSetupCallback));
 	// use C++17 template deduction
 	GPUStreamBuffer::CountedAllocatorWrapper<sizeof AABB<2>, AABB_VB_name> GPU_AABB_countedAllocator(*GPU_AABB_allocator);
+
+	// shcedule
+	{
+		PIXScopedEvent(PIX_COLOR_INDEX(PIXEvents::TerrainShcedule), "shcedule");
 #if MULTITHREADED_QUADS_SHCEDULE == 0
-	for_each(quads.begin(), quads.end(), bind(&TerrainVectorQuad::Shcedule, _1, ref(GPU_AABB_countedAllocator), cref(frustumCuller), cref(frustumXform)));
+		for_each(quads.begin(), quads.end(), bind(&TerrainVectorQuad::Shcedule, _1, ref(GPU_AABB_countedAllocator), cref(frustumCuller), cref(frustumXform)));
 #elif MULTITHREADED_QUADS_SHCEDULE == 1
-	static thread_local vector<future<void>> pendingAsyncs;
-	pendingAsyncs.clear();
-	pendingAsyncs.reserve(quads.size());
-	try
-	{
-		transform(quads.cbegin(), quads.cend(), back_inserter(pendingAsyncs), [&](decltype(quads)::const_reference quad)
+		static thread_local vector<future<void>> pendingAsyncs;
+		pendingAsyncs.clear();
+		pendingAsyncs.reserve(quads.size());
+		try
 		{
-			return async(&TerrainVectorQuad::Shcedule, cref(quad), ref(GPU_AABB_countedAllocator), cref(frustumCuller), cref(frustumXform));
-		});
-		// wait for pending asyncs\
-		use 'get' instead of 'wait' in order to propagate exceptions (first only)
-		for_each(pendingAsyncs.begin(), pendingAsyncs.end(), mem_fn(&decltype(pendingAsyncs)::value_type::get));
-	}
-	catch (...)
-	{
-		// needed to prevent access to quads from worker threads after an exception was thrown
-		for (const auto &pendingAsync : pendingAsyncs)
-			if (pendingAsync.valid())
-				pendingAsync.wait();
-		throw;
-	}
+			transform(quads.cbegin(), quads.cend(), back_inserter(pendingAsyncs), [&](decltype(quads)::const_reference quad)
+			{
+				return async(&TerrainVectorQuad::Shcedule, cref(quad), ref(GPU_AABB_countedAllocator), cref(frustumCuller), cref(frustumXform));
+			});
+			// wait for pending asyncs\
+					use 'get' instead of 'wait' in order to propagate exceptions (first only)
+			for_each(pendingAsyncs.begin(), pendingAsyncs.end(), mem_fn(&decltype(pendingAsyncs)::value_type::get));
+		}
+		catch (...)
+		{
+			// needed to prevent access to quads from worker threads after an exception was thrown
+			for (const auto &pendingAsync : pendingAsyncs)
+				if (pendingAsync.valid())
+					pendingAsync.wait();
+			throw;
+		}
 #elif MULTITHREADED_QUADS_SHCEDULE == 2
-	// exceptions would currently lead to terminate()
-	for_each(execution::par, quads.begin(), quads.end(), bind(&TerrainVectorQuad::Shcedule, _1, ref(GPU_AABB_countedAllocator), cref(frustumCuller), cref(frustumXform)));
+		// exceptions would currently lead to terminate()
+		for_each(execution::par, quads.begin(), quads.end(), bind(&TerrainVectorQuad::Shcedule, _1, ref(GPU_AABB_countedAllocator), cref(frustumCuller), cref(frustumXform)));
 #else
 #error invalid MULTITHREADED_QUADS_SHCEDULE value
 #endif
+	}
+
 	renderStage.SetupOcclusionQueryBatch(GPU_AABB_countedAllocator.GetAllocatedItemCount());
-	using namespace placeholders;
-	for_each(quads.begin(), quads.end(), bind(&TerrainVectorQuad::Issue, _1, OcclusionCulling::QueryBatch::npos));
+
+	// issue
+	{
+		using namespace placeholders;
+		PIXScopedEvent(PIX_COLOR_INDEX(PIXEvents::TerrainIssue), "issue");
+		for_each(quads.begin(), quads.end(), bind(&TerrainVectorQuad::Issue, _1, OcclusionCulling::QueryBatch::npos));
+	}
+
 	return &renderStage;
 }
 

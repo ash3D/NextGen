@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.01.2018 (c)Korotkov Andrey
+\date		18.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -26,6 +26,7 @@ void NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
 
 static inline RenderPipeline::PipelineStage Pre(ID3D12GraphicsCommandList1 *cmdList, ID3D12Resource *rt, D3D12_CPU_DESCRIPTOR_HANDLE rtv, D3D12_CPU_DESCRIPTOR_HANDLE dsv)
 {
+	PIXScopedEvent(cmdList, PIX_COLOR_INDEX(PIXEvents::ViewportPre), "viewport pre");
 	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(rt, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 	const float color[4] = { .0f, .2f, .4f, 1.f };
 	cmdList->ClearRenderTargetView(rtv, color, 0, NULL);
@@ -36,6 +37,7 @@ static inline RenderPipeline::PipelineStage Pre(ID3D12GraphicsCommandList1 *cmdL
 
 static inline RenderPipeline::PipelineStage Post(ID3D12GraphicsCommandList1 *cmdList, ID3D12Resource *rt)
 {
+	PIXScopedEvent(cmdList, PIX_COLOR_INDEX(PIXEvents::ViewportPost), "viewport post");
 	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(rt, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 	CheckHR(cmdList->Close());
 	return cmdList;

@@ -52,8 +52,23 @@
 #include <dxgi1_6.h>
 #include <d3d12.h>
 #include "d3dx12.h"
+#include "pix3.h"
 #include "HRESULT.h"
 #define DISABLE_MATRIX_SWIZZLES
 #if !__INTELLISENSE__ 
 #include "vector math.h"
 #endif
+
+namespace Renderer::PIXEvents
+{
+	enum
+	{
+		ViewportPre,
+		ViewportPost,
+		TerrainLayer,
+		TerrainOcclusionQueryPass,
+		TerrainBuildRenderStage,
+		TerrainShcedule,
+		TerrainIssue,
+	};
+}

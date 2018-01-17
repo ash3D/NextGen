@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.01.2018 (c)Korotkov Andrey
+\date		18.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -71,6 +71,11 @@ namespace Renderer
 			friend extern void __cdecl ::InitRenderer();
 
 		private:
+			// for access to layerIdx\
+			alternative is offsetof but TerrainVectorLayer is not standard layout and reliance on conditionally supported offsetof for non-standard layout types is unsafe
+			const TerrainVectorLayer &parent;
+
+		private:
 			class COcclusionQueryPass final : public Impl::RenderPipeline::IRenderPass
 			{
 				friend extern void __cdecl ::InitRenderer();
@@ -139,7 +144,7 @@ namespace Renderer
 			Impl::OcclusionCulling::QueryBatch occlusionQueryBatch;
 
 		public:
-			inline CRenderStage(const float (&color)[3]) : mainPass(color) {}
+			inline CRenderStage(const TerrainVectorLayer &parent, const float (&color)[3]) : parent(parent), mainPass(color) {}
 
 		private:
 			// Inherited via IRenderStage
