@@ -74,7 +74,7 @@ void Impl::World::Render(const float (&viewXform)[4][3], const float (&projXform
 		CD3DX12_RANGE range(curFrameCB_offset, curFrameCB_offset);
 		volatile PerFrameData *const perFrameCB_CPU_ptr = MapPerFrameCB(&range);
 #endif
-		auto &curFrameCB_region = perFrameCB_CPU_ptr[globalFrameVersioning->GetRingBufferIdx()];
+		auto &curFrameCB_region = perFrameCB_CPU_ptr[globalFrameVersioning->GetContinuousRingIdx()];
 		CopyMatrix2CB(projXform, curFrameCB_region.projXform);
 		CopyMatrix2CB(viewXform, curFrameCB_region.viewXform);
 		CopyMatrix2CB(terrainXform, curFrameCB_region.worldXform);

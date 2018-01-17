@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		15.01.2018 (c)Korotkov Andrey
+\date		17.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -32,6 +32,6 @@ namespace Renderer::Impl
 		CBRegisterAlignedRow<3> viewXform[4], worldXform[4];
 
 	public:
-		static inline auto CurFrameCB_offset() noexcept { return sizeof(PerFrameData) * globalFrameVersioning->GetRingBufferIdx(); }
+		static inline auto CurFrameCB_offset() noexcept { return sizeof(PerFrameData) * globalFrameVersioning->GetContinuousRingIdx(); }
 	};
 }

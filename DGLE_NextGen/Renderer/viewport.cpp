@@ -64,18 +64,19 @@ auto Impl::Viewport::CmdListsManager::OnFrameStart() -> PrePostCmds<ID3D12Graphi
 #else
 		const void *const ptr = this;
 #endif
+		const unsigned short version = GetFrameLatency() - 1;
 
 		// create allocators
 		CheckHR(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&cmdBuffers.pre.allocator)));
-		NameObjectF(cmdBuffers.pre.allocator.Get(), L"viewport %p pre command allocator [%hu]", ptr, GetRingBufferIdx());
+		NameObjectF(cmdBuffers.pre.allocator.Get(), L"viewport %p pre command allocator [%hu]", ptr, version);
 		CheckHR(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&cmdBuffers.post.allocator)));
-		NameObjectF(cmdBuffers.post.allocator.Get(), L"viewport %p post command allocator [%hu]", ptr, GetRingBufferIdx());
+		NameObjectF(cmdBuffers.post.allocator.Get(), L"viewport %p post command allocator [%hu]", ptr, version);
 
 		// create lists
 		CheckHR(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, cmdBuffers.pre.allocator.Get(), NULL, IID_PPV_ARGS(&cmdBuffers.pre.list)));
-		NameObjectF(cmdBuffers.pre.list.Get(), L"viewport %p pre command list [%hu]", ptr, GetRingBufferIdx());
+		NameObjectF(cmdBuffers.pre.list.Get(), L"viewport %p pre command list [%hu]", ptr, version);
 		CheckHR(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, cmdBuffers.post.allocator.Get(), NULL, IID_PPV_ARGS(&cmdBuffers.post.list)));
-		NameObjectF(cmdBuffers.post.list.Get(), L"viewport %p post command list [%hu]", ptr, GetRingBufferIdx());
+		NameObjectF(cmdBuffers.post.list.Get(), L"viewport %p post command list [%hu]", ptr, version);
 	}
 
 	return { cmdBuffers.pre.list.Get(), cmdBuffers.post.list.Get() };

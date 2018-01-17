@@ -45,11 +45,13 @@ void CmdList::Init(ID3D12PipelineState *PSO)
 	}
 	else
 	{
+		const unsigned short version = globalFrameVersioning->GetFrameLatency() - 1;
+
 		// create
 		CheckHR(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(cmdBuffer->allocator.GetAddressOf())));
-		NameObjectF(cmdBuffer->allocator.Get(), L"pool command allocator [%hu][%zu]", globalFrameVersioning->GetRingBufferIdx(), poolIdx);
+		NameObjectF(cmdBuffer->allocator.Get(), L"pool command allocator [%hu][%zu]", version, poolIdx);
 		CheckHR(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, cmdBuffer->allocator.Get(), PSO, IID_PPV_ARGS(cmdBuffer->list.GetAddressOf())));
-		NameObjectF(cmdBuffer->list.Get(), L"pool command list [%hu][%zu]", globalFrameVersioning->GetRingBufferIdx(), poolIdx);
+		NameObjectF(cmdBuffer->list.Get(), L"pool command list [%hu][%zu]", version, poolIdx);
 	}
 
 	setup = &CmdList::Update;

@@ -27,17 +27,7 @@ namespace Renderer::Impl
 	static constexpr unsigned short maxFrameLatency = 3;
 
 	template<class Data>
-	class FrameVersioning : public FrameVersioning<void>
-	{
-		Data ringBuffer[maxFrameLatency];
-
-	public:
-		~FrameVersioning() { WaitForGPU(); }
-
-	public:
-		void OnFrameStart();
-		Data &GetCurFrameDataVersion() noexcept { return ringBuffer[GetRingBufferIdx()]; }
-	};
+	class FrameVersioning;
 
 	template<>
 	class FrameVersioning<void>
@@ -66,7 +56,9 @@ namespace Renderer::Impl
 		~FrameVersioning();
 
 	public:
-		unsigned short GetRingBufferIdx() const noexcept { return ringBufferIdx; }
+		// frameLatency corresponds to ringBuffer size, maxFrameLatency - to its capacity
+		unsigned short GetFrameLatency() const noexcept { return frameLatency; }
+		unsigned short GetContinuousRingIdx() const noexcept { return (frameID - 1) % maxFrameLatency; }
 		UINT64 GetCurFrameID() const noexcept { return frameID; }
 		UINT64 GetCompletedFrameID() const;
 		void WaitForGPU() const { WaitForGPU(frameID); }
@@ -75,10 +67,28 @@ namespace Renderer::Impl
 		void WaitForGPU(UINT64 waitFrameID) const;
 
 	protected:
+		unsigned short GetRingBufferIdx() const noexcept { return ringBufferIdx; }
 		unsigned short OnFrameStart();
 
 	public:
 		void OnFrameFinish();
+	};
+
+	template<class Data>
+	class FrameVersioning : public FrameVersioning<void>
+	{
+		Data ringBuffer[maxFrameLatency];
+
+	public:
+		~FrameVersioning() { WaitForGPU(); }
+
+	public:
+		void OnFrameStart();
+		Data &GetCurFrameDataVersion() noexcept { return ringBuffer[GetRingBufferIdx()]; }
+
+	private:
+		// hide from protected
+		using FrameVersioning<void>::GetRingBufferIdx;
 	};
 
 	struct CmdBuffer
