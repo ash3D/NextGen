@@ -654,7 +654,7 @@ TerrainVectorQuad::TerrainVectorQuad(shared_ptr<TerrainVectorLayer> &&layer, uns
 			IID_PPV_ARGS(&VIB)));
 		const auto &aabb = subtree.GetAABB();
 		// explicitly convert to floats since .x/.y are swizzles which can not be passed to variadic function
-		NameObjectF(VIB.Get(), L"terrain layer[%u] quad[<%f:%f>-<%f:%f>]", this->layer->layerIdx, float(aabb.min.x), float(aabb.min.y), float(aabb.max.x), float(aabb.max.y));
+		NameObjectF(VIB.Get(), L"terrain layer[%u] quad[<%.f:%.f>-<%.f:%.f>]", this->layer->layerIdx, float(aabb.min.x), float(aabb.min.y), float(aabb.max.x), float(aabb.max.y));
 
 		volatile void *writePtr;
 		CheckHR(VIB->Map(0, &CD3DX12_RANGE(0, 0), const_cast<void **>(&writePtr)));
