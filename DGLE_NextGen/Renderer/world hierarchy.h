@@ -221,8 +221,8 @@ namespace Renderer::Impl::Hierarchy
 		BVH &operator =(BVH &&) = default;
 
 	public:
-		const auto &GetAABB() const { return root->GetAABB(); }
-		unsigned long int GetTriCount() const { return root->GetInclusiveTriCount(); }
+		const auto &GetAABB() const noexcept { return root->GetAABB(); }
+		unsigned long int GetTriCount() const noexcept { return root->GetInclusiveTriCount(); }
 
 	public:
 		template<typename ...Args, typename F>

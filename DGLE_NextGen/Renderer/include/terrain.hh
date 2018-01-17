@@ -233,7 +233,7 @@ namespace Renderer
 		const unsigned long int VB_size, IB_size;
 
 	private:
-		TerrainVectorQuad(std::shared_ptr<TerrainVectorLayer> layer, unsigned long int vcount, const std::function<void (volatile float verts[][2])> &fillVB, unsigned int objCount, bool IB32bit, const std::function<TerrainVectorLayer::ObjectData (unsigned int objIdx)> &getObjectData);
+		TerrainVectorQuad(std::shared_ptr<TerrainVectorLayer> &&layer, unsigned long int vcount, const std::function<void (volatile float verts[][2])> &fillVB, unsigned int objCount, bool IB32bit, const std::function<TerrainVectorLayer::ObjectData (unsigned int objIdx)> &getObjectData);
 		~TerrainVectorQuad();
 		TerrainVectorQuad(TerrainVectorQuad &) = delete;
 		void operator =(TerrainVectorQuad &) = delete;
