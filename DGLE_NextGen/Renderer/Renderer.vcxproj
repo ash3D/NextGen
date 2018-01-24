@@ -283,6 +283,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="AABB.inl" />
+    <None Include="cmdlist pool.inl" />
     <None Include="GPU stream buffer allocator.inl" />
     <None Include="packages.config" />
     <None Include="tracked resource.inl" />

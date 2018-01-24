@@ -177,5 +177,8 @@
       <Filter>Header Files</Filter>
     </None>
     <None Include="packages.config" />
+    <None Include="cmdlist pool.inl">
+      <Filter>Header Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

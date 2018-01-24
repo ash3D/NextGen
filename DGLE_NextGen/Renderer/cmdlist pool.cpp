@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		21.01.2018 (c)Korotkov Andrey
+\date		24.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -23,13 +23,6 @@ CmdList::CmdList() : poolIdx(firstFreePoolIdx)
 	auto &curFramePool = globalFrameVersioning->GetCurFrameDataVersion();
 	cmdBuffer = curFramePool.size() <= firstFreePoolIdx ? &curFramePool.emplace_back() : &curFramePool[firstFreePoolIdx];
 	firstFreePoolIdx++;	// increment after insertion improves exception safety guarantee
-}
-
-CmdList::operator ID3D12GraphicsCommandList1 *() const
-{
-	assert(cmdBuffer);
-	assert(cmdBuffer->list);
-	return cmdBuffer->list.Get();
 }
 
 void CmdList::Init(ID3D12PipelineState *PSO)

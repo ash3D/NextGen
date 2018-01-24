@@ -13,10 +13,10 @@ See "DGLE.h" for more details.
 #include "tracked resource.inl"
 #include "world hierarchy.inl"
 #include "GPU stream buffer allocator.inl"
+#include "cmdlist pool.inl"
 #include "per-frame data.h"
 #include "GPU work submission.h"
 #include "render pipeline.h"
-#include "cmdlist pool.h"
 
 #include "AABB_2d.csh"
 #include "vectorLayerVS.csh"
@@ -587,7 +587,6 @@ inline void TerrainVectorLayer::IssueQuad(ID3D12Resource *VIB, unsigned long int
 	quadStram.push_back({ renderStream.size(), VIB, VB_size, IB_size, IB32bit });
 }
 
-template<class Node>
 bool TerrainVectorLayer::IssueNode(const Node &node, remove_const_t<decltype(OcclusionCulling::QueryBatch::npos)> &occlusionProvider, remove_const_t<decltype(OcclusionCulling::QueryBatch::npos)> &coarseOcclusion, remove_const_t<decltype(OcclusionCulling::QueryBatch::npos)> &fineOcclusion, decltype(node.GetOcclusionCullDomain()) &occlusionCullDomainOverriden)
 {
 	if (const auto &occlusionQueryGeometry = node.GetOcclusionQueryGeometry())
@@ -618,20 +617,17 @@ bool TerrainVectorLayer::IssueNode(const Node &node, remove_const_t<decltype(Occ
 	return false;
 }
 
-template<class Node>
 void TerrainVectorLayer::IssueExclusiveObjects(const Node &node, decltype(OcclusionCulling::QueryBatch::npos) occlusion)
 {
 	if (node.GetExclusiveTriCount())
 		IssueCluster(node.startIdx, node.GetExclusiveTriCount(), occlusion);
 }
 
-template<class Node>
 void TerrainVectorLayer::IssueChildren(const Node &node, decltype(OcclusionCulling::QueryBatch::npos) occlusion)
 {
 	IssueCluster(node.startIdx + node.GetExclusiveTriCount() * 3, node.GetInclusiveTriCount() - node.GetExclusiveTriCount(), occlusion);
 }
 
-template<class Node>
 void TerrainVectorLayer::IssueWholeNode(const Node &node, decltype(OcclusionCulling::QueryBatch::npos) occlusion)
 {
 	IssueCluster(node.startIdx, node.GetInclusiveTriCount(), occlusion);
@@ -662,7 +658,7 @@ const RenderPipeline::IRenderStage *TerrainVectorLayer::BuildRenderStage(const I
 	PIXScopedEvent(PIX_COLOR_INDEX(PIXEvents::TerrainBuildRenderStage), "terrain layer [%u] build render stage", layerIdx);
 	Setup(move(cullPassSetupCallback), move(mainPassSetupCallback));
 	// use C++17 template deduction
-	GPUStreamBuffer::CountedAllocatorWrapper<sizeof AABB<2>, AABB_VB_name> GPU_AABB_countedAllocator(*GPU_AABB_allocator);
+	GPUStreamBuffer::CountedAllocatorWrapper<sizeof AABB<2>, TerrainVectorQuad::AABB_VB_name> GPU_AABB_countedAllocator(*GPU_AABB_allocator);
 
 	// shcedule
 	{
@@ -764,7 +760,7 @@ TerrainVectorQuad::TerrainVectorQuad(shared_ptr<TerrainVectorLayer> &&layer, uns
 TerrainVectorQuad::~TerrainVectorQuad() = default;
 
 // 1 call site
-inline void TerrainVectorQuad::Shcedule(GPUStreamBuffer::CountedAllocatorWrapper<sizeof AABB<2>, TerrainVectorLayer::AABB_VB_name> &GPU_AABB_allocator, const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform) const
+inline void TerrainVectorQuad::Shcedule(GPUStreamBuffer::CountedAllocatorWrapper<sizeof AABB<2>, AABB_VB_name> &GPU_AABB_allocator, const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform) const
 {
 	subtree.Shcedule(GPU_AABB_allocator, frustumCuller, frustumXform);
 }
@@ -774,7 +770,7 @@ inline void TerrainVectorQuad::Issue(remove_const_t<decltype(OcclusionCulling::Q
 {
 	using namespace placeholders;
 
-	const auto issueNode = bind(&TerrainVectorLayer::IssueNode<decltype(subtree)::Node>, layer.get(), _1, ref(occlusionProvider), _2, _3, _4);
+	const auto issueNode = bind(&TerrainVectorLayer::IssueNode, layer.get(), _1, ref(occlusionProvider), _2, _3, _4);
 	subtree.Traverse(issueNode, OcclusionCulling::QueryBatch::npos, OcclusionCulling::QueryBatch::npos, decltype(declval<decltype(subtree)::Node>().GetOcclusionCullDomain())::ChildrenOnly);
 	layer->IssueQuad(VIB.Get(), VB_size, IB_size, IB32bit);
 }

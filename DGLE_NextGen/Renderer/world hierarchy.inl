@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.01.2018 (c)Korotkov Andrey
+\date		24.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -59,18 +59,14 @@ namespace Renderer::Impl::Hierarchy
 	}
 
 	template<class Object, class CustomNodeData, TreeStructure treeStructure>
-	template<std::remove_extent_t<decltype(childrenOrder)> ...idx>
-	inline BVH<Object, CustomNodeData, treeStructure>::Node::Node(std::integer_sequence<std::remove_extent_t<decltype(childrenOrder)>, idx...>, typename std::enable_if_t<true, decltype(objects)>::iterator srcBegin, typename std::enable_if_t<true, decltype(objects)>::iterator srcEnd) :
-		childrenOrder{idx...}, objBegin(srcBegin), objEnd(srcEnd)
-	{}
-
-	template<class Object, class CustomNodeData, TreeStructure treeStructure>
 	BVH<Object, CustomNodeData, treeStructure>::Node::Node(typename std::enable_if_t<true, decltype(objects)>::iterator srcBegin, typename std::enable_if_t<true, decltype(objects)>::iterator srcEnd, SplitTechnique splitTechnique, ...) :
-		Node(std::make_integer_sequence<std::remove_extent_t<decltype(childrenOrder)>, std::extent_v<decltype(childrenOrder)>>(), srcBegin, srcEnd)
+		objBegin(srcBegin), objEnd(srcEnd)
 	{
 		using namespace std;
 
 		assert(srcBegin != srcEnd);
+
+		iota(begin(childrenOrder), end(childrenOrder), 0u);
 
 		// calculate AABB and mean pos\
 			consider calculating mean pos after big objects being separated

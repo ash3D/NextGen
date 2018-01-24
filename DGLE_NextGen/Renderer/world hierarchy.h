@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.01.2018 (c)Korotkov Andrey
+\date		24.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -162,10 +162,6 @@ namespace Renderer::Impl::Hierarchy
 				operator bool() const noexcept { return VB; }
 				void operator =(std::nullptr_t src) noexcept { VB = src; }
 			} occlusionQueryGeometry;
-
-		private:
-			template<std::remove_extent_t<decltype(childrenOrder)> ...idx>
-			Node(std::integer_sequence<std::remove_extent_t<decltype(childrenOrder)>, idx...>, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end);
 
 		public:	// for make_unique
 			Node(typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, ...);

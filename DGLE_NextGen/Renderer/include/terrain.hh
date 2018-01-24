@@ -46,6 +46,61 @@ namespace Renderer
 		class FrustumCuller;
 	}
 
+	class TerrainVectorQuad final
+	{
+		friend class TerrainVectorLayer;
+
+		template<typename>
+		friend class World::Allocator;
+
+	private:
+		struct ObjectData
+		{
+			unsigned long int triCount;
+			const void *tris;
+			const AABB<2> &aabb;
+		};
+
+		struct Object
+		{
+			AABB<2> aabb;
+			unsigned long int triCount;
+			unsigned int idx;
+
+			// interface for BVH
+		public:
+#if defined _MSC_VER && _MSC_VER <= 1912
+			const AABB<2> &GetAABB() const { return aabb; }
+#else
+			const auto &GetAABB() const { return aabb; }
+#endif
+			unsigned long int GetTriCount() const noexcept { return triCount; }
+			float GetOcclusion() const noexcept { return .7f; }
+		};
+
+		struct NodeCluster
+		{
+			unsigned long int startIdx;
+		};
+
+	private:
+		const std::shared_ptr<class TerrainVectorLayer> layer;
+		mutable Impl::Hierarchy::BVH<Object, NodeCluster, Impl::Hierarchy::QUADTREE> subtree;
+		Impl::TrackedResource<ID3D12Resource> VIB;	// Vertex/Index Buffer
+		const bool IB32bit;
+		const unsigned long int VB_size, IB_size;
+
+	private:
+		TerrainVectorQuad(std::shared_ptr<class TerrainVectorLayer> &&layer, unsigned long int vcount, const std::function<void (volatile float verts[][2])> &fillVB, unsigned int objCount, bool IB32bit, const std::function<ObjectData (unsigned int objIdx)> &getObjectData);
+		~TerrainVectorQuad();
+		TerrainVectorQuad(TerrainVectorQuad &) = delete;
+		void operator =(TerrainVectorQuad &) = delete;
+
+	private:
+		static constexpr const WCHAR AABB_VB_name[] = L"terrain occlusion query quads";
+		void Shcedule(Impl::GPUStreamBuffer::CountedAllocatorWrapper<sizeof AABB<2>, AABB_VB_name> &GPU_AABB_allocator, const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform) const, Issue(std::remove_const_t<decltype(Impl::OcclusionCulling::QueryBatch::npos)> &occlusionProvider) const;
+	};
+
 	class TerrainVectorLayer final : public std::enable_shared_from_this<TerrainVectorLayer>, Impl::RenderPipeline::IRenderStage
 	{
 		friend class Impl::World;
@@ -127,22 +182,20 @@ namespace Renderer
 			GetMainPassPre(unsigned int &length) const, GetMainPassRange(unsigned int &length) const, GetMainPassPost(unsigned int &length) const;
 
 	private:
+		typedef decltype(TerrainVectorQuad::subtree)::Node Node;
+
+	private:
 		void Setup(std::function<void (ID3D12GraphicsCommandList1 *target)> &&cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList1 *target)> &&mainPassSetupCallback) const, SetupOcclusionQueryBatch(unsigned long queryCount) const;
 		void IssueQuad(ID3D12Resource *VIB, unsigned long int VB_size, unsigned long int IB_size, bool IB32bit);
-		template<class Node>
 		bool IssueNode(const Node &node, std::remove_const_t<decltype(Impl::OcclusionCulling::QueryBatch::npos)> &occlusionProvider, std::remove_const_t<decltype(Impl::OcclusionCulling::QueryBatch::npos)> &coarseOcclusion, std::remove_const_t<decltype(Impl::OcclusionCulling::QueryBatch::npos)> &fineOcclusion, decltype(node.GetOcclusionCullDomain()) &cullWholeNodeOverriden);
 
 	private:
-		template<class Node>
 		void IssueExclusiveObjects(const Node &node, decltype(Impl::OcclusionCulling::QueryBatch::npos) occlusion);
-		template<class Node>
 		void IssueChildren(const Node &node, decltype(Impl::OcclusionCulling::QueryBatch::npos) occlusion);
-		template<class Node>
 		void IssueWholeNode(const Node &node, decltype(Impl::OcclusionCulling::QueryBatch::npos) occlusion);
 
 	private:
-		static constexpr const WCHAR AABB_VB_name[] = L"terrain occlusion query quads";
-		static std::optional<Impl::GPUStreamBuffer::Allocator<sizeof(AABB<2>), AABB_VB_name>> GPU_AABB_allocator;
+		static std::optional<Impl::GPUStreamBuffer::Allocator<sizeof(AABB<2>), TerrainVectorQuad::AABB_VB_name>> GPU_AABB_allocator;
 		static Impl::RenderPipeline::RenderStageItem (TerrainVectorLayer::*getNextRenderItemSelector)(unsigned int &length) const;
 
 	private:
@@ -161,12 +214,7 @@ namespace Renderer
 		void operator =(TerrainVectorLayer &) = delete;
 
 	public:
-		struct ObjectData
-		{
-			unsigned long int triCount;
-			const void *tris;
-			const AABB<2> &aabb;
-		};
+		typedef TerrainVectorQuad::ObjectData ObjectData;
 		typedef std::unique_ptr<class TerrainVectorQuad, QuadDeleter> QuadPtr;
 		QuadPtr AddQuad(unsigned long int vcount, const std::function<void __cdecl(volatile float verts[][2])> &fillVB, unsigned int objCount, bool IB32bit, const std::function<ObjectData __cdecl(unsigned int objIdx)> &getObjectData);
 
@@ -175,49 +223,5 @@ namespace Renderer
 		const Impl::RenderPipeline::IRenderStage *BuildRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, std::function<void (ID3D12GraphicsCommandList1 *target)> &cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const;
 		void ShceduleRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, std::function<void (ID3D12GraphicsCommandList1 *target)> cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList1 *target)> mainPassSetupCallback) const;
 		static void OnFrameFinish() { GPU_AABB_allocator->OnFrameFinish(); }
-	};
-
-	class TerrainVectorQuad final
-	{
-		friend class TerrainVectorLayer;
-
-		template<typename>
-		friend class World::Allocator;
-
-	private:
-		struct Object
-		{
-			AABB<2> aabb;
-			unsigned long int triCount;
-			unsigned int idx;
-
-			// interface for BVH
-		public:
-#if defined _MSC_VER && _MSC_VER <= 1912
-			const AABB<2> &GetAABB() const { return aabb; }
-#else
-			const auto &GetAABB() const { return aabb; }
-#endif
-			unsigned long int GetTriCount() const noexcept { return triCount; }
-			float GetOcclusion() const noexcept { return .7f; }
-		};
-		struct NodeCluster
-		{
-			unsigned long int startIdx;
-		};
-		const std::shared_ptr<TerrainVectorLayer> layer;
-		mutable Impl::Hierarchy::BVH<Object, NodeCluster, Impl::Hierarchy::QUADTREE> subtree;
-		Impl::TrackedResource<ID3D12Resource> VIB;	// Vertex/Index Buffer
-		const bool IB32bit;
-		const unsigned long int VB_size, IB_size;
-
-	private:
-		TerrainVectorQuad(std::shared_ptr<TerrainVectorLayer> &&layer, unsigned long int vcount, const std::function<void (volatile float verts[][2])> &fillVB, unsigned int objCount, bool IB32bit, const std::function<TerrainVectorLayer::ObjectData (unsigned int objIdx)> &getObjectData);
-		~TerrainVectorQuad();
-		TerrainVectorQuad(TerrainVectorQuad &) = delete;
-		void operator =(TerrainVectorQuad &) = delete;
-
-	private:
-		void Shcedule(Impl::GPUStreamBuffer::CountedAllocatorWrapper<sizeof AABB<2>, TerrainVectorLayer::AABB_VB_name> &GPU_AABB_allocator, const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform) const, Issue(std::remove_const_t<decltype(Impl::OcclusionCulling::QueryBatch::npos)> &occlusionProvider) const;
 	};
 }

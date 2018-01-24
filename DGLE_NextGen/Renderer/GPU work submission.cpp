@@ -10,7 +10,7 @@ See "DGLE.h" for more details.
 #include "stdafx.h"
 #include "GPU work submission.h"
 #include "render pipeline.h"
-#include "cmdlist pool.h"
+#include "cmdlist pool.inl"
 
 using namespace std;
 using namespace Renderer;

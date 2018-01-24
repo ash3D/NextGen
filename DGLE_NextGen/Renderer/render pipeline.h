@@ -19,5 +19,5 @@ namespace Renderer::Impl::RenderPipeline
 	void AppendStage(std::future<PipelineStage> &&stage);
 	std::variant<std::monostate, ID3D12GraphicsCommandList1 *, RenderStageItem> GetNext(unsigned int &length);
 	void TerminateStageTraverse() noexcept;
-	bool Empty();
+	bool Empty() noexcept;
 }

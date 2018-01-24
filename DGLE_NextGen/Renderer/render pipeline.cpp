@@ -50,7 +50,7 @@ void RenderPipeline::AppendStage(future<PipelineStage> &&stage)
 	pipeline.push(move(stage));
 }
 
-bool RenderPipeline::Empty()
+bool RenderPipeline::Empty() noexcept
 {
 	return !curRenderStage && pipeline.empty();
 }
