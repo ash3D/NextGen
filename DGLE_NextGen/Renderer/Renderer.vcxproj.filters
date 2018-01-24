@@ -92,6 +92,12 @@
     <ClInclude Include="per-frame data.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="render stage.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="render stage item.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -140,6 +146,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="occlusion query batch.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="render stage.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.01.2018 (c)Korotkov Andrey
+\date		24.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -166,31 +166,31 @@ void OnFrameFinish()
 
 #pragma region root sigs & PSOs
 ComPtr<ID3D12RootSignature>
-	TerrainVectorLayer::CRenderStage::COcclusionQueryPass	::rootSig	= TerrainVectorLayer::CRenderStage::COcclusionQueryPass	::TryCreateRootSig(),
-	TerrainVectorLayer::CRenderStage::CMainPass				::rootSig	= TerrainVectorLayer::CRenderStage::CMainPass			::TryCreateRootSig();
+	TerrainVectorLayer::cullPassRootSig	= TerrainVectorLayer::TryCreateCullPassRootSig(),
+	TerrainVectorLayer::mainPassRootSig	= TerrainVectorLayer::TryCreateMainPassRootSig();
 ComPtr<ID3D12PipelineState>
-	TerrainVectorLayer::CRenderStage::COcclusionQueryPass	::PSO		= TerrainVectorLayer::CRenderStage::COcclusionQueryPass	::TryCreatePSO(),
-	TerrainVectorLayer::CRenderStage::CMainPass				::PSO		= TerrainVectorLayer::CRenderStage::CMainPass			::TryCreatePSO();
+	TerrainVectorLayer::cullPassPSO		= TerrainVectorLayer::TryCreateCullPassPSO(),
+	TerrainVectorLayer::mainPassPSO		= TerrainVectorLayer::TryCreateMainPassPSO();
 
 #pragma region TryCreate...()
-inline ComPtr<ID3D12RootSignature> TerrainVectorLayer::CRenderStage::COcclusionQueryPass::TryCreateRootSig()
+inline ComPtr<ID3D12RootSignature> TerrainVectorLayer::TryCreateCullPassRootSig()
 {
-	return device ? CreateRootSig() : nullptr;
+	return device ? CreateCullPassRootSig() : nullptr;
 }
 
-inline ComPtr<ID3D12RootSignature> TerrainVectorLayer::CRenderStage::CMainPass::TryCreateRootSig()
+inline ComPtr<ID3D12RootSignature> TerrainVectorLayer::TryCreateMainPassRootSig()
 {
-	return device ? CreateRootSig() : nullptr;
+	return device ? CreateMainPassRootSig() : nullptr;
 }
 
-inline ComPtr<ID3D12PipelineState> TerrainVectorLayer::CRenderStage::COcclusionQueryPass::TryCreatePSO()
+inline ComPtr<ID3D12PipelineState> TerrainVectorLayer::TryCreateCullPassPSO()
 {
-	return device ? CreatePSO() : nullptr;
+	return device ? CreateCullPassPSO() : nullptr;
 }
 
-inline ComPtr<ID3D12PipelineState> TerrainVectorLayer::CRenderStage::CMainPass::TryCreatePSO()
+inline ComPtr<ID3D12PipelineState> TerrainVectorLayer::TryCreateMainPassPSO()
 {
-	return device ? CreatePSO() : nullptr;
+	return device ? CreateMainPassPSO() : nullptr;
 }
 #pragma endregion define here to enable inline
 #pragma endregion
@@ -243,10 +243,10 @@ extern void __cdecl InitRenderer()
 	{
 		device = CreateDevice();
 		cmdQueue = CreateCommandQueue();
-		TerrainVectorLayer::CRenderStage::COcclusionQueryPass	::rootSig	= TerrainVectorLayer::CRenderStage::COcclusionQueryPass	::CreateRootSig();
-		TerrainVectorLayer::CRenderStage::CMainPass				::rootSig	= TerrainVectorLayer::CRenderStage::CMainPass			::CreateRootSig();
-		TerrainVectorLayer::CRenderStage::COcclusionQueryPass	::PSO		= TerrainVectorLayer::CRenderStage::COcclusionQueryPass	::CreatePSO();
-		TerrainVectorLayer::CRenderStage::CMainPass				::PSO		= TerrainVectorLayer::CRenderStage::CMainPass			::CreatePSO();
+		TerrainVectorLayer::cullPassRootSig	= TerrainVectorLayer::CreateCullPassRootSig();
+		TerrainVectorLayer::mainPassRootSig	= TerrainVectorLayer::CreateMainPassRootSig();
+		TerrainVectorLayer::cullPassPSO		= TerrainVectorLayer::CreateCullPassPSO();
+		TerrainVectorLayer::mainPassPSO		= TerrainVectorLayer::CreateMainPassPSO();
 		World::perFrameCB = World::CreatePerFrameCB();
 #if PERSISTENT_MAPS
 		World::perFrameCB_CPU_ptr = World::MapPerFrameCB();

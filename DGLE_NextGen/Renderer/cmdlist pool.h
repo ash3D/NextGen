@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.01.2018 (c)Korotkov Andrey
+\date		24.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -53,7 +53,7 @@ namespace Renderer::CmdListPool
 		return *this;
 	}
 
-	inline void CmdList::Setup(ID3D12PipelineState *PSO)
+	inline void CmdList::Setup(ID3D12PipelineState *PSO = NULL)
 	{
 		assert(cmdBuffer);
 		(this->*setup)(PSO);

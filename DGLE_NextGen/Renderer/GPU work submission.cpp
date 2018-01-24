@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		04.11.2017 (c)Korotkov Andrey
+\date		24.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -39,7 +39,7 @@ namespace
 
 	mutex mtx;
 	condition_variable workReadyEvent;
-	vector<RenderPipeline::RenderRange> workBatch;
+	vector<RenderPipeline::RenderStageItem> workBatch;
 	vector<future<void>> pendingAsyncRefs;
 	const unsigned int targetTaskCount = []
 	{
@@ -92,8 +92,8 @@ namespace
 
 	inline CmdListPool::CmdList RecordCmdList(decltype(workBatch) &&work, CmdListPool::CmdList &&target)
 	{
-		for (const auto &range : work)
-			range(target);
+		for (const auto &item : work)
+			item(target);
 		CheckHR(target->Close());
 		return move(target);
 	}
@@ -121,6 +121,22 @@ namespace
 		mtx.lock();
 		mtx.unlock();
 		workReadyEvent.notify_one();
+	}
+
+	void FlushWorkBatch(unique_lock<decltype(mtx)> &lck)
+	{
+		RecordCmdListTask task(RecordCmdList);
+		const auto reserved = workBatch.capacity();
+		ROB.emplace_back(PendingWork{ task.get_future(), targetCmdListWorkSize - workBatchFreeSpace });
+
+		auto asyncRef = async(launch::async, LaunchRecordCmdList, move(task), move(workBatch), CmdListPool::CmdList());
+		auto lckSentry(move(lck));
+		pendingAsyncRefs.push_back(move(asyncRef));
+		lckSentry.swap(lck);
+
+		workBatchFreeSpace = targetCmdListWorkSize;
+		runningTaskCount++;
+		workBatch.reserve(reserved);
 	}
 }
 
@@ -162,30 +178,25 @@ void GPUWorkSubmission::Run()
 				if (const auto cmdList = get_if<ID3D12GraphicsCommandList1 *>(&item))
 				{
 					// flush work batch if needed
-					const bool flushAccumulatedWork = workBatchFreeSpace == 0 || !workBatch.empty() && (*cmdList || RenderPipeline::Empty());
-					if (flushAccumulatedWork)
-					{
-						RecordCmdListTask task(RecordCmdList);
-						const auto reserved = workBatch.capacity();
-						ROB.emplace_back(PendingWork{ task.get_future(), targetCmdListWorkSize - workBatchFreeSpace });
+					if (!workBatch.empty())
+						FlushWorkBatch(lck);
 
-						auto asyncRef = async(launch::async, LaunchRecordCmdList, move(task), move(workBatch), CmdListPool::CmdList());
-						auto lckSentry(move(lck));
-						pendingAsyncRefs.push_back(move(asyncRef));
-						lckSentry.swap(lck);
-
-						workBatchFreeSpace = targetCmdListWorkSize;
-						runningTaskCount++;
-						workBatch.reserve(reserved);
-					}
-
-					if (*cmdList)
-						ROB.emplace_back(*cmdList);
-					else if (!flushAccumulatedWork)
-						break;
+					assert(*cmdList);
+					ROB.emplace_back(*cmdList);
 				}
-				else // item is render range
-					workBatch.push_back(get<RenderPipeline::RenderRange>(move(item)));
+				else if (const auto stageItem = get_if<RenderPipeline::RenderStageItem>(&item))
+				{
+					if (*stageItem)
+						workBatch.push_back(move(*stageItem));
+					else // batch oferflow
+						FlushWorkBatch(lck);
+				}
+				else // stage waiting/pipeline finish
+				{
+					if (!workBatch.empty() && RenderPipeline::Empty())
+						FlushWorkBatch(lck);
+					break;
+				}
 			}
 
 			// submit command list batch if ready
