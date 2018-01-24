@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		24.01.2018 (c)Korotkov Andrey
+\date		25.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -41,6 +41,7 @@ namespace Renderer
 	namespace Impl
 	{
 		class World;
+		class TerrainVectorLayer;
 
 		template<unsigned int dimension>
 		class FrustumCuller;
@@ -48,7 +49,7 @@ namespace Renderer
 
 	class TerrainVectorQuad final
 	{
-		friend class TerrainVectorLayer;
+		friend class Impl::TerrainVectorLayer;
 
 		template<typename>
 		friend class World::Allocator;
@@ -101,127 +102,143 @@ namespace Renderer
 		void Shcedule(Impl::GPUStreamBuffer::CountedAllocatorWrapper<sizeof AABB<2>, AABB_VB_name> &GPU_AABB_allocator, const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform) const, Issue(std::remove_const_t<decltype(Impl::OcclusionCulling::QueryBatch::npos)> &occlusionProvider) const;
 	};
 
-	class TerrainVectorLayer final : public std::enable_shared_from_this<TerrainVectorLayer>, Impl::RenderPipeline::IRenderStage
+	namespace Impl
 	{
-		friend class Impl::World;
-		friend class TerrainVectorQuad;
-		friend extern void __cdecl ::InitRenderer();
-
-	private:
-		struct OcclusionQueryGeometry
+		class TerrainVectorLayer : public std::enable_shared_from_this<Renderer::TerrainVectorLayer>, RenderPipeline::IRenderStage
 		{
-			ID3D12Resource *VB;
-			unsigned long int startIdx;
-			unsigned int count;
-		};
+			friend class TerrainVectorQuad;
+			friend extern void __cdecl ::InitRenderer();
 
-	private:
-		const std::shared_ptr<class World> world;
-		const unsigned int layerIdx;
-		const float color[3];
-		std::list<class TerrainVectorQuad, World::Allocator<class TerrainVectorQuad>> quads;
+		private:
+			struct OcclusionQueryGeometry
+			{
+				ID3D12Resource *VB;
+				unsigned long int startIdx;
+				unsigned int count;
+			};
+
+		protected:
+			const std::shared_ptr<class World> world;
+			const unsigned int layerIdx;
+
+		private:
+			const float color[3];
+			std::list<class TerrainVectorQuad, World::Allocator<class TerrainVectorQuad>> quads;
 
 #pragma region occlusion query pass
-	private:
-		static WRL::ComPtr<ID3D12RootSignature> cullPassRootSig, TryCreateCullPassRootSig(), CreateCullPassRootSig();
-		static WRL::ComPtr<ID3D12PipelineState> cullPassPSO, TryCreateCullPassPSO(), CreateCullPassPSO();
+		private:
+			static WRL::ComPtr<ID3D12RootSignature> cullPassRootSig, TryCreateCullPassRootSig(), CreateCullPassRootSig();
+			static WRL::ComPtr<ID3D12PipelineState> cullPassPSO, TryCreateCullPassPSO(), CreateCullPassPSO();
 
-	private:
-		mutable std::function<void (ID3D12GraphicsCommandList1 *target)> cullPassSetupCallback;
-		mutable std::vector<OcclusionQueryGeometry> queryStream;
+		private:
+			mutable std::function<void (ID3D12GraphicsCommandList1 *target)> cullPassSetupCallback;
+			mutable std::vector<OcclusionQueryGeometry> queryStream;
 
-	private:
-		void CullPassPre(CmdListPool::CmdList &target) const, CullPassPost(CmdListPool::CmdList &target) const;
-		void CullPassRange(unsigned long rangeBegin, unsigned long rangeEnd, CmdListPool::CmdList &target) const;
+		private:
+			void CullPassPre(CmdListPool::CmdList &target) const, CullPassPost(CmdListPool::CmdList &target) const;
+			void CullPassRange(unsigned long rangeBegin, unsigned long rangeEnd, CmdListPool::CmdList &target) const;
 
-	private:
-		void SetupCullPass(std::function<void (ID3D12GraphicsCommandList1 *target)> &&setupCallback) const;
-		void IssueOcclusion(const OcclusionQueryGeometry &queryGeometry);
+		private:
+			void SetupCullPass(std::function<void (ID3D12GraphicsCommandList1 *target)> &&setupCallback) const;
+			void IssueOcclusion(const OcclusionQueryGeometry &queryGeometry);
 #pragma endregion
 
 #pragma region main pass
-	private:
-		static WRL::ComPtr<ID3D12RootSignature> mainPassRootSig, TryCreateMainPassRootSig(), CreateMainPassRootSig();
-		static WRL::ComPtr<ID3D12PipelineState> mainPassPSO, TryCreateMainPassPSO(), CreateMainPassPSO();
+		private:
+			static WRL::ComPtr<ID3D12RootSignature> mainPassRootSig, TryCreateMainPassRootSig(), CreateMainPassRootSig();
+			static WRL::ComPtr<ID3D12PipelineState> mainPassPSO, TryCreateMainPassPSO(), CreateMainPassPSO();
 
-	private:
-		mutable std::function<void (ID3D12GraphicsCommandList1 *target)> mainPassSetupCallback;
-		struct RenderData
-		{
-			unsigned long int startIdx, triCount;
-			decltype(Impl::OcclusionCulling::QueryBatch::npos) occlusion;
-			unsigned long int startQuadIdx;
-		};
-		struct Quad
-		{
-			unsigned long int streamEnd;
-			ID3D12Resource *VIB;	// no reference/lifetime tracking required, it would induce unnecessary overhead (lifetime tracking leads to mutex locs)
-			unsigned long int VB_size, IB_size;
-			bool IB32bit;
-		};
-		mutable std::vector<RenderData> renderStream;
-		mutable std::vector<Quad> quadStram;
+		private:
+			mutable std::function<void (ID3D12GraphicsCommandList1 *target)> mainPassSetupCallback;
+			struct RenderData
+			{
+				unsigned long int startIdx, triCount;
+				decltype(OcclusionCulling::QueryBatch::npos) occlusion;
+				unsigned long int startQuadIdx;
+			};
+			struct Quad
+			{
+				unsigned long int streamEnd;
+				ID3D12Resource *VIB;	// no reference/lifetime tracking required, it would induce unnecessary overhead (lifetime tracking leads to mutex locs)
+				unsigned long int VB_size, IB_size;
+				bool IB32bit;
+			};
+			mutable std::vector<RenderData> renderStream;
+			mutable std::vector<Quad> quadStram;
 
-	private:
-		void MainPassPre(CmdListPool::CmdList &target) const, MainPassPost(CmdListPool::CmdList &target) const;
-		void MainPassRange(unsigned long int rangeBegin, unsigned long int rangeEnd, CmdListPool::CmdList &target) const;
+		private:
+			void MainPassPre(CmdListPool::CmdList &target) const, MainPassPost(CmdListPool::CmdList &target) const;
+			void MainPassRange(unsigned long int rangeBegin, unsigned long int rangeEnd, CmdListPool::CmdList &target) const;
 
-	private:
-		void SetupMainPass(std::function<void (ID3D12GraphicsCommandList1 *target)> &&setupCallback) const;
-		void IssueCluster(unsigned long int startIdx, unsigned long int triCount, decltype(Impl::OcclusionCulling::QueryBatch::npos) occlusion);
+		private:
+			void SetupMainPass(std::function<void (ID3D12GraphicsCommandList1 *target)> &&setupCallback) const;
+			void IssueCluster(unsigned long int startIdx, unsigned long int triCount, decltype(OcclusionCulling::QueryBatch::npos) occlusion);
 #pragma endregion
 
-	private:
-		mutable Impl::OcclusionCulling::QueryBatch occlusionQueryBatch;
+		private:
+			mutable OcclusionCulling::QueryBatch occlusionQueryBatch;
 
-	private:
-		// Inherited via IRenderStage
-		virtual void Sync() const override { occlusionQueryBatch.Sync(); }
-		Impl::RenderPipeline::RenderStageItem GetNextRenderItem(unsigned int &length) const override,
-			GetCullPassPre(unsigned int &length) const, GetCullPassRange(unsigned int &length) const, GetCullPassPost(unsigned int &length) const,
-			GetMainPassPre(unsigned int &length) const, GetMainPassRange(unsigned int &length) const, GetMainPassPost(unsigned int &length) const;
+		private:
+			// Inherited via IRenderStage
+			virtual void Sync() const override final { occlusionQueryBatch.Sync(); }
+			RenderPipeline::RenderStageItem GetNextRenderItem(unsigned int &length) const override final,
+				GetCullPassPre(unsigned int &length) const, GetCullPassRange(unsigned int &length) const, GetCullPassPost(unsigned int &length) const,
+				GetMainPassPre(unsigned int &length) const, GetMainPassRange(unsigned int &length) const, GetMainPassPost(unsigned int &length) const;
 
-	private:
-		typedef decltype(TerrainVectorQuad::subtree)::Node Node;
+		private:
+			typedef decltype(TerrainVectorQuad::subtree)::Node Node;
 
-	private:
-		void Setup(std::function<void (ID3D12GraphicsCommandList1 *target)> &&cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList1 *target)> &&mainPassSetupCallback) const, SetupOcclusionQueryBatch(unsigned long queryCount) const;
-		void IssueQuad(ID3D12Resource *VIB, unsigned long int VB_size, unsigned long int IB_size, bool IB32bit);
-		bool IssueNode(const Node &node, std::remove_const_t<decltype(Impl::OcclusionCulling::QueryBatch::npos)> &occlusionProvider, std::remove_const_t<decltype(Impl::OcclusionCulling::QueryBatch::npos)> &coarseOcclusion, std::remove_const_t<decltype(Impl::OcclusionCulling::QueryBatch::npos)> &fineOcclusion, decltype(node.GetOcclusionCullDomain()) &cullWholeNodeOverriden);
+		private:
+			void Setup(std::function<void (ID3D12GraphicsCommandList1 *target)> &&cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList1 *target)> &&mainPassSetupCallback) const, SetupOcclusionQueryBatch(unsigned long queryCount) const;
+			void IssueQuad(ID3D12Resource *VIB, unsigned long int VB_size, unsigned long int IB_size, bool IB32bit);
+			bool IssueNode(const Node &node, std::remove_const_t<decltype(OcclusionCulling::QueryBatch::npos)> &occlusionProvider, std::remove_const_t<decltype(OcclusionCulling::QueryBatch::npos)> &coarseOcclusion, std::remove_const_t<decltype(OcclusionCulling::QueryBatch::npos)> &fineOcclusion, decltype(node.GetOcclusionCullDomain()) &cullWholeNodeOverriden);
 
-	private:
-		void IssueExclusiveObjects(const Node &node, decltype(Impl::OcclusionCulling::QueryBatch::npos) occlusion);
-		void IssueChildren(const Node &node, decltype(Impl::OcclusionCulling::QueryBatch::npos) occlusion);
-		void IssueWholeNode(const Node &node, decltype(Impl::OcclusionCulling::QueryBatch::npos) occlusion);
+		private:
+			void IssueExclusiveObjects(const Node &node, decltype(OcclusionCulling::QueryBatch::npos) occlusion);
+			void IssueChildren(const Node &node, decltype(OcclusionCulling::QueryBatch::npos) occlusion);
+			void IssueWholeNode(const Node &node, decltype(OcclusionCulling::QueryBatch::npos) occlusion);
 
-	private:
-		static std::optional<Impl::GPUStreamBuffer::Allocator<sizeof(AABB<2>), TerrainVectorQuad::AABB_VB_name>> GPU_AABB_allocator;
-		static Impl::RenderPipeline::RenderStageItem (TerrainVectorLayer::*getNextRenderItemSelector)(unsigned int &length) const;
+		private:
+			static std::optional<GPUStreamBuffer::Allocator<sizeof(AABB<2>), TerrainVectorQuad::AABB_VB_name>> GPU_AABB_allocator;
+			static RenderPipeline::RenderStageItem (TerrainVectorLayer::*getNextRenderItemSelector)(unsigned int &length) const;
 
-	private:
-		struct QuadDeleter final
-		{
-			decltype(quads)::const_iterator quadLocation;
+		private:
+			struct QuadDeleter final
+			{
+				decltype(quads)::const_iterator quadLocation;
+
+			public:
+				void operator ()(class TerrainVectorQuad *quadToRemove) const;
+			};
+
+		protected:
+			TerrainVectorLayer(std::shared_ptr<class World> world, unsigned int layerIdx, const float (&color)[3]);
+			~TerrainVectorLayer();
+			TerrainVectorLayer(TerrainVectorLayer &) = delete;
+			void operator =(TerrainVectorLayer &) = delete;
 
 		public:
-			void operator ()(class TerrainVectorQuad *quadToRemove) const;
+			typedef TerrainVectorQuad::ObjectData ObjectData;
+			typedef std::unique_ptr<class TerrainVectorQuad, QuadDeleter> QuadPtr;
+			QuadPtr AddQuad(unsigned long int vcount, const std::function<void __cdecl(volatile float verts[][2])> &fillVB, unsigned int objCount, bool IB32bit, const std::function<ObjectData __cdecl(unsigned int objIdx)> &getObjectData);
+
+		private:
+			const RenderPipeline::IRenderStage *BuildRenderStage(const FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, std::function<void (ID3D12GraphicsCommandList1 *target)> &cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const;
+
+		protected:
+			void ShceduleRenderStage(const FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, std::function<void (ID3D12GraphicsCommandList1 *target)> cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList1 *target)> mainPassSetupCallback) const;
+			static void OnFrameFinish() { GPU_AABB_allocator->OnFrameFinish(); }
 		};
+	}
 
-	private:
-		TerrainVectorLayer(std::shared_ptr<class World> world, unsigned int layerIdx, const float (&color)[3]);
-		~TerrainVectorLayer();
-		TerrainVectorLayer(TerrainVectorLayer &) = delete;
-		void operator =(TerrainVectorLayer &) = delete;
-
-	public:
-		typedef TerrainVectorQuad::ObjectData ObjectData;
-		typedef std::unique_ptr<class TerrainVectorQuad, QuadDeleter> QuadPtr;
-		QuadPtr AddQuad(unsigned long int vcount, const std::function<void __cdecl(volatile float verts[][2])> &fillVB, unsigned int objCount, bool IB32bit, const std::function<ObjectData __cdecl(unsigned int objIdx)> &getObjectData);
-
-	private:
-		void Render(ID3D12GraphicsCommandList1 *cmdList) const;
-		const Impl::RenderPipeline::IRenderStage *BuildRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, std::function<void (ID3D12GraphicsCommandList1 *target)> &cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const;
-		void ShceduleRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, std::function<void (ID3D12GraphicsCommandList1 *target)> cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList1 *target)> mainPassSetupCallback) const;
-		static void OnFrameFinish() { GPU_AABB_allocator->OnFrameFinish(); }
+	class TerrainVectorLayer final : public Impl::TerrainVectorLayer
+	{
+		friend class Impl::World;
+		using Impl::TerrainVectorLayer::TerrainVectorLayer;
+#if defined _MSC_VER && _MSC_VER <= 1912 && !defined __clang__
+		// this workaround makes '&TerrainVectorLayer::ShceduleRenderStage' accessible from 'Impl::World'\
+		somewhat strange as the problem does not reproduce for simple synthetic experiment
+		using Impl::TerrainVectorLayer::ShceduleRenderStage;
+#endif
 	};
 }

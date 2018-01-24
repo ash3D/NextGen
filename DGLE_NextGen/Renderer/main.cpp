@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		24.01.2018 (c)Korotkov Andrey
+\date		25.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -20,7 +20,7 @@ See "DGLE.h" for more details.
 
 using namespace std;
 using Renderer::Impl::globalFrameVersioning;
-using Renderer::TerrainVectorLayer;
+using Renderer::Impl::TerrainVectorLayer;
 using Microsoft::WRL::ComPtr;
 
 static constexpr size_t maxD3D12NameLength = 256;

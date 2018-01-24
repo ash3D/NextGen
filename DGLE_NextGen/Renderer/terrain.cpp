@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		24.01.2018 (c)Korotkov Andrey
+\date		25.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -195,25 +195,92 @@ namespace
 		copy_n(reinterpret_cast<const SrcType *>(src), count, reinterpret_cast<volatile DstType *>(dst));
 		reinterpret_cast<volatile DstType *&>(dst) += count;
 	}
-}
 
-static ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC &desc, LPCWSTR name)
-{
-	ComPtr<ID3D12RootSignature> result;
-	ComPtr<ID3DBlob> sig, error;
-	const HRESULT hr = D3D12SerializeVersionedRootSignature(&desc, &sig, &error);
-	if (error)
+	ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC &desc, LPCWSTR name)
 	{
-		cerr.write((const char *)error->GetBufferPointer(), error->GetBufferSize()) << endl;
+		ComPtr<ID3D12RootSignature> result;
+		ComPtr<ID3DBlob> sig, error;
+		const HRESULT hr = D3D12SerializeVersionedRootSignature(&desc, &sig, &error);
+		if (error)
+		{
+			cerr.write((const char *)error->GetBufferPointer(), error->GetBufferSize()) << endl;
+		}
+		CheckHR(hr);
+		CheckHR(device->CreateRootSignature(0, sig->GetBufferPointer(), sig->GetBufferSize(), IID_PPV_ARGS(result.GetAddressOf())));
+		NameObject(result.Get(), name);
+		return move(result);
 	}
-	CheckHR(hr);
-	CheckHR(device->CreateRootSignature(0, sig->GetBufferPointer(), sig->GetBufferSize(), IID_PPV_ARGS(result.GetAddressOf())));
-	NameObject(result.Get(), name);
-	return move(result);
 }
 
+#pragma region TerrainVectorQuad
+TerrainVectorQuad::TerrainVectorQuad(shared_ptr<TerrainVectorLayer> &&layer, unsigned long int vcount, const function<void (volatile float verts[][2])> &fillVB, unsigned int objCount, bool srcIB32bit, const function<TerrainVectorLayer::ObjectData (unsigned int objIdx)> &getObjectData) :
+	layer(move(layer)), subtree(ObjIterator<Object>(getObjectData, 0), ObjIterator<Object>(getObjectData, objCount), Impl::Hierarchy::SplitTechnique::MEAN, .5),
+	IB32bit(vcount > UINT16_MAX), VB_size(vcount * sizeof(float [2])), IB_size(subtree.GetTriCount() * 3 * (IB32bit ? sizeof(uint32_t) : sizeof(uint16_t)))
+{
+	// create and fill VIB
+	{
+		CheckHR(device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+			D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Buffer(VB_size + IB_size),
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			NULL,	// clear value
+			IID_PPV_ARGS(&VIB)));
+		const auto &aabb = subtree.GetAABB();
+		// explicitly convert to floats since .x/.y are swizzles which can not be passed to variadic function
+		NameObjectF(VIB.Get(), L"terrain layer[%u] quad[<%.f:%.f>-<%.f:%.f>]", this->layer->layerIdx, float(aabb.min.x), float(aabb.min.y), float(aabb.max.x), float(aabb.max.y));
+
+		volatile void *writePtr;
+		CheckHR(VIB->Map(0, &CD3DX12_RANGE(0, 0), const_cast<void **>(&writePtr)));
+
+		// VB
+		fillVB(reinterpret_cast<volatile float (*)[2]>(writePtr));
+		reinterpret_cast<volatile unsigned char *&>(writePtr) += VB_size;
+
+		// IB
+		const auto CopyIB_ptr = srcIB32bit ? IB32bit ? CopyIB<true, true> : CopyIB<true, false> : IB32bit ? CopyIB<false, true> : CopyIB<false, false>;
+		auto reorderedIBFiller = [startIdx = 0ul, CopyIB_ptr, &getObjectData, &writePtr](decltype(subtree)::Node &node) mutable
+		{
+			node.startIdx = startIdx;
+			const auto objRange = node.GetExclusiveObjectsRange();
+			for_each(objRange.first, objRange.second, [&startIdx, &CopyIB_ptr, &getObjectData, &writePtr](const Object &obj)
+			{
+				const auto curObjData = getObjectData(obj.idx);
+				const auto curObjIdxCount = curObjData.triCount * 3;
+				CopyIB_ptr(curObjData.tris, writePtr, curObjIdxCount);
+				startIdx += curObjIdxCount;
+			});
+			return true;
+		};
+		subtree.Traverse(reorderedIBFiller);
+		subtree.FreeObjects();
+		
+		VIB->Unmap(0, NULL);
+	}
+}
+
+TerrainVectorQuad::~TerrainVectorQuad() = default;
+
+// 1 call site
+inline void TerrainVectorQuad::Shcedule(GPUStreamBuffer::CountedAllocatorWrapper<sizeof AABB<2>, AABB_VB_name> &GPU_AABB_allocator, const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform) const
+{
+	subtree.Shcedule(GPU_AABB_allocator, frustumCuller, frustumXform);
+}
+
+// 1 call site
+inline void TerrainVectorQuad::Issue(remove_const_t<decltype(OcclusionCulling::QueryBatch::npos)> &occlusionProvider) const
+{
+	using namespace placeholders;
+
+	const auto issueNode = bind(&TerrainVectorLayer::IssueNode, layer.get(), _1, ref(occlusionProvider), _2, _3, _4);
+	subtree.Traverse(issueNode, OcclusionCulling::QueryBatch::npos, OcclusionCulling::QueryBatch::npos, decltype(declval<decltype(subtree)::Node>().GetOcclusionCullDomain())::ChildrenOnly);
+	layer->IssueQuad(VIB.Get(), VB_size, IB_size, IB32bit);
+}
+#pragma endregion
+
+#pragma region TerrainVectorLayer
 #pragma region occlusion query pass
-ComPtr<ID3D12RootSignature> TerrainVectorLayer::CreateCullPassRootSig()
+ComPtr<ID3D12RootSignature> Impl::TerrainVectorLayer::CreateCullPassRootSig()
 {
 	CD3DX12_ROOT_PARAMETER1 CBV_param;
 	CBV_param.InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
@@ -221,7 +288,7 @@ ComPtr<ID3D12RootSignature> TerrainVectorLayer::CreateCullPassRootSig()
 	return CreateRootSignature(sigDesc, L"terrain occlusion query root signature");
 }
 
-ComPtr<ID3D12PipelineState> TerrainVectorLayer::CreateCullPassPSO()
+ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateCullPassPSO()
 {
 	const D3D12_BLEND_DESC blendDesc
 	{
@@ -302,7 +369,7 @@ ComPtr<ID3D12PipelineState> TerrainVectorLayer::CreateCullPassPSO()
 	return move(result);
 }
 
-void TerrainVectorLayer::CullPassPre(CmdListPool::CmdList &cmdList) const
+void Impl::TerrainVectorLayer::CullPassPre(CmdListPool::CmdList &cmdList) const
 {
 	cmdList.Setup();
 
@@ -315,7 +382,7 @@ void TerrainVectorLayer::CullPassPre(CmdListPool::CmdList &cmdList) const
 	It has advantage over shader based batched occlusoin test in that it does not stresses UAV writes in PS for visible objects -
 		hardware occlusion query does not incur any overhead in addition to regular depth/stencil test.
 */
-void TerrainVectorLayer::CullPassRange(unsigned long rangeBegin, unsigned long rangeEnd, CmdListPool::CmdList &cmdList) const
+void Impl::TerrainVectorLayer::CullPassRange(unsigned long rangeBegin, unsigned long rangeEnd, CmdListPool::CmdList &cmdList) const
 {
 	assert(rangeBegin < rangeEnd);
 
@@ -350,7 +417,7 @@ void TerrainVectorLayer::CullPassRange(unsigned long rangeBegin, unsigned long r
 	} while (++rangeBegin < rangeEnd);
 }
 
-void TerrainVectorLayer::CullPassPost(CmdListPool::CmdList &cmdList) const
+void Impl::TerrainVectorLayer::CullPassPost(CmdListPool::CmdList &cmdList) const
 {
 	cmdList.Setup();
 
@@ -359,21 +426,21 @@ void TerrainVectorLayer::CullPassPost(CmdListPool::CmdList &cmdList) const
 }
 
 // 1 call site
-inline void TerrainVectorLayer::SetupCullPass(function<void (ID3D12GraphicsCommandList1 *target)> &&setupCallback) const
+inline void Impl::TerrainVectorLayer::SetupCullPass(function<void (ID3D12GraphicsCommandList1 *target)> &&setupCallback) const
 {
 	cullPassSetupCallback = move(setupCallback);
 	queryStream.clear();
 }
 
 // 1 call site
-inline void TerrainVectorLayer::IssueOcclusion(const OcclusionQueryGeometry &queryGeometry)
+inline void Impl::TerrainVectorLayer::IssueOcclusion(const OcclusionQueryGeometry &queryGeometry)
 {
 	queryStream.push_back(queryGeometry);
 }
 #pragma endregion
 
 #pragma region main pass
-ComPtr<ID3D12RootSignature> TerrainVectorLayer::CreateMainPassRootSig()
+ComPtr<ID3D12RootSignature> Impl::TerrainVectorLayer::CreateMainPassRootSig()
 {
 	CD3DX12_ROOT_PARAMETER1 rootParams[2];
 	rootParams[0].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
@@ -382,7 +449,7 @@ ComPtr<ID3D12RootSignature> TerrainVectorLayer::CreateMainPassRootSig()
 	return CreateRootSignature(sigDesc, L"terrain main pass root signature");
 }
 
-ComPtr<ID3D12PipelineState> TerrainVectorLayer::CreateMainPassPSO()
+ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateMainPassPSO()
 {
 	const CD3DX12_RASTERIZER_DESC rasterDesc
 	(
@@ -444,7 +511,7 @@ ComPtr<ID3D12PipelineState> TerrainVectorLayer::CreateMainPassPSO()
 	return move(result);
 }
 
-void TerrainVectorLayer::MainPassPre(CmdListPool::CmdList &cmdList) const
+void Impl::TerrainVectorLayer::MainPassPre(CmdListPool::CmdList &cmdList) const
 {
 	cmdList.Setup();
 
@@ -452,7 +519,7 @@ void TerrainVectorLayer::MainPassPre(CmdListPool::CmdList &cmdList) const
 	PIXBeginEvent(cmdList, PIX_COLOR(float2BYTE(color[0]), float2BYTE(color[1]), float2BYTE(color[2])), "main pass");
 }
 
-void TerrainVectorLayer::MainPassRange(unsigned long int rangeBegin, unsigned long int rangeEnd, CmdListPool::CmdList &cmdList) const
+void Impl::TerrainVectorLayer::MainPassRange(unsigned long int rangeBegin, unsigned long int rangeEnd, CmdListPool::CmdList &cmdList) const
 {
 	assert(rangeBegin < rangeEnd);
 
@@ -498,7 +565,7 @@ void TerrainVectorLayer::MainPassRange(unsigned long int rangeBegin, unsigned lo
 	} while (rangeBegin < rangeEnd);
 }
 
-void TerrainVectorLayer::MainPassPost(CmdListPool::CmdList &cmdList) const
+void Impl::TerrainVectorLayer::MainPassPost(CmdListPool::CmdList &cmdList) const
 {
 	cmdList.Setup();
 
@@ -508,61 +575,61 @@ void TerrainVectorLayer::MainPassPost(CmdListPool::CmdList &cmdList) const
 }
 
 // 1 call site
-inline void TerrainVectorLayer::SetupMainPass(function<void (ID3D12GraphicsCommandList1 *target)> &&setupCallback) const
+inline void Impl::TerrainVectorLayer::SetupMainPass(function<void (ID3D12GraphicsCommandList1 *target)> &&setupCallback) const
 {
 	mainPassSetupCallback = move(setupCallback);
 	renderStream.clear();
 	quadStram.clear();
 }
 
-void TerrainVectorLayer::IssueCluster(unsigned long int startIdx, unsigned long int triCount, decltype(OcclusionCulling::QueryBatch::npos) occlusion)
+void Impl::TerrainVectorLayer::IssueCluster(unsigned long int startIdx, unsigned long int triCount, decltype(OcclusionCulling::QueryBatch::npos) occlusion)
 {
 	assert(triCount);
 	renderStream.push_back({ startIdx, triCount, occlusion, quadStram.size() });
 }
 #pragma endregion
 
-RenderPipeline::RenderStageItem TerrainVectorLayer::GetNextRenderItem(unsigned int &length) const
+RenderPipeline::RenderStageItem Impl::TerrainVectorLayer::GetNextRenderItem(unsigned int &length) const
 {
 	return (this->*getNextRenderItemSelector)(length);
 }
 
-RenderPipeline::RenderStageItem TerrainVectorLayer::GetCullPassPre(unsigned int &) const
+RenderPipeline::RenderStageItem Impl::TerrainVectorLayer::GetCullPassPre(unsigned int &) const
 {
 	using namespace placeholders;
 	getNextRenderItemSelector = &TerrainVectorLayer::GetCullPassRange;
 	return bind(&TerrainVectorLayer::CullPassPre, this, _1);
 }
 
-RenderPipeline::RenderStageItem TerrainVectorLayer::GetCullPassRange(unsigned int &length) const
+RenderPipeline::RenderStageItem Impl::TerrainVectorLayer::GetCullPassRange(unsigned int &length) const
 {
 	using namespace placeholders;
 	return IterateRenderPass(length, queryStream.size(), [] { getNextRenderItemSelector = &TerrainVectorLayer::GetCullPassPost; },
 		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::CullPassRange, this, rangeBegin, rangeEnd, _1); });
 }
 
-RenderPipeline::RenderStageItem TerrainVectorLayer::GetCullPassPost(unsigned int &) const
+RenderPipeline::RenderStageItem Impl::TerrainVectorLayer::GetCullPassPost(unsigned int &) const
 {
 	using namespace placeholders;
 	getNextRenderItemSelector = &TerrainVectorLayer::GetMainPassPre;
 	return bind(&TerrainVectorLayer::CullPassPost, this, _1);
 }
 
-RenderPipeline::RenderStageItem TerrainVectorLayer::GetMainPassPre(unsigned int &) const
+RenderPipeline::RenderStageItem Impl::TerrainVectorLayer::GetMainPassPre(unsigned int &) const
 {
 	using namespace placeholders;
 	getNextRenderItemSelector = &TerrainVectorLayer::GetMainPassRange;
 	return bind(&TerrainVectorLayer::MainPassPre, this, _1);
 }
 
-RenderPipeline::RenderStageItem TerrainVectorLayer::GetMainPassRange(unsigned int &length) const
+RenderPipeline::RenderStageItem Impl::TerrainVectorLayer::GetMainPassRange(unsigned int &length) const
 {
 	using namespace placeholders;
 	return IterateRenderPass(length, renderStream.size(), [] { getNextRenderItemSelector = &TerrainVectorLayer::GetMainPassPost; },
 		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::MainPassRange, this, rangeBegin, rangeEnd, _1); });
 }
 
-RenderPipeline::RenderStageItem TerrainVectorLayer::GetMainPassPost(unsigned int &) const
+RenderPipeline::RenderStageItem Impl::TerrainVectorLayer::GetMainPassPost(unsigned int &) const
 {
 	using namespace placeholders;
 	getNextRenderItemSelector = &TerrainVectorLayer::GetCullPassPre;
@@ -570,24 +637,24 @@ RenderPipeline::RenderStageItem TerrainVectorLayer::GetMainPassPost(unsigned int
 	return bind(&TerrainVectorLayer::MainPassPost, this, _1);
 }
 
-void TerrainVectorLayer::Setup(function<void (ID3D12GraphicsCommandList1 *target)> &&cullPassSetupCallback, function<void (ID3D12GraphicsCommandList1 *target)> &&mainPassSetupCallback) const
+void Impl::TerrainVectorLayer::Setup(function<void (ID3D12GraphicsCommandList1 *target)> &&cullPassSetupCallback, function<void (ID3D12GraphicsCommandList1 *target)> &&mainPassSetupCallback) const
 {
 	SetupCullPass(move(cullPassSetupCallback));
 	SetupMainPass(move(mainPassSetupCallback));
 }
 
-inline void TerrainVectorLayer::SetupOcclusionQueryBatch(unsigned long queryCount) const
+inline void Impl::TerrainVectorLayer::SetupOcclusionQueryBatch(unsigned long queryCount) const
 {
 	occlusionQueryBatch = OcclusionCulling::QueryBatch(queryCount);
 }
 
 // 1 call site
-inline void TerrainVectorLayer::IssueQuad(ID3D12Resource *VIB, unsigned long int VB_size, unsigned long int IB_size, bool IB32bit)
+inline void Impl::TerrainVectorLayer::IssueQuad(ID3D12Resource *VIB, unsigned long int VB_size, unsigned long int IB_size, bool IB32bit)
 {
 	quadStram.push_back({ renderStream.size(), VIB, VB_size, IB_size, IB32bit });
 }
 
-bool TerrainVectorLayer::IssueNode(const Node &node, remove_const_t<decltype(OcclusionCulling::QueryBatch::npos)> &occlusionProvider, remove_const_t<decltype(OcclusionCulling::QueryBatch::npos)> &coarseOcclusion, remove_const_t<decltype(OcclusionCulling::QueryBatch::npos)> &fineOcclusion, decltype(node.GetOcclusionCullDomain()) &occlusionCullDomainOverriden)
+bool Impl::TerrainVectorLayer::IssueNode(const Node &node, remove_const_t<decltype(OcclusionCulling::QueryBatch::npos)> &occlusionProvider, remove_const_t<decltype(OcclusionCulling::QueryBatch::npos)> &coarseOcclusion, remove_const_t<decltype(OcclusionCulling::QueryBatch::npos)> &fineOcclusion, decltype(node.GetOcclusionCullDomain()) &occlusionCullDomainOverriden)
 {
 	if (const auto &occlusionQueryGeometry = node.GetOcclusionQueryGeometry())
 	{
@@ -617,18 +684,18 @@ bool TerrainVectorLayer::IssueNode(const Node &node, remove_const_t<decltype(Occ
 	return false;
 }
 
-void TerrainVectorLayer::IssueExclusiveObjects(const Node &node, decltype(OcclusionCulling::QueryBatch::npos) occlusion)
+void Impl::TerrainVectorLayer::IssueExclusiveObjects(const Node &node, decltype(OcclusionCulling::QueryBatch::npos) occlusion)
 {
 	if (node.GetExclusiveTriCount())
 		IssueCluster(node.startIdx, node.GetExclusiveTriCount(), occlusion);
 }
 
-void TerrainVectorLayer::IssueChildren(const Node &node, decltype(OcclusionCulling::QueryBatch::npos) occlusion)
+void Impl::TerrainVectorLayer::IssueChildren(const Node &node, decltype(OcclusionCulling::QueryBatch::npos) occlusion)
 {
 	IssueCluster(node.startIdx + node.GetExclusiveTriCount() * 3, node.GetInclusiveTriCount() - node.GetExclusiveTriCount(), occlusion);
 }
 
-void TerrainVectorLayer::IssueWholeNode(const Node &node, decltype(OcclusionCulling::QueryBatch::npos) occlusion)
+void Impl::TerrainVectorLayer::IssueWholeNode(const Node &node, decltype(OcclusionCulling::QueryBatch::npos) occlusion)
 {
 	IssueCluster(node.startIdx, node.GetInclusiveTriCount(), occlusion);
 }
@@ -638,20 +705,20 @@ void TerrainVectorLayer::QuadDeleter::operator()(TerrainVectorQuad *quadToRemove
 	quadToRemove->layer->quads.erase(quadLocation);
 }
 
-TerrainVectorLayer::TerrainVectorLayer(shared_ptr<class World> world, unsigned int layerIdx, const float (&color)[3]) :
+Impl::TerrainVectorLayer::TerrainVectorLayer(shared_ptr<class World> world, unsigned int layerIdx, const float (&color)[3]) :
 	world(move(world)), layerIdx(layerIdx), color{ color[0], color[1], color[2] }
 {
 }
 
-TerrainVectorLayer::~TerrainVectorLayer() = default;
+Impl::TerrainVectorLayer::~TerrainVectorLayer() = default;
 
-auto TerrainVectorLayer::AddQuad(unsigned long int vcount, const function<void __cdecl(volatile float verts[][2])> &fillVB, unsigned int objCount, bool IB32bit, const function<ObjectData __cdecl(unsigned int objIdx)> &getObjectData) -> QuadPtr
+auto Impl::TerrainVectorLayer::AddQuad(unsigned long int vcount, const function<void __cdecl(volatile float verts[][2])> &fillVB, unsigned int objCount, bool IB32bit, const function<ObjectData __cdecl(unsigned int objIdx)> &getObjectData) -> QuadPtr
 {
 	quads.emplace_back(shared_from_this(), vcount, fillVB, objCount, IB32bit, getObjectData);
 	return { &quads.back(), { prev(quads.cend()) } };
 }
 
-const RenderPipeline::IRenderStage *TerrainVectorLayer::BuildRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList1 *target)> &cullPassSetupCallback, function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const
+const RenderPipeline::IRenderStage *Impl::TerrainVectorLayer::BuildRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList1 *target)> &cullPassSetupCallback, function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const
 {
 	using namespace placeholders;
 
@@ -706,71 +773,8 @@ const RenderPipeline::IRenderStage *TerrainVectorLayer::BuildRenderStage(const I
 	return this;
 }
 
-void TerrainVectorLayer::ShceduleRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList1 *target)> cullPassSetupCallback, function<void (ID3D12GraphicsCommandList1 *target)> mainPassSetupCallback) const
+void Impl::TerrainVectorLayer::ShceduleRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList1 *target)> cullPassSetupCallback, function<void (ID3D12GraphicsCommandList1 *target)> mainPassSetupCallback) const
 {
 	GPUWorkSubmission::AppendRenderStage(&TerrainVectorLayer::BuildRenderStage, this, /*cref*/(frustumCuller), /*cref*/(frustumXform), move(cullPassSetupCallback), move(mainPassSetupCallback));
 }
-
-TerrainVectorQuad::TerrainVectorQuad(shared_ptr<TerrainVectorLayer> &&layer, unsigned long int vcount, const function<void (volatile float verts[][2])> &fillVB, unsigned int objCount, bool srcIB32bit, const function<TerrainVectorLayer::ObjectData (unsigned int objIdx)> &getObjectData) :
-	layer(move(layer)), subtree(ObjIterator<Object>(getObjectData, 0), ObjIterator<Object>(getObjectData, objCount), Impl::Hierarchy::SplitTechnique::MEAN, .5),
-	IB32bit(vcount > UINT16_MAX), VB_size(vcount * sizeof(float [2])), IB_size(subtree.GetTriCount() * 3 * (IB32bit ? sizeof(uint32_t) : sizeof(uint16_t)))
-{
-	// create and fill VIB
-	{
-		CheckHR(device->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(VB_size + IB_size),
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			NULL,	// clear value
-			IID_PPV_ARGS(&VIB)));
-		const auto &aabb = subtree.GetAABB();
-		// explicitly convert to floats since .x/.y are swizzles which can not be passed to variadic function
-		NameObjectF(VIB.Get(), L"terrain layer[%u] quad[<%.f:%.f>-<%.f:%.f>]", this->layer->layerIdx, float(aabb.min.x), float(aabb.min.y), float(aabb.max.x), float(aabb.max.y));
-
-		volatile void *writePtr;
-		CheckHR(VIB->Map(0, &CD3DX12_RANGE(0, 0), const_cast<void **>(&writePtr)));
-
-		// VB
-		fillVB(reinterpret_cast<volatile float (*)[2]>(writePtr));
-		reinterpret_cast<volatile unsigned char *&>(writePtr) += VB_size;
-
-		// IB
-		const auto CopyIB_ptr = srcIB32bit ? IB32bit ? CopyIB<true, true> : CopyIB<true, false> : IB32bit ? CopyIB<false, true> : CopyIB<false, false>;
-		auto reorderedIBFiller = [startIdx = 0ul, CopyIB_ptr, &getObjectData, &writePtr](decltype(subtree)::Node &node) mutable
-		{
-			node.startIdx = startIdx;
-			const auto objRange = node.GetExclusiveObjectsRange();
-			for_each(objRange.first, objRange.second, [&startIdx, &CopyIB_ptr, &getObjectData, &writePtr](const Object &obj)
-			{
-				const auto curObjData = getObjectData(obj.idx);
-				const auto curObjIdxCount = curObjData.triCount * 3;
-				CopyIB_ptr(curObjData.tris, writePtr, curObjIdxCount);
-				startIdx += curObjIdxCount;
-			});
-			return true;
-		};
-		subtree.Traverse(reorderedIBFiller);
-		subtree.FreeObjects();
-		
-		VIB->Unmap(0, NULL);
-	}
-}
-
-TerrainVectorQuad::~TerrainVectorQuad() = default;
-
-// 1 call site
-inline void TerrainVectorQuad::Shcedule(GPUStreamBuffer::CountedAllocatorWrapper<sizeof AABB<2>, AABB_VB_name> &GPU_AABB_allocator, const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform) const
-{
-	subtree.Shcedule(GPU_AABB_allocator, frustumCuller, frustumXform);
-}
-
-// 1 call site
-inline void TerrainVectorQuad::Issue(remove_const_t<decltype(OcclusionCulling::QueryBatch::npos)> &occlusionProvider) const
-{
-	using namespace placeholders;
-
-	const auto issueNode = bind(&TerrainVectorLayer::IssueNode, layer.get(), _1, ref(occlusionProvider), _2, _3, _4);
-	subtree.Traverse(issueNode, OcclusionCulling::QueryBatch::npos, OcclusionCulling::QueryBatch::npos, decltype(declval<decltype(subtree)::Node>().GetOcclusionCullDomain())::ChildrenOnly);
-	layer->IssueQuad(VIB.Get(), VB_size, IB_size, IB32bit);
-}
+#pragma endregion

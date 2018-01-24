@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.01.2018 (c)Korotkov Andrey
+\date		25.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -106,7 +106,7 @@ shared_ptr<Renderer::Viewport> Impl::World::CreateViewport() const
 	return make_shared<Renderer::Viewport>(shared_from_this());
 }
 
-auto Impl::World::AddTerrainVectorLayer(unsigned int layerIdx, const float (&color)[3]) -> shared_ptr<TerrainVectorLayer>
+shared_ptr<Renderer::TerrainVectorLayer> Impl::World::AddTerrainVectorLayer(unsigned int layerIdx, const float (&color)[3])
 {
 	// keep layers list sorted by idx
 	class Idx
@@ -115,7 +115,7 @@ auto Impl::World::AddTerrainVectorLayer(unsigned int layerIdx, const float (&col
 
 	public:
 		Idx(unsigned int idx) noexcept : idx(idx) {}
-		Idx(const TerrainVectorLayer &layer) noexcept : idx(layer.layerIdx) {}
+		Idx(const ::TerrainVectorLayer &layer) noexcept : idx(layer.layerIdx) {}
 
 	public:
 		operator unsigned int () const noexcept { return idx; }
@@ -123,7 +123,7 @@ auto Impl::World::AddTerrainVectorLayer(unsigned int layerIdx, const float (&col
 	const auto insertLocation = lower_bound(terrainVectorLayers.cbegin(), terrainVectorLayers.cend(), layerIdx, greater<Idx>());
 	const auto inserted = terrainVectorLayers.emplace(insertLocation, shared_from_this(), layerIdx, color);
 	// consider using custom allocator for shared_ptr's internal data in order to improve memory management
-	return { &*inserted, [inserted](TerrainVectorLayer *layerToRemove) { layerToRemove->world->terrainVectorLayers.erase(inserted); } };
+	return { &*inserted, [inserted](::TerrainVectorLayer *layerToRemove) { layerToRemove->world->terrainVectorLayers.erase(inserted); } };
 }
 
 /*

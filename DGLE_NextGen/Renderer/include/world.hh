@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		15.01.2018 (c)Korotkov Andrey
+\date		25.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -43,6 +43,7 @@ namespace Renderer
 	namespace Impl
 	{
 		class Viewport;
+		class TerrainVectorLayer;
 
 		using WRL::ComPtr;
 
@@ -97,7 +98,7 @@ namespace Renderer
 		private:
 			// terrain
 			float terrainXform[4][3];
-			std::list<TerrainVectorLayer, Allocator<TerrainVectorLayer>> terrainVectorLayers;
+			std::list<Renderer::TerrainVectorLayer, Allocator<Renderer::TerrainVectorLayer>> terrainVectorLayers;
 
 		private:
 			class Instance
@@ -128,7 +129,7 @@ namespace Renderer
 
 		public:
 			std::shared_ptr<Renderer::Viewport> CreateViewport() const;
-			std::shared_ptr<TerrainVectorLayer> AddTerrainVectorLayer(unsigned int layerIdx, const float (&color)[3]);
+			std::shared_ptr<Renderer::TerrainVectorLayer> AddTerrainVectorLayer(unsigned int layerIdx, const float (&color)[3]);
 			//Instance AddStaticInstance(float x, float y);
 		};
 	}
@@ -137,8 +138,8 @@ namespace Renderer
 	{
 		friend std::shared_ptr<World> __cdecl MakeWorld(const float (&terrainXform)[4][3]);
 		friend class Impl::Viewport;
-		friend class TerrainVectorLayer;	// for Allocator
-		friend class TerrainVectorQuad;		// for Allocator
+		friend class Impl::TerrainVectorLayer;	// for Allocator
+		friend class TerrainVectorQuad;			// for Allocator
 
 #if defined _MSC_VER && _MSC_VER <= 1912
 	private:
