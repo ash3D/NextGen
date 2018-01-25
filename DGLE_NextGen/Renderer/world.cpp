@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.01.2018 (c)Korotkov Andrey
+\date		26.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -106,7 +106,7 @@ shared_ptr<Renderer::Viewport> Impl::World::CreateViewport() const
 	return make_shared<Renderer::Viewport>(shared_from_this());
 }
 
-shared_ptr<Renderer::TerrainVectorLayer> Impl::World::AddTerrainVectorLayer(unsigned int layerIdx, const float (&color)[3])
+shared_ptr<Renderer::TerrainVectorLayer> Impl::World::AddTerrainVectorLayer(unsigned int layerIdx, const float (&color)[3], string layerName)
 {
 	// keep layers list sorted by idx
 	class Idx
@@ -121,7 +121,7 @@ shared_ptr<Renderer::TerrainVectorLayer> Impl::World::AddTerrainVectorLayer(unsi
 		operator unsigned int () const noexcept { return idx; }
 	};
 	const auto insertLocation = lower_bound(terrainVectorLayers.cbegin(), terrainVectorLayers.cend(), layerIdx, greater<Idx>());
-	const auto inserted = terrainVectorLayers.emplace(insertLocation, shared_from_this(), layerIdx, color);
+	const auto inserted = terrainVectorLayers.emplace(insertLocation, shared_from_this(), layerIdx, color, move(layerName));
 	// consider using custom allocator for shared_ptr's internal data in order to improve memory management
 	return { &*inserted, [inserted](::TerrainVectorLayer *layerToRemove) { layerToRemove->world->terrainVectorLayers.erase(inserted); } };
 }

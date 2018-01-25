@@ -28,6 +28,7 @@
 #include <limits>
 #include <memory>
 #include <iterator>
+#include <string>
 #include <array>
 #include <vector>
 #include <queue>

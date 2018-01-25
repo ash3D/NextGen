@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.01.2018 (c)Korotkov Andrey
+\date		26.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -13,6 +13,7 @@ See "DGLE.h" for more details.
 
 #include <cstddef>
 #include <memory>
+#include <string>
 #include <list>
 #include <utility>	// for std::forward
 #include <functional>
@@ -129,7 +130,7 @@ namespace Renderer
 
 		public:
 			std::shared_ptr<Renderer::Viewport> CreateViewport() const;
-			std::shared_ptr<Renderer::TerrainVectorLayer> AddTerrainVectorLayer(unsigned int layerIdx, const float (&color)[3]);
+			std::shared_ptr<Renderer::TerrainVectorLayer> AddTerrainVectorLayer(unsigned int layerIdx, const float (&color)[3], std::string layerName);
 			//Instance AddStaticInstance(float x, float y);
 		};
 	}

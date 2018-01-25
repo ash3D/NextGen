@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.01.2018 (c)Korotkov Andrey
+\date		26.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -17,6 +17,10 @@ See "DGLE.h" for more details.
 #include "per-frame data.h"
 #include "GPU work submission.h"
 #include "render pipeline.h"
+#ifdef _MSC_VER
+#include <codecvt>
+#include <locale>
+#endif
 
 #include "AABB_2d.csh"
 #include "vectorLayerVS.csh"
@@ -228,7 +232,13 @@ TerrainVectorQuad::TerrainVectorQuad(shared_ptr<TerrainVectorLayer> &&layer, uns
 			IID_PPV_ARGS(&VIB)));
 		const auto &aabb = subtree.GetAABB();
 		// explicitly convert to floats since .x/.y are swizzles which can not be passed to variadic function
-		NameObjectF(VIB.Get(), L"terrain layer[%u] quad[<%.f:%.f>-<%.f:%.f>]", this->layer->layerIdx, float(aabb.min.x), float(aabb.min.y), float(aabb.max.x), float(aabb.max.y));
+#ifdef _MSC_VER
+		// it seems that Dinkumware treats "%s" as "%ls" for wide format string
+		wstring_convert<codecvt_utf8<WCHAR>> converter;
+		NameObjectF(VIB.Get(), L"terrain layer[%u] \"%ls\" quad[<%.f:%.f>-<%.f:%.f>]", this->layer->layerIdx, converter.from_bytes(this->layer->layerName).c_str(), float(aabb.min.x), float(aabb.min.y), float(aabb.max.x), float(aabb.max.y));
+#else
+		NameObjectF(VIB.Get(), L"terrain layer[%u] \"%s\" quad[<%.f:%.f>-<%.f:%.f>]", this->layer->layerIdx, this->layer->layerName.c_str(), float(aabb.min.x), float(aabb.min.y), float(aabb.max.x), float(aabb.max.y));
+#endif
 
 		volatile void *writePtr;
 		CheckHR(VIB->Map(0, &CD3DX12_RANGE(0, 0), const_cast<void **>(&writePtr)));
@@ -373,7 +383,7 @@ void Impl::TerrainVectorLayer::CullPassPre(CmdListPool::CmdList &cmdList) const
 {
 	cmdList.Setup();
 
-	PIXBeginEvent(cmdList, PIX_COLOR_INDEX(PIXEvents::TerrainLayer), "terrain layer [%u]", layerIdx);
+	PIXBeginEvent(cmdList, PIX_COLOR_INDEX(PIXEvents::TerrainLayer), "terrain layer [%u] \"%s\"", layerIdx, layerName.c_str());
 	PIXBeginEvent(cmdList, PIX_COLOR_INDEX(PIXEvents::TerrainOcclusionQueryPass), "occlusion query pass");
 }
 
@@ -705,8 +715,8 @@ void TerrainVectorLayer::QuadDeleter::operator()(TerrainVectorQuad *quadToRemove
 	quadToRemove->layer->quads.erase(quadLocation);
 }
 
-Impl::TerrainVectorLayer::TerrainVectorLayer(shared_ptr<class World> world, unsigned int layerIdx, const float (&color)[3]) :
-	world(move(world)), layerIdx(layerIdx), color{ color[0], color[1], color[2] }
+Impl::TerrainVectorLayer::TerrainVectorLayer(shared_ptr<class World> world, unsigned int layerIdx, const float (&color)[3], string &&layerName) :
+	world(move(world)), layerIdx(layerIdx), color{ color[0], color[1], color[2] }, layerName(move(layerName))
 {
 }
 

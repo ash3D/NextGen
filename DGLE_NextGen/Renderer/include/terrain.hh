@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.01.2018 (c)Korotkov Andrey
+\date		26.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -11,6 +11,7 @@ See "DGLE.h" for more details.
 
 #include <type_traits>
 #include <memory>
+#include <string>
 #include <vector>
 #include <list>
 #include <functional>
@@ -123,6 +124,7 @@ namespace Renderer
 
 		private:
 			const float color[3];
+			const std::string layerName;
 			std::list<class TerrainVectorQuad, World::Allocator<class TerrainVectorQuad>> quads;
 
 #pragma region occlusion query pass
@@ -212,7 +214,7 @@ namespace Renderer
 			};
 
 		protected:
-			TerrainVectorLayer(std::shared_ptr<class World> world, unsigned int layerIdx, const float (&color)[3]);
+			TerrainVectorLayer(std::shared_ptr<class World> world, unsigned int layerIdx, const float (&color)[3], std::string &&layerName);
 			~TerrainVectorLayer();
 			TerrainVectorLayer(TerrainVectorLayer &) = delete;
 			void operator =(TerrainVectorLayer &) = delete;
