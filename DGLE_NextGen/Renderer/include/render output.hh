@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		10.01.2018 (c)Korotkov Andrey
+\date		27.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -11,6 +11,7 @@ See "DGLE.h" for more details.
 
 #include <memory>
 #include "../tracked resource.h"
+#include "../tracked ref.h"
 
 struct IDXGISwapChain4;
 struct ID3D12Resource;
@@ -23,13 +24,11 @@ namespace Renderer
 		Impl::TrackedResource<IDXGISwapChain4> swapChain;
 		Impl::TrackedResource<ID3D12Resource> ZBuffer;
 		Impl::TrackedResource<ID3D12DescriptorHeap> rtvHeap, dsvHeap;	// is tracking really needed?
-		std::shared_ptr<class Viewport> viewport;
+		Impl::TrackedRef::Ref<class Viewport> viewport;
 
 	public:
 		RenderOutput(HWND wnd, bool allowModeSwitch, unsigned int bufferCount = 2);
-		RenderOutput(const RenderOutput &);
 		RenderOutput(RenderOutput &&);
-		RenderOutput &operator =(const RenderOutput &);
 		RenderOutput &operator =(RenderOutput &&);
 		~RenderOutput();
 

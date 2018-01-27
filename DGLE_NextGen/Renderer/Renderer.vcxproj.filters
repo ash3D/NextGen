@@ -98,6 +98,9 @@
     <ClInclude Include="render stage item.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="tracked ref.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -178,6 +181,9 @@
     </None>
     <None Include="packages.config" />
     <None Include="cmdlist pool.inl">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="tracked ref.inl">
       <Filter>Header Files</Filter>
     </None>
   </ItemGroup>

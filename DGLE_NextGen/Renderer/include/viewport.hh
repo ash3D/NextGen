@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		10.01.2018 (c)Korotkov Andrey
+\date		27.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -11,6 +11,7 @@ See "DGLE.h" for more details.
 
 #include <limits>
 #include <memory>
+#include "../tracked ref.h"
 #include "../frame versioning.h"
 
 struct ID3D12GraphicsCommandList1;
@@ -19,6 +20,7 @@ struct D3D12_CPU_DESCRIPTOR_HANDLE;
 
 namespace Renderer
 {
+	class Viewport;
 	class World;
 
 	namespace Impl
@@ -30,7 +32,7 @@ namespace Renderer
 
 		static_assert(numeric_limits<double>::has_infinity);
 
-		class Viewport
+		class Viewport : protected TrackedRef::Target<Renderer::Viewport>
 		{
 			template<class Cmd>
 			struct PrePostCmds
@@ -70,6 +72,7 @@ namespace Renderer
 	{
 		friend class Impl::World;
 		friend class RenderOutput;
+		friend class Impl::TrackedRef::Ref<Viewport>;
 
 		using Impl::Viewport::Viewport;
 	};

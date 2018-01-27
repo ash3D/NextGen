@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		10.01.2018 (c)Korotkov Andrey
+\date		27.01.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -11,6 +11,7 @@ See "DGLE.h" for more details.
 #include "render output.hh"
 #include "viewport.hh"
 #include "tracked resource.inl"
+#include "tracked ref.inl"
 #include "frame versioning.h"
 #include "cmdlist pool.h"
 
@@ -83,9 +84,7 @@ RenderOutput::RenderOutput(HWND wnd, bool allowModeSwitch, unsigned int bufferCo
 	}
 }
 
-RenderOutput::RenderOutput(const RenderOutput &) = default;
 RenderOutput::RenderOutput(RenderOutput &&) = default;
-RenderOutput &RenderOutput::operator =(const RenderOutput &) = default;
 RenderOutput &RenderOutput::operator =(RenderOutput &&) = default;
 RenderOutput::~RenderOutput() = default;
 
@@ -98,6 +97,9 @@ void RenderOutput::Monitor_ALT_ENTER(bool enable)
 
 void RenderOutput::SetViewport(shared_ptr<Viewport> viewport)
 {
+	if (!viewport)
+		throw logic_error("Attempt to attach null viewport.");
+
 	UINT width, height;
 	CheckHR(swapChain->GetSourceSize(&width, &height));
 
