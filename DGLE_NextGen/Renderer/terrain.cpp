@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		26.01.2018 (c)Korotkov Andrey
+\date		08.02.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -710,12 +710,12 @@ void Impl::TerrainVectorLayer::IssueWholeNode(const Node &node, decltype(Occlusi
 	IssueCluster(node.startIdx, node.GetInclusiveTriCount(), occlusion);
 }
 
-void TerrainVectorLayer::QuadDeleter::operator()(TerrainVectorQuad *quadToRemove) const
+void TerrainVectorLayer::QuadDeleter::operator()(const TerrainVectorQuad *quadToRemove) const
 {
 	quadToRemove->layer->quads.erase(quadLocation);
 }
 
-Impl::TerrainVectorLayer::TerrainVectorLayer(shared_ptr<class World> world, unsigned int layerIdx, const float (&color)[3], string &&layerName) :
+Impl::TerrainVectorLayer::TerrainVectorLayer(shared_ptr<class Renderer::World> &&world, unsigned int layerIdx, const float (&color)[3], string &&layerName) :
 	world(move(world)), layerIdx(layerIdx), color{ color[0], color[1], color[2] }, layerName(move(layerName))
 {
 }
