@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		07.03.2018 (c)Korotkov Andrey
+\date		08.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -75,7 +75,7 @@ namespace Renderer
 
 			// interface for BVH
 		public:
-#if defined _MSC_VER && _MSC_VER <= 1912
+#if defined _MSC_VER && _MSC_VER <= 1913
 			const AABB<2> &GetAABB() const { return aabb; }
 #else
 			const auto &GetAABB() const { return aabb; }
@@ -241,7 +241,7 @@ namespace Renderer
 	{
 		friend class Impl::World;
 		using Impl::TerrainVectorLayer::TerrainVectorLayer;
-#if defined _MSC_VER && _MSC_VER <= 1912 && !defined __clang__
+#if defined _MSC_VER && _MSC_VER <= 1913 && !defined __clang__
 		// this workaround makes '&TerrainVectorLayer::ShceduleRenderStage' accessible from 'Impl::World'\
 		somewhat strange as the problem does not reproduce for simple synthetic experiment
 		using Impl::TerrainVectorLayer::ShceduleRenderStage;

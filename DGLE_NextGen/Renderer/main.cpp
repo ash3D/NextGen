@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		07.03.2018 (c)Korotkov Andrey
+\date		08.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -243,10 +243,11 @@ inline volatile World::PerFrameData *World::TryMapPerFrameCB()
 
 namespace Renderer::Impl
 {
-#if defined _MSC_VER && _MSC_VER <= 1912
+#if defined _MSC_VER && _MSC_VER <= 1913
 	decltype(globalFrameVersioning) globalFrameVersioning;
 #else
-	// guaranteed copy elision required
+	// guaranteed copy elision required\
+	still does not work on MSVC 1913, further investigation reqired
 	decltype(globalFrameVersioning) globalFrameVersioning(device ? decltype(globalFrameVersioning)(in_place) : nullopt);
 #endif
 }
@@ -257,7 +258,7 @@ decltype(QueryBatch::heapPool) QueryBatch::heapPool;
 decltype(QueryBatch::resultsPool) QueryBatch::resultsPool;
 
 // allocator contains tracked resource
-#if defined _MSC_VER && _MSC_VER <= 1912
+#if defined _MSC_VER && _MSC_VER <= 1913
 decltype(TerrainVectorLayer::GPU_AABB_allocator) TerrainVectorLayer::GPU_AABB_allocator;
 #else
 // guaranteed copy elision required

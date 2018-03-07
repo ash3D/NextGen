@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		07.03.2018 (c)Korotkov Andrey
+\date		08.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -55,7 +55,7 @@ auto Impl::World::MapPerFrameCB(const D3D12_RANGE *readRange) -> volatile PerFra
 }
 
 // defined here, not in class in order to eliminate dependency on "instance.hh" in "world.hh"
-#if defined _MSC_VER && _MSC_VER <= 1912
+#if defined _MSC_VER && _MSC_VER <= 1913
 inline const AABB<3> &Impl::World::BVHObject::GetAABB() const
 #else
 inline const auto &Impl::World::BVHObject::GetAABB() const
@@ -102,7 +102,7 @@ void Impl::World::MainPassRange(unsigned long int rangeBegin, unsigned long int 
 
 	using namespace placeholders;
 	staticObjects.front().Render(cmdList);
-#if defined _MSC_VER && _MSC_VER <= 1912
+#if defined _MSC_VER && _MSC_VER <= 1913
 	for_each(objectsRangeBegin, objectsRangeEnd, bind(&Renderer::Instance::Render, _1, static_cast<ID3D12GraphicsCommandList1 *>(cmdList)));
 #else
 	for_each(objectsRangeBegin, objectsRangeEnd, bind(&decltype(staticObjects)::value_type::Render, _1, static_cast<ID3D12GraphicsCommandList1 *>(cmdList)));
@@ -288,7 +288,7 @@ auto Impl::World::BuildRenderStage(std::function<void(ID3D12GraphicsCommandList1
 	but constructs containing object directly via placement new which does not have access to private members.
 	GCC meanwhile compiles it fine.
 */
-#if defined _MSC_VER && _MSC_VER <= 1912
+#if defined _MSC_VER && _MSC_VER <= 1913
 shared_ptr<World> __cdecl Renderer::MakeWorld(const float (&terrainXform)[4][3])
 {
 	return make_shared<World>(World::tag(), terrainXform);

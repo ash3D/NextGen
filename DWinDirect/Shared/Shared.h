@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		19.12.2017 (c)Korotkov Andrey
+\date		08.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -24,7 +24,7 @@ See "DGLE.h" for more details.
 #include <cassert>
 #include <cstddef>
 
-#if defined _MSC_VER && _MSC_VER <= 1912 && !defined __clang__
+#if defined _MSC_VER && _MSC_VER <= 1913 && !defined __clang__
 #	define MSVC_LIMITATIONS
 #endif
 

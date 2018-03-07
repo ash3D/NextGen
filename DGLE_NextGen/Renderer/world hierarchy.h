@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		07.03.2018 (c)Korotkov Andrey
+\date		08.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -195,7 +195,7 @@ namespace Renderer::Impl::Hierarchy
 		private:
 			template<typename ...Args, typename F>
 			void Traverse(F &nodeHandler, Args ...args);
-#if defined _MSC_VER && _MSC_VER <= 1912
+#if defined _MSC_VER && _MSC_VER <= 1913
 			template<LPCWSTR resourceName>
 			std::pair<unsigned long int, bool> Shcedule(GPUStreamBuffer::CountedAllocatorWrapper<sizeof std::declval<Object>().GetAABB(), resourceName> &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
 				bool parentInsideFrustum = false, float parentOcclusionCulledProjLength = INFINITY, float parentOcclusion = 0);

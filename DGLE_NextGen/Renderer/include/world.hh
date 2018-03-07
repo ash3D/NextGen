@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		07.03.2018 (c)Korotkov Andrey
+\date		08.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -114,7 +114,7 @@ namespace Renderer
 				BVHObject(const Renderer::Instance *instance) : instance(instance) {}
 
 			public:
-#if defined _MSC_VER && _MSC_VER <= 1912
+#if defined _MSC_VER && _MSC_VER <= 1913
 				inline const AABB<3> &GetAABB() const;
 #else
 				inline const auto &GetAABB() const;
@@ -195,7 +195,7 @@ namespace Renderer
 		friend class Impl::TerrainVectorLayer;	// for Allocator
 		friend class TerrainVectorQuad;			// for Allocator
 
-#if defined _MSC_VER && _MSC_VER <= 1912
+#if defined _MSC_VER && _MSC_VER <= 1913
 	private:
 		struct tag {};
 
