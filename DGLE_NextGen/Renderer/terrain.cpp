@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		08.02.2018 (c)Korotkov Andrey
+\date		07.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -44,6 +44,7 @@ namespace RenderPipeline = Impl::RenderPipeline;
 
 extern ComPtr<ID3D12Device2> device;
 void NameObject(ID3D12Object *object, LPCWSTR name) noexcept, NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
+ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC &desc, LPCWSTR name);
 
 // currently not reentarable after exception, need to reset on exception to provide stronger exception guarantee
 RenderPipeline::RenderStageItem (TerrainVectorLayer::*TerrainVectorLayer::getNextRenderItemSelector)(unsigned int &length) const = &TerrainVectorLayer::GetCullPassPre;
@@ -198,21 +199,6 @@ namespace
 		typedef conditional_t<dst32bit, uint32_t, uint16_t> DstType;
 		copy_n(reinterpret_cast<const SrcType *>(src), count, reinterpret_cast<volatile DstType *>(dst));
 		reinterpret_cast<volatile DstType *&>(dst) += count;
-	}
-
-	ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC &desc, LPCWSTR name)
-	{
-		ComPtr<ID3D12RootSignature> result;
-		ComPtr<ID3DBlob> sig, error;
-		const HRESULT hr = D3D12SerializeVersionedRootSignature(&desc, &sig, &error);
-		if (error)
-		{
-			cerr.write((const char *)error->GetBufferPointer(), error->GetBufferSize()) << endl;
-		}
-		CheckHR(hr);
-		CheckHR(device->CreateRootSignature(0, sig->GetBufferPointer(), sig->GetBufferSize(), IID_PPV_ARGS(result.GetAddressOf())));
-		NameObject(result.Get(), name);
-		return move(result);
 	}
 }
 

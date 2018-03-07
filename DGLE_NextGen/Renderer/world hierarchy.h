@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		24.01.2018 (c)Korotkov Andrey
+\date		07.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -119,13 +119,13 @@ namespace Renderer::Impl::Hierarchy
 	};
 
 	// currently for static geometry only
-	template<class Object, class CustomNodeData, TreeStructure treeStructure>
+	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>
 	class BVH
 	{
 		std::vector<Object> objects;
 
 	public:
-		class Node : public CustomNodeData
+		class Node : public CustomNodeData...
 		{
 			friend class BVH;
 
@@ -211,12 +211,14 @@ namespace Renderer::Impl::Hierarchy
 		std::unique_ptr<Node> root;
 
 	public:
+		BVH() = default;
 		template<typename Iterator>
 		BVH(Iterator objBegin, Iterator objEnd, SplitTechnique splitTechnique, ...);	// overlapThreshold -> ... for QUADTREE/OCTREE
 		BVH(BVH &&) = default;
 		BVH &operator =(BVH &&) = default;
 
 	public:
+		explicit operator bool() const noexcept { return root.operator bool(); }
 		const auto &GetAABB() const noexcept { return root->GetAABB(); }
 		unsigned long int GetTriCount() const noexcept { return root->GetInclusiveTriCount(); }
 
@@ -225,6 +227,6 @@ namespace Renderer::Impl::Hierarchy
 		void Traverse(F &nodeHandler, const Args &...args);
 		template<LPCWSTR resourceName>
 		void Shcedule(GPUStreamBuffer::CountedAllocatorWrapper<sizeof std::declval<Object>().GetAABB(), resourceName> &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(std::declval<Object>().GetAABB().Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform = nullptr);
-		void FreeObjects();
+		void FreeObjects(), Reset();
 	};
 }

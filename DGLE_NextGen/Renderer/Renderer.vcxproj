@@ -209,6 +209,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AABB.h" />
+    <ClInclude Include="CB register.h" />
     <ClInclude Include="cmdlist pool.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="frustum culling.h" />
@@ -216,6 +217,7 @@
     <ClInclude Include="GPU work submission.h" />
     <ClInclude Include="HRESULT.h" />
     <ClInclude Include="include\instance.hh" />
+    <ClInclude Include="include\object 3D.hh" />
     <ClInclude Include="include\terrain.hh" />
     <ClInclude Include="include\viewport.hh" />
     <ClInclude Include="include\world.hh" />
@@ -226,6 +228,7 @@
     <ClInclude Include="render stage item.h" />
     <ClInclude Include="render pipeline.h" />
     <ClInclude Include="render stage.h" />
+    <ClInclude Include="static objects data.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="tracked ref.h" />
@@ -240,6 +243,7 @@
     <ClCompile Include="GPU work submission.cpp" />
     <ClCompile Include="instance.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="object 3D.cpp" />
     <ClCompile Include="occlusion tree.cpp" />
     <ClCompile Include="occlusion query batch.cpp" />
     <ClCompile Include="render output.cpp" />
@@ -269,6 +273,18 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
     </FxCompile>
+    <FxCompile Include="object3D_PS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="object3D_VS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+    </FxCompile>
     <FxCompile Include="vectorLayerPS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
@@ -287,6 +303,7 @@
     <None Include="cmdlist pool.inl" />
     <None Include="GPU stream buffer allocator.inl" />
     <None Include="packages.config" />
+    <None Include="per-frame data.hlsli" />
     <None Include="tracked ref.inl" />
     <None Include="tracked resource.inl" />
     <None Include="world hierarchy.inl" />

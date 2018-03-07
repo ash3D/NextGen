@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.01.2018 (c)Korotkov Andrey
+\date		07.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -12,6 +12,7 @@ See "DGLE.h" for more details.
 #include "occlusion query batch.h"
 #include "world.hh"
 #include "terrain.hh"
+#include "object 3D.hh"
 #include "tracked resource.inl"
 #include "GPU stream buffer allocator.inl"
 
@@ -21,6 +22,7 @@ See "DGLE.h" for more details.
 using namespace std;
 using Renderer::Impl::globalFrameVersioning;
 using Renderer::Impl::TerrainVectorLayer;
+using Renderer::Impl::Object3D;
 using Microsoft::WRL::ComPtr;
 
 static constexpr size_t maxD3D12NameLength = 256;
@@ -55,6 +57,22 @@ void NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept
 		NameObject(object, buf);
 	assert(length >= 0 && length < maxD3D12NameLength);
 	va_end(args);
+}
+
+ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC &desc, LPCWSTR name)
+{
+	extern ComPtr<ID3D12Device2> device;
+	ComPtr<ID3D12RootSignature> result;
+	ComPtr<ID3DBlob> sig, error;
+	const HRESULT hr = D3D12SerializeVersionedRootSignature(&desc, &sig, &error);
+	if (error)
+	{
+		cerr.write((const char *)error->GetBufferPointer(), error->GetBufferSize()) << endl;
+	}
+	CheckHR(hr);
+	CheckHR(device->CreateRootSignature(0, sig->GetBufferPointer(), sig->GetBufferSize(), IID_PPV_ARGS(result.GetAddressOf())));
+	NameObject(result.Get(), name);
+	return move(result);
 }
 
 static auto CreateFactory()
@@ -167,10 +185,12 @@ void OnFrameFinish()
 #pragma region root sigs & PSOs
 ComPtr<ID3D12RootSignature>
 	TerrainVectorLayer::cullPassRootSig	= TerrainVectorLayer::TryCreateCullPassRootSig(),
-	TerrainVectorLayer::mainPassRootSig	= TerrainVectorLayer::TryCreateMainPassRootSig();
+	TerrainVectorLayer::mainPassRootSig	= TerrainVectorLayer::TryCreateMainPassRootSig(),
+	Object3D::rootSig					= Object3D::TryCreateRootSig();
 ComPtr<ID3D12PipelineState>
 	TerrainVectorLayer::cullPassPSO		= TerrainVectorLayer::TryCreateCullPassPSO(),
 	TerrainVectorLayer::mainPassPSO		= TerrainVectorLayer::TryCreateMainPassPSO();
+decltype(Object3D::PSOs) Object3D::PSOs = Object3D::TryCreatePSOs();
 
 #pragma region TryCreate...()
 inline ComPtr<ID3D12RootSignature> TerrainVectorLayer::TryCreateCullPassRootSig()
@@ -183,6 +203,11 @@ inline ComPtr<ID3D12RootSignature> TerrainVectorLayer::TryCreateMainPassRootSig(
 	return device ? CreateMainPassRootSig() : nullptr;
 }
 
+inline ComPtr<ID3D12RootSignature> Object3D::TryCreateRootSig()
+{
+	return device ? CreateRootSig() : nullptr;
+}
+
 inline ComPtr<ID3D12PipelineState> TerrainVectorLayer::TryCreateCullPassPSO()
 {
 	return device ? CreateCullPassPSO() : nullptr;
@@ -191,6 +216,11 @@ inline ComPtr<ID3D12PipelineState> TerrainVectorLayer::TryCreateCullPassPSO()
 inline ComPtr<ID3D12PipelineState> TerrainVectorLayer::TryCreateMainPassPSO()
 {
 	return device ? CreateMainPassPSO() : nullptr;
+}
+
+inline auto Object3D::TryCreatePSOs() -> decltype(PSOs)
+{
+	return device ? CreatePSOs() : decltype(PSOs)();
 }
 #pragma endregion define here to enable inline
 #pragma endregion
@@ -247,6 +277,8 @@ extern void __cdecl InitRenderer()
 		TerrainVectorLayer::mainPassRootSig	= TerrainVectorLayer::CreateMainPassRootSig();
 		TerrainVectorLayer::cullPassPSO		= TerrainVectorLayer::CreateCullPassPSO();
 		TerrainVectorLayer::mainPassPSO		= TerrainVectorLayer::CreateMainPassPSO();
+		Object3D::rootSig					= Object3D::CreateRootSig();
+		Object3D::PSOs						= Object3D::TryCreatePSOs();
 		World::perFrameCB = World::CreatePerFrameCB();
 #if PERSISTENT_MAPS
 		World::perFrameCB_CPU_ptr = World::MapPerFrameCB();

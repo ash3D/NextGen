@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		26.01.2018 (c)Korotkov Andrey
+\date		07.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -20,6 +20,8 @@ See "DGLE.h" for more details.
 #include <wrl/client.h>
 #include "../AABB.h"
 #include "../world hierarchy.h"
+#include "../render stage.h"
+#include "../tracked resource.h"
 
 struct ID3D12RootSignature;
 struct ID3D12PipelineState;
@@ -39,6 +41,8 @@ namespace Renderer
 
 	class Viewport;
 	class TerrainVectorLayer;
+	class Object3D;
+	class Instance;
 	class World;
 
 	namespace Impl
@@ -48,7 +52,7 @@ namespace Renderer
 
 		using WRL::ComPtr;
 
-		class World : public std::enable_shared_from_this<Renderer::World>
+		class World : public std::enable_shared_from_this<Renderer::World>, RenderPipeline::IRenderStage
 		{
 			friend extern void __cdecl ::InitRenderer();
 
@@ -102,18 +106,62 @@ namespace Renderer
 			std::list<Renderer::TerrainVectorLayer, Allocator<Renderer::TerrainVectorLayer>> terrainVectorLayers;
 
 		private:
-			class Instance
+			class BVHObject
 			{
-				AABB<3> aabb;
+				const Renderer::Instance *instance;
 
 			public:
-				auto GetAABB() const { return aabb; }
+				BVHObject(const Renderer::Instance *instance) : instance(instance) {}
+
+			public:
+#if defined _MSC_VER && _MSC_VER <= 1912
+				inline const AABB<3> &GetAABB() const;
+#else
+				inline const auto &GetAABB() const;
+#endif
+				inline unsigned long int GetTriCount() const noexcept;
+				float GetOcclusion() const noexcept { return .7f; }
 			};
-			class NodeData
+
+			//class NodeData
+			//{
+			//	WRL::ComPtr<ID3D12GraphicsCommandList1> bundle;
+			//};
+
+		private:
+			// static objects
+			mutable Hierarchy::BVH<Hierarchy::QUADTREE, BVHObject> bvh;
+			mutable std::list<Renderer::Instance, Allocator<Renderer::Instance>> staticObjects;
+			mutable TrackedResource<ID3D12Resource> staticObjectsCB;
+			struct StaticObjectData;
+			void InvalidateStaticObjects();
+
+#pragma region main pass
+		private:
+			mutable std::function<void (ID3D12GraphicsCommandList1 *target)> mainPassSetupCallback;
+
+		private:
+			//void MainPassPre(CmdListPool::CmdList &target) const, MainPassPost(CmdListPool::CmdList &target) const;
+			void MainPassRange(unsigned long int rangeBegin, unsigned long int rangeEnd, CmdListPool::CmdList &target) const;
+#pragma endregion
+
+		private:
+			// Inherited via IRenderStage
+			virtual void Sync() const override final {}
+			RenderPipeline::RenderStageItem GetNextRenderItem(unsigned int &length) const override final,
+				GetMainPassPre(unsigned int &length) const, GetMainPassRange(unsigned int &length) const, GetMainPassPost(unsigned int &length) const, GetStageTermination(unsigned int &) const;
+
+		private:
+			static RenderPipeline::RenderStageItem (World::*getNextRenderItemSelector)(unsigned int &length) const;
+
+		private:
+			struct InstanceDeleter final
 			{
-				WRL::ComPtr<ID3D12GraphicsCommandList1> bundle;
+				decltype(staticObjects)::const_iterator instsnceLocation;
+
+			public:
+				void operator ()(const Renderer::Instance *instanceToRemove) const;
 			};
-			//mutable Hierarchy::BVH<Instance, NodeData, Hierarchy::QUADTREE> bvh;
 
 		protected:
 			World(const float (&terrainXform)[4][3]);
@@ -129,9 +177,14 @@ namespace Renderer
 			//void ScheduleNode(decltype(bvh)::Node &node) const;
 
 		public:
+			typedef std::unique_ptr<const Renderer::Instance, InstanceDeleter> InstancePtr;
 			std::shared_ptr<Renderer::Viewport> CreateViewport() const;
 			std::shared_ptr<Renderer::TerrainVectorLayer> AddTerrainVectorLayer(unsigned int layerIdx, const float (&color)[3], std::string layerName);
-			//Instance AddStaticInstance(float x, float y);
+			InstancePtr AddStaticObject(Renderer::Object3D object, const float (&xform)[4][3], const AABB<3> &worldAABB);
+			void FlushUpdates() const;	// const to be able to call from Render()
+
+		private:
+			const RenderPipeline::IRenderStage *BuildRenderStage(std::function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const;
 		};
 	}
 

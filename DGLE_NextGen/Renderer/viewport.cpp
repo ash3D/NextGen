@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.01.2018 (c)Korotkov Andrey
+\date		07.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -30,7 +30,7 @@ static inline RenderPipeline::PipelineStage Pre(ID3D12GraphicsCommandList1 *cmdL
 	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(rt, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 	const float color[4] = { .0f, .2f, .4f, 1.f };
 	cmdList->ClearRenderTargetView(rtv, color, 0, NULL);
-	cmdList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_STENCIL, 1.f, UINT8_MAX, 0, NULL);
+	cmdList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, UINT8_MAX, 0, NULL);
 	CheckHR(cmdList->Close());
 	return cmdList;
 }

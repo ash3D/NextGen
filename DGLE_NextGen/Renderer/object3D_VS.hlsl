@@ -9,9 +9,15 @@ See "DGLE.h" for more details.
 
 #include "per-frame data.hlsli"
 
-float4 main(in float4 pos : POSITION) : SV_POSITION
+cbuffer InstanceData : register(b1)
 {
-	const float3 worldPos = mul(pos, terrainWorldXform);
+	row_major float4x3 worldXform;
+};
+
+float4 main(in float4 pos : POSITION, out float height : SV_ClipDistance) : SV_POSITION
+{
+	const float3 worldPos = mul(float4(mul(pos, worldXform), 1.f), terrainWorldXform);
+	height = worldPos.z;	// do not render anything under terrain
 	const float3 viewPos = mul(float4(worldPos, 1.f), viewXform);
 	return mul(float4(viewPos, 1.f), projXform);
 }

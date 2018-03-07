@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		08.02.2018 (c)Korotkov Andrey
+\date		07.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -9,6 +9,8 @@ See "DGLE.h" for more details.
 
 #pragma once
 
+#define NOMINMAX
+
 #include <type_traits>
 #include <memory>
 #include <string>
@@ -16,6 +18,7 @@ See "DGLE.h" for more details.
 #include <list>
 #include <functional>
 #include <optional>
+#include <wrl/client.h>
 #include "world.hh"	// temp for Allocator
 #include "../tracked resource.h"
 #include "../AABB.h"
@@ -28,6 +31,7 @@ See "DGLE.h" for more details.
 #include "vector math.h"
 #endif
 
+struct ID3D12RootSignature;
 struct ID3D12PipelineState;
 struct ID3D12GraphicsCommandList1;
 struct ID3D12Resource;
@@ -36,8 +40,8 @@ extern void __cdecl InitRenderer();
 
 namespace Renderer
 {
-	namespace HLSL = Math::VectorMath::HLSL;
 	namespace WRL = Microsoft::WRL;
+	namespace HLSL = Math::VectorMath::HLSL;
 
 	namespace Impl
 	{
@@ -87,7 +91,7 @@ namespace Renderer
 
 	private:
 		const std::shared_ptr<class TerrainVectorLayer> layer;
-		mutable Impl::Hierarchy::BVH<Object, NodeCluster, Impl::Hierarchy::QUADTREE> subtree;
+		mutable Impl::Hierarchy::BVH<Impl::Hierarchy::QUADTREE, Object, NodeCluster> subtree;
 		Impl::TrackedResource<ID3D12Resource> VIB;	// Vertex/Index Buffer
 		const bool IB32bit;
 		const unsigned long int VB_size, IB_size;

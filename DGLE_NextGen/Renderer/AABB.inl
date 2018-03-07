@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.07.2017 (c)Korotkov Andrey
+\date		07.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -13,14 +13,26 @@ See "DGLE.h" for more details.
 #include <algorithm>
 
 template<unsigned dimension>
-inline void Renderer::AABB<dimension>::Refit(const AABB &src)
+inline void Renderer::AABB<dimension>::Refit(const Math::VectorMath::vector<float, dimension> &min, const Math::VectorMath::vector<float, dimension> &max)
 {
 	// TODO: specialize vector math min/max for FP types to use fmin/fmax internally
 	for (unsigned i = 0; i < dimension; i++)
 	{
-		min[i] = fmin(min[i], src.min[i]);
-		max[i] = fmax(max[i], src.max[i]);
+		this->min[i] = fmin(this->min[i], min[i]);
+		this->max[i] = fmax(this->max[i], max[i]);
 	}
+}
+
+template<unsigned dimension>
+inline void Renderer::AABB<dimension>::Refit(const Math::VectorMath::vector<float, dimension> &vert)
+{
+	Refit(vert, vert);
+}
+
+template<unsigned dimension>
+inline void Renderer::AABB<dimension>::Refit(const AABB &src)
+{
+	Refit(src.min, src.max);
 }
 
 template<unsigned dimension>

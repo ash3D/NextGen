@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		29.10.2017 (c)Korotkov Andrey
+\date		07.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -33,8 +33,11 @@ namespace Renderer
 		inline AABB() : min(+INFINITY), max(-INFINITY) {}
 		inline AABB(const Math::VectorMath::vector<float, dimension> &min, const Math::VectorMath::vector<float, dimension> &max) : min(min), max(max) {}
 
+	private:
+		void Refit(const Math::VectorMath::vector<float, dimension> &min, const Math::VectorMath::vector<float, dimension> &max);
+
 	public:
-		void Refit(const AABB &src);
+		void Refit(const Math::VectorMath::vector<float, dimension> &vert), Refit(const AABB &src);
 		void Transform(const Math::VectorMath::matrix<float, dimension + 1, dimension> &xform);
 		inline auto Center() const { return (min + max) * .5f; }
 		inline auto Size() const { return max - min; }

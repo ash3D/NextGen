@@ -101,6 +101,15 @@
     <ClInclude Include="tracked ref.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\object 3D.hh">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="CB register.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="static objects data.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -154,6 +163,9 @@
     <ClCompile Include="render stage.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="object 3D.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="vectorLayerVS.hlsl">
@@ -163,6 +175,12 @@
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="AABB_2D.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="object3D_VS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="object3D_PS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>
@@ -185,6 +203,9 @@
     </None>
     <None Include="tracked ref.inl">
       <Filter>Header Files</Filter>
+    </None>
+    <None Include="per-frame data.hlsli">
+      <Filter>Shaders</Filter>
     </None>
   </ItemGroup>
 </Project>
