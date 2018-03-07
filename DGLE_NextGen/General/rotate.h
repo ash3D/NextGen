@@ -87,11 +87,7 @@ namespace RotImpl
 	inline auto rol(typename boost::uint_t<width>::fast value, unsigned int shift) noexcept ->
 		enable_if_t<!Has_exact<typename boost::uint_t<width>>::value, decltype(value)>
 #else
-#if defined _MSC_VER && _MSC_VER <= 1912 && !defined __clang__
-	inline typename SelectType<width>::fast rol(typename SelectType<width>::fast value, unsigned int shift) noexcept
-#else
 	inline auto rol(typename SelectType<width>::fast value, unsigned int shift) noexcept -> decltype(value)
-#endif
 #endif
 	{
 		shift %= width;
@@ -123,11 +119,7 @@ namespace RotImpl
 	inline auto ror(typename boost::uint_t<width>::fast value, unsigned int shift) noexcept ->
 		enable_if_t<!Has_exact<typename boost::uint_t<width>>::value, decltype(value)>
 #else
-#if defined _MSC_VER && _MSC_VER <= 1912 && !defined __clang__
-	inline typename SelectType<width>::fast ror(typename SelectType<width>::fast value, unsigned int shift) noexcept
-#else
 	inline auto ror(typename SelectType<width>::fast value, unsigned int shift) noexcept -> decltype(value)
-#endif
 #endif
 	{
 		shift %= width;

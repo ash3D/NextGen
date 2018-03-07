@@ -9,6 +9,6 @@ See "DGLE.h" for more details.
 
 #pragma once
 
-#if !defined  __clang__  && defined _MSC_VER && _MSC_VER < 1912
-#error Old MSVC compiler version. Visual Studio 2017 15.5 or later required.
+#if !defined  __clang__  && defined _MSC_VER && _MSC_VER < 1913
+#error Old MSVC compiler version. Visual Studio 2017 15.6 or later required.
 #endif

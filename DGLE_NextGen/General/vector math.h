@@ -265,8 +265,8 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 #	ifndef __VECTOR_MATH_H__
 #	define __VECTOR_MATH_H__
 
-#	if defined _MSC_VER && _MSC_VER < 1912 && !defined  __clang__
-#	error Old MSVC compiler version. Visual Studio 2017 15.5 or later required.
+#	if defined _MSC_VER && _MSC_VER < 1913 && !defined  __clang__
+#	error Old MSVC compiler version. Visual Studio 2017 15.6 or later required.
 #	elif defined __GNUC__ && (__GNUC__ < 4 || (__GNUC__ >= 4 && __GNUC_MINOR__ < 7)) && !defined __clang__
 #	error Old GCC compiler version. GCC 4.7 or later required.	// need to be clarified
 #	endif
@@ -1045,29 +1045,6 @@ further investigations needed, including other compilers
 						SwizzleWARHazardDetectHelper<DstSwizzleDesc, SrcSwizzleDesc, assign> {};
 #endif
 
-#if defined _MSC_VER && _MSC_VER == 1912
-					class DetectSwizzleWARHazardBase
-					{
-					protected:
-						template
-						<
-							unsigned int dstRows, unsigned int srcRows,
-							class DstSwizzleDesc, class SrcSwizzleDesc, bool assign,
-							unsigned int rows, unsigned rowIdx = 0
-						>
-						static constexpr auto FoldRows = DetectRowVsMatrixWARHazard<DstSwizzleDesc, bool(dstRows), SrcSwizzleDesc, bool(srcRows), rowIdx, assign>::value || FoldRows<dstRows, srcRows, DstSwizzleDesc, SrcSwizzleDesc, assign, rows, rowIdx + 1>;
-
-						// terminator
-						template
-						<
-							unsigned int dstRows, unsigned int srcRows,
-							class DstSwizzleDesc, class SrcSwizzleDesc, bool assign,
-							unsigned int rows
-						>
-						static constexpr auto FoldRows<dstRows, srcRows, DstSwizzleDesc, SrcSwizzleDesc, assign, rows, rows> = false;
-					};
-#endif
-
 					// mixed vector/matrix swizzles
 					template
 					<
@@ -1075,15 +1052,8 @@ further investigations needed, including other compilers
 						class DstSwizzleDesc, class SrcSwizzleDesc, bool assign
 					>
 					class DetectSwizzleWARHazard<ElementType, dstRows, columns, DstSwizzleDesc, ElementType, srcRows, columns, SrcSwizzleDesc, assign, enable_if_t<bool(dstRows) != bool(srcRows)>>
-#if defined _MSC_VER && _MSC_VER == 1912
-						: DetectSwizzleWARHazardBase
-#endif
 					{
 #ifdef MSVC_LIMITATIONS
-#if _MSC_VER == 1912
-					public:
-						static constexpr auto value = FoldRows<dstRows, srcRows, DstSwizzleDesc, SrcSwizzleDesc, assign, dstRows ? dstRows : srcRows>;
-#else
 						template<unsigned int rows, unsigned rowIdx = 0>
 						static constexpr auto FoldRows = DetectRowVsMatrixWARHazard<DstSwizzleDesc, bool(dstRows), SrcSwizzleDesc, bool(srcRows), rowIdx, assign>::value || FoldRows<rows, rowIdx + 1>;
 
@@ -1093,7 +1063,6 @@ further investigations needed, including other compilers
 
 					public:
 						static constexpr auto value = FoldRows<dstRows ? dstRows : srcRows>;
-#endif
 #else
 						template<typename Seq>
 						static constexpr bool FoldRows = false;
