@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		07.03.2018 (c)Korotkov Andrey
+\date		08.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -19,6 +19,8 @@ namespace Renderer::Impl::CBRegister
 	template<unsigned int length>
 	struct alignas(align) AlignedRow : std::array<float, length>
 	{
+		static_assert(length <= 4, "CB register can have at most 4 components");
+
 		void operator =(const float (&src)[length]) volatile noexcept
 		{
 			memcpy(const_cast<AlignedRow *>(this)->data(), src, sizeof src);
