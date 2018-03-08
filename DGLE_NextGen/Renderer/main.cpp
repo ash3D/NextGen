@@ -279,8 +279,8 @@ extern void __cdecl InitRenderer()
 		TerrainVectorLayer::cullPassPSO		= TerrainVectorLayer::CreateCullPassPSO();
 		TerrainVectorLayer::mainPassPSO		= TerrainVectorLayer::CreateMainPassPSO();
 		Object3D::rootSig					= Object3D::CreateRootSig();
-		Object3D::PSOs						= Object3D::TryCreatePSOs();
-		World::perFrameCB = World::CreatePerFrameCB();
+		Object3D::PSOs						= Object3D::CreatePSOs();
+		World::perFrameCB					= World::CreatePerFrameCB();
 #if PERSISTENT_MAPS
 		World::perFrameCB_CPU_ptr = World::MapPerFrameCB();
 #endif
