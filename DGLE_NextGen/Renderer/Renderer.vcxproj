@@ -225,7 +225,7 @@
     <ClInclude Include="occlusion tree.h" />
     <ClInclude Include="occlusion query batch.h" />
     <ClInclude Include="per-frame data.h" />
-    <ClInclude Include="render stage item.h" />
+    <ClInclude Include="GPU work item.h" />
     <ClInclude Include="render pipeline.h" />
     <ClInclude Include="render stage.h" />
     <ClInclude Include="static objects data.h" />

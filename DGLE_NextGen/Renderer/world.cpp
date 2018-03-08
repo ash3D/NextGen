@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		08.03.2018 (c)Korotkov Andrey
+\date		09.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -31,7 +31,7 @@ using WRL::ComPtr;
 extern ComPtr<ID3D12Device2> device;
 void NameObject(ID3D12Object *object, LPCWSTR name) noexcept, NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
 
-Impl::RenderPipeline::RenderStageItem (World::*Impl::World::getNextRenderItemSelector)(unsigned int &length) const = &World::GetMainPassRange;
+Impl::RenderPipeline::PipelineItem (World::*Impl::World::getNextWorkItemSelector)(unsigned int &length) const = &World::GetMainPassRange;
 
 ComPtr<ID3D12Resource> Impl::World::CreatePerFrameCB()
 {
@@ -109,39 +109,32 @@ void Impl::World::MainPassRange(unsigned long int rangeBegin, unsigned long int 
 #endif
 }
 
-auto Impl::World::GetNextRenderItem(unsigned int &length) const -> RenderPipeline::RenderStageItem
+auto Impl::World::GetNextWorkItem(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
-	return (this->*getNextRenderItemSelector)(length);
+	return (this->*getNextWorkItemSelector)(length);
 }
 
-//auto Impl::World::GetMainPassPre(unsigned int &length) const -> RenderPipeline::RenderStageItem
+//auto Impl::World::GetMainPassPre(unsigned int &length) const -> RenderPipeline::PipelineItem
 //{
 //	using namespace placeholders;
-//	getNextRenderItemSelector = &World::GetMainPassRange;
+//	getNextWorkItemSelector = &World::GetMainPassRange;
 //	return bind(&World::MainPassPre, this, _1);
 //}
 
-auto Impl::World::GetMainPassRange(unsigned int &length) const -> RenderPipeline::RenderStageItem
+auto Impl::World::GetMainPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, staticObjects.size(), [] { /*RenderPipeline::TerminateStageTraverse();*//*getNextRenderItemSelector = &World::GetMainPassPost;*/getNextRenderItemSelector = &World::GetStageTermination; },
+	return IterateRenderPass(length, staticObjects.size(), [] { RenderPipeline::TerminateStageTraverse();/*getNextWorkItemSelector = &World::GetMainPassPost;*/ },
 		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&World::MainPassRange, this, rangeBegin, rangeEnd, _1); });
 }
 
-//auto Impl::World::GetMainPassPost(unsigned int &length) const -> RenderPipeline::RenderStageItem
+//auto Impl::World::GetMainPassPost(unsigned int &length) const -> RenderPipeline::PipelineItem
 //{
 //	using namespace placeholders;
-//	getNextRenderItemSelector = &World::GetMainPassPre;
+//	getNextWorkItemSelector = &World::GetMainPassPre;
 //	RenderPipeline::TerminateStageTraverse();
 //	return bind(&World::MainPassPost, this, _1);
 //}
-
-auto Impl::World::GetStageTermination(unsigned int &) const -> RenderPipeline::RenderStageItem
-{
-	getNextRenderItemSelector = &World::GetMainPassRange;
-	RenderPipeline::TerminateStageTraverse();
-	return [](CmdListPool::CmdList &) {};
-}
 
 Impl::World::World(const float (&terrainXform)[4][3])
 {

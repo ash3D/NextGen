@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		08.03.2018 (c)Korotkov Andrey
+\date		09.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -187,7 +187,7 @@ namespace Renderer
 		private:
 			// Inherited via IRenderStage
 			virtual void Sync() const override final { occlusionQueryBatch.Sync(); }
-			RenderPipeline::RenderStageItem GetNextRenderItem(unsigned int &length) const override final,
+			RenderPipeline::PipelineItem GetNextWorkItem(unsigned int &length) const override final,
 				GetCullPassPre(unsigned int &length) const, GetCullPassRange(unsigned int &length) const, GetCullPassPost(unsigned int &length) const,
 				GetMainPassPre(unsigned int &length) const, GetMainPassRange(unsigned int &length) const, GetMainPassPost(unsigned int &length) const;
 
@@ -206,7 +206,7 @@ namespace Renderer
 
 		private:
 			static std::optional<GPUStreamBuffer::Allocator<sizeof(AABB<2>), TerrainVectorQuad::AABB_VB_name>> GPU_AABB_allocator;
-			static RenderPipeline::RenderStageItem (TerrainVectorLayer::*getNextRenderItemSelector)(unsigned int &length) const;
+			static RenderPipeline::PipelineItem (TerrainVectorLayer::*getNextWorkItemSelector)(unsigned int &length) const;
 
 		private:
 			struct QuadDeleter final

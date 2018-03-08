@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		08.03.2018 (c)Korotkov Andrey
+\date		09.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -148,11 +148,11 @@ namespace Renderer
 		private:
 			// Inherited via IRenderStage
 			virtual void Sync() const override final {}
-			RenderPipeline::RenderStageItem GetNextRenderItem(unsigned int &length) const override final,
-				GetMainPassPre(unsigned int &length) const, GetMainPassRange(unsigned int &length) const, GetMainPassPost(unsigned int &length) const, GetStageTermination(unsigned int &) const;
+			RenderPipeline::PipelineItem GetNextWorkItem(unsigned int &length) const override final,
+				GetMainPassPre(unsigned int &length) const, GetMainPassRange(unsigned int &length) const, GetMainPassPost(unsigned int &length) const;
 
 		private:
-			static RenderPipeline::RenderStageItem (World::*getNextRenderItemSelector)(unsigned int &length) const;
+			static RenderPipeline::PipelineItem (World::*getNextWorkItemSelector)(unsigned int &length) const;
 
 		private:
 			struct InstanceDeleter final

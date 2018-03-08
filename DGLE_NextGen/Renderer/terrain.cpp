@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		08.03.2018 (c)Korotkov Andrey
+\date		09.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -47,7 +47,7 @@ void NameObject(ID3D12Object *object, LPCWSTR name) noexcept, NameObjectF(ID3D12
 ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC &desc, LPCWSTR name);
 
 // currently not reentarable after exception, need to reset on exception to provide stronger exception guarantee
-RenderPipeline::RenderStageItem (TerrainVectorLayer::*TerrainVectorLayer::getNextRenderItemSelector)(unsigned int &length) const = &TerrainVectorLayer::GetCullPassPre;
+RenderPipeline::PipelineItem (TerrainVectorLayer::*TerrainVectorLayer::getNextWorkItemSelector)(unsigned int &length) const = &TerrainVectorLayer::GetCullPassPre;
 
 namespace
 {
@@ -585,50 +585,50 @@ void Impl::TerrainVectorLayer::IssueCluster(unsigned long int startIdx, unsigned
 }
 #pragma endregion
 
-RenderPipeline::RenderStageItem Impl::TerrainVectorLayer::GetNextRenderItem(unsigned int &length) const
+RenderPipeline::PipelineItem Impl::TerrainVectorLayer::GetNextWorkItem(unsigned int &length) const
 {
-	return (this->*getNextRenderItemSelector)(length);
+	return (this->*getNextWorkItemSelector)(length);
 }
 
-RenderPipeline::RenderStageItem Impl::TerrainVectorLayer::GetCullPassPre(unsigned int &) const
+RenderPipeline::PipelineItem Impl::TerrainVectorLayer::GetCullPassPre(unsigned int &) const
 {
 	using namespace placeholders;
-	getNextRenderItemSelector = &TerrainVectorLayer::GetCullPassRange;
+	getNextWorkItemSelector = &TerrainVectorLayer::GetCullPassRange;
 	return bind(&TerrainVectorLayer::CullPassPre, this, _1);
 }
 
-RenderPipeline::RenderStageItem Impl::TerrainVectorLayer::GetCullPassRange(unsigned int &length) const
+RenderPipeline::PipelineItem Impl::TerrainVectorLayer::GetCullPassRange(unsigned int &length) const
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, queryStream.size(), [] { getNextRenderItemSelector = &TerrainVectorLayer::GetCullPassPost; },
+	return IterateRenderPass(length, queryStream.size(), [] { getNextWorkItemSelector = &TerrainVectorLayer::GetCullPassPost; },
 		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::CullPassRange, this, rangeBegin, rangeEnd, _1); });
 }
 
-RenderPipeline::RenderStageItem Impl::TerrainVectorLayer::GetCullPassPost(unsigned int &) const
+RenderPipeline::PipelineItem Impl::TerrainVectorLayer::GetCullPassPost(unsigned int &) const
 {
 	using namespace placeholders;
-	getNextRenderItemSelector = &TerrainVectorLayer::GetMainPassPre;
+	getNextWorkItemSelector = &TerrainVectorLayer::GetMainPassPre;
 	return bind(&TerrainVectorLayer::CullPassPost, this, _1);
 }
 
-RenderPipeline::RenderStageItem Impl::TerrainVectorLayer::GetMainPassPre(unsigned int &) const
+RenderPipeline::PipelineItem Impl::TerrainVectorLayer::GetMainPassPre(unsigned int &) const
 {
 	using namespace placeholders;
-	getNextRenderItemSelector = &TerrainVectorLayer::GetMainPassRange;
+	getNextWorkItemSelector = &TerrainVectorLayer::GetMainPassRange;
 	return bind(&TerrainVectorLayer::MainPassPre, this, _1);
 }
 
-RenderPipeline::RenderStageItem Impl::TerrainVectorLayer::GetMainPassRange(unsigned int &length) const
+RenderPipeline::PipelineItem Impl::TerrainVectorLayer::GetMainPassRange(unsigned int &length) const
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, renderStream.size(), [] { getNextRenderItemSelector = &TerrainVectorLayer::GetMainPassPost; },
+	return IterateRenderPass(length, renderStream.size(), [] { getNextWorkItemSelector = &TerrainVectorLayer::GetMainPassPost; },
 		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::MainPassRange, this, rangeBegin, rangeEnd, _1); });
 }
 
-RenderPipeline::RenderStageItem Impl::TerrainVectorLayer::GetMainPassPost(unsigned int &) const
+RenderPipeline::PipelineItem Impl::TerrainVectorLayer::GetMainPassPost(unsigned int &) const
 {
 	using namespace placeholders;
-	getNextRenderItemSelector = &TerrainVectorLayer::GetCullPassPre;
+	getNextWorkItemSelector = &TerrainVectorLayer::GetCullPassPre;
 	RenderPipeline::TerminateStageTraverse();
 	return bind(&TerrainVectorLayer::MainPassPost, this, _1);
 }

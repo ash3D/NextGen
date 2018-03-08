@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		24.01.2018 (c)Korotkov Andrey
+\date		09.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -19,7 +19,7 @@ static queue<future<PipelineStage>> pipeline;
 static const IRenderStage *curRenderStage;
 
 // returns std::monostate on stage waiting/pipeline finish, null RenderStageItem on batch oferflow
-auto RenderPipeline::GetNext(unsigned int &length) -> decltype(GetNext(length))
+PipelineItem RenderPipeline::GetNext(unsigned int &length)
 {
 	if (!curRenderStage)
 	{
@@ -37,7 +37,7 @@ auto RenderPipeline::GetNext(unsigned int &length) -> decltype(GetNext(length))
 			curRenderStage->Sync();
 		}
 	}
-	return curRenderStage ? curRenderStage->GetNextRenderItem(length) : decltype(GetNext(length)){};
+	return curRenderStage ? curRenderStage->GetNextWorkItem(length) : PipelineItem{};
 }
 
 void RenderPipeline::TerminateStageTraverse() noexcept
