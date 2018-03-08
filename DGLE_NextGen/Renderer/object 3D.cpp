@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		07.03.2018 (c)Korotkov Andrey
+\date		08.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -25,13 +25,36 @@ using WRL::ComPtr;
 extern ComPtr<ID3D12Device2> device;
 void NameObject(ID3D12Object *object, LPCWSTR name) noexcept, NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
 
+/*
+	it seems that INTEL fails to set root constants inside bundle so use cbuffer instead
+	constider GPU/driver detection in runtume instead of current fixed compiletime approach
+	btw, using static data flag in root signature v1.1 allows driver to place cbuffer content directly in root signature, thus this workaround can have no impact on shader performance
+		(although buffer storage still need to be allocated)
+*/
+#define INTEL_WORKAROUND 1
+
+#if INTEL_WORKAROUND
+#include "CB register.h"
+namespace
+{
+	struct alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) MaterialData
+	{
+		Impl::CBRegister::AlignedRow<3> color;
+	};
+}
+#endif
+
 WRL::ComPtr<ID3D12RootSignature> Impl::Object3D::CreateRootSig()
 {
 	ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC &desc, LPCWSTR name);
 	CD3DX12_ROOT_PARAMETER1 rootParams[3];
 	rootParams[0].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);	// per-frame data
 	rootParams[1].InitAsConstantBufferView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);	// instance data
+#if INTEL_WORKAROUND
+	rootParams[2].InitAsConstantBufferView(0, 1, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_PIXEL);
+#else
 	rootParams[2].InitAsConstants(3, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+#endif
 	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(size(rootParams), rootParams, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	return CreateRootSignature(sigDesc, L"object 3D root signature");
 }
@@ -125,7 +148,11 @@ Impl::Object3D::Object3D(unsigned int subobjCount, const function<SubobjectData 
 	CheckHR(device->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 		D3D12_HEAP_FLAG_NONE,
+#if INTEL_WORKAROUND
+		&CD3DX12_RESOURCE_DESC::Buffer(sizeof(MaterialData) * subobjCount + VB_size + IB_size),
+#else
 		&CD3DX12_RESOURCE_DESC::Buffer(VB_size + IB_size),
+#endif
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		NULL,	// clear value
 		IID_PPV_ARGS(VIB.GetAddressOf())));
@@ -144,8 +171,14 @@ Impl::Object3D::Object3D(unsigned int subobjCount, const function<SubobjectData 
 
 	// fill VIB
 	{
+#if INTEL_WORKAROUND
+		MaterialData *matPtr;
+		CheckHR(VIB->Map(0, &CD3DX12_RANGE(0, 0), reinterpret_cast<void **>(&matPtr)));
+		float (*VB_ptr)[3] = reinterpret_cast<float (*)[3]>(matPtr + subobjCount);
+#else
 		float (*VB_ptr)[3];
 		CheckHR(VIB->Map(0, &CD3DX12_RANGE(0, 0), reinterpret_cast<void **>(&VB_ptr)));
+#endif
 		uint16_t (*IB_ptr)[3] = reinterpret_cast<uint16_t (*)[3]>(reinterpret_cast<unsigned char *>(VB_ptr) + VB_size);
 
 		for (unsigned i = 0; i < subobjCount; i++)
@@ -159,6 +192,9 @@ Impl::Object3D::Object3D(unsigned int subobjCount, const function<SubobjectData 
 					subobjects[i].aabb.Refit(curSubobjData.verts[idx]);
 #endif
 
+#if INTEL_WORKAROUND
+			matPtr++->color = curSubobjData.color;
+#endif
 			memcpy(VB_ptr, curSubobjData.verts, curSubobjData.vcount * sizeof *curSubobjData.verts);
 			memcpy(IB_ptr, curSubobjData.tris, curSubobjData.tricount * sizeof *curSubobjData.tris);
 			VB_ptr += curSubobjData.vcount;
@@ -222,7 +258,9 @@ auto Impl::Object3D::CreateBundle(decltype(subobjects) subobjects, ComPtr<ID3D12
 
 	// context
 	ID3D12PipelineState *curPSO = PSOs[subobjects.front().doublesided].Get();
+#if !INTEL_WORKAROUND
 	HLSL::float3 curColor = NAN;	// ensures first compare to trigger
+#endif
 
 	// create command allocator
 	CheckHR(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_BUNDLE, IID_PPV_ARGS(bundle.first.GetAddressOf())));
@@ -249,6 +287,9 @@ auto Impl::Object3D::CreateBundle(decltype(subobjects) subobjects, ComPtr<ID3D12
 		{
 			const D3D12_VERTEX_BUFFER_VIEW VB_view =
 			{
+#if INTEL_WORKAROUND
+				subobjects.size() * sizeof(MaterialData) +
+#endif
 				VIB->GetGPUVirtualAddress(),
 				VB_size,
 				sizeof(float [3])
@@ -263,12 +304,20 @@ auto Impl::Object3D::CreateBundle(decltype(subobjects) subobjects, ComPtr<ID3D12
 			bundle.second->IASetIndexBuffer(&IB_view);
 		}
 
+#if INTEL_WORKAROUND
+		// TODO: use C++20 initializer in range-based for
+		auto material_GPU_ptr = VIB->GetGPUVirtualAddress();
+#endif
 		for (const auto &curSubobj : subobjects)
 		{
 			if (ID3D12PipelineState *const subobjPSO = PSOs[curSubobj.doublesided].Get(); curPSO != subobjPSO)
 				bundle.second->SetPipelineState(curPSO = subobjPSO);
+#if INTEL_WORKAROUND
+			bundle.second->SetGraphicsRootConstantBufferView(2, material_GPU_ptr), material_GPU_ptr += sizeof(MaterialData);
+#else
 			if (any(curColor != curSubobj.color))
 				bundle.second->SetGraphicsRoot32BitConstants(2, decltype(curColor)::dimension, &(curColor = curSubobj.color), 0);
+#endif
 			bundle.second->DrawIndexedInstanced(curSubobj.tricount * 3, 1, curSubobj.IB_offset * 3, curSubobj.VB_offset, 0);
 		}
 
