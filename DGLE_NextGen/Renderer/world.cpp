@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		09.03.2018 (c)Korotkov Andrey
+\date		10.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -232,41 +232,44 @@ auto Impl::World::AddStaticObject(Renderer::Object3D object, const float (&xform
 
 void Impl::World::FlushUpdates() const
 {
-	struct AdressIterator : enable_if_t<true, decltype(staticObjects)::const_iterator>
+	if (!staticObjects.empty())
 	{
-		AdressIterator(decltype(staticObjects)::const_iterator src) : enable_if_t<true, decltype(staticObjects)::const_iterator>(src) {}	// replace with C++17 aggregate base class init
-		auto operator *() const noexcept { return &decltype(staticObjects)::const_iterator::operator *(); }
-	};
-
-	// rebuild BVH
-	if (!bvh)
-		bvh = { AdressIterator{staticObjects.cbegin()}, AdressIterator{staticObjects.cend()}, Hierarchy::SplitTechnique::MEAN, .5f };
-
-	// recreate static objects CB
-	if (!staticObjectsCB)
-	{
-		// create
-		CheckHR(device->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(sizeof(StaticObjectData) * staticObjects.size()/*, D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE*/),
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			NULL,	// clear value
-			IID_PPV_ARGS(staticObjectsCB.GetAddressOf())));
-		NameObjectF(staticObjectsCB.Get(), L"static objects CB for world %p (%zu instances)", static_cast<const ::World *>(this), staticObjects.size());
-
-		// fill
-		volatile StaticObjectData *mapped;
-		CheckHR(staticObjectsCB->Map(0, &CD3DX12_RANGE(0, 0), const_cast<void **>(reinterpret_cast<volatile void **>(&mapped))));
-		// TODO: use C++20 initializer in range-based for
-		auto CB_GPU_ptr = staticObjectsCB->GetGPUVirtualAddress();
-		for (auto &instance : staticObjects)
+		struct AdressIterator : enable_if_t<true, decltype(staticObjects)::const_iterator>
 		{
-			CopyMatrix2CB(instance.GetWorldXform(), mapped++->worldform);
-			instance.CB_GPU_ptr = CB_GPU_ptr;
-			CB_GPU_ptr += sizeof(StaticObjectData);
+			AdressIterator(decltype(staticObjects)::const_iterator src) : enable_if_t<true, decltype(staticObjects)::const_iterator>(src) {}	// replace with C++17 aggregate base class init
+			auto operator *() const noexcept { return &decltype(staticObjects)::const_iterator::operator *(); }
+		};
+
+		// rebuild BVH
+		if (!bvh)
+			bvh = { AdressIterator{staticObjects.cbegin()}, AdressIterator{staticObjects.cend()}, Hierarchy::SplitTechnique::MEAN, .5f };
+
+		// recreate static objects CB
+		if (!staticObjectsCB)
+		{
+			// create
+			CheckHR(device->CreateCommittedResource(
+				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+				D3D12_HEAP_FLAG_NONE,
+				&CD3DX12_RESOURCE_DESC::Buffer(sizeof(StaticObjectData) * staticObjects.size()/*, D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE*/),
+				D3D12_RESOURCE_STATE_GENERIC_READ,
+				NULL,	// clear value
+				IID_PPV_ARGS(staticObjectsCB.GetAddressOf())));
+			NameObjectF(staticObjectsCB.Get(), L"static objects CB for world %p (%zu instances)", static_cast<const ::World *>(this), staticObjects.size());
+
+			// fill
+			volatile StaticObjectData *mapped;
+			CheckHR(staticObjectsCB->Map(0, &CD3DX12_RANGE(0, 0), const_cast<void **>(reinterpret_cast<volatile void **>(&mapped))));
+			// TODO: use C++20 initializer in range-based for
+			auto CB_GPU_ptr = staticObjectsCB->GetGPUVirtualAddress();
+			for (auto &instance : staticObjects)
+			{
+				CopyMatrix2CB(instance.GetWorldXform(), mapped++->worldform);
+				instance.CB_GPU_ptr = CB_GPU_ptr;
+				CB_GPU_ptr += sizeof(StaticObjectData);
+			}
+			staticObjectsCB->Unmap(0, NULL);
 		}
-		staticObjectsCB->Unmap(0, NULL);
 	}
 }
 
