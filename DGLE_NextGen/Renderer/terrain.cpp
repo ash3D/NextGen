@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		09.03.2018 (c)Korotkov Andrey
+\date		11.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -40,14 +40,13 @@ using namespace Renderer;
 using WRL::ComPtr;
 namespace GPUStreamBuffer = Impl::GPUStreamBuffer;
 namespace OcclusionCulling = Impl::OcclusionCulling;
-namespace RenderPipeline = Impl::RenderPipeline;
 
 extern ComPtr<ID3D12Device2> device;
 void NameObject(ID3D12Object *object, LPCWSTR name) noexcept, NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
 ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC &desc, LPCWSTR name);
 
 // currently not reentarable after exception, need to reset on exception to provide stronger exception guarantee
-RenderPipeline::PipelineItem (TerrainVectorLayer::*TerrainVectorLayer::getNextWorkItemSelector)(unsigned int &length) const = &TerrainVectorLayer::GetCullPassPre;
+Impl::RenderPipeline::PipelineItem (TerrainVectorLayer::*TerrainVectorLayer::getNextWorkItemSelector)(unsigned int &length) const = &TerrainVectorLayer::GetCullPassPre;
 
 namespace
 {
@@ -585,47 +584,47 @@ void Impl::TerrainVectorLayer::IssueCluster(unsigned long int startIdx, unsigned
 }
 #pragma endregion
 
-RenderPipeline::PipelineItem Impl::TerrainVectorLayer::GetNextWorkItem(unsigned int &length) const
+auto Impl::TerrainVectorLayer::GetNextWorkItem(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	return (this->*getNextWorkItemSelector)(length);
 }
 
-RenderPipeline::PipelineItem Impl::TerrainVectorLayer::GetCullPassPre(unsigned int &) const
+auto Impl::TerrainVectorLayer::GetCullPassPre(unsigned int &) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
 	getNextWorkItemSelector = &TerrainVectorLayer::GetCullPassRange;
 	return bind(&TerrainVectorLayer::CullPassPre, this, _1);
 }
 
-RenderPipeline::PipelineItem Impl::TerrainVectorLayer::GetCullPassRange(unsigned int &length) const
+auto  Impl::TerrainVectorLayer::GetCullPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
 	return IterateRenderPass(length, queryStream.size(), [] { getNextWorkItemSelector = &TerrainVectorLayer::GetCullPassPost; },
 		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::CullPassRange, this, rangeBegin, rangeEnd, _1); });
 }
 
-RenderPipeline::PipelineItem Impl::TerrainVectorLayer::GetCullPassPost(unsigned int &) const
+auto Impl::TerrainVectorLayer::GetCullPassPost(unsigned int &) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
 	getNextWorkItemSelector = &TerrainVectorLayer::GetMainPassPre;
 	return bind(&TerrainVectorLayer::CullPassPost, this, _1);
 }
 
-RenderPipeline::PipelineItem Impl::TerrainVectorLayer::GetMainPassPre(unsigned int &) const
+auto Impl::TerrainVectorLayer::GetMainPassPre(unsigned int &) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
 	getNextWorkItemSelector = &TerrainVectorLayer::GetMainPassRange;
 	return bind(&TerrainVectorLayer::MainPassPre, this, _1);
 }
 
-RenderPipeline::PipelineItem Impl::TerrainVectorLayer::GetMainPassRange(unsigned int &length) const
+auto Impl::TerrainVectorLayer::GetMainPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
 	return IterateRenderPass(length, renderStream.size(), [] { getNextWorkItemSelector = &TerrainVectorLayer::GetMainPassPost; },
 		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::MainPassRange, this, rangeBegin, rangeEnd, _1); });
 }
 
-RenderPipeline::PipelineItem Impl::TerrainVectorLayer::GetMainPassPost(unsigned int &) const
+auto Impl::TerrainVectorLayer::GetMainPassPost(unsigned int &) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
 	getNextWorkItemSelector = &TerrainVectorLayer::GetCullPassPre;
@@ -714,7 +713,7 @@ auto Impl::TerrainVectorLayer::AddQuad(unsigned long int vcount, const function<
 	return { &quads.back(), { prev(quads.cend()) } };
 }
 
-const RenderPipeline::IRenderStage *Impl::TerrainVectorLayer::BuildRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList1 *target)> &cullPassSetupCallback, function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const
+auto Impl::TerrainVectorLayer::BuildRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList1 *target)> &cullPassSetupCallback, function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const -> const RenderPipeline::IRenderStage *
 {
 	using namespace placeholders;
 
