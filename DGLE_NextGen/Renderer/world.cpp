@@ -31,8 +31,6 @@ using WRL::ComPtr;
 extern ComPtr<ID3D12Device2> device;
 void NameObject(ID3D12Object *object, LPCWSTR name) noexcept, NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
 
-Impl::RenderPipeline::PipelineItem (World::*Impl::World::getNextWorkItemSelector)(unsigned int &length) const = &World::GetMainPassRange;
-
 ComPtr<ID3D12Resource> Impl::World::CreatePerFrameCB()
 {
 	ComPtr<ID3D12Resource> CB;
@@ -109,17 +107,17 @@ void Impl::World::MainPassRange(unsigned long int rangeBegin, unsigned long int 
 #endif
 }
 
-auto Impl::World::GetNextWorkItem(unsigned int &length) const -> RenderPipeline::PipelineItem
-{
-	return (this->*getNextWorkItemSelector)(length);
-}
-
 //auto Impl::World::GetMainPassPre(unsigned int &length) const -> RenderPipeline::PipelineItem
 //{
 //	using namespace placeholders;
 //	getNextWorkItemSelector = &World::GetMainPassRange;
 //	return bind(&World::MainPassPre, this, _1);
 //}
+
+void Renderer::Impl::World::Sync() const
+{
+	getNextWorkItemSelector = static_cast<decltype(getNextWorkItemSelector)>(&World::GetMainPassRange);
+}
 
 auto Impl::World::GetMainPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
@@ -131,7 +129,6 @@ auto Impl::World::GetMainPassRange(unsigned int &length) const -> RenderPipeline
 //auto Impl::World::GetMainPassPost(unsigned int &length) const -> RenderPipeline::PipelineItem
 //{
 //	using namespace placeholders;
-//	getNextWorkItemSelector = &World::GetMainPassPre;
 //	RenderPipeline::TerminateStageTraverse();
 //	return bind(&World::MainPassPost, this, _1);
 //}

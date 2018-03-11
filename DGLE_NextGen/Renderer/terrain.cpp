@@ -45,9 +45,6 @@ extern ComPtr<ID3D12Device2> device;
 void NameObject(ID3D12Object *object, LPCWSTR name) noexcept, NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
 ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC &desc, LPCWSTR name);
 
-// currently not reentarable after exception, need to reset on exception to provide stronger exception guarantee
-Impl::RenderPipeline::PipelineItem (TerrainVectorLayer::*TerrainVectorLayer::getNextWorkItemSelector)(unsigned int &length) const = &TerrainVectorLayer::GetCullPassPre;
-
 namespace
 {
 #	pragma region ObjIterator
@@ -584,50 +581,50 @@ void Impl::TerrainVectorLayer::IssueCluster(unsigned long int startIdx, unsigned
 }
 #pragma endregion
 
-auto Impl::TerrainVectorLayer::GetNextWorkItem(unsigned int &length) const -> RenderPipeline::PipelineItem
+void Renderer::Impl::TerrainVectorLayer::Sync() const
 {
-	return (this->*getNextWorkItemSelector)(length);
+	getNextWorkItemSelector = static_cast<decltype(getNextWorkItemSelector)>(&TerrainVectorLayer::GetCullPassPre);
+	occlusionQueryBatch.Sync();
 }
 
 auto Impl::TerrainVectorLayer::GetCullPassPre(unsigned int &) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	getNextWorkItemSelector = &TerrainVectorLayer::GetCullPassRange;
+	getNextWorkItemSelector = static_cast<decltype(getNextWorkItemSelector)>(&TerrainVectorLayer::GetCullPassRange);
 	return bind(&TerrainVectorLayer::CullPassPre, this, _1);
 }
 
 auto  Impl::TerrainVectorLayer::GetCullPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, queryStream.size(), [] { getNextWorkItemSelector = &TerrainVectorLayer::GetCullPassPost; },
+	return IterateRenderPass(length, queryStream.size(), [] { getNextWorkItemSelector = static_cast<decltype(getNextWorkItemSelector)>(&TerrainVectorLayer::GetCullPassPost); },
 		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::CullPassRange, this, rangeBegin, rangeEnd, _1); });
 }
 
 auto Impl::TerrainVectorLayer::GetCullPassPost(unsigned int &) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	getNextWorkItemSelector = &TerrainVectorLayer::GetMainPassPre;
+	getNextWorkItemSelector = static_cast<decltype(getNextWorkItemSelector)>(&TerrainVectorLayer::GetMainPassPre);
 	return bind(&TerrainVectorLayer::CullPassPost, this, _1);
 }
 
 auto Impl::TerrainVectorLayer::GetMainPassPre(unsigned int &) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	getNextWorkItemSelector = &TerrainVectorLayer::GetMainPassRange;
+	getNextWorkItemSelector = static_cast<decltype(getNextWorkItemSelector)>(&TerrainVectorLayer::GetMainPassRange);
 	return bind(&TerrainVectorLayer::MainPassPre, this, _1);
 }
 
 auto Impl::TerrainVectorLayer::GetMainPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, renderStream.size(), [] { getNextWorkItemSelector = &TerrainVectorLayer::GetMainPassPost; },
+	return IterateRenderPass(length, renderStream.size(), [] { getNextWorkItemSelector = static_cast<decltype(getNextWorkItemSelector)>(&TerrainVectorLayer::GetMainPassPost); },
 		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::MainPassRange, this, rangeBegin, rangeEnd, _1); });
 }
 
 auto Impl::TerrainVectorLayer::GetMainPassPost(unsigned int &) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	getNextWorkItemSelector = &TerrainVectorLayer::GetCullPassPre;
 	RenderPipeline::TerminateStageTraverse();
 	return bind(&TerrainVectorLayer::MainPassPost, this, _1);
 }

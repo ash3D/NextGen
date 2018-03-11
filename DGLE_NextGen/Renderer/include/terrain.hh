@@ -186,8 +186,10 @@ namespace Renderer
 
 		private:
 			// Inherited via IRenderStage
-			virtual void Sync() const override final { occlusionQueryBatch.Sync(); }
-			RenderPipeline::PipelineItem GetNextWorkItem(unsigned int &length) const override final,
+			virtual void Sync() const override final;
+
+		private:
+			RenderPipeline::PipelineItem
 				GetCullPassPre(unsigned int &length) const, GetCullPassRange(unsigned int &length) const, GetCullPassPost(unsigned int &length) const,
 				GetMainPassPre(unsigned int &length) const, GetMainPassRange(unsigned int &length) const, GetMainPassPost(unsigned int &length) const;
 
@@ -206,7 +208,6 @@ namespace Renderer
 
 		private:
 			static std::optional<GPUStreamBuffer::Allocator<sizeof(AABB<2>), TerrainVectorQuad::AABB_VB_name>> GPU_AABB_allocator;
-			static RenderPipeline::PipelineItem (TerrainVectorLayer::*getNextWorkItemSelector)(unsigned int &length) const;
 
 		private:
 			struct QuadDeleter final

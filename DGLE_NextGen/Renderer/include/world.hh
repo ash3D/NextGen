@@ -147,12 +147,11 @@ namespace Renderer
 
 		private:
 			// Inherited via IRenderStage
-			virtual void Sync() const override final {}
-			RenderPipeline::PipelineItem GetNextWorkItem(unsigned int &length) const override final,
-				GetMainPassPre(unsigned int &length) const, GetMainPassRange(unsigned int &length) const, GetMainPassPost(unsigned int &length) const;
+			virtual void Sync() const override final;
 
 		private:
-			static RenderPipeline::PipelineItem (World::*getNextWorkItemSelector)(unsigned int &length) const;
+			RenderPipeline::PipelineItem
+				GetMainPassPre(unsigned int &length) const, GetMainPassRange(unsigned int &length) const, GetMainPassPost(unsigned int &length) const;
 
 		private:
 			struct InstanceDeleter final
