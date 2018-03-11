@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		10.03.2018 (c)Korotkov Andrey
+\date		11.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -56,9 +56,9 @@ auto Impl::World::MapPerFrameCB(const D3D12_RANGE *readRange) -> volatile PerFra
 
 // defined here, not in class in order to eliminate dependency on "instance.hh" in "world.hh"
 #if defined _MSC_VER && _MSC_VER <= 1913
-inline const AABB<3> &Impl::World::BVHObject::GetAABB() const
+inline const AABB<3> &Impl::World::BVHObject::GetAABB() const noexcept
 #else
-inline const auto &Impl::World::BVHObject::GetAABB() const
+inline const auto &Impl::World::BVHObject::GetAABB() const noexcept
 #endif
 {
 	return instance->GetWorldAABB();

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		09.03.2018 (c)Korotkov Andrey
+\date		11.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -76,9 +76,9 @@ namespace Renderer
 			// interface for BVH
 		public:
 #if defined _MSC_VER && _MSC_VER <= 1913
-			const AABB<2> &GetAABB() const { return aabb; }
+			const AABB<2> &GetAABB() const noexcept { return aabb; }
 #else
-			const auto &GetAABB() const { return aabb; }
+			const auto &GetAABB() const noexcept { return aabb; }
 #endif
 			unsigned long int GetTriCount() const noexcept { return triCount; }
 			float GetOcclusion() const noexcept { return .7f; }
