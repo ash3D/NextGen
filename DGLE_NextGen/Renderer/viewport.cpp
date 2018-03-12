@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		07.03.2018 (c)Korotkov Andrey
+\date		12.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -120,7 +120,7 @@ void Impl::Viewport::Render(ID3D12Resource *rt, const D3D12_CPU_DESCRIPTOR_HANDL
 	auto cmdLists = cmdListsManager.OnFrameStart();
 	GPUWorkSubmission::Prepare();
 
-	GPUWorkSubmission::AppendCmdList(Pre, cmdLists.pre, rt, rtv, dsv);
+	GPUWorkSubmission::AppendPipelineStage<false>(Pre, cmdLists.pre, rt, rtv, dsv);
 
 	const function<void (bool enableRT, ID3D12GraphicsCommandList1 *target)> setupRenderOutputCallback =
 		[
@@ -136,7 +136,7 @@ void Impl::Viewport::Render(ID3D12Resource *rt, const D3D12_CPU_DESCRIPTOR_HANDL
 	if (world)
 		world->Render(viewXform, projXform, setupRenderOutputCallback);
 
-	GPUWorkSubmission::AppendCmdList(Post, cmdLists.post, rt);
+	GPUWorkSubmission::AppendPipelineStage<false>(Post, cmdLists.post, rt);
 
 	GPUWorkSubmission::Run();
 	cmdListsManager.OnFrameFinish();

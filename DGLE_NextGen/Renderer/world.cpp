@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		11.03.2018 (c)Korotkov Andrey
+\date		12.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -21,7 +21,6 @@ See "DGLE.h" for more details.
 #include "per-frame data.h"
 #include "static objects data.h"
 #include "GPU work submission.h"
-#include "render pipeline.h"
 
 using namespace std;
 using namespace Renderer;
@@ -110,19 +109,14 @@ void Impl::World::MainPassRange(unsigned long int rangeBegin, unsigned long int 
 //auto Impl::World::GetMainPassPre(unsigned int &length) const -> RenderPipeline::PipelineItem
 //{
 //	using namespace placeholders;
-//	getNextWorkItemSelector = &World::GetMainPassRange;
+//	actionSelector = &World::GetMainPassRange;
 //	return bind(&World::MainPassPre, this, _1);
 //}
-
-void Renderer::Impl::World::Sync() const
-{
-	getNextWorkItemSelector = static_cast<decltype(getNextWorkItemSelector)>(&World::GetMainPassRange);
-}
 
 auto Impl::World::GetMainPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, staticObjects.size(), [] { RenderPipeline::TerminateStageTraverse();/*getNextWorkItemSelector = &World::GetMainPassPost;*/ },
+	return IterateRenderPass(length, staticObjects.size(), [] { RenderPipeline::TerminateStageTraverse();/*actionSelector = &World::GetMainPassPost;*/ },
 		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&World::MainPassRange, this, rangeBegin, rangeEnd, _1); });
 }
 
@@ -177,7 +171,7 @@ void Impl::World::Render(const float (&viewXform)[4][3], const float (&projXform
 	const float4x4 terrainFrustumXform = mul(float4x4(terrainTransform[0], 0.f, terrainTransform[1], 0.f, terrainTransform[2], 0.f, terrainTransform[3], 1.f), frustumTransform);
 	const function<void (ID3D12GraphicsCommandList1 *target)> cullPassSetupCallback = bind(setupRenderOutputCallback, false, _1), mainPassSetupCallback = bind(setupRenderOutputCallback, true, _1);
 	
-	GPUWorkSubmission::AppendRenderStage(&World::BuildRenderStage, this, mainPassSetupCallback);
+	GPUWorkSubmission::AppendPipelineStage<true>(&World::BuildRenderStage, this, mainPassSetupCallback);
 
 	for_each(terrainVectorLayers.cbegin(), terrainVectorLayers.cend(), bind(&decltype(terrainVectorLayers)::value_type::ShceduleRenderStage,
 		_1, FrustumCuller<2>(terrainFrustumXform), cref(terrainFrustumXform), cref(cullPassSetupCallback), cref(mainPassSetupCallback)));
@@ -270,10 +264,10 @@ void Impl::World::FlushUpdates() const
 	}
 }
 
-auto Impl::World::BuildRenderStage(std::function<void(ID3D12GraphicsCommandList1*target)> &mainPassSetupCallback) const -> const RenderPipeline::IRenderStage *
+auto Impl::World::BuildRenderStage(std::function<void(ID3D12GraphicsCommandList1*target)> &mainPassSetupCallback) const -> RenderPipeline::RenderStage
 {
 	this->mainPassSetupCallback = move(mainPassSetupCallback);
-	return this;
+	return { this, static_cast<decltype(actionSelector)>(&World::GetMainPassRange) };
 }
 
 /*

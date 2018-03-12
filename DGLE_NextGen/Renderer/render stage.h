@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		11.03.2018 (c)Korotkov Andrey
+\date		12.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -16,17 +16,20 @@ namespace Renderer::Impl::RenderPipeline
 {
 	struct IRenderStage
 	{
-		virtual void Sync() const = 0;
-		PipelineItem GetNextWorkItem(unsigned int &length) const { return (this->*getNextWorkItemSelector)(length); }
+		void Sync(PipelineItem(IRenderStage::*startActionSelector)(unsigned int &length) const) const { actionSelector = startActionSelector, Sync(); }
+		PipelineItem GetNextWorkItem(unsigned int &length) const { return (this->*actionSelector)(length); }
 
 	protected:
-		static PipelineItem (IRenderStage::*getNextWorkItemSelector)(unsigned int &length) const;
+		static PipelineItem (IRenderStage::*actionSelector)(unsigned int &length) const;
 
 	protected:
 		IRenderStage() = default;
 		~IRenderStage() = default;
 		IRenderStage(IRenderStage &) = delete;
 		void operator =(IRenderStage &) = delete;
+
+	private:
+		virtual void Sync() const = 0;
 
 	protected:
 		// helper function

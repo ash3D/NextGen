@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		11.03.2018 (c)Korotkov Andrey
+\date		12.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -16,7 +16,6 @@ See "DGLE.h" for more details.
 #include "cmdlist pool.inl"
 #include "per-frame data.h"
 #include "GPU work submission.h"
-#include "render pipeline.h"
 #ifdef _MSC_VER
 #include <codecvt>
 #include <locale>
@@ -581,44 +580,38 @@ void Impl::TerrainVectorLayer::IssueCluster(unsigned long int startIdx, unsigned
 }
 #pragma endregion
 
-void Renderer::Impl::TerrainVectorLayer::Sync() const
-{
-	getNextWorkItemSelector = static_cast<decltype(getNextWorkItemSelector)>(&TerrainVectorLayer::GetCullPassPre);
-	occlusionQueryBatch.Sync();
-}
-
 auto Impl::TerrainVectorLayer::GetCullPassPre(unsigned int &) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	getNextWorkItemSelector = static_cast<decltype(getNextWorkItemSelector)>(&TerrainVectorLayer::GetCullPassRange);
+	actionSelector = static_cast<decltype(actionSelector)>(&TerrainVectorLayer::GetCullPassRange);
 	return bind(&TerrainVectorLayer::CullPassPre, this, _1);
 }
 
 auto  Impl::TerrainVectorLayer::GetCullPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, queryStream.size(), [] { getNextWorkItemSelector = static_cast<decltype(getNextWorkItemSelector)>(&TerrainVectorLayer::GetCullPassPost); },
+	return IterateRenderPass(length, queryStream.size(), [] { actionSelector = static_cast<decltype(actionSelector)>(&TerrainVectorLayer::GetCullPassPost); },
 		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::CullPassRange, this, rangeBegin, rangeEnd, _1); });
 }
 
 auto Impl::TerrainVectorLayer::GetCullPassPost(unsigned int &) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	getNextWorkItemSelector = static_cast<decltype(getNextWorkItemSelector)>(&TerrainVectorLayer::GetMainPassPre);
+	actionSelector = static_cast<decltype(actionSelector)>(&TerrainVectorLayer::GetMainPassPre);
 	return bind(&TerrainVectorLayer::CullPassPost, this, _1);
 }
 
 auto Impl::TerrainVectorLayer::GetMainPassPre(unsigned int &) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	getNextWorkItemSelector = static_cast<decltype(getNextWorkItemSelector)>(&TerrainVectorLayer::GetMainPassRange);
+	actionSelector = static_cast<decltype(actionSelector)>(&TerrainVectorLayer::GetMainPassRange);
 	return bind(&TerrainVectorLayer::MainPassPre, this, _1);
 }
 
 auto Impl::TerrainVectorLayer::GetMainPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, renderStream.size(), [] { getNextWorkItemSelector = static_cast<decltype(getNextWorkItemSelector)>(&TerrainVectorLayer::GetMainPassPost); },
+	return IterateRenderPass(length, renderStream.size(), [] { actionSelector = static_cast<decltype(actionSelector)>(&TerrainVectorLayer::GetMainPassPost); },
 		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::MainPassRange, this, rangeBegin, rangeEnd, _1); });
 }
 
@@ -710,7 +703,7 @@ auto Impl::TerrainVectorLayer::AddQuad(unsigned long int vcount, const function<
 	return { &quads.back(), { prev(quads.cend()) } };
 }
 
-auto Impl::TerrainVectorLayer::BuildRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList1 *target)> &cullPassSetupCallback, function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const -> const RenderPipeline::IRenderStage *
+auto Impl::TerrainVectorLayer::BuildRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList1 *target)> &cullPassSetupCallback, function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const -> RenderPipeline::RenderStage
 {
 	using namespace placeholders;
 
@@ -762,11 +755,11 @@ auto Impl::TerrainVectorLayer::BuildRenderStage(const Impl::FrustumCuller<2> &fr
 		for_each(quads.begin(), quads.end(), bind(&TerrainVectorQuad::Issue, _1, OcclusionCulling::QueryBatch::npos));
 	}
 
-	return this;
+	return { this, static_cast<decltype(actionSelector)>(&TerrainVectorLayer::GetCullPassPre) };
 }
 
 void Impl::TerrainVectorLayer::ShceduleRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList1 *target)> cullPassSetupCallback, function<void (ID3D12GraphicsCommandList1 *target)> mainPassSetupCallback) const
 {
-	GPUWorkSubmission::AppendRenderStage(&TerrainVectorLayer::BuildRenderStage, this, /*cref*/(frustumCuller), /*cref*/(frustumXform), move(cullPassSetupCallback), move(mainPassSetupCallback));
+	GPUWorkSubmission::AppendPipelineStage<true>(&TerrainVectorLayer::BuildRenderStage, this, /*cref*/(frustumCuller), /*cref*/(frustumXform), move(cullPassSetupCallback), move(mainPassSetupCallback));
 }
 #pragma endregion

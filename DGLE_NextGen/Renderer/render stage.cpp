@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		11.03.2018 (c)Korotkov Andrey
+\date		12.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -15,7 +15,7 @@ using namespace std;
 using namespace Renderer::Impl::RenderPipeline;
 
 // static definition
-PipelineItem (IRenderStage::*IRenderStage::getNextWorkItemSelector)(unsigned int &length) const;
+PipelineItem (IRenderStage::*IRenderStage::actionSelector)(unsigned int &length) const;
 
 PipelineItem IRenderStage::IterateRenderPass(unsigned int &length, const signed long int passLength,
 	const function<void ()> &PassFinish, const function<RenderStageItem (unsigned long rangeBegin, unsigned long rangeEnd)> &GetRenderRange) const

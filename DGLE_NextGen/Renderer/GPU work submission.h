@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		24.01.2018 (c)Korotkov Andrey
+\date		12.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -18,19 +18,17 @@ namespace Renderer::GPUWorkSubmission
 
 	void Prepare();
 
-	template<typename F, typename ...Args>
-	void AppendCmdList(F &&f, Args &&...args)
+	template<bool async, typename F, typename ...Args>
+	void AppendPipelineStage(F &&f, Args &&...args)
 	{
 		using namespace std;
-		RenderPipeline::AppendStage(async(launch::deferred, forward<F>(f), forward<Args>(args)...));
-	}
-
-	template<typename F, typename ...Args>
-	void AppendRenderStage(F &&f, Args &&...args)
-	{
-		using namespace std;
-		extern void AppendRenderStage(packaged_task<RenderPipeline::PipelineStage()> &&buildRenderStage);
-		AppendRenderStage(packaged_task<RenderPipeline::PipelineStage()>(bind(forward<F>(f), forward<Args>(args)...)));
+		if constexpr (async)
+		{
+			extern void AppendRenderStage(packaged_task<RenderPipeline::PipelineStage()> &&buildRenderStage);
+			AppendRenderStage(packaged_task<RenderPipeline::PipelineStage()>(bind(forward<F>(f), forward<Args>(args)...)));
+		}
+		else
+			RenderPipeline::AppendStage(std::async(launch::deferred, forward<F>(f), forward<Args>(args)...));
 	}
 
 	void Run();

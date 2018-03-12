@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		09.03.2018 (c)Korotkov Andrey
+\date		12.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -33,8 +33,10 @@ PipelineItem RenderPipeline::GetNext(unsigned int &length)
 				return *cmdList;
 
 			// else pipeline stage is render stage
-			curRenderStage = get<const IRenderStage *>(stage);
-			curRenderStage->Sync();
+			{
+				const auto &renderStage = get<RenderStage>(stage);
+				(curRenderStage = renderStage.first)->Sync(renderStage.second);
+			}
 		}
 	}
 	return curRenderStage ? curRenderStage->GetNextWorkItem(length) : PipelineItem{};

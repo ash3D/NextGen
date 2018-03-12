@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		11.03.2018 (c)Korotkov Andrey
+\date		12.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -24,6 +24,7 @@ See "DGLE.h" for more details.
 #include "../AABB.h"
 #include "../world hierarchy.h"
 #include "../render stage.h"
+#include "../render pipeline.h"
 #include "../GPU stream buffer allocator.h"
 #include "../occlusion query batch.h"
 #define DISABLE_MATRIX_SWIZZLES
@@ -186,7 +187,7 @@ namespace Renderer
 
 		private:
 			// Inherited via IRenderStage
-			virtual void Sync() const override final;
+			virtual void Sync() const override final { occlusionQueryBatch.Sync(); }
 
 		private:
 			RenderPipeline::PipelineItem
@@ -230,7 +231,7 @@ namespace Renderer
 			QuadPtr AddQuad(unsigned long int vcount, const std::function<void __cdecl(volatile float verts[][2])> &fillVB, unsigned int objCount, bool IB32bit, const std::function<ObjectData __cdecl(unsigned int objIdx)> &getObjectData);
 
 		private:
-			const RenderPipeline::IRenderStage *BuildRenderStage(const FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, std::function<void (ID3D12GraphicsCommandList1 *target)> &cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const;
+			RenderPipeline::RenderStage BuildRenderStage(const FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, std::function<void (ID3D12GraphicsCommandList1 *target)> &cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const;
 
 		protected:
 			void ShceduleRenderStage(const FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, std::function<void (ID3D12GraphicsCommandList1 *target)> cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList1 *target)> mainPassSetupCallback) const;

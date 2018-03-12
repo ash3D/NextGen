@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		11.03.2018 (c)Korotkov Andrey
+\date		12.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -21,6 +21,7 @@ See "DGLE.h" for more details.
 #include "../AABB.h"
 #include "../world hierarchy.h"
 #include "../render stage.h"
+#include "../render pipeline.h"
 #include "../tracked resource.h"
 
 struct ID3D12RootSignature;
@@ -147,7 +148,7 @@ namespace Renderer
 
 		private:
 			// Inherited via IRenderStage
-			virtual void Sync() const override final;
+			virtual void Sync() const override final {}
 
 		private:
 			RenderPipeline::PipelineItem
@@ -183,7 +184,7 @@ namespace Renderer
 			void FlushUpdates() const;	// const to be able to call from Render()
 
 		private:
-			const RenderPipeline::IRenderStage *BuildRenderStage(std::function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const;
+			RenderPipeline::RenderStage BuildRenderStage(std::function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const;
 		};
 	}
 
