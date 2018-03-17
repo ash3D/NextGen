@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.01.2018 (c)Korotkov Andrey
+\date		17.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -11,84 +11,162 @@ See "DGLE.h" for more details.
 #include "occlusion query batch.h"
 #include "tracked resource.inl"
 #include "align.h"
+#ifdef _MSC_VER
+#include <codecvt>
+#include <locale>
+#endif
 
 using namespace std;
 using namespace Renderer::Impl::OcclusionCulling;
 using Microsoft::WRL::ComPtr;
 
-QueryBatch::QueryBatch(unsigned long count) : count(count)
-{
-	extern ComPtr<ID3D12Device2> device;
-	void NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
+extern ComPtr<ID3D12Device2> device;
+void NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
 
-	if (const unsigned long requiredSize = count * sizeof(UINT64))
+template<typename T>
+static void AtomicMax(atomic<T> &dst, T src)
+{
+	for (auto stored = dst.load(memory_order_relaxed); stored < src && !dst.compare_exchange_weak(stored, src, memory_order_relaxed););
+}
+
+#pragma region QueryBatchBase
+unsigned long QueryBatchBase::heapPoolSize;
+
+void QueryBatchBase::Setup(unsigned long count)
+{
+	try
 	{
-		/*
+		if (this->count = count)
+		{
+			/*
 			try to reduce pool realloc count by accounting for other render stages requests
 			reset every frame is not necessary since currently there is no pool shrinking mechanism, it grwos monotonically
-		*/
-		static atomic<unsigned long> globalSizeRequest;
-		// perform atomic max
-		for (auto stored = globalSizeRequest.load(memory_order_relaxed); stored < requiredSize && !globalSizeRequest.compare_exchange_weak(stored, requiredSize, memory_order_relaxed););
+			*/
+			static atomic<unsigned long> globalCountRequest;
+			AtomicMax(globalCountRequest, count);
 
-		static shared_mutex mtx;
-		shared_lock<decltype(mtx)> sharedLock(mtx);
+			static shared_mutex mtx;
+			shared_lock<decltype(mtx)> sharedLock(mtx);
 
-		/*
+			/*
 			check local request here
 			do not consider global one - use it if actual reallocation is required
 			it would reduce unnecessary pool reallocs
-		*/
-		if (!resultsPool || requiredSize > resultsPool->GetDesc().Width)
-		{
-			sharedLock.unlock();
+			*/
+			if (count > heapPoolSize)
 			{
-				lock_guard<decltype(mtx)> exclusiveLock(mtx);
-				// other thread can have chance to replenish the pool, check again
-				if (!resultsPool || requiredSize > resultsPool->GetDesc().Width)
+				sharedLock.unlock();
 				{
-					static_assert(D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT % sizeof(UINT64) == 0);
-					// use global request for actual reallocation
-					const auto newResultsSize = AlignSize<D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT>(globalSizeRequest.load(memory_order_relaxed));
+					lock_guard<decltype(mtx)> exclusiveLock(mtx);
+					// other thread can have chance to replenish the pool, check again
+					if (count > heapPoolSize)
+					{
+						static_assert(D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT % sizeof(UINT64) == 0);
+						// use global request for actual reallocation
+						const auto newHeapPoolSize = AlignSize<D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT / sizeof(UINT64)>(globalCountRequest.load(memory_order_relaxed));
 
-					static unsigned long version;
+						static unsigned long version;
 
-					const D3D12_QUERY_HEAP_DESC heapDesk = { D3D12_QUERY_HEAP_TYPE_OCCLUSION, newResultsSize / sizeof(UINT64), 0 };
-					const CD3DX12_RESOURCE_DESC resultsDesc(
-						D3D12_RESOURCE_DIMENSION_BUFFER,
-						D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
-						newResultsSize,
-						1,		// height
-						1,		// depth
-						1,		// mips
-						DXGI_FORMAT_UNKNOWN,
-						1, 0,	// MSAA
-						D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
-						D3D12_RESOURCE_FLAG_NONE);
-					CheckHR(device->CreateQueryHeap(&heapDesk, IID_PPV_ARGS(heapPool.ReleaseAndGetAddressOf())));
-					NameObjectF(heapPool.Get(), L"occlusion query heap [%lu]", version);
-					CheckHR(device->CreateCommittedResource(
-						&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-						D3D12_HEAP_FLAG_NONE,
-						&resultsDesc,
-						D3D12_RESOURCE_STATE_COPY_DEST,
-						NULL,	// clear value
-						IID_PPV_ARGS(resultsPool.ReleaseAndGetAddressOf())));
-					NameObjectF(resultsPool.Get(), L"occlusion query results [%lu]", version++);
+						const D3D12_QUERY_HEAP_DESC heapDesk = { D3D12_QUERY_HEAP_TYPE_OCCLUSION, newHeapPoolSize, 0 };
+						CheckHR(device->CreateQueryHeap(&heapDesk, IID_PPV_ARGS(heapPool.ReleaseAndGetAddressOf())));
+						heapPoolSize = newHeapPoolSize;	// after creation for sake of exception safety
+						NameObjectF(heapPool.Get(), L"occlusion query heap [%lu]", version);
+					}
 				}
+				sharedLock.lock();
 			}
-			sharedLock.lock();
-		}
 
-		// tracked->untracked copy here is safe since it holds for single frame only\
-		untracked used to eliminate unnecessary overhead of retirement every frame
-		batchHeap = heapPool.Get();
-		batchResults = resultsPool.Get();
+			// tracked->untracked copy here is safe since it holds for single frame only\
+			untracked used to eliminate unnecessary overhead of retirement every frame
+			batchHeap = heapPool.Get();
+
+			// setup derived
+			FinalSetup();
+		}
+	}
+	catch (...)
+	{
+		// basic exception safety guarantee
+		count = 0;
+		throw;
 	}
 }
 
+void QueryBatchBase::Start(unsigned long queryIdx, ID3D12GraphicsCommandList1 *cmdList) const
+{
+	assert(queryIdx < count);
+	cmdList->BeginQuery(batchHeap, D3D12_QUERY_TYPE_BINARY_OCCLUSION, queryIdx);
+}
+
+void QueryBatchBase::Stop(unsigned long queryIdx, ID3D12GraphicsCommandList1 *cmdList) const
+{
+	assert(queryIdx < count);
+	cmdList->EndQuery(batchHeap, D3D12_QUERY_TYPE_BINARY_OCCLUSION, queryIdx);
+}
+
+void QueryBatchBase::Set(unsigned long queryIdx, ID3D12Resource *batchResults, bool visible, ID3D12GraphicsCommandList1 *cmdList) const
+{
+	assert(queryIdx == npos || queryIdx < count);
+	cmdList->SetPredication(queryIdx == npos ? NULL : batchResults, queryIdx == npos ? 0 : queryIdx * sizeof(UINT64), visible ? D3D12_PREDICATION_OP_EQUAL_ZERO : D3D12_PREDICATION_OP_NOT_EQUAL_ZERO);
+}
+#pragma endregion
+
+#pragma region QueryBatch<false>
+QueryBatch<true>::QueryBatch(const std::string &name) : name(name) {}
+QueryBatch<true>::~QueryBatch() = default;
+
+void QueryBatch<false>::FinalSetup()
+{
+	// same approach for pool allocation as for query heap in QueryBatchBase
+	const unsigned long requiredSize = count * sizeof(UINT64);
+	static atomic<unsigned long> globalSizeRequest;
+	AtomicMax(globalSizeRequest, requiredSize);
+
+	static shared_mutex mtx;
+	shared_lock<decltype(mtx)> sharedLock(mtx);
+
+	if (!resultsPool || requiredSize > resultsPool->GetDesc().Width)
+	{
+		sharedLock.unlock();
+		{
+			lock_guard<decltype(mtx)> exclusiveLock(mtx);
+			// other thread can have chance to replenish the pool, check again
+			if (!resultsPool || requiredSize > resultsPool->GetDesc().Width)
+			{
+				// use global request for actual reallocation
+				const auto newResultsSize = AlignSize<D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT>(globalSizeRequest.load(memory_order_relaxed));
+
+				static unsigned long version;
+
+				const CD3DX12_RESOURCE_DESC resultsDesc(
+					D3D12_RESOURCE_DIMENSION_BUFFER,
+					D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
+					newResultsSize,
+					1,		// height
+					1,		// depth
+					1,		// mips
+					DXGI_FORMAT_UNKNOWN,
+					1, 0,	// MSAA
+					D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
+					D3D12_RESOURCE_FLAG_NONE);
+				CheckHR(device->CreateCommittedResource(
+					&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+					D3D12_HEAP_FLAG_NONE,
+					&resultsDesc,
+					D3D12_RESOURCE_STATE_COPY_DEST,
+					NULL,	// clear value
+					IID_PPV_ARGS(resultsPool.ReleaseAndGetAddressOf())));
+				NameObjectF(resultsPool.Get(), L"occlusion query results [%lu]", version++);
+			}
+		}
+		sharedLock.lock();
+	}
+
+	batchResults = resultsPool.Get();
+}
+
 // not thread-safe, must be called sequentially in render stage order
-void QueryBatch::Sync() const
+void QueryBatch<false>::Sync() const
 {
 	if (count)
 	{
@@ -104,25 +182,7 @@ void QueryBatch::Sync() const
 	}
 }
 
-void QueryBatch::Start(unsigned long queryIdx, ID3D12GraphicsCommandList1 *cmdList) const
-{
-	assert(queryIdx < count);
-	cmdList->BeginQuery(batchHeap, D3D12_QUERY_TYPE_BINARY_OCCLUSION, queryIdx);
-}
-
-void QueryBatch::Stop(unsigned long queryIdx, ID3D12GraphicsCommandList1 *cmdList) const
-{
-	assert(queryIdx < count);
-	cmdList->EndQuery(batchHeap, D3D12_QUERY_TYPE_BINARY_OCCLUSION, queryIdx);
-}
-
-void QueryBatch::Set(unsigned long queryIdx, ID3D12GraphicsCommandList1 *cmdList) const
-{
-	assert(queryIdx == npos || queryIdx < count);
-	cmdList->SetPredication(queryIdx == npos ? NULL : batchResults, queryIdx == npos ? 0 : queryIdx * sizeof(UINT64), D3D12_PREDICATION_OP_EQUAL_ZERO);
-}
-
-void QueryBatch::Resolve(ID3D12GraphicsCommandList1 *cmdList) const
+void QueryBatch<false>::Resolve(ID3D12GraphicsCommandList1 *cmdList) const
 {
 	if (count)
 	{
@@ -133,8 +193,57 @@ void QueryBatch::Resolve(ID3D12GraphicsCommandList1 *cmdList) const
 	}
 }
 
-void QueryBatch::Finish(ID3D12GraphicsCommandList1 *cmdList) const
+void QueryBatch<false>::Finish(ID3D12GraphicsCommandList1 *cmdList) const
 {
 	if (count)
 		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(batchResults, D3D12_RESOURCE_STATE_PREDICATION, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY));
 }
+#pragma endregion
+
+#pragma region QueryBatch<true>
+void QueryBatch<true>::FinalSetup()
+{
+	if (const unsigned long requiredSize = count * sizeof(UINT64); !batchResults || batchResults->GetDesc().Width < requiredSize)
+	{
+		const CD3DX12_RESOURCE_DESC resultsDesc(
+			D3D12_RESOURCE_DIMENSION_BUFFER,
+			D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
+			requiredSize,
+			1,		// height
+			1,		// depth
+			1,		// mips
+			DXGI_FORMAT_UNKNOWN,
+			1, 0,	// MSAA
+			D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
+			D3D12_RESOURCE_FLAG_NONE);
+		CheckHR(device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			D3D12_HEAP_FLAG_NONE,
+			&resultsDesc,
+			D3D12_RESOURCE_STATE_COPY_DEST,
+			NULL,	// clear value
+			IID_PPV_ARGS(batchResults.ReleaseAndGetAddressOf())));
+#ifdef _MSC_VER
+		wstring_convert<codecvt_utf8<WCHAR>> converter;
+		NameObjectF(batchResults.Get(), L"occlusion query results for %ls [%lu]", converter.from_bytes(name).c_str(), version++);
+#else
+		NameObjectF(batchResults.Get(), L"occlusion query results for %s [%lu]", name.c_str(), version++);
+#endif
+	}
+}
+
+void QueryBatch<true>::Resolve(ID3D12GraphicsCommandList1 *cmdList, long int usage) const
+{
+	if (count)
+	{
+		// rely on implicit state transition here
+		cmdList->ResolveQueryData(batchHeap, D3D12_QUERY_TYPE_BINARY_OCCLUSION, 0, count, batchResults.Get(), 0);
+		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(batchResults.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PREDICATION | D3D12_RESOURCE_STATES(usage)));
+	}
+}
+
+UINT64 QueryBatch<true>::GetGPUPtr() const
+{
+	return batchResults->GetGPUVirtualAddress();
+}
+#pragma endregion

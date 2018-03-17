@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		12.03.2018 (c)Korotkov Andrey
+\date		17.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -16,6 +16,7 @@ See "DGLE.h" for more details.
 #include "cmdlist pool.inl"
 #include "per-frame data.h"
 #include "GPU work submission.h"
+#include "occlusion query visualization.h"
 #ifdef _MSC_VER
 #include <codecvt>
 #include <locale>
@@ -259,12 +260,12 @@ inline void TerrainVectorQuad::Shcedule(GPUStreamBuffer::CountedAllocatorWrapper
 }
 
 // 1 call site
-inline void TerrainVectorQuad::Issue(remove_const_t<decltype(OcclusionCulling::QueryBatch::npos)> &occlusionProvider) const
+inline void TerrainVectorQuad::Issue(remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &occlusionProvider) const
 {
 	using namespace placeholders;
 
 	const auto issueNode = bind(&TerrainVectorLayer::IssueNode, layer.get(), _1, ref(occlusionProvider), _2, _3, _4);
-	subtree.Traverse(issueNode, OcclusionCulling::QueryBatch::npos, OcclusionCulling::QueryBatch::npos, decltype(declval<decltype(subtree)::Node>().GetOcclusionCullDomain())::ChildrenOnly);
+	subtree.Traverse(issueNode, OcclusionCulling::QueryBatchBase::npos, OcclusionCulling::QueryBatchBase::npos, decltype(declval<decltype(subtree)::Node>().GetOcclusionCullDomain())::ChildrenOnly);
 	layer->IssueQuad(VIB.Get(), VB_size, IB_size, IB32bit);
 }
 #pragma endregion
@@ -384,6 +385,7 @@ void Impl::TerrainVectorLayer::CullPassRange(unsigned long rangeBegin, unsigned 
 	cmdList->SetGraphicsRootConstantBufferView(0, World::perFrameCB->GetGPUVirtualAddress() + World::PerFrameData::CurFrameCB_offset());
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
+	OcclusionCulling::QueryBatchBase &queryBatch = occlusionQueryBatch.index() ? static_cast<OcclusionCulling::QueryBatchBase &>(get<true>(occlusionQueryBatch)) : get<false>(occlusionQueryBatch);
 	ID3D12Resource *curVB = NULL;
 	do
 	{
@@ -401,9 +403,9 @@ void Impl::TerrainVectorLayer::CullPassRange(unsigned long rangeBegin, unsigned 
 			cmdList->IASetVertexBuffers(0, 1, &VB_view);
 		}
 
-		occlusionQueryBatch.Start(rangeBegin, cmdList);
+		queryBatch.Start(rangeBegin, cmdList);
 		cmdList->DrawInstanced(4, queryData.count, 0, queryData.startIdx);
-		occlusionQueryBatch.Stop(rangeBegin, cmdList);
+		queryBatch.Stop(rangeBegin, cmdList);
 
 	} while (++rangeBegin < rangeEnd);
 }
@@ -412,7 +414,10 @@ void Impl::TerrainVectorLayer::CullPassPost(CmdListPool::CmdList &cmdList) const
 {
 	cmdList.Setup();
 
-	occlusionQueryBatch.Resolve(cmdList);
+	if (const auto preservingQueryBatch = get_if<true>(&occlusionQueryBatch))
+		preservingQueryBatch->Resolve(cmdList/*, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE*/);
+	else
+		get<false>(occlusionQueryBatch).Resolve(cmdList);
 	PIXEndEvent(cmdList);	// occlusion query pass
 }
 
@@ -522,7 +527,7 @@ void Impl::TerrainVectorLayer::MainPassRange(unsigned long int rangeBegin, unsig
 	cmdList->SetGraphicsRoot32BitConstants(1, size(color), color, 0);
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	auto curOcclusionQueryIdx = OcclusionCulling::QueryBatch::npos;
+	auto curOcclusionQueryIdx = OcclusionCulling::QueryBatchBase::npos;
 	do
 	{
 		const auto &quad = quadStram[renderStream[rangeBegin].startQuadIdx];
@@ -550,7 +555,7 @@ void Impl::TerrainVectorLayer::MainPassRange(unsigned long int rangeBegin, unsig
 		{
 			const auto &renderData = renderStream[rangeBegin];
 			if (curOcclusionQueryIdx != renderData.occlusion)
-				occlusionQueryBatch.Set(curOcclusionQueryIdx = renderData.occlusion, cmdList);
+				visit([&](const auto &queryBatch) { queryBatch.Set(curOcclusionQueryIdx = renderData.occlusion, cmdList); }, occlusionQueryBatch);
 			cmdList->DrawIndexedInstanced(renderData.triCount * 3, 1, renderData.startIdx, 0, 0);
 		} while (++rangeBegin < quadRangeEnd);
 	} while (rangeBegin < rangeEnd);
@@ -560,7 +565,8 @@ void Impl::TerrainVectorLayer::MainPassPost(CmdListPool::CmdList &cmdList) const
 {
 	cmdList.Setup();
 
-	occlusionQueryBatch.Finish(cmdList);
+	if (const auto nonPreservingQueryBatch = get_if<false>(&occlusionQueryBatch))
+		nonPreservingQueryBatch->Finish(cmdList);
 	PIXEndEvent(cmdList);	// main pass
 	PIXEndEvent(cmdList);	// stage
 }
@@ -573,12 +579,164 @@ inline void Impl::TerrainVectorLayer::SetupMainPass(function<void (ID3D12Graphic
 	quadStram.clear();
 }
 
-void Impl::TerrainVectorLayer::IssueCluster(unsigned long int startIdx, unsigned long int triCount, decltype(OcclusionCulling::QueryBatch::npos) occlusion)
+void Impl::TerrainVectorLayer::IssueCluster(unsigned long int startIdx, unsigned long int triCount, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion)
 {
 	assert(triCount);
 	renderStream.push_back({ startIdx, triCount, occlusion, quadStram.size() });
 }
 #pragma endregion
+
+#pragma region visualize occlusion pass
+auto Impl::TerrainVectorLayer::CreateAABB_PSOs() -> struct AABB_PSOs
+{
+	struct AABB_PSOs result;
+
+	const CD3DX12_RASTERIZER_DESC rasterDesc
+	(
+		D3D12_FILL_MODE_WIREFRAME,
+		D3D12_CULL_MODE_NONE,
+		FALSE,										// front CCW
+		D3D12_DEFAULT_DEPTH_BIAS,
+		D3D12_DEFAULT_DEPTH_BIAS_CLAMP,
+		D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
+		TRUE,										// depth clip
+		FALSE,										// MSAA
+		FALSE,										// AA line
+		0,											// force sample count
+		D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF
+	);
+
+	const CD3DX12_DEPTH_STENCIL_DESC dsDesc
+	(
+		FALSE,																									// depth
+		D3D12_DEPTH_WRITE_MASK_ZERO,
+		D3D12_COMPARISON_FUNC_ALWAYS,
+		TRUE,																									// stencil
+		D3D12_DEFAULT_STENCIL_READ_MASK,																		// stencil read mask
+		0,																										// stencil write mask
+		D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_ZERO, D3D12_COMPARISON_FUNC_NOT_EQUAL,	// front
+		D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_ZERO, D3D12_COMPARISON_FUNC_NOT_EQUAL	// back
+	);
+
+	const D3D12_INPUT_ELEMENT_DESC VB_decl[] =
+	{
+		{ "AABB_min", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 },
+		{ "AABB_max", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 }
+	};
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
+	{
+		mainPassRootSig.Get(),											// root signature
+		CD3DX12_SHADER_BYTECODE(AABB_2D, sizeof AABB_2D),				// VS
+		CD3DX12_SHADER_BYTECODE(vectorLayerPS, sizeof vectorLayerPS),	// PS
+		{},																// DS
+		{},																// HS
+		{},																// GS
+		{},																// SO
+		CD3DX12_BLEND_DESC(D3D12_DEFAULT),								// blend
+		UINT_MAX,														// sample mask
+		rasterDesc,														// rasterizer
+		dsDesc,															// depth stencil
+		{ VB_decl, size(VB_decl) },										// IA
+		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,					// restart primtive
+		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,							// primitive topology
+		1,																// render targets
+		{ DXGI_FORMAT_R8G8B8A8_UNORM },									// RT formats
+		DXGI_FORMAT_D24_UNORM_S8_UINT,									// depth stencil format
+		{1}																// MSAA
+	};
+
+	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result.visible.GetAddressOf())));
+	NameObject(result.visible.Get(), L"visible terrain AABB PSO");
+
+	PSO_desc.DepthStencilState.FrontFace.StencilFunc = PSO_desc.DepthStencilState.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL;
+	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result.hidden.GetAddressOf())));
+	NameObject(result.hidden.Get(), L"hidden terrain AABB PSO");
+
+	PSO_desc.DepthStencilState.FrontFace.StencilFunc = PSO_desc.DepthStencilState.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result.culled.GetAddressOf())));
+	NameObject(result.culled.Get(), L"culled terrain AABB PSO");
+
+	return move(result);
+}
+
+void Impl::TerrainVectorLayer::AABBPassRange(unsigned long rangeBegin, unsigned long rangeEnd, bool visible, ID3D12GraphicsCommandList1 *cmdList) const
+{
+	const auto &queryBatch = get<true>(occlusionQueryBatch);
+	ID3D12Resource *curVB = NULL;
+	do
+	{
+		const auto &queryData = queryStream[rangeBegin];
+
+		// setup VB if changed
+		if (curVB != queryData.VB)
+		{
+			const D3D12_VERTEX_BUFFER_VIEW VB_view =
+			{
+				(curVB = queryData.VB)->GetGPUVirtualAddress(),
+				curVB->GetDesc().Width,
+				sizeof(AABB<2>)
+			};
+			cmdList->IASetVertexBuffers(0, 1, &VB_view);
+		}
+
+		queryBatch.Set(rangeBegin, cmdList, visible);
+		cmdList->DrawInstanced(4, queryData.count, 0, queryData.startIdx);
+
+	} while (++rangeBegin < rangeEnd);
+}
+
+void Impl::TerrainVectorLayer::VisiblePassRange(unsigned long rangeBegin, unsigned long rangeEnd, CmdListPool::CmdList &cmdList) const
+{
+	assert(rangeBegin < rangeEnd);
+
+	cmdList.Setup(AABB_PSOs.visible.Get());
+
+	mainPassSetupCallback(cmdList);
+	cmdList->SetGraphicsRootSignature(mainPassRootSig.Get());
+	cmdList->SetGraphicsRootConstantBufferView(0, World::perFrameCB->GetGPUVirtualAddress() + World::PerFrameData::CurFrameCB_offset());
+	cmdList->SetGraphicsRoot32BitConstants(1, size(OcclusionCulling::DebugColors::Terrain::visible), OcclusionCulling::DebugColors::Terrain::visible, 0);
+	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+	AABBPassRange(rangeBegin, rangeEnd, true, cmdList);
+}
+
+void Impl::TerrainVectorLayer::HiddenPassRange(unsigned long rangeBegin, unsigned long rangeEnd, CmdListPool::CmdList &cmdList) const
+{
+	assert(rangeBegin < rangeEnd);
+
+	cmdList.Setup(AABB_PSOs.hidden.Get());
+
+	mainPassSetupCallback(cmdList);
+	cmdList->SetGraphicsRootSignature(mainPassRootSig.Get());
+	cmdList->SetGraphicsRootConstantBufferView(0, World::perFrameCB->GetGPUVirtualAddress() + World::PerFrameData::CurFrameCB_offset());
+	cmdList->SetGraphicsRoot32BitConstants(1, size(OcclusionCulling::DebugColors::Terrain::hidden), OcclusionCulling::DebugColors::Terrain::hidden, 0);
+	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+	AABBPassRange(rangeBegin, rangeEnd, true, cmdList);
+}
+
+void Impl::TerrainVectorLayer::CulledPassRange(unsigned long rangeBegin, unsigned long rangeEnd, CmdListPool::CmdList &cmdList) const
+{
+	assert(rangeBegin < rangeEnd);
+
+	cmdList.Setup(AABB_PSOs.culled.Get());
+
+	mainPassSetupCallback(cmdList);
+	cmdList->SetGraphicsRootSignature(mainPassRootSig.Get());
+	cmdList->SetGraphicsRootConstantBufferView(0, World::perFrameCB->GetGPUVirtualAddress() + World::PerFrameData::CurFrameCB_offset());
+	cmdList->SetGraphicsRoot32BitConstants(1, size(OcclusionCulling::DebugColors::Terrain::culled), OcclusionCulling::DebugColors::Terrain::culled, 0);
+	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+	AABBPassRange(rangeBegin, rangeEnd, false, cmdList);
+}
+#pragma endregion
+
+void Impl::TerrainVectorLayer::Sync() const
+{
+	if (const auto nonPreservingQueryBatch = get_if<false>(&occlusionQueryBatch))
+		nonPreservingQueryBatch->Sync();
+}
 
 auto Impl::TerrainVectorLayer::GetCullPassPre(unsigned int &) const -> RenderPipeline::PipelineItem
 {
@@ -622,6 +780,27 @@ auto Impl::TerrainVectorLayer::GetMainPassPost(unsigned int &) const -> RenderPi
 	return bind(&TerrainVectorLayer::MainPassPost, this, _1);
 }
 
+auto Impl::TerrainVectorLayer::GetVisiblePassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
+{
+	using namespace placeholders;
+	return IterateRenderPass(length, queryStream.size(), [] { actionSelector = static_cast<decltype(actionSelector)>(&TerrainVectorLayer::GetHiddenPassRange); },
+		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::VisiblePassRange, this, rangeBegin, rangeEnd, _1); });
+}
+
+auto Impl::TerrainVectorLayer::GetHiddenPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
+{
+	using namespace placeholders;
+	return IterateRenderPass(length, queryStream.size(), [] { actionSelector = static_cast<decltype(actionSelector)>(&TerrainVectorLayer::GetCulledPassRange); },
+		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::HiddenPassRange, this, rangeBegin, rangeEnd, _1); });
+}
+
+auto Impl::TerrainVectorLayer::GetCulledPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
+{
+	using namespace placeholders;
+	return IterateRenderPass(length, queryStream.size(), [] { RenderPipeline::TerminateStageTraverse(); },
+		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::CulledPassRange, this, rangeBegin, rangeEnd, _1); });
+}
+
 void Impl::TerrainVectorLayer::Setup(function<void (ID3D12GraphicsCommandList1 *target)> &&cullPassSetupCallback, function<void (ID3D12GraphicsCommandList1 *target)> &&mainPassSetupCallback) const
 {
 	SetupCullPass(move(cullPassSetupCallback));
@@ -630,7 +809,15 @@ void Impl::TerrainVectorLayer::Setup(function<void (ID3D12GraphicsCommandList1 *
 
 inline void Impl::TerrainVectorLayer::SetupOcclusionQueryBatch(unsigned long queryCount) const
 {
-	occlusionQueryBatch = OcclusionCulling::QueryBatch(queryCount);
+	extern bool enableDebugDraw;
+	if (enableDebugDraw != occlusionQueryBatch.index())
+	{
+		if (enableDebugDraw)
+			occlusionQueryBatch.emplace<true>(layerName);
+		else
+			occlusionQueryBatch.emplace<false>();
+	}
+	visit([queryCount](auto &queryBatch) { queryBatch.Setup(queryCount); }, occlusionQueryBatch);
 }
 
 // 1 call site
@@ -639,7 +826,7 @@ inline void Impl::TerrainVectorLayer::IssueQuad(ID3D12Resource *VIB, unsigned lo
 	quadStram.push_back({ renderStream.size(), VIB, VB_size, IB_size, IB32bit });
 }
 
-bool Impl::TerrainVectorLayer::IssueNode(const Node &node, remove_const_t<decltype(OcclusionCulling::QueryBatch::npos)> &occlusionProvider, remove_const_t<decltype(OcclusionCulling::QueryBatch::npos)> &coarseOcclusion, remove_const_t<decltype(OcclusionCulling::QueryBatch::npos)> &fineOcclusion, decltype(node.GetOcclusionCullDomain()) &occlusionCullDomainOverriden)
+bool Impl::TerrainVectorLayer::IssueNode(const Node &node, remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &occlusionProvider, remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &coarseOcclusion, remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &fineOcclusion, decltype(node.GetOcclusionCullDomain()) &occlusionCullDomainOverriden)
 {
 	if (const auto &occlusionQueryGeometry = node.GetOcclusionQueryGeometry())
 	{
@@ -647,7 +834,7 @@ bool Impl::TerrainVectorLayer::IssueNode(const Node &node, remove_const_t<declty
 		IssueOcclusion({ occlusionQueryGeometry.VB, occlusionQueryGeometry.startIdx, occlusionQueryGeometry.count });
 		fineOcclusion = ++occlusionProvider;
 	}
-	else if (fineOcclusion != OcclusionCulling::QueryBatch::npos)
+	else if (fineOcclusion != OcclusionCulling::QueryBatchBase::npos)
 		node.OverrideOcclusionCullDomain(occlusionCullDomainOverriden);
 	if (occlusionCullDomainOverriden == decltype(node.GetOcclusionCullDomain())::WholeNode)
 		coarseOcclusion = fineOcclusion;
@@ -669,18 +856,18 @@ bool Impl::TerrainVectorLayer::IssueNode(const Node &node, remove_const_t<declty
 	return false;
 }
 
-void Impl::TerrainVectorLayer::IssueExclusiveObjects(const Node &node, decltype(OcclusionCulling::QueryBatch::npos) occlusion)
+void Impl::TerrainVectorLayer::IssueExclusiveObjects(const Node &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion)
 {
 	if (node.GetExclusiveTriCount())
 		IssueCluster(node.startIdx, node.GetExclusiveTriCount(), occlusion);
 }
 
-void Impl::TerrainVectorLayer::IssueChildren(const Node &node, decltype(OcclusionCulling::QueryBatch::npos) occlusion)
+void Impl::TerrainVectorLayer::IssueChildren(const Node &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion)
 {
 	IssueCluster(node.startIdx + node.GetExclusiveTriCount() * 3, node.GetInclusiveTriCount() - node.GetExclusiveTriCount(), occlusion);
 }
 
-void Impl::TerrainVectorLayer::IssueWholeNode(const Node &node, decltype(OcclusionCulling::QueryBatch::npos) occlusion)
+void Impl::TerrainVectorLayer::IssueWholeNode(const Node &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion)
 {
 	IssueCluster(node.startIdx, node.GetInclusiveTriCount(), occlusion);
 }
@@ -752,14 +939,24 @@ auto Impl::TerrainVectorLayer::BuildRenderStage(const Impl::FrustumCuller<2> &fr
 	// issue
 	{
 		PIXScopedEvent(PIX_COLOR_INDEX(PIXEvents::TerrainIssue), "issue");
-		for_each(quads.begin(), quads.end(), bind(&TerrainVectorQuad::Issue, _1, OcclusionCulling::QueryBatch::npos));
+		for_each(quads.begin(), quads.end(), bind(&TerrainVectorQuad::Issue, _1, OcclusionCulling::QueryBatchBase::npos));
 	}
 
 	return { this, static_cast<decltype(actionSelector)>(&TerrainVectorLayer::GetCullPassPre) };
 }
 
+auto Impl::TerrainVectorLayer::GetDebugDrawRenderStage() const -> RenderPipeline::PipelineStage
+{
+	return RenderPipeline::PipelineStage(in_place_type<RenderPipeline::RenderStage>, static_cast<const RenderPipeline::IRenderStage *>(this), static_cast<decltype(actionSelector)>(&TerrainVectorLayer::GetVisiblePassRange));
+}
+
 void Impl::TerrainVectorLayer::ShceduleRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList1 *target)> cullPassSetupCallback, function<void (ID3D12GraphicsCommandList1 *target)> mainPassSetupCallback) const
 {
 	GPUWorkSubmission::AppendPipelineStage<true>(&TerrainVectorLayer::BuildRenderStage, this, /*cref*/(frustumCuller), /*cref*/(frustumXform), move(cullPassSetupCallback), move(mainPassSetupCallback));
+}
+
+void Impl::TerrainVectorLayer::ShceduleDebugDrawRenderStage() const
+{
+	GPUWorkSubmission::AppendPipelineStage<false>(&TerrainVectorLayer::GetDebugDrawRenderStage, this);
 }
 #pragma endregion

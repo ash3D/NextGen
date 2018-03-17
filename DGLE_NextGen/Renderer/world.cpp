@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		12.03.2018 (c)Korotkov Andrey
+\date		17.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -175,6 +175,10 @@ void Impl::World::Render(const float (&viewXform)[4][3], const float (&projXform
 
 	for_each(terrainVectorLayers.cbegin(), terrainVectorLayers.cend(), bind(&decltype(terrainVectorLayers)::value_type::ShceduleRenderStage,
 		_1, FrustumCuller<2>(terrainFrustumXform), cref(terrainFrustumXform), cref(cullPassSetupCallback), cref(mainPassSetupCallback)));
+
+	extern bool enableDebugDraw;
+	if (enableDebugDraw)
+		for_each(terrainVectorLayers.cbegin(), terrainVectorLayers.cend(), mem_fn(&decltype(terrainVectorLayers)::value_type::ShceduleDebugDrawRenderStage));
 }
 
 // "world.hh" currently does not #include "terrain.hh" (TerrainVectorLayer forward declared) => out-of-line

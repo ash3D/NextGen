@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		08.03.2018 (c)Korotkov Andrey
+\date		17.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -190,7 +190,9 @@ ComPtr<ID3D12RootSignature>
 ComPtr<ID3D12PipelineState>
 	TerrainVectorLayer::cullPassPSO		= TerrainVectorLayer::TryCreateCullPassPSO(),
 	TerrainVectorLayer::mainPassPSO		= TerrainVectorLayer::TryCreateMainPassPSO();
-decltype(Object3D::PSOs) Object3D::PSOs = Object3D::TryCreatePSOs();
+struct TerrainVectorLayer::AABB_PSOs
+	TerrainVectorLayer::AABB_PSOs		= TerrainVectorLayer::TryCreateAABB_PSOs();
+decltype(Object3D::PSOs) Object3D::PSOs	= Object3D::TryCreatePSOs();
 
 #pragma region TryCreate...()
 inline ComPtr<ID3D12RootSignature> TerrainVectorLayer::TryCreateCullPassRootSig()
@@ -216,6 +218,11 @@ inline ComPtr<ID3D12PipelineState> TerrainVectorLayer::TryCreateCullPassPSO()
 inline ComPtr<ID3D12PipelineState> TerrainVectorLayer::TryCreateMainPassPSO()
 {
 	return device ? CreateMainPassPSO() : nullptr;
+}
+
+inline auto TerrainVectorLayer::TryCreateAABB_PSOs() -> struct AABB_PSOs
+{
+	return device ? CreateAABB_PSOs() : decltype(AABB_PSOs)();
 }
 
 inline auto Object3D::TryCreatePSOs() -> decltype(PSOs)
@@ -253,9 +260,9 @@ namespace Renderer::Impl
 }
 
 // tracked resource should be destroyed before globalFrameVersioning => should be defined after globalFrameVersioning
-using Renderer::Impl::OcclusionCulling::QueryBatch;
-decltype(QueryBatch::heapPool) QueryBatch::heapPool;
-decltype(QueryBatch::resultsPool) QueryBatch::resultsPool;
+using namespace Renderer::Impl::OcclusionCulling;
+decltype(QueryBatchBase::heapPool) QueryBatchBase::heapPool;
+decltype(QueryBatch<false>::resultsPool) QueryBatch<false>::resultsPool;
 
 // allocator contains tracked resource
 #if defined _MSC_VER && _MSC_VER <= 1913
@@ -264,6 +271,8 @@ decltype(TerrainVectorLayer::GPU_AABB_allocator) TerrainVectorLayer::GPU_AABB_al
 // guaranteed copy elision required
 decltype(TerrainVectorLayer::GPU_AABB_allocator) TerrainVectorLayer::GPU_AABB_allocator(device ? decltype(TerrainVectorLayer::GPU_AABB_allocator)(in_place) : nullopt);
 #endif
+
+extern bool enableDebugDraw = false;
 
 extern void __cdecl InitRenderer()
 {
@@ -278,6 +287,7 @@ extern void __cdecl InitRenderer()
 		TerrainVectorLayer::mainPassRootSig	= TerrainVectorLayer::CreateMainPassRootSig();
 		TerrainVectorLayer::cullPassPSO		= TerrainVectorLayer::CreateCullPassPSO();
 		TerrainVectorLayer::mainPassPSO		= TerrainVectorLayer::CreateMainPassPSO();
+		TerrainVectorLayer::AABB_PSOs		= TerrainVectorLayer::CreateAABB_PSOs();
 		Object3D::rootSig					= Object3D::CreateRootSig();
 		Object3D::PSOs						= Object3D::CreatePSOs();
 		World::perFrameCB					= World::CreatePerFrameCB();

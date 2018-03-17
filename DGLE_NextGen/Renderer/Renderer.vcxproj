@@ -222,6 +222,7 @@
     <ClInclude Include="include\viewport.hh" />
     <ClInclude Include="include\world.hh" />
     <ClInclude Include="occlusion query shceduling.h" />
+    <ClInclude Include="occlusion query visualization.h" />
     <ClInclude Include="occlusion tree.h" />
     <ClInclude Include="occlusion query batch.h" />
     <ClInclude Include="per-frame data.h" />

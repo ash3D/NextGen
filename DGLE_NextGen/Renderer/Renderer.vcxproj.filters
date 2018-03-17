@@ -110,6 +110,9 @@
     <ClInclude Include="GPU work item.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="occlusion query visualization.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
