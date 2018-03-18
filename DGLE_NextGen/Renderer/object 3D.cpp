@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		08.03.2018 (c)Korotkov Andrey
+\date		18.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -127,22 +127,24 @@ auto Impl::Object3D::CreatePSOs() -> decltype(PSOs)
 	return move(result);
 }
 
-Impl::Object3D::Object3D(unsigned int subobjCount, const function<SubobjectData __cdecl(unsigned int subobjIdx)> &getSubobjectData, string name) : VB_size(), IB_size()
+Impl::Object3D::Object3D(unsigned int subobjCount, const function<SubobjectData __cdecl(unsigned int subobjIdx)> &getSubobjectData, string name) :
+	// use C++20 make_shared for arrays
+	subobjects(new Subobject[subobjCount]), tricount(), subobjCount(subobjCount)
 {
 	if (!subobjCount)
 		throw logic_error("Attempt to create empty 3D object");
 
-	subobjects.reserve(subobjCount);
+	unsigned long int vcount = 0;
+
 	for (unsigned i = 0; i < subobjCount; i++)
 	{
 		const auto curSubobjData = getSubobjectData(i);
-		subobjects.push_back({ curSubobjData.color, curSubobjData.aabb, VB_size, IB_size, curSubobjData.tricount, curSubobjData.doublesided });
-		VB_size += curSubobjData.vcount;	// VB_size currently holds vcount, need multipy by vertex size later
-		IB_size += curSubobjData.tricount;	// IB_size currently holds tricount, multiply needed as well
+		subobjects[i] = { curSubobjData.color, curSubobjData.aabb, vcount, tricount, curSubobjData.tricount, curSubobjData.doublesided };
+		vcount += curSubobjData.vcount;
+		tricount += curSubobjData.tricount;
 	}
 
-	VB_size *= sizeof *SubobjectData::verts;
-	IB_size *= sizeof *SubobjectData::tris;
+	const unsigned long int VB_size = vcount * sizeof *SubobjectData::verts, IB_size = tricount * sizeof *SubobjectData::tris;
 
 	// create VIB
 	CheckHR(device->CreateCommittedResource(
@@ -206,9 +208,9 @@ Impl::Object3D::Object3D(unsigned int subobjCount, const function<SubobjectData 
 
 	// start bundle creation
 #ifdef _MSC_VER
-	bundle = async(CreateBundle, subobjects, ComPtr<ID3D12Resource>(VIB), VB_size, IB_size, move(convertedName));
+	bundle = async(CreateBundle, subobjects, subobjCount, ComPtr<ID3D12Resource>(VIB), VB_size, IB_size, move(convertedName));
 #else
-	bundle = async(CreateBundle, subobjects, ComPtr<ID3D12Resource>(VIB), VB_size, IB_size, move(name));
+	bundle = async(CreateBundle, subobjects, subobjCount, ComPtr<ID3D12Resource>(VIB), VB_size, IB_size, move(name));
 #endif
 }
 
@@ -227,9 +229,9 @@ AABB<3> Impl::Object3D::GetXformedAABB(const HLSL::float4x3 &xform) const
 		transform every individual suboject AABB and then refit
 		it somewhat slower than refitting in object space and transforming once for entire object but may provide tighter AABB
 	*/
-	for (const auto &subobject : subobjects)
+	for (unsigned i = 0; i < subobjCount; i++)
 	{
-		AABB<3> subobjAABB = subobject.aabb;
+		AABB<3> subobjAABB = subobjects[i].aabb;
 		subobjAABB.Transform(xform);
 		result.Refit(subobjAABB);
 	}
@@ -239,7 +241,7 @@ AABB<3> Impl::Object3D::GetXformedAABB(const HLSL::float4x3 &xform) const
 
 const ComPtr<ID3D12PipelineState> &Impl::Object3D::GetStartPSO() const
 {
-	return PSOs[subobjects.front().doublesided];
+	return PSOs[subobjects[0].doublesided];
 }
 
 const void Impl::Object3D::Render(ID3D12GraphicsCommandList1 *cmdList) const
@@ -249,15 +251,15 @@ const void Impl::Object3D::Render(ID3D12GraphicsCommandList1 *cmdList) const
 
 // need to copy subobjects to avoid dangling reference as the function can be executed in another thread
 #ifdef _MSC_VER
-auto Impl::Object3D::CreateBundle(decltype(subobjects) subobjects, ComPtr<ID3D12Resource> VIB, unsigned long int VB_size, unsigned long int IB_size, wstring &&objectName) -> decay_t<decltype(bundle.get())>
+auto Impl::Object3D::CreateBundle(const decltype(subobjects) &subobjects, unsigned int subobjCount, ComPtr<ID3D12Resource> VIB, unsigned long int VB_size, unsigned long int IB_size, wstring &&objectName) -> decay_t<decltype(bundle.get())>
 #else
-auto Impl::Object3D::CreateBundle(decltype(subobjects) subobjects, ComPtr<ID3D12Resource> VIB, unsigned long int VB_size, unsigned long int IB_size, string &&objectName) -> decay_t<decltype(bundle.get())>
+auto Impl::Object3D::CreateBundle(const decltype(subobjects) &subobjects, unsigned int subobjCount, ComPtr<ID3D12Resource> VIB, unsigned long int VB_size, unsigned long int IB_size, string &&objectName) -> decay_t<decltype(bundle.get())>
 #endif
 {
 	decay_t<decltype(bundle.get())> bundle;	// to be retunred
 
 	// context
-	ID3D12PipelineState *curPSO = PSOs[subobjects.front().doublesided].Get();
+	ID3D12PipelineState *curPSO = PSOs[subobjects[0].doublesided].Get();
 #if !INTEL_WORKAROUND
 	HLSL::float3 curColor = NAN;	// ensures first compare to trigger
 #endif
@@ -288,7 +290,7 @@ auto Impl::Object3D::CreateBundle(decltype(subobjects) subobjects, ComPtr<ID3D12
 			const D3D12_VERTEX_BUFFER_VIEW VB_view =
 			{
 #if INTEL_WORKAROUND
-				subobjects.size() * sizeof(MaterialData) +
+				subobjCount * sizeof(MaterialData) +
 #endif
 				VIB->GetGPUVirtualAddress(),
 				VB_size,
@@ -308,8 +310,10 @@ auto Impl::Object3D::CreateBundle(decltype(subobjects) subobjects, ComPtr<ID3D12
 		// TODO: use C++20 initializer in range-based for
 		auto material_GPU_ptr = VIB->GetGPUVirtualAddress();
 #endif
-		for (const auto &curSubobj : subobjects)
+		for (unsigned i = 0; i < subobjCount; i++)
 		{
+			const auto &curSubobj = subobjects[i];
+
 			if (ID3D12PipelineState *const subobjPSO = PSOs[curSubobj.doublesided].Get(); curPSO != subobjPSO)
 				bundle.second->SetPipelineState(curPSO = subobjPSO);
 #if INTEL_WORKAROUND
@@ -318,7 +322,7 @@ auto Impl::Object3D::CreateBundle(decltype(subobjects) subobjects, ComPtr<ID3D12
 			if (any(curColor != curSubobj.color))
 				bundle.second->SetGraphicsRoot32BitConstants(2, decltype(curColor)::dimension, &(curColor = curSubobj.color), 0);
 #endif
-			bundle.second->DrawIndexedInstanced(curSubobj.tricount * 3, 1, curSubobj.IB_offset * 3, curSubobj.VB_offset, 0);
+			bundle.second->DrawIndexedInstanced(curSubobj.tricount * 3, 1, curSubobj.triOffset * 3, curSubobj.vOffset, 0);
 		}
 
 		CheckHR(bundle.second->Close());

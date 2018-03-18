@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		07.03.2018 (c)Korotkov Andrey
+\date		18.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -14,9 +14,9 @@ See "DGLE.h" for more details.
 #include <cstdint>
 #include <utility>
 #include <type_traits>
+#include <memory>
 #include <string>
 #include <array>
-#include <vector>
 #include <functional>
 #include <future>
 #include <wrl/client.h>
@@ -53,7 +53,7 @@ namespace Renderer
 			{
 				HLSL::float3 color;
 				AABB<3> aabb;
-				unsigned long int VB_offset, IB_offset;
+				unsigned long int vOffset, triOffset;
 				unsigned short int tricount;
 				bool doublesided;
 			};
@@ -74,11 +74,12 @@ namespace Renderer
 			static std::array<WRL::ComPtr<ID3D12PipelineState>, 2> PSOs, TryCreatePSOs(), CreatePSOs();
 
 		private:
+			// is GPU lifetime tracking is necessary for cmd list (or is it enough for cmd allocator only)?
 			std::shared_future<std::pair<Impl::TrackedResource<ID3D12CommandAllocator>, Impl::TrackedResource<ID3D12GraphicsCommandList1>>> bundle;
-			std::vector<Subobject> subobjects;
-			Impl::TrackedResource<ID3D12Resource> VIB;	// Vertex/Index Buffer
-														// is GPU lifetime tracking is necessary for cmd list (or is it enough for cmd allocator only)?
-			unsigned long int VB_size, IB_size;
+			std::shared_ptr<Subobject []> subobjects;
+			Impl::TrackedResource<ID3D12Resource> VIB;	// Vertex/Index Buffer, also contin material for Intel workaround
+			unsigned long int tricount;
+			unsigned int subobjCount;
 
 		public:	// for inherited ctor
 			Object3D(unsigned int subobjCount, const std::function<SubobjectData __cdecl(unsigned int subobjIdx)> &getSubobjectData, std::string name);
@@ -93,7 +94,7 @@ namespace Renderer
 		public:
 			explicit operator bool() const noexcept { return VIB; }
 			AABB<3> GetXformedAABB(const HLSL::float4x3 &xform) const;
-			unsigned long int GetTriCount() const noexcept { return IB_size / sizeof *SubobjectData::tris; }
+			unsigned long int GetTriCount() const noexcept { return tricount; }
 
 		protected:
 			static const auto &GetRootSignature() noexcept { return rootSig; }
@@ -102,9 +103,9 @@ namespace Renderer
 
 		private:
 #ifdef _MSC_VER
-			static std::decay_t<decltype(bundle.get())> CreateBundle(decltype(subobjects) subobjects, WRL::ComPtr<ID3D12Resource> VIB, unsigned long int VB_size, unsigned long int IB_size, std::wstring &&objectName);
+			static std::decay_t<decltype(bundle.get())> CreateBundle(const decltype(subobjects) &subobjects, unsigned int subobjCount, WRL::ComPtr<ID3D12Resource> VIB, unsigned long int VB_size, unsigned long int IB_size, std::wstring &&objectName);
 #else
-			static std::decay_t<decltype(bundle.get())> CreateBundle(decltype(subobjects) subobjects, WRL::ComPtr<ID3D12Resource> VIB, unsigned long int VB_size, unsigned long int IB_size, std::string &&objectName);
+			static std::decay_t<decltype(bundle.get())> CreateBundle(const decltype(subobjects) &subobjects, unsigned int subobjCount, WRL::ComPtr<ID3D12Resource> VIB, unsigned long int VB_size, unsigned long int IB_size, std::string &&objectName);
 #endif
 		};
 	}
