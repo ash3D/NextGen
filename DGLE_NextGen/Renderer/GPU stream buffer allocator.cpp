@@ -27,7 +27,7 @@ void AllocatorBase::AllocateChunk(const D3D12_RESOURCE_DESC &chunkDesc, LPCWSTR 
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		NULL,	// clear value
 		IID_PPV_ARGS(chunk.ReleaseAndGetAddressOf())));
-	NameObjectF(chunk.Get(), L"%s (chunk[%lu])", resourceName, chunkVersion++);
+	NameObjectF(chunk.Get(), L"%ls (chunk[%lu])", resourceName, chunkVersion++);
 }
 
 pair<ID3D12Resource *, unsigned long> AllocatorBase::Allocate(unsigned long count, unsigned itemSize, unsigned long allocGranularity, LPCWSTR resourceName)
