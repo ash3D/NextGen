@@ -86,7 +86,7 @@ void Impl::World::InvalidateStaticObjects()
 //{
 //}
 
-void Impl::World::MainPassRange(unsigned long int rangeBegin, unsigned long int rangeEnd, CmdListPool::CmdList &cmdList) const
+void Impl::World::MainPassRange(CmdListPool::CmdList &cmdList, unsigned long int rangeBegin, unsigned long int rangeEnd) const
 {
 	assert(rangeBegin < rangeEnd);
 	const auto objectsRangeBegin = next(staticObjects.cbegin(), rangeBegin), objectsRangeEnd = next(objectsRangeBegin, rangeEnd - rangeBegin);
@@ -117,7 +117,7 @@ auto Impl::World::GetMainPassRange(unsigned int &length) const -> RenderPipeline
 {
 	using namespace placeholders;
 	return IterateRenderPass(length, staticObjects.size(), [] { RenderPipeline::TerminateStageTraverse();/*actionSelector = &World::GetMainPassPost;*/ },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&World::MainPassRange, this, rangeBegin, rangeEnd, _1); });
+		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&World::MainPassRange, this, _1, rangeBegin, rangeEnd); });
 }
 
 //auto Impl::World::GetMainPassPost(unsigned int &length) const -> RenderPipeline::PipelineItem
@@ -140,7 +140,7 @@ static inline void CopyMatrix2CB(const float (&src)[rows][columns], volatile Imp
 	copy_n(src, rows, dst);
 }
 
-void Impl::World::Render(const float (&viewXform)[4][3], const float (&projXform)[4][4], const function<void (bool enableRT, ID3D12GraphicsCommandList1 *target)> &setupRenderOutputCallback) const
+void Impl::World::Render(const float (&viewXform)[4][3], const float (&projXform)[4][4], const function<void (ID3D12GraphicsCommandList1 *target, bool enableRT)> &setupRenderOutputCallback) const
 {
 	using namespace placeholders;
 
@@ -169,7 +169,7 @@ void Impl::World::Render(const float (&viewXform)[4][3], const float (&projXform
 
 	const float4x3 terrainTransform(terrainXform);
 	const float4x4 terrainFrustumXform = mul(float4x4(terrainTransform[0], 0.f, terrainTransform[1], 0.f, terrainTransform[2], 0.f, terrainTransform[3], 1.f), frustumTransform);
-	const function<void (ID3D12GraphicsCommandList1 *target)> cullPassSetupCallback = bind(setupRenderOutputCallback, false, _1), mainPassSetupCallback = bind(setupRenderOutputCallback, true, _1);
+	const function<void (ID3D12GraphicsCommandList1 *target)> cullPassSetupCallback = bind(setupRenderOutputCallback, _1, false), mainPassSetupCallback = bind(setupRenderOutputCallback, _1, true);
 	
 	GPUWorkSubmission::AppendPipelineStage<true>(&World::BuildRenderStage, this, mainPassSetupCallback);
 
@@ -268,7 +268,7 @@ void Impl::World::FlushUpdates() const
 	}
 }
 
-auto Impl::World::BuildRenderStage(std::function<void(ID3D12GraphicsCommandList1*target)> &mainPassSetupCallback) const -> RenderPipeline::RenderStage
+auto Impl::World::BuildRenderStage(std::function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const -> RenderPipeline::RenderStage
 {
 	this->mainPassSetupCallback = move(mainPassSetupCallback);
 	return { this, static_cast<decltype(actionSelector)>(&World::GetMainPassRange) };

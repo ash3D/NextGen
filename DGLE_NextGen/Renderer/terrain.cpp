@@ -374,7 +374,7 @@ void Impl::TerrainVectorLayer::CullPassPre(CmdListPool::CmdList &cmdList) const
 	It has advantage over shader based batched occlusoin test in that it does not stresses UAV writes in PS for visible objects -
 		hardware occlusion query does not incur any overhead in addition to regular depth/stencil test.
 */
-void Impl::TerrainVectorLayer::CullPassRange(unsigned long rangeBegin, unsigned long rangeEnd, CmdListPool::CmdList &cmdList) const
+void Impl::TerrainVectorLayer::CullPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd) const
 {
 	assert(rangeBegin < rangeEnd);
 
@@ -403,9 +403,9 @@ void Impl::TerrainVectorLayer::CullPassRange(unsigned long rangeBegin, unsigned 
 			cmdList->IASetVertexBuffers(0, 1, &VB_view);
 		}
 
-		queryBatch.Start(rangeBegin, cmdList);
+		queryBatch.Start(cmdList, rangeBegin);
 		cmdList->DrawInstanced(4, queryData.count, 0, queryData.startIdx);
-		queryBatch.Stop(rangeBegin, cmdList);
+		queryBatch.Stop(cmdList, rangeBegin);
 
 	} while (++rangeBegin < rangeEnd);
 }
@@ -515,7 +515,7 @@ void Impl::TerrainVectorLayer::MainPassPre(CmdListPool::CmdList &cmdList) const
 	PIXBeginEvent(cmdList, PIX_COLOR(float2BYTE(color[0]), float2BYTE(color[1]), float2BYTE(color[2])), "main pass");
 }
 
-void Impl::TerrainVectorLayer::MainPassRange(unsigned long int rangeBegin, unsigned long int rangeEnd, CmdListPool::CmdList &cmdList) const
+void Impl::TerrainVectorLayer::MainPassRange(CmdListPool::CmdList &cmdList, unsigned long int rangeBegin, unsigned long int rangeEnd) const
 {
 	assert(rangeBegin < rangeEnd);
 
@@ -555,7 +555,7 @@ void Impl::TerrainVectorLayer::MainPassRange(unsigned long int rangeBegin, unsig
 		{
 			const auto &renderData = renderStream[rangeBegin];
 			if (curOcclusionQueryIdx != renderData.occlusion)
-				visit([&](const auto &queryBatch) { queryBatch.Set(curOcclusionQueryIdx = renderData.occlusion, cmdList); }, occlusionQueryBatch);
+				visit([&](const auto &queryBatch) { queryBatch.Set(cmdList, curOcclusionQueryIdx = renderData.occlusion); }, occlusionQueryBatch);
 			cmdList->DrawIndexedInstanced(renderData.triCount * 3, 1, renderData.startIdx, 0, 0);
 		} while (++rangeBegin < quadRangeEnd);
 	} while (rangeBegin < rangeEnd);
@@ -668,7 +668,7 @@ ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateAABB_PSO()
 	return move(result);
 }
 
-void Impl::TerrainVectorLayer::AABBPassRange(unsigned long rangeBegin, unsigned long rangeEnd, bool visible, ID3D12GraphicsCommandList1 *cmdList) const
+void Impl::TerrainVectorLayer::AABBPassRange(ID3D12GraphicsCommandList1 *cmdList, unsigned long rangeBegin, unsigned long rangeEnd, bool visible) const
 {
 	const auto &queryBatch = get<true>(occlusionQueryBatch);
 	ID3D12Resource *curVB = NULL;
@@ -688,13 +688,13 @@ void Impl::TerrainVectorLayer::AABBPassRange(unsigned long rangeBegin, unsigned 
 			cmdList->IASetVertexBuffers(0, 1, &VB_view);
 		}
 
-		queryBatch.Set(rangeBegin, cmdList, visible);
+		queryBatch.Set(cmdList, rangeBegin, visible);
 		cmdList->DrawInstanced(4, queryData.count, 0, queryData.startIdx);
 
 	} while (++rangeBegin < rangeEnd);
 }
 
-void Impl::TerrainVectorLayer::VisiblePassRange(unsigned long rangeBegin, unsigned long rangeEnd, CmdListPool::CmdList &cmdList) const
+void Impl::TerrainVectorLayer::VisiblePassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd) const
 {
 	assert(rangeBegin < rangeEnd);
 
@@ -706,10 +706,10 @@ void Impl::TerrainVectorLayer::VisiblePassRange(unsigned long rangeBegin, unsign
 	cmdList->SetGraphicsRoot32BitConstants(1, size(OcclusionCulling::DebugColors::Terrain::visible), OcclusionCulling::DebugColors::Terrain::visible, 0);
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
-	AABBPassRange(rangeBegin, rangeEnd, true, cmdList);
+	AABBPassRange(cmdList, rangeBegin, rangeEnd, true);
 }
 
-void Impl::TerrainVectorLayer::CulledPassRange(unsigned long rangeBegin, unsigned long rangeEnd, CmdListPool::CmdList &cmdList) const
+void Impl::TerrainVectorLayer::CulledPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd) const
 {
 	assert(rangeBegin < rangeEnd);
 
@@ -721,7 +721,7 @@ void Impl::TerrainVectorLayer::CulledPassRange(unsigned long rangeBegin, unsigne
 	cmdList->SetGraphicsRoot32BitConstants(1, size(OcclusionCulling::DebugColors::Terrain::culled), OcclusionCulling::DebugColors::Terrain::culled, 0);
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
-	AABBPassRange(rangeBegin, rangeEnd, false, cmdList);
+	AABBPassRange(cmdList, rangeBegin, rangeEnd, false);
 }
 #pragma endregion
 
@@ -742,7 +742,7 @@ auto  Impl::TerrainVectorLayer::GetCullPassRange(unsigned int &length) const -> 
 {
 	using namespace placeholders;
 	return IterateRenderPass(length, queryStream.size(), [] { actionSelector = static_cast<decltype(actionSelector)>(&TerrainVectorLayer::GetCullPassPost); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::CullPassRange, this, rangeBegin, rangeEnd, _1); });
+		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::CullPassRange, this, _1, rangeBegin, rangeEnd); });
 }
 
 auto Impl::TerrainVectorLayer::GetCullPassPost(unsigned int &) const -> RenderPipeline::PipelineItem
@@ -763,7 +763,7 @@ auto Impl::TerrainVectorLayer::GetMainPassRange(unsigned int &length) const -> R
 {
 	using namespace placeholders;
 	return IterateRenderPass(length, renderStream.size(), [] { actionSelector = static_cast<decltype(actionSelector)>(&TerrainVectorLayer::GetMainPassPost); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::MainPassRange, this, rangeBegin, rangeEnd, _1); });
+		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::MainPassRange, this, _1, rangeBegin, rangeEnd); });
 }
 
 auto Impl::TerrainVectorLayer::GetMainPassPost(unsigned int &) const -> RenderPipeline::PipelineItem
@@ -777,14 +777,14 @@ auto Impl::TerrainVectorLayer::GetVisiblePassRange(unsigned int &length) const -
 {
 	using namespace placeholders;
 	return IterateRenderPass(length, queryStream.size(), [] { actionSelector = static_cast<decltype(actionSelector)>(&TerrainVectorLayer::GetCulledPassRange); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::VisiblePassRange, this, rangeBegin, rangeEnd, _1); });
+		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::VisiblePassRange, this, _1, rangeBegin, rangeEnd); });
 }
 
 auto Impl::TerrainVectorLayer::GetCulledPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
 	return IterateRenderPass(length, queryStream.size(), [] { RenderPipeline::TerminateStageTraverse(); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::CulledPassRange, this, rangeBegin, rangeEnd, _1); });
+		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::CulledPassRange, this, _1, rangeBegin, rangeEnd); });
 }
 
 void Impl::TerrainVectorLayer::Setup(function<void (ID3D12GraphicsCommandList1 *target)> &&cullPassSetupCallback, function<void (ID3D12GraphicsCommandList1 *target)> &&mainPassSetupCallback) const

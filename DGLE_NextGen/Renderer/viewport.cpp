@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		12.03.2018 (c)Korotkov Andrey
+\date		18.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -122,12 +122,12 @@ void Impl::Viewport::Render(ID3D12Resource *rt, const D3D12_CPU_DESCRIPTOR_HANDL
 
 	GPUWorkSubmission::AppendPipelineStage<false>(Pre, cmdLists.pre, rt, rtv, dsv);
 
-	const function<void (bool enableRT, ID3D12GraphicsCommandList1 *target)> setupRenderOutputCallback =
+	const function<void (ID3D12GraphicsCommandList1 *target, bool enableRT)> setupRenderOutputCallback =
 		[
 			rtv, dsv,
 			viewport = CD3DX12_VIEWPORT(0.f, 0.f, width, height),
 			scissorRect = CD3DX12_RECT(0, 0, width, height)
-		](bool enableRT, ID3D12GraphicsCommandList1 *cmdList)
+		](ID3D12GraphicsCommandList1 *cmdList, bool enableRT)
 	{
 		cmdList->OMSetRenderTargets(enableRT, &rtv, TRUE, &dsv);
 		cmdList->RSSetViewports(1, &viewport);

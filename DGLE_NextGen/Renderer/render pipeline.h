@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		12.03.2018 (c)Korotkov Andrey
+\date		18.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -27,7 +27,7 @@ struct ID3D12GraphicsCommandList1;
 
 namespace Renderer::Impl::RenderPipeline
 {
-	typedef std::pair<const struct RENDER_STAGE_INHERITANCE IRenderStage *, PipelineItem (IRenderStage::*)(unsigned int &length) const> RenderStage;
+	typedef std::pair<const class RENDER_STAGE_INHERITANCE IRenderStage *, PipelineItem (IRenderStage::*)(unsigned int &length) const> RenderStage;
 	typedef std::variant<ID3D12GraphicsCommandList1 *, RenderStage> PipelineStage;
 
 	void AppendStage(std::future<PipelineStage> &&stage);

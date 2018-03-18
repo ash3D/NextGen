@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.03.2018 (c)Korotkov Andrey
+\date		18.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -92,19 +92,19 @@ void QueryBatchBase::Setup(unsigned long count)
 	}
 }
 
-void QueryBatchBase::Start(unsigned long queryIdx, ID3D12GraphicsCommandList1 *cmdList) const
+void QueryBatchBase::Start(ID3D12GraphicsCommandList1 *cmdList, unsigned long queryIdx) const
 {
 	assert(queryIdx < count);
 	cmdList->BeginQuery(batchHeap, D3D12_QUERY_TYPE_BINARY_OCCLUSION, queryIdx);
 }
 
-void QueryBatchBase::Stop(unsigned long queryIdx, ID3D12GraphicsCommandList1 *cmdList) const
+void QueryBatchBase::Stop(ID3D12GraphicsCommandList1 *cmdList, unsigned long queryIdx) const
 {
 	assert(queryIdx < count);
 	cmdList->EndQuery(batchHeap, D3D12_QUERY_TYPE_BINARY_OCCLUSION, queryIdx);
 }
 
-void QueryBatchBase::Set(unsigned long queryIdx, ID3D12Resource *batchResults, bool visible, ID3D12GraphicsCommandList1 *cmdList) const
+void QueryBatchBase::Set(ID3D12GraphicsCommandList1 *cmdList, unsigned long queryIdx, ID3D12Resource *batchResults, bool visible) const
 {
 	assert(queryIdx == npos || queryIdx < count);
 	cmdList->SetPredication(queryIdx == npos ? NULL : batchResults, queryIdx == npos ? 0 : queryIdx * sizeof(UINT64), visible ? D3D12_PREDICATION_OP_EQUAL_ZERO : D3D12_PREDICATION_OP_NOT_EQUAL_ZERO);

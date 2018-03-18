@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.03.2018 (c)Korotkov Andrey
+\date		18.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -44,10 +44,10 @@ namespace Renderer::Impl::OcclusionCulling
 		void Setup(unsigned long count);
 
 	protected:
-		void Set(unsigned long queryIdx, ID3D12Resource *batchResults, bool visible, ID3D12GraphicsCommandList1 *target) const;
+		void Set(ID3D12GraphicsCommandList1 *target, unsigned long queryIdx, ID3D12Resource *batchResults, bool visible) const;
 
 	public:
-		void Start(unsigned long queryIdx, ID3D12GraphicsCommandList1 *target) const, Stop(unsigned long queryIdx, ID3D12GraphicsCommandList1 *target) const;
+		void Start(ID3D12GraphicsCommandList1 *target, unsigned long queryIdx) const, Stop(ID3D12GraphicsCommandList1 *target, unsigned long queryIdx) const;
 	};
 
 	template<bool preserving>
@@ -67,7 +67,7 @@ namespace Renderer::Impl::OcclusionCulling
 
 	public:
 		void Sync() const;
-		void Set(unsigned long queryIdx, ID3D12GraphicsCommandList1 *target, bool visible = true) const { QueryBatchBase::Set(queryIdx, batchResults, visible, target); }
+		void Set(ID3D12GraphicsCommandList1 *target, unsigned long queryIdx, bool visible = true) const { QueryBatchBase::Set(target, queryIdx, batchResults, visible); }
 		void Resolve(ID3D12GraphicsCommandList1 *target) const, Finish(ID3D12GraphicsCommandList1 *target) const;
 	};
 
@@ -87,7 +87,7 @@ namespace Renderer::Impl::OcclusionCulling
 		void FinalSetup() override;
 
 	public:
-		void Set(unsigned long queryIdx, ID3D12GraphicsCommandList1 *target, bool visible = true) const { QueryBatchBase::Set(queryIdx, batchResults.Get(), visible, target); }
+		void Set(ID3D12GraphicsCommandList1 *target, unsigned long queryIdx, bool visible = true) const { QueryBatchBase::Set(target, queryIdx, batchResults.Get(), visible); }
 		void Resolve(ID3D12GraphicsCommandList1 *target, long int/*instead of D3D12_RESOURCE_STATES to eliminate dependency in d3d12.h here*/ usage = 0) const;
 		UINT64 GetGPUPtr() const;	// valid after Reslove if 'usage' was specified accordingly
 	};

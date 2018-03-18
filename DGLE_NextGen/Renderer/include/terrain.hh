@@ -144,7 +144,7 @@ namespace Renderer
 
 		private:
 			void CullPassPre(CmdListPool::CmdList &target) const, CullPassPost(CmdListPool::CmdList &target) const;
-			void CullPassRange(unsigned long rangeBegin, unsigned long rangeEnd, CmdListPool::CmdList &target) const;
+			void CullPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd) const;
 
 		private:
 			void SetupCullPass(std::function<void (ID3D12GraphicsCommandList1 *target)> &&setupCallback) const;
@@ -176,7 +176,7 @@ namespace Renderer
 
 		private:
 			void MainPassPre(CmdListPool::CmdList &target) const, MainPassPost(CmdListPool::CmdList &target) const;
-			void MainPassRange(unsigned long int rangeBegin, unsigned long int rangeEnd, CmdListPool::CmdList &target) const;
+			void MainPassRange(CmdListPool::CmdList &target, unsigned long int rangeBegin, unsigned long int rangeEnd) const;
 
 		private:
 			void SetupMainPass(std::function<void (ID3D12GraphicsCommandList1 *target)> &&setupCallback) const;
@@ -189,9 +189,9 @@ namespace Renderer
 			static WRL::ComPtr<ID3D12PipelineState> AABB_PSO, TryCreateAABB_PSO(), CreateAABB_PSO();
 
 		private:
-			void AABBPassRange(unsigned long rangeBegin, unsigned long rangeEnd, bool visible, ID3D12GraphicsCommandList1 *target) const;
-			void VisiblePassRange(unsigned long rangeBegin, unsigned long rangeEnd, CmdListPool::CmdList &target) const;
-			void CulledPassRange(unsigned long rangeBegin, unsigned long rangeEnd, CmdListPool::CmdList &target) const;
+			void AABBPassRange(ID3D12GraphicsCommandList1 *target, unsigned long rangeBegin, unsigned long rangeEnd, bool visible) const;
+			void VisiblePassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd) const;
+			void CulledPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd) const;
 #pragma endregion
 
 		private:

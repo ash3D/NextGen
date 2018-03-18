@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		12.03.2018 (c)Korotkov Andrey
+\date		18.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -143,7 +143,7 @@ namespace Renderer
 
 		private:
 			//void MainPassPre(CmdListPool::CmdList &target) const, MainPassPost(CmdListPool::CmdList &target) const;
-			void MainPassRange(unsigned long int rangeBegin, unsigned long int rangeEnd, CmdListPool::CmdList &target) const;
+			void MainPassRange(CmdListPool::CmdList &target, unsigned long int rangeBegin, unsigned long int rangeEnd) const;
 #pragma endregion
 
 		private:
@@ -170,7 +170,7 @@ namespace Renderer
 			void operator =(World &) = delete;
 
 		protected:
-			void Render(const float (&viewXform)[4][3], const float (&projXform)[4][4], const std::function<void (bool enableRT, ID3D12GraphicsCommandList1 *target)> &setupRenderOutputCallback) const;
+			void Render(const float (&viewXform)[4][3], const float (&projXform)[4][4], const std::function<void (ID3D12GraphicsCommandList1 *target, bool enableRT)> &setupRenderOutputCallback) const;
 			void OnFrameFinish() const;
 
 		private:
