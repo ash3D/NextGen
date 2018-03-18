@@ -587,10 +587,8 @@ void Impl::TerrainVectorLayer::IssueCluster(unsigned long int startIdx, unsigned
 #pragma endregion
 
 #pragma region visualize occlusion pass
-auto Impl::TerrainVectorLayer::CreateAABB_PSOs() -> struct AABB_PSOs
+ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateAABB_PSO()
 {
-	struct AABB_PSOs result;
-
 	const CD3DX12_RASTERIZER_DESC rasterDesc
 	(
 		D3D12_FILL_MODE_WIREFRAME,
@@ -611,11 +609,11 @@ auto Impl::TerrainVectorLayer::CreateAABB_PSOs() -> struct AABB_PSOs
 		FALSE,																									// depth
 		D3D12_DEPTH_WRITE_MASK_ZERO,
 		D3D12_COMPARISON_FUNC_ALWAYS,
-		TRUE,																									// stencil
+		FALSE,																									// stencil
 		D3D12_DEFAULT_STENCIL_READ_MASK,																		// stencil read mask
-		0,																										// stencil write mask
-		D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_COMPARISON_FUNC_NOT_EQUAL,	// front
-		D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_COMPARISON_FUNC_NOT_EQUAL	// back
+		D3D12_DEFAULT_STENCIL_WRITE_MASK,																		// stencil write mask
+		D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_COMPARISON_FUNC_ALWAYS,		// front
+		D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_COMPARISON_FUNC_ALWAYS		// back
 	);
 
 	const D3D12_INPUT_ELEMENT_DESC VB_decl[] =
@@ -646,17 +644,9 @@ auto Impl::TerrainVectorLayer::CreateAABB_PSOs() -> struct AABB_PSOs
 		{1}																// MSAA
 	};
 
-	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result.visible.GetAddressOf())));
-	NameObject(result.visible.Get(), L"visible terrain AABB PSO");
-
-	PSO_desc.DepthStencilState.FrontFace.StencilFunc = PSO_desc.DepthStencilState.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL;
-	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result.hidden.GetAddressOf())));
-	NameObject(result.hidden.Get(), L"hidden terrain AABB PSO");
-
-	PSO_desc.DepthStencilState.FrontFace.StencilFunc = PSO_desc.DepthStencilState.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result.culled.GetAddressOf())));
-	NameObject(result.culled.Get(), L"culled terrain AABB PSO");
-
+	ComPtr<ID3D12PipelineState> result;
+	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result.GetAddressOf())));
+	NameObject(result.Get(), L"terrain AABB visualization PSO");
 	return move(result);
 }
 
@@ -690,7 +680,7 @@ void Impl::TerrainVectorLayer::VisiblePassRange(unsigned long rangeBegin, unsign
 {
 	assert(rangeBegin < rangeEnd);
 
-	cmdList.Setup(AABB_PSOs.visible.Get());
+	cmdList.Setup(AABB_PSO.Get());
 
 	mainPassSetupCallback(cmdList);
 	cmdList->SetGraphicsRootSignature(mainPassRootSig.Get());
@@ -701,26 +691,11 @@ void Impl::TerrainVectorLayer::VisiblePassRange(unsigned long rangeBegin, unsign
 	AABBPassRange(rangeBegin, rangeEnd, true, cmdList);
 }
 
-void Impl::TerrainVectorLayer::HiddenPassRange(unsigned long rangeBegin, unsigned long rangeEnd, CmdListPool::CmdList &cmdList) const
-{
-	assert(rangeBegin < rangeEnd);
-
-	cmdList.Setup(AABB_PSOs.hidden.Get());
-
-	mainPassSetupCallback(cmdList);
-	cmdList->SetGraphicsRootSignature(mainPassRootSig.Get());
-	cmdList->SetGraphicsRootConstantBufferView(0, World::perFrameCB->GetGPUVirtualAddress() + World::PerFrameData::CurFrameCB_offset());
-	cmdList->SetGraphicsRoot32BitConstants(1, size(OcclusionCulling::DebugColors::Terrain::hidden), OcclusionCulling::DebugColors::Terrain::hidden, 0);
-	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-
-	AABBPassRange(rangeBegin, rangeEnd, true, cmdList);
-}
-
 void Impl::TerrainVectorLayer::CulledPassRange(unsigned long rangeBegin, unsigned long rangeEnd, CmdListPool::CmdList &cmdList) const
 {
 	assert(rangeBegin < rangeEnd);
 
-	cmdList.Setup(AABB_PSOs.culled.Get());
+	cmdList.Setup(AABB_PSO.Get());
 
 	mainPassSetupCallback(cmdList);
 	cmdList->SetGraphicsRootSignature(mainPassRootSig.Get());
@@ -783,15 +758,8 @@ auto Impl::TerrainVectorLayer::GetMainPassPost(unsigned int &) const -> RenderPi
 auto Impl::TerrainVectorLayer::GetVisiblePassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, queryStream.size(), [] { actionSelector = static_cast<decltype(actionSelector)>(&TerrainVectorLayer::GetHiddenPassRange); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::VisiblePassRange, this, rangeBegin, rangeEnd, _1); });
-}
-
-auto Impl::TerrainVectorLayer::GetHiddenPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
-{
-	using namespace placeholders;
 	return IterateRenderPass(length, queryStream.size(), [] { actionSelector = static_cast<decltype(actionSelector)>(&TerrainVectorLayer::GetCulledPassRange); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::HiddenPassRange, this, rangeBegin, rangeEnd, _1); });
+		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::VisiblePassRange, this, rangeBegin, rangeEnd, _1); });
 }
 
 auto Impl::TerrainVectorLayer::GetCulledPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.03.2018 (c)Korotkov Andrey
+\date		18.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -189,9 +189,8 @@ ComPtr<ID3D12RootSignature>
 	Object3D::rootSig					= Object3D::TryCreateRootSig();
 ComPtr<ID3D12PipelineState>
 	TerrainVectorLayer::cullPassPSO		= TerrainVectorLayer::TryCreateCullPassPSO(),
-	TerrainVectorLayer::mainPassPSO		= TerrainVectorLayer::TryCreateMainPassPSO();
-struct TerrainVectorLayer::AABB_PSOs
-	TerrainVectorLayer::AABB_PSOs		= TerrainVectorLayer::TryCreateAABB_PSOs();
+	TerrainVectorLayer::mainPassPSO		= TerrainVectorLayer::TryCreateMainPassPSO(),
+	TerrainVectorLayer::AABB_PSO		= TerrainVectorLayer::TryCreateAABB_PSO();
 decltype(Object3D::PSOs) Object3D::PSOs	= Object3D::TryCreatePSOs();
 
 #pragma region TryCreate...()
@@ -220,9 +219,9 @@ inline ComPtr<ID3D12PipelineState> TerrainVectorLayer::TryCreateMainPassPSO()
 	return device ? CreateMainPassPSO() : nullptr;
 }
 
-inline auto TerrainVectorLayer::TryCreateAABB_PSOs() -> struct AABB_PSOs
+inline ComPtr<ID3D12PipelineState> TerrainVectorLayer::TryCreateAABB_PSO()
 {
-	return device ? CreateAABB_PSOs() : decltype(AABB_PSOs)();
+	return device ? CreateAABB_PSO() : nullptr;
 }
 
 inline auto Object3D::TryCreatePSOs() -> decltype(PSOs)
@@ -287,7 +286,7 @@ extern void __cdecl InitRenderer()
 		TerrainVectorLayer::mainPassRootSig	= TerrainVectorLayer::CreateMainPassRootSig();
 		TerrainVectorLayer::cullPassPSO		= TerrainVectorLayer::CreateCullPassPSO();
 		TerrainVectorLayer::mainPassPSO		= TerrainVectorLayer::CreateMainPassPSO();
-		TerrainVectorLayer::AABB_PSOs		= TerrainVectorLayer::CreateAABB_PSOs();
+		TerrainVectorLayer::AABB_PSO		= TerrainVectorLayer::CreateAABB_PSO();
 		Object3D::rootSig					= Object3D::CreateRootSig();
 		Object3D::PSOs						= Object3D::CreatePSOs();
 		World::perFrameCB					= World::CreatePerFrameCB();

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.03.2018 (c)Korotkov Andrey
+\date		18.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -186,16 +186,11 @@ namespace Renderer
 #pragma region visualize occlusion pass
 		private:
 			// reuse main pass root signature for now
-			static struct AABB_PSOs
-			{
-				WRL::ComPtr<ID3D12PipelineState> visible, hidden, culled;
-			} AABB_PSOs;
-			static struct AABB_PSOs TryCreateAABB_PSOs(), CreateAABB_PSOs();
+			static WRL::ComPtr<ID3D12PipelineState> AABB_PSO, TryCreateAABB_PSO(), CreateAABB_PSO();
 
 		private:
 			void AABBPassRange(unsigned long rangeBegin, unsigned long rangeEnd, bool visible, ID3D12GraphicsCommandList1 *target) const;
 			void VisiblePassRange(unsigned long rangeBegin, unsigned long rangeEnd, CmdListPool::CmdList &target) const;
-			void HiddenPassRange(unsigned long rangeBegin, unsigned long rangeEnd, CmdListPool::CmdList &target) const;
 			void CulledPassRange(unsigned long rangeBegin, unsigned long rangeEnd, CmdListPool::CmdList &target) const;
 #pragma endregion
 
@@ -211,7 +206,7 @@ namespace Renderer
 			RenderPipeline::PipelineItem
 				GetCullPassPre(unsigned int &length) const, GetCullPassRange(unsigned int &length) const, GetCullPassPost(unsigned int &length) const,
 				GetMainPassPre(unsigned int &length) const, GetMainPassRange(unsigned int &length) const, GetMainPassPost(unsigned int &length) const,
-				GetVisiblePassRange(unsigned int &length) const, GetHiddenPassRange(unsigned int &length) const, GetCulledPassRange(unsigned int &length) const;
+				GetVisiblePassRange(unsigned int &length) const, GetCulledPassRange(unsigned int &length) const;
 
 		private:
 			typedef decltype(TerrainVectorQuad::subtree)::Node Node;
