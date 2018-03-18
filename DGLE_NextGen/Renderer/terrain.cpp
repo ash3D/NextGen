@@ -873,7 +873,7 @@ Impl::TerrainVectorLayer::~TerrainVectorLayer() = default;
 auto Impl::TerrainVectorLayer::AddQuad(unsigned long int vcount, const function<void __cdecl(volatile float verts[][2])> &fillVB, unsigned int objCount, bool IB32bit, const function<ObjectData __cdecl(unsigned int objIdx)> &getObjectData) -> QuadPtr
 {
 	quads.emplace_back(shared_from_this(), vcount, fillVB, objCount, IB32bit, getObjectData);
-	return { &quads.back(), { prev(quads.cend()) } };
+	return { &quads.back(), QuadDeleter{ prev(quads.cend()) } };
 }
 
 auto Impl::TerrainVectorLayer::BuildRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList1 *target)> &cullPassSetupCallback, function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const -> RenderPipeline::RenderStage

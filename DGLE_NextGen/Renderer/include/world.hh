@@ -155,9 +155,13 @@ namespace Renderer
 				GetMainPassPre(unsigned int &length) const, GetMainPassRange(unsigned int &length) const, GetMainPassPost(unsigned int &length) const;
 
 		private:
-			struct InstanceDeleter final
+			class InstanceDeleter final
 			{
 				decltype(staticObjects)::const_iterator instsnceLocation;
+
+			public:
+				InstanceDeleter() = default;
+				explicit InstanceDeleter(decltype(instsnceLocation) instsnceLocation) : instsnceLocation(instsnceLocation) {}
 
 			public:
 				void operator ()(const Renderer::Instance *instanceToRemove) const;

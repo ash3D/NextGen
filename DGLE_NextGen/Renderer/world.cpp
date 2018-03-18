@@ -222,7 +222,7 @@ auto Impl::World::AddStaticObject(Renderer::Object3D object, const float (&xform
 		throw logic_error("Attempt to add empty static object");
 	InvalidateStaticObjects();
 	const auto &inserted = staticObjects.emplace_back(shared_from_this(), move(object), xform, worldAABB);
-	return { &inserted, { prev(staticObjects.cend()) } };
+	return { &inserted, InstanceDeleter{ prev(staticObjects.cend()) } };
 }
 
 void Impl::World::FlushUpdates() const

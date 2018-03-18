@@ -225,9 +225,13 @@ namespace Renderer
 			static std::optional<GPUStreamBuffer::Allocator<sizeof(AABB<2>), TerrainVectorQuad::AABB_VB_name>> GPU_AABB_allocator;
 
 		private:
-			struct QuadDeleter final
+			class QuadDeleter final
 			{
 				decltype(quads)::const_iterator quadLocation;
+
+			public:
+				QuadDeleter() = default;
+				explicit QuadDeleter(decltype(quadLocation) quadLocation) : quadLocation(quadLocation) {}
 
 			public:
 				void operator ()(const class TerrainVectorQuad *quadToRemove) const;
