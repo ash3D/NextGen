@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.01.2018 (c)Korotkov Andrey
+\date		18.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -53,11 +53,14 @@ start:
 			lockId++;
 			if (overflow)
 			{
-				const auto deficit = (newFreeBegin - freeEnd) * itemSize;
-				chunkDesc.Width += (deficit + allocGranularity - 1) / allocGranularity;
+				auto deficit = (newFreeBegin - freeEnd) * itemSize;
+				deficit += allocGranularity - 1;
+				deficit -= deficit % allocGranularity;
+				chunkDesc.Width += deficit;
 				AllocateChunk(chunkDesc, resourceName);
 				retiredFrames.clear();
-				freeBegin.store(freeEnd = 0, memory_order_relaxed);
+				freeBegin.store(count, memory_order_relaxed);
+				freeEnd = 0;
 				freeRangeReversed = true;
 			}
 			else // wrap
