@@ -120,7 +120,7 @@ namespace Renderer
 				const Renderer::Instance *instance;
 
 			public:
-				BVHObject(const Renderer::Instance *instance) : instance(instance) {}
+				BVHObject(const Renderer::Instance *instance) noexcept : instance(instance) {}
 
 			public:
 				operator const Renderer::Instance *() const noexcept { return instance; }
