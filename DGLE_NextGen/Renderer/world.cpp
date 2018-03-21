@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.03.2018 (c)Korotkov Andrey
+\date		21.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -12,8 +12,9 @@ See "DGLE.h" for more details.
 #include "viewport.hh"
 #include "terrain.hh"
 #include "instance.hh"
-#include "world hierarchy.inl"
 #include "tracked resource.inl"
+#include "world hierarchy.inl"
+#include "GPU stream buffer allocator.inl"
 #include "cmdlist pool.inl"
 #include "frustum culling.h"
 #include "occlusion query shceduling.h"
@@ -89,21 +90,15 @@ void Impl::World::InvalidateStaticObjects()
 void Impl::World::MainPassRange(CmdListPool::CmdList &cmdList, unsigned long int rangeBegin, unsigned long int rangeEnd) const
 {
 	assert(rangeBegin < rangeEnd);
-	const auto objectsRangeBegin = next(staticObjects.cbegin(), rangeBegin), objectsRangeEnd = next(objectsRangeBegin, rangeEnd - rangeBegin);
-	
-	cmdList.Setup(objectsRangeBegin->GetStartPSO().Get());
+
+	cmdList.Setup(renderStream[rangeBegin]->GetStartPSO().Get());
 
 	mainPassSetupCallback(cmdList);
 	cmdList->SetGraphicsRootSignature(decltype(staticObjects)::value_type::GetRootSignature().Get());
 	cmdList->SetGraphicsRootConstantBufferView(0, perFrameCB->GetGPUVirtualAddress() + PerFrameData::CurFrameCB_offset());
 
 	using namespace placeholders;
-	staticObjects.front().Render(cmdList);
-#if defined _MSC_VER && _MSC_VER <= 1913
-	for_each(objectsRangeBegin, objectsRangeEnd, bind(&Renderer::Instance::Render, _1, static_cast<ID3D12GraphicsCommandList1 *>(cmdList)));
-#else
-	for_each(objectsRangeBegin, objectsRangeEnd, bind(&decltype(staticObjects)::value_type::Render, _1, static_cast<ID3D12GraphicsCommandList1 *>(cmdList)));
-#endif
+	for_each(next(renderStream.cbegin(), rangeBegin), next(renderStream.cbegin(), rangeEnd), bind(&Renderer::Instance::Render, _1, static_cast<ID3D12GraphicsCommandList1 *>(cmdList)));
 }
 
 //auto Impl::World::GetMainPassPre(unsigned int &length) const -> RenderPipeline::PipelineItem
@@ -116,7 +111,7 @@ void Impl::World::MainPassRange(CmdListPool::CmdList &cmdList, unsigned long int
 auto Impl::World::GetMainPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, staticObjects.size(), [] { RenderPipeline::TerminateStageTraverse();/*actionSelector = &World::GetMainPassPost;*/ },
+	return IterateRenderPass(length, renderStream.size(), [] { RenderPipeline::TerminateStageTraverse();/*actionSelector = &World::GetMainPassPost;*/ },
 		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&World::MainPassRange, this, _1, rangeBegin, rangeEnd); });
 }
 
@@ -126,6 +121,37 @@ auto Impl::World::GetMainPassRange(unsigned int &length) const -> RenderPipeline
 //	RenderPipeline::TerminateStageTraverse();
 //	return bind(&World::MainPassPost, this, _1);
 //}
+
+void Impl::World::Setup(std::function<void (ID3D12GraphicsCommandList1 *target)> &&mainPassSetupCallback) const
+{
+	this->mainPassSetupCallback = move(mainPassSetupCallback);
+	renderStream.clear();
+}
+
+bool Impl::World::IssueNode(const decltype(bvh)::Node &node, remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &occlusionProvider, remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &coarseOcclusion, remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &fineOcclusion, decltype(node.GetOcclusionCullDomain()) &occlusionCullDomainOverriden) const
+{
+	if (const auto &occlusionQueryGeometry = node.GetOcclusionQueryGeometry())
+	{
+		occlusionCullDomainOverriden = node.GetOcclusionCullDomain();
+		fineOcclusion = ++occlusionProvider;
+	}
+	else if (fineOcclusion != OcclusionCulling::QueryBatchBase::npos)
+		node.OverrideOcclusionCullDomain(occlusionCullDomainOverriden);
+	if (occlusionCullDomainOverriden == decltype(node.GetOcclusionCullDomain())::WholeNode)
+		coarseOcclusion = fineOcclusion;
+	if (node.GetVisibility(occlusionCullDomainOverriden) != decltype(node.GetVisibility(occlusionCullDomainOverriden))::Culled)
+	{
+		IssueExclusiveObjects(node);
+		return true;
+	}
+	return false;
+}
+
+void Impl::World::IssueExclusiveObjects(const decltype(bvh)::Node &node) const
+{
+	const auto range = node.GetExclusiveObjectsRange();
+	copy(range.first, range.second, back_inserter(renderStream));
+}
 
 Impl::World::World(const float (&terrainXform)[4][3])
 {
@@ -146,9 +172,9 @@ void Impl::World::Render(const float (&viewXform)[4][3], const float (&projXform
 
 	FlushUpdates();
 
-	const float4x3 viewTransform(viewXform);
-	const float4x4 frustumTransform = mul(float4x4(viewTransform[0], 0.f, viewTransform[1], 0.f, viewTransform[2], 0.f, viewTransform[3], 1.f), float4x4(projXform));
-	//bvh.Shcedule(/*bind(&World::ScheduleNode, this, _1),*/ frustumTransform, &viewTransform);
+	const float4x3 terrainTransform(terrainXform), viewTransform(viewXform),
+		worldViewTransform = mul(float4x4(terrainTransform[0], 0.f, terrainTransform[1], 0.f, terrainTransform[2], 0.f, terrainTransform[3], 1.f), viewTransform);
+	const float4x4 frustumTransform = mul(float4x4(worldViewTransform[0], 0.f, worldViewTransform[1], 0.f, worldViewTransform[2], 0.f, worldViewTransform[3], 1.f), float4x4(projXform));
 
 	// update per-frame CB
 	{
@@ -167,14 +193,12 @@ void Impl::World::Render(const float (&viewXform)[4][3], const float (&projXform
 #endif
 	}
 
-	const float4x3 terrainTransform(terrainXform);
-	const float4x4 terrainFrustumXform = mul(float4x4(terrainTransform[0], 0.f, terrainTransform[1], 0.f, terrainTransform[2], 0.f, terrainTransform[3], 1.f), frustumTransform);
 	const function<void (ID3D12GraphicsCommandList1 *target)> cullPassSetupCallback = bind(setupRenderOutputCallback, _1, false), mainPassSetupCallback = bind(setupRenderOutputCallback, _1, true);
 	
-	GPUWorkSubmission::AppendPipelineStage<true>(&World::BuildRenderStage, this, mainPassSetupCallback);
+	GPUWorkSubmission::AppendPipelineStage<true>(&World::BuildRenderStage, this, frustumTransform, worldViewTransform, mainPassSetupCallback);
 
 	for_each(terrainVectorLayers.cbegin(), terrainVectorLayers.cend(), bind(&decltype(terrainVectorLayers)::value_type::ShceduleRenderStage,
-		_1, FrustumCuller<2>(terrainFrustumXform), cref(terrainFrustumXform), cref(cullPassSetupCallback), cref(mainPassSetupCallback)));
+		_1, FrustumCuller<2>(frustumTransform), cref(frustumTransform), cref(cullPassSetupCallback), cref(mainPassSetupCallback)));
 
 	extern bool enableDebugDraw;
 	if (enableDebugDraw)
@@ -237,7 +261,7 @@ void Impl::World::FlushUpdates() const
 
 		// rebuild BVH
 		if (!bvh)
-			bvh = { AdressIterator{staticObjects.cbegin()}, AdressIterator{staticObjects.cend()}, Hierarchy::SplitTechnique::MEAN, .5f };
+			bvh = { AdressIterator{staticObjects.cbegin()}, AdressIterator{staticObjects.cend()}, Hierarchy::SplitTechnique::MEAN };
 
 		// recreate static objects CB
 		if (!staticObjectsCB)
@@ -268,9 +292,23 @@ void Impl::World::FlushUpdates() const
 	}
 }
 
-auto Impl::World::BuildRenderStage(std::function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const -> RenderPipeline::RenderStage
+auto Impl::World::BuildRenderStage(const HLSL::float4x4 &frustumXform, const HLSL::float4x3 &viewXform, std::function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const -> RenderPipeline::RenderStage
 {
-	this->mainPassSetupCallback = move(mainPassSetupCallback);
+	Setup(move(mainPassSetupCallback));
+	// use C++17 template deduction
+	GPUStreamBuffer::CountedAllocatorWrapper<sizeof AABB<3>, AABB_VB_name> GPU_AABB_countedAllocator(GPU_AABB_allocator);
+
+	// shcedule
+	bvh.Shcedule<false>(GPU_AABB_countedAllocator, FrustumCuller<3>(frustumXform), frustumXform, &viewXform);
+
+	// issue
+	{
+		using namespace placeholders;
+
+		auto issueNode = bind(&World::IssueNode, this, _1, OcclusionCulling::QueryBatchBase::npos, _2, _3, _4);
+		bvh.Traverse(issueNode, OcclusionCulling::QueryBatchBase::npos, OcclusionCulling::QueryBatchBase::npos, decltype(declval<decltype(bvh)::Node>().GetOcclusionCullDomain())::ChildrenOnly);
+	}
+
 	return { this, static_cast<decltype(actionSelector)>(&World::GetMainPassRange) };
 }
 

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		08.03.2018 (c)Korotkov Andrey
+\date		21.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -83,8 +83,11 @@ namespace Renderer::Impl::Hierarchy
 		objExclusiveSeparator = srcBegin = partition(srcBegin, srcEnd, Object2AABB<AABBSizeSeparator<decltype(aabb)>>(aabb.Size()));
 
 		// try to split if feasible
-		if (distance(srcBegin, srcEnd) > 1)
+		if (srcBegin != srcEnd)
 		{
+			// if there is only single object it should be considered as big and no left to being splitted
+			assert(distance(objBegin, objEnd) > 1);
+
 			const auto splitPoint = [&, splitTechnique]
 			{
 				switch (splitTechnique)
@@ -96,7 +99,8 @@ namespace Renderer::Impl::Hierarchy
 				}
 			}();
 
-			bool splitted = false;
+			// force to split if there are big objects so that small ones gets their own AABB
+			bool splitted = objBegin != objExclusiveSeparator;
 			// consider using C++17 constexpr if
 			switch (treeStructure)
 			{
@@ -220,9 +224,9 @@ namespace Renderer::Impl::Hierarchy
 		{
 			const auto split = partition(splitInternal, end, Object2AABB<AAABBSplitter<axis>>(splitPoint[axisIdx]));
 			if (split != splitInternal)
-				action(splitted, splitInternal, split, idxOffset += idxOffsetStride);
+				action(splitted, splitInternal, split, idxOffset + idxOffsetStride);
 			if (split != end)
-				action(splitted, split, end, idxOffset += idxOffsetStride);
+				action(splitted, split, end, idxOffset + 2 * idxOffsetStride);
 		}
 		if (splitInternal != begin)
 			action(splitted, begin, splitInternal, idxOffset);
@@ -279,11 +283,11 @@ namespace Renderer::Impl::Hierarchy
 
 	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>
 #if defined _MSC_VER && _MSC_VER <= 1913
-	template<LPCWSTR resourceName>
+	template<bool enableEarlyOut, LPCWSTR resourceName>
 	std::pair<unsigned long int, bool> BVH<treeStructure, Object, CustomNodeData...>::Node::Shcedule(GPUStreamBuffer::CountedAllocatorWrapper<sizeof std::declval<Object>().GetAABB(), resourceName> &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
 		bool parentInsideFrustum, float parentOcclusionCulledProjLength, float parentOcclusion)
 #else
-	template<LPCWSTR resourceName>
+	template<bool enableEarlyOut, LPCWSTR resourceName>
 	std::pair<unsigned long int, bool> BVH<treeStructure, Object, CustomNodeData...>::Node::Shcedule(GPUStreamBuffer::CountedAllocatorWrapper<sizeof aabb, resourceName> &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
 		bool parentInsideFrustum, float parentOcclusionCulledProjLength, float parentOcclusion)
 #endif
@@ -319,15 +323,15 @@ namespace Renderer::Impl::Hierarchy
 				// launch
 				transform(next(cbegin(children)), next(cbegin(children), childrenCount), begin(childrenResults), [=, /*&nodeHandler, */&frustumCuller, &frustumXform](const remove_extent_t<decltype(children)> &child)
 				{
-					return async(&Node::Shcedule, child.get(), /*cref(nodeHandler), */ref(GPU_AABB_allocator), cref(frustumCuller), cref(frustumXform), depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
+					return async(&Node::Shcedule<enableEarlyOut>, child.get(), /*cref(nodeHandler), */ref(GPU_AABB_allocator), cref(frustumCuller), cref(frustumXform), depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
 				});
 
 				// traverse first child in this thread
-				tie(childrenCulledTris, childQueryCanceled) = children[0]->Shcedule(/*nodeHandler, */GPU_AABB_allocator, frustumCuller, frustumXform, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
+				tie(childrenCulledTris, childQueryCanceled) = children[0]->Shcedule<enableEarlyOut>(/*nodeHandler, */GPU_AABB_allocator, frustumCuller, frustumXform, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
 #else
 				for_each_n(cbegin(children), childrenCount, [&, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion](const remove_extent_t<decltype(children)> &child)
 				{
-					const auto childResult = child->Shcedule(/*nodeHandler, */GPU_AABB_allocator, frustumCuller, frustumXform, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
+					const auto childResult = child->Shcedule<enableEarlyOut>(/*nodeHandler, */GPU_AABB_allocator, frustumCuller, frustumXform, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
 					childrenCulledTris += childResult.first;
 					childQueryCanceled |= childResult.second;
 				});
@@ -366,7 +370,7 @@ namespace Renderer::Impl::Hierarchy
 		if (OcclusionCulling::EarlyOut(GetInclusiveTriCount()))
 		{
 			// parentInsideFrustum now relates to this node
-			if (parentInsideFrustum)
+			if (enableEarlyOut && parentInsideFrustum)
 				visibility = Visibility::Atomic;
 			else
 				traverseChildren();
@@ -411,7 +415,7 @@ namespace Renderer::Impl::Hierarchy
 				if (queryNeeded)
 				{
 					const Node *boxes[OcclusionCulling::maxOcclusionQueryBoxes];
-					const unsigned long int exludedTris = CollectOcclusionQueryBoxes(begin(boxes), end(boxes)).first;
+					const unsigned long int exludedTris = CollectOcclusionQueryBoxes<enableEarlyOut>(begin(boxes), end(boxes)).first;
 					// reevaluate query benefit after excluding cheap objects during box collection
 					if (queryNeeded = childQueryCanceled || OcclusionCulling::QueryBenefit<true>(aabbProjSquare, restTris - exludedTris))
 					{
@@ -444,6 +448,7 @@ namespace Renderer::Impl::Hierarchy
 
 	// returns <exluded tris, accumulated AABB measure>
 	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>
+	template<bool enableEarlyOut>
 	std::pair<unsigned long int, float> BVH<treeStructure, Object, CustomNodeData...>::Node::CollectOcclusionQueryBoxes(const Node **boxesBegin, const Node **boxesEnd)
 	{
 		using namespace std;
@@ -467,22 +472,25 @@ namespace Renderer::Impl::Hierarchy
 				{
 					assert(visibility != Visibility::Culled);
 
-					// reset 'culled' bit which can potetially be set in previous frame and not updated yet during Shcedule() due to early out
-					reinterpret_cast<underlying_type_t<Visibility> &>(child->visibility) &= 0b01;
-		
-					// ensure Atomic visibility propagated for early out nodes
-					reinterpret_cast<underlying_type_t<Visibility> &>(child->visibility) |= underlying_type_t<Visibility>(visibility);
+					if constexpr (enableEarlyOut)
+					{
+						// reset 'culled' bit which can potetially be set in previous frame and not updated yet during Shcedule() due to early out
+						reinterpret_cast<underlying_type_t<Visibility> &>(child->visibility) &= 0b01;
 
-					/*
+						// ensure Atomic visibility propagated for early out nodes
+						reinterpret_cast<underlying_type_t<Visibility> &>(child->visibility) |= underlying_type_t<Visibility>(visibility);
+
+						/*
 						'childrenFilter' guarantees that it is either required to clear 'occlusionQueryGeometry' or it is already cleared (=> additional clear here has not effect)
 						so additional check is not necessary and is can only serve as optimization to avoid redundant clear
 						but clear itself is currently cheap and additional chek would probably be an anti-optimization
 						another more costly clear implementation though can potentially benefit from additional check
-					*/
+						*/
 #if 0
-					if (visibility == Visibility::Atomic)
+						if (visibility == Visibility::Atomic)
 #endif
-						child->occlusionQueryGeometry = nullptr;	// need to set here because it may not be set in Shcedule() due to early out
+							child->occlusionQueryGeometry = nullptr;	// need to set here because it may not be set in Shcedule() due to early out
+					}
 
 					auto segmentEnd = next(segmentBegin, minBoxesPerNode);
 					if (additionalBoxes)
@@ -491,7 +499,7 @@ namespace Renderer::Impl::Hierarchy
 						additionalBoxes--;
 					}
 
-					const auto collectResults = child->CollectOcclusionQueryBoxes(segmentBegin, segmentEnd);
+					const auto collectResults = child->CollectOcclusionQueryBoxes<enableEarlyOut>(segmentBegin, segmentEnd);
 					excludedTris += collectResults.first;
 					accumulatedChildrenMeasure += collectResults.second;
 
@@ -548,10 +556,10 @@ namespace Renderer::Impl::Hierarchy
 	}
 
 	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>
-	template<LPCWSTR resourceName>
+	template<bool enableEarlyOut, LPCWSTR resourceName>
 	inline void BVH<treeStructure, Object, CustomNodeData...>::Shcedule(GPUStreamBuffer::CountedAllocatorWrapper<sizeof std::declval<Object>().GetAABB(), resourceName> &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(std::declval<Object>().GetAABB().Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform)
 	{
-		root->Shcedule(GPU_AABB_allocator, frustumCuller, frustumXform, depthSortXform);
+		root->Shcedule<enableEarlyOut>(GPU_AABB_allocator, frustumCuller, frustumXform, depthSortXform);
 	}
 
 	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>

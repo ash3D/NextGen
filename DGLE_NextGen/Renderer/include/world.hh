@@ -14,15 +14,22 @@ See "DGLE.h" for more details.
 #include <cstddef>
 #include <memory>
 #include <string>
+#include <vector>
 #include <list>
 #include <utility>	// for std::forward
 #include <functional>
 #include <wrl/client.h>
+#include "../tracked resource.h"
 #include "../AABB.h"
 #include "../world hierarchy.h"
 #include "../render stage.h"
 #include "../render pipeline.h"
-#include "../tracked resource.h"
+#include "../GPU stream buffer allocator.h"
+#include "../occlusion query batch.h"
+#define DISABLE_MATRIX_SWIZZLES
+#if !__INTELLISENSE__ 
+#include "vector math.h"
+#endif
 
 struct ID3D12RootSignature;
 struct ID3D12PipelineState;
@@ -39,6 +46,7 @@ extern void __cdecl InitRenderer();
 namespace Renderer
 {
 	namespace WRL = Microsoft::WRL;
+	namespace HLSL = Math::VectorMath::HLSL;
 
 	class Viewport;
 	class TerrainVectorLayer;
@@ -107,12 +115,15 @@ namespace Renderer
 			std::list<Renderer::TerrainVectorLayer, Allocator<Renderer::TerrainVectorLayer>> terrainVectorLayers;
 
 		private:
-			class BVHObject
+			struct BVHObject
 			{
 				const Renderer::Instance *instance;
 
 			public:
 				BVHObject(const Renderer::Instance *instance) : instance(instance) {}
+
+			public:
+				operator const Renderer::Instance *() const noexcept { return instance; }
 
 			public:
 #if defined _MSC_VER && _MSC_VER <= 1913
@@ -131,7 +142,7 @@ namespace Renderer
 
 		private:
 			// static objects
-			mutable Hierarchy::BVH<Hierarchy::QUADTREE, BVHObject> bvh;
+			mutable Hierarchy::BVH<Hierarchy::ENNEATREE, BVHObject> bvh;
 			mutable std::list<Renderer::Instance, Allocator<Renderer::Instance>> staticObjects;
 			mutable TrackedResource<ID3D12Resource> staticObjectsCB;
 			struct StaticObjectData;
@@ -140,6 +151,7 @@ namespace Renderer
 #pragma region main pass
 		private:
 			mutable std::function<void (ID3D12GraphicsCommandList1 *target)> mainPassSetupCallback;
+			mutable std::vector<const Renderer::Instance *> renderStream;
 
 		private:
 			//void MainPassPre(CmdListPool::CmdList &target) const, MainPassPost(CmdListPool::CmdList &target) const;
@@ -153,6 +165,17 @@ namespace Renderer
 		private:
 			RenderPipeline::PipelineItem
 				GetMainPassPre(unsigned int &length) const, GetMainPassRange(unsigned int &length) const, GetMainPassPost(unsigned int &length) const;
+
+		private:
+			void Setup(std::function<void (ID3D12GraphicsCommandList1 *target)> &&mainPassSetupCallback) const;
+			bool IssueNode(const decltype(bvh)::Node &node, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &occlusionProvider, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &coarseOcclusion, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &fineOcclusion, decltype(node.GetOcclusionCullDomain()) &cullWholeNodeOverriden) const;
+
+		private:
+			void IssueExclusiveObjects(const decltype(bvh)::Node &node) const;
+
+		private:
+			static constexpr const WCHAR AABB_VB_name[] = L"3D objects occlusion query boxes";
+			mutable GPUStreamBuffer::Allocator<sizeof(AABB<3>), AABB_VB_name> GPU_AABB_allocator;
 
 		private:
 			class InstanceDeleter final
@@ -177,9 +200,6 @@ namespace Renderer
 			void Render(const float (&viewXform)[4][3], const float (&projXform)[4][4], const std::function<void (ID3D12GraphicsCommandList1 *target, bool enableRT)> &setupRenderOutputCallback) const;
 			void OnFrameFinish() const;
 
-		private:
-			//void ScheduleNode(decltype(bvh)::Node &node) const;
-
 		public:
 			typedef std::unique_ptr<const Renderer::Instance, InstanceDeleter> InstancePtr;
 			std::shared_ptr<Renderer::Viewport> CreateViewport() const;
@@ -188,7 +208,7 @@ namespace Renderer
 			void FlushUpdates() const;	// const to be able to call from Render()
 
 		private:
-			RenderPipeline::RenderStage BuildRenderStage(std::function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const;
+			RenderPipeline::RenderStage BuildRenderStage(const HLSL::float4x4 &frustumXform, const HLSL::float4x3 &viewXform, std::function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const;
 		};
 	}
 

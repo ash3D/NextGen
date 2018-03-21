@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.03.2018 (c)Korotkov Andrey
+\date		21.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -256,7 +256,7 @@ TerrainVectorQuad::~TerrainVectorQuad() = default;
 // 1 call site
 inline void TerrainVectorQuad::Shcedule(GPUStreamBuffer::CountedAllocatorWrapper<sizeof AABB<2>, AABB_VB_name> &GPU_AABB_allocator, const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform) const
 {
-	subtree.Shcedule(GPU_AABB_allocator, frustumCuller, frustumXform);
+	subtree.Shcedule<true>(GPU_AABB_allocator, frustumCuller, frustumXform);
 }
 
 // 1 call site
