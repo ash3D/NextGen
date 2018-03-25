@@ -212,10 +212,6 @@ void Impl::World::OnFrameFinish() const
 	TerrainVectorLayer::OnFrameFinish();
 }
 
-//void Impl::World::ScheduleNode(decltype(bvh)::Node &node) const
-//{
-//}
-
 shared_ptr<Renderer::Viewport> Impl::World::CreateViewport() const
 {
 	return make_shared<Renderer::Viewport>(shared_from_this());
