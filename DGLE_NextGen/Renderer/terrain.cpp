@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		21.03.2018 (c)Korotkov Andrey
+\date		26.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -200,7 +200,7 @@ namespace
 
 #pragma region TerrainVectorQuad
 TerrainVectorQuad::TerrainVectorQuad(shared_ptr<TerrainVectorLayer> &&layer, unsigned long int vcount, const function<void (volatile float verts[][2])> &fillVB, unsigned int objCount, bool srcIB32bit, const function<TerrainVectorLayer::ObjectData (unsigned int objIdx)> &getObjectData) :
-	layer(move(layer)), subtree(ObjIterator<Object>(getObjectData, 0), ObjIterator<Object>(getObjectData, objCount), Impl::Hierarchy::SplitTechnique::MEAN, .5),
+	layer(move(layer)), subtree(ObjIterator<Object>(getObjectData, 0), ObjIterator<Object>(getObjectData, objCount), Impl::Hierarchy::SplitTechnique::MEAN, .5), subtreeView(subtree),
 	IB32bit(vcount > UINT16_MAX), VB_size(vcount * sizeof(float [2])), IB_size(subtree.GetTriCount() * 3 * (IB32bit ? sizeof(uint32_t) : sizeof(uint16_t)))
 {
 	// create and fill VIB
@@ -256,7 +256,7 @@ TerrainVectorQuad::~TerrainVectorQuad() = default;
 // 1 call site
 inline void TerrainVectorQuad::Shcedule(GPUStreamBuffer::CountedAllocatorWrapper<sizeof AABB<2>, AABB_VB_name> &GPU_AABB_allocator, const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform) const
 {
-	subtree.Shcedule<true>(GPU_AABB_allocator, frustumCuller, frustumXform);
+	subtreeView.Shcedule<true>(GPU_AABB_allocator, frustumCuller, frustumXform);
 }
 
 // 1 call site
@@ -264,8 +264,8 @@ inline void TerrainVectorQuad::Issue(remove_const_t<decltype(OcclusionCulling::Q
 {
 	using namespace placeholders;
 
-	const auto issueNode = bind(&TerrainVectorLayer::IssueNode, layer.get(), _1, ref(occlusionProvider), _2, _3, _4);
-	subtree.Traverse(issueNode, OcclusionCulling::QueryBatchBase::npos, OcclusionCulling::QueryBatchBase::npos, decltype(declval<decltype(subtree)::Node>().GetOcclusionCullDomain())::ChildrenOnly);
+	const auto issueNode = bind(&TerrainVectorLayer::IssueNode, layer.get(), _1, _2, ref(occlusionProvider), _3, _4, _5);
+	subtreeView.Traverse(issueNode, OcclusionCulling::QueryBatchBase::npos, OcclusionCulling::QueryBatchBase::npos, decltype(declval<decltype(subtreeView)::Node>().GetOcclusionCullDomain())::ChildrenOnly);
 	layer->IssueQuad(VIB.Get(), VB_size, IB_size, IB32bit);
 }
 #pragma endregion
@@ -812,48 +812,48 @@ inline void Impl::TerrainVectorLayer::IssueQuad(ID3D12Resource *VIB, unsigned lo
 	quadStram.push_back({ renderStream.size(), VIB, VB_size, IB_size, IB32bit });
 }
 
-bool Impl::TerrainVectorLayer::IssueNode(const Node &node, remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &occlusionProvider, remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &coarseOcclusion, remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &fineOcclusion, decltype(node.GetOcclusionCullDomain()) &occlusionCullDomainOverriden)
+bool Impl::TerrainVectorLayer::IssueNode(const TreeNode &treeNode, const ViewNode &viewNode, remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &occlusionProvider, remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &coarseOcclusion, remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &fineOcclusion, decltype(viewNode.GetOcclusionCullDomain()) &occlusionCullDomainOverriden)
 {
-	if (const auto &occlusionQueryGeometry = node.GetOcclusionQueryGeometry())
+	if (const auto &occlusionQueryGeometry = viewNode.GetOcclusionQueryGeometry())
 	{
-		occlusionCullDomainOverriden = node.GetOcclusionCullDomain();
+		occlusionCullDomainOverriden = viewNode.GetOcclusionCullDomain();
 		IssueOcclusion({ occlusionQueryGeometry.VB, occlusionQueryGeometry.startIdx, occlusionQueryGeometry.count });
 		fineOcclusion = ++occlusionProvider;
 	}
 	else if (fineOcclusion != OcclusionCulling::QueryBatchBase::npos)
-		node.OverrideOcclusionCullDomain(occlusionCullDomainOverriden);
-	if (occlusionCullDomainOverriden == decltype(node.GetOcclusionCullDomain())::WholeNode)
+		viewNode.OverrideOcclusionCullDomain(occlusionCullDomainOverriden);
+	if (occlusionCullDomainOverriden == decltype(viewNode.GetOcclusionCullDomain())::WholeNode)
 		coarseOcclusion = fineOcclusion;
-	switch (node.GetVisibility(occlusionCullDomainOverriden))
+	switch (viewNode.GetVisibility(occlusionCullDomainOverriden))
 	{
-	case decltype(node.GetVisibility(occlusionCullDomainOverriden))::Composite:
-		IssueExclusiveObjects(node, coarseOcclusion);
+	case decltype(viewNode.GetVisibility(occlusionCullDomainOverriden))::Composite:
+		IssueExclusiveObjects(treeNode, coarseOcclusion);
 		return true;
-	case decltype(node.GetVisibility(occlusionCullDomainOverriden))::Atomic:
+	case decltype(viewNode.GetVisibility(occlusionCullDomainOverriden))::Atomic:
 		if (coarseOcclusion == fineOcclusion)
-			IssueWholeNode(node, coarseOcclusion);
+			IssueWholeNode(treeNode, coarseOcclusion);
 		else
 		{
-			IssueExclusiveObjects(node, coarseOcclusion);
-			IssueChildren(node, fineOcclusion);
+			IssueExclusiveObjects(treeNode, coarseOcclusion);
+			IssueChildren(treeNode, fineOcclusion);
 		}
 		break;
 	}
 	return false;
 }
 
-void Impl::TerrainVectorLayer::IssueExclusiveObjects(const Node &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion)
+void Impl::TerrainVectorLayer::IssueExclusiveObjects(const TreeNode &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion)
 {
 	if (node.GetExclusiveTriCount())
 		IssueCluster(node.startIdx, node.GetExclusiveTriCount(), occlusion);
 }
 
-void Impl::TerrainVectorLayer::IssueChildren(const Node &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion)
+void Impl::TerrainVectorLayer::IssueChildren(const TreeNode &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion)
 {
 	IssueCluster(node.startIdx + node.GetExclusiveTriCount() * 3, node.GetInclusiveTriCount() - node.GetExclusiveTriCount(), occlusion);
 }
 
-void Impl::TerrainVectorLayer::IssueWholeNode(const Node &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion)
+void Impl::TerrainVectorLayer::IssueWholeNode(const TreeNode &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion)
 {
 	IssueCluster(node.startIdx, node.GetInclusiveTriCount(), occlusion);
 }

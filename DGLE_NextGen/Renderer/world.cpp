@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		21.03.2018 (c)Korotkov Andrey
+\date		26.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -77,6 +77,7 @@ void Impl::World::InvalidateStaticObjects()
 {
 	staticObjectsCB.Reset();
 	bvh.Reset();
+	bvhView.Reset();
 }
 
 //void Impl::World::MainPassPre(CmdListPool::CmdList &cmdList) const
@@ -128,20 +129,20 @@ void Impl::World::Setup(std::function<void (ID3D12GraphicsCommandList1 *target)>
 	renderStream.clear();
 }
 
-bool Impl::World::IssueNode(const decltype(bvh)::Node &node, remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &occlusionProvider, remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &coarseOcclusion, remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &fineOcclusion, decltype(node.GetOcclusionCullDomain()) &occlusionCullDomainOverriden) const
+bool Impl::World::IssueNode(const decltype(bvh)::Node &bvhNode, const decltype(bvhView)::Node &viewNode, remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &occlusionProvider, remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &coarseOcclusion, remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &fineOcclusion, decltype(viewNode.GetOcclusionCullDomain()) &occlusionCullDomainOverriden) const
 {
-	if (const auto &occlusionQueryGeometry = node.GetOcclusionQueryGeometry())
+	if (const auto &occlusionQueryGeometry = viewNode.GetOcclusionQueryGeometry())
 	{
-		occlusionCullDomainOverriden = node.GetOcclusionCullDomain();
+		occlusionCullDomainOverriden = viewNode.GetOcclusionCullDomain();
 		fineOcclusion = ++occlusionProvider;
 	}
 	else if (fineOcclusion != OcclusionCulling::QueryBatchBase::npos)
-		node.OverrideOcclusionCullDomain(occlusionCullDomainOverriden);
-	if (occlusionCullDomainOverriden == decltype(node.GetOcclusionCullDomain())::WholeNode)
+		viewNode.OverrideOcclusionCullDomain(occlusionCullDomainOverriden);
+	if (occlusionCullDomainOverriden == decltype(viewNode.GetOcclusionCullDomain())::WholeNode)
 		coarseOcclusion = fineOcclusion;
-	if (node.GetVisibility(occlusionCullDomainOverriden) != decltype(node.GetVisibility(occlusionCullDomainOverriden))::Culled)
+	if (viewNode.GetVisibility(occlusionCullDomainOverriden) != decltype(viewNode.GetVisibility(occlusionCullDomainOverriden))::Culled)
 	{
-		IssueExclusiveObjects(node);
+		IssueExclusiveObjects(bvhNode);
 		return true;
 	}
 	return false;
@@ -261,7 +262,10 @@ void Impl::World::FlushUpdates() const
 
 		// rebuild BVH
 		if (!bvh)
+		{
 			bvh = { AdressIterator{staticObjects.cbegin()}, AdressIterator{staticObjects.cend()}, Hierarchy::SplitTechnique::MEAN };
+			bvhView = { bvh };
+		}
 
 		// recreate static objects CB
 		if (!staticObjectsCB)
@@ -299,14 +303,14 @@ auto Impl::World::BuildRenderStage(const HLSL::float4x4 &frustumXform, const HLS
 	GPUStreamBuffer::CountedAllocatorWrapper<sizeof AABB<3>, AABB_VB_name> GPU_AABB_countedAllocator(GPU_AABB_allocator);
 
 	// shcedule
-	bvh.Shcedule<false>(GPU_AABB_countedAllocator, FrustumCuller<3>(frustumXform), frustumXform, &viewXform);
+	bvhView.Shcedule<false>(GPU_AABB_countedAllocator, FrustumCuller<3>(frustumXform), frustumXform, &viewXform);
 
 	// issue
 	{
 		using namespace placeholders;
 
-		auto issueNode = bind(&World::IssueNode, this, _1, OcclusionCulling::QueryBatchBase::npos, _2, _3, _4);
-		bvh.Traverse(issueNode, OcclusionCulling::QueryBatchBase::npos, OcclusionCulling::QueryBatchBase::npos, decltype(declval<decltype(bvh)::Node>().GetOcclusionCullDomain())::ChildrenOnly);
+		auto issueNode = bind(&World::IssueNode, this, _1, _2, OcclusionCulling::QueryBatchBase::npos, _3, _4, _5);
+		bvhView.Traverse(issueNode, OcclusionCulling::QueryBatchBase::npos, OcclusionCulling::QueryBatchBase::npos, decltype(declval<decltype(bvhView)::Node>().GetOcclusionCullDomain())::ChildrenOnly);
 	}
 
 	return { this, static_cast<decltype(actionSelector)>(&World::GetMainPassRange) };

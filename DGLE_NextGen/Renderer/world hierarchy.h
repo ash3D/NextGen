@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		21.03.2018 (c)Korotkov Andrey
+\date		26.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -118,6 +118,9 @@ namespace Renderer::Impl::Hierarchy
 		inline auto operator ()(const Object &object) const;
 	};
 
+	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>
+	class View;
+
 	// currently for static geometry only
 	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>
 	class BVH
@@ -125,18 +128,102 @@ namespace Renderer::Impl::Hierarchy
 		std::vector<Object> objects;
 
 	public:
+		typedef View<treeStructure, Object, CustomNodeData...> View;
+		friend View;
+
+	public:
 		class Node : public CustomNodeData...
 		{
 			friend class BVH;
+			friend View;
 
 		private:
 			std::decay_t<decltype(std::declval<Object>().GetAABB())> aabb;
 			std::unique_ptr<Node> children[treeStructure];
 			typename std::enable_if_t<true, decltype(objects)>::const_iterator objBegin, objExclusiveSeparator, objEnd;
 			unsigned long int exclusiveTriCount, inclusiveTriCount;
+			unsigned long idx;
 			float occlusion;
-			unsigned char childrenOrder[treeStructure];
 			unsigned char childrenCount{};
+
+		public:	// for make_unique
+			Node(unsigned long &nodeCounter, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, ...);
+			Node(Node &&) = delete;
+			Node &operator =(Node &&) = delete;
+
+		private:
+			template<typename ...Params>
+			void CreateChildNode(bool splitted, unsigned long &nodeCounter, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, unsigned int idxOffset, Params ...params);
+			template<Axis axis, class F>
+			void Split2(const F &action, bool &splitted, unsigned long &nodeCounter, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, decltype(aabb.Center()) splitPoint, double overlapThreshold, unsigned int idxOffset = 0);
+			void SplitQuadtree(bool &splitted, unsigned long &nodeCounter, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, decltype(aabb.Center()) splitPoint, double overlapThreshold, unsigned int idxOffset = 0);
+			void SplitOctree(bool &splitted, unsigned long &nodeCounter, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, decltype(aabb.Center()) splitPoint, double overlapThreshold);
+			template<Axis axis, class F>
+			void Split3(const F &action, bool &splitted, unsigned long &nodeCounter, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, decltype(aabb.Center()) splitPoint, unsigned int idxOffset = 0);
+			void SplitEneaTree(bool &splitted, unsigned long &nodeCounter, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, decltype(aabb.Center()) splitPoint, unsigned int idxOffset = 0);
+			void SplitIcoseptree(bool &splitted, unsigned long &nodeCounter, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, decltype(aabb.Center()) splitPoint);
+
+		public:
+			inline const auto &GetAABB() const noexcept { return aabb; }
+			inline auto GetExclusiveObjectsRange() const noexcept { return std::make_pair(objBegin, objExclusiveSeparator); }
+			inline auto GetInclusiveObjectsRange() const noexcept { return std::make_pair(objBegin, objEnd); }
+			inline unsigned long int GetExclusiveTriCount() const noexcept { return exclusiveTriCount; }
+			inline unsigned long int GetInclusiveTriCount() const noexcept { return inclusiveTriCount; }
+			inline float GetOcclusion() const noexcept { return occlusion; }	// exclusive
+
+		private:
+			template<typename ...Args, typename NodeHandler, typename ReorderProvider>
+			void Traverse(NodeHandler &nodeHandler, ReorderProvider reorderProvider, Args ...args);
+#if defined _MSC_VER && _MSC_VER <= 1913
+			template<bool enableEarlyOut, LPCWSTR resourceName>
+			std::pair<unsigned long int, bool> Shcedule(View &view, GPUStreamBuffer::CountedAllocatorWrapper<sizeof std::declval<Object>().GetAABB(), resourceName> &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
+				bool parentInsideFrustum = false, float parentOcclusionCulledProjLength = INFINITY, float parentOcclusion = 0);
+#else
+			template<bool enableEarlyOut, LPCWSTR resourceName>
+			std::pair<unsigned long int, bool> Shcedule(View &view, GPUStreamBuffer::CountedAllocatorWrapper<sizeof aabb, resourceName> &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
+				bool parentInsideFrustum = false, float parentOcclusionCulledProjLength = INFINITY, float parentOcclusion = 0);
+#endif
+			template<bool enableEarlyOut>
+			std::pair<unsigned long int, float> CollectOcclusionQueryBoxes(const View &view, const Node **boxesBegin, const Node **boxesEnd);
+		};
+
+	private:
+		std::unique_ptr<Node> root;
+		unsigned long nodeCount{};
+
+	public:
+		BVH() = default;
+		template<typename Iterator>
+		BVH(Iterator objBegin, Iterator objEnd, SplitTechnique splitTechnique, ...);	// overlapThreshold -> ... for QUADTREE/OCTREE
+		// reference from View gets invalidated after move
+		BVH(BVH &&) = default;
+		BVH &operator =(BVH &&) = default;
+
+	public:
+		explicit operator bool() const noexcept { return root.operator bool(); }
+		const auto &GetAABB() const noexcept { return root->GetAABB(); }
+		unsigned long int GetTriCount() const noexcept { return root->GetInclusiveTriCount(); }
+
+	public:
+		template<typename ...Args, typename F>
+		void Traverse(F &nodeHandler, const Args &...args);
+		void FreeObjects(), Reset();
+	};
+
+	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>
+	class View
+	{
+		typedef BVH<treeStructure, Object, CustomNodeData...> BVH;
+		friend BVH;
+
+	public:
+		class Node
+		{
+			friend class View;
+			friend BVH;
+
+		private:
+			unsigned char childrenOrder[treeStructure];
 			enum struct Visibility : unsigned char
 			{
 				Culled		= 0b10,	// completely culled by frustum
@@ -163,71 +250,35 @@ namespace Renderer::Impl::Hierarchy
 				void operator =(std::nullptr_t src) noexcept { VB = src; }
 			} occlusionQueryGeometry;
 
-		public:	// for make_unique
-			Node(typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, ...);
-			Node(Node &&) = delete;
-			Node &operator =(Node &&) = delete;
-
-		private:
-			template<typename ...Params>
-			void CreateChildNode(bool splitted, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, unsigned int idxOffset, Params ...params);
-			template<Axis axis, class F>
-			void Split2(const F &action, bool &splitted, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, decltype(aabb.Center()) splitPoint, double overlapThreshold, unsigned int idxOffset = 0);
-			void SplitQuadtree(bool &splitted, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, decltype(aabb.Center()) splitPoint, double overlapThreshold, unsigned int idxOffset = 0);
-			void SplitOctree(bool &splitted, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, decltype(aabb.Center()) splitPoint, double overlapThreshold);
-			template<Axis axis, class F>
-			void Split3(const F &action, bool &splitted, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, decltype(aabb.Center()) splitPoint, unsigned int idxOffset = 0);
-			void SplitEneaTree(bool &splitted, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, decltype(aabb.Center()) splitPoint, unsigned int idxOffset = 0);
-			void SplitIcoseptree(bool &splitted, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, decltype(aabb.Center()) splitPoint);
+		public:
+			Node();
+			Node(Node &&) = default;
+			Node &operator =(Node &&) = default;
 
 		public:
-			inline const auto &GetAABB() const noexcept { return aabb; }
-			inline auto GetExclusiveObjectsRange() const noexcept { return std::make_pair(objBegin, objExclusiveSeparator); }
-			inline auto GetInclusiveObjectsRange() const noexcept { return std::make_pair(objBegin, objEnd); }
-			inline unsigned long int GetExclusiveTriCount() const noexcept { return exclusiveTriCount; }
-			inline unsigned long int GetInclusiveTriCount() const noexcept { return inclusiveTriCount; }
-			inline float GetOcclusion() const noexcept { return occlusion; }	// exclusive
 			inline OcclusionCullDomain GetOcclusionCullDomain() const noexcept { return occlusionCullDomain; }
 			inline const auto &GetOcclusionQueryGeometry() const noexcept { return occlusionQueryGeometry; }
 			Visibility GetVisibility(OcclusionCullDomain override) const noexcept;
 			void OverrideOcclusionCullDomain(OcclusionCullDomain &domain) const noexcept;
-
-		private:
-			template<typename ...Args, typename F>
-			void Traverse(F &nodeHandler, Args ...args);
-#if defined _MSC_VER && _MSC_VER <= 1913
-			template<bool enableEarlyOut, LPCWSTR resourceName>
-			std::pair<unsigned long int, bool> Shcedule(GPUStreamBuffer::CountedAllocatorWrapper<sizeof std::declval<Object>().GetAABB(), resourceName> &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
-				bool parentInsideFrustum = false, float parentOcclusionCulledProjLength = INFINITY, float parentOcclusion = 0);
-#else
-			template<bool enableEarlyOut, LPCWSTR resourceName>
-			std::pair<unsigned long int, bool> Shcedule(GPUStreamBuffer::CountedAllocatorWrapper<sizeof aabb, resourceName> &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
-				bool parentInsideFrustum = false, float parentOcclusionCulledProjLength = INFINITY, float parentOcclusion = 0);
-#endif
-			template<bool enableEarlyOut>
-			std::pair<unsigned long int, float> CollectOcclusionQueryBoxes(const Node **boxesBegin, const Node **boxesEnd);
 		};
 
 	private:
-		std::unique_ptr<Node> root;
+		// bvh referenced should be valid during View lifetime\
+		shared_ptr for bvh would be safer but it adds overhead
+		const BVH *bvh;
+		std::unique_ptr<Node []> nodes;
 
 	public:
-		BVH() = default;
-		template<typename Iterator>
-		BVH(Iterator objBegin, Iterator objEnd, SplitTechnique splitTechnique, ...);	// overlapThreshold -> ... for QUADTREE/OCTREE
-		BVH(BVH &&) = default;
-		BVH &operator =(BVH &&) = default;
-
-	public:
-		explicit operator bool() const noexcept { return root.operator bool(); }
-		const auto &GetAABB() const noexcept { return root->GetAABB(); }
-		unsigned long int GetTriCount() const noexcept { return root->GetInclusiveTriCount(); }
+		View() = default;
+		explicit View(const BVH &bvh);
+		View(View &&) = default;
+		View &operator =(View &&) = default;
 
 	public:
 		template<typename ...Args, typename F>
 		void Traverse(F &nodeHandler, const Args &...args);
 		template<bool enableEarlyOut, LPCWSTR resourceName>
 		void Shcedule(GPUStreamBuffer::CountedAllocatorWrapper<sizeof std::declval<Object>().GetAABB(), resourceName> &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(std::declval<Object>().GetAABB().Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform = nullptr);
-		void FreeObjects(), Reset();
+		void Reset();
 	};
 }

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.03.2018 (c)Korotkov Andrey
+\date		26.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -93,7 +93,8 @@ namespace Renderer
 
 	private:
 		const std::shared_ptr<class TerrainVectorLayer> layer;
-		mutable Impl::Hierarchy::BVH<Impl::Hierarchy::QUADTREE, Object, NodeCluster> subtree;
+		Impl::Hierarchy::BVH<Impl::Hierarchy::QUADTREE, Object, NodeCluster> subtree;
+		mutable decltype(subtree)::View subtreeView;
 		Impl::TrackedResource<ID3D12Resource> VIB;	// Vertex/Index Buffer
 		const bool IB32bit;
 		const unsigned long int VB_size, IB_size;
@@ -209,17 +210,18 @@ namespace Renderer
 				GetVisiblePassRange(unsigned int &length) const, GetCulledPassRange(unsigned int &length) const;
 
 		private:
-			typedef decltype(TerrainVectorQuad::subtree)::Node Node;
+			typedef decltype(TerrainVectorQuad::subtree)::Node TreeNode;
+			typedef decltype(TerrainVectorQuad::subtreeView)::Node ViewNode;
 
 		private:
 			void Setup(std::function<void (ID3D12GraphicsCommandList1 *target)> &&cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList1 *target)> &&mainPassSetupCallback) const, SetupOcclusionQueryBatch(unsigned long queryCount) const;
 			void IssueQuad(ID3D12Resource *VIB, unsigned long int VB_size, unsigned long int IB_size, bool IB32bit);
-			bool IssueNode(const Node &node, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &occlusionProvider, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &coarseOcclusion, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &fineOcclusion, decltype(node.GetOcclusionCullDomain()) &cullWholeNodeOverriden);
+			bool IssueNode(const TreeNode &treeNode, const ViewNode &viewNode, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &occlusionProvider, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &coarseOcclusion, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &fineOcclusion, decltype(viewNode.GetOcclusionCullDomain()) &cullWholeNodeOverriden);
 
 		private:
-			void IssueExclusiveObjects(const Node &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion);
-			void IssueChildren(const Node &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion);
-			void IssueWholeNode(const Node &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion);
+			void IssueExclusiveObjects(const TreeNode &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion);
+			void IssueChildren(const TreeNode &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion);
+			void IssueWholeNode(const TreeNode &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion);
 
 		private:
 			static std::optional<GPUStreamBuffer::Allocator<sizeof(AABB<2>), TerrainVectorQuad::AABB_VB_name>> GPU_AABB_allocator;

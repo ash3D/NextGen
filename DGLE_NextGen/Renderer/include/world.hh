@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.03.2018 (c)Korotkov Andrey
+\date		26.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -143,6 +143,7 @@ namespace Renderer
 		private:
 			// static objects
 			mutable Hierarchy::BVH<Hierarchy::ENNEATREE, BVHObject> bvh;
+			mutable decltype(bvh)::View bvhView;
 			mutable std::list<Renderer::Instance, Allocator<Renderer::Instance>> staticObjects;
 			mutable TrackedResource<ID3D12Resource> staticObjectsCB;
 			struct StaticObjectData;
@@ -168,7 +169,7 @@ namespace Renderer
 
 		private:
 			void Setup(std::function<void (ID3D12GraphicsCommandList1 *target)> &&mainPassSetupCallback) const;
-			bool IssueNode(const decltype(bvh)::Node &node, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &occlusionProvider, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &coarseOcclusion, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &fineOcclusion, decltype(node.GetOcclusionCullDomain()) &cullWholeNodeOverriden) const;
+			bool IssueNode(const decltype(bvh)::Node &bvhNode, const decltype(bvhView)::Node &viewNode, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &occlusionProvider, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &coarseOcclusion, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &fineOcclusion, decltype(viewNode.GetOcclusionCullDomain()) &cullWholeNodeOverriden) const;
 
 		private:
 			void IssueExclusiveObjects(const decltype(bvh)::Node &node) const;
