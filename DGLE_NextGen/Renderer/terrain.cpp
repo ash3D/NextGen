@@ -658,8 +658,18 @@ ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateAABB_PSO()
 	return move(result);
 }
 
-void Impl::TerrainVectorLayer::AABBPassRange(ID3D12GraphicsCommandList1 *cmdList, unsigned long rangeBegin, unsigned long rangeEnd, bool visible) const
+void Impl::TerrainVectorLayer::AABBPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd, const float (&color)[3], bool visible) const
 {
+	assert(rangeBegin < rangeEnd);
+
+	cmdList.Setup(AABB_PSO.Get());
+
+	mainPassSetupCallback(cmdList);
+	cmdList->SetGraphicsRootSignature(mainPassRootSig.Get());
+	cmdList->SetGraphicsRootConstantBufferView(0, World::perFrameCB->GetGPUVirtualAddress() + World::PerFrameData::CurFrameCB_offset());
+	cmdList->SetGraphicsRoot32BitConstants(1, size(color), color, 0);
+	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
 	const auto &queryBatch = get<true>(occlusionQueryBatch);
 	ID3D12Resource *curVB = NULL;
 	do
@@ -682,36 +692,6 @@ void Impl::TerrainVectorLayer::AABBPassRange(ID3D12GraphicsCommandList1 *cmdList
 		cmdList->DrawInstanced(4, queryData.count, 0, queryData.startIdx);
 
 	} while (++rangeBegin < rangeEnd);
-}
-
-void Impl::TerrainVectorLayer::VisiblePassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd) const
-{
-	assert(rangeBegin < rangeEnd);
-
-	cmdList.Setup(AABB_PSO.Get());
-
-	mainPassSetupCallback(cmdList);
-	cmdList->SetGraphicsRootSignature(mainPassRootSig.Get());
-	cmdList->SetGraphicsRootConstantBufferView(0, World::perFrameCB->GetGPUVirtualAddress() + World::PerFrameData::CurFrameCB_offset());
-	cmdList->SetGraphicsRoot32BitConstants(1, size(OcclusionCulling::DebugColors::Terrain::visible), OcclusionCulling::DebugColors::Terrain::visible, 0);
-	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-
-	AABBPassRange(cmdList, rangeBegin, rangeEnd, true);
-}
-
-void Impl::TerrainVectorLayer::CulledPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd) const
-{
-	assert(rangeBegin < rangeEnd);
-
-	cmdList.Setup(AABB_PSO.Get());
-
-	mainPassSetupCallback(cmdList);
-	cmdList->SetGraphicsRootSignature(mainPassRootSig.Get());
-	cmdList->SetGraphicsRootConstantBufferView(0, World::perFrameCB->GetGPUVirtualAddress() + World::PerFrameData::CurFrameCB_offset());
-	cmdList->SetGraphicsRoot32BitConstants(1, size(OcclusionCulling::DebugColors::Terrain::culled), OcclusionCulling::DebugColors::Terrain::culled, 0);
-	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-
-	AABBPassRange(cmdList, rangeBegin, rangeEnd, false);
 }
 
 void Impl::TerrainVectorLayer::StagePre(CmdListPool::CmdList &cmdList) const
@@ -784,14 +764,14 @@ auto Impl::TerrainVectorLayer::GetVisiblePassRange(unsigned int &length) const -
 {
 	using namespace placeholders;
 	return IterateRenderPass(length, queryStream.size(), [] { actionSelector = static_cast<decltype(actionSelector)>(&TerrainVectorLayer::GetCulledPassRange); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::VisiblePassRange, this, _1, rangeBegin, rangeEnd); });
+		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::AABBPassRange, this, _1, rangeBegin, rangeEnd, cref(OcclusionCulling::DebugColors::Terrain::visible), true); });
 }
 
 auto Impl::TerrainVectorLayer::GetCulledPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
 	return IterateRenderPass(length, queryStream.size(), [] { RenderPipeline::TerminateStageTraverse(); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::CulledPassRange, this, _1, rangeBegin, rangeEnd); });
+		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::AABBPassRange, this, _1, rangeBegin, rangeEnd, cref(OcclusionCulling::DebugColors::Terrain::culled), false); });
 }
 
 void Impl::TerrainVectorLayer::Setup(function<void (ID3D12GraphicsCommandList1 *target)> &&cullPassSetupCallback, function<void (ID3D12GraphicsCommandList1 *target)> &&mainPassSetupCallback) const

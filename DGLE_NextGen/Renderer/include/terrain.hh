@@ -190,9 +190,7 @@ namespace Renderer
 			static WRL::ComPtr<ID3D12PipelineState> AABB_PSO, TryCreateAABB_PSO(), CreateAABB_PSO();
 
 		private:
-			void AABBPassRange(ID3D12GraphicsCommandList1 *target, unsigned long rangeBegin, unsigned long rangeEnd, bool visible) const;
-			void VisiblePassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd) const;
-			void CulledPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd) const;
+			void AABBPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, const float (&color)[3], bool visible) const;
 #pragma endregion
 
 		private:
