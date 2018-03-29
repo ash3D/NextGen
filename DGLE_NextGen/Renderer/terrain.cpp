@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		26.03.2018 (c)Korotkov Andrey
+\date		29.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -286,7 +286,7 @@ ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateCullPassPSO()
 	{
 		FALSE,								// alpha2covarage
 		FALSE,								// independent blend
-	{
+		{
 			FALSE,							// blend enable
 			FALSE,							// logic op enable
 			D3D12_BLEND_ONE,				// src blend
@@ -361,11 +361,8 @@ ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateCullPassPSO()
 	return move(result);
 }
 
-void Impl::TerrainVectorLayer::CullPassPre(CmdListPool::CmdList &cmdList) const
+void Impl::TerrainVectorLayer::CullPassPre(ID3D12GraphicsCommandList1 *cmdList) const
 {
-	cmdList.Setup();
-
-	PIXBeginEvent(cmdList, PIX_COLOR_INDEX(PIXEvents::TerrainLayer), "terrain layer [%u] \"%s\"", layerIdx, layerName.c_str());
 	PIXBeginEvent(cmdList, PIX_COLOR_INDEX(PIXEvents::TerrainOcclusionQueryPass), "occlusion query pass");
 }
 
@@ -410,10 +407,8 @@ void Impl::TerrainVectorLayer::CullPassRange(CmdListPool::CmdList &cmdList, unsi
 	} while (++rangeBegin < rangeEnd);
 }
 
-void Impl::TerrainVectorLayer::CullPassPost(CmdListPool::CmdList &cmdList) const
+void Impl::TerrainVectorLayer::CullPassPost(ID3D12GraphicsCommandList1 *cmdList) const
 {
-	cmdList.Setup();
-
 	if (const auto preservingQueryBatch = get_if<true>(&occlusionQueryBatch))
 		preservingQueryBatch->Resolve(cmdList/*, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE*/);
 	else
@@ -507,15 +502,13 @@ ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateMainPassPSO()
 	return move(result);
 }
 
-void Impl::TerrainVectorLayer::MainPassPre(CmdListPool::CmdList &cmdList) const
+void Impl::TerrainVectorLayer::MainPassPre(ID3D12GraphicsCommandList1 *cmdList) const
 {
-	cmdList.Setup();
-
 	const auto float2BYTE = [](float val) noexcept {return val * numeric_limits<BYTE>::max(); };
 	PIXBeginEvent(cmdList, PIX_COLOR(float2BYTE(color[0]), float2BYTE(color[1]), float2BYTE(color[2])), "main pass");
 }
 
-void Impl::TerrainVectorLayer::MainPassRange(CmdListPool::CmdList &cmdList, unsigned long int rangeBegin, unsigned long int rangeEnd) const
+void Impl::TerrainVectorLayer::MainPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd) const
 {
 	assert(rangeBegin < rangeEnd);
 
@@ -561,14 +554,11 @@ void Impl::TerrainVectorLayer::MainPassRange(CmdListPool::CmdList &cmdList, unsi
 	} while (rangeBegin < rangeEnd);
 }
 
-void Impl::TerrainVectorLayer::MainPassPost(CmdListPool::CmdList &cmdList) const
+void Impl::TerrainVectorLayer::MainPassPost(ID3D12GraphicsCommandList1 *cmdList) const
 {
-	cmdList.Setup();
-
 	if (const auto nonPreservingQueryBatch = get_if<false>(&occlusionQueryBatch))
 		nonPreservingQueryBatch->Finish(cmdList);
 	PIXEndEvent(cmdList);	// main pass
-	PIXEndEvent(cmdList);	// stage
 }
 
 // 1 call site
@@ -723,6 +713,30 @@ void Impl::TerrainVectorLayer::CulledPassRange(CmdListPool::CmdList &cmdList, un
 
 	AABBPassRange(cmdList, rangeBegin, rangeEnd, false);
 }
+
+void Impl::TerrainVectorLayer::StagePre(CmdListPool::CmdList &cmdList) const
+{
+	cmdList.Setup();
+
+	PIXBeginEvent(cmdList, PIX_COLOR_INDEX(PIXEvents::TerrainLayer), "terrain layer [%u] \"%s\"", layerIdx, layerName.c_str());
+	CullPassPre(cmdList);
+}
+
+void Impl::TerrainVectorLayer::CullPass2MainPass(CmdListPool::CmdList &cmdList) const
+{
+	cmdList.Setup();
+
+	CullPassPost(cmdList);
+	MainPassPre(cmdList);
+}
+
+void Impl::TerrainVectorLayer::StagePost(CmdListPool::CmdList &cmdList) const
+{
+	cmdList.Setup();
+
+	MainPassPost(cmdList);
+	PIXEndEvent(cmdList);	// stage
+}
 #pragma endregion
 
 void Impl::TerrainVectorLayer::Sync() const
@@ -731,46 +745,39 @@ void Impl::TerrainVectorLayer::Sync() const
 		nonPreservingQueryBatch->Sync();
 }
 
-auto Impl::TerrainVectorLayer::GetCullPassPre(unsigned int &) const -> RenderPipeline::PipelineItem
+auto Impl::TerrainVectorLayer::GetStagePre(unsigned int &) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
 	actionSelector = static_cast<decltype(actionSelector)>(&TerrainVectorLayer::GetCullPassRange);
-	return bind(&TerrainVectorLayer::CullPassPre, this, _1);
+	return bind(&TerrainVectorLayer::StagePre, this, _1);
 }
 
 auto  Impl::TerrainVectorLayer::GetCullPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, queryStream.size(), [] { actionSelector = static_cast<decltype(actionSelector)>(&TerrainVectorLayer::GetCullPassPost); },
+	return IterateRenderPass(length, queryStream.size(), [] { actionSelector = static_cast<decltype(actionSelector)>(&TerrainVectorLayer::GetCullPass2MainPass); },
 		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::CullPassRange, this, _1, rangeBegin, rangeEnd); });
 }
 
-auto Impl::TerrainVectorLayer::GetCullPassPost(unsigned int &) const -> RenderPipeline::PipelineItem
-{
-	using namespace placeholders;
-	actionSelector = static_cast<decltype(actionSelector)>(&TerrainVectorLayer::GetMainPassPre);
-	return bind(&TerrainVectorLayer::CullPassPost, this, _1);
-}
-
-auto Impl::TerrainVectorLayer::GetMainPassPre(unsigned int &) const -> RenderPipeline::PipelineItem
+auto Impl::TerrainVectorLayer::GetCullPass2MainPass(unsigned int &) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
 	actionSelector = static_cast<decltype(actionSelector)>(&TerrainVectorLayer::GetMainPassRange);
-	return bind(&TerrainVectorLayer::MainPassPre, this, _1);
+	return bind(&TerrainVectorLayer::CullPass2MainPass, this, _1);
 }
 
 auto Impl::TerrainVectorLayer::GetMainPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, renderStream.size(), [] { actionSelector = static_cast<decltype(actionSelector)>(&TerrainVectorLayer::GetMainPassPost); },
+	return IterateRenderPass(length, renderStream.size(), [] { actionSelector = static_cast<decltype(actionSelector)>(&TerrainVectorLayer::GetStagePost); },
 		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::MainPassRange, this, _1, rangeBegin, rangeEnd); });
 }
 
-auto Impl::TerrainVectorLayer::GetMainPassPost(unsigned int &) const -> RenderPipeline::PipelineItem
+auto Impl::TerrainVectorLayer::GetStagePost(unsigned int &) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
 	RenderPipeline::TerminateStageTraverse();
-	return bind(&TerrainVectorLayer::MainPassPost, this, _1);
+	return bind(&TerrainVectorLayer::StagePost, this, _1);
 }
 
 auto Impl::TerrainVectorLayer::GetVisiblePassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
@@ -928,7 +935,7 @@ auto Impl::TerrainVectorLayer::BuildRenderStage(const Impl::FrustumCuller<2> &fr
 		for_each(quads.begin(), quads.end(), bind(&TerrainVectorQuad::Issue, _1, OcclusionCulling::QueryBatchBase::npos));
 	}
 
-	return { this, static_cast<decltype(actionSelector)>(&TerrainVectorLayer::GetCullPassPre) };
+	return { this, static_cast<decltype(actionSelector)>(&TerrainVectorLayer::GetStagePre) };
 }
 
 auto Impl::TerrainVectorLayer::GetDebugDrawRenderStage() const -> RenderPipeline::PipelineStage

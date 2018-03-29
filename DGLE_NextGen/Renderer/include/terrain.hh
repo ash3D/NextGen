@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		26.03.2018 (c)Korotkov Andrey
+\date		29.03.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -144,7 +144,7 @@ namespace Renderer
 			mutable std::vector<OcclusionQueryGeometry> queryStream;
 
 		private:
-			void CullPassPre(CmdListPool::CmdList &target) const, CullPassPost(CmdListPool::CmdList &target) const;
+			inline void CullPassPre(ID3D12GraphicsCommandList1 *target) const, CullPassPost(ID3D12GraphicsCommandList1 *target) const;
 			void CullPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd) const;
 
 		private:
@@ -176,8 +176,8 @@ namespace Renderer
 			mutable std::vector<Quad> quadStram;
 
 		private:
-			void MainPassPre(CmdListPool::CmdList &target) const, MainPassPost(CmdListPool::CmdList &target) const;
-			void MainPassRange(CmdListPool::CmdList &target, unsigned long int rangeBegin, unsigned long int rangeEnd) const;
+			inline void MainPassPre(ID3D12GraphicsCommandList1 *target) const, MainPassPost(ID3D12GraphicsCommandList1 *target) const;
+			void MainPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd) const;
 
 		private:
 			void SetupMainPass(std::function<void (ID3D12GraphicsCommandList1 *target)> &&setupCallback) const;
@@ -196,6 +196,10 @@ namespace Renderer
 #pragma endregion
 
 		private:
+			void StagePre(CmdListPool::CmdList &target) const, StagePost(CmdListPool::CmdList &target) const;
+			void CullPass2MainPass(CmdListPool::CmdList &target) const;
+
+		private:
 			// order is essential (false, then true), index based access used
 			mutable std::variant<OcclusionCulling::QueryBatch<false>, OcclusionCulling::QueryBatch<true>> occlusionQueryBatch;
 
@@ -205,8 +209,9 @@ namespace Renderer
 
 		private:
 			RenderPipeline::PipelineItem
-				GetCullPassPre(unsigned int &length) const, GetCullPassRange(unsigned int &length) const, GetCullPassPost(unsigned int &length) const,
-				GetMainPassPre(unsigned int &length) const, GetMainPassRange(unsigned int &length) const, GetMainPassPost(unsigned int &length) const,
+				GetStagePre(unsigned int &length) const, GetStagePost(unsigned int &length) const,
+				GetCullPassRange(unsigned int &length) const, GetMainPassRange(unsigned int &length) const,
+				GetCullPass2MainPass(unsigned int &length) const,
 				GetVisiblePassRange(unsigned int &length) const, GetCulledPassRange(unsigned int &length) const;
 
 		private:
