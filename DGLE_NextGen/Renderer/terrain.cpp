@@ -774,7 +774,8 @@ auto Impl::TerrainVectorLayer::GetCulledPassRange(unsigned int &length) const ->
 		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::AABBPassRange, this, _1, rangeBegin, rangeEnd, cref(OcclusionCulling::DebugColors::Terrain::culled), false); });
 }
 
-void Impl::TerrainVectorLayer::Setup(function<void (ID3D12GraphicsCommandList2 *target)> &&cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> &&mainPassSetupCallback) const
+// 1 call site
+inline void Impl::TerrainVectorLayer::Setup(function<void (ID3D12GraphicsCommandList2 *target)> &&cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> &&mainPassSetupCallback) const
 {
 	SetupCullPass(move(cullPassSetupCallback));
 	SetupMainPass(move(mainPassSetupCallback));

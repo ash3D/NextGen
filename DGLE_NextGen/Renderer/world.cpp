@@ -611,7 +611,8 @@ auto Impl::World::GetMainPassRange(unsigned int &length) const -> RenderPipeline
 //	return bind(&World::MainPassPost, this, _1);
 //}
 
-void Impl::World::Setup(WorldViewContext &viewCtx, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, function<void (ID3D12GraphicsCommandList2 *target)> &&cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> &&mainPassSetupCallback) const
+// 1 call site
+inline void Impl::World::Setup(WorldViewContext &viewCtx, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, function<void (ID3D12GraphicsCommandList2 *target)> &&cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> &&mainPassSetupCallback) const
 {
 	this->viewCtx = &viewCtx;
 	this->ZBuffer = ZBuffer;
