@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		10.01.2018 (c)Korotkov Andrey
+\date		17.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -19,10 +19,10 @@ cbuffer Xforms : register(b0)
 };
 
 /*
-VS + hardware instanceing approah currently used.
+VS + hardware instancing approah currently used.
 Quad expansion in GS allows to perform transform once per AABB rather than per quad vertex.
 But there can be lack of AABBs to fill up VS/GS SIMD whereas instancing increases VS thread utilization by a factor of 4.
-GPU should support packing of different instances into single SIMD (as does AMD Vega) for this approach to work efficiently, otherwise GS approach can result in better GPU utilization.
+GPU should support packing of different instances into single SIMD (as AMD Vega does) for this approach to work efficiently, otherwise GS approach can result in better GPU utilization.
 For larger batches GS approach can also lead to better results.
 */
 
