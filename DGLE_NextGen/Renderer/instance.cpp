@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		07.03.2018 (c)Korotkov Andrey
+\date		17.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -21,7 +21,7 @@ Impl::Instance::Instance(shared_ptr<class Renderer::World> &&world, Renderer::Ob
 
 Impl::Instance::~Instance() = default;
 
-void Impl::Instance::Render(ID3D12GraphicsCommandList1 *cmdList) const
+void Impl::Instance::Render(ID3D12GraphicsCommandList2 *cmdList) const
 {
 	cmdList->SetGraphicsRootConstantBufferView(1/*consider enum instead or callback to root param binding abstraction*/, CB_GPU_ptr);
 	object.Render(cmdList);

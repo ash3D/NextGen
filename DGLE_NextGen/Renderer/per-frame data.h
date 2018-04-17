@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		07.03.2018 (c)Korotkov Andrey
+\date		17.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -23,5 +23,6 @@ namespace Renderer::Impl
 
 	public:
 		static inline auto CurFrameCB_offset() noexcept { return sizeof(PerFrameData) * globalFrameVersioning->GetContinuousRingIdx(); }
+		static constexpr auto CB_size() noexcept { return sizeof(PerFrameData) * maxFrameLatency; }
 	};
 }

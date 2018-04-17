@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		29.03.2018 (c)Korotkov Andrey
+\date		17.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -35,7 +35,7 @@ See "DGLE.h" for more details.
 
 struct ID3D12RootSignature;
 struct ID3D12PipelineState;
-struct ID3D12GraphicsCommandList1;
+struct ID3D12GraphicsCommandList2;
 struct ID3D12Resource;
 
 extern void __cdecl InitRenderer();
@@ -140,16 +140,16 @@ namespace Renderer
 			static WRL::ComPtr<ID3D12PipelineState> cullPassPSO, TryCreateCullPassPSO(), CreateCullPassPSO();
 
 		private:
-			mutable std::function<void (ID3D12GraphicsCommandList1 *target)> cullPassSetupCallback;
+			mutable std::function<void (ID3D12GraphicsCommandList2 *target)> cullPassSetupCallback;
 			mutable std::vector<OcclusionQueryGeometry> queryStream;
 
 		private:
-			inline void CullPassPre(ID3D12GraphicsCommandList1 *target) const, CullPassPost(ID3D12GraphicsCommandList1 *target) const;
+			inline void CullPassPre(ID3D12GraphicsCommandList2 *target) const, CullPassPost(ID3D12GraphicsCommandList2 *target) const;
 			void CullPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd) const;
 
 		private:
-			void SetupCullPass(std::function<void (ID3D12GraphicsCommandList1 *target)> &&setupCallback) const;
-			void IssueOcclusion(const OcclusionQueryGeometry &queryGeometry);
+			void SetupCullPass(std::function<void (ID3D12GraphicsCommandList2 *target)> &&setupCallback) const;
+			void IssueOcclusion(ID3D12Resource *VB, unsigned long int startIdx, unsigned int count);
 #pragma endregion
 
 #pragma region main pass
@@ -158,7 +158,7 @@ namespace Renderer
 			static WRL::ComPtr<ID3D12PipelineState> mainPassPSO, TryCreateMainPassPSO(), CreateMainPassPSO();
 
 		private:
-			mutable std::function<void (ID3D12GraphicsCommandList1 *target)> mainPassSetupCallback;
+			mutable std::function<void (ID3D12GraphicsCommandList2 *target)> mainPassSetupCallback;
 			struct RenderData
 			{
 				unsigned long int startIdx, triCount;
@@ -176,11 +176,11 @@ namespace Renderer
 			mutable std::vector<Quad> quadStram;
 
 		private:
-			inline void MainPassPre(ID3D12GraphicsCommandList1 *target) const, MainPassPost(ID3D12GraphicsCommandList1 *target) const;
+			inline void MainPassPre(ID3D12GraphicsCommandList2 *target) const, MainPassPost(ID3D12GraphicsCommandList2 *target) const;
 			void MainPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd) const;
 
 		private:
-			void SetupMainPass(std::function<void (ID3D12GraphicsCommandList1 *target)> &&setupCallback) const;
+			void SetupMainPass(std::function<void (ID3D12GraphicsCommandList2 *target)> &&setupCallback) const;
 			void IssueCluster(unsigned long int startIdx, unsigned long int triCount, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion);
 #pragma endregion
 
@@ -217,7 +217,7 @@ namespace Renderer
 			typedef decltype(TerrainVectorQuad::subtreeView)::Node ViewNode;
 
 		private:
-			void Setup(std::function<void (ID3D12GraphicsCommandList1 *target)> &&cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList1 *target)> &&mainPassSetupCallback) const, SetupOcclusionQueryBatch(unsigned long queryCount) const;
+			void Setup(std::function<void (ID3D12GraphicsCommandList2 *target)> &&cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList2 *target)> &&mainPassSetupCallback) const, SetupOcclusionQueryBatch(unsigned long queryCount) const;
 			void IssueQuad(ID3D12Resource *VIB, unsigned long int VB_size, unsigned long int IB_size, bool IB32bit);
 			bool IssueNode(const TreeNode &treeNode, const ViewNode &viewNode, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &occlusionProvider, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &coarseOcclusion, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &fineOcclusion, decltype(viewNode.GetOcclusionCullDomain()) &cullWholeNodeOverriden);
 
@@ -254,11 +254,11 @@ namespace Renderer
 			QuadPtr AddQuad(unsigned long int vcount, const std::function<void __cdecl(volatile float verts[][2])> &fillVB, unsigned int objCount, bool IB32bit, const std::function<ObjectData __cdecl(unsigned int objIdx)> &getObjectData);
 
 		private:
-			RenderPipeline::RenderStage BuildRenderStage(const FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, std::function<void (ID3D12GraphicsCommandList1 *target)> &cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const;
+			RenderPipeline::RenderStage BuildRenderStage(const FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, std::function<void (ID3D12GraphicsCommandList2 *target)> &cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList2 *target)> &mainPassSetupCallback) const;
 			RenderPipeline::PipelineStage GetDebugDrawRenderStage() const;
 
 		protected:
-			void ShceduleRenderStage(const FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, std::function<void (ID3D12GraphicsCommandList1 *target)> cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList1 *target)> mainPassSetupCallback) const;
+			void ShceduleRenderStage(const FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, std::function<void (ID3D12GraphicsCommandList2 *target)> cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList2 *target)> mainPassSetupCallback) const;
 			void ShceduleDebugDrawRenderStage() const;	// must be after ShceduleRenderStage()
 			static void OnFrameFinish() { GPU_AABB_allocator->OnFrameFinish(); }
 		};

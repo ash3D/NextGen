@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.03.2018 (c)Korotkov Andrey
+\date		17.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -31,7 +31,7 @@ struct ID3D12RootSignature;
 struct ID3D12PipelineState;
 struct ID3D12Resource;
 struct ID3D12CommandAllocator;
-struct ID3D12GraphicsCommandList1;
+struct ID3D12GraphicsCommandList2;
 
 extern void __cdecl InitRenderer();
 
@@ -75,7 +75,7 @@ namespace Renderer
 
 		private:
 			// is GPU lifetime tracking is necessary for cmd list (or is it enough for cmd allocator only)?
-			std::shared_future<std::pair<Impl::TrackedResource<ID3D12CommandAllocator>, Impl::TrackedResource<ID3D12GraphicsCommandList1>>> bundle;
+			std::shared_future<std::pair<Impl::TrackedResource<ID3D12CommandAllocator>, Impl::TrackedResource<ID3D12GraphicsCommandList2>>> bundle;
 			std::shared_ptr<Subobject []> subobjects;
 			Impl::TrackedResource<ID3D12Resource> VIB;	// Vertex/Index Buffer, also contin material for Intel workaround
 			unsigned long int tricount;
@@ -99,7 +99,7 @@ namespace Renderer
 		protected:
 			static const auto &GetRootSignature() noexcept { return rootSig; }
 			const WRL::ComPtr<ID3D12PipelineState> &GetStartPSO() const;
-			const void Render(ID3D12GraphicsCommandList1 *target) const;
+			const void Render(ID3D12GraphicsCommandList2 *target) const;
 
 		private:
 #ifdef _MSC_VER

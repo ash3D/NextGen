@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.01.2018 (c)Korotkov Andrey
+\date		17.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -13,7 +13,7 @@ See "DGLE.h" for more details.
 #include <deque>
 #include <shared_mutex>
 #include <atomic>
-#include "tracked resource.h"
+#include "../tracked resource.h"
 
 struct ID3D12Resource;
 struct D3D12_RESOURCE_DESC;

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		24.01.2018 (c)Korotkov Andrey
+\date		17.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -27,7 +27,7 @@ namespace Renderer::CmdListPool
 		inline CmdList &operator =(CmdList &&src);
 
 	public:
-		inline operator ID3D12GraphicsCommandList1 *() const;
+		inline operator ID3D12GraphicsCommandList2 *() const;
 		inline const auto &operator ->() const;
 		inline void Setup(ID3D12PipelineState *PSO = NULL);
 

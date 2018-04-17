@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.03.2018 (c)Korotkov Andrey
+\date		17.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -24,18 +24,18 @@ namespace RenderPipeline = Impl::RenderPipeline;
 extern ComPtr<ID3D12Device2> device;
 void NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
 
-static inline RenderPipeline::PipelineStage Pre(ID3D12GraphicsCommandList1 *cmdList, ID3D12Resource *rt, D3D12_CPU_DESCRIPTOR_HANDLE rtv, D3D12_CPU_DESCRIPTOR_HANDLE dsv)
+static inline RenderPipeline::PipelineStage Pre(ID3D12GraphicsCommandList2 *cmdList, ID3D12Resource *rt, D3D12_CPU_DESCRIPTOR_HANDLE rtv, D3D12_CPU_DESCRIPTOR_HANDLE dsv)
 {
 	PIXScopedEvent(cmdList, PIX_COLOR_INDEX(PIXEvents::ViewportPre), "viewport pre");
 	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(rt, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 	const float color[4] = { .0f, .2f, .4f, 1.f };
 	cmdList->ClearRenderTargetView(rtv, color, 0, NULL);
-	cmdList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, UINT8_MAX, 0, NULL);
+	cmdList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0xef, 0, NULL);
 	CheckHR(cmdList->Close());
 	return cmdList;
 }
 
-static inline RenderPipeline::PipelineStage Post(ID3D12GraphicsCommandList1 *cmdList, ID3D12Resource *rt)
+static inline RenderPipeline::PipelineStage Post(ID3D12GraphicsCommandList2 *cmdList, ID3D12Resource *rt)
 {
 	PIXScopedEvent(cmdList, PIX_COLOR_INDEX(PIXEvents::ViewportPost), "viewport post");
 	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(rt, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
@@ -44,7 +44,7 @@ static inline RenderPipeline::PipelineStage Post(ID3D12GraphicsCommandList1 *cmd
 }
 
 // result valid until call to 'OnFrameFinish()'
-auto Impl::Viewport::CmdListsManager::OnFrameStart() -> PrePostCmds<ID3D12GraphicsCommandList1 *>
+auto Impl::Viewport::CmdListsManager::OnFrameStart() -> PrePostCmds<ID3D12GraphicsCommandList2 *>
 {
 	FrameVersioning::OnFrameStart();
 	auto &cmdBuffers = GetCurFrameDataVersion();
@@ -115,26 +115,26 @@ void Impl::Viewport::UpdateAspect(double invAspect)
 	projXform[0][0] = projXform[1][1] * invAspect;
 }
 
-void Impl::Viewport::Render(ID3D12Resource *rt, const D3D12_CPU_DESCRIPTOR_HANDLE rtv, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, UINT width, UINT height) const
+void Impl::Viewport::Render(ID3D12Resource *rt, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE rtv, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, UINT width, UINT height) const
 {
 	auto cmdLists = cmdListsManager.OnFrameStart();
 	GPUWorkSubmission::Prepare();
 
 	GPUWorkSubmission::AppendPipelineStage<false>(Pre, cmdLists.pre, rt, rtv, dsv);
 
-	const function<void (ID3D12GraphicsCommandList1 *target, bool enableRT)> setupRenderOutputCallback =
+	const function<void (ID3D12GraphicsCommandList2 *target, bool enableRT)> setupRenderOutputCallback =
 		[
 			rtv, dsv,
 			viewport = CD3DX12_VIEWPORT(0.f, 0.f, width, height),
 			scissorRect = CD3DX12_RECT(0, 0, width, height)
-		](ID3D12GraphicsCommandList1 *cmdList, bool enableRT)
+		](ID3D12GraphicsCommandList2 *cmdList, bool enableRT)
 	{
 		cmdList->OMSetRenderTargets(enableRT, &rtv, TRUE, &dsv);
 		cmdList->RSSetViewports(1, &viewport);
 		cmdList->RSSetScissorRects(1, &scissorRect);
 	};
 	if (world)
-		world->Render(viewXform, projXform, setupRenderOutputCallback);
+		world->Render(ctx, viewXform, projXform, ZBuffer, dsv, setupRenderOutputCallback);
 
 	GPUWorkSubmission::AppendPipelineStage<false>(Post, cmdLists.post, rt);
 

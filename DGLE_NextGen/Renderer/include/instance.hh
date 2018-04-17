@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		07.03.2018 (c)Korotkov Andrey
+\date		17.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -13,7 +13,7 @@ See "DGLE.h" for more details.
 #include "object 3D.hh"
 #include "../AABB.h"
 
-struct ID3D12GraphicsCommandList1;
+struct ID3D12GraphicsCommandList2;
 
 namespace Renderer
 {
@@ -53,7 +53,7 @@ namespace Renderer
 		protected:
 			static const auto &GetRootSignature() noexcept { return Object3D::GetRootSignature(); }
 			const auto &GetStartPSO() const { return object.GetStartPSO(); }
-			void Render(ID3D12GraphicsCommandList1 *target) const;
+			void Render(ID3D12GraphicsCommandList2 *target) const;
 		};
 	}
 

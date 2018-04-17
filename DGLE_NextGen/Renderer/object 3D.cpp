@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.03.2018 (c)Korotkov Andrey
+\date		17.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -244,7 +244,7 @@ const ComPtr<ID3D12PipelineState> &Impl::Object3D::GetStartPSO() const
 	return PSOs[subobjects[0].doublesided];
 }
 
-const void Impl::Object3D::Render(ID3D12GraphicsCommandList1 *cmdList) const
+const void Impl::Object3D::Render(ID3D12GraphicsCommandList2 *cmdList) const
 {
 	cmdList->ExecuteBundle(bundle.get().second.Get());
 }

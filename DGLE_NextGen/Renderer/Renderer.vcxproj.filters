@@ -113,6 +113,12 @@
     <ClInclude Include="occlusion query visualization.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="world view context.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SO buffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -169,6 +175,9 @@
     <ClCompile Include="object 3D.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="SO buffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="vectorLayerVS.hlsl">
@@ -184,6 +193,12 @@
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="object3D_PS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="AABB_3D_xform.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="AABB_3D.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>
@@ -208,6 +223,9 @@
       <Filter>Header Files</Filter>
     </None>
     <None Include="per-frame data.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="AABB_3D.hlsli">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

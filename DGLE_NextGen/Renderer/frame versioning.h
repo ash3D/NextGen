@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.01.2018 (c)Korotkov Andrey
+\date		17.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -18,7 +18,7 @@ See "DGLE.h" for more details.
 
 struct ID3D12Fence;
 struct ID3D12CommandAllocator;
-struct ID3D12GraphicsCommandList1;
+struct ID3D12GraphicsCommandList2;
 
 namespace Renderer::Impl
 {
@@ -94,7 +94,7 @@ namespace Renderer::Impl
 	struct CmdBuffer
 	{
 		WRL::ComPtr<ID3D12CommandAllocator> allocator;
-		WRL::ComPtr<ID3D12GraphicsCommandList1> list;
+		WRL::ComPtr<ID3D12GraphicsCommandList2> list;
 	};
 	// Data here is a cmd buffer pool
 	extern std::optional<FrameVersioning<std::deque<CmdBuffer>>> globalFrameVersioning;

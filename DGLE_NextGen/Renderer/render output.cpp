@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		27.01.2018 (c)Korotkov Andrey
+\date		17.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -169,7 +169,7 @@ void RenderOutput::NextFrame(bool vsync)
 	CheckHR(swapChain->GetBuffer(idx, IID_PPV_ARGS(&rt)));
 	const auto rtvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	globalFrameVersioning->OnFrameStart();
-	viewport->Render(rt.Get(), CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvHeap->GetCPUDescriptorHandleForHeapStart(), idx, rtvDescriptorSize), dsvHeap->GetCPUDescriptorHandleForHeapStart(), width, height);
+	viewport->Render(rt.Get(), ZBuffer.Get(), CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvHeap->GetCPUDescriptorHandleForHeapStart(), idx, rtvDescriptorSize), dsvHeap->GetCPUDescriptorHandleForHeapStart(), width, height);
 	CheckHR(swapChain->Present(vsync, 0));
 	globalFrameVersioning->OnFrameFinish();
 	viewport->OnFrameFinish();
@@ -198,7 +198,7 @@ void RenderOutput::CreateZBuffer(UINT width, UINT height)
 		D3D12_HEAP_FLAG_NONE,
 		&CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D24_UNORM_S8_UINT, width, height, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
 		D3D12_RESOURCE_STATE_DEPTH_WRITE,
-		&CD3DX12_CLEAR_VALUE(DXGI_FORMAT_D24_UNORM_S8_UINT, 1.f, UINT8_MAX),
+		&CD3DX12_CLEAR_VALUE(DXGI_FORMAT_D24_UNORM_S8_UINT, 1.f, 0xef),
 		IID_PPV_ARGS(ZBuffer.ReleaseAndGetAddressOf())
 	));
 

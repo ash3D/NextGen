@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		12.03.2018 (c)Korotkov Andrey
+\date		17.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -29,7 +29,7 @@ PipelineItem RenderPipeline::GetNext(unsigned int &length)
 			pipeline.pop();
 
 			// if pipelone stage is cmd list
-			if (const auto cmdList = get_if<ID3D12GraphicsCommandList1 *>(&stage))
+			if (const auto cmdList = get_if<ID3D12GraphicsCommandList2 *>(&stage))
 				return *cmdList;
 
 			// else pipeline stage is render stage

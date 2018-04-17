@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		29.03.2018 (c)Korotkov Andrey
+\date		17.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -361,7 +361,7 @@ ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateCullPassPSO()
 	return move(result);
 }
 
-void Impl::TerrainVectorLayer::CullPassPre(ID3D12GraphicsCommandList1 *cmdList) const
+void Impl::TerrainVectorLayer::CullPassPre(ID3D12GraphicsCommandList2 *cmdList) const
 {
 	PIXBeginEvent(cmdList, PIX_COLOR_INDEX(PIXEvents::TerrainOcclusionQueryPass), "occlusion query pass");
 }
@@ -407,7 +407,7 @@ void Impl::TerrainVectorLayer::CullPassRange(CmdListPool::CmdList &cmdList, unsi
 	} while (++rangeBegin < rangeEnd);
 }
 
-void Impl::TerrainVectorLayer::CullPassPost(ID3D12GraphicsCommandList1 *cmdList) const
+void Impl::TerrainVectorLayer::CullPassPost(ID3D12GraphicsCommandList2 *cmdList) const
 {
 	if (const auto preservingQueryBatch = get_if<true>(&occlusionQueryBatch))
 		preservingQueryBatch->Resolve(cmdList/*, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE*/);
@@ -417,16 +417,16 @@ void Impl::TerrainVectorLayer::CullPassPost(ID3D12GraphicsCommandList1 *cmdList)
 }
 
 // 1 call site
-inline void Impl::TerrainVectorLayer::SetupCullPass(function<void (ID3D12GraphicsCommandList1 *target)> &&setupCallback) const
+inline void Impl::TerrainVectorLayer::SetupCullPass(function<void (ID3D12GraphicsCommandList2 *target)> &&setupCallback) const
 {
 	cullPassSetupCallback = move(setupCallback);
 	queryStream.clear();
 }
 
 // 1 call site
-inline void Impl::TerrainVectorLayer::IssueOcclusion(const OcclusionQueryGeometry &queryGeometry)
+inline void Impl::TerrainVectorLayer::IssueOcclusion(ID3D12Resource *VB, unsigned long int startIdx, unsigned int count)
 {
-	queryStream.push_back(queryGeometry);
+	queryStream.push_back({ VB, startIdx, count });
 }
 #pragma endregion
 
@@ -502,7 +502,7 @@ ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateMainPassPSO()
 	return move(result);
 }
 
-void Impl::TerrainVectorLayer::MainPassPre(ID3D12GraphicsCommandList1 *cmdList) const
+void Impl::TerrainVectorLayer::MainPassPre(ID3D12GraphicsCommandList2 *cmdList) const
 {
 	const auto float2BYTE = [](float val) noexcept {return val * numeric_limits<BYTE>::max(); };
 	PIXBeginEvent(cmdList, PIX_COLOR(float2BYTE(color[0]), float2BYTE(color[1]), float2BYTE(color[2])), "main pass");
@@ -554,7 +554,7 @@ void Impl::TerrainVectorLayer::MainPassRange(CmdListPool::CmdList &cmdList, unsi
 	} while (rangeBegin < rangeEnd);
 }
 
-void Impl::TerrainVectorLayer::MainPassPost(ID3D12GraphicsCommandList1 *cmdList) const
+void Impl::TerrainVectorLayer::MainPassPost(ID3D12GraphicsCommandList2 *cmdList) const
 {
 	if (const auto nonPreservingQueryBatch = get_if<false>(&occlusionQueryBatch))
 		nonPreservingQueryBatch->Finish(cmdList);
@@ -562,7 +562,7 @@ void Impl::TerrainVectorLayer::MainPassPost(ID3D12GraphicsCommandList1 *cmdList)
 }
 
 // 1 call site
-inline void Impl::TerrainVectorLayer::SetupMainPass(function<void (ID3D12GraphicsCommandList1 *target)> &&setupCallback) const
+inline void Impl::TerrainVectorLayer::SetupMainPass(function<void (ID3D12GraphicsCommandList2 *target)> &&setupCallback) const
 {
 	mainPassSetupCallback = move(setupCallback);
 	renderStream.clear();
@@ -774,7 +774,7 @@ auto Impl::TerrainVectorLayer::GetCulledPassRange(unsigned int &length) const ->
 		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::AABBPassRange, this, _1, rangeBegin, rangeEnd, cref(OcclusionCulling::DebugColors::Terrain::culled), false); });
 }
 
-void Impl::TerrainVectorLayer::Setup(function<void (ID3D12GraphicsCommandList1 *target)> &&cullPassSetupCallback, function<void (ID3D12GraphicsCommandList1 *target)> &&mainPassSetupCallback) const
+void Impl::TerrainVectorLayer::Setup(function<void (ID3D12GraphicsCommandList2 *target)> &&cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> &&mainPassSetupCallback) const
 {
 	SetupCullPass(move(cullPassSetupCallback));
 	SetupMainPass(move(mainPassSetupCallback));
@@ -804,7 +804,7 @@ bool Impl::TerrainVectorLayer::IssueNode(const TreeNode &treeNode, const ViewNod
 	if (const auto &occlusionQueryGeometry = viewNode.GetOcclusionQueryGeometry())
 	{
 		occlusionCullDomainOverriden = viewNode.GetOcclusionCullDomain();
-		IssueOcclusion({ occlusionQueryGeometry.VB, occlusionQueryGeometry.startIdx, occlusionQueryGeometry.count });
+		IssueOcclusion(occlusionQueryGeometry.VB, occlusionQueryGeometry.startIdx, occlusionQueryGeometry.count);
 		fineOcclusion = ++occlusionProvider;
 	}
 	else if (fineOcclusion != OcclusionCulling::QueryBatchBase::npos)
@@ -863,7 +863,7 @@ auto Impl::TerrainVectorLayer::AddQuad(unsigned long int vcount, const function<
 	return { &quads.back(), QuadDeleter{ prev(quads.cend()) } };
 }
 
-auto Impl::TerrainVectorLayer::BuildRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList1 *target)> &cullPassSetupCallback, function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const -> RenderPipeline::RenderStage
+auto Impl::TerrainVectorLayer::BuildRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList2 *target)> &cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> &mainPassSetupCallback) const -> RenderPipeline::RenderStage
 {
 	using namespace placeholders;
 
@@ -923,7 +923,7 @@ auto Impl::TerrainVectorLayer::GetDebugDrawRenderStage() const -> RenderPipeline
 	return RenderPipeline::PipelineStage(in_place_type<RenderPipeline::RenderStage>, static_cast<const RenderPipeline::IRenderStage *>(this), static_cast<decltype(actionSelector)>(&TerrainVectorLayer::GetVisiblePassRange));
 }
 
-void Impl::TerrainVectorLayer::ShceduleRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList1 *target)> cullPassSetupCallback, function<void (ID3D12GraphicsCommandList1 *target)> mainPassSetupCallback) const
+void Impl::TerrainVectorLayer::ShceduleRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList2 *target)> cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> mainPassSetupCallback) const
 {
 	GPUWorkSubmission::AppendPipelineStage<true>(&TerrainVectorLayer::BuildRenderStage, this, /*cref*/(frustumCuller), /*cref*/(frustumXform), move(cullPassSetupCallback), move(mainPassSetupCallback));
 }

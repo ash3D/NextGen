@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		26.03.2018 (c)Korotkov Andrey
+\date		17.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -16,12 +16,16 @@ See "DGLE.h" for more details.
 #include "world hierarchy.inl"
 #include "GPU stream buffer allocator.inl"
 #include "cmdlist pool.inl"
+#include "world view context.h"
 #include "frustum culling.h"
 #include "occlusion query shceduling.h"
 #include "frame versioning.h"
 #include "per-frame data.h"
 #include "static objects data.h"
 #include "GPU work submission.h"
+
+#include "AABB_3D_xform.csh"
+#include "AABB_3D.csh"
 
 using namespace std;
 using namespace Renderer;
@@ -30,19 +34,34 @@ using WRL::ComPtr;
 
 extern ComPtr<ID3D12Device2> device;
 void NameObject(ID3D12Object *object, LPCWSTR name) noexcept, NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
+ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC &desc, LPCWSTR name);
+
+// LH, CW
+static constexpr array<uint16_t, 14> boxIB = { 2, 3, 0, 1, 5, 3, 7, 2, 6, 0, 4, 5, 6, 7 };
 
 ComPtr<ID3D12Resource> Impl::World::CreatePerFrameCB()
 {
-	ComPtr<ID3D12Resource> CB;
+	ComPtr<ID3D12Resource> buffer;
 	CheckHR(device->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(sizeof(PerFrameData) * Impl::maxFrameLatency/*, D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE*/),
+		&CD3DX12_RESOURCE_DESC::Buffer(PerFrameData::CB_size() + sizeof boxIB/*, D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE*/),
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		NULL,	// clear value
-		IID_PPV_ARGS(CB.GetAddressOf())));
-	NameObject(CB.Get(), L"per-frame CB");
-	return move(CB);
+		IID_PPV_ARGS(buffer.GetAddressOf())));
+	NameObject(buffer.Get(), L"per-frame CB + box IB");
+	
+	// fill box IB
+	{
+		CD3DX12_RANGE range(PerFrameData::CB_size(), PerFrameData::CB_size());
+		PerFrameData *CPU_ptr;
+		CheckHR(buffer->Map(0, &range, reinterpret_cast<void **>(&CPU_ptr)));
+		*reinterpret_cast<remove_const_t<decltype(boxIB)> *>(CPU_ptr + maxFrameLatency) = boxIB;
+		range.End += sizeof boxIB;
+		buffer->Unmap(0, &range);
+	}
+
+	return move(buffer);
 }
 
 auto Impl::World::MapPerFrameCB(const D3D12_RANGE *readRange) -> volatile PerFrameData *
@@ -80,6 +99,268 @@ void Impl::World::InvalidateStaticObjects()
 	bvhView.Reset();
 }
 
+#pragma region occlusion query passes
+ComPtr<ID3D12RootSignature> Impl::World::CreateXformAABB_RootSig()
+{
+	ComPtr<ID3D12VersionedRootSignatureDeserializer> rootSigProvider;
+	CheckHR(D3D12CreateVersionedRootSignatureDeserializer(AABB_3D_xform, sizeof AABB_3D_xform, IID_PPV_ARGS(rootSigProvider.GetAddressOf())));
+	return CreateRootSignature(*rootSigProvider->GetUnconvertedRootSignatureDesc(), L"Xform 3D AABB root signature");
+}
+
+ComPtr<ID3D12PipelineState> Impl::World::CreateXformAABB_PSO()
+{
+	const D3D12_INPUT_ELEMENT_DESC VB_decl[] =
+	{
+		{ "AABB_min", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "AABB_max", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+	};
+
+	const D3D12_SO_DECLARATION_ENTRY soEntries[] =
+	{
+		{0, "AABB_corner", 0, 0, 4, 0},
+		{0, "AABB_extent", 0, 0, 4, 0},
+		{0, "AABB_extent", 1, 0, 4, 0},
+		{0, "AABB_extent", 2, 0, 4, 0}
+	};
+
+	const D3D12_STREAM_OUTPUT_DESC soDesc =
+	{
+		soEntries, size(soEntries),
+		&xformedAABBSize, 1,
+		D3D12_SO_NO_RASTERIZED_STREAM
+	};
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
+	{
+		xformAABB_RootSig.Get(),										// root signature
+		CD3DX12_SHADER_BYTECODE(AABB_3D_xform, sizeof AABB_3D_xform),	// VS
+		{},																// PS
+		{},																// DS
+		{},																// HS
+		{},																// GS
+		soDesc,															// SO
+		CD3DX12_BLEND_DESC(D3D12_DEFAULT),								// blend
+		UINT_MAX,														// sample mask
+		CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),							// rasterizer
+		CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT),						// depth stencil
+		{ VB_decl, size(VB_decl) },										// IA
+		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,					// restart primtive
+		D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT,							// primitive topology
+		0,																// render targets
+		{},																// RT formats
+		DXGI_FORMAT_UNKNOWN,											// depth stencil format
+		{1}																// MSAA
+	};
+
+	ComPtr<ID3D12PipelineState> result;
+	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result.GetAddressOf())));
+	NameObject(result.Get(), L"Xform 3D AABB PSO");
+	return move(result);
+}
+
+ComPtr<ID3D12RootSignature> Impl::World::CreateCullPassRootSig()
+{
+	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(0, (const D3D12_ROOT_PARAMETER *)NULL, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	return CreateRootSignature(sigDesc, L"world objects occlusion query root signature");
+}
+
+auto Impl::World::CreateCullPassPSOs() -> decltype(cullPassPSOs)
+{
+	const D3D12_BLEND_DESC blendDesc
+	{
+		FALSE,								// alpha2covarage
+		FALSE,								// independent blend
+		{
+			FALSE,							// blend enable
+			FALSE,							// logic op enable
+			D3D12_BLEND_ONE,				// src blend
+			D3D12_BLEND_ZERO,				// dst blend
+			D3D12_BLEND_OP_ADD,				// blend op
+			D3D12_BLEND_ONE,				// src blend alpha
+			D3D12_BLEND_ZERO,				// dst blend alpha
+			D3D12_BLEND_OP_ADD,				// blend op alpha
+			D3D12_LOGIC_OP_NOOP,			// logic op
+			0								// write mask
+		}
+	};
+
+	const CD3DX12_DEPTH_STENCIL_DESC dsDescs[2] =
+	{
+		CD3DX12_DEPTH_STENCIL_DESC
+		{
+			TRUE,																									// depth
+			D3D12_DEPTH_WRITE_MASK_ZERO,
+			D3D12_COMPARISON_FUNC_LESS,
+			TRUE,																									// stencil
+			D3D12_DEFAULT_STENCIL_READ_MASK,																		// stencil read mask
+			0xef,																									// stencil write mask
+			D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_ZERO, D3D12_COMPARISON_FUNC_NOT_EQUAL,	// front
+			D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_ZERO, D3D12_COMPARISON_FUNC_NOT_EQUAL	// back
+		},
+		CD3DX12_DEPTH_STENCIL_DESC
+		{
+			TRUE,																									// depth
+			D3D12_DEPTH_WRITE_MASK_ZERO,
+			D3D12_COMPARISON_FUNC_LESS,
+			FALSE,																									// stencil
+			D3D12_DEFAULT_STENCIL_READ_MASK,																		// stencil read mask
+			D3D12_DEFAULT_STENCIL_WRITE_MASK,																		// stencil write mask
+			D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_COMPARISON_FUNC_ALWAYS,		// front
+			D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_COMPARISON_FUNC_ALWAYS		// back
+		}
+	};
+
+	const D3D12_INPUT_ELEMENT_DESC VB_decl[] =
+	{
+		{ "AABB_corner", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 },
+		{ "AABB_extent", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 },
+		{ "AABB_extent", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 },
+		{ "AABB_extent", 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 }
+	};
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
+	{
+		cullPassRootSig.Get(),											// root signature
+		CD3DX12_SHADER_BYTECODE(AABB_3D, sizeof AABB_3D),				// VS
+		{},																// PS
+		{},																// DS
+		{},																// HS
+		{},																// GS
+		{},																// SO
+		blendDesc,														// blend
+		UINT_MAX,														// sample mask
+#if 0
+		CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),							// rasterizer
+#else
+		CD3DX12_RASTERIZER_DESC
+		(
+			D3D12_FILL_MODE_SOLID,
+			D3D12_CULL_MODE_NONE,
+			FALSE,										// front CCW
+			D3D12_DEFAULT_DEPTH_BIAS,
+			D3D12_DEFAULT_DEPTH_BIAS_CLAMP,
+			D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
+			TRUE,										// depth clip
+			FALSE,										// MSAA
+			FALSE,										// AA line
+			0,											// force sample count
+			D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF
+		),																// rasterizer
+#endif
+		dsDescs[0],														// depth stencil
+		{ VB_decl, size(VB_decl) },										// IA
+		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,					// restart primtive
+		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,							// primitive topology
+		0,																// render targets
+		{},																// RT formats
+		DXGI_FORMAT_D24_UNORM_S8_UINT,									// depth stencil format
+		{1}																// MSAA
+	};
+
+	decltype(cullPassPSOs) result;
+	
+	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result[0].GetAddressOf())));
+	NameObject(result[0].Get(), L"world objects first occlusion query pass PSO");
+
+	PSO_desc.DepthStencilState = dsDescs[1];
+
+	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result[1].GetAddressOf())));
+	NameObject(result[1].Get(), L"world objects second occlusion query pass PSO");
+
+	return move(result);
+}
+
+void Impl::World::XformAABBPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd) const
+{
+	assert(rangeBegin < rangeEnd);
+
+	cmdList.Setup(xformAABB_PSO.Get());
+
+	cmdList->SetGraphicsRootSignature(xformAABB_RootSig.Get());
+	cmdList->SetGraphicsRootConstantBufferView(0, perFrameCB->GetGPUVirtualAddress() + PerFrameData::CurFrameCB_offset());
+	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
+
+	// set SO
+	cmdList->SOSetTargets(0, 1, &xformedAABBs.GetSOView());
+
+	ID3D12Resource *curSrcVB = NULL;
+	do
+	{
+		const auto &queryData = queryStream[rangeBegin];
+
+		// setup VB if changed
+		if (curSrcVB != queryData.VB)
+		{
+			const D3D12_VERTEX_BUFFER_VIEW VB_view =
+			{
+				(curSrcVB = queryData.VB)->GetGPUVirtualAddress(),
+				curSrcVB->GetDesc().Width,
+				sizeof(AABB<3>)
+			};
+			cmdList->IASetVertexBuffers(0, 1, &VB_view);
+		}
+
+		cmdList->DrawInstanced(queryData.count, 1, queryData.startIdx, 0);
+	} while (++rangeBegin < rangeEnd);
+}
+
+void Impl::World::CullPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd, bool final) const
+{
+	assert(rangeBegin < rangeEnd);
+
+	cmdList.Setup(cullPassPSOs[final].Get());
+
+	cullPassSetupCallback(cmdList);
+	cmdList->SetGraphicsRootSignature(cullPassRootSig.Get());
+	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+	// setup IB/VB
+	{
+		const D3D12_INDEX_BUFFER_VIEW IB_view =
+		{
+			perFrameCB->GetGPUVirtualAddress() + PerFrameData::CB_size(),
+			sizeof boxIB,
+			DXGI_FORMAT_R16_UINT
+		};
+		const D3D12_VERTEX_BUFFER_VIEW VB_view =
+		{
+			xformedAABBs.GetGPUPtr(),
+			xformedAABBs.GetSize(),
+			xformedAABBSize
+		};
+		cmdList->IASetIndexBuffer(&IB_view);
+		cmdList->IASetVertexBuffers(0, 1, &VB_view);
+	}
+
+	do
+	{
+		const auto &queryData = queryStream[rangeBegin];
+
+		occlusionQueryBatch.Start(cmdList, rangeBegin);
+		if (final)
+			occlusionQueryBatch.Set(cmdList, rangeBegin, false);	// eliminate rendering already rendered objects again
+		cmdList->DrawIndexedInstanced(14, queryData.count, 0, 0, queryData.xformedStartIdx);
+		occlusionQueryBatch.Stop(cmdList, rangeBegin);
+
+	} while (++rangeBegin < rangeEnd);
+}
+
+// 1 call site
+inline void Impl::World::SetupCullPass(function<void(ID3D12GraphicsCommandList2*target)> &&setupCallback) const
+{
+	cullPassSetupCallback = move(setupCallback);
+	queryStream.clear();
+}
+
+// 1 call site
+void Impl::World::IssueOcclusion(ID3D12Resource *VB, unsigned long int startIdx, unsigned int count, unsigned long int &counter) const
+{
+	queryStream.push_back({ VB, startIdx, counter, count });
+	counter += count;
+}
+#pragma endregion
+
+#pragma region main passes
 //void Impl::World::MainPassPre(CmdListPool::CmdList &cmdList) const
 //{
 //}
@@ -88,21 +369,228 @@ void Impl::World::InvalidateStaticObjects()
 //{
 //}
 
-void Impl::World::MainPassRange(CmdListPool::CmdList &cmdList, unsigned long int rangeBegin, unsigned long int rangeEnd) const
+void Impl::World::MainPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd) const
 {
 	assert(rangeBegin < rangeEnd);
 
-	cmdList.Setup(renderStream[rangeBegin]->GetStartPSO().Get());
+	cmdList.Setup(renderStream[rangeBegin].instance->GetStartPSO().Get());
 
 	mainPassSetupCallback(cmdList);
 	cmdList->SetGraphicsRootSignature(decltype(staticObjects)::value_type::GetRootSignature().Get());
 	cmdList->SetGraphicsRootConstantBufferView(0, perFrameCB->GetGPUVirtualAddress() + PerFrameData::CurFrameCB_offset());
 
-	using namespace placeholders;
-	for_each(next(renderStream.cbegin(), rangeBegin), next(renderStream.cbegin(), rangeEnd), bind(&Renderer::Instance::Render, _1, static_cast<ID3D12GraphicsCommandList1 *>(cmdList)));
+	for_each(next(renderStream.cbegin(), rangeBegin), next(renderStream.cbegin(), rangeEnd), [&, curOcclusionQueryIdx = OcclusionCulling::QueryBatchBase::npos](decltype(renderStream)::value_type renderData) mutable
+	{
+		if (curOcclusionQueryIdx != renderData.occlusion)
+			occlusionQueryBatch.Set(cmdList, curOcclusionQueryIdx = renderData.occlusion);
+		renderData.instance->Render(cmdList);
+	});
 }
 
-//auto Impl::World::GetMainPassPre(unsigned int &length) const -> RenderPipeline::PipelineItem
+// 1 call site
+inline void Impl::World::SetupMainPass(function<void (ID3D12GraphicsCommandList2 *target)> &&setupCallback) const
+{
+	mainPassSetupCallback = move(setupCallback);
+	renderStream.clear();
+}
+
+// 1 call site
+inline void Impl::World::IssueObjects(const decltype(bvh)::Node &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion) const
+{
+	const auto range = node.GetExclusiveObjectsRange();
+	transform(range.first, range.second, back_inserter(renderStream), [occlusion](const Renderer::Instance *instance) noexcept -> decltype(renderStream)::value_type{ return { instance, occlusion }; });
+}
+#pragma endregion
+
+void Impl::World::StagePre(CmdListPool::CmdList &cmdList) const
+{
+	cmdList.Setup();
+
+	// just copy for now, do reprojection in future
+	if (viewCtx->ZBufferHistory)
+	{
+		if (const auto targetZDesc = ZBuffer->GetDesc(), historyZDesc = viewCtx->ZBufferHistory->GetDesc(); targetZDesc.Width == historyZDesc.Width && targetZDesc.Height == historyZDesc.Height)
+		{
+			{
+				const D3D12_RESOURCE_BARRIER barriers[] =
+				{
+					CD3DX12_RESOURCE_BARRIER::Transition(ZBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_COPY_DEST),
+					CD3DX12_RESOURCE_BARRIER::Transition(viewCtx->ZBufferHistory.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY)
+				};
+				cmdList->ResourceBarrier(size(barriers), barriers);
+			}
+			cmdList->CopyResource(ZBuffer, viewCtx->ZBufferHistory.Get());
+			{
+				const D3D12_RESOURCE_BARRIER barriers[] =
+				{
+					CD3DX12_RESOURCE_BARRIER::Transition(ZBuffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_DEPTH_WRITE),
+					CD3DX12_RESOURCE_BARRIER::Transition(viewCtx->ZBufferHistory.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY)
+				};
+				cmdList->ResourceBarrier(size(barriers), barriers);
+				cmdList->ClearDepthStencilView({ dsv }, D3D12_CLEAR_FLAG_STENCIL, 1.f, UINT8_MAX, 0, NULL);
+			}
+		}
+	}
+
+	xformedAABBs.StartSO(cmdList);
+}
+
+void Impl::World::XformAABBPass2CullPass(CmdListPool::CmdList &cmdList) const
+{
+	cmdList.Setup();
+
+	xformedAABBs.UseSOResults(cmdList);
+}
+
+void Impl::World::CullPass2MainPass(CmdListPool::CmdList &cmdList, bool final) const
+{
+	cmdList.Setup();
+
+	if (final)
+	{
+		xformedAABBs.Finish(cmdList);
+		occlusionQueryBatch.Finish(cmdList);
+	}
+	else
+		cmdList->ClearDepthStencilView({ dsv }, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, UINT8_MAX, 0, NULL);
+
+	occlusionQueryBatch.Resolve(cmdList);
+}
+
+//void Impl::World::MainPass2CullPass(CmdListPool::CmdList &cmdList) const
+//{
+//	cmdList.Setup();
+//
+//}
+
+void Impl::World::StagePost(CmdListPool::CmdList &cmdList) const
+{
+	cmdList.Setup();
+
+	occlusionQueryBatch.Finish(cmdList);
+
+#if 0
+	const D3D12_RESOURCE_BARRIER barriers[] =
+	{
+		CD3DX12_RESOURCE_BARRIER::Transition(ZBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_COPY_SOURCE),
+		CD3DX12_RESOURCE_BARRIER::Transition(viewCtx->ZBufferHistory.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY)
+	};
+	UINT barrierCount = size(barriers);
+
+	const auto targetZDesc = ZBuffer->GetDesc();
+	if (viewCtx->ZBufferHistory)
+		if (const auto historyZDesc = viewCtx->ZBufferHistory->GetDesc(); targetZDesc.Width != historyZDesc.Width || targetZDesc.Height != historyZDesc.Height)
+			viewCtx->ZBufferHistory.Reset();
+	if (!viewCtx->ZBufferHistory)
+	{
+		CheckHR(device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			D3D12_HEAP_FLAG_NONE,
+			&targetZDesc,
+			D3D12_RESOURCE_STATE_COPY_DEST,
+			&CD3DX12_CLEAR_VALUE(DXGI_FORMAT_D24_UNORM_S8_UINT, 1.f, UINT8_MAX),
+			IID_PPV_ARGS(viewCtx->ZBufferHistory.ReleaseAndGetAddressOf())
+		));
+		NameObjectF(viewCtx->ZBufferHistory.Get(), L"Z buffer history (world view context %p) [%lu]", viewCtx, viewCtx->ZBufferHistoryVersion++);
+		barrierCount--;
+	}
+
+	cmdList->ResourceBarrier(barrierCount, barriers);
+	cmdList->CopyResource(viewCtx->ZBufferHistory.Get(), ZBuffer);
+	{
+		const D3D12_RESOURCE_BARRIER barriers[] =
+		{
+			CD3DX12_RESOURCE_BARRIER::Transition(ZBuffer, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE),
+			CD3DX12_RESOURCE_BARRIER::Transition(viewCtx->ZBufferHistory.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY)
+		};
+		cmdList->ResourceBarrier(size(barriers), barriers);
+	}
+#endif
+}
+
+void Renderer::Impl::World::Sync() const
+{
+	xformedAABBs.Sync();
+}
+
+auto Impl::World::GetStagePre(unsigned int &) const -> RenderPipeline::PipelineItem
+{
+	using namespace placeholders;
+	actionSelector = static_cast<decltype(actionSelector)>(&World::GetXformAABBPassRange);
+	return bind(&World::StagePre, this, _1);
+}
+
+auto Impl::World::GetXformAABBPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
+{
+	using namespace placeholders;
+	return IterateRenderPass(length, queryStream.size(), [] { actionSelector = static_cast<decltype(actionSelector)>(&World::GetXformAABBPass2FirstCullPass); },
+		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&World::XformAABBPassRange, this, _1, rangeBegin, rangeEnd); });
+}
+
+auto Impl::World::GetXformAABBPass2FirstCullPass(unsigned int &) const -> RenderPipeline::PipelineItem
+{
+	using namespace placeholders;
+	actionSelector = static_cast<decltype(actionSelector)>(&World::GetFirstCullPassRange);
+	return bind(&World::XformAABBPass2CullPass, this, _1);
+}
+
+auto Impl::World::GetFirstCullPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
+{
+	using namespace placeholders;
+	return IterateRenderPass(length, queryStream.size(), [] { actionSelector = static_cast<decltype(actionSelector)>(&World::GetFirstCullPass2FirstMainPass); },
+		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&World::CullPassRange, this, _1, rangeBegin, rangeEnd, false); });
+}
+
+auto Impl::World::GetFirstCullPass2FirstMainPass(unsigned int &) const -> RenderPipeline::PipelineItem
+{
+	using namespace placeholders;
+	actionSelector = static_cast<decltype(actionSelector)>(&World::GetFirstMainPassRange);
+	return bind(&World::CullPass2MainPass, this, _1, false);
+}
+
+auto Impl::World::GetFirstMainPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
+{
+	using namespace placeholders;
+	return IterateRenderPass(length, renderStream.size(), [] { actionSelector = static_cast<decltype(actionSelector)>(&World::/*GetFirstMainPass2SecondCullPass*/GetSecondCullPassRange); },
+		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&World::MainPassRange, this, _1, rangeBegin, rangeEnd); });
+}
+
+//auto Impl::World::GetFirstMainPass2SecondCullPass(unsigned int &) const -> RenderPipeline::PipelineItem
+//{
+//	using namespace placeholders;
+//	actionSelector = static_cast<decltype(actionSelector)>(&World::GetSecondCullPassRange);
+//	return bind(&World::MainPass2CullPass, this, _1);
+//}
+
+auto Impl::World::GetSecondCullPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
+{
+	using namespace placeholders;
+	return IterateRenderPass(length, queryStream.size(), [] { actionSelector = static_cast<decltype(actionSelector)>(&World::GetSecondCullPass2SecondMainPass); },
+		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&World::CullPassRange, this, _1, rangeBegin, rangeEnd, true); });
+}
+
+auto Impl::World::GetSecondCullPass2SecondMainPass(unsigned int &) const -> RenderPipeline::PipelineItem
+{
+	using namespace placeholders;
+	actionSelector = static_cast<decltype(actionSelector)>(&World::GetSecondMainPassRange);
+	return bind(&World::CullPass2MainPass, this, _1, true);
+}
+
+auto Impl::World::GetSecondMainPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
+{
+	using namespace placeholders;
+	return IterateRenderPass(length, renderStream.size(), [] { actionSelector = static_cast<decltype(actionSelector)>(&World::GetStagePost); },
+		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&World::MainPassRange, this, _1, rangeBegin, rangeEnd); });
+}
+
+auto Impl::World::GetStagePost(unsigned int &) const -> RenderPipeline::PipelineItem
+{
+	using namespace placeholders;
+	RenderPipeline::TerminateStageTraverse();
+	return bind(&World::StagePost, this, _1);
+}
+
+//auto Impl::World::GetMainPassPre(unsigned int &) const -> RenderPipeline::PipelineItem
 //{
 //	using namespace placeholders;
 //	actionSelector = &World::GetMainPassRange;
@@ -116,24 +604,33 @@ auto Impl::World::GetMainPassRange(unsigned int &length) const -> RenderPipeline
 		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&World::MainPassRange, this, _1, rangeBegin, rangeEnd); });
 }
 
-//auto Impl::World::GetMainPassPost(unsigned int &length) const -> RenderPipeline::PipelineItem
+//auto Impl::World::GetMainPassPost(unsigned int &) const -> RenderPipeline::PipelineItem
 //{
 //	using namespace placeholders;
 //	RenderPipeline::TerminateStageTraverse();
 //	return bind(&World::MainPassPost, this, _1);
 //}
 
-void Impl::World::Setup(std::function<void (ID3D12GraphicsCommandList1 *target)> &&mainPassSetupCallback) const
+void Impl::World::Setup(WorldViewContext &viewCtx, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, function<void (ID3D12GraphicsCommandList2 *target)> &&cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> &&mainPassSetupCallback) const
 {
-	this->mainPassSetupCallback = move(mainPassSetupCallback);
-	renderStream.clear();
+	this->viewCtx = &viewCtx;
+	this->ZBuffer = ZBuffer;
+	this->dsv = dsv.ptr;
+	SetupCullPass(move(cullPassSetupCallback));
+	SetupMainPass(move(mainPassSetupCallback));
 }
 
-bool Impl::World::IssueNode(const decltype(bvh)::Node &bvhNode, const decltype(bvhView)::Node &viewNode, remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &occlusionProvider, remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &coarseOcclusion, remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &fineOcclusion, decltype(viewNode.GetOcclusionCullDomain()) &occlusionCullDomainOverriden) const
+inline void Impl::World::SetupOcclusionQueryBatch(unsigned long queryCount) const
+{
+	occlusionQueryBatch.Setup(queryCount);
+}
+
+bool Impl::World::IssueNode(const decltype(bvh)::Node &bvhNode, const decltype(bvhView)::Node &viewNode, remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &occlusionProvider, remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &coarseOcclusion, remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &fineOcclusion, decltype(viewNode.GetOcclusionCullDomain()) &occlusionCullDomainOverriden, unsigned long int &boxCounter) const
 {
 	if (const auto &occlusionQueryGeometry = viewNode.GetOcclusionQueryGeometry())
 	{
 		occlusionCullDomainOverriden = viewNode.GetOcclusionCullDomain();
+		IssueOcclusion(occlusionQueryGeometry.VB, occlusionQueryGeometry.startIdx, occlusionQueryGeometry.count, boxCounter);
 		fineOcclusion = ++occlusionProvider;
 	}
 	else if (fineOcclusion != OcclusionCulling::QueryBatchBase::npos)
@@ -142,16 +639,10 @@ bool Impl::World::IssueNode(const decltype(bvh)::Node &bvhNode, const decltype(b
 		coarseOcclusion = fineOcclusion;
 	if (viewNode.GetVisibility(occlusionCullDomainOverriden) != decltype(viewNode.GetVisibility(occlusionCullDomainOverriden))::Culled)
 	{
-		IssueExclusiveObjects(bvhNode);
+		IssueObjects(bvhNode, coarseOcclusion);
 		return true;
 	}
 	return false;
-}
-
-void Impl::World::IssueExclusiveObjects(const decltype(bvh)::Node &node) const
-{
-	const auto range = node.GetExclusiveObjectsRange();
-	copy(range.first, range.second, back_inserter(renderStream));
 }
 
 Impl::World::World(const float (&terrainXform)[4][3])
@@ -167,7 +658,7 @@ static inline void CopyMatrix2CB(const float (&src)[rows][columns], volatile Imp
 	copy_n(src, rows, dst);
 }
 
-void Impl::World::Render(const float (&viewXform)[4][3], const float (&projXform)[4][4], const function<void (ID3D12GraphicsCommandList1 *target, bool enableRT)> &setupRenderOutputCallback) const
+void Impl::World::Render(WorldViewContext &viewCtx, const float (&viewXform)[4][3], const float (&projXform)[4][4], ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, const function<void (ID3D12GraphicsCommandList2 *target, bool enableRT)> &setupRenderOutputCallback) const
 {
 	using namespace placeholders;
 
@@ -194,9 +685,9 @@ void Impl::World::Render(const float (&viewXform)[4][3], const float (&projXform
 #endif
 	}
 
-	const function<void (ID3D12GraphicsCommandList1 *target)> cullPassSetupCallback = bind(setupRenderOutputCallback, _1, false), mainPassSetupCallback = bind(setupRenderOutputCallback, _1, true);
+	const function<void (ID3D12GraphicsCommandList2 *target)> cullPassSetupCallback = bind(setupRenderOutputCallback, _1, false), mainPassSetupCallback = bind(setupRenderOutputCallback, _1, true);
 	
-	GPUWorkSubmission::AppendPipelineStage<true>(&World::BuildRenderStage, this, frustumTransform, worldViewTransform, mainPassSetupCallback);
+	GPUWorkSubmission::AppendPipelineStage<true>(&World::BuildRenderStage, this, ref(viewCtx), frustumTransform, worldViewTransform, ZBuffer, dsv, cullPassSetupCallback, mainPassSetupCallback);
 
 	for_each(terrainVectorLayers.cbegin(), terrainVectorLayers.cend(), bind(&decltype(terrainVectorLayers)::value_type::ShceduleRenderStage,
 		_1, FrustumCuller<2>(frustumTransform), cref(frustumTransform), cref(cullPassSetupCallback), cref(mainPassSetupCallback)));
@@ -292,24 +783,30 @@ void Impl::World::FlushUpdates() const
 	}
 }
 
-auto Impl::World::BuildRenderStage(const HLSL::float4x4 &frustumXform, const HLSL::float4x3 &viewXform, std::function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const -> RenderPipeline::RenderStage
+auto Impl::World::BuildRenderStage(WorldViewContext &viewCtx, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 &viewXform, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, function<void (ID3D12GraphicsCommandList2 *target)> &cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> &mainPassSetupCallback) const -> RenderPipeline::RenderStage
 {
-	Setup(move(mainPassSetupCallback));
+	Setup(viewCtx, ZBuffer, dsv, move(cullPassSetupCallback), move(mainPassSetupCallback));
 	// use C++17 template deduction
-	GPUStreamBuffer::CountedAllocatorWrapper<sizeof AABB<3>, AABB_VB_name> GPU_AABB_countedAllocator(GPU_AABB_allocator);
+	GPUStreamBuffer::CountedAllocatorWrapper<sizeof AABB<3>, AABB_VB_name> GPU_AABB_countedAllocator(*GPU_AABB_allocator);
 
 	// shcedule
 	bvhView.Shcedule<false>(GPU_AABB_countedAllocator, FrustumCuller<3>(frustumXform), frustumXform, &viewXform);
+
+	SetupOcclusionQueryBatch(GPU_AABB_countedAllocator.GetAllocatedItemCount());
+
+	unsigned long int AABBCount = 0;
 
 	// issue
 	{
 		using namespace placeholders;
 
-		auto issueNode = bind(&World::IssueNode, this, _1, _2, OcclusionCulling::QueryBatchBase::npos, _3, _4, _5);
+		auto issueNode = bind(&World::IssueNode, this, _1, _2, OcclusionCulling::QueryBatchBase::npos, _3, _4, _5, ref(AABBCount));
 		bvhView.Traverse(issueNode, OcclusionCulling::QueryBatchBase::npos, OcclusionCulling::QueryBatchBase::npos, decltype(declval<decltype(bvhView)::Node>().GetOcclusionCullDomain())::ChildrenOnly);
 	}
 
-	return { this, static_cast<decltype(actionSelector)>(&World::GetMainPassRange) };
+	xformedAABBs = xformedAABBsStorage.Allocate(AABBCount * xformedAABBSize, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+
+	return { this, static_cast<decltype(actionSelector)>(&World::GetStagePre) };
 }
 
 /*

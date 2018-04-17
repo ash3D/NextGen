@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.03.2018 (c)Korotkov Andrey
+\date		17.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -15,7 +15,7 @@ See "DGLE.h" for more details.
 
 struct ID3D12QueryHeap;
 struct ID3D12Resource;
-struct ID3D12GraphicsCommandList1;
+struct ID3D12GraphicsCommandList2;
 
 namespace Renderer::Impl::OcclusionCulling
 {
@@ -44,10 +44,10 @@ namespace Renderer::Impl::OcclusionCulling
 		void Setup(unsigned long count);
 
 	protected:
-		void Set(ID3D12GraphicsCommandList1 *target, unsigned long queryIdx, ID3D12Resource *batchResults, bool visible) const;
+		void Set(ID3D12GraphicsCommandList2 *target, unsigned long queryIdx, ID3D12Resource *batchResults, bool visible) const;
 
 	public:
-		void Start(ID3D12GraphicsCommandList1 *target, unsigned long queryIdx) const, Stop(ID3D12GraphicsCommandList1 *target, unsigned long queryIdx) const;
+		void Start(ID3D12GraphicsCommandList2 *target, unsigned long queryIdx) const, Stop(ID3D12GraphicsCommandList2 *target, unsigned long queryIdx) const;
 	};
 
 	template<bool preserving>
@@ -67,8 +67,8 @@ namespace Renderer::Impl::OcclusionCulling
 
 	public:
 		void Sync() const;
-		void Set(ID3D12GraphicsCommandList1 *target, unsigned long queryIdx, bool visible = true) const { QueryBatchBase::Set(target, queryIdx, batchResults, visible); }
-		void Resolve(ID3D12GraphicsCommandList1 *target) const, Finish(ID3D12GraphicsCommandList1 *target) const;
+		void Set(ID3D12GraphicsCommandList2 *target, unsigned long queryIdx, bool visible = true) const { QueryBatchBase::Set(target, queryIdx, batchResults, visible); }
+		void Resolve(ID3D12GraphicsCommandList2 *target) const, Finish(ID3D12GraphicsCommandList2 *target) const;
 	};
 
 	template<>
@@ -87,8 +87,8 @@ namespace Renderer::Impl::OcclusionCulling
 		void FinalSetup() override;
 
 	public:
-		void Set(ID3D12GraphicsCommandList1 *target, unsigned long queryIdx, bool visible = true) const { QueryBatchBase::Set(target, queryIdx, batchResults.Get(), visible); }
-		void Resolve(ID3D12GraphicsCommandList1 *target, long int/*instead of D3D12_RESOURCE_STATES to eliminate dependency in d3d12.h here*/ usage = 0) const;
+		void Set(ID3D12GraphicsCommandList2 *target, unsigned long queryIdx, bool visible = true) const { QueryBatchBase::Set(target, queryIdx, batchResults.Get(), visible); }
+		void Resolve(ID3D12GraphicsCommandList2 *target, long int/*instead of D3D12_RESOURCE_STATES to eliminate dependency in d3d12.h here*/ usage = 0) const;
 		UINT64 GetGPUPtr() const;	// valid after Reslove if 'usage' was specified accordingly
 	};
 }

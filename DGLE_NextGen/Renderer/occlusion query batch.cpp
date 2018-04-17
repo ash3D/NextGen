@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.03.2018 (c)Korotkov Andrey
+\date		17.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -92,19 +92,19 @@ void QueryBatchBase::Setup(unsigned long count)
 	}
 }
 
-void QueryBatchBase::Start(ID3D12GraphicsCommandList1 *cmdList, unsigned long queryIdx) const
+void QueryBatchBase::Start(ID3D12GraphicsCommandList2 *cmdList, unsigned long queryIdx) const
 {
 	assert(queryIdx < count);
 	cmdList->BeginQuery(batchHeap, D3D12_QUERY_TYPE_BINARY_OCCLUSION, queryIdx);
 }
 
-void QueryBatchBase::Stop(ID3D12GraphicsCommandList1 *cmdList, unsigned long queryIdx) const
+void QueryBatchBase::Stop(ID3D12GraphicsCommandList2 *cmdList, unsigned long queryIdx) const
 {
 	assert(queryIdx < count);
 	cmdList->EndQuery(batchHeap, D3D12_QUERY_TYPE_BINARY_OCCLUSION, queryIdx);
 }
 
-void QueryBatchBase::Set(ID3D12GraphicsCommandList1 *cmdList, unsigned long queryIdx, ID3D12Resource *batchResults, bool visible) const
+void QueryBatchBase::Set(ID3D12GraphicsCommandList2 *cmdList, unsigned long queryIdx, ID3D12Resource *batchResults, bool visible) const
 {
 	assert(queryIdx == npos || queryIdx < count);
 	cmdList->SetPredication(queryIdx == npos ? NULL : batchResults, queryIdx == npos ? 0 : queryIdx * sizeof(UINT64), visible ? D3D12_PREDICATION_OP_EQUAL_ZERO : D3D12_PREDICATION_OP_NOT_EQUAL_ZERO);
@@ -182,7 +182,7 @@ void QueryBatch<false>::Sync() const
 	}
 }
 
-void QueryBatch<false>::Resolve(ID3D12GraphicsCommandList1 *cmdList) const
+void QueryBatch<false>::Resolve(ID3D12GraphicsCommandList2 *cmdList) const
 {
 	if (count)
 	{
@@ -193,10 +193,13 @@ void QueryBatch<false>::Resolve(ID3D12GraphicsCommandList1 *cmdList) const
 	}
 }
 
-void QueryBatch<false>::Finish(ID3D12GraphicsCommandList1 *cmdList) const
+void QueryBatch<false>::Finish(ID3D12GraphicsCommandList2 *cmdList) const
 {
 	if (count)
+	{
 		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(batchResults, D3D12_RESOURCE_STATE_PREDICATION, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY));
+		fresh = false;	// enables reuse for 2nd pass
+	}
 }
 #pragma endregion
 
@@ -232,7 +235,7 @@ void QueryBatch<true>::FinalSetup()
 	}
 }
 
-void QueryBatch<true>::Resolve(ID3D12GraphicsCommandList1 *cmdList, long int usage) const
+void QueryBatch<true>::Resolve(ID3D12GraphicsCommandList2 *cmdList, long int usage) const
 {
 	if (count)
 	{

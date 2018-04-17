@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		27.01.2018 (c)Korotkov Andrey
+\date		17.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -13,8 +13,9 @@ See "DGLE.h" for more details.
 #include <memory>
 #include "../tracked ref.h"
 #include "../frame versioning.h"
+#include "../world view context.h"
 
-struct ID3D12GraphicsCommandList1;
+struct ID3D12GraphicsCommandList2;
 struct ID3D12Resource;
 struct D3D12_CPU_DESCRIPTOR_HANDLE;
 
@@ -42,12 +43,13 @@ namespace Renderer
 			mutable class CmdListsManager : FrameVersioning<PrePostCmds<CmdBuffer>>
 			{
 			public:
-				PrePostCmds<ID3D12GraphicsCommandList1 *> OnFrameStart();
+				PrePostCmds<ID3D12GraphicsCommandList2 *> OnFrameStart();
 				using FrameVersioning::OnFrameFinish;
 			} cmdListsManager;
 
 		private:
 			const shared_ptr<const class Renderer::World> world;
+			mutable WorldViewContext ctx;
 			float viewXform[4][3], projXform[4][4];
 
 		protected:
@@ -63,7 +65,7 @@ namespace Renderer
 
 		protected:
 			void UpdateAspect(double invAspect);
-			void Render(ID3D12Resource *rt, const D3D12_CPU_DESCRIPTOR_HANDLE rtv, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, UINT width, UINT height) const;
+			void Render(ID3D12Resource *rt, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE rtv, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, UINT width, UINT height) const;
 			void OnFrameFinish() const;
 		};
 	}

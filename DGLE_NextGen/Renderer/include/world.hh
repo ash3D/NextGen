@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		26.03.2018 (c)Korotkov Andrey
+\date		17.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -14,10 +14,12 @@ See "DGLE.h" for more details.
 #include <cstddef>
 #include <memory>
 #include <string>
+#include <array>
 #include <vector>
 #include <list>
 #include <utility>	// for std::forward
 #include <functional>
+#include <optional>
 #include <wrl/client.h>
 #include "../tracked resource.h"
 #include "../AABB.h"
@@ -25,6 +27,7 @@ See "DGLE.h" for more details.
 #include "../render stage.h"
 #include "../render pipeline.h"
 #include "../GPU stream buffer allocator.h"
+#include "../SO buffer.h"
 #include "../occlusion query batch.h"
 #define DISABLE_MATRIX_SWIZZLES
 #if !__INTELLISENSE__ 
@@ -34,8 +37,9 @@ See "DGLE.h" for more details.
 struct ID3D12RootSignature;
 struct ID3D12PipelineState;
 struct ID3D12Resource;
-struct ID3D12GraphicsCommandList1;
+struct ID3D12GraphicsCommandList2;
 struct D3D12_RANGE;
+struct D3D12_CPU_DESCRIPTOR_HANDLE;
 
 #if !_DEBUG
 #define PERSISTENT_MAPS 1
@@ -64,6 +68,7 @@ namespace Renderer
 		class World : public std::enable_shared_from_this<Renderer::World>, RenderPipeline::IRenderStage
 		{
 			friend extern void __cdecl ::InitRenderer();
+			friend struct WorldViewContext;
 
 		protected:
 			// custom allocator needed because standard one does not have access to private ctor/dtor
@@ -137,7 +142,7 @@ namespace Renderer
 
 			//class NodeData
 			//{
-			//	WRL::ComPtr<ID3D12GraphicsCommandList1> bundle;
+			//	WRL::ComPtr<ID3D12GraphicsCommandList2> bundle;
 			//};
 
 		private:
@@ -149,34 +154,88 @@ namespace Renderer
 			struct StaticObjectData;
 			void InvalidateStaticObjects();
 
-#pragma region main pass
 		private:
-			mutable std::function<void (ID3D12GraphicsCommandList1 *target)> mainPassSetupCallback;
-			mutable std::vector<const Renderer::Instance *> renderStream;
+			mutable struct WorldViewContext *viewCtx;
+			mutable ID3D12Resource *ZBuffer;
+			mutable SIZE_T dsv;
 
 		private:
-			//void MainPassPre(CmdListPool::CmdList &target) const, MainPassPost(CmdListPool::CmdList &target) const;
-			void MainPassRange(CmdListPool::CmdList &target, unsigned long int rangeBegin, unsigned long int rangeEnd) const;
+			struct OcclusionQueryGeometry
+			{
+				ID3D12Resource *VB;
+				unsigned long int startIdx, xformedStartIdx;
+				unsigned int count;
+			};
+
+#pragma region occlusion query passes
+		private:
+			static ComPtr<ID3D12RootSignature> xformAABB_RootSig, TryCreateXformAABB_RootSig(), CreateXformAABB_RootSig();
+			static ComPtr<ID3D12PipelineState> xformAABB_PSO, TryCreateXformAABB_PSO(), CreateXformAABB_PSO();
+			static ComPtr<ID3D12RootSignature> cullPassRootSig, TryCreateCullPassRootSig(), CreateCullPassRootSig();
+			static std::array<ComPtr<ID3D12PipelineState>, 2> cullPassPSOs, TryCreateCullPassPSOs(), CreateCullPassPSOs();
+
+		private:
+			mutable std::function<void (ID3D12GraphicsCommandList2 *target)> cullPassSetupCallback;
+			mutable std::vector<OcclusionQueryGeometry> queryStream;
+
+		private:
+			void XformAABBPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd) const;
+			void CullPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, bool final) const;
+
+		private:
+			void SetupCullPass(std::function<void (ID3D12GraphicsCommandList2 *target)> &&setupCallback) const;
+			void IssueOcclusion(ID3D12Resource *VB, unsigned long int startIdx, unsigned int count, unsigned long int &counter) const;
+#pragma endregion
+
+#pragma region main passes
+		private:
+			mutable std::function<void (ID3D12GraphicsCommandList2 *target)> mainPassSetupCallback;
+			struct RenderData
+			{
+				const Renderer::Instance *instance;
+				decltype(OcclusionCulling::QueryBatchBase::npos) occlusion;
+			};
+			mutable std::vector<RenderData> renderStream;
+
+		private:
+			void MainPassPre(CmdListPool::CmdList &target) const, MainPassPost(CmdListPool::CmdList &target) const;
+			void MainPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd) const;
+
+		private:
+			void SetupMainPass(std::function<void (ID3D12GraphicsCommandList2 *target)> &&setupCallback) const;
+			void IssueObjects(const decltype(bvh)::Node &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion) const;
 #pragma endregion
 
 		private:
+			void StagePre(CmdListPool::CmdList &target) const, StagePost(CmdListPool::CmdList &target) const;
+			void XformAABBPass2CullPass(CmdListPool::CmdList &target) const, CullPass2MainPass(CmdListPool::CmdList &target, bool final) const, MainPass2CullPass(CmdListPool::CmdList &target) const;
+
+		private:
+			mutable OcclusionCulling::QueryBatch<false> occlusionQueryBatch;
+
+		private:
 			// Inherited via IRenderStage
-			virtual void Sync() const override final {}
+			virtual void Sync() const override final;
 
 		private:
 			RenderPipeline::PipelineItem
+				GetStagePre(unsigned int &length) const, GetStagePost(unsigned int &length) const,
+				GetXformAABBPassRange(unsigned int &length) const,
+				GetFirstCullPassRange(unsigned int &length) const, GetSecondCullPassRange(unsigned int &length) const,
+				GetFirstMainPassRange(unsigned int &length) const, GetSecondMainPassRange(unsigned int &length) const,
+				GetXformAABBPass2FirstCullPass(unsigned int &length) const, GetFirstCullPass2FirstMainPass(unsigned int &length) const, GetFirstMainPass2SecondCullPass(unsigned int &length) const, GetSecondCullPass2SecondMainPass(unsigned int &length) const,
 				GetMainPassPre(unsigned int &length) const, GetMainPassRange(unsigned int &length) const, GetMainPassPost(unsigned int &length) const;
 
 		private:
-			void Setup(std::function<void (ID3D12GraphicsCommandList1 *target)> &&mainPassSetupCallback) const;
-			bool IssueNode(const decltype(bvh)::Node &bvhNode, const decltype(bvhView)::Node &viewNode, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &occlusionProvider, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &coarseOcclusion, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &fineOcclusion, decltype(viewNode.GetOcclusionCullDomain()) &cullWholeNodeOverriden) const;
+			void Setup(struct WorldViewContext &viewCtx, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, std::function<void (ID3D12GraphicsCommandList2 *target)> &&cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList2 *target)> &&mainPassSetupCallback) const, SetupOcclusionQueryBatch(unsigned long queryCount) const;
+			bool IssueNode(const decltype(bvh)::Node &bvhNode, const decltype(bvhView)::Node &viewNode, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &occlusionProvider, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &coarseOcclusion, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &fineOcclusion, decltype(viewNode.GetOcclusionCullDomain()) &cullWholeNodeOverriden, unsigned long int &boxCounter) const;
 
 		private:
-			void IssueExclusiveObjects(const decltype(bvh)::Node &node) const;
-
-		private:
-			static constexpr const WCHAR AABB_VB_name[] = L"3D objects occlusion query boxes";
-			mutable GPUStreamBuffer::Allocator<sizeof(AABB<3>), AABB_VB_name> GPU_AABB_allocator;
+			static constexpr const WCHAR AABB_VB_name[] = L"3D objects occlusion query boxes", xformedAABB_SO_name[] = L"3D objects xformed occlusion query boxes";
+			static std::optional<GPUStreamBuffer::Allocator<sizeof(AABB<3>), AABB_VB_name>> GPU_AABB_allocator;
+			static SOBuffer::Allocator<xformedAABB_SO_name> xformedAABBsStorage;
+			mutable SOBuffer::Handle xformedAABBs;
+			static constexpr UINT xformedAABBSize = sizeof(float [4])/*corner*/ + sizeof(float [3][4])/*extents*/;
 
 		private:
 			class InstanceDeleter final
@@ -198,7 +257,7 @@ namespace Renderer
 			void operator =(World &) = delete;
 
 		protected:
-			void Render(const float (&viewXform)[4][3], const float (&projXform)[4][4], const std::function<void (ID3D12GraphicsCommandList1 *target, bool enableRT)> &setupRenderOutputCallback) const;
+			void Render(struct WorldViewContext &viewCtx, const float (&viewXform)[4][3], const float (&projXform)[4][4], ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, const std::function<void (ID3D12GraphicsCommandList2 *target, bool enableRT)> &setupRenderOutputCallback) const;
 			void OnFrameFinish() const;
 
 		public:
@@ -209,7 +268,7 @@ namespace Renderer
 			void FlushUpdates() const;	// const to be able to call from Render()
 
 		private:
-			RenderPipeline::RenderStage BuildRenderStage(const HLSL::float4x4 &frustumXform, const HLSL::float4x3 &viewXform, std::function<void (ID3D12GraphicsCommandList1 *target)> &mainPassSetupCallback) const;
+			RenderPipeline::RenderStage BuildRenderStage(struct WorldViewContext &viewCtx, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 &viewXform, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, std::function<void (ID3D12GraphicsCommandList2 *target)> &cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList2 *target)> &mainPassSetupCallback) const;
 		};
 	}
 

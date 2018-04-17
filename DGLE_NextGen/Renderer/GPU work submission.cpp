@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		09.03.2018 (c)Korotkov Andrey
+\date		17.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -57,28 +57,28 @@ namespace
 #endif
 		unsigned int size;
 	};
-	struct GPUWorkItem : variant<ID3D12GraphicsCommandList1 *, PendingWork>
+	struct GPUWorkItem : variant<ID3D12GraphicsCommandList2 *, PendingWork>
 	{
 		// TODO: use C++17 base class aggregate init instead of inheriting ctor
 #if 1
 		using variant::variant;
 #endif
 		// 1 call site
-		inline operator ID3D12GraphicsCommandList1 *();
+		inline operator ID3D12GraphicsCommandList2 *();
 	};
 	deque<GPUWorkItem> ROB;
 
-	GPUWorkItem::operator ID3D12GraphicsCommandList1 *()
+	GPUWorkItem::operator ID3D12GraphicsCommandList2 *()
 	{
 		// convert to cmd list ptr
 		const struct Conveter
 		{
-			ID3D12GraphicsCommandList1 *operator ()(ID3D12GraphicsCommandList1 *src) const noexcept
+			ID3D12GraphicsCommandList2 *operator ()(ID3D12GraphicsCommandList2 *src) const noexcept
 			{
 				return src;
 			}
 
-			ID3D12GraphicsCommandList1 *operator ()(PendingWork &src) const
+			ID3D12GraphicsCommandList2 *operator ()(PendingWork &src) const
 			{
 #if WRAP_CMD_LIST
 				return *src.list.get();
@@ -175,7 +175,7 @@ void GPUWorkSubmission::Run()
 			while (workBatch.empty() || runningTaskCount < targetTaskCount)
 			{
 				const auto item = RenderPipeline::GetNext(workBatchFreeSpace);
-				if (const auto cmdList = get_if<ID3D12GraphicsCommandList1 *>(&item))
+				if (const auto cmdList = get_if<ID3D12GraphicsCommandList2 *>(&item))
 				{
 					// flush work batch if needed
 					if (!workBatch.empty())

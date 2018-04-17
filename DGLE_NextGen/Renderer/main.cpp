@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.03.2018 (c)Korotkov Andrey
+\date		17.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -21,6 +21,7 @@ See "DGLE.h" for more details.
 
 using namespace std;
 using Renderer::Impl::globalFrameVersioning;
+using Renderer::Impl::World;
 using Renderer::Impl::TerrainVectorLayer;
 using Renderer::Impl::Object3D;
 using Microsoft::WRL::ComPtr;
@@ -184,14 +185,18 @@ void OnFrameFinish()
 
 #pragma region root sigs & PSOs
 ComPtr<ID3D12RootSignature>
-	TerrainVectorLayer::cullPassRootSig	= TerrainVectorLayer::TryCreateCullPassRootSig(),
-	TerrainVectorLayer::mainPassRootSig	= TerrainVectorLayer::TryCreateMainPassRootSig(),
-	Object3D::rootSig					= Object3D::TryCreateRootSig();
+	TerrainVectorLayer::cullPassRootSig				= TerrainVectorLayer::TryCreateCullPassRootSig(),
+	TerrainVectorLayer::mainPassRootSig				= TerrainVectorLayer::TryCreateMainPassRootSig(),
+	World::xformAABB_RootSig						= World::TryCreateXformAABB_RootSig(),
+	World::cullPassRootSig							= World::TryCreateCullPassRootSig(),
+	Object3D::rootSig								= Object3D::TryCreateRootSig();
 ComPtr<ID3D12PipelineState>
-	TerrainVectorLayer::cullPassPSO		= TerrainVectorLayer::TryCreateCullPassPSO(),
-	TerrainVectorLayer::mainPassPSO		= TerrainVectorLayer::TryCreateMainPassPSO(),
-	TerrainVectorLayer::AABB_PSO		= TerrainVectorLayer::TryCreateAABB_PSO();
-decltype(Object3D::PSOs) Object3D::PSOs	= Object3D::TryCreatePSOs();
+	TerrainVectorLayer::cullPassPSO					= TerrainVectorLayer::TryCreateCullPassPSO(),
+	TerrainVectorLayer::mainPassPSO					= TerrainVectorLayer::TryCreateMainPassPSO(),
+	TerrainVectorLayer::AABB_PSO					= TerrainVectorLayer::TryCreateAABB_PSO(),
+	World::xformAABB_PSO							= World::TryCreateXformAABB_PSO();
+decltype(World::cullPassPSOs) World::cullPassPSOs	= World::TryCreateCullPassPSOs();
+decltype(Object3D::PSOs) Object3D::PSOs				= Object3D::TryCreatePSOs();
 
 #pragma region TryCreate...()
 inline ComPtr<ID3D12RootSignature> TerrainVectorLayer::TryCreateCullPassRootSig()
@@ -202,6 +207,16 @@ inline ComPtr<ID3D12RootSignature> TerrainVectorLayer::TryCreateCullPassRootSig(
 inline ComPtr<ID3D12RootSignature> TerrainVectorLayer::TryCreateMainPassRootSig()
 {
 	return device ? CreateMainPassRootSig() : nullptr;
+}
+
+inline ComPtr<ID3D12RootSignature> World::TryCreateXformAABB_RootSig()
+{
+	return device ? CreateXformAABB_RootSig() : nullptr;
+}
+
+inline ComPtr<ID3D12RootSignature> World::TryCreateCullPassRootSig()
+{
+	return device ? CreateCullPassRootSig() : nullptr;
 }
 
 inline ComPtr<ID3D12RootSignature> Object3D::TryCreateRootSig()
@@ -222,6 +237,16 @@ inline ComPtr<ID3D12PipelineState> TerrainVectorLayer::TryCreateMainPassPSO()
 inline ComPtr<ID3D12PipelineState> TerrainVectorLayer::TryCreateAABB_PSO()
 {
 	return device ? CreateAABB_PSO() : nullptr;
+}
+
+inline ComPtr<ID3D12PipelineState> World::TryCreateXformAABB_PSO()
+{
+	return device ? CreateXformAABB_PSO() : nullptr;
+}
+
+inline auto World::TryCreateCullPassPSOs() -> decltype(cullPassPSOs)
+{
+	return device ? CreateCullPassPSOs() : decltype(cullPassPSOs)();
 }
 
 inline auto Object3D::TryCreatePSOs() -> decltype(PSOs)
@@ -263,13 +288,16 @@ using namespace Renderer::Impl::OcclusionCulling;
 decltype(QueryBatchBase::heapPool) QueryBatchBase::heapPool;
 decltype(QueryBatch<false>::resultsPool) QueryBatch<false>::resultsPool;
 
-// allocator contains tracked resource
+// allocators contains tracked resource
 #if defined _MSC_VER && _MSC_VER <= 1913
 decltype(TerrainVectorLayer::GPU_AABB_allocator) TerrainVectorLayer::GPU_AABB_allocator;
+decltype(World::GPU_AABB_allocator) World::GPU_AABB_allocator;
 #else
 // guaranteed copy elision required
 decltype(TerrainVectorLayer::GPU_AABB_allocator) TerrainVectorLayer::GPU_AABB_allocator(device ? decltype(TerrainVectorLayer::GPU_AABB_allocator)(in_place) : nullopt);
+decltype(World::GPU_AABB_allocator) World::GPU_AABB_allocator(device ? decltype(World::GPU_AABB_allocator)(in_place) : nullopt);
 #endif
+decltype(World::xformedAABBsStorage) World::xformedAABBsStorage;
 
 extern bool enableDebugDraw = false;
 
@@ -287,6 +315,10 @@ extern void __cdecl InitRenderer()
 		TerrainVectorLayer::cullPassPSO		= TerrainVectorLayer::CreateCullPassPSO();
 		TerrainVectorLayer::mainPassPSO		= TerrainVectorLayer::CreateMainPassPSO();
 		TerrainVectorLayer::AABB_PSO		= TerrainVectorLayer::CreateAABB_PSO();
+		World::xformAABB_RootSig			= World::CreateXformAABB_RootSig();
+		World::cullPassRootSig				= World::CreateCullPassRootSig();
+		World::xformAABB_PSO				= World::CreateXformAABB_PSO();
+		World::cullPassPSOs					= World::CreateCullPassPSOs();
 		Object3D::rootSig					= Object3D::CreateRootSig();
 		Object3D::PSOs						= Object3D::CreatePSOs();
 		World::perFrameCB					= World::CreatePerFrameCB();
@@ -295,5 +327,6 @@ extern void __cdecl InitRenderer()
 #endif
 		globalFrameVersioning.emplace();
 		TerrainVectorLayer::GPU_AABB_allocator.emplace();
+		World::GPU_AABB_allocator.emplace();
 	}
 }
