@@ -182,12 +182,15 @@ void QueryBatch<false>::Sync() const
 	}
 }
 
-void QueryBatch<false>::Resolve(ID3D12GraphicsCommandList2 *cmdList) const
+void QueryBatch<false>::Resolve(ID3D12GraphicsCommandList2 *cmdList, bool reuse) const
 {
 	if (count)
 	{
-		if (!fresh)
-			cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(batchResults, D3D12_RESOURCE_STATE_PREDICATION, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY));
+		if (!fresh || reuse)
+		{
+			const auto flags = reuse ? D3D12_RESOURCE_BARRIER_FLAG_NONE : D3D12_RESOURCE_BARRIER_FLAG_END_ONLY/*!fresh*/;
+			cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(batchResults, D3D12_RESOURCE_STATE_PREDICATION, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, flags));
+		}
 		cmdList->ResolveQueryData(batchHeap, D3D12_QUERY_TYPE_BINARY_OCCLUSION, 0, count, batchResults, 0);
 		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(batchResults, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PREDICATION));
 	}
@@ -196,10 +199,7 @@ void QueryBatch<false>::Resolve(ID3D12GraphicsCommandList2 *cmdList) const
 void QueryBatch<false>::Finish(ID3D12GraphicsCommandList2 *cmdList) const
 {
 	if (count)
-	{
 		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(batchResults, D3D12_RESOURCE_STATE_PREDICATION, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY));
-		fresh = false;	// enables reuse for 2nd pass
-	}
 }
 #pragma endregion
 

@@ -447,14 +447,11 @@ void Impl::World::CullPass2MainPass(CmdListPool::CmdList &cmdList, bool final) c
 	cmdList.Setup();
 
 	if (final)
-	{
 		xformedAABBs.Finish(cmdList);
-		occlusionQueryBatch.Finish(cmdList);
-	}
 	else
 		cmdList->ClearDepthStencilView({ dsv }, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, UINT8_MAX, 0, NULL);
 
-	occlusionQueryBatch.Resolve(cmdList);
+	occlusionQueryBatch.Resolve(cmdList, final);
 }
 
 //void Impl::World::MainPass2CullPass(CmdListPool::CmdList &cmdList) const
@@ -511,6 +508,7 @@ void Impl::World::StagePost(CmdListPool::CmdList &cmdList) const
 void Renderer::Impl::World::Sync() const
 {
 	xformedAABBs.Sync();
+	occlusionQueryBatch.Sync();
 }
 
 auto Impl::World::GetStagePre(unsigned int &) const -> RenderPipeline::PipelineItem

@@ -68,7 +68,7 @@ namespace Renderer::Impl::OcclusionCulling
 	public:
 		void Sync() const;
 		void Set(ID3D12GraphicsCommandList2 *target, unsigned long queryIdx, bool visible = true) const { QueryBatchBase::Set(target, queryIdx, batchResults, visible); }
-		void Resolve(ID3D12GraphicsCommandList2 *target) const, Finish(ID3D12GraphicsCommandList2 *target) const;
+		void Resolve(ID3D12GraphicsCommandList2 *target, bool reuse = false) const, Finish(ID3D12GraphicsCommandList2 *target) const;
 	};
 
 	template<>
