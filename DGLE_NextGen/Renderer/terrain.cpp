@@ -905,6 +905,7 @@ auto Impl::TerrainVectorLayer::BuildRenderStage(const Impl::FrustumCuller<2> &fr
 	// issue
 	{
 		PIXScopedEvent(PIX_COLOR_INDEX(PIXEvents::TerrainIssue), "issue");
+		queryStream.reserve(GPU_AABB_countedAllocator.GetAllocatedItemCount());
 		for_each(quads.begin(), quads.end(), bind(&TerrainVectorQuad::Issue, _1, OcclusionCulling::QueryBatchBase::npos));
 	}
 

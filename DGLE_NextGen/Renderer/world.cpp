@@ -789,6 +789,7 @@ auto Impl::World::BuildRenderStage(WorldViewContext &viewCtx, const HLSL::float4
 	{
 		using namespace placeholders;
 
+		queryStream.reserve(GPU_AABB_countedAllocator.GetAllocatedItemCount());
 		auto occlusionProvider = OcclusionCulling::QueryBatchBase::npos;
 		bvhView.Issue(bind(&World::IssueOcclusion, this, _1, ref(AABBCount)), bind(&World::IssueNodeObjects, this, _1, _2, _3, _4), occlusionProvider);
 	}
