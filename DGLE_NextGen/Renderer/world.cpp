@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.04.2018 (c)Korotkov Andrey
+\date		18.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -353,10 +353,10 @@ inline void Impl::World::SetupCullPass(function<void(ID3D12GraphicsCommandList2*
 }
 
 // 1 call site
-void Impl::World::IssueOcclusion(ID3D12Resource *VB, unsigned long int startIdx, unsigned int count, unsigned long int &counter) const
+void Impl::World::IssueOcclusion(decltype(declval<decltype(bvhView)::Node>().GetOcclusionQueryGeometry()) occlusionQueryGeometry, unsigned long int &counter) const
 {
-	queryStream.push_back({ VB, startIdx, counter, count });
-	counter += count;
+	queryStream.push_back({ occlusionQueryGeometry.VB, occlusionQueryGeometry.startIdx, counter, occlusionQueryGeometry.count });
+	counter += occlusionQueryGeometry.count;
 }
 #pragma endregion
 
@@ -505,7 +505,7 @@ void Impl::World::StagePost(CmdListPool::CmdList &cmdList) const
 #endif
 }
 
-void Renderer::Impl::World::Sync() const
+void Impl::World::Sync() const
 {
 	xformedAABBs.Sync();
 	occlusionQueryBatch.Sync();
@@ -514,70 +514,70 @@ void Renderer::Impl::World::Sync() const
 auto Impl::World::GetStagePre(unsigned int &) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	actionSelector = static_cast<decltype(actionSelector)>(&World::GetXformAABBPassRange);
+	phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetXformAABBPassRange);
 	return bind(&World::StagePre, this, _1);
 }
 
 auto Impl::World::GetXformAABBPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, queryStream.size(), [] { actionSelector = static_cast<decltype(actionSelector)>(&World::GetXformAABBPass2FirstCullPass); },
+	return IterateRenderPass(length, queryStream.size(), [] { phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetXformAABBPass2FirstCullPass); },
 		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&World::XformAABBPassRange, this, _1, rangeBegin, rangeEnd); });
 }
 
 auto Impl::World::GetXformAABBPass2FirstCullPass(unsigned int &) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	actionSelector = static_cast<decltype(actionSelector)>(&World::GetFirstCullPassRange);
+	phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetFirstCullPassRange);
 	return bind(&World::XformAABBPass2CullPass, this, _1);
 }
 
 auto Impl::World::GetFirstCullPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, queryStream.size(), [] { actionSelector = static_cast<decltype(actionSelector)>(&World::GetFirstCullPass2FirstMainPass); },
+	return IterateRenderPass(length, queryStream.size(), [] { phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetFirstCullPass2FirstMainPass); },
 		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&World::CullPassRange, this, _1, rangeBegin, rangeEnd, false); });
 }
 
 auto Impl::World::GetFirstCullPass2FirstMainPass(unsigned int &) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	actionSelector = static_cast<decltype(actionSelector)>(&World::GetFirstMainPassRange);
+	phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetFirstMainPassRange);
 	return bind(&World::CullPass2MainPass, this, _1, false);
 }
 
 auto Impl::World::GetFirstMainPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, renderStream.size(), [] { actionSelector = static_cast<decltype(actionSelector)>(&World::/*GetFirstMainPass2SecondCullPass*/GetSecondCullPassRange); },
+	return IterateRenderPass(length, renderStream.size(), [] { phaseSelector = static_cast<decltype(phaseSelector)>(&World::/*GetFirstMainPass2SecondCullPass*/GetSecondCullPassRange); },
 		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&World::MainPassRange, this, _1, rangeBegin, rangeEnd); });
 }
 
 //auto Impl::World::GetFirstMainPass2SecondCullPass(unsigned int &) const -> RenderPipeline::PipelineItem
 //{
 //	using namespace placeholders;
-//	actionSelector = static_cast<decltype(actionSelector)>(&World::GetSecondCullPassRange);
+//	phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetSecondCullPassRange);
 //	return bind(&World::MainPass2CullPass, this, _1);
 //}
 
 auto Impl::World::GetSecondCullPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, queryStream.size(), [] { actionSelector = static_cast<decltype(actionSelector)>(&World::GetSecondCullPass2SecondMainPass); },
+	return IterateRenderPass(length, queryStream.size(), [] { phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetSecondCullPass2SecondMainPass); },
 		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&World::CullPassRange, this, _1, rangeBegin, rangeEnd, true); });
 }
 
 auto Impl::World::GetSecondCullPass2SecondMainPass(unsigned int &) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	actionSelector = static_cast<decltype(actionSelector)>(&World::GetSecondMainPassRange);
+	phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetSecondMainPassRange);
 	return bind(&World::CullPass2MainPass, this, _1, true);
 }
 
 auto Impl::World::GetSecondMainPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, renderStream.size(), [] { actionSelector = static_cast<decltype(actionSelector)>(&World::GetStagePost); },
+	return IterateRenderPass(length, renderStream.size(), [] { phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetStagePost); },
 		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&World::MainPassRange, this, _1, rangeBegin, rangeEnd); });
 }
 
@@ -591,14 +591,14 @@ auto Impl::World::GetStagePost(unsigned int &) const -> RenderPipeline::Pipeline
 //auto Impl::World::GetMainPassPre(unsigned int &) const -> RenderPipeline::PipelineItem
 //{
 //	using namespace placeholders;
-//	actionSelector = &World::GetMainPassRange;
+//	phaseSelector = &World::GetMainPassRange;
 //	return bind(&World::MainPassPre, this, _1);
 //}
 
 auto Impl::World::GetMainPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, renderStream.size(), [] { RenderPipeline::TerminateStageTraverse();/*actionSelector = &World::GetMainPassPost;*/ },
+	return IterateRenderPass(length, renderStream.size(), [] { RenderPipeline::TerminateStageTraverse();/*phaseSelector = &World::GetMainPassPost;*/ },
 		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&World::MainPassRange, this, _1, rangeBegin, rangeEnd); });
 }
 
@@ -629,7 +629,7 @@ bool Impl::World::IssueNode(const decltype(bvh)::Node &bvhNode, const decltype(b
 	if (const auto &occlusionQueryGeometry = viewNode.GetOcclusionQueryGeometry())
 	{
 		occlusionCullDomainOverriden = viewNode.GetOcclusionCullDomain();
-		IssueOcclusion(occlusionQueryGeometry.VB, occlusionQueryGeometry.startIdx, occlusionQueryGeometry.count, boxCounter);
+		IssueOcclusion(occlusionQueryGeometry, boxCounter);
 		fineOcclusion = ++occlusionProvider;
 	}
 	else if (fineOcclusion != OcclusionCulling::QueryBatchBase::npos)
@@ -805,7 +805,7 @@ auto Impl::World::BuildRenderStage(WorldViewContext &viewCtx, const HLSL::float4
 
 	xformedAABBs = xformedAABBsStorage.Allocate(AABBCount * xformedAABBSize, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
 
-	return { this, static_cast<decltype(actionSelector)>(&World::GetStagePre) };
+	return { this, static_cast<decltype(phaseSelector)>(&World::GetStagePre) };
 }
 
 /*

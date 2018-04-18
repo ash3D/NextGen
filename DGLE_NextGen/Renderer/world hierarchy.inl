@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		26.03.2018 (c)Korotkov Andrey
+\date		18.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -487,8 +487,8 @@ namespace Renderer::Impl::Hierarchy
 					auto segmentEnd = next(segmentBegin, minBoxesPerNode);
 					if (additionalBoxes)
 					{
-						advance(segmentEnd, 1);
-						additionalBoxes--;
+						++segmentEnd;
+						--additionalBoxes;
 					}
 
 					const auto collectResults = child->CollectOcclusionQueryBoxes<enableEarlyOut>(view, segmentBegin, segmentEnd);

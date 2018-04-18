@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.03.2018 (c)Korotkov Andrey
+\date		18.43.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -19,7 +19,7 @@ namespace Renderer::Impl::RenderPipeline
 		virtual void Sync() const = 0;
 
 	protected:
-		static PipelineItem (IRenderStage::*actionSelector)(unsigned int &length) const;
+		static PipelineItem (IRenderStage::*phaseSelector)(unsigned int &length) const;
 
 	protected:
 		IRenderStage() = default;
@@ -33,7 +33,7 @@ namespace Renderer::Impl::RenderPipeline
 			const std::function<void ()> &PassFinish, const std::function<RenderStageItem (unsigned long rangeBegin, unsigned long rangeEnd)> &GetRenderRange) const;
 
 	public:
-		void Sync(PipelineItem(IRenderStage::*startActionSelector)(unsigned int &length) const) const { actionSelector = startActionSelector, Sync(); }
-		PipelineItem GetNextWorkItem(unsigned int &length) const { return (this->*actionSelector)(length); }
+		void Sync(PipelineItem(IRenderStage::*startPhaseSelector)(unsigned int &length) const) const { phaseSelector = startPhaseSelector, Sync(); }
+		PipelineItem GetNextWorkItem(unsigned int &length) const { return (this->*phaseSelector)(length); }
 	};
 }

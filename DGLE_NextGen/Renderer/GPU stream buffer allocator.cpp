@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.03.2018 (c)Korotkov Andrey
+\date		18.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -43,14 +43,14 @@ start:
 	const bool overflow = freeRangeReversed == wrap ? newFreeBegin > freeEnd : wrap;
 	if (wrap || overflow)
 	{
-		const unsigned savedLockId = lockId;
+		const unsigned savedLockStamp = lockStamp;
 		sharedLock.unlock();
 		lock_guard<decltype(mtx)> exclusiveLock(mtx);
-		if (lockId != savedLockId)
+		if (lockStamp != savedLockStamp)
 			goto start;	// try again
 		else
 		{
-			lockId++;
+			lockStamp++;
 			if (overflow)
 			{
 				auto deficit = (newFreeBegin - freeEnd) * itemSize;

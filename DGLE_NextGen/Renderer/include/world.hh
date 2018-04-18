@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.04.2018 (c)Korotkov Andrey
+\date		18.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -159,14 +159,6 @@ namespace Renderer
 			mutable ID3D12Resource *ZBuffer;
 			mutable SIZE_T dsv;
 
-		private:
-			struct OcclusionQueryGeometry
-			{
-				ID3D12Resource *VB;
-				unsigned long int startIdx, xformedStartIdx;
-				unsigned int count;
-			};
-
 #pragma region occlusion query passes
 		private:
 			static ComPtr<ID3D12RootSignature> xformAABB_RootSig, TryCreateXformAABB_RootSig(), CreateXformAABB_RootSig();
@@ -176,6 +168,12 @@ namespace Renderer
 
 		private:
 			mutable std::function<void (ID3D12GraphicsCommandList2 *target)> cullPassSetupCallback;
+			struct OcclusionQueryGeometry
+			{
+				ID3D12Resource *VB;
+				unsigned long int startIdx, xformedStartIdx;
+				unsigned int count;
+			};
 			mutable std::vector<OcclusionQueryGeometry> queryStream;
 
 		private:
@@ -184,7 +182,7 @@ namespace Renderer
 
 		private:
 			void SetupCullPass(std::function<void (ID3D12GraphicsCommandList2 *target)> &&setupCallback) const;
-			void IssueOcclusion(ID3D12Resource *VB, unsigned long int startIdx, unsigned int count, unsigned long int &counter) const;
+			void IssueOcclusion(decltype(std::declval<decltype(bvhView)::Node>().GetOcclusionQueryGeometry()) occlusionQueryGeometry, unsigned long int &counter) const;
 #pragma endregion
 
 #pragma region main passes

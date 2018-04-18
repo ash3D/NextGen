@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.04.2018 (c)Korotkov Andrey
+\date		18.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -117,14 +117,6 @@ namespace Renderer
 			friend class TerrainVectorQuad;
 			friend extern void __cdecl ::InitRenderer();
 
-		private:
-			struct OcclusionQueryGeometry
-			{
-				ID3D12Resource *VB;
-				unsigned long int startIdx;
-				unsigned int count;
-			};
-
 		protected:
 			const std::shared_ptr<class Renderer::World> world;
 			const unsigned int layerIdx;
@@ -134,6 +126,10 @@ namespace Renderer
 			const std::string layerName;
 			std::list<class TerrainVectorQuad, World::Allocator<class TerrainVectorQuad>> quads;
 
+		private:
+			typedef decltype(TerrainVectorQuad::subtree)::Node TreeNode;
+			typedef decltype(TerrainVectorQuad::subtreeView)::Node ViewNode;
+
 #pragma region occlusion query pass
 		private:
 			static WRL::ComPtr<ID3D12RootSignature> cullPassRootSig, TryCreateCullPassRootSig(), CreateCullPassRootSig();
@@ -141,6 +137,12 @@ namespace Renderer
 
 		private:
 			mutable std::function<void (ID3D12GraphicsCommandList2 *target)> cullPassSetupCallback;
+			struct OcclusionQueryGeometry
+			{
+				ID3D12Resource *VB;
+				unsigned long int startIdx;
+				unsigned int count;
+			};
 			mutable std::vector<OcclusionQueryGeometry> queryStream;
 
 		private:
@@ -149,7 +151,7 @@ namespace Renderer
 
 		private:
 			void SetupCullPass(std::function<void (ID3D12GraphicsCommandList2 *target)> &&setupCallback) const;
-			void IssueOcclusion(ID3D12Resource *VB, unsigned long int startIdx, unsigned int count);
+			void IssueOcclusion(decltype(std::declval<ViewNode>().GetOcclusionQueryGeometry()) occlusionQueryGeometry);
 #pragma endregion
 
 #pragma region main pass
@@ -211,10 +213,6 @@ namespace Renderer
 				GetCullPassRange(unsigned int &length) const, GetMainPassRange(unsigned int &length) const,
 				GetCullPass2MainPass(unsigned int &length) const,
 				GetVisiblePassRange(unsigned int &length) const, GetCulledPassRange(unsigned int &length) const;
-
-		private:
-			typedef decltype(TerrainVectorQuad::subtree)::Node TreeNode;
-			typedef decltype(TerrainVectorQuad::subtreeView)::Node ViewNode;
 
 		private:
 			void Setup(std::function<void (ID3D12GraphicsCommandList2 *target)> &&cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList2 *target)> &&mainPassSetupCallback) const, SetupOcclusionQueryBatch(unsigned long queryCount) const;

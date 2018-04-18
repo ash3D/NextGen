@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.04.2018 (c)Korotkov Andrey
+\date		18.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -32,7 +32,7 @@ namespace Renderer::Impl::GPUStreamBuffer
 		std::shared_mutex mtx;
 		std::atomic<unsigned long> freeBegin = 0;
 		unsigned long freeEnd = 0;
-		unsigned long lockId = 0, chunkVersion = 0;
+		unsigned long lockStamp = 0, chunkVersion = 0;
 		bool freeRangeReversed = true;
 
 	protected:

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.04.2018 (c)Korotkov Andrey
+\date		18.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -424,9 +424,9 @@ inline void Impl::TerrainVectorLayer::SetupCullPass(function<void (ID3D12Graphic
 }
 
 // 1 call site
-inline void Impl::TerrainVectorLayer::IssueOcclusion(ID3D12Resource *VB, unsigned long int startIdx, unsigned int count)
+inline void Impl::TerrainVectorLayer::IssueOcclusion(decltype(declval<ViewNode>().GetOcclusionQueryGeometry()) occlusionQueryGeometry)
 {
-	queryStream.push_back({ VB, startIdx, count });
+	queryStream.push_back({ occlusionQueryGeometry.VB, occlusionQueryGeometry.startIdx, occlusionQueryGeometry.count });
 }
 #pragma endregion
 
@@ -728,28 +728,28 @@ void Impl::TerrainVectorLayer::Sync() const
 auto Impl::TerrainVectorLayer::GetStagePre(unsigned int &) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	actionSelector = static_cast<decltype(actionSelector)>(&TerrainVectorLayer::GetCullPassRange);
+	phaseSelector = static_cast<decltype(phaseSelector)>(&TerrainVectorLayer::GetCullPassRange);
 	return bind(&TerrainVectorLayer::StagePre, this, _1);
 }
 
 auto  Impl::TerrainVectorLayer::GetCullPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, queryStream.size(), [] { actionSelector = static_cast<decltype(actionSelector)>(&TerrainVectorLayer::GetCullPass2MainPass); },
+	return IterateRenderPass(length, queryStream.size(), [] { phaseSelector = static_cast<decltype(phaseSelector)>(&TerrainVectorLayer::GetCullPass2MainPass); },
 		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::CullPassRange, this, _1, rangeBegin, rangeEnd); });
 }
 
 auto Impl::TerrainVectorLayer::GetCullPass2MainPass(unsigned int &) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	actionSelector = static_cast<decltype(actionSelector)>(&TerrainVectorLayer::GetMainPassRange);
+	phaseSelector = static_cast<decltype(phaseSelector)>(&TerrainVectorLayer::GetMainPassRange);
 	return bind(&TerrainVectorLayer::CullPass2MainPass, this, _1);
 }
 
 auto Impl::TerrainVectorLayer::GetMainPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, renderStream.size(), [] { actionSelector = static_cast<decltype(actionSelector)>(&TerrainVectorLayer::GetStagePost); },
+	return IterateRenderPass(length, renderStream.size(), [] { phaseSelector = static_cast<decltype(phaseSelector)>(&TerrainVectorLayer::GetStagePost); },
 		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::MainPassRange, this, _1, rangeBegin, rangeEnd); });
 }
 
@@ -763,7 +763,7 @@ auto Impl::TerrainVectorLayer::GetStagePost(unsigned int &) const -> RenderPipel
 auto Impl::TerrainVectorLayer::GetVisiblePassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, queryStream.size(), [] { actionSelector = static_cast<decltype(actionSelector)>(&TerrainVectorLayer::GetCulledPassRange); },
+	return IterateRenderPass(length, queryStream.size(), [] { phaseSelector = static_cast<decltype(phaseSelector)>(&TerrainVectorLayer::GetCulledPassRange); },
 		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::AABBPassRange, this, _1, rangeBegin, rangeEnd, cref(OcclusionCulling::DebugColors::Terrain::visible), true); });
 }
 
@@ -805,7 +805,7 @@ bool Impl::TerrainVectorLayer::IssueNode(const TreeNode &treeNode, const ViewNod
 	if (const auto &occlusionQueryGeometry = viewNode.GetOcclusionQueryGeometry())
 	{
 		occlusionCullDomainOverriden = viewNode.GetOcclusionCullDomain();
-		IssueOcclusion(occlusionQueryGeometry.VB, occlusionQueryGeometry.startIdx, occlusionQueryGeometry.count);
+		IssueOcclusion(occlusionQueryGeometry);
 		fineOcclusion = ++occlusionProvider;
 	}
 	else if (fineOcclusion != OcclusionCulling::QueryBatchBase::npos)
@@ -916,12 +916,12 @@ auto Impl::TerrainVectorLayer::BuildRenderStage(const Impl::FrustumCuller<2> &fr
 		for_each(quads.begin(), quads.end(), bind(&TerrainVectorQuad::Issue, _1, OcclusionCulling::QueryBatchBase::npos));
 	}
 
-	return { this, static_cast<decltype(actionSelector)>(&TerrainVectorLayer::GetStagePre) };
+	return { this, static_cast<decltype(phaseSelector)>(&TerrainVectorLayer::GetStagePre) };
 }
 
 auto Impl::TerrainVectorLayer::GetDebugDrawRenderStage() const -> RenderPipeline::PipelineStage
 {
-	return RenderPipeline::PipelineStage(in_place_type<RenderPipeline::RenderStage>, static_cast<const RenderPipeline::IRenderStage *>(this), static_cast<decltype(actionSelector)>(&TerrainVectorLayer::GetVisiblePassRange));
+	return RenderPipeline::PipelineStage(in_place_type<RenderPipeline::RenderStage>, static_cast<const RenderPipeline::IRenderStage *>(this), static_cast<decltype(phaseSelector)>(&TerrainVectorLayer::GetVisiblePassRange));
 }
 
 void Impl::TerrainVectorLayer::ShceduleRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList2 *target)> cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> mainPassSetupCallback) const
