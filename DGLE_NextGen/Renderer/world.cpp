@@ -629,9 +629,9 @@ inline void Impl::World::Setup(WorldViewContext &viewCtx, ID3D12Resource *ZBuffe
 	SetupMainPass(move(mainPassSetupCallback));
 }
 
-inline void Impl::World::SetupOcclusionQueryBatch(unsigned long queryCount) const
+inline void Impl::World::SetupOcclusionQueryBatch(decltype(OcclusionCulling::QueryBatchBase::npos) maxOcclusion) const
 {
-	occlusionQueryBatch.Setup(queryCount);
+	occlusionQueryBatch.Setup(maxOcclusion + 1);
 }
 
 Impl::World::World(const float (&terrainXform)[4][3])
@@ -775,25 +775,21 @@ void Impl::World::FlushUpdates() const
 auto Impl::World::BuildRenderStage(WorldViewContext &viewCtx, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 &viewXform, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, function<void (ID3D12GraphicsCommandList2 *target)> &cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> &mainPassSetupCallback) const -> RenderPipeline::RenderStage
 {
 	Setup(viewCtx, ZBuffer, dsv, move(cullPassSetupCallback), move(mainPassSetupCallback));
-	// use C++17 template deduction
-	GPUStreamBuffer::CountedAllocatorWrapper<sizeof AABB<3>, AABB_VB_name> GPU_AABB_countedAllocator(*GPU_AABB_allocator);
 
 	// shcedule
-	bvhView.Shcedule<false>(GPU_AABB_countedAllocator, FrustumCuller<3>(frustumXform), frustumXform, &viewXform);
+	bvhView.Shcedule<false>(*GPU_AABB_allocator, FrustumCuller<3>(frustumXform), frustumXform, &viewXform);
 
-	SetupOcclusionQueryBatch(GPU_AABB_countedAllocator.GetAllocatedItemCount());
-
+	auto occlusionProvider = OcclusionCulling::QueryBatchBase::npos;
 	unsigned long int AABBCount = 0;
 
 	// issue
 	{
 		using namespace placeholders;
 
-		queryStream.reserve(GPU_AABB_countedAllocator.GetAllocatedItemCount());
-		auto occlusionProvider = OcclusionCulling::QueryBatchBase::npos;
 		bvhView.Issue(bind(&World::IssueOcclusion, this, _1, ref(AABBCount)), bind(&World::IssueNodeObjects, this, _1, _2, _3, _4), occlusionProvider);
 	}
 
+	SetupOcclusionQueryBatch(occlusionProvider);
 	xformedAABBs = xformedAABBsStorage.Allocate(AABBCount * xformedAABBSize, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
 
 	return { this, static_cast<decltype(phaseSelector)>(&World::GetStagePre) };

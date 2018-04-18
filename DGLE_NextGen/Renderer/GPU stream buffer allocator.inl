@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.01.2018 (c)Korotkov Andrey
+\date		18.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -30,14 +30,5 @@ namespace Renderer::Impl::GPUStreamBuffer
 	inline std::pair<ID3D12Resource *, unsigned long> Allocator<itemSize, resourceName>::Allocate(unsigned long count)
 	{
 		return AllocatorBase::Allocate(count, itemSize, allocGranularity, resourceName);
-	}
-
-	template<unsigned itemSize, LPCWSTR resourceName>
-	inline std::pair<ID3D12Resource *, unsigned long> CountedAllocatorWrapper<itemSize, resourceName>::Allocate(unsigned long count)
-	{
-		const auto result = allocator.Allocate(count);
-		// place after Allocate() for exception safety (fetch_add is noexcept => if Allocate() succeeds it will be guaranteed reflected in allocatedItemsCount)
-		allocatedItemsCount.fetch_add(1, std::memory_order_relaxed);
-		return result;
 	}
 }

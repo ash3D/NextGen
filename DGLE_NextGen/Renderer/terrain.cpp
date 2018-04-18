@@ -254,7 +254,7 @@ TerrainVectorQuad::TerrainVectorQuad(shared_ptr<TerrainVectorLayer> &&layer, uns
 TerrainVectorQuad::~TerrainVectorQuad() = default;
 
 // 1 call site
-inline void TerrainVectorQuad::Shcedule(GPUStreamBuffer::CountedAllocatorWrapper<sizeof AABB<2>, AABB_VB_name> &GPU_AABB_allocator, const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform) const
+inline void TerrainVectorQuad::Shcedule(GPUStreamBuffer::Allocator<sizeof AABB<2>, AABB_VB_name> &GPU_AABB_allocator, const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform) const
 {
 	subtreeView.Shcedule<true>(GPU_AABB_allocator, frustumCuller, frustumXform);
 }
@@ -825,7 +825,7 @@ inline void Impl::TerrainVectorLayer::Setup(function<void (ID3D12GraphicsCommand
 	SetupMainPass(move(mainPassSetupCallback));
 }
 
-inline void Impl::TerrainVectorLayer::SetupOcclusionQueryBatch(unsigned long queryCount) const
+inline void Impl::TerrainVectorLayer::SetupOcclusionQueryBatch(decltype(OcclusionCulling::QueryBatchBase::npos) maxOcclusion) const
 {
 	extern bool enableDebugDraw;
 	if (enableDebugDraw != occlusionQueryBatch.index())
@@ -835,7 +835,7 @@ inline void Impl::TerrainVectorLayer::SetupOcclusionQueryBatch(unsigned long que
 		else
 			occlusionQueryBatch.emplace<false>();
 	}
-	visit([queryCount](auto &queryBatch) { queryBatch.Setup(queryCount); }, occlusionQueryBatch);
+	visit([maxOcclusion](auto &queryBatch) { queryBatch.Setup(maxOcclusion + 1); }, occlusionQueryBatch);
 }
 
 void TerrainVectorLayer::QuadDeleter::operator()(const TerrainVectorQuad *quadToRemove) const
@@ -862,14 +862,12 @@ auto Impl::TerrainVectorLayer::BuildRenderStage(const Impl::FrustumCuller<2> &fr
 
 	PIXScopedEvent(PIX_COLOR_INDEX(PIXEvents::TerrainBuildRenderStage), "terrain layer [%u] build render stage", layerIdx);
 	Setup(move(cullPassSetupCallback), move(mainPassSetupCallback));
-	// use C++17 template deduction
-	GPUStreamBuffer::CountedAllocatorWrapper<sizeof AABB<2>, TerrainVectorQuad::AABB_VB_name> GPU_AABB_countedAllocator(*GPU_AABB_allocator);
 
 	// shcedule
 	{
 		PIXScopedEvent(PIX_COLOR_INDEX(PIXEvents::TerrainShcedule), "shcedule");
 #if MULTITHREADED_QUADS_SHCEDULE == 0
-		for_each(quads.begin(), quads.end(), bind(&TerrainVectorQuad::Shcedule, _1, ref(GPU_AABB_countedAllocator), cref(frustumCuller), cref(frustumXform)));
+		for_each(quads.begin(), quads.end(), bind(&TerrainVectorQuad::Shcedule, _1, ref(*GPU_AABB_allocator), cref(frustumCuller), cref(frustumXform)));
 #elif MULTITHREADED_QUADS_SHCEDULE == 1
 		static thread_local vector<future<void>> pendingAsyncs;
 		pendingAsyncs.clear();
@@ -878,7 +876,7 @@ auto Impl::TerrainVectorLayer::BuildRenderStage(const Impl::FrustumCuller<2> &fr
 		{
 			transform(quads.cbegin(), quads.cend(), back_inserter(pendingAsyncs), [&](decltype(quads)::const_reference quad)
 			{
-				return async(&TerrainVectorQuad::Shcedule, cref(quad), ref(GPU_AABB_countedAllocator), cref(frustumCuller), cref(frustumXform));
+				return async(&TerrainVectorQuad::Shcedule, cref(quad), ref(*GPU_AABB_allocator), cref(frustumCuller), cref(frustumXform));
 			});
 			// wait for pending asyncs\
 					use 'get' instead of 'wait' in order to propagate exceptions (first only)
@@ -894,20 +892,21 @@ auto Impl::TerrainVectorLayer::BuildRenderStage(const Impl::FrustumCuller<2> &fr
 		}
 #elif MULTITHREADED_QUADS_SHCEDULE == 2
 		// exceptions would currently lead to terminate()
-		for_each(execution::par, quads.begin(), quads.end(), bind(&TerrainVectorQuad::Shcedule, _1, ref(GPU_AABB_countedAllocator), cref(frustumCuller), cref(frustumXform)));
+		for_each(execution::par, quads.begin(), quads.end(), bind(&TerrainVectorQuad::Shcedule, _1, ref(*GPU_AABB_allocator), cref(frustumCuller), cref(frustumXform)));
 #else
 #error invalid MULTITHREADED_QUADS_SHCEDULE value
 #endif
 	}
 
-	SetupOcclusionQueryBatch(GPU_AABB_countedAllocator.GetAllocatedItemCount());
+	auto occlusionProvider = OcclusionCulling::QueryBatchBase::npos;
 
 	// issue
 	{
 		PIXScopedEvent(PIX_COLOR_INDEX(PIXEvents::TerrainIssue), "issue");
-		queryStream.reserve(GPU_AABB_countedAllocator.GetAllocatedItemCount());
-		for_each(quads.begin(), quads.end(), bind(&TerrainVectorQuad::Issue, _1, OcclusionCulling::QueryBatchBase::npos));
+		for_each(quads.begin(), quads.end(), bind(&TerrainVectorQuad::Issue, _1, ref(occlusionProvider)));
 	}
+
+	SetupOcclusionQueryBatch(occlusionProvider);
 
 	return { this, static_cast<decltype(phaseSelector)>(&TerrainVectorLayer::GetStagePre) };
 }

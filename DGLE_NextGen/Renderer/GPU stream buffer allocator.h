@@ -66,19 +66,4 @@ namespace Renderer::Impl::GPUStreamBuffer
 		// result valid during current frame only
 		std::pair<ID3D12Resource *, unsigned long> Allocate(unsigned long count);
 	};
-
-	template<unsigned itemSize, LPCWSTR resourceName>
-	class CountedAllocatorWrapper
-	{
-		std::atomic<unsigned long> allocatedItemsCount = 0;
-		Allocator<itemSize, resourceName> &allocator;
-
-	public:
-		explicit CountedAllocatorWrapper(Allocator<itemSize, resourceName> &allocator) noexcept : allocator(allocator) {}
-		CountedAllocatorWrapper(CountedAllocatorWrapper &&) = default;
-
-	public:
-		std::pair<ID3D12Resource *, unsigned long> Allocate(unsigned long count);
-		unsigned long GetAllocatedItemCount() const noexcept { return allocatedItemsCount.load(); }
-	};
 }
