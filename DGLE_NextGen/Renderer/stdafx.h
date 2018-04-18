@@ -69,7 +69,7 @@ namespace Renderer::PIXEvents
 		TerrainLayer,
 		TerrainOcclusionQueryPass,
 		TerrainBuildRenderStage,
-		TerrainShcedule,
+		TerrainSchedule,
 		TerrainIssue,
 	};
 }

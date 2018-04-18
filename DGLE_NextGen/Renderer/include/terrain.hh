@@ -107,7 +107,7 @@ namespace Renderer
 
 	private:
 		static constexpr const WCHAR AABB_VB_name[] = L"terrain occlusion query quads";
-		void Shcedule(Impl::GPUStreamBuffer::Allocator<sizeof AABB<2>, AABB_VB_name> &GPU_AABB_allocator, const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform) const, Issue(std::remove_const_t<decltype(Impl::OcclusionCulling::QueryBatchBase::npos)> &occlusionProvider) const;
+		void Schedule(Impl::GPUStreamBuffer::Allocator<sizeof AABB<2>, AABB_VB_name> &GPU_AABB_allocator, const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform) const, Issue(std::remove_const_t<decltype(Impl::OcclusionCulling::QueryBatchBase::npos)> &occlusionProvider) const;
 	};
 
 	namespace Impl
@@ -254,8 +254,8 @@ namespace Renderer
 			RenderPipeline::PipelineStage GetDebugDrawRenderStage() const;
 
 		protected:
-			void ShceduleRenderStage(const FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, std::function<void (ID3D12GraphicsCommandList2 *target)> cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList2 *target)> mainPassSetupCallback) const;
-			void ShceduleDebugDrawRenderStage() const;	// must be after ShceduleRenderStage()
+			void ScheduleRenderStage(const FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, std::function<void (ID3D12GraphicsCommandList2 *target)> cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList2 *target)> mainPassSetupCallback) const;
+			void ScheduleDebugDrawRenderStage() const;	// must be after ScheduleRenderStage()
 			static void OnFrameFinish() { GPU_AABB_allocator->OnFrameFinish(); }
 		};
 	}
@@ -265,10 +265,10 @@ namespace Renderer
 		friend class Impl::World;
 		using Impl::TerrainVectorLayer::TerrainVectorLayer;
 #if defined _MSC_VER && _MSC_VER <= 1913 && !defined __clang__
-		// this workaround makes '&TerrainVectorLayer::ShceduleRenderStage' accessible from 'Impl::World'\
+		// this workaround makes '&TerrainVectorLayer::ScheduleRenderStage' accessible from 'Impl::World'\
 		somewhat strange as the problem does not reproduce for simple synthetic experiment
-		using Impl::TerrainVectorLayer::ShceduleRenderStage;
-		using Impl::TerrainVectorLayer::ShceduleDebugDrawRenderStage;
+		using Impl::TerrainVectorLayer::ScheduleRenderStage;
+		using Impl::TerrainVectorLayer::ScheduleDebugDrawRenderStage;
 #endif
 	};
 }

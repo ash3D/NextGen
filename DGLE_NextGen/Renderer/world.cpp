@@ -678,12 +678,12 @@ void Impl::World::Render(WorldViewContext &viewCtx, const float (&viewXform)[4][
 	
 	GPUWorkSubmission::AppendPipelineStage<true>(&World::BuildRenderStage, this, ref(viewCtx), frustumTransform, worldViewTransform, ZBuffer, dsv, cullPassSetupCallback, mainPassSetupCallback);
 
-	for_each(terrainVectorLayers.cbegin(), terrainVectorLayers.cend(), bind(&decltype(terrainVectorLayers)::value_type::ShceduleRenderStage,
+	for_each(terrainVectorLayers.cbegin(), terrainVectorLayers.cend(), bind(&decltype(terrainVectorLayers)::value_type::ScheduleRenderStage,
 		_1, FrustumCuller<2>(frustumTransform), cref(frustumTransform), cref(cullPassSetupCallback), cref(mainPassSetupCallback)));
 
 	extern bool enableDebugDraw;
 	if (enableDebugDraw)
-		for_each(terrainVectorLayers.crbegin(), terrainVectorLayers.crend(), mem_fn(&decltype(terrainVectorLayers)::value_type::ShceduleDebugDrawRenderStage));
+		for_each(terrainVectorLayers.crbegin(), terrainVectorLayers.crend(), mem_fn(&decltype(terrainVectorLayers)::value_type::ScheduleDebugDrawRenderStage));
 }
 
 // "world.hh" currently does not #include "terrain.hh" (TerrainVectorLayer forward declared) => out-of-line
@@ -776,8 +776,8 @@ auto Impl::World::BuildRenderStage(WorldViewContext &viewCtx, const HLSL::float4
 {
 	Setup(viewCtx, ZBuffer, dsv, move(cullPassSetupCallback), move(mainPassSetupCallback));
 
-	// shcedule
-	bvhView.Shcedule<false>(*GPU_AABB_allocator, FrustumCuller<3>(frustumXform), frustumXform, &viewXform);
+	// schedule
+	bvhView.Schedule<false>(*GPU_AABB_allocator, FrustumCuller<3>(frustumXform), frustumXform, &viewXform);
 
 	auto occlusionProvider = OcclusionCulling::QueryBatchBase::npos;
 	unsigned long int AABBCount = 0;

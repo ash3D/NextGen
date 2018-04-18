@@ -176,11 +176,11 @@ namespace Renderer::Impl::Hierarchy
 			void Traverse(NodeHandler &nodeHandler, ReorderProvider reorderProvider, Args ...args);
 #if defined _MSC_VER && _MSC_VER <= 1913
 			template<bool enableEarlyOut, class Allocator>
-			std::pair<unsigned long int, bool> Shcedule(View &view, Allocator &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
+			std::pair<unsigned long int, bool> Schedule(View &view, Allocator &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
 				bool parentInsideFrustum = false, float parentOcclusionCulledProjLength = INFINITY, float parentOcclusion = 0);
 #else
 			template<bool enableEarlyOut, LPCWSTR resourceName>
-			std::pair<unsigned long int, bool> Shcedule(View &view, Allocator &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
+			std::pair<unsigned long int, bool> Schedule(View &view, Allocator &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
 				bool parentInsideFrustum = false, float parentOcclusionCulledProjLength = INFINITY, float parentOcclusion = 0);
 #endif
 			template<bool enableEarlyOut>
@@ -290,7 +290,7 @@ namespace Renderer::Impl::Hierarchy
 
 	public:
 		template<bool enableEarlyOut, class Allocator>
-		void Shcedule(Allocator &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(std::declval<Object>().GetAABB().Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform = nullptr);
+		void Schedule(Allocator &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(std::declval<Object>().GetAABB().Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform = nullptr);
 		template<typename IssueOcclusion, typename IssueObjects>
 		void Issue(const IssueOcclusion &issueOcclusion, const IssueObjects &issueObjects, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &occlusionProvider) const;
 		void Reset();

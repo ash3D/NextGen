@@ -267,11 +267,11 @@ namespace Renderer::Impl::Hierarchy
 	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>
 #if defined _MSC_VER && _MSC_VER <= 1913
 	template<bool enableEarlyOut, class Allocator>
-	std::pair<unsigned long int, bool> BVH<treeStructure, Object, CustomNodeData...>::Node::Shcedule(View &view, Allocator &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
+	std::pair<unsigned long int, bool> BVH<treeStructure, Object, CustomNodeData...>::Node::Schedule(View &view, Allocator &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
 		bool parentInsideFrustum, float parentOcclusionCulledProjLength, float parentOcclusion)
 #else
 	template<bool enableEarlyOut, LPCWSTR resourceName>
-	std::pair<unsigned long int, bool> BVH<treeStructure, Object, CustomNodeData...>::Node::Shcedule(View &view, Allocator &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
+	std::pair<unsigned long int, bool> BVH<treeStructure, Object, CustomNodeData...>::Node::Schedule(View &view, Allocator &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
 		bool parentInsideFrustum, float parentOcclusionCulledProjLength, float parentOcclusion)
 #endif
 	{
@@ -309,15 +309,15 @@ namespace Renderer::Impl::Hierarchy
 				// launch
 				transform(next(cbegin(children)), next(cbegin(children), childrenCount), begin(childrenResults), [=, /*&nodeHandler, */&frustumCuller, &frustumXform](const remove_extent_t<decltype(children)> &child)
 				{
-					return async(&Node::Shcedule<enableEarlyOut>, child.get(), /*cref(nodeHandler), */ref(view), ref(GPU_AABB_allocator), cref(frustumCuller), cref(frustumXform), depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
+					return async(&Node::Schedule<enableEarlyOut>, child.get(), /*cref(nodeHandler), */ref(view), ref(GPU_AABB_allocator), cref(frustumCuller), cref(frustumXform), depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
 				});
 
 				// traverse first child in this thread
-				tie(childrenCulledTris, childQueryCanceled) = children[0]->Shcedule<enableEarlyOut>(/*nodeHandler, */GPU_AABB_allocator, frustumCuller, frustumXform, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
+				tie(childrenCulledTris, childQueryCanceled) = children[0]->Schedule<enableEarlyOut>(/*nodeHandler, */GPU_AABB_allocator, frustumCuller, frustumXform, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
 #else
 				for_each_n(cbegin(children), childrenCount, [&, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion](const remove_extent_t<decltype(children)> &child)
 				{
-					const auto childResult = child->Shcedule<enableEarlyOut>(/*nodeHandler, */view, GPU_AABB_allocator, frustumCuller, frustumXform, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
+					const auto childResult = child->Schedule<enableEarlyOut>(/*nodeHandler, */view, GPU_AABB_allocator, frustumCuller, frustumXform, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
 					childrenCulledTris += childResult.first;
 					childQueryCanceled |= childResult.second;
 				});
@@ -374,9 +374,9 @@ namespace Renderer::Impl::Hierarchy
 			const float aabbProjSquare = aabbProjSize.x * aabbProjSize.y;
 			const float aabbProjLength = fmax(aabbProjSize.x, aabbProjSize.y);
 			// TODO: replace 'z >= 0 && w > 0' with 'w >= znear' and use 2D NDC space AABB
-			bool cancelQueryDueToParent = false, shceduleOcclusionQuery = NDCSpaceAABB.min.z >= 0.f && clipSpaceAABB.MinW() > 0.f && OcclusionCulling::QueryBenefit<false>(aabbProjSquare, GetInclusiveTriCount()) &&
+			bool cancelQueryDueToParent = false, scheduleOcclusionQuery = NDCSpaceAABB.min.z >= 0.f && clipSpaceAABB.MinW() > 0.f && OcclusionCulling::QueryBenefit<false>(aabbProjSquare, GetInclusiveTriCount()) &&
 				!(cancelQueryDueToParent = (parentOcclusionCulledProjLength <= OcclusionCulling::nodeProjLengthThreshold || aabbProjLength / parentOcclusionCulledProjLength >= OcclusionCulling::nestedNodeProjLengthShrinkThreshold) && parentOcclusion < OcclusionCulling::parentOcclusionThreshold);
-			if (shceduleOcclusionQuery)
+			if (scheduleOcclusionQuery)
 			{
 				parentOcclusionCulledProjLength = aabbProjLength;
 				parentOcclusion = GetOcclusion();
@@ -387,14 +387,14 @@ namespace Renderer::Impl::Hierarchy
 			traverseChildren();
 
 			// post
-			assert(!(shceduleOcclusionQuery && cancelQueryDueToParent));
-			__assume(!(shceduleOcclusionQuery && cancelQueryDueToParent));
+			assert(!(scheduleOcclusionQuery && cancelQueryDueToParent));
+			__assume(!(scheduleOcclusionQuery && cancelQueryDueToParent));
 			/*
-			shceduleOcclusionQuery == true (=> cancelQueryDueToParent == false)									|	reevaluate shceduleOcclusionQuery if childQueryCanceled == false, otherwise keep shceduled unconditionally
-			cancelQueryDueToParent == true (=> shceduleOcclusionQuery == false) && childQueryCanceled == false	|	reevaluate cancelQueryDueToParent and propagate it as childQueryCanceled
-			shceduleOcclusionQuery == false && childQueryCanceled == true										|	propagate childQueryCanceled == true unconditionally
+			scheduleOcclusionQuery == true (=> cancelQueryDueToParent == false)									|	reevaluate scheduleOcclusionQuery if childQueryCanceled == false, otherwise keep scheduled unconditionally
+			cancelQueryDueToParent == true (=> scheduleOcclusionQuery == false) && childQueryCanceled == false	|	reevaluate cancelQueryDueToParent and propagate it as childQueryCanceled
+			scheduleOcclusionQuery == false && childQueryCanceled == true										|	propagate childQueryCanceled == true unconditionally
 			*/
-			if (shceduleOcclusionQuery || cancelQueryDueToParent && !childQueryCanceled)
+			if (scheduleOcclusionQuery || cancelQueryDueToParent && !childQueryCanceled)
 			{
 				const unsigned long int restTris = GetInclusiveTriCount() - childrenCulledTris;
 				bool queryNeeded = childQueryCanceled || OcclusionCulling::QueryBenefit<true>(aabbProjSquare, restTris);
@@ -405,8 +405,8 @@ namespace Renderer::Impl::Hierarchy
 					// reevaluate query benefit after excluding cheap objects during box collection
 					if (queryNeeded = childQueryCanceled || OcclusionCulling::QueryBenefit<true>(aabbProjSquare, restTris - exludedTris))
 					{
-						childQueryCanceled = cancelQueryDueToParent;	// propagate if 'cancelQueryDueToParent == true', reset to false otherwise (shceduleOcclusionQuery == true)
-						if (shceduleOcclusionQuery)
+						childQueryCanceled = cancelQueryDueToParent;	// propagate if 'cancelQueryDueToParent == true', reset to false otherwise (scheduleOcclusionQuery == true)
+						if (scheduleOcclusionQuery)
 						{
 							childrenCulledTris = GetInclusiveTriCount();	// ' - exludedTris' ?
 							const auto boxesEnd = remove(begin(boxes), end(boxes), nullptr);
@@ -466,7 +466,7 @@ namespace Renderer::Impl::Hierarchy
 					{
 						auto &childViewData = view.nodes[child->idx];
 
-						// reset 'culled' bit which can potetially be set in previous frame and not updated yet during Shcedule() due to early out
+						// reset 'culled' bit which can potetially be set in previous frame and not updated yet during Schedule() due to early out
 						reinterpret_cast<underlying_type_t<Visibility> &>(childViewData.visibility) &= 0b01;
 
 						// ensure Atomic visibility propagated for early out nodes
@@ -481,7 +481,7 @@ namespace Renderer::Impl::Hierarchy
 #if 0
 						if (viewData.visibility == Visibility::Atomic)
 #endif
-							childViewData.occlusionQueryGeometry = nullptr;	// need to set here because it may not be set in Shcedule() due to early out
+							childViewData.occlusionQueryGeometry = nullptr;	// need to set here because it may not be set in Schedule() due to early out
 					}
 
 					auto segmentEnd = next(segmentBegin, minBoxesPerNode);
@@ -625,9 +625,9 @@ namespace Renderer::Impl::Hierarchy
 
 	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>
 	template<bool enableEarlyOut, class Allocator>
-	inline void View<treeStructure, Object, CustomNodeData...>::Shcedule(Allocator &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(std::declval<Object>().GetAABB().Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform)
+	inline void View<treeStructure, Object, CustomNodeData...>::Schedule(Allocator &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(std::declval<Object>().GetAABB().Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform)
 	{
-		bvh->root->Shcedule<enableEarlyOut>(*this, GPU_AABB_allocator, frustumCuller, frustumXform, depthSortXform);
+		bvh->root->Schedule<enableEarlyOut>(*this, GPU_AABB_allocator, frustumCuller, frustumXform, depthSortXform);
 	}
 
 	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>

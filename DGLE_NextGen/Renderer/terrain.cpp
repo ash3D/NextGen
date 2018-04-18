@@ -254,9 +254,9 @@ TerrainVectorQuad::TerrainVectorQuad(shared_ptr<TerrainVectorLayer> &&layer, uns
 TerrainVectorQuad::~TerrainVectorQuad() = default;
 
 // 1 call site
-inline void TerrainVectorQuad::Shcedule(GPUStreamBuffer::Allocator<sizeof AABB<2>, AABB_VB_name> &GPU_AABB_allocator, const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform) const
+inline void TerrainVectorQuad::Schedule(GPUStreamBuffer::Allocator<sizeof AABB<2>, AABB_VB_name> &GPU_AABB_allocator, const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform) const
 {
-	subtreeView.Shcedule<true>(GPU_AABB_allocator, frustumCuller, frustumXform);
+	subtreeView.Schedule<true>(GPU_AABB_allocator, frustumCuller, frustumXform);
 }
 
 // 1 call site
@@ -863,11 +863,11 @@ auto Impl::TerrainVectorLayer::BuildRenderStage(const Impl::FrustumCuller<2> &fr
 	PIXScopedEvent(PIX_COLOR_INDEX(PIXEvents::TerrainBuildRenderStage), "terrain layer [%u] build render stage", layerIdx);
 	Setup(move(cullPassSetupCallback), move(mainPassSetupCallback));
 
-	// shcedule
+	// schedule
 	{
-		PIXScopedEvent(PIX_COLOR_INDEX(PIXEvents::TerrainShcedule), "shcedule");
+		PIXScopedEvent(PIX_COLOR_INDEX(PIXEvents::TerrainSchedule), "schedule");
 #if MULTITHREADED_QUADS_SHCEDULE == 0
-		for_each(quads.begin(), quads.end(), bind(&TerrainVectorQuad::Shcedule, _1, ref(*GPU_AABB_allocator), cref(frustumCuller), cref(frustumXform)));
+		for_each(quads.begin(), quads.end(), bind(&TerrainVectorQuad::Schedule, _1, ref(*GPU_AABB_allocator), cref(frustumCuller), cref(frustumXform)));
 #elif MULTITHREADED_QUADS_SHCEDULE == 1
 		static thread_local vector<future<void>> pendingAsyncs;
 		pendingAsyncs.clear();
@@ -876,7 +876,7 @@ auto Impl::TerrainVectorLayer::BuildRenderStage(const Impl::FrustumCuller<2> &fr
 		{
 			transform(quads.cbegin(), quads.cend(), back_inserter(pendingAsyncs), [&](decltype(quads)::const_reference quad)
 			{
-				return async(&TerrainVectorQuad::Shcedule, cref(quad), ref(*GPU_AABB_allocator), cref(frustumCuller), cref(frustumXform));
+				return async(&TerrainVectorQuad::Schedule, cref(quad), ref(*GPU_AABB_allocator), cref(frustumCuller), cref(frustumXform));
 			});
 			// wait for pending asyncs\
 					use 'get' instead of 'wait' in order to propagate exceptions (first only)
@@ -892,7 +892,7 @@ auto Impl::TerrainVectorLayer::BuildRenderStage(const Impl::FrustumCuller<2> &fr
 		}
 #elif MULTITHREADED_QUADS_SHCEDULE == 2
 		// exceptions would currently lead to terminate()
-		for_each(execution::par, quads.begin(), quads.end(), bind(&TerrainVectorQuad::Shcedule, _1, ref(*GPU_AABB_allocator), cref(frustumCuller), cref(frustumXform)));
+		for_each(execution::par, quads.begin(), quads.end(), bind(&TerrainVectorQuad::Schedule, _1, ref(*GPU_AABB_allocator), cref(frustumCuller), cref(frustumXform)));
 #else
 #error invalid MULTITHREADED_QUADS_SHCEDULE value
 #endif
@@ -916,12 +916,12 @@ auto Impl::TerrainVectorLayer::GetDebugDrawRenderStage() const -> RenderPipeline
 	return RenderPipeline::PipelineStage(in_place_type<RenderPipeline::RenderStage>, static_cast<const RenderPipeline::IRenderStage *>(this), static_cast<decltype(phaseSelector)>(&TerrainVectorLayer::GetVisiblePassRange));
 }
 
-void Impl::TerrainVectorLayer::ShceduleRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList2 *target)> cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> mainPassSetupCallback) const
+void Impl::TerrainVectorLayer::ScheduleRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList2 *target)> cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> mainPassSetupCallback) const
 {
 	GPUWorkSubmission::AppendPipelineStage<true>(&TerrainVectorLayer::BuildRenderStage, this, /*cref*/(frustumCuller), /*cref*/(frustumXform), move(cullPassSetupCallback), move(mainPassSetupCallback));
 }
 
-void Impl::TerrainVectorLayer::ShceduleDebugDrawRenderStage() const
+void Impl::TerrainVectorLayer::ScheduleDebugDrawRenderStage() const
 {
 	GPUWorkSubmission::AppendPipelineStage<false>(&TerrainVectorLayer::GetDebugDrawRenderStage, this);
 }
