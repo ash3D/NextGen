@@ -21,7 +21,6 @@ See "DGLE.h" for more details.
 #if !__INTELLISENSE__ 
 #include "vector math.h"
 #endif
-#include "../GPU stream buffer allocator.h"
 #include "../occlusion query batch.h"
 
 struct ID3D12Resource;
@@ -176,12 +175,12 @@ namespace Renderer::Impl::Hierarchy
 			template<typename ...Args, typename NodeHandler, typename ReorderProvider>
 			void Traverse(NodeHandler &nodeHandler, ReorderProvider reorderProvider, Args ...args);
 #if defined _MSC_VER && _MSC_VER <= 1913
-			template<bool enableEarlyOut, LPCWSTR resourceName>
-			std::pair<unsigned long int, bool> Shcedule(View &view, GPUStreamBuffer::CountedAllocatorWrapper<sizeof std::declval<Object>().GetAABB(), resourceName> &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
+			template<bool enableEarlyOut, class Allocator>
+			std::pair<unsigned long int, bool> Shcedule(View &view, Allocator &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
 				bool parentInsideFrustum = false, float parentOcclusionCulledProjLength = INFINITY, float parentOcclusion = 0);
 #else
 			template<bool enableEarlyOut, LPCWSTR resourceName>
-			std::pair<unsigned long int, bool> Shcedule(View &view, GPUStreamBuffer::CountedAllocatorWrapper<sizeof aabb, resourceName> &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
+			std::pair<unsigned long int, bool> Shcedule(View &view, Allocator &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
 				bool parentInsideFrustum = false, float parentOcclusionCulledProjLength = INFINITY, float parentOcclusion = 0);
 #endif
 			template<bool enableEarlyOut>
@@ -290,8 +289,8 @@ namespace Renderer::Impl::Hierarchy
 		void Traverse(F &nodeHandler, const Args &...args) const;
 
 	public:
-		template<bool enableEarlyOut, LPCWSTR resourceName>
-		void Shcedule(GPUStreamBuffer::CountedAllocatorWrapper<sizeof std::declval<Object>().GetAABB(), resourceName> &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(std::declval<Object>().GetAABB().Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform = nullptr);
+		template<bool enableEarlyOut, class Allocator>
+		void Shcedule(Allocator &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(std::declval<Object>().GetAABB().Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform = nullptr);
 		template<typename IssueOcclusion, typename IssueObjects>
 		void Issue(const IssueOcclusion &issueOcclusion, const IssueObjects &issueObjects, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &occlusionProvider) const;
 		void Reset();

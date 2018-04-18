@@ -266,12 +266,12 @@ namespace Renderer::Impl::Hierarchy
 
 	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>
 #if defined _MSC_VER && _MSC_VER <= 1913
-	template<bool enableEarlyOut, LPCWSTR resourceName>
-	std::pair<unsigned long int, bool> BVH<treeStructure, Object, CustomNodeData...>::Node::Shcedule(View &view, GPUStreamBuffer::CountedAllocatorWrapper<sizeof std::declval<Object>().GetAABB(), resourceName> &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
+	template<bool enableEarlyOut, class Allocator>
+	std::pair<unsigned long int, bool> BVH<treeStructure, Object, CustomNodeData...>::Node::Shcedule(View &view, Allocator &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
 		bool parentInsideFrustum, float parentOcclusionCulledProjLength, float parentOcclusion)
 #else
 	template<bool enableEarlyOut, LPCWSTR resourceName>
-	std::pair<unsigned long int, bool> BVH<treeStructure, Object, CustomNodeData...>::Node::Shcedule(View &view, GPUStreamBuffer::CountedAllocatorWrapper<sizeof aabb, resourceName> &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
+	std::pair<unsigned long int, bool> BVH<treeStructure, Object, CustomNodeData...>::Node::Shcedule(View &view, Allocator &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
 		bool parentInsideFrustum, float parentOcclusionCulledProjLength, float parentOcclusion)
 #endif
 	{
@@ -624,8 +624,8 @@ namespace Renderer::Impl::Hierarchy
 	}
 
 	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>
-	template<bool enableEarlyOut, LPCWSTR resourceName>
-	inline void View<treeStructure, Object, CustomNodeData...>::Shcedule(GPUStreamBuffer::CountedAllocatorWrapper<sizeof std::declval<Object>().GetAABB(), resourceName> &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(std::declval<Object>().GetAABB().Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform)
+	template<bool enableEarlyOut, class Allocator>
+	inline void View<treeStructure, Object, CustomNodeData...>::Shcedule(Allocator &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(std::declval<Object>().GetAABB().Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform)
 	{
 		bvh->root->Shcedule<enableEarlyOut>(*this, GPU_AABB_allocator, frustumCuller, frustumXform, depthSortXform);
 	}
