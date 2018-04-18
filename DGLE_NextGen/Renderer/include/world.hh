@@ -182,7 +182,7 @@ namespace Renderer
 
 		private:
 			void SetupCullPass(std::function<void (ID3D12GraphicsCommandList2 *target)> &&setupCallback) const;
-			void IssueOcclusion(decltype(std::declval<decltype(bvhView)::Node>().GetOcclusionQueryGeometry()) occlusionQueryGeometry, unsigned long int &counter) const;
+			void IssueOcclusion(decltype(bvhView)::Node::OcclusionQueryGeometry occlusionQueryGeometry, unsigned long int &counter) const;
 #pragma endregion
 
 #pragma region main passes
@@ -202,6 +202,7 @@ namespace Renderer
 		private:
 			void SetupMainPass(std::function<void (ID3D12GraphicsCommandList2 *target)> &&setupCallback) const;
 			void IssueObjects(const decltype(bvh)::Node &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion) const;
+			bool IssueNodeObjects(const decltype(bvh)::Node &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion,  decltype(OcclusionCulling::QueryBatchBase::npos), decltype(bvhView)::Node::Visibility visibility) const;
 #pragma endregion
 
 		private:
@@ -226,7 +227,6 @@ namespace Renderer
 
 		private:
 			void Setup(struct WorldViewContext &viewCtx, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, std::function<void (ID3D12GraphicsCommandList2 *target)> &&cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList2 *target)> &&mainPassSetupCallback) const, SetupOcclusionQueryBatch(unsigned long queryCount) const;
-			bool IssueNode(const decltype(bvh)::Node &bvhNode, const decltype(bvhView)::Node &viewNode, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &occlusionProvider, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &coarseOcclusion, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &fineOcclusion, decltype(viewNode.GetOcclusionCullDomain()) &cullWholeNodeOverriden, unsigned long int &boxCounter) const;
 
 		private:
 			static constexpr const WCHAR AABB_VB_name[] = L"3D objects occlusion query boxes", xformedAABB_SO_name[] = L"3D objects xformed occlusion query boxes";

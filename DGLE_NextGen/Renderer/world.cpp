@@ -353,7 +353,7 @@ inline void Impl::World::SetupCullPass(function<void(ID3D12GraphicsCommandList2*
 }
 
 // 1 call site
-void Impl::World::IssueOcclusion(decltype(declval<decltype(bvhView)::Node>().GetOcclusionQueryGeometry()) occlusionQueryGeometry, unsigned long int &counter) const
+void Impl::World::IssueOcclusion(decltype(bvhView)::Node::OcclusionQueryGeometry occlusionQueryGeometry, unsigned long int &counter) const
 {
 	queryStream.push_back({ occlusionQueryGeometry.VB, occlusionQueryGeometry.startIdx, counter, occlusionQueryGeometry.count });
 	counter += occlusionQueryGeometry.count;
@@ -399,6 +399,16 @@ inline void Impl::World::IssueObjects(const decltype(bvh)::Node &node, decltype(
 {
 	const auto range = node.GetExclusiveObjectsRange();
 	transform(range.first, range.second, back_inserter(renderStream), [occlusion](const Renderer::Instance *instance) noexcept -> decltype(renderStream)::value_type{ return { instance, occlusion }; });
+}
+
+bool Impl::World::IssueNodeObjects(const decltype(bvh)::Node &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion, decltype(OcclusionCulling::QueryBatchBase::npos), decltype(bvhView)::Node::Visibility visibility) const
+{
+	if (visibility != decltype(visibility)::Culled)
+	{
+		IssueObjects(node, occlusion);
+		return true;
+	}
+	return false;
 }
 #pragma endregion
 
@@ -624,26 +634,6 @@ inline void Impl::World::SetupOcclusionQueryBatch(unsigned long queryCount) cons
 	occlusionQueryBatch.Setup(queryCount);
 }
 
-bool Impl::World::IssueNode(const decltype(bvh)::Node &bvhNode, const decltype(bvhView)::Node &viewNode, remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &occlusionProvider, remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &coarseOcclusion, remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &fineOcclusion, decltype(viewNode.GetOcclusionCullDomain()) &occlusionCullDomainOverriden, unsigned long int &boxCounter) const
-{
-	if (const auto &occlusionQueryGeometry = viewNode.GetOcclusionQueryGeometry())
-	{
-		occlusionCullDomainOverriden = viewNode.GetOcclusionCullDomain();
-		IssueOcclusion(occlusionQueryGeometry, boxCounter);
-		fineOcclusion = ++occlusionProvider;
-	}
-	else if (fineOcclusion != OcclusionCulling::QueryBatchBase::npos)
-		viewNode.OverrideOcclusionCullDomain(occlusionCullDomainOverriden);
-	if (occlusionCullDomainOverriden == decltype(viewNode.GetOcclusionCullDomain())::WholeNode)
-		coarseOcclusion = fineOcclusion;
-	if (viewNode.GetVisibility(occlusionCullDomainOverriden) != decltype(viewNode.GetVisibility(occlusionCullDomainOverriden))::Culled)
-	{
-		IssueObjects(bvhNode, coarseOcclusion);
-		return true;
-	}
-	return false;
-}
-
 Impl::World::World(const float (&terrainXform)[4][3])
 {
 	memcpy(this->terrainXform, terrainXform, sizeof terrainXform);
@@ -799,8 +789,8 @@ auto Impl::World::BuildRenderStage(WorldViewContext &viewCtx, const HLSL::float4
 	{
 		using namespace placeholders;
 
-		auto issueNode = bind(&World::IssueNode, this, _1, _2, OcclusionCulling::QueryBatchBase::npos, _3, _4, _5, ref(AABBCount));
-		bvhView.Traverse(issueNode, OcclusionCulling::QueryBatchBase::npos, OcclusionCulling::QueryBatchBase::npos, decltype(declval<decltype(bvhView)::Node>().GetOcclusionCullDomain())::ChildrenOnly);
+		auto occlusionProvider = OcclusionCulling::QueryBatchBase::npos;
+		bvhView.Issue(bind(&World::IssueOcclusion, this, _1, ref(AABBCount)), bind(&World::IssueNodeObjects, this, _1, _2, _3, _4), occlusionProvider);
 	}
 
 	xformedAABBs = xformedAABBsStorage.Allocate(AABBCount * xformedAABBSize, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);

@@ -264,8 +264,7 @@ inline void TerrainVectorQuad::Issue(remove_const_t<decltype(OcclusionCulling::Q
 {
 	using namespace placeholders;
 
-	const auto issueNode = bind(&TerrainVectorLayer::IssueNode, layer.get(), _1, _2, ref(occlusionProvider), _3, _4, _5);
-	subtreeView.Traverse(issueNode, OcclusionCulling::QueryBatchBase::npos, OcclusionCulling::QueryBatchBase::npos, decltype(declval<decltype(subtreeView)::Node>().GetOcclusionCullDomain())::ChildrenOnly);
+	subtreeView.Issue(bind(&TerrainVectorLayer::IssueOcclusion, layer.get(), _1), bind(&TerrainVectorLayer::IssueNodeObjects, layer.get(), _1, _2, _3, _4), occlusionProvider);
 	layer->IssueQuad(VIB.Get(), VB_size, IB_size, IB32bit);
 }
 #pragma endregion
@@ -424,7 +423,7 @@ inline void Impl::TerrainVectorLayer::SetupCullPass(function<void (ID3D12Graphic
 }
 
 // 1 call site
-inline void Impl::TerrainVectorLayer::IssueOcclusion(decltype(declval<ViewNode>().GetOcclusionQueryGeometry()) occlusionQueryGeometry)
+inline void Impl::TerrainVectorLayer::IssueOcclusion(ViewNode::OcclusionQueryGeometry occlusionQueryGeometry)
 {
 	queryStream.push_back({ occlusionQueryGeometry.VB, occlusionQueryGeometry.startIdx, occlusionQueryGeometry.count });
 }
@@ -573,6 +572,51 @@ void Impl::TerrainVectorLayer::IssueCluster(unsigned long int startIdx, unsigned
 {
 	assert(triCount);
 	renderStream.push_back({ startIdx, triCount, occlusion, quadStram.size() });
+}
+
+// 1 call site
+inline void Impl::TerrainVectorLayer::IssueExclusiveObjects(const TreeNode &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion)
+{
+	if (node.GetExclusiveTriCount())
+		IssueCluster(node.startIdx, node.GetExclusiveTriCount(), occlusion);
+}
+
+// 1 call site
+inline void Impl::TerrainVectorLayer::IssueChildren(const TreeNode &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion)
+{
+	IssueCluster(node.startIdx + node.GetExclusiveTriCount() * 3, node.GetInclusiveTriCount() - node.GetExclusiveTriCount(), occlusion);
+}
+
+// 1 call site
+inline void Impl::TerrainVectorLayer::IssueWholeNode(const TreeNode &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion)
+{
+	IssueCluster(node.startIdx, node.GetInclusiveTriCount(), occlusion);
+}
+
+bool Impl::TerrainVectorLayer::IssueNodeObjects(const TreeNode &node, decltype(OcclusionCulling::QueryBatchBase::npos) coarseOcclusion,  decltype(OcclusionCulling::QueryBatchBase::npos) fineOcclusion, ViewNode::Visibility visibility)
+{
+	switch (visibility)
+	{
+	case ViewNode::Visibility::Composite:
+		IssueExclusiveObjects(node, coarseOcclusion);
+		return true;
+	case ViewNode::Visibility::Atomic:
+		if (coarseOcclusion == fineOcclusion)
+			IssueWholeNode(node, coarseOcclusion);
+		else
+		{
+			IssueExclusiveObjects(node, coarseOcclusion);
+			IssueChildren(node, fineOcclusion);
+		}
+		break;
+	}
+	return false;
+}
+
+// 1 call site
+inline void Impl::TerrainVectorLayer::IssueQuad(ID3D12Resource *VIB, unsigned long int VB_size, unsigned long int IB_size, bool IB32bit)
+{
+	quadStram.push_back({ renderStream.size(), VIB, VB_size, IB_size, IB32bit });
 }
 #pragma endregion
 
@@ -792,58 +836,6 @@ inline void Impl::TerrainVectorLayer::SetupOcclusionQueryBatch(unsigned long que
 			occlusionQueryBatch.emplace<false>();
 	}
 	visit([queryCount](auto &queryBatch) { queryBatch.Setup(queryCount); }, occlusionQueryBatch);
-}
-
-// 1 call site
-inline void Impl::TerrainVectorLayer::IssueQuad(ID3D12Resource *VIB, unsigned long int VB_size, unsigned long int IB_size, bool IB32bit)
-{
-	quadStram.push_back({ renderStream.size(), VIB, VB_size, IB_size, IB32bit });
-}
-
-bool Impl::TerrainVectorLayer::IssueNode(const TreeNode &treeNode, const ViewNode &viewNode, remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &occlusionProvider, remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &coarseOcclusion, remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &fineOcclusion, decltype(viewNode.GetOcclusionCullDomain()) &occlusionCullDomainOverriden)
-{
-	if (const auto &occlusionQueryGeometry = viewNode.GetOcclusionQueryGeometry())
-	{
-		occlusionCullDomainOverriden = viewNode.GetOcclusionCullDomain();
-		IssueOcclusion(occlusionQueryGeometry);
-		fineOcclusion = ++occlusionProvider;
-	}
-	else if (fineOcclusion != OcclusionCulling::QueryBatchBase::npos)
-		viewNode.OverrideOcclusionCullDomain(occlusionCullDomainOverriden);
-	if (occlusionCullDomainOverriden == decltype(viewNode.GetOcclusionCullDomain())::WholeNode)
-		coarseOcclusion = fineOcclusion;
-	switch (viewNode.GetVisibility(occlusionCullDomainOverriden))
-	{
-	case decltype(viewNode.GetVisibility(occlusionCullDomainOverriden))::Composite:
-		IssueExclusiveObjects(treeNode, coarseOcclusion);
-		return true;
-	case decltype(viewNode.GetVisibility(occlusionCullDomainOverriden))::Atomic:
-		if (coarseOcclusion == fineOcclusion)
-			IssueWholeNode(treeNode, coarseOcclusion);
-		else
-		{
-			IssueExclusiveObjects(treeNode, coarseOcclusion);
-			IssueChildren(treeNode, fineOcclusion);
-		}
-		break;
-	}
-	return false;
-}
-
-void Impl::TerrainVectorLayer::IssueExclusiveObjects(const TreeNode &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion)
-{
-	if (node.GetExclusiveTriCount())
-		IssueCluster(node.startIdx, node.GetExclusiveTriCount(), occlusion);
-}
-
-void Impl::TerrainVectorLayer::IssueChildren(const TreeNode &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion)
-{
-	IssueCluster(node.startIdx + node.GetExclusiveTriCount() * 3, node.GetInclusiveTriCount() - node.GetExclusiveTriCount(), occlusion);
-}
-
-void Impl::TerrainVectorLayer::IssueWholeNode(const TreeNode &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion)
-{
-	IssueCluster(node.startIdx, node.GetInclusiveTriCount(), occlusion);
 }
 
 void TerrainVectorLayer::QuadDeleter::operator()(const TerrainVectorQuad *quadToRemove) const

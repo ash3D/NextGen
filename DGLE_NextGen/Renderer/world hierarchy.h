@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		26.03.2018 (c)Korotkov Andrey
+\date		18.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -21,7 +21,8 @@ See "DGLE.h" for more details.
 #if !__INTELLISENSE__ 
 #include "vector math.h"
 #endif
-#include "GPU stream buffer allocator.h"
+#include "../GPU stream buffer allocator.h"
+#include "../occlusion query batch.h"
 
 struct ID3D12Resource;
 
@@ -222,21 +223,14 @@ namespace Renderer::Impl::Hierarchy
 			friend class View;
 			friend BVH;
 
-		private:
-			unsigned char childrenOrder[treeStructure];
+		public:
 			enum struct Visibility : unsigned char
 			{
 				Culled		= 0b10,	// completely culled by frustum
 				Atomic		= 0b01,	// all children (and possibly node's exclusive objects) has the same visibility
 				Composite	= 0b00,	// traverse for children required
-			} visibility{};	// need to init since it can be accessed in CollectOcclusionQueryBoxes()
-			enum struct OcclusionCullDomain : unsigned char
-			{
-				WholeNode		= 0b1111,
-				ChildrenOnly	= 0b0111,
-				ForceComposite	= 0b0010,
-			} occlusionCullDomain{};	// can be overriden by parent during tree traverse; need to init in order to eliminate possible UB due to uninit read in OverrideOcclusionCullDomain()
-			struct
+			};
+			struct OcclusionQueryGeometry
 			{
 				ID3D12Resource *VB;
 #if 0
@@ -248,18 +242,35 @@ namespace Renderer::Impl::Hierarchy
 			public:
 				operator bool() const noexcept { return VB; }
 				void operator =(std::nullptr_t src) noexcept { VB = src; }
-			} occlusionQueryGeometry;
+			};
+
+		private:
+			unsigned char childrenOrder[treeStructure];
+			Visibility visibility{};	// need to init since it can be accessed in CollectOcclusionQueryBoxes()
+			enum struct OcclusionCullDomain : unsigned char
+			{
+				WholeNode		= 0b1111,
+				ChildrenOnly	= 0b0111,
+				ForceComposite	= 0b0010,
+			} occlusionCullDomain{};	// can be overriden by parent during tree traverse; need to init in order to eliminate possible UB due to uninit read in OverrideOcclusionCullDomain()
+			OcclusionQueryGeometry occlusionQueryGeometry;
 
 		public:
 			Node();
 			Node(Node &&) = default;
 			Node &operator =(Node &&) = default;
 
-		public:
-			inline OcclusionCullDomain GetOcclusionCullDomain() const noexcept { return occlusionCullDomain; }
-			inline const auto &GetOcclusionQueryGeometry() const noexcept { return occlusionQueryGeometry; }
+		private:
 			Visibility GetVisibility(OcclusionCullDomain override) const noexcept;
 			void OverrideOcclusionCullDomain(OcclusionCullDomain &domain) const noexcept;
+
+		private:
+			template<typename IssueOcclusion, typename IssueObjects>
+			bool Issue(const typename BVH::Node &bvhNode, const IssueOcclusion &issueOcclusion, const IssueObjects &issueObjects,
+				std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &occlusionProvider,
+				std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &coarseOcclusion,
+				std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &fineOcclusion,
+				OcclusionCullDomain &occlusionCullDomainOverriden) const;
 		};
 
 	private:
@@ -274,11 +285,15 @@ namespace Renderer::Impl::Hierarchy
 		View(View &&) = default;
 		View &operator =(View &&) = default;
 
-	public:
+	private:
 		template<typename ...Args, typename F>
-		void Traverse(F &nodeHandler, const Args &...args);
+		void Traverse(F &nodeHandler, const Args &...args) const;
+
+	public:
 		template<bool enableEarlyOut, LPCWSTR resourceName>
 		void Shcedule(GPUStreamBuffer::CountedAllocatorWrapper<sizeof std::declval<Object>().GetAABB(), resourceName> &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(std::declval<Object>().GetAABB().Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform = nullptr);
+		template<typename IssueOcclusion, typename IssueObjects>
+		void Issue(const IssueOcclusion &issueOcclusion, const IssueObjects &issueObjects, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &occlusionProvider) const;
 		void Reset();
 	};
 }

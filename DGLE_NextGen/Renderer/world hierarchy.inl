@@ -582,13 +582,35 @@ namespace Renderer::Impl::Hierarchy
 	}
 
 	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>
+	template<typename IssueOcclusion, typename IssueObjects>
+	bool View<treeStructure, Object, CustomNodeData...>::Node::Issue(
+		const typename BVH::Node &bvhNode, const IssueOcclusion &issueOcclusion, const IssueObjects &issueObjects,
+		std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &occlusionProvider,
+		std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &coarseOcclusion,
+		std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &fineOcclusion,
+		OcclusionCullDomain &occlusionCullDomainOverriden) const
+	{
+		if (occlusionQueryGeometry)
+		{
+			occlusionCullDomainOverriden = occlusionCullDomain;
+			issueOcclusion(occlusionQueryGeometry);
+			fineOcclusion = ++occlusionProvider;
+		}
+		else if (fineOcclusion != OcclusionCulling::QueryBatchBase::npos)
+			OverrideOcclusionCullDomain(occlusionCullDomainOverriden);
+		if (occlusionCullDomainOverriden == OcclusionCullDomain::WholeNode)
+			coarseOcclusion = fineOcclusion;
+		return issueObjects(bvhNode, coarseOcclusion, fineOcclusion, GetVisibility(occlusionCullDomainOverriden));
+	}
+
+	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>
 	View<treeStructure, Object, CustomNodeData...>::View(const BVH &bvh) :
 		bvh(&bvh), nodes(std::make_unique<Node []>(bvh.nodeCount))
 	{}
 
 	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>
 	template<typename ...Args, typename F>
-	inline void View<treeStructure, Object, CustomNodeData...>::Traverse(F &nodeHandler, const Args &...args)
+	inline void View<treeStructure, Object, CustomNodeData...>::Traverse(F &nodeHandler, const Args &...args) const
 	{
 		const auto nodeHandlerWrapper = [&](const BVH::Node &bvhNode, Args &...args)
 		{
@@ -606,6 +628,17 @@ namespace Renderer::Impl::Hierarchy
 	inline void View<treeStructure, Object, CustomNodeData...>::Shcedule(GPUStreamBuffer::CountedAllocatorWrapper<sizeof std::declval<Object>().GetAABB(), resourceName> &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(std::declval<Object>().GetAABB().Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform)
 	{
 		bvh->root->Shcedule<enableEarlyOut>(*this, GPU_AABB_allocator, frustumCuller, frustumXform, depthSortXform);
+	}
+
+	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>
+	template<typename IssueOcclusion, typename IssueObjects>
+	inline void View<treeStructure, Object, CustomNodeData...>::Issue(const IssueOcclusion &issueOcclusion, const IssueObjects &issueObjects, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &occlusionProvider) const
+	{
+		using namespace std;
+		using namespace placeholders;
+
+		const auto issueNode = bind(&Node::Issue<IssueOcclusion, IssueObjects>, _2, _1, cref(issueOcclusion), cref(issueObjects), ref(occlusionProvider), _3, _4, _5);
+		Traverse(issueNode, OcclusionCulling::QueryBatchBase::npos, OcclusionCulling::QueryBatchBase::npos, Node::OcclusionCullDomain::ChildrenOnly);
 	}
 
 	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>

@@ -151,7 +151,7 @@ namespace Renderer
 
 		private:
 			void SetupCullPass(std::function<void (ID3D12GraphicsCommandList2 *target)> &&setupCallback) const;
-			void IssueOcclusion(decltype(std::declval<ViewNode>().GetOcclusionQueryGeometry()) occlusionQueryGeometry);
+			void IssueOcclusion(ViewNode::OcclusionQueryGeometry occlusionQueryGeometry);
 #pragma endregion
 
 #pragma region main pass
@@ -184,6 +184,11 @@ namespace Renderer
 		private:
 			void SetupMainPass(std::function<void (ID3D12GraphicsCommandList2 *target)> &&setupCallback) const;
 			void IssueCluster(unsigned long int startIdx, unsigned long int triCount, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion);
+			void IssueExclusiveObjects(const TreeNode &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion);
+			void IssueChildren(const TreeNode &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion);
+			void IssueWholeNode(const TreeNode &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion);
+			bool IssueNodeObjects(const TreeNode &node, decltype(OcclusionCulling::QueryBatchBase::npos) coarseOcclusion,  decltype(OcclusionCulling::QueryBatchBase::npos) fineOcclusion, ViewNode::Visibility visibility);
+			void IssueQuad(ID3D12Resource *VIB, unsigned long int VB_size, unsigned long int IB_size, bool IB32bit);
 #pragma endregion
 
 #pragma region visualize occlusion pass
@@ -216,13 +221,6 @@ namespace Renderer
 
 		private:
 			void Setup(std::function<void (ID3D12GraphicsCommandList2 *target)> &&cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList2 *target)> &&mainPassSetupCallback) const, SetupOcclusionQueryBatch(unsigned long queryCount) const;
-			void IssueQuad(ID3D12Resource *VIB, unsigned long int VB_size, unsigned long int IB_size, bool IB32bit);
-			bool IssueNode(const TreeNode &treeNode, const ViewNode &viewNode, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &occlusionProvider, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &coarseOcclusion, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &fineOcclusion, decltype(viewNode.GetOcclusionCullDomain()) &cullWholeNodeOverriden);
-
-		private:
-			void IssueExclusiveObjects(const TreeNode &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion);
-			void IssueChildren(const TreeNode &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion);
-			void IssueWholeNode(const TreeNode &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion);
 
 		private:
 			static std::optional<GPUStreamBuffer::Allocator<sizeof(AABB<2>), TerrainVectorQuad::AABB_VB_name>> GPU_AABB_allocator;
