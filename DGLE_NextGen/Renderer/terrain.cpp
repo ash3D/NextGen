@@ -381,7 +381,7 @@ void Impl::TerrainVectorLayer::CullPassRange(CmdListPool::CmdList &cmdList, unsi
 	cmdList->SetGraphicsRootConstantBufferView(0, World::globalGPUBuffer->GetGPUVirtualAddress() + World::PerFrameData::CurFrameCB_offset());
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
-	OcclusionCulling::QueryBatchBase &queryBatch = occlusionQueryBatch.index() ? static_cast<OcclusionCulling::QueryBatchBase &>(get<true>(occlusionQueryBatch)) : get<false>(occlusionQueryBatch);
+	const OcclusionCulling::QueryBatchBase &queryBatch = occlusionQueryBatch.index() ? static_cast<OcclusionCulling::QueryBatchBase &>(get<true>(occlusionQueryBatch)) : get<false>(occlusionQueryBatch);
 	ID3D12Resource *curVB = NULL;
 	do
 	{

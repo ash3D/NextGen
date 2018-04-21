@@ -56,7 +56,7 @@ ComPtr<ID3D12Resource> Impl::World::CreateGlobalGPUBuffer()
 	
 	// fill AABB vis colors and box IB
 	{
-		CD3DX12_RANGE range(PerFrameData::CB_size(), PerFrameData::CB_size());
+		CD3DX12_RANGE range(PerFrameData::CB_footprint(), PerFrameData::CB_footprint());
 		PerFrameData *CPU_ptr;
 		CheckHR(buffer->Map(0, &range, reinterpret_cast<void **>(&CPU_ptr)));
 		CPU_ptr += maxFrameLatency;
@@ -72,7 +72,7 @@ ComPtr<ID3D12Resource> Impl::World::CreateGlobalGPUBuffer()
 
 		*reinterpret_cast<remove_const_t<decltype(boxIB)> *>(++visColorsCPU_ptr) = boxIB;
 		
-		range.End += GlobalGPUBuffer::AABB_3D_VisColors::CB_size() + sizeof boxIB;
+		range.End += GlobalGPUBuffer::AABB_3D_VisColors::CB_footprint() + sizeof boxIB;
 		buffer->Unmap(0, &range);
 	}
 
@@ -347,7 +347,7 @@ void Impl::World::CullPassRange(CmdListPool::CmdList &cmdList, unsigned long ran
 		cmdList->IASetVertexBuffers(0, 1, &VB_view);
 	}
 
-	OcclusionCulling::QueryBatchBase &queryBatch = occlusionQueryBatch.index() ? static_cast<OcclusionCulling::QueryBatchBase &>(get<true>(occlusionQueryBatch)) : get<false>(occlusionQueryBatch);
+	const OcclusionCulling::QueryBatchBase &queryBatch = occlusionQueryBatch.index() ? static_cast<OcclusionCulling::QueryBatchBase &>(get<true>(occlusionQueryBatch)) : get<false>(occlusionQueryBatch);
 	do
 	{
 		const auto &queryData = queryStream[rangeBegin];
@@ -368,7 +368,7 @@ void Impl::World::CullPassRange(CmdListPool::CmdList &cmdList, unsigned long ran
 }
 
 // 1 call site
-inline void Impl::World::SetupCullPass(function<void(ID3D12GraphicsCommandList2*target)> &&setupCallback) const
+inline void Impl::World::SetupCullPass(function<void (ID3D12GraphicsCommandList2 *target)> &&setupCallback) const
 {
 	cullPassSetupCallback = move(setupCallback);
 	queryStream.clear();

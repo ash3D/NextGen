@@ -20,9 +20,9 @@ namespace Renderer::Impl::GlobalGPUBuffer
 		CBRegister::AlignedRow<3> culled, rendered[2]/*phase 1 - phase 2*/;
 
 	public:
-		static inline auto CB_offset(bool visible) noexcept { return World::PerFrameData::CB_size() + sizeof(AABB_3D_VisColors) * visible; }
-		static constexpr auto CB_size() noexcept { return sizeof(AABB_3D_VisColors [2]); }
+		static inline auto CB_offset(bool visible) noexcept { return World::PerFrameData::CB_footprint() + sizeof(AABB_3D_VisColors) * visible; }
+		static constexpr auto CB_footprint() noexcept { return sizeof(AABB_3D_VisColors [2]); }
 	};
 
-	static constexpr auto BoxIB_offset() { return World::PerFrameData::CB_size() + AABB_3D_VisColors::CB_size(); }
+	static constexpr auto BoxIB_offset() { return World::PerFrameData::CB_footprint() + AABB_3D_VisColors::CB_footprint(); }
 }
