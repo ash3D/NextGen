@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.04.2018 (c)Korotkov Andrey
+\date		21.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -9,7 +9,7 @@ See "DGLE.h" for more details.
 
 #include "stdafx.h"
 #include "terrain.hh"
-#include "world.hh"	// for perFrameCB
+#include "world.hh"	// for globalGPUBuffer
 #include "tracked resource.inl"
 #include "world hierarchy.inl"
 #include "GPU stream buffer allocator.inl"
@@ -378,7 +378,7 @@ void Impl::TerrainVectorLayer::CullPassRange(CmdListPool::CmdList &cmdList, unsi
 
 	cullPassSetupCallback(cmdList);
 	cmdList->SetGraphicsRootSignature(cullPassRootSig.Get());
-	cmdList->SetGraphicsRootConstantBufferView(0, World::perFrameCB->GetGPUVirtualAddress() + World::PerFrameData::CurFrameCB_offset());
+	cmdList->SetGraphicsRootConstantBufferView(0, World::globalGPUBuffer->GetGPUVirtualAddress() + World::PerFrameData::CurFrameCB_offset());
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
 	OcclusionCulling::QueryBatchBase &queryBatch = occlusionQueryBatch.index() ? static_cast<OcclusionCulling::QueryBatchBase &>(get<true>(occlusionQueryBatch)) : get<false>(occlusionQueryBatch);
@@ -408,10 +408,10 @@ void Impl::TerrainVectorLayer::CullPassRange(CmdListPool::CmdList &cmdList, unsi
 
 void Impl::TerrainVectorLayer::CullPassPost(ID3D12GraphicsCommandList2 *cmdList) const
 {
-	if (const auto preservingQueryBatch = get_if<true>(&occlusionQueryBatch))
+	if (const auto preservingQueryBatch = get_if<OcclusionCulling::QueryBatch<OcclusionCulling::PERSISTENT>>(&occlusionQueryBatch))
 		preservingQueryBatch->Resolve(cmdList/*, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE*/);
 	else
-		get<false>(occlusionQueryBatch).Resolve(cmdList);
+		get<OcclusionCulling::QueryBatch<OcclusionCulling::TRANSIENT>>(occlusionQueryBatch).Resolve(cmdList);
 	PIXEndEvent(cmdList);	// occlusion query pass
 }
 
@@ -515,7 +515,7 @@ void Impl::TerrainVectorLayer::MainPassRange(CmdListPool::CmdList &cmdList, unsi
 
 	mainPassSetupCallback(cmdList);
 	cmdList->SetGraphicsRootSignature(mainPassRootSig.Get());
-	cmdList->SetGraphicsRootConstantBufferView(0, World::perFrameCB->GetGPUVirtualAddress() + World::PerFrameData::CurFrameCB_offset());
+	cmdList->SetGraphicsRootConstantBufferView(0, World::globalGPUBuffer->GetGPUVirtualAddress() + World::PerFrameData::CurFrameCB_offset());
 	cmdList->SetGraphicsRoot32BitConstants(1, size(color), color, 0);
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -555,8 +555,8 @@ void Impl::TerrainVectorLayer::MainPassRange(CmdListPool::CmdList &cmdList, unsi
 
 void Impl::TerrainVectorLayer::MainPassPost(ID3D12GraphicsCommandList2 *cmdList) const
 {
-	if (const auto nonPreservingQueryBatch = get_if<false>(&occlusionQueryBatch))
-		nonPreservingQueryBatch->Finish(cmdList);
+	if (const auto transientQueryBatch = get_if<OcclusionCulling::QueryBatch<OcclusionCulling::TRANSIENT>>(&occlusionQueryBatch))
+		transientQueryBatch->Finish(cmdList);
 	PIXEndEvent(cmdList);	// main pass
 }
 
@@ -710,7 +710,7 @@ void Impl::TerrainVectorLayer::AABBPassRange(CmdListPool::CmdList &cmdList, unsi
 
 	mainPassSetupCallback(cmdList);
 	cmdList->SetGraphicsRootSignature(mainPassRootSig.Get());
-	cmdList->SetGraphicsRootConstantBufferView(0, World::perFrameCB->GetGPUVirtualAddress() + World::PerFrameData::CurFrameCB_offset());
+	cmdList->SetGraphicsRootConstantBufferView(0, World::globalGPUBuffer->GetGPUVirtualAddress() + World::PerFrameData::CurFrameCB_offset());
 	cmdList->SetGraphicsRoot32BitConstants(1, size(color), color, 0);
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
@@ -765,8 +765,8 @@ void Impl::TerrainVectorLayer::StagePost(CmdListPool::CmdList &cmdList) const
 
 void Impl::TerrainVectorLayer::Sync() const
 {
-	if (const auto nonPreservingQueryBatch = get_if<false>(&occlusionQueryBatch))
-		nonPreservingQueryBatch->Sync();
+	if (const auto transientQueryBatch = get_if<OcclusionCulling::QueryBatch<OcclusionCulling::TRANSIENT>>(&occlusionQueryBatch))
+		transientQueryBatch->Sync();
 }
 
 auto Impl::TerrainVectorLayer::GetStagePre(unsigned int &) const -> RenderPipeline::PipelineItem

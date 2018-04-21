@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.04.2018 (c)Korotkov Andrey
+\date		21.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -205,8 +205,8 @@ namespace Renderer
 			void CullPass2MainPass(CmdListPool::CmdList &target) const;
 
 		private:
-			// order is essential (false, then true), index based access used
-			mutable std::variant<OcclusionCulling::QueryBatch<false>, OcclusionCulling::QueryBatch<true>> occlusionQueryBatch;
+			// order is essential (TRANSIENT, then PERSISTENT), index based access used
+			mutable std::variant<OcclusionCulling::QueryBatch<OcclusionCulling::TRANSIENT>, OcclusionCulling::QueryBatch<OcclusionCulling::PERSISTENT>> occlusionQueryBatch;
 
 		private:
 			// Inherited via IRenderStage

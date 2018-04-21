@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.04.2018 (c)Korotkov Andrey
+\date		21.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -104,18 +104,15 @@ void QueryBatchBase::Stop(ID3D12GraphicsCommandList2 *cmdList, unsigned long que
 	cmdList->EndQuery(batchHeap, D3D12_QUERY_TYPE_BINARY_OCCLUSION, queryIdx);
 }
 
-void QueryBatchBase::Set(ID3D12GraphicsCommandList2 *cmdList, unsigned long queryIdx, ID3D12Resource *batchResults, bool visible) const
+void QueryBatchBase::Set(ID3D12GraphicsCommandList2 *cmdList, unsigned long queryIdx, ID3D12Resource *batchResults, bool visible, unsigned long offset) const
 {
 	assert(queryIdx == npos || queryIdx < count);
-	cmdList->SetPredication(queryIdx == npos ? NULL : batchResults, queryIdx == npos ? 0 : queryIdx * sizeof(UINT64), visible ? D3D12_PREDICATION_OP_EQUAL_ZERO : D3D12_PREDICATION_OP_NOT_EQUAL_ZERO);
+	cmdList->SetPredication(queryIdx == npos ? NULL : batchResults, queryIdx == npos ? 0 : queryIdx * sizeof(UINT64) + offset, visible ? D3D12_PREDICATION_OP_EQUAL_ZERO : D3D12_PREDICATION_OP_NOT_EQUAL_ZERO);
 }
 #pragma endregion
 
-#pragma region QueryBatch<false>
-QueryBatch<true>::QueryBatch(const std::string &name) : name(name) {}
-QueryBatch<true>::~QueryBatch() = default;
-
-void QueryBatch<false>::FinalSetup()
+#pragma region TRANSIENT
+void QueryBatch<TRANSIENT>::FinalSetup()
 {
 	// same approach for pool allocation as for query heap in QueryBatchBase
 	const unsigned long requiredSize = count * sizeof(UINT64);
@@ -166,7 +163,7 @@ void QueryBatch<false>::FinalSetup()
 }
 
 // not thread-safe, must be called sequentially in render stage order
-void QueryBatch<false>::Sync() const
+void QueryBatch<TRANSIENT>::Sync() const
 {
 	if (count)
 	{
@@ -182,7 +179,7 @@ void QueryBatch<false>::Sync() const
 	}
 }
 
-void QueryBatch<false>::Resolve(ID3D12GraphicsCommandList2 *cmdList, bool reuse) const
+void QueryBatch<TRANSIENT>::Resolve(ID3D12GraphicsCommandList2 *cmdList, bool reuse) const
 {
 	if (count)
 	{
@@ -196,15 +193,18 @@ void QueryBatch<false>::Resolve(ID3D12GraphicsCommandList2 *cmdList, bool reuse)
 	}
 }
 
-void QueryBatch<false>::Finish(ID3D12GraphicsCommandList2 *cmdList) const
+void QueryBatch<TRANSIENT>::Finish(ID3D12GraphicsCommandList2 *cmdList) const
 {
 	if (count)
 		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(batchResults, D3D12_RESOURCE_STATE_PREDICATION, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY));
 }
 #pragma endregion
 
-#pragma region QueryBatch<true>
-void QueryBatch<true>::FinalSetup()
+#pragma region PERSISTENT
+QueryBatch<PERSISTENT>::QueryBatch(const std::string &name) : name(name) {}
+QueryBatch<PERSISTENT>::~QueryBatch() = default;
+
+void QueryBatch<PERSISTENT>::FinalSetup()
 {
 	if (const unsigned long requiredSize = count * sizeof(UINT64); !batchResults || batchResults->GetDesc().Width < requiredSize)
 	{
@@ -235,7 +235,7 @@ void QueryBatch<true>::FinalSetup()
 	}
 }
 
-void QueryBatch<true>::Resolve(ID3D12GraphicsCommandList2 *cmdList, long int usage) const
+void QueryBatch<PERSISTENT>::Resolve(ID3D12GraphicsCommandList2 *cmdList, long int usage) const
 {
 	if (count)
 	{
@@ -245,8 +245,67 @@ void QueryBatch<true>::Resolve(ID3D12GraphicsCommandList2 *cmdList, long int usa
 	}
 }
 
-UINT64 QueryBatch<true>::GetGPUPtr() const
+UINT64 QueryBatch<PERSISTENT>::GetGPUPtr() const
 {
 	return batchResults->GetGPUVirtualAddress();
+}
+#pragma endregion
+
+#pragma region DUAL
+QueryBatch<DUAL>::QueryBatch(LPCWSTR name, long int firstUsage, long int secondUsage, unsigned alignment) :
+	name(name), usages{ D3D12_RESOURCE_STATE_PREDICATION | firstUsage, D3D12_RESOURCE_STATE_PREDICATION | secondUsage },
+	alignment(max<unsigned>(alignment, sizeof(UINT64)))	// max can be used here instead of lcm since alignment is forced to be power of 2
+{
+	assert(D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT % this->alignment == 0);
+}
+
+QueryBatch<DUAL>::~QueryBatch() = default;
+
+void QueryBatch<DUAL>::FinalSetup()
+{
+	if (const unsigned long moietySize = count * sizeof(UINT64), requiredSize = AlignSize(moietySize, alignment) + moietySize; !batchResults || batchResults->GetDesc().Width < requiredSize)
+	{
+		const CD3DX12_RESOURCE_DESC resultsDesc(
+			D3D12_RESOURCE_DIMENSION_BUFFER,
+			D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
+			requiredSize,
+			1,		// height
+			1,		// depth
+			1,		// mips
+			DXGI_FORMAT_UNKNOWN,
+			1, 0,	// MSAA
+			D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
+			D3D12_RESOURCE_FLAG_NONE);
+		CheckHR(device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			D3D12_HEAP_FLAG_NONE,
+			&resultsDesc,
+			D3D12_RESOURCE_STATE_COPY_DEST,
+			NULL,	// clear value
+			IID_PPV_ARGS(batchResults.ReleaseAndGetAddressOf())));
+		NameObjectF(batchResults.Get(), L"occlusion query results for %ls [%lu]", name, version++);
+	}
+}
+
+void QueryBatch<DUAL>::Resolve(ID3D12GraphicsCommandList2 *cmdList, bool second) const
+{
+	if (count)
+	{
+		// rely on implicit state transition on first resolve
+		if (second)
+			cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(batchResults.Get(), D3D12_RESOURCE_STATES(usages[0]), D3D12_RESOURCE_STATE_COPY_DEST));
+		cmdList->ResolveQueryData(batchHeap, D3D12_QUERY_TYPE_BINARY_OCCLUSION, 0, count, batchResults.Get(), Offset(second));
+		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(batchResults.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATES(usages[second])));
+	}
+}
+
+UINT64 QueryBatch<DUAL>::GetGPUPtr(bool second) const
+{
+	return batchResults->GetGPUVirtualAddress() + Offset(second);
+}
+
+unsigned long QueryBatch<DUAL>::Offset(bool second) const noexcept
+{
+	return AlignSize(count * sizeof(UINT64), alignment) * second;
 }
 #pragma endregion

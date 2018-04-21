@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.04.2018 (c)Korotkov Andrey
+\date		21.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -20,6 +20,7 @@ See "DGLE.h" for more details.
 #include <utility>	// for std::forward
 #include <functional>
 #include <optional>
+#include <variant>
 #include <wrl/client.h>
 #include "../tracked resource.h"
 #include "../AABB.h"
@@ -63,6 +64,12 @@ namespace Renderer
 		class Viewport;
 		class TerrainVectorLayer;
 
+		namespace GlobalGPUBuffer
+		{
+			struct AABB_3D_VisColors;
+			static constexpr auto BoxIB_offset();
+		}
+
 		using WRL::ComPtr;
 
 		class World : public std::enable_shared_from_this<Renderer::World>, RenderPipeline::IRenderStage
@@ -101,11 +108,11 @@ namespace Renderer
 
 		protected:
 			// hazard tracking is not needed here - all the waiting required perormed in globalFrameVersioning dtor
-			static ComPtr<ID3D12Resource> perFrameCB;
+			static ComPtr<ID3D12Resource> globalGPUBuffer;
 			struct PerFrameData;	// defined in "per-frame data.h" to eliminate dependencies on d3d12.h here
 
 		private:
-			static ComPtr<ID3D12Resource> TryCreatePerFrameCB(), CreatePerFrameCB();
+			static ComPtr<ID3D12Resource> TryCreateGlobalGPUBuffer(), CreateGlobalGPUBuffer();
 
 		private:
 			static volatile struct PerFrameData
@@ -197,7 +204,7 @@ namespace Renderer
 
 		private:
 			void MainPassPre(CmdListPool::CmdList &target) const, MainPassPost(CmdListPool::CmdList &target) const;
-			void MainPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd) const;
+			void MainPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, bool final) const;
 
 		private:
 			void SetupMainPass(std::function<void (ID3D12GraphicsCommandList2 *target)> &&setupCallback) const;
@@ -205,12 +212,22 @@ namespace Renderer
 			bool IssueNodeObjects(const decltype(bvh)::Node &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion,  decltype(OcclusionCulling::QueryBatchBase::npos), decltype(bvhView)::Node::Visibility visibility) const;
 #pragma endregion
 
+#pragma region visualize occlusion pass
+		private:
+			static ComPtr<ID3D12RootSignature> AABB_RootSig, TryCreateAABB_RootSig(), CreateAABB_RootSig();
+			static std::array<ComPtr<ID3D12PipelineState>, 2> AABB_PSOs, TryCreateAABB_PSOs(), CreateAABB_PSOs();
+
+		private:
+			void AABBPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, bool visible) const, AABBPassPost(CmdListPool::CmdList &target) const;
+#pragma endregion
+
 		private:
 			void StagePre(CmdListPool::CmdList &target) const, StagePost(CmdListPool::CmdList &target) const;
 			void XformAABBPass2CullPass(CmdListPool::CmdList &target) const, CullPass2MainPass(CmdListPool::CmdList &target, bool final) const, MainPass2CullPass(CmdListPool::CmdList &target) const;
 
 		private:
-			mutable OcclusionCulling::QueryBatch<false> occlusionQueryBatch;
+			// order is essential (TRANSIENT, then DUAL), index based access used
+			mutable std::variant<OcclusionCulling::QueryBatch<OcclusionCulling::TRANSIENT>, OcclusionCulling::QueryBatch<OcclusionCulling::DUAL>> occlusionQueryBatch;
 
 		private:
 			// Inherited via IRenderStage
@@ -223,7 +240,8 @@ namespace Renderer
 				GetFirstCullPassRange(unsigned int &length) const, GetSecondCullPassRange(unsigned int &length) const,
 				GetFirstMainPassRange(unsigned int &length) const, GetSecondMainPassRange(unsigned int &length) const,
 				GetXformAABBPass2FirstCullPass(unsigned int &length) const, GetFirstCullPass2FirstMainPass(unsigned int &length) const, GetFirstMainPass2SecondCullPass(unsigned int &length) const, GetSecondCullPass2SecondMainPass(unsigned int &length) const,
-				GetMainPassPre(unsigned int &length) const, GetMainPassRange(unsigned int &length) const, GetMainPassPost(unsigned int &length) const;
+				GetMainPassPre(unsigned int &length) const, GetMainPassRange(unsigned int &length) const, GetMainPassPost(unsigned int &length) const,
+				GetHiddenPassRange(unsigned int &length) const, GetVisiblePassRange(unsigned int &length) const, GetAABBPassPost(unsigned int &length) const;
 
 		private:
 			void Setup(struct WorldViewContext &viewCtx, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, std::function<void (ID3D12GraphicsCommandList2 *target)> &&cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList2 *target)> &&mainPassSetupCallback) const, SetupOcclusionQueryBatch(decltype(OcclusionCulling::QueryBatchBase::npos) maxOcclusion) const;
@@ -267,6 +285,7 @@ namespace Renderer
 
 		private:
 			RenderPipeline::RenderStage BuildRenderStage(struct WorldViewContext &viewCtx, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 &viewXform, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, std::function<void (ID3D12GraphicsCommandList2 *target)> &cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList2 *target)> &mainPassSetupCallback) const;
+			RenderPipeline::PipelineStage GetDebugDrawRenderStage() const;
 		};
 	}
 
@@ -276,6 +295,8 @@ namespace Renderer
 		friend class Impl::Viewport;
 		friend class Impl::TerrainVectorLayer;	// for Allocator
 		friend class TerrainVectorQuad;			// for Allocator
+		friend struct Impl::GlobalGPUBuffer::AABB_3D_VisColors;
+		friend static constexpr auto Impl::GlobalGPUBuffer::BoxIB_offset();
 
 #if defined _MSC_VER && _MSC_VER <= 1913
 	private:

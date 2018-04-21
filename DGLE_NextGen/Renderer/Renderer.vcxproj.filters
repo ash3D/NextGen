@@ -119,6 +119,9 @@
     <ClInclude Include="SO buffer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="global GPU buffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -199,6 +202,9 @@
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="AABB_3D.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="AABB_3D_vis.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>

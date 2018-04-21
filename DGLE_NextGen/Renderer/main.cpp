@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.04.2018 (c)Korotkov Andrey
+\date		21.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -189,6 +189,7 @@ ComPtr<ID3D12RootSignature>
 	TerrainVectorLayer::mainPassRootSig				= TerrainVectorLayer::TryCreateMainPassRootSig(),
 	World::xformAABB_RootSig						= World::TryCreateXformAABB_RootSig(),
 	World::cullPassRootSig							= World::TryCreateCullPassRootSig(),
+	World::AABB_RootSig								= World::TryCreateAABB_RootSig(),
 	Object3D::rootSig								= Object3D::TryCreateRootSig();
 ComPtr<ID3D12PipelineState>
 	TerrainVectorLayer::cullPassPSO					= TerrainVectorLayer::TryCreateCullPassPSO(),
@@ -196,6 +197,7 @@ ComPtr<ID3D12PipelineState>
 	TerrainVectorLayer::AABB_PSO					= TerrainVectorLayer::TryCreateAABB_PSO(),
 	World::xformAABB_PSO							= World::TryCreateXformAABB_PSO();
 decltype(World::cullPassPSOs) World::cullPassPSOs	= World::TryCreateCullPassPSOs();
+decltype(World::AABB_PSOs) World::AABB_PSOs			= World::TryCreateAABB_PSOs();
 decltype(Object3D::PSOs) Object3D::PSOs				= Object3D::TryCreatePSOs();
 
 #pragma region TryCreate...()
@@ -217,6 +219,11 @@ inline ComPtr<ID3D12RootSignature> World::TryCreateXformAABB_RootSig()
 inline ComPtr<ID3D12RootSignature> World::TryCreateCullPassRootSig()
 {
 	return device ? CreateCullPassRootSig() : nullptr;
+}
+
+inline ComPtr<ID3D12RootSignature> World::TryCreateAABB_RootSig()
+{
+	return device ? CreateAABB_RootSig() : nullptr;
 }
 
 inline ComPtr<ID3D12RootSignature> Object3D::TryCreateRootSig()
@@ -249,6 +256,11 @@ inline auto World::TryCreateCullPassPSOs() -> decltype(cullPassPSOs)
 	return device ? CreateCullPassPSOs() : decltype(cullPassPSOs)();
 }
 
+inline auto World::TryCreateAABB_PSOs() -> decltype(AABB_PSOs)
+{
+	return device ? CreateAABB_PSOs() : decltype(AABB_PSOs)();
+}
+
 inline auto Object3D::TryCreatePSOs() -> decltype(PSOs)
 {
 	return device ? CreatePSOs() : decltype(PSOs)();
@@ -258,17 +270,17 @@ inline auto Object3D::TryCreatePSOs() -> decltype(PSOs)
 
 // should be defined before globalFrameVersioning in order to be destroyed after waiting in globalFrameVersioning dtor completes
 using Renderer::Impl::World;
-ComPtr<ID3D12Resource> World::perFrameCB = World::TryCreatePerFrameCB();
+ComPtr<ID3D12Resource> World::globalGPUBuffer = World::TryCreateGlobalGPUBuffer();
 // define Try...() functions here to enable inline
-inline ComPtr<ID3D12Resource> World::TryCreatePerFrameCB()
+inline ComPtr<ID3D12Resource> World::TryCreateGlobalGPUBuffer()
 {
-	return device ? CreatePerFrameCB() : nullptr;
+	return device ? CreateGlobalGPUBuffer() : nullptr;
 }
 #if PERSISTENT_MAPS
 volatile World::PerFrameData *World::perFrameCB_CPU_ptr = World::TryMapPerFrameCB();
 inline volatile World::PerFrameData *World::TryMapPerFrameCB()
 {
-	return perFrameCB ? MapPerFrameCB(&CD3DX12_RANGE(0, 0)) : nullptr;
+	return globalGPUBuffer ? MapPerFrameCB(&CD3DX12_RANGE(0, 0)) : nullptr;
 }
 #endif
 
@@ -284,9 +296,11 @@ namespace Renderer::Impl
 }
 
 // tracked resource should be destroyed before globalFrameVersioning => should be defined after globalFrameVersioning
-using namespace Renderer::Impl::OcclusionCulling;
+namespace OcclusionCulling = Renderer::Impl::OcclusionCulling;
+using OcclusionCulling::QueryBatchBase;
+using OcclusionCulling::QueryBatch;
 decltype(QueryBatchBase::heapPool) QueryBatchBase::heapPool;
-decltype(QueryBatch<false>::resultsPool) QueryBatch<false>::resultsPool;
+decltype(QueryBatch<OcclusionCulling::TRANSIENT>::resultsPool) QueryBatch<OcclusionCulling::TRANSIENT>::resultsPool;
 
 // allocators contains tracked resource
 #if defined _MSC_VER && _MSC_VER <= 1913
@@ -317,11 +331,13 @@ extern void __cdecl InitRenderer()
 		TerrainVectorLayer::AABB_PSO		= TerrainVectorLayer::CreateAABB_PSO();
 		World::xformAABB_RootSig			= World::CreateXformAABB_RootSig();
 		World::cullPassRootSig				= World::CreateCullPassRootSig();
+		World::AABB_RootSig					= World::CreateAABB_RootSig();
 		World::xformAABB_PSO				= World::CreateXformAABB_PSO();
 		World::cullPassPSOs					= World::CreateCullPassPSOs();
+		World::AABB_PSOs					= World::CreateAABB_PSOs();
 		Object3D::rootSig					= Object3D::CreateRootSig();
 		Object3D::PSOs						= Object3D::CreatePSOs();
-		World::perFrameCB					= World::CreatePerFrameCB();
+		World::globalGPUBuffer				= World::CreateGlobalGPUBuffer();
 #if PERSISTENT_MAPS
 		World::perFrameCB_CPU_ptr = World::MapPerFrameCB();
 #endif
