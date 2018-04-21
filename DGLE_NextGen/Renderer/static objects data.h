@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		07.03.2018 (c)Korotkov Andrey
+\date		21.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -15,5 +15,5 @@ See "DGLE.h" for more details.
 
 struct alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) Renderer::Impl::World::StaticObjectData
 {
-	CBRegister::AlignedRow<3> worldform[4];
+	CBRegister::AlignedRow<3> worldXform[4];
 };

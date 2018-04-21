@@ -971,7 +971,7 @@ void Impl::World::FlushUpdates() const
 			auto CB_GPU_ptr = staticObjectsCB->GetGPUVirtualAddress();
 			for (auto &instance : staticObjects)
 			{
-				CopyMatrix2CB(instance.GetWorldXform(), mapped++->worldform);
+				CopyMatrix2CB(instance.GetWorldXform(), mapped++->worldXform);
 				instance.CB_GPU_ptr = CB_GPU_ptr;
 				CB_GPU_ptr += sizeof(StaticObjectData);
 			}
