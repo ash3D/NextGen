@@ -228,9 +228,9 @@ void QueryBatch<PERSISTENT>::FinalSetup()
 			IID_PPV_ARGS(batchResults.ReleaseAndGetAddressOf())));
 #ifdef _MSC_VER
 		wstring_convert<codecvt_utf8<WCHAR>> converter;
-		NameObjectF(batchResults.Get(), L"occlusion query results for %ls [%lu]", converter.from_bytes(name).c_str(), version++);
+		NameObjectF(batchResults.Get(), L"occlusion query results for %ls [%lu] (query batch %p)", converter.from_bytes(name).c_str(), version++, this);
 #else
-		NameObjectF(batchResults.Get(), L"occlusion query results for %s [%lu]", name.c_str(), version++);
+		NameObjectF(batchResults.Get(), L"occlusion query results for %s [%lu] (query batch %p)", name.c_str(), version++, this);
 #endif
 	}
 }
@@ -283,7 +283,7 @@ void QueryBatch<DUAL>::FinalSetup()
 			D3D12_RESOURCE_STATE_COPY_DEST,
 			NULL,	// clear value
 			IID_PPV_ARGS(batchResults.ReleaseAndGetAddressOf())));
-		NameObjectF(batchResults.Get(), L"occlusion query results for %ls [%lu]", name, version++);
+		NameObjectF(batchResults.Get(), L"occlusion query results for %ls [%lu] (query batch %p)", name, version++, this);
 	}
 }
 
