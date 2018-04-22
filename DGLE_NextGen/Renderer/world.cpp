@@ -654,7 +654,7 @@ void Impl::World::StagePost(CmdListPool::CmdList &cmdList) const
 	if (const auto transientQueryBatch = get_if<OcclusionCulling::QueryBatch<OcclusionCulling::TRANSIENT>>(&occlusionQueryBatch))
 		transientQueryBatch->Finish(cmdList);
 
-#if 0
+#if 1
 	const D3D12_RESOURCE_BARRIER barriers[] =
 	{
 		CD3DX12_RESOURCE_BARRIER::Transition(ZBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_COPY_SOURCE),
