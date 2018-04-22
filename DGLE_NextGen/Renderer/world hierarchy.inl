@@ -17,6 +17,14 @@ See "DGLE.h" for more details.
 // thread pool based MSVC's std::async implementation can lead to deadlocks during tree traverse, alternative technique needed
 #define MULTITHREADED_TREE_TRAVERSE 0
 
+/*
+	sorting by near AABB z needed for occlusion culling to work properly for nested objects
+	doing this results in somewhat unexpected results though
+	sorting by AABB center z is cheaper and behaves more predictable in some situations but it has it's own inconsistencies (probably due to node overlapping)
+	futher research needed
+*/
+#define SORT_AABB_NEAR_Z 1
+
 namespace Renderer::Impl::Hierarchy
 {
 	template<class AABB>
@@ -326,14 +334,19 @@ namespace Renderer::Impl::Hierarchy
 				// sort if necessary
 				if (depthSortXform)
 				{
-					// xform AABBs to view space
+					// xform AABB Z to view space
 					float viewSpaceZ[extent_v<decltype(children)>];
 					transform(cbegin(children), next(cbegin(children), childrenCount), viewSpaceZ, [depthSortXform](const remove_extent_t<decltype(children)> &child) -> float
 					{
+#if SORT_AABB_NEAR_Z
+
 						return TransformAABB(child->aabb, *depthSortXform).min.z;
+#else
+						return mul(child->aabb.Center(), *depthSortXform).z;
+#endif
 					});
 
-					// sort by near AABB z (needed for occlusion culling to work properly for nested objects)
+					// sort by view space Z
 					sort(begin(viewData.childrenOrder), next(begin(viewData.childrenOrder), childrenCount), [&viewSpaceZ](remove_extent_t<decltype(viewData.childrenOrder)> left, remove_extent_t<decltype(viewData.childrenOrder)> right) -> bool
 					{
 						return viewSpaceZ[left] < viewSpaceZ[right];
@@ -649,3 +662,4 @@ namespace Renderer::Impl::Hierarchy
 }
 
 #undef MULTITHREADED_TREE_TRAVERSE
+#undef SORT_AABB_NEAR_Z
