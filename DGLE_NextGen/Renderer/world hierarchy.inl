@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.04.2018 (c)Korotkov Andrey
+\date		22.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -327,16 +327,16 @@ namespace Renderer::Impl::Hierarchy
 				if (depthSortXform)
 				{
 					// xform AABBs to view space
-					AABB<3> viewSpaceAABBs[extent_v<decltype(children)>];
-					transform(cbegin(children), next(cbegin(children), childrenCount), viewSpaceAABBs, [depthSortXform](const remove_extent_t<decltype(children)> &child)
+					float viewSpaceZ[extent_v<decltype(children)>];
+					transform(cbegin(children), next(cbegin(children), childrenCount), viewSpaceZ, [depthSortXform](const remove_extent_t<decltype(children)> &child) -> float
 					{
-						return TransformAABB(child->aabb, *depthSortXform);
+						return TransformAABB(child->aabb, *depthSortXform).min.z;
 					});
 
 					// sort by near AABB z (needed for occlusion culling to work properly for nested objects)
-					sort(begin(viewData.childrenOrder), next(begin(viewData.childrenOrder), childrenCount), [&viewSpaceAABBs](remove_extent_t<decltype(viewData.childrenOrder)> left, remove_extent_t<decltype(viewData.childrenOrder)> right) -> bool
+					sort(begin(viewData.childrenOrder), next(begin(viewData.childrenOrder), childrenCount), [&viewSpaceZ](remove_extent_t<decltype(viewData.childrenOrder)> left, remove_extent_t<decltype(viewData.childrenOrder)> right) -> bool
 					{
-						return viewSpaceAABBs[left].min.z < viewSpaceAABBs[right].min.z;
+						return viewSpaceZ[left] < viewSpaceZ[right];
 					});
 				}
 
