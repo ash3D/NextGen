@@ -347,7 +347,7 @@ void Impl::World::CullPassRange(CmdListPool::CmdList &cmdList, unsigned long ran
 		cmdList->IASetVertexBuffers(0, 1, &VB_view);
 	}
 
-	const OcclusionCulling::QueryBatchBase &queryBatch = occlusionQueryBatch.index() ? static_cast<OcclusionCulling::QueryBatchBase &>(get<true>(occlusionQueryBatch)) : get<false>(occlusionQueryBatch);
+	const OcclusionCulling::QueryBatchBase &queryBatch = visit([](const auto &queryBatch) noexcept -> const OcclusionCulling::QueryBatchBase & { return queryBatch; }, occlusionQueryBatch);
 	do
 	{
 		const auto &queryData = queryStream[rangeBegin];
@@ -645,7 +645,7 @@ void Impl::World::CullPass2MainPass(CmdListPool::CmdList &cmdList, bool final) c
 	else
 		cmdList->ClearDepthStencilView({ dsv }, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, UINT8_MAX, 0, NULL);
 
-	visit([&cmdList, final](auto &queryBatch) { queryBatch.Resolve(cmdList, final); }, occlusionQueryBatch);
+	visit([&cmdList, final](const auto &queryBatch) { queryBatch.Resolve(cmdList, final); }, occlusionQueryBatch);
 }
 
 //void Impl::World::MainPass2CullPass(CmdListPool::CmdList &cmdList) const

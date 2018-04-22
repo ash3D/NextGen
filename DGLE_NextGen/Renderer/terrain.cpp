@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		21.04.2018 (c)Korotkov Andrey
+\date		22.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -381,7 +381,7 @@ void Impl::TerrainVectorLayer::CullPassRange(CmdListPool::CmdList &cmdList, unsi
 	cmdList->SetGraphicsRootConstantBufferView(0, World::globalGPUBuffer->GetGPUVirtualAddress() + World::PerFrameData::CurFrameCB_offset());
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
-	const OcclusionCulling::QueryBatchBase &queryBatch = occlusionQueryBatch.index() ? static_cast<OcclusionCulling::QueryBatchBase &>(get<true>(occlusionQueryBatch)) : get<false>(occlusionQueryBatch);
+	const OcclusionCulling::QueryBatchBase &queryBatch = visit([](const auto &queryBatch) noexcept -> const OcclusionCulling::QueryBatchBase & { return queryBatch; }, occlusionQueryBatch);
 	ID3D12Resource *curVB = NULL;
 	do
 	{
