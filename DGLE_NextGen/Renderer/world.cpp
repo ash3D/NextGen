@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		21.04.2018 (c)Korotkov Andrey
+\date		22.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -403,6 +403,9 @@ void Impl::World::MainPassRange(CmdListPool::CmdList &cmdList, unsigned long ran
 
 	for_each(next(renderStream.cbegin(), rangeBegin), next(renderStream.cbegin(), rangeEnd), [&, curOcclusionQueryIdx = OcclusionCulling::QueryBatchBase::npos, final](decltype(renderStream)::value_type renderData) mutable
 	{
+		// do not render unconditional occluders again on second pass
+		if (final && renderData.occlusion == OcclusionCulling::QueryBatchBase::npos)
+			return;
 		if (curOcclusionQueryIdx != renderData.occlusion)
 		{
 			curOcclusionQueryIdx = renderData.occlusion;
