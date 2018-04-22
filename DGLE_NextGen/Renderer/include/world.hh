@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		21.04.2018 (c)Korotkov Andrey
+\date		22.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -200,7 +200,7 @@ namespace Renderer
 				const Renderer::Instance *instance;
 				decltype(OcclusionCulling::QueryBatchBase::npos) occlusion;
 			};
-			mutable std::vector<RenderData> renderStream;
+			mutable std::vector<RenderData> renderStreams[2];
 
 		private:
 			void MainPassPre(CmdListPool::CmdList &target) const, MainPassPost(CmdListPool::CmdList &target) const;

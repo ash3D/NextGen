@@ -395,17 +395,16 @@ void Impl::World::MainPassRange(CmdListPool::CmdList &cmdList, unsigned long ran
 {
 	assert(rangeBegin < rangeEnd);
 
+	const auto &renderStream = renderStreams[final];
+
 	cmdList.Setup(renderStream[rangeBegin].instance->GetStartPSO().Get());
 
 	mainPassSetupCallback(cmdList);
 	cmdList->SetGraphicsRootSignature(decltype(staticObjects)::value_type::GetRootSignature().Get());
 	cmdList->SetGraphicsRootConstantBufferView(0, globalGPUBuffer->GetGPUVirtualAddress() + PerFrameData::CurFrameCB_offset());
 
-	for_each(next(renderStream.cbegin(), rangeBegin), next(renderStream.cbegin(), rangeEnd), [&, curOcclusionQueryIdx = OcclusionCulling::QueryBatchBase::npos, final](decltype(renderStream)::value_type renderData) mutable
+	for_each(next(renderStream.cbegin(), rangeBegin), next(renderStream.cbegin(), rangeEnd), [&, curOcclusionQueryIdx = OcclusionCulling::QueryBatchBase::npos, final](remove_reference_t<decltype(renderStream)>::value_type renderData) mutable
 	{
-		// do not render unconditional occluders again on second pass
-		if (final && renderData.occlusion == OcclusionCulling::QueryBatchBase::npos)
-			return;
 		if (curOcclusionQueryIdx != renderData.occlusion)
 		{
 			curOcclusionQueryIdx = renderData.occlusion;
@@ -422,14 +421,22 @@ void Impl::World::MainPassRange(CmdListPool::CmdList &cmdList, unsigned long ran
 inline void Impl::World::SetupMainPass(function<void (ID3D12GraphicsCommandList2 *target)> &&setupCallback) const
 {
 	mainPassSetupCallback = move(setupCallback);
-	renderStream.clear();
+	for (auto &stream : renderStreams) stream.clear();
 }
 
 // 1 call site
 inline void Impl::World::IssueObjects(const decltype(bvh)::Node &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion) const
 {
-	const auto range = node.GetExclusiveObjectsRange();
-	transform(range.first, range.second, back_inserter(renderStream), [occlusion](const Renderer::Instance *instance) noexcept -> decltype(renderStream)::value_type{ return { instance, occlusion }; });
+	const auto issue2stream = [range = node.GetExclusiveObjectsRange(), occlusion](remove_extent_t<decltype(renderStreams)> &renderStream)
+	{
+		transform(range.first, range.second, back_inserter(renderStream), [occlusion](const Renderer::Instance *instance) noexcept -> remove_reference_t<decltype(renderStream)>::value_type { return { instance, occlusion }; });
+	};
+
+	issue2stream(renderStreams[0]);
+	
+	// do not render unconditional occluders again on second pass
+	if (occlusion != OcclusionCulling::QueryBatchBase::npos)
+		issue2stream(renderStreams[1]);
 }
 
 bool Impl::World::IssueNodeObjects(const decltype(bvh)::Node &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion, decltype(OcclusionCulling::QueryBatchBase::npos), decltype(bvhView)::Node::Visibility visibility) const
@@ -738,7 +745,7 @@ auto Impl::World::GetFirstCullPass2FirstMainPass(unsigned int &) const -> Render
 auto Impl::World::GetFirstMainPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, renderStream.size(), [] { phaseSelector = static_cast<decltype(phaseSelector)>(&World::/*GetFirstMainPass2SecondCullPass*/GetSecondCullPassRange); },
+	return IterateRenderPass(length, renderStreams[0].size(), [] { phaseSelector = static_cast<decltype(phaseSelector)>(&World::/*GetFirstMainPass2SecondCullPass*/GetSecondCullPassRange); },
 		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&World::MainPassRange, this, _1, rangeBegin, rangeEnd, false); });
 }
 
@@ -766,7 +773,7 @@ auto Impl::World::GetSecondCullPass2SecondMainPass(unsigned int &) const -> Rend
 auto Impl::World::GetSecondMainPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, renderStream.size(), [] { phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetStagePost); },
+	return IterateRenderPass(length, renderStreams[1].size(), [] { phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetStagePost); },
 		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&World::MainPassRange, this, _1, rangeBegin, rangeEnd, true); });
 }
 
