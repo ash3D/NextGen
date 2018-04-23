@@ -33,7 +33,11 @@ struct Renderer::Impl::World::GlobalGPUBufferData
 		static inline auto CB_offset(bool visible) noexcept { return offsetof(GlobalGPUBufferData, aabbVisColorsCB) + visible * sizeof(AABB_3D_VisColors); }
 	} aabbVisColorsCB[2]/*hidden - visible*/;
 
-	// LH, CW
+	/*
+	LH-CW or RH-CCW
+	!: handedness is currently hardcoded
+	consider determining it dynamically based on transform determinant and select either appropriate IB or 'cull mode / front CCW' in PSOs
+	*/
 	static constexpr uint16_t boxIBInitData[14] = { 2, 3, 0, 1, 5, 3, 7, 2, 6, 0, 4, 5, 6, 7 };
 	std::remove_const_t<decltype(boxIBInitData)> boxIB;
 

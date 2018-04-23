@@ -193,6 +193,25 @@ auto Impl::World::CreateCullPassPSOs() -> decltype(cullPassPSOs)
 		}
 	};
 
+	const CD3DX12_RASTERIZER_DESC rasterDesc
+	(
+		D3D12_FILL_MODE_SOLID,
+#if 0
+		D3D12_CULL_MODE_BACK,
+#else
+		D3D12_CULL_MODE_NONE,
+#endif
+		TRUE,										// front CCW
+		D3D12_DEFAULT_DEPTH_BIAS,
+		D3D12_DEFAULT_DEPTH_BIAS_CLAMP,
+		D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
+		TRUE,										// depth clip
+		FALSE,										// MSAA
+		TRUE,										// AA line
+		0,											// force sample count
+		D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF
+	);
+
 	const CD3DX12_DEPTH_STENCIL_DESC dsDescs[2] =
 	{
 		CD3DX12_DEPTH_STENCIL_DESC
@@ -238,24 +257,7 @@ auto Impl::World::CreateCullPassPSOs() -> decltype(cullPassPSOs)
 		{},																// SO
 		blendDesc,														// blend
 		UINT_MAX,														// sample mask
-#if 0
-		CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),							// rasterizer
-#else
-		CD3DX12_RASTERIZER_DESC
-		(
-			D3D12_FILL_MODE_SOLID,
-			D3D12_CULL_MODE_NONE,
-			FALSE,										// front CCW
-			D3D12_DEFAULT_DEPTH_BIAS,
-			D3D12_DEFAULT_DEPTH_BIAS_CLAMP,
-			D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
-			TRUE,										// depth clip
-			FALSE,										// MSAA
-			FALSE,										// AA line
-			0,											// force sample count
-			D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF
-		),																// rasterizer
-#endif
+		rasterDesc,														// rasterizer
 		dsDescs[0],														// depth stencil
 		{ VB_decl, size(VB_decl) },										// IA
 		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,					// restart primtive
@@ -466,7 +468,7 @@ auto Impl::World::CreateAABB_PSOs() -> decltype(AABB_PSOs)
 #else
 		D3D12_CULL_MODE_NONE,
 #endif
-		FALSE,										// front CCW
+		TRUE,										// front CCW
 		D3D12_DEFAULT_DEPTH_BIAS,
 		D3D12_DEFAULT_DEPTH_BIAS_CLAMP,
 		D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
