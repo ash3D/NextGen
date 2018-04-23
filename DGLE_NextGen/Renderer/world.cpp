@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.04.2018 (c)Korotkov Andrey
+\date		23.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -21,8 +21,7 @@ See "DGLE.h" for more details.
 #include "occlusion query shceduling.h"
 #include "occlusion query visualization.h"
 #include "frame versioning.h"
-#include "global GPU buffer.h"
-#include "per-frame data.h"
+#include "global GPU buffer data.h"
 #include "static objects data.h"
 #include "GPU work submission.h"
 
@@ -39,49 +38,44 @@ extern ComPtr<ID3D12Device2> device;
 void NameObject(ID3D12Object *object, LPCWSTR name) noexcept, NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
 ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC &desc, LPCWSTR name);
 
-// LH, CW
-static constexpr array<uint16_t, 14> boxIB = { 2, 3, 0, 1, 5, 3, 7, 2, 6, 0, 4, 5, 6, 7 };
-
 ComPtr<ID3D12Resource> Impl::World::CreateGlobalGPUBuffer()
 {
 	ComPtr<ID3D12Resource> buffer;
 	CheckHR(device->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(GlobalGPUBuffer::BoxIB_offset() + sizeof boxIB/*, D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE*/),
+		&CD3DX12_RESOURCE_DESC::Buffer(sizeof(GlobalGPUBufferData)/*, D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE*/),
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		NULL,	// clear value
 		IID_PPV_ARGS(buffer.GetAddressOf())));
-	NameObject(buffer.Get(), L"per-frame CB + box IB");
+	NameObject(buffer.Get(), L"global GPU buffer");
 	
 	// fill AABB vis colors and box IB
 	{
-		CD3DX12_RANGE range(PerFrameData::CB_footprint(), PerFrameData::CB_footprint());
-		PerFrameData *CPU_ptr;
-		CheckHR(buffer->Map(0, &range, reinterpret_cast<void **>(&CPU_ptr)));
-		CPU_ptr += maxFrameLatency;
+		CD3DX12_RANGE range(offsetof(GlobalGPUBufferData, aabbVisColorsCB), offsetof(GlobalGPUBufferData, aabbVisColorsCB));
+		volatile GlobalGPUBufferData *CPU_ptr;
+		CheckHR(buffer->Map(0, &range, const_cast<void **>(reinterpret_cast<volatile void **>(&CPU_ptr))));
 
-		auto &visColorsCPU_ptr = reinterpret_cast<GlobalGPUBuffer::AABB_3D_VisColors *&>(CPU_ptr);
-		visColorsCPU_ptr->culled = OcclusionCulling::DebugColors::Object3D::culled;
-		visColorsCPU_ptr->rendered[0] = OcclusionCulling::DebugColors::Object3D::hidden[0];
-		visColorsCPU_ptr->rendered[1] = OcclusionCulling::DebugColors::Object3D::hidden[1];
-		visColorsCPU_ptr++;
-		visColorsCPU_ptr->culled = OcclusionCulling::DebugColors::Object3D::culled;
-		visColorsCPU_ptr->rendered[0] = OcclusionCulling::DebugColors::Object3D::visible[0];
-		visColorsCPU_ptr->rendered[1] = OcclusionCulling::DebugColors::Object3D::visible[1];
+		namespace Colors = OcclusionCulling::DebugColors::Object3D;
+		CPU_ptr->aabbVisColorsCB[false].culled		= Colors::culled;
+		CPU_ptr->aabbVisColorsCB[false].rendered[0]	= Colors::hidden[0];
+		CPU_ptr->aabbVisColorsCB[false].rendered[1]	= Colors::hidden[1];
+		CPU_ptr->aabbVisColorsCB[true].culled		= Colors::culled;
+		CPU_ptr->aabbVisColorsCB[true].rendered[0]	= Colors::visible[0];
+		CPU_ptr->aabbVisColorsCB[true].rendered[1]	= Colors::visible[1];
 
-		*reinterpret_cast<remove_const_t<decltype(boxIB)> *>(++visColorsCPU_ptr) = boxIB;
+		memcpy(const_cast<remove_volatile_t<decltype(CPU_ptr->boxIB)> &>(CPU_ptr->boxIB), CPU_ptr->boxIBInitData, sizeof CPU_ptr->boxIB);
 		
-		range.End += GlobalGPUBuffer::AABB_3D_VisColors::CB_footprint() + sizeof boxIB;
+		range.End += sizeof CPU_ptr->aabbVisColorsCB + sizeof CPU_ptr->boxIB;
 		buffer->Unmap(0, &range);
 	}
 
 	return move(buffer);
 }
 
-auto Impl::World::MapPerFrameCB(const D3D12_RANGE *readRange) -> volatile PerFrameData *
+auto Impl::World::MapGlobalGPUBuffer(const D3D12_RANGE *readRange) -> volatile GlobalGPUBufferData *
 {
-	volatile PerFrameData *CPU_ptr;
+	volatile GlobalGPUBufferData *CPU_ptr;
 	CheckHR(globalGPUBuffer->Map(0, readRange, const_cast<void **>(reinterpret_cast<volatile void **>(&CPU_ptr))));
 	return CPU_ptr;
 }
@@ -292,7 +286,7 @@ void Impl::World::XformAABBPassRange(CmdListPool::CmdList &cmdList, unsigned lon
 	cmdList.Setup(xformAABB_PSO.Get());
 
 	cmdList->SetGraphicsRootSignature(xformAABB_RootSig.Get());
-	cmdList->SetGraphicsRootConstantBufferView(0, globalGPUBuffer->GetGPUVirtualAddress() + PerFrameData::CurFrameCB_offset());
+	cmdList->SetGraphicsRootConstantBufferView(0, globalGPUBuffer->GetGPUVirtualAddress() + GlobalGPUBufferData::PerFrameData::CurFrameCB_offset());
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
 
 	// set SO
@@ -333,8 +327,8 @@ void Impl::World::CullPassRange(CmdListPool::CmdList &cmdList, unsigned long ran
 	{
 		const D3D12_INDEX_BUFFER_VIEW IB_view =
 		{
-			globalGPUBuffer->GetGPUVirtualAddress() + GlobalGPUBuffer::BoxIB_offset(),
-			sizeof boxIB,
+			globalGPUBuffer->GetGPUVirtualAddress() + GlobalGPUBufferData::BoxIB_offset(),
+			sizeof GlobalGPUBufferData::boxIB,
 			DXGI_FORMAT_R16_UINT
 		};
 		const D3D12_VERTEX_BUFFER_VIEW VB_view =
@@ -401,7 +395,7 @@ void Impl::World::MainPassRange(CmdListPool::CmdList &cmdList, unsigned long ran
 
 	mainPassSetupCallback(cmdList);
 	cmdList->SetGraphicsRootSignature(decltype(staticObjects)::value_type::GetRootSignature().Get());
-	cmdList->SetGraphicsRootConstantBufferView(0, globalGPUBuffer->GetGPUVirtualAddress() + PerFrameData::CurFrameCB_offset());
+	cmdList->SetGraphicsRootConstantBufferView(0, globalGPUBuffer->GetGPUVirtualAddress() + GlobalGPUBufferData::PerFrameData::CurFrameCB_offset());
 
 	for_each(next(renderStream.cbegin(), rangeBegin), next(renderStream.cbegin(), rangeEnd), [&, curOcclusionQueryIdx = OcclusionCulling::QueryBatchBase::npos, final](remove_reference_t<decltype(renderStream)>::value_type renderData) mutable
 	{
@@ -550,7 +544,7 @@ void Impl::World::AABBPassRange(CmdListPool::CmdList &cmdList, unsigned long ran
 
 	mainPassSetupCallback(cmdList);
 	cmdList->SetGraphicsRootSignature(AABB_RootSig.Get());
-	cmdList->SetGraphicsRootConstantBufferView(0, World::globalGPUBuffer->GetGPUVirtualAddress() + GlobalGPUBuffer::AABB_3D_VisColors::CB_offset(visible));
+	cmdList->SetGraphicsRootConstantBufferView(0, World::globalGPUBuffer->GetGPUVirtualAddress() + GlobalGPUBufferData::AABB_3D_VisColors::CB_offset(visible));
 	cmdList->SetGraphicsRootShaderResourceView(1, queryBatch.GetGPUPtr(false));
 	cmdList->SetGraphicsRootShaderResourceView(2, queryBatch.GetGPUPtr(true));
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
@@ -559,8 +553,8 @@ void Impl::World::AABBPassRange(CmdListPool::CmdList &cmdList, unsigned long ran
 	{
 		const D3D12_INDEX_BUFFER_VIEW IB_view =
 		{
-			globalGPUBuffer->GetGPUVirtualAddress() + GlobalGPUBuffer::BoxIB_offset(),
-			sizeof boxIB,
+			globalGPUBuffer->GetGPUVirtualAddress() + GlobalGPUBufferData::BoxIB_offset(),
+			sizeof GlobalGPUBufferData::boxIB,
 			DXGI_FORMAT_R16_UINT
 		};
 		const D3D12_VERTEX_BUFFER_VIEW VB_view =
@@ -875,16 +869,16 @@ void Impl::World::Render(WorldViewContext &viewCtx, const float (&viewXform)[4][
 	// update per-frame CB
 	{
 #if !PERSISTENT_MAPS
-		const auto curFrameCB_offset = PerFrameData::CurFrameCB_offset();
+		const auto curFrameCB_offset = GlobalGPUBufferData::PerFrameData::CurFrameCB_offset();
 		CD3DX12_RANGE range(curFrameCB_offset, curFrameCB_offset);
-		volatile PerFrameData *const perFrameCB_CPU_ptr = MapPerFrameCB(&range);
+		volatile GlobalGPUBufferData *const globalGPUBuffer_CPU_ptr = MapGlobalGPUBuffer(&range);
 #endif
-		auto &curFrameCB_region = perFrameCB_CPU_ptr[globalFrameVersioning->GetContinuousRingIdx()];
+		auto &curFrameCB_region = globalGPUBuffer_CPU_ptr->perFrameDataCB[globalFrameVersioning->GetContinuousRingIdx()];
 		CopyMatrix2CB(projXform, curFrameCB_region.projXform);
 		CopyMatrix2CB(viewXform, curFrameCB_region.viewXform);
 		CopyMatrix2CB(terrainXform, curFrameCB_region.terrainXform);
 #if !PERSISTENT_MAPS
-		range.End += sizeof(PerFrameData);
+		range.End += sizeof(GlobalGPUBufferData::PerFrameData);
 		globalGPUBuffer->Unmap(0, &range);
 #endif
 	}

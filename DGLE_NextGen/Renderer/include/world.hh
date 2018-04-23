@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.04.2018 (c)Korotkov Andrey
+\date		23.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -64,12 +64,6 @@ namespace Renderer
 		class Viewport;
 		class TerrainVectorLayer;
 
-		namespace GlobalGPUBuffer
-		{
-			struct AABB_3D_VisColors;
-			static constexpr auto BoxIB_offset();
-		}
-
 		using WRL::ComPtr;
 
 		class World : public std::enable_shared_from_this<Renderer::World>, RenderPipeline::IRenderStage
@@ -109,17 +103,17 @@ namespace Renderer
 		protected:
 			// hazard tracking is not needed here - all the waiting required perormed in globalFrameVersioning dtor
 			static ComPtr<ID3D12Resource> globalGPUBuffer;
-			struct PerFrameData;	// defined in "per-frame data.h" to eliminate dependencies on d3d12.h here
+			struct GlobalGPUBufferData;	// defined in "global GPU buffer data.h" to eliminate dependencies on d3d12.h here
 
 		private:
 			static ComPtr<ID3D12Resource> TryCreateGlobalGPUBuffer(), CreateGlobalGPUBuffer();
 
 		private:
-			static volatile struct PerFrameData
+			static volatile struct GlobalGPUBufferData
 #if PERSISTENT_MAPS
-				*perFrameCB_CPU_ptr, *TryMapPerFrameCB(),
+				*globalGPUBuffer_CPU_ptr, *TryMapGlobalGPUBuffer(),
 #endif
-				*MapPerFrameCB(const D3D12_RANGE *readRange = NULL);
+				*MapGlobalGPUBuffer(const D3D12_RANGE *readRange = NULL);
 
 		private:
 			// terrain
@@ -295,8 +289,6 @@ namespace Renderer
 		friend class Impl::Viewport;
 		friend class Impl::TerrainVectorLayer;	// for Allocator
 		friend class TerrainVectorQuad;			// for Allocator
-		friend struct Impl::GlobalGPUBuffer::AABB_3D_VisColors;
-		friend static constexpr auto Impl::GlobalGPUBuffer::BoxIB_offset();
 
 #if defined _MSC_VER && _MSC_VER <= 1913
 	private:

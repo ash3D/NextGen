@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		21.04.2018 (c)Korotkov Andrey
+\date		23.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -277,10 +277,10 @@ inline ComPtr<ID3D12Resource> World::TryCreateGlobalGPUBuffer()
 	return device ? CreateGlobalGPUBuffer() : nullptr;
 }
 #if PERSISTENT_MAPS
-volatile World::PerFrameData *World::perFrameCB_CPU_ptr = World::TryMapPerFrameCB();
-inline volatile World::PerFrameData *World::TryMapPerFrameCB()
+volatile World::PerFrameData *World::globalGPUBuffer_CPU_ptr = World::TryMapGlobalGPUBuffer();
+inline volatile World::PerFrameData *World::TryMapGlobalGPUBuffer()
 {
-	return globalGPUBuffer ? MapPerFrameCB(&CD3DX12_RANGE(0, 0)) : nullptr;
+	return globalGPUBuffer ? MapGlobalGPUBuffer(&CD3DX12_RANGE(0, 0)) : nullptr;
 }
 #endif
 
@@ -339,7 +339,7 @@ extern void __cdecl InitRenderer()
 		Object3D::PSOs						= Object3D::CreatePSOs();
 		World::globalGPUBuffer				= World::CreateGlobalGPUBuffer();
 #if PERSISTENT_MAPS
-		World::perFrameCB_CPU_ptr = World::MapPerFrameCB();
+		World::globalGPUBuffer_CPU_ptr = World::MapGlobalGPUBuffer();
 #endif
 		globalFrameVersioning.emplace();
 		TerrainVectorLayer::GPU_AABB_allocator.emplace();

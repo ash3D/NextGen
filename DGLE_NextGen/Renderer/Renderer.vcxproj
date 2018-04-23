@@ -213,7 +213,7 @@
     <ClInclude Include="cmdlist pool.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="frustum culling.h" />
-    <ClInclude Include="global GPU buffer.h" />
+    <ClInclude Include="global GPU buffer data.h" />
     <ClInclude Include="GPU stream buffer allocator.h" />
     <ClInclude Include="GPU work submission.h" />
     <ClInclude Include="HRESULT.h" />
@@ -226,7 +226,6 @@
     <ClInclude Include="occlusion query visualization.h" />
     <ClInclude Include="occlusion tree.h" />
     <ClInclude Include="occlusion query batch.h" />
-    <ClInclude Include="per-frame data.h" />
     <ClInclude Include="GPU work item.h" />
     <ClInclude Include="render pipeline.h" />
     <ClInclude Include="render stage.h" />

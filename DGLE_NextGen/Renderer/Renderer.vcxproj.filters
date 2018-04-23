@@ -89,9 +89,6 @@
     <ClInclude Include="occlusion query batch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="per-frame data.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="render stage.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -119,7 +116,7 @@
     <ClInclude Include="SO buffer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="global GPU buffer.h">
+    <ClInclude Include="global GPU buffer data.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

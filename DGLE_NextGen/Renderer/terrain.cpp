@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.04.2018 (c)Korotkov Andrey
+\date		23.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -14,7 +14,7 @@ See "DGLE.h" for more details.
 #include "world hierarchy.inl"
 #include "GPU stream buffer allocator.inl"
 #include "cmdlist pool.inl"
-#include "per-frame data.h"
+#include "global GPU buffer data.h"
 #include "GPU work submission.h"
 #include "occlusion query visualization.h"
 #ifdef _MSC_VER
@@ -378,7 +378,7 @@ void Impl::TerrainVectorLayer::CullPassRange(CmdListPool::CmdList &cmdList, unsi
 
 	cullPassSetupCallback(cmdList);
 	cmdList->SetGraphicsRootSignature(cullPassRootSig.Get());
-	cmdList->SetGraphicsRootConstantBufferView(0, World::globalGPUBuffer->GetGPUVirtualAddress() + World::PerFrameData::CurFrameCB_offset());
+	cmdList->SetGraphicsRootConstantBufferView(0, World::globalGPUBuffer->GetGPUVirtualAddress() + World::GlobalGPUBufferData::PerFrameData::CurFrameCB_offset());
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
 	const OcclusionCulling::QueryBatchBase &queryBatch = visit([](const auto &queryBatch) noexcept -> const OcclusionCulling::QueryBatchBase & { return queryBatch; }, occlusionQueryBatch);
@@ -515,7 +515,7 @@ void Impl::TerrainVectorLayer::MainPassRange(CmdListPool::CmdList &cmdList, unsi
 
 	mainPassSetupCallback(cmdList);
 	cmdList->SetGraphicsRootSignature(mainPassRootSig.Get());
-	cmdList->SetGraphicsRootConstantBufferView(0, World::globalGPUBuffer->GetGPUVirtualAddress() + World::PerFrameData::CurFrameCB_offset());
+	cmdList->SetGraphicsRootConstantBufferView(0, World::globalGPUBuffer->GetGPUVirtualAddress() + World::GlobalGPUBufferData::PerFrameData::CurFrameCB_offset());
 	cmdList->SetGraphicsRoot32BitConstants(1, size(color), color, 0);
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -710,7 +710,7 @@ void Impl::TerrainVectorLayer::AABBPassRange(CmdListPool::CmdList &cmdList, unsi
 
 	mainPassSetupCallback(cmdList);
 	cmdList->SetGraphicsRootSignature(mainPassRootSig.Get());
-	cmdList->SetGraphicsRootConstantBufferView(0, World::globalGPUBuffer->GetGPUVirtualAddress() + World::PerFrameData::CurFrameCB_offset());
+	cmdList->SetGraphicsRootConstantBufferView(0, World::globalGPUBuffer->GetGPUVirtualAddress() + World::GlobalGPUBufferData::PerFrameData::CurFrameCB_offset());
 	cmdList->SetGraphicsRoot32BitConstants(1, size(color), color, 0);
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
