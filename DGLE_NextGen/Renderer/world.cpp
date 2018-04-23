@@ -196,7 +196,7 @@ auto Impl::World::CreateCullPassPSOs() -> decltype(cullPassPSOs)
 	const CD3DX12_RASTERIZER_DESC rasterDesc
 	(
 		D3D12_FILL_MODE_SOLID,
-#if 0
+#if 1
 		D3D12_CULL_MODE_BACK,
 #else
 		D3D12_CULL_MODE_NONE,
