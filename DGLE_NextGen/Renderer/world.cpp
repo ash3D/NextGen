@@ -611,7 +611,7 @@ void Impl::World::StagePre(CmdListPool::CmdList &cmdList) const
 					CD3DX12_RESOURCE_BARRIER::Transition(viewCtx->ZBufferHistory.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY)
 				};
 				cmdList.ResourceBarrier(barriers);
-				cmdList.FlushBarriers();
+				cmdList.FlushBarriers<true>();
 			}
 			cmdList->CopyResource(ZBuffer, viewCtx->ZBufferHistory.Get());
 			{
@@ -621,7 +621,7 @@ void Impl::World::StagePre(CmdListPool::CmdList &cmdList) const
 					CD3DX12_RESOURCE_BARRIER::Transition(viewCtx->ZBufferHistory.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY)
 				};
 				cmdList.ResourceBarrier(barriers);
-				cmdList.FlushBarriers();
+				cmdList.FlushBarriers<true>();
 				cmdList->ClearDepthStencilView({ dsv }, D3D12_CLEAR_FLAG_STENCIL, 1.f, UINT8_MAX, 0, NULL);
 			}
 		}
@@ -678,6 +678,7 @@ void Impl::World::StagePost(CmdListPool::CmdList &cmdList) const
 		transientQueryBatch->Finish(cmdList);
 
 #if 1
+	// enables 'force' for FlushBarriers() below
 	cmdList.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(ZBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_COPY_SOURCE));
 
 	const auto targetZDesc = ZBuffer->GetDesc();
@@ -699,7 +700,7 @@ void Impl::World::StagePost(CmdListPool::CmdList &cmdList) const
 		NameObjectF(viewCtx->ZBufferHistory.Get(), L"Z buffer history (world view context %p) [%lu]", viewCtx, viewCtx->ZBufferHistoryVersion++);
 	}
 
-	cmdList.FlushBarriers();
+	cmdList.FlushBarriers<true>();
 	cmdList->CopyResource(viewCtx->ZBufferHistory.Get(), ZBuffer);
 	{
 		initializer_list<D3D12_RESOURCE_BARRIER> barriers

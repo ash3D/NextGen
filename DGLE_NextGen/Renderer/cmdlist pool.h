@@ -33,6 +33,7 @@ namespace Renderer::CmdListPool
 
 	public:
 		void ResourceBarrier(const D3D12_RESOURCE_BARRIER &barrier), ResourceBarrier(std::initializer_list<D3D12_RESOURCE_BARRIER> barriers);
+		template<bool force = false>	// specify true if it is guaranteed there is pending barriers
 		void FlushBarriers();
 
 	private:

@@ -41,12 +41,15 @@ void CmdList::ResourceBarrier(initializer_list<D3D12_RESOURCE_BARRIER> barriers)
 	cmdCtx->pendingBarriers.insert(cmdCtx->pendingBarriers.cend(), barriers);
 }
 
+template<bool force>
 void CmdList::FlushBarriers()
 {
 	assert(cmdCtx);
 	assert(cmdCtx->list);
-	if (!cmdCtx->pendingBarriers.empty())
+	if (force || !cmdCtx->pendingBarriers.empty())
 	{
+		if constexpr (force)
+			assert(!cmdCtx->pendingBarriers.empty());
 		cmdCtx->list->ResourceBarrier(cmdCtx->pendingBarriers.size(), cmdCtx->pendingBarriers.data());
 		cmdCtx->pendingBarriers.clear();
 	}
@@ -86,3 +89,6 @@ void CmdListPool::OnFrameFinish()
 {
 	firstFreePoolIdx = 0;
 }
+
+template void CmdList::FlushBarriers<false>();
+template void CmdList::FlushBarriers<true>();
