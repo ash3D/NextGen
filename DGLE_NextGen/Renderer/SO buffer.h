@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.04.2018 (c)Korotkov Andrey
+\date		25.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -13,8 +13,12 @@ See "DGLE.h" for more details.
 #include "../tracked resource.h"
 
 struct ID3D12Resource;
-struct ID3D12GraphicsCommandList2;
 struct D3D12_STREAM_OUTPUT_BUFFER_VIEW;
+
+namespace Renderer::CmdListPool
+{
+	class CmdList;
+}
 
 namespace Renderer::Impl::SOBuffer
 {
@@ -40,7 +44,7 @@ namespace Renderer::Impl::SOBuffer
 		void Sync() const;
 
 	public:
-		void StartSO(ID3D12GraphicsCommandList2 *target) const, UseSOResults(ID3D12GraphicsCommandList2 *target) const, Finish(ID3D12GraphicsCommandList2 *target) const;
+		void StartSO(CmdListPool::CmdList &target) const, UseSOResults(CmdListPool::CmdList &target) const, Finish(CmdListPool::CmdList &target) const;
 
 	public:
 		const unsigned long GetSize() const noexcept { return size; }

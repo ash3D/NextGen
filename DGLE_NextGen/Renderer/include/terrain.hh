@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		21.04.2018 (c)Korotkov Andrey
+\date		25.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -146,7 +146,7 @@ namespace Renderer
 			mutable std::vector<OcclusionQueryGeometry> queryStream;
 
 		private:
-			inline void CullPassPre(ID3D12GraphicsCommandList2 *target) const, CullPassPost(ID3D12GraphicsCommandList2 *target) const;
+			inline void CullPassPre(CmdListPool::CmdList &target) const, CullPassPost(CmdListPool::CmdList &target) const;
 			void CullPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd) const;
 
 		private:
@@ -178,7 +178,7 @@ namespace Renderer
 			mutable std::vector<Quad> quadStram;
 
 		private:
-			inline void MainPassPre(ID3D12GraphicsCommandList2 *target) const, MainPassPost(ID3D12GraphicsCommandList2 *target) const;
+			inline void MainPassPre(CmdListPool::CmdList &target) const, MainPassPost(CmdListPool::CmdList &target) const;
 			void MainPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd) const;
 
 		private:
@@ -197,7 +197,7 @@ namespace Renderer
 			static WRL::ComPtr<ID3D12PipelineState> AABB_PSO, TryCreateAABB_PSO(), CreateAABB_PSO();
 
 		private:
-			void AABBPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, const float (&color)[3], bool visible) const;
+			void AABBPassPre(CmdListPool::CmdList &target) const, AABBPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, const float (&color)[3], bool visible) const;
 #pragma endregion
 
 		private:
@@ -217,6 +217,7 @@ namespace Renderer
 				GetStagePre(unsigned int &length) const, GetStagePost(unsigned int &length) const,
 				GetCullPassRange(unsigned int &length) const, GetMainPassRange(unsigned int &length) const,
 				GetCullPass2MainPass(unsigned int &length) const,
+				GetAABBPassPre(unsigned int &length) const,
 				GetVisiblePassRange(unsigned int &length) const, GetCulledPassRange(unsigned int &length) const;
 
 		private:

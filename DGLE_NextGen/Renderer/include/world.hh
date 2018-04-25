@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		23.04.2018 (c)Korotkov Andrey
+\date		25.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -212,7 +212,8 @@ namespace Renderer
 			static std::array<ComPtr<ID3D12PipelineState>, 2> AABB_PSOs, TryCreateAABB_PSOs(), CreateAABB_PSOs();
 
 		private:
-			void AABBPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, bool visible) const, AABBPassPost(CmdListPool::CmdList &target) const;
+			void AABBPassPre(CmdListPool::CmdList &target) const, AABBPassPost(CmdListPool::CmdList &target) const;
+			void AABBPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, bool visible) const;
 #pragma endregion
 
 		private:
@@ -235,7 +236,8 @@ namespace Renderer
 				GetFirstMainPassRange(unsigned int &length) const, GetSecondMainPassRange(unsigned int &length) const,
 				GetXformAABBPass2FirstCullPass(unsigned int &length) const, GetFirstCullPass2FirstMainPass(unsigned int &length) const, GetFirstMainPass2SecondCullPass(unsigned int &length) const, GetSecondCullPass2SecondMainPass(unsigned int &length) const,
 				GetMainPassPre(unsigned int &length) const, GetMainPassRange(unsigned int &length) const, GetMainPassPost(unsigned int &length) const,
-				GetHiddenPassRange(unsigned int &length) const, GetVisiblePassRange(unsigned int &length) const, GetAABBPassPost(unsigned int &length) const;
+				GetAABBPassPre(unsigned int &length) const, GetAABBPassPost(unsigned int &length) const,
+				GetHiddenPassRange(unsigned int &length) const, GetVisiblePassRange(unsigned int &length) const;
 
 		private:
 			void Setup(struct WorldViewContext &viewCtx, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, std::function<void (ID3D12GraphicsCommandList2 *target)> &&cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList2 *target)> &&mainPassSetupCallback) const, SetupOcclusionQueryBatch(decltype(OcclusionCulling::QueryBatchBase::npos) maxOcclusion) const;

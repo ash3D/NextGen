@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.04.2018 (c)Korotkov Andrey
+\date		25.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -15,10 +15,9 @@ See "DGLE.h" for more details.
 #include <deque>
 #include <optional>
 #include <wrl/client.h>
+#include "../cmd ctx.h"
 
 struct ID3D12Fence;
-struct ID3D12CommandAllocator;
-struct ID3D12GraphicsCommandList2;
 
 namespace Renderer::Impl
 {
@@ -91,13 +90,8 @@ namespace Renderer::Impl
 		using FrameVersioning<void>::GetRingBufferIdx;
 	};
 
-	struct CmdBuffer
-	{
-		WRL::ComPtr<ID3D12CommandAllocator> allocator;
-		WRL::ComPtr<ID3D12GraphicsCommandList2> list;
-	};
-	// Data here is a cmd buffer pool
-	extern std::optional<FrameVersioning<std::deque<CmdBuffer>>> globalFrameVersioning;
+	// Data here is a cmd ctx pool
+	extern std::optional<FrameVersioning<std::deque<struct CmdCtx>>> globalFrameVersioning;
 
 	// template impl
 	template<class Data>

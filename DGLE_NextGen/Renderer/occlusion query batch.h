@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		21.04.2018 (c)Korotkov Andrey
+\date		25.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -16,6 +16,11 @@ See "DGLE.h" for more details.
 struct ID3D12QueryHeap;
 struct ID3D12Resource;
 struct ID3D12GraphicsCommandList2;
+
+namespace Renderer::CmdListPool
+{
+	class CmdList;
+}
 
 namespace Renderer::Impl::OcclusionCulling
 {
@@ -75,7 +80,7 @@ namespace Renderer::Impl::OcclusionCulling
 	public:
 		void Sync() const;
 		void Set(ID3D12GraphicsCommandList2 *target, unsigned long queryIdx, bool visible = true) const { QueryBatchBase::Set(target, queryIdx, batchResults, visible); }
-		void Resolve(ID3D12GraphicsCommandList2 *target, bool reuse = false) const, Finish(ID3D12GraphicsCommandList2 *target) const;
+		void Resolve(CmdListPool::CmdList &target, bool reuse = false) const, Finish(CmdListPool::CmdList &target) const;
 	};
 
 	template<>
@@ -95,7 +100,7 @@ namespace Renderer::Impl::OcclusionCulling
 
 	public:
 		void Set(ID3D12GraphicsCommandList2 *target, unsigned long queryIdx, bool visible = true) const { QueryBatchBase::Set(target, queryIdx, batchResults.Get(), visible); }
-		void Resolve(ID3D12GraphicsCommandList2 *target, long int/*instead of D3D12_RESOURCE_STATES to eliminate dependency in d3d12.h here*/ usage = 0) const;
+		void Resolve(CmdListPool::CmdList &target, long int/*instead of D3D12_RESOURCE_STATES to eliminate dependency in d3d12.h here*/ usage = 0) const;
 		UINT64 GetGPUPtr() const;	// valid after Reslove if 'usage' was specified accordingly
 	};
 
@@ -118,7 +123,7 @@ namespace Renderer::Impl::OcclusionCulling
 
 	public:
 		void Set(ID3D12GraphicsCommandList2 *target, unsigned long queryIdx, bool second, bool visible = true) const { QueryBatchBase::Set(target, queryIdx, batchResults.Get(), visible, Offset(second)); }
-		void Resolve(ID3D12GraphicsCommandList2 *target, bool second) const;
+		void Resolve(CmdListPool::CmdList &target, bool second) const;
 		UINT64 GetGPUPtr(bool second) const;	// valid after Reslove if corresponding 'usage' was specified accordingly
 
 	private:

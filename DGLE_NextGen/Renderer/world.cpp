@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		23.04.2018 (c)Korotkov Andrey
+\date		25.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -536,6 +536,14 @@ auto Impl::World::CreateAABB_PSOs() -> decltype(AABB_PSOs)
 	return move(result);
 }
 
+void Impl::World::AABBPassPre(CmdListPool::CmdList &cmdList) const
+{
+	cmdList.Setup();
+
+	// before AABB pass "action"
+	cmdList.FlushBarriers();
+}
+
 void Impl::World::AABBPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd, bool visible) const
 {
 	assert(rangeBegin < rangeEnd);
@@ -597,27 +605,32 @@ void Impl::World::StagePre(CmdListPool::CmdList &cmdList) const
 		if (const auto targetZDesc = ZBuffer->GetDesc(), historyZDesc = viewCtx->ZBufferHistory->GetDesc(); targetZDesc.Width == historyZDesc.Width && targetZDesc.Height == historyZDesc.Height)
 		{
 			{
-				const D3D12_RESOURCE_BARRIER barriers[] =
+				initializer_list<D3D12_RESOURCE_BARRIER> barriers
 				{
 					CD3DX12_RESOURCE_BARRIER::Transition(ZBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_COPY_DEST),
 					CD3DX12_RESOURCE_BARRIER::Transition(viewCtx->ZBufferHistory.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY)
 				};
-				cmdList->ResourceBarrier(size(barriers), barriers);
+				cmdList.ResourceBarrier(barriers);
+				cmdList.FlushBarriers();
 			}
 			cmdList->CopyResource(ZBuffer, viewCtx->ZBufferHistory.Get());
 			{
-				const D3D12_RESOURCE_BARRIER barriers[] =
+				initializer_list<D3D12_RESOURCE_BARRIER> barriers
 				{
 					CD3DX12_RESOURCE_BARRIER::Transition(ZBuffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_DEPTH_WRITE),
 					CD3DX12_RESOURCE_BARRIER::Transition(viewCtx->ZBufferHistory.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY)
 				};
-				cmdList->ResourceBarrier(size(barriers), barriers);
+				cmdList.ResourceBarrier(barriers);
+				cmdList.FlushBarriers();
 				cmdList->ClearDepthStencilView({ dsv }, D3D12_CLEAR_FLAG_STENCIL, 1.f, UINT8_MAX, 0, NULL);
 			}
 		}
 	}
 
 	xformedAABBs.StartSO(cmdList);
+
+	// before xform AABB pass "action"
+	cmdList.FlushBarriers();
 }
 
 void Impl::World::XformAABBPass2CullPass(CmdListPool::CmdList &cmdList) const
@@ -625,6 +638,9 @@ void Impl::World::XformAABBPass2CullPass(CmdListPool::CmdList &cmdList) const
 	cmdList.Setup();
 
 	xformedAABBs.UseSOResults(cmdList);
+
+	// before cull pass "action"
+	cmdList.FlushBarriers();
 }
 
 void Impl::World::CullPass2MainPass(CmdListPool::CmdList &cmdList, bool final) const
@@ -639,9 +655,13 @@ void Impl::World::CullPass2MainPass(CmdListPool::CmdList &cmdList, bool final) c
 			xformedAABBs.Finish(cmdList);
 	}
 	else
+		// no need to flush barriers, there should not be any pending barriers (it is good idea to 'assert' it here)
 		cmdList->ClearDepthStencilView({ dsv }, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, UINT8_MAX, 0, NULL);
 
 	visit([&cmdList, final](const auto &queryBatch) { queryBatch.Resolve(cmdList, final); }, occlusionQueryBatch);
+
+	// before main pass "action"
+	cmdList.FlushBarriers();
 }
 
 //void Impl::World::MainPass2CullPass(CmdListPool::CmdList &cmdList) const
@@ -658,18 +678,15 @@ void Impl::World::StagePost(CmdListPool::CmdList &cmdList) const
 		transientQueryBatch->Finish(cmdList);
 
 #if 1
-	const D3D12_RESOURCE_BARRIER barriers[] =
-	{
-		CD3DX12_RESOURCE_BARRIER::Transition(ZBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_COPY_SOURCE),
-		CD3DX12_RESOURCE_BARRIER::Transition(viewCtx->ZBufferHistory.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY)
-	};
-	UINT barrierCount = size(barriers);
+	cmdList.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(ZBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_COPY_SOURCE));
 
 	const auto targetZDesc = ZBuffer->GetDesc();
 	if (viewCtx->ZBufferHistory)
 		if (const auto historyZDesc = viewCtx->ZBufferHistory->GetDesc(); targetZDesc.Width != historyZDesc.Width || targetZDesc.Height != historyZDesc.Height)
 			viewCtx->ZBufferHistory.Reset();
-	if (!viewCtx->ZBufferHistory)
+	if (viewCtx->ZBufferHistory)
+		cmdList.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(viewCtx->ZBufferHistory.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY));
+	else
 	{
 		CheckHR(device->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
@@ -680,18 +697,17 @@ void Impl::World::StagePost(CmdListPool::CmdList &cmdList) const
 			IID_PPV_ARGS(viewCtx->ZBufferHistory.ReleaseAndGetAddressOf())
 		));
 		NameObjectF(viewCtx->ZBufferHistory.Get(), L"Z buffer history (world view context %p) [%lu]", viewCtx, viewCtx->ZBufferHistoryVersion++);
-		barrierCount--;
 	}
 
-	cmdList->ResourceBarrier(barrierCount, barriers);
+	cmdList.FlushBarriers();
 	cmdList->CopyResource(viewCtx->ZBufferHistory.Get(), ZBuffer);
 	{
-		const D3D12_RESOURCE_BARRIER barriers[] =
+		initializer_list<D3D12_RESOURCE_BARRIER> barriers
 		{
 			CD3DX12_RESOURCE_BARRIER::Transition(ZBuffer, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE),
 			CD3DX12_RESOURCE_BARRIER::Transition(viewCtx->ZBufferHistory.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY)
 		};
-		cmdList->ResourceBarrier(size(barriers), barriers);
+		cmdList.ResourceBarrier(barriers);
 	}
 #endif
 }
@@ -800,6 +816,13 @@ auto Impl::World::GetStagePost(unsigned int &) const -> RenderPipeline::Pipeline
 //	RenderPipeline::TerminateStageTraverse();
 //	return bind(&World::MainPassPost, this, _1);
 //}
+
+auto Impl::World::GetAABBPassPre(unsigned int & length) const -> RenderPipeline::PipelineItem
+{
+	using namespace placeholders;
+	phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetHiddenPassRange);
+	return bind(&World::AABBPassPre, this, _1);
+}
 
 auto Impl::World::GetHiddenPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.04.2018 (c)Korotkov Andrey
+\date		25.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -13,6 +13,7 @@ See "DGLE.h" for more details.
 #include <memory>
 #include "../tracked ref.h"
 #include "../frame versioning.h"
+#include "../cmd buffer.h"
 #include "../world view context.h"
 
 struct ID3D12GraphicsCommandList2;

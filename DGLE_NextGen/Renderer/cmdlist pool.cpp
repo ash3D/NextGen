@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.04.2018 (c)Korotkov Andrey
+\date		25.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -9,6 +9,7 @@ See "DGLE.h" for more details.
 
 #include "stdafx.h"
 #include "cmdlist pool.h"
+#include "cmd ctx.h"
 
 using namespace std;
 using namespace Renderer;
@@ -21,8 +22,34 @@ static remove_reference_t<decltype(globalFrameVersioning->GetCurFrameDataVersion
 CmdList::CmdList() : poolIdx(firstFreePoolIdx)
 {
 	auto &curFramePool = globalFrameVersioning->GetCurFrameDataVersion();
-	cmdBuffer = curFramePool.size() <= firstFreePoolIdx ? &curFramePool.emplace_back() : &curFramePool[firstFreePoolIdx];
+	cmdCtx = curFramePool.size() <= firstFreePoolIdx ? &curFramePool.emplace_back() : &curFramePool[firstFreePoolIdx];
 	firstFreePoolIdx++;	// increment after insertion improves exception safety guarantee
+	assert(cmdCtx->pendingBarriers.empty());
+}
+
+void CmdList::ResourceBarrier(const D3D12_RESOURCE_BARRIER &barrier)
+{
+	assert(cmdCtx);
+	assert(cmdCtx->list);
+	cmdCtx->pendingBarriers.push_back(barrier);
+}
+
+void CmdList::ResourceBarrier(initializer_list<D3D12_RESOURCE_BARRIER> barriers)
+{
+	assert(cmdCtx);
+	assert(cmdCtx->list);
+	cmdCtx->pendingBarriers.insert(cmdCtx->pendingBarriers.cend(), barriers);
+}
+
+void CmdList::FlushBarriers()
+{
+	assert(cmdCtx);
+	assert(cmdCtx->list);
+	if (!cmdCtx->pendingBarriers.empty())
+	{
+		cmdCtx->list->ResourceBarrier(cmdCtx->pendingBarriers.size(), cmdCtx->pendingBarriers.data());
+		cmdCtx->pendingBarriers.clear();
+	}
 }
 
 void CmdList::Init(ID3D12PipelineState *PSO)
@@ -30,21 +57,21 @@ void CmdList::Init(ID3D12PipelineState *PSO)
 	extern ComPtr<ID3D12Device2> device;
 	void NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
 
-	if (cmdBuffer->allocator && cmdBuffer->list)
+	if (cmdCtx->allocator && cmdCtx->list)
 	{
 		// reset
-		CheckHR(cmdBuffer->allocator->Reset());
-		CheckHR(cmdBuffer->list->Reset(cmdBuffer->allocator.Get(), PSO));
+		CheckHR(cmdCtx->allocator->Reset());
+		CheckHR(cmdCtx->list->Reset(cmdCtx->allocator.Get(), PSO));
 	}
 	else
 	{
 		const unsigned short version = globalFrameVersioning->GetFrameLatency() - 1;
 
 		// create
-		CheckHR(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(cmdBuffer->allocator.GetAddressOf())));
-		NameObjectF(cmdBuffer->allocator.Get(), L"pool command allocator [%hu][%zu]", version, poolIdx);
-		CheckHR(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, cmdBuffer->allocator.Get(), PSO, IID_PPV_ARGS(cmdBuffer->list.GetAddressOf())));
-		NameObjectF(cmdBuffer->list.Get(), L"pool command list [%hu][%zu]", version, poolIdx);
+		CheckHR(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(cmdCtx->allocator.GetAddressOf())));
+		NameObjectF(cmdCtx->allocator.Get(), L"pool command allocator [%hu][%zu]", version, poolIdx);
+		CheckHR(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, cmdCtx->allocator.Get(), PSO, IID_PPV_ARGS(cmdCtx->list.GetAddressOf())));
+		NameObjectF(cmdCtx->list.Get(), L"pool command list [%hu][%zu]", version, poolIdx);
 	}
 
 	setup = &CmdList::Update;

@@ -210,6 +210,8 @@
   <ItemGroup>
     <ClInclude Include="AABB.h" />
     <ClInclude Include="CB register.h" />
+    <ClInclude Include="cmd buffer.h" />
+    <ClInclude Include="cmd ctx.h" />
     <ClInclude Include="cmdlist pool.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="frustum culling.h" />

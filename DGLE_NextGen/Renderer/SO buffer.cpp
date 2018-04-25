@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.04.2018 (c)Korotkov Andrey
+\date		25.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -10,9 +10,11 @@ See "DGLE.h" for more details.
 #include "stdafx.h"
 #include "SO buffer.h"
 #include "tracked resource.inl"
+#include "cmdlist pool.inl"
 
 using namespace std;
-using namespace Renderer::Impl::SOBuffer;
+using namespace Renderer;
+using namespace Impl::SOBuffer;
 using Microsoft::WRL::ComPtr;
 
 // D3D12 debug layer emits out of bounds access error on SOSetTargets without this (bug in D3D12 runtime/debug layer?)
@@ -37,33 +39,34 @@ void Handle::Sync() const
 	}
 }
 
-void Handle::StartSO(ID3D12GraphicsCommandList2 *cmdList) const
+void Handle::StartSO(CmdListPool::CmdList &cmdList) const
 {
 	if (size)
 	{
 		// complete transition barrier if needed
 		if (prevUsage != -1)
-			cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(buffer, D3D12_RESOURCE_STATES(prevUsage), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY));
+			cmdList.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(buffer, D3D12_RESOURCE_STATES(prevUsage), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY));
 
 		// clear SO counter (is current approach safe?)
+		cmdList.FlushBarriers();
 		cmdList->WriteBufferImmediate(1, &D3D12_WRITEBUFFERIMMEDIATE_PARAMETER{buffer->GetGPUVirtualAddress() + size, 0}, NULL);
 
 		// transition to SO target state
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(buffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_STREAM_OUT));
+		cmdList.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(buffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_STREAM_OUT));
 	}
 }
 
-void Handle::UseSOResults(ID3D12GraphicsCommandList2 *cmdList) const
+void Handle::UseSOResults(CmdListPool::CmdList &cmdList) const
 {
 	if (size)
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(buffer, D3D12_RESOURCE_STATE_STREAM_OUT, D3D12_RESOURCE_STATES(curUsage)));
+		cmdList.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(buffer, D3D12_RESOURCE_STATE_STREAM_OUT, D3D12_RESOURCE_STATES(curUsage)));
 }
 
-void Handle::Finish(ID3D12GraphicsCommandList2 *cmdList) const
+void Handle::Finish(CmdListPool::CmdList &cmdList) const
 {
 	// !: optimization opportunity: do not perform transition barrier on last buffer usage (rely on implicit state transition for next frame), it woud require providing this info in Sync() or at creation
 	if (size)
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(buffer, D3D12_RESOURCE_STATES(curUsage), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY));
+		cmdList.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(buffer, D3D12_RESOURCE_STATES(curUsage), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY));
 }
 
 const D3D12_STREAM_OUTPUT_BUFFER_VIEW Handle::GetSOView() const

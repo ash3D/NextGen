@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		21.04.2018 (c)Korotkov Andrey
+\date		25.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -10,6 +10,7 @@ See "DGLE.h" for more details.
 #include "stdafx.h"
 #include "occlusion query batch.h"
 #include "tracked resource.inl"
+#include "cmdlist pool.inl"
 #include "align.h"
 #ifdef _MSC_VER
 #include <codecvt>
@@ -17,7 +18,8 @@ See "DGLE.h" for more details.
 #endif
 
 using namespace std;
-using namespace Renderer::Impl::OcclusionCulling;
+using namespace Renderer;
+using namespace Impl::OcclusionCulling;
 using Microsoft::WRL::ComPtr;
 
 extern ComPtr<ID3D12Device2> device;
@@ -179,24 +181,25 @@ void QueryBatch<TRANSIENT>::Sync() const
 	}
 }
 
-void QueryBatch<TRANSIENT>::Resolve(ID3D12GraphicsCommandList2 *cmdList, bool reuse) const
+void QueryBatch<TRANSIENT>::Resolve(CmdListPool::CmdList &cmdList, bool reuse) const
 {
 	if (count)
 	{
 		if (!fresh || reuse)
 		{
 			const auto flags = reuse ? D3D12_RESOURCE_BARRIER_FLAG_NONE : D3D12_RESOURCE_BARRIER_FLAG_END_ONLY/*!fresh*/;
-			cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(batchResults, D3D12_RESOURCE_STATE_PREDICATION, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, flags));
+			cmdList.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(batchResults, D3D12_RESOURCE_STATE_PREDICATION, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, flags));
 		}
+		cmdList.FlushBarriers();
 		cmdList->ResolveQueryData(batchHeap, D3D12_QUERY_TYPE_BINARY_OCCLUSION, 0, count, batchResults, 0);
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(batchResults, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PREDICATION));
+		cmdList.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(batchResults, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PREDICATION));
 	}
 }
 
-void QueryBatch<TRANSIENT>::Finish(ID3D12GraphicsCommandList2 *cmdList) const
+void QueryBatch<TRANSIENT>::Finish(CmdListPool::CmdList &cmdList) const
 {
 	if (count)
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(batchResults, D3D12_RESOURCE_STATE_PREDICATION, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY));
+		cmdList.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(batchResults, D3D12_RESOURCE_STATE_PREDICATION, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY));
 }
 #pragma endregion
 
@@ -235,13 +238,13 @@ void QueryBatch<PERSISTENT>::FinalSetup()
 	}
 }
 
-void QueryBatch<PERSISTENT>::Resolve(ID3D12GraphicsCommandList2 *cmdList, long int usage) const
+void QueryBatch<PERSISTENT>::Resolve(CmdListPool::CmdList &cmdList, long int usage) const
 {
 	if (count)
 	{
 		// rely on implicit state transition here
 		cmdList->ResolveQueryData(batchHeap, D3D12_QUERY_TYPE_BINARY_OCCLUSION, 0, count, batchResults.Get(), 0);
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(batchResults.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PREDICATION | D3D12_RESOURCE_STATES(usage)));
+		cmdList.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(batchResults.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PREDICATION | D3D12_RESOURCE_STATES(usage)));
 	}
 }
 
@@ -287,15 +290,16 @@ void QueryBatch<DUAL>::FinalSetup()
 	}
 }
 
-void QueryBatch<DUAL>::Resolve(ID3D12GraphicsCommandList2 *cmdList, bool second) const
+void QueryBatch<DUAL>::Resolve(CmdListPool::CmdList &cmdList, bool second) const
 {
 	if (count)
 	{
 		// rely on implicit state transition on first resolve
 		if (second)
-			cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(batchResults.Get(), D3D12_RESOURCE_STATES(usages[0]), D3D12_RESOURCE_STATE_COPY_DEST));
+			cmdList.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(batchResults.Get(), D3D12_RESOURCE_STATES(usages[0]), D3D12_RESOURCE_STATE_COPY_DEST));
+		cmdList.FlushBarriers();
 		cmdList->ResolveQueryData(batchHeap, D3D12_QUERY_TYPE_BINARY_OCCLUSION, 0, count, batchResults.Get(), Offset(second));
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(batchResults.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATES(usages[second])));
+		cmdList.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(batchResults.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATES(usages[second])));
 	}
 }
 

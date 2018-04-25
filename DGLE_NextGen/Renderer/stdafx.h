@@ -28,6 +28,7 @@
 #include <limits>
 #include <memory>
 #include <iterator>
+#include <initializer_list>
 #include <string>
 #include <array>
 #include <vector>

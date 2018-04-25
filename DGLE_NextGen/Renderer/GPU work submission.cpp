@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.04.2018 (c)Korotkov Andrey
+\date		25.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -94,7 +94,23 @@ namespace
 	{
 		for (const auto &item : work)
 			item(target);
+
+		/*
+		NOTE: Current command list distribution approach doesn't account "transition" (pre/post) phases (where transition barriers occurs) and only breaks command lists on "range" phases.
+		GPU work submission mechanism waits for next render stage even if work batch is saturated in order to butch up all "transition" phases into current batch (greedy approach).
+		Thus currently command list breaking should not left any pending barriers and FlushBarriers() call below may only take effect on pipelane finish
+		(e.g. World::AABBPassPost() when debug draw enabled) and so it should not lead to any GPU inefficiency due to limited barrier batching.
+
+		It is however possible to implement more generic solution which is capable to batch up inter-stage barriers regardless of
+		command list distribution and GPU work submission details - instead of FlushBarriers() here acquire barriers from next cmd list via std::future.
+		First FlushBarriers() on cmd list would fire promise and switch function pointer to normal flushing behavior (pass it to D3D12 ResourceBarrier()).
+		Synchronisation implied by waiting for std::future is not harmful here as it occurs at 'current cmd list finish - next cmd list start'.
+		Care should be taken to avoid deadlocks due to threadpool implemntaton details (e.g. perform final barriers flush on main thread).
+		*/
+		target.FlushBarriers();
+
 		CheckHR(target->Close());
+
 		return move(target);
 	}
 

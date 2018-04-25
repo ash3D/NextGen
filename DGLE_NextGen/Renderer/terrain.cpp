@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		23.04.2018 (c)Korotkov Andrey
+\date		25.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -360,9 +360,10 @@ ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateCullPassPSO()
 	return move(result);
 }
 
-void Impl::TerrainVectorLayer::CullPassPre(ID3D12GraphicsCommandList2 *cmdList) const
+void Impl::TerrainVectorLayer::CullPassPre(CmdListPool::CmdList &cmdList) const
 {
 	PIXBeginEvent(cmdList, PIX_COLOR_INDEX(PIXEvents::TerrainOcclusionQueryPass), "occlusion query pass");
+	cmdList.FlushBarriers();
 }
 
 /*
@@ -406,7 +407,7 @@ void Impl::TerrainVectorLayer::CullPassRange(CmdListPool::CmdList &cmdList, unsi
 	} while (++rangeBegin < rangeEnd);
 }
 
-void Impl::TerrainVectorLayer::CullPassPost(ID3D12GraphicsCommandList2 *cmdList) const
+void Impl::TerrainVectorLayer::CullPassPost(CmdListPool::CmdList &cmdList) const
 {
 	if (const auto preservingQueryBatch = get_if<OcclusionCulling::QueryBatch<OcclusionCulling::PERSISTENT>>(&occlusionQueryBatch))
 		preservingQueryBatch->Resolve(cmdList/*, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE*/);
@@ -501,10 +502,11 @@ ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateMainPassPSO()
 	return move(result);
 }
 
-void Impl::TerrainVectorLayer::MainPassPre(ID3D12GraphicsCommandList2 *cmdList) const
+void Impl::TerrainVectorLayer::MainPassPre(CmdListPool::CmdList &cmdList) const
 {
 	const auto float2BYTE = [](float val) noexcept {return val * numeric_limits<BYTE>::max(); };
 	PIXBeginEvent(cmdList, PIX_COLOR(float2BYTE(color[0]), float2BYTE(color[1]), float2BYTE(color[2])), "main pass");
+	cmdList.FlushBarriers();
 }
 
 void Impl::TerrainVectorLayer::MainPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd) const
@@ -553,7 +555,7 @@ void Impl::TerrainVectorLayer::MainPassRange(CmdListPool::CmdList &cmdList, unsi
 	} while (rangeBegin < rangeEnd);
 }
 
-void Impl::TerrainVectorLayer::MainPassPost(ID3D12GraphicsCommandList2 *cmdList) const
+void Impl::TerrainVectorLayer::MainPassPost(CmdListPool::CmdList &cmdList) const
 {
 	if (const auto transientQueryBatch = get_if<OcclusionCulling::QueryBatch<OcclusionCulling::TRANSIENT>>(&occlusionQueryBatch))
 		transientQueryBatch->Finish(cmdList);
@@ -702,6 +704,13 @@ ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateAABB_PSO()
 	return move(result);
 }
 
+void Impl::TerrainVectorLayer::AABBPassPre(CmdListPool::CmdList &cmdList) const
+{
+	cmdList.Setup();
+
+	cmdList.FlushBarriers();
+}
+
 void Impl::TerrainVectorLayer::AABBPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd, const float (&color)[3], bool visible) const
 {
 	assert(rangeBegin < rangeEnd);
@@ -802,6 +811,13 @@ auto Impl::TerrainVectorLayer::GetStagePost(unsigned int &) const -> RenderPipel
 	using namespace placeholders;
 	RenderPipeline::TerminateStageTraverse();
 	return bind(&TerrainVectorLayer::StagePost, this, _1);
+}
+
+auto Impl::TerrainVectorLayer::GetAABBPassPre(unsigned int &length) const -> RenderPipeline::PipelineItem
+{
+	using namespace placeholders;
+	phaseSelector = static_cast<decltype(phaseSelector)>(&TerrainVectorLayer::GetVisiblePassRange);
+	return bind(&TerrainVectorLayer::AABBPassPre, this, _1);
 }
 
 auto Impl::TerrainVectorLayer::GetVisiblePassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
@@ -913,7 +929,7 @@ auto Impl::TerrainVectorLayer::BuildRenderStage(const Impl::FrustumCuller<2> &fr
 
 auto Impl::TerrainVectorLayer::GetDebugDrawRenderStage() const -> RenderPipeline::PipelineStage
 {
-	return RenderPipeline::PipelineStage(in_place_type<RenderPipeline::RenderStage>, static_cast<const RenderPipeline::IRenderStage *>(this), static_cast<decltype(phaseSelector)>(&TerrainVectorLayer::GetVisiblePassRange));
+	return RenderPipeline::PipelineStage(in_place_type<RenderPipeline::RenderStage>, static_cast<const RenderPipeline::IRenderStage *>(this), static_cast<decltype(phaseSelector)>(&TerrainVectorLayer::GetAABBPassPre));
 }
 
 void Impl::TerrainVectorLayer::ScheduleRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList2 *target)> cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> mainPassSetupCallback) const
