@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.04.2018 (c)Korotkov Andrey
+\date		26.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -230,7 +230,8 @@ void GPUWorkSubmission::Run()
 			}
 			if (readyWorkSize >= GPUSubmitWorkSizeThreshold || RenderPipeline::Empty() && readyWorkEnd == ROB.end())
 			{
-				const vector<ID3D12CommandList *> listsToExequte(ROB.begin(), readyWorkEnd);
+				static vector<ID3D12CommandList *> listsToExequte;
+				listsToExequte.assign(ROB.begin(), readyWorkEnd);
 				cmdQueue->ExecuteCommandLists(listsToExequte.size(), listsToExequte.data());
 				ROB.erase(ROB.begin(), readyWorkEnd);
 			}
