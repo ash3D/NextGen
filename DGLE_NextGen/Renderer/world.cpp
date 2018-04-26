@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.04.2018 (c)Korotkov Andrey
+\date		26.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -597,7 +597,8 @@ void Impl::World::AABBPassPost(CmdListPool::CmdList &cmdList) const
 
 void Impl::World::StagePre(CmdListPool::CmdList &cmdList) const
 {
-	cmdList.Setup();
+	// specify NULL to reset possible predication
+	cmdList.Setup(NULL);
 
 	// just copy for now, do reprojection in future
 	if (viewCtx->ZBufferHistory)
@@ -645,7 +646,8 @@ void Impl::World::XformAABBPass2CullPass(CmdListPool::CmdList &cmdList) const
 
 void Impl::World::CullPass2MainPass(CmdListPool::CmdList &cmdList, bool final) const
 {
-	cmdList.Setup();
+	// specify NULL to reset possible predication
+	cmdList.Setup(NULL);
 
 	if (final)
 	{
@@ -672,7 +674,8 @@ void Impl::World::CullPass2MainPass(CmdListPool::CmdList &cmdList, bool final) c
 
 void Impl::World::StagePost(CmdListPool::CmdList &cmdList) const
 {
-	cmdList.Setup();
+	// specify NULL to reset possible predication
+	cmdList.Setup(NULL);
 
 	if (const auto transientQueryBatch = get_if<OcclusionCulling::QueryBatch<OcclusionCulling::TRANSIENT>>(&occlusionQueryBatch))
 		transientQueryBatch->Finish(cmdList);

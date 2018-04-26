@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.04.2018 (c)Korotkov Andrey
+\date		26.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -14,7 +14,7 @@ See "DGLE.h" for more details.
 
 namespace Renderer::CmdListPool
 {
-	inline CmdList::CmdList(CmdList &&src) : cmdCtx(src.cmdCtx), setup(src.setup), poolIdx(src.poolIdx)
+	inline CmdList::CmdList(CmdList &&src) : cmdCtx(src.cmdCtx), setup(src.setup), setupSimple(src.setupSimple), poolIdx(src.poolIdx)
 	{
 		src.cmdCtx = nullptr;
 	}
@@ -23,6 +23,7 @@ namespace Renderer::CmdListPool
 	{
 		cmdCtx = src.cmdCtx;
 		setup = src.setup;
+		setupSimple = src.setupSimple;
 		poolIdx = src.poolIdx;
 		src.cmdCtx = nullptr;
 		return *this;
@@ -46,5 +47,11 @@ namespace Renderer::CmdListPool
 	{
 		assert(cmdCtx);
 		(this->*setup)(PSO);
+	}
+
+	inline void CmdList::Setup()
+	{
+		assert(cmdCtx);
+		(this->*setupSimple)(NULL);
 	}
 }
