@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		26.04.2018 (c)Korotkov Andrey
+\date		27.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -343,7 +343,7 @@ void Impl::World::CullPassRange(CmdListPool::CmdList &cmdList, unsigned long ran
 		cmdList->IASetVertexBuffers(0, 1, &VB_view);
 	}
 
-	const OcclusionCulling::QueryBatchBase &queryBatch = visit([](const auto &queryBatch) noexcept -> const OcclusionCulling::QueryBatchBase & { return queryBatch; }, occlusionQueryBatch);
+	const OcclusionCulling::QueryBatchBase &queryBatch = visit([](const OcclusionCulling::QueryBatchBase &queryBatch) noexcept -> const auto & { return queryBatch; }, occlusionQueryBatch);
 	do
 	{
 		const auto &queryData = queryStream[rangeBegin];
@@ -869,7 +869,7 @@ inline void Impl::World::SetupOcclusionQueryBatch(decltype(OcclusionCulling::Que
 		else
 			occlusionQueryBatch.emplace<false>();
 	}
-	visit([maxOcclusion](auto &queryBatch) { queryBatch.Setup(maxOcclusion + 1); }, occlusionQueryBatch);
+	visit([maxOcclusion](OcclusionCulling::QueryBatchBase &queryBatch) { queryBatch.Setup(maxOcclusion + 1); }, occlusionQueryBatch);
 }
 
 Impl::World::World(const float (&terrainXform)[4][3])
