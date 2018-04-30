@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.04.2018 (c)Korotkov Andrey
+\date		30.04.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -15,7 +15,12 @@ See "DGLE.h" for more details.
 #include "occlusion query shceduling.h"
 
 // thread pool based MSVC's std::async implementation can lead to deadlocks during tree traverse, alternative technique needed
-#define MULTITHREADED_TREE_TRAVERSE 0
+/*
+0 - disable
+1 - async
+2 - execution::par
+*/
+#define MULTITHREADED_TREE_TRAVERSE 2
 
 /*
 	sorting by near AABB z needed for occlusion culling to work properly for nested objects
@@ -311,7 +316,23 @@ namespace Renderer::Impl::Hierarchy
 		{
 			if (childrenCount)
 			{
+#if MULTITHREADED_TREE_TRAVERSE == 0 || MULTITHREADED_TREE_TRAVERSE == 2
+				for_each_n(
 #if MULTITHREADED_TREE_TRAVERSE
+					execution::par,
+#endif
+					cbegin(children),
+#if defined _MSC_VER && _MSC_VER <= 1913 && MULTITHREADED_TREE_TRAVERSE == 2
+					(unsigned int)
+#endif
+					childrenCount,
+					[&, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion](const remove_extent_t<decltype(children)> &child)
+				{
+					const auto childResult = child->Schedule<enableEarlyOut>(/*nodeHandler, */view, GPU_AABB_allocator, frustumCuller, frustumXform, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
+					childrenCulledTris += childResult.first;
+					childQueryCanceled |= childResult.second;
+				});
+#elif MULTITHREADED_TREE_TRAVERSE == 1
 				// consider using thread pool instead of async
 				future<pair<unsigned long int, bool>> childrenResults[extent_v<decltype(children)>];
 				// launch
@@ -323,12 +344,7 @@ namespace Renderer::Impl::Hierarchy
 				// traverse first child in this thread
 				tie(childrenCulledTris, childQueryCanceled) = children[0]->Schedule<enableEarlyOut>(/*nodeHandler, */GPU_AABB_allocator, frustumCuller, frustumXform, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
 #else
-				for_each_n(cbegin(children), childrenCount, [&, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion](const remove_extent_t<decltype(children)> &child)
-				{
-					const auto childResult = child->Schedule<enableEarlyOut>(/*nodeHandler, */view, GPU_AABB_allocator, frustumCuller, frustumXform, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion);
-					childrenCulledTris += childResult.first;
-					childQueryCanceled |= childResult.second;
-				});
+#error invalid MULTITHREADED_TREE_TRAVERSE value
 #endif
 
 				// sort if necessary
@@ -353,7 +369,7 @@ namespace Renderer::Impl::Hierarchy
 					});
 				}
 
-#if MULTITHREADED_TREE_TRAVERSE
+#if MULTITHREADED_TREE_TRAVERSE == 1
 				for_each_n(begin(childrenResults), childrenCount - 1, [&childrenCulledTris, &childQueryCanceled](remove_extent_t<decltype(childrenResults)> &childResult)
 				{
 					const auto resolvedResult = childResult.get();
