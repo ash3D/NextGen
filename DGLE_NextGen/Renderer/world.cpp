@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		27.04.2018 (c)Korotkov Andrey
+\date		05.05.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -24,6 +24,7 @@ See "DGLE.h" for more details.
 #include "global GPU buffer data.h"
 #include "static objects data.h"
 #include "GPU work submission.h"
+#include "config.h"
 
 #include "AABB_3D_xform.csh"
 #include "AABB_3D.csh"
@@ -264,7 +265,7 @@ auto Impl::World::CreateCullPassPSOs() -> decltype(cullPassPSOs)
 		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,							// primitive topology
 		0,																// render targets
 		{},																// RT formats
-		DXGI_FORMAT_D24_UNORM_S8_UINT,									// depth stencil format
+		Config::ZFormat,												// depth stencil format
 		{1}																// MSAA
 	};
 
@@ -517,8 +518,8 @@ auto Impl::World::CreateAABB_PSOs() -> decltype(AABB_PSOs)
 		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,					// restart primtive
 		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,							// primitive topology
 		1,																// render targets
-		{ DXGI_FORMAT_R8G8B8A8_UNORM },									// RT formats
-		DXGI_FORMAT_D24_UNORM_S8_UINT,									// depth stencil format
+		{ Config::ColorFormat },										// RT formats
+		Config::ZFormat,												// depth stencil format
 		{1}																// MSAA
 	};
 
@@ -697,7 +698,7 @@ void Impl::World::StagePost(CmdListPool::CmdList &cmdList) const
 			D3D12_HEAP_FLAG_NONE,
 			&targetZDesc,
 			D3D12_RESOURCE_STATE_COPY_DEST,
-			&CD3DX12_CLEAR_VALUE(DXGI_FORMAT_D24_UNORM_S8_UINT, 1.f, UINT8_MAX),
+			&CD3DX12_CLEAR_VALUE(Config::ZFormat, 1.f, UINT8_MAX),
 			IID_PPV_ARGS(viewCtx->ZBufferHistory.ReleaseAndGetAddressOf())
 		));
 		NameObjectF(viewCtx->ZBufferHistory.Get(), L"Z buffer history (world view context %p) [%lu]", viewCtx, viewCtx->ZBufferHistoryVersion++);

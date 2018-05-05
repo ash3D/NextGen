@@ -213,6 +213,7 @@
     <ClInclude Include="cmd buffer.h" />
     <ClInclude Include="cmd ctx.h" />
     <ClInclude Include="cmdlist pool.h" />
+    <ClInclude Include="config.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="frustum culling.h" />
     <ClInclude Include="global GPU buffer data.h" />

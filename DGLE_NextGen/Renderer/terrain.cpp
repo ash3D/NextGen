@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		27.04.2018 (c)Korotkov Andrey
+\date		05.05.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -17,6 +17,7 @@ See "DGLE.h" for more details.
 #include "global GPU buffer data.h"
 #include "GPU work submission.h"
 #include "occlusion query visualization.h"
+#include "config.h"
 #ifdef _MSC_VER
 #include <codecvt>
 #include <locale>
@@ -350,7 +351,7 @@ ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateCullPassPSO()
 		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,							// primitive topology
 		0,																// render targets
 		{},																// RT formats
-		DXGI_FORMAT_D24_UNORM_S8_UINT,									// depth stencil format
+		Config::ZFormat,												// depth stencil format
 		{1}																// MSAA
 	};
 
@@ -491,8 +492,8 @@ ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateMainPassPSO()
 		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,					// restart primtive
 		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,							// primitive topology
 		1,																// render targets
-		{ DXGI_FORMAT_R8G8B8A8_UNORM },									// RT formats
-		DXGI_FORMAT_D24_UNORM_S8_UINT,									// depth stencil format
+		{ Config::ColorFormat },										// RT formats
+		Config::ZFormat,												// depth stencil format
 		{1}																// MSAA
 	};
 
@@ -693,8 +694,8 @@ ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateAABB_PSO()
 		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,					// restart primtive
 		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,							// primitive topology
 		1,																// render targets
-		{ DXGI_FORMAT_R8G8B8A8_UNORM },									// RT formats
-		DXGI_FORMAT_D24_UNORM_S8_UINT,									// depth stencil format
+		{ Config::ColorFormat },										// RT formats
+		Config::ZFormat,												// depth stencil format
 		{1}																// MSAA
 	};
 

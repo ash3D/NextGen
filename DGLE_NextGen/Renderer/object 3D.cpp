@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.04.2018 (c)Korotkov Andrey
+\date		05.05.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -10,6 +10,7 @@ See "DGLE.h" for more details.
 #include "stdafx.h"
 #include "object 3D.hh"
 #include "tracked resource.inl"
+#include "config.h"
 #ifdef _MSC_VER
 #include <codecvt>
 #include <locale>
@@ -112,8 +113,8 @@ auto Impl::Object3D::CreatePSOs() -> decltype(PSOs)
 		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,					// restart primtive
 		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,							// primitive topology
 		1,																// render targets
-		{ DXGI_FORMAT_R8G8B8A8_UNORM },									// RT formats
-		DXGI_FORMAT_D24_UNORM_S8_UINT,									// depth stencil format
+		{ Config::ColorFormat },										// RT formats
+		Config::ZFormat,												// depth stencil format
 		{1}																// MSAA
 	};
 
