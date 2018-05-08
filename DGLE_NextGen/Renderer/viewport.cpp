@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.04.2018 (c)Korotkov Andrey
+\date		08.05.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -12,6 +12,7 @@ See "DGLE.h" for more details.
 #include "world.hh"
 #include "GPU work submission.h"
 #include "render pipeline.h"
+#include "config.h"
 
 // offsetof is conditionally supported for non-standard layout types since C++17
 #define ENABLE_NONSTDLAYOUT_OFFSETOF 1
@@ -23,22 +24,40 @@ namespace RenderPipeline = Impl::RenderPipeline;
 
 extern ComPtr<ID3D12Device2> device;
 void NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
+	
+extern const float backgroundColor[4] = { .0f, .2f, .4f, 1.f };
 
-static inline RenderPipeline::PipelineStage Pre(ID3D12GraphicsCommandList2 *cmdList, ID3D12Resource *rt, D3D12_CPU_DESCRIPTOR_HANDLE rtv, D3D12_CPU_DESCRIPTOR_HANDLE dsv)
+static inline RenderPipeline::PipelineStage Pre(ID3D12GraphicsCommandList2 *cmdList, ID3D12Resource *output, D3D12_CPU_DESCRIPTOR_HANDLE rtvMSAA, D3D12_CPU_DESCRIPTOR_HANDLE dsv, D3D12_CPU_DESCRIPTOR_HANDLE dsvMSAA)
 {
 	PIXScopedEvent(cmdList, PIX_COLOR_INDEX(PIXEvents::ViewportPre), "viewport pre");
-	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(rt, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
-	const float color[4] = { .0f, .2f, .4f, 1.f };
-	cmdList->ClearRenderTargetView(rtv, color, 0, NULL);
+	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RESOLVE_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY));
+	cmdList->ClearRenderTargetView(rtvMSAA, backgroundColor, 0, NULL);
 	cmdList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0xef, 0, NULL);
+	cmdList->ClearDepthStencilView(dsvMSAA, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, UINT8_MAX, 0, NULL);
 	CheckHR(cmdList->Close());
 	return cmdList;
 }
 
-static inline RenderPipeline::PipelineStage Post(ID3D12GraphicsCommandList2 *cmdList, ID3D12Resource *rt)
+static inline RenderPipeline::PipelineStage Post(ID3D12GraphicsCommandList2 *cmdList, ID3D12Resource *output, ID3D12Resource *rtMSAA, D3D12_RECT rect)
 {
 	PIXScopedEvent(cmdList, PIX_COLOR_INDEX(PIXEvents::ViewportPost), "viewport post");
-	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(rt, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+	{
+		const D3D12_RESOURCE_BARRIER barriers[] =
+		{
+			CD3DX12_RESOURCE_BARRIER::Transition(rtMSAA, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_RESOLVE_SOURCE),
+			CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RESOLVE_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY)
+		};
+		cmdList->ResourceBarrier(size(barriers), barriers);
+	}
+	cmdList->ResolveSubresourceRegion(output, 0, 0, 0, rtMSAA, 0, &rect, Config::ColorFormat, D3D12_RESOLVE_MODE_AVERAGE);
+	{
+		const D3D12_RESOURCE_BARRIER barriers[] =
+		{
+			CD3DX12_RESOURCE_BARRIER::Transition(rtMSAA, D3D12_RESOURCE_STATE_RESOLVE_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET),	// !: use split barrier
+			CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_RESOLVE_DEST, D3D12_RESOURCE_STATE_PRESENT)
+		};
+		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(rtMSAA, D3D12_RESOURCE_STATE_RESOLVE_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
+	}
 	CheckHR(cmdList->Close());
 	return cmdList;
 }
@@ -115,28 +134,30 @@ void Impl::Viewport::UpdateAspect(double invAspect)
 	projXform[0][0] = projXform[1][1] * invAspect;
 }
 
-void Impl::Viewport::Render(ID3D12Resource *rt, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE rtv, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, UINT width, UINT height) const
+void Impl::Viewport::Render(ID3D12Resource *output, ID3D12Resource *rtMSAA, ID3D12Resource *ZBuffer, ID3D12Resource *ZBufferMSAA, const D3D12_CPU_DESCRIPTOR_HANDLE rtvMSAA, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, const D3D12_CPU_DESCRIPTOR_HANDLE dsvMSAA, UINT width, UINT height) const
 {
 	auto cmdLists = cmdListsManager.OnFrameStart();
 	GPUWorkSubmission::Prepare();
 
-	GPUWorkSubmission::AppendPipelineStage<false>(Pre, cmdLists.pre, rt, rtv, dsv);
+	const D3D12_RECT rect = CD3DX12_RECT(0, 0, width, height);
 
-	const function<void (ID3D12GraphicsCommandList2 *target, bool enableRT)> setupRenderOutputCallback =
+	GPUWorkSubmission::AppendPipelineStage<false>(Pre, cmdLists.pre, output, rtvMSAA, dsv, dsvMSAA);
+
+	const function<void (ID3D12GraphicsCommandList2 *target, bool MSAA, bool enableRT)> setupRenderOutputCallback =
 		[
-			rtv, dsv,
-			viewport = CD3DX12_VIEWPORT(0.f, 0.f, width, height),
-			scissorRect = CD3DX12_RECT(0, 0, width, height)
-		](ID3D12GraphicsCommandList2 *cmdList, bool enableRT)
+			rtvMSAA, dsvs = array<const D3D12_CPU_DESCRIPTOR_HANDLE, 2>{dsv, dsvMSAA},
+			viewport = CD3DX12_VIEWPORT(0.f, 0.f, width, height), rect
+		](ID3D12GraphicsCommandList2 *cmdList, bool MSAA, bool enableRT)
 	{
-		cmdList->OMSetRenderTargets(enableRT, &rtv, TRUE, &dsv);
+		assert(MSAA || !enableRT);
+		cmdList->OMSetRenderTargets(enableRT, &rtvMSAA, TRUE, dsvs.data() + MSAA);
 		cmdList->RSSetViewports(1, &viewport);
-		cmdList->RSSetScissorRects(1, &scissorRect);
+		cmdList->RSSetScissorRects(1, &rect);
 	};
 	if (world)
-		world->Render(ctx, viewXform, projXform, ZBuffer, dsv, setupRenderOutputCallback);
+		world->Render(ctx, viewXform, projXform, ZBuffer, ZBufferMSAA, dsv, rect, setupRenderOutputCallback);
 
-	GPUWorkSubmission::AppendPipelineStage<false>(Post, cmdLists.post, rt);
+	GPUWorkSubmission::AppendPipelineStage<false>(Post, cmdLists.post, output, rtMSAA, rect);
 
 	GPUWorkSubmission::Run();
 	cmdListsManager.OnFrameFinish();

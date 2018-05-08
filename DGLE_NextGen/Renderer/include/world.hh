@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.04.2018 (c)Korotkov Andrey
+\date		08.05.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -157,8 +157,9 @@ namespace Renderer
 
 		private:
 			mutable struct WorldViewContext *viewCtx;
-			mutable ID3D12Resource *ZBuffer;
+			mutable ID3D12Resource *ZBuffer, *ZBufferMSAA;
 			mutable SIZE_T dsv;
+			mutable RECT rect;
 
 #pragma region occlusion query passes
 		private:
@@ -168,7 +169,7 @@ namespace Renderer
 			static std::array<ComPtr<ID3D12PipelineState>, 2> cullPassPSOs, TryCreateCullPassPSOs(), CreateCullPassPSOs();
 
 		private:
-			mutable std::function<void (ID3D12GraphicsCommandList2 *target)> cullPassSetupCallback;
+			mutable std::function<void (ID3D12GraphicsCommandList2 *target, bool MSAA)> cullPassSetupCallback;
 			struct OcclusionQueryGeometry
 			{
 				ID3D12Resource *VB;
@@ -182,7 +183,7 @@ namespace Renderer
 			void CullPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, bool final) const;
 
 		private:
-			void SetupCullPass(std::function<void (ID3D12GraphicsCommandList2 *target)> &&setupCallback) const;
+			void SetupCullPass(std::function<void (ID3D12GraphicsCommandList2 *target, bool MSAA)> &&setupCallback) const;
 			void IssueOcclusion(decltype(bvhView)::Node::OcclusionQueryGeometry occlusionQueryGeometry, unsigned long int &counter) const;
 #pragma endregion
 
@@ -240,7 +241,7 @@ namespace Renderer
 				GetHiddenPassRange(unsigned int &length) const, GetVisiblePassRange(unsigned int &length) const;
 
 		private:
-			void Setup(struct WorldViewContext &viewCtx, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, std::function<void (ID3D12GraphicsCommandList2 *target)> &&cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList2 *target)> &&mainPassSetupCallback) const, SetupOcclusionQueryBatch(decltype(OcclusionCulling::QueryBatchBase::npos) maxOcclusion) const;
+			void Setup(struct WorldViewContext &viewCtx, ID3D12Resource *ZBuffer, ID3D12Resource *ZBufferMSAA, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, const RECT &rect, std::function<void (ID3D12GraphicsCommandList2 *target, bool MSAA)> &&cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList2 *target)> &&mainPassSetupCallback) const, SetupOcclusionQueryBatch(decltype(OcclusionCulling::QueryBatchBase::npos) maxOcclusion) const;
 
 		private:
 			static constexpr const WCHAR AABB_VB_name[] = L"3D objects occlusion query boxes", xformedAABB_SO_name[] = L"3D objects xformed occlusion query boxes";
@@ -269,7 +270,7 @@ namespace Renderer
 			void operator =(World &) = delete;
 
 		protected:
-			void Render(struct WorldViewContext &viewCtx, const float (&viewXform)[4][3], const float (&projXform)[4][4], ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, const std::function<void (ID3D12GraphicsCommandList2 *target, bool enableRT)> &setupRenderOutputCallback) const;
+			void Render(struct WorldViewContext &viewCtx, const float (&viewXform)[4][3], const float (&projXform)[4][4], ID3D12Resource *ZBuffer, ID3D12Resource *ZBufferMSAA, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, const RECT rect, const std::function<void (ID3D12GraphicsCommandList2 *target, bool MSAA, bool enableRT)> &setupRenderOutputCallback) const;
 			void OnFrameFinish() const;
 
 		public:
@@ -280,7 +281,7 @@ namespace Renderer
 			void FlushUpdates() const;	// const to be able to call from Render()
 
 		private:
-			RenderPipeline::RenderStage BuildRenderStage(struct WorldViewContext &viewCtx, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 &viewXform, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, std::function<void (ID3D12GraphicsCommandList2 *target)> &cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList2 *target)> &mainPassSetupCallback) const;
+			RenderPipeline::RenderStage BuildRenderStage(struct WorldViewContext &viewCtx, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 &viewXform, ID3D12Resource *ZBuffer, ID3D12Resource *ZBufferMSAA, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, const RECT rect, std::function<void (ID3D12GraphicsCommandList2 *target, bool MSAA)> &cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList2 *target)> &mainPassSetupCallback) const;
 			RenderPipeline::PipelineStage GetDebugDrawRenderStage() const;
 		};
 	}

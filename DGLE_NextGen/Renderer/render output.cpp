@@ -37,15 +37,15 @@ RenderOutput::RenderOutput(HWND wnd, bool allowModeSwitch, unsigned int bufferCo
 
 		const DXGI_SWAP_CHAIN_DESC1 desc =
 		{
-			0, 0,								// take width and height from wnd
-			Config::ColorFormat,				// format
-			FALSE,								// stereo
-			{1, 0},								// MSAA
-			DXGI_USAGE_RENDER_TARGET_OUTPUT,	// usage
-			bufferCount,						// buffer count
-			DXGI_SCALING_STRETCH,				// scaling
-			DXGI_SWAP_EFFECT_FLIP_DISCARD,		// swap effect
-			DXGI_ALPHA_MODE_UNSPECIFIED,		// alpha mode
+			0, 0,							// take width and height from wnd
+			Config::ColorFormat,			// format
+			FALSE,							// stereo
+			{1, 0},							// MSAA
+			0,								// usage
+			bufferCount,					// buffer count
+			DXGI_SCALING_STRETCH,			// scaling
+			DXGI_SWAP_EFFECT_FLIP_DISCARD,	// swap effect
+			DXGI_ALPHA_MODE_UNSPECIFIED,	// alpha mode
 			flags
 		};
 
@@ -54,34 +54,34 @@ RenderOutput::RenderOutput(HWND wnd, bool allowModeSwitch, unsigned int bufferCo
 		CheckHR(swapChain.As(&this->swapChain));
 	}
 
-	// create and populate rtv desctriptor heap
+	// create rtv desctriptor heap
 	{
 		const D3D12_DESCRIPTOR_HEAP_DESC desc =
 		{
 			D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
-			bufferCount,
-			D3D12_DESCRIPTOR_HEAP_FLAG_NONE
-		};
-
-		CheckHR(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(rtvHeap.GetAddressOf())));
-
-		Fill_RTV_Heap(bufferCount);
-	}
-
-	// z/stencil descriptor heap
-	{
-		const D3D12_DESCRIPTOR_HEAP_DESC desc =
-		{
-			D3D12_DESCRIPTOR_HEAP_TYPE_DSV,
 			1,
 			D3D12_DESCRIPTOR_HEAP_FLAG_NONE
 		};
 
-		CheckHR(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(dsvHeap.GetAddressOf())));
+		CheckHR(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(rtvHeap.GetAddressOf())));
+	}
 
+	// create dsv descriptor heap
+	{
+		const D3D12_DESCRIPTOR_HEAP_DESC desc =
+		{
+			D3D12_DESCRIPTOR_HEAP_TYPE_DSV,
+			2,
+			D3D12_DESCRIPTOR_HEAP_FLAG_NONE
+		};
+
+		CheckHR(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(dsvHeap.GetAddressOf())));
+	}
+
+	{
 		DXGI_SWAP_CHAIN_DESC1 swapChainDesc;
 		CheckHR(swapChain->GetDesc1(&swapChainDesc));
-		CreateZBuffer(swapChainDesc.Width, swapChainDesc.Height);
+		CreateOffscreenSurfaces(swapChainDesc.Width, swapChainDesc.Height);
 	}
 }
 
@@ -146,8 +146,7 @@ void RenderOutput::OnResize()
 		vector<UINT> nodeMasks(swapChainDesc.BufferCount);
 		vector<IUnknown *> cmdQueues(swapChainDesc.BufferCount, cmdQueue.Get());
 		CheckHR(swapChain->ResizeBuffers1(swapChainDesc.BufferCount, newWidth, newHeight, DXGI_FORMAT_UNKNOWN, swapChainDesc.Flags, nodeMasks.data(), cmdQueues.data()));
-		Fill_RTV_Heap(swapChainDesc.BufferCount);
-		CreateZBuffer(newWidth, newHeight);
+		CreateOffscreenSurfaces(newWidth, newHeight);
 	}
 	else
 		CheckHR(swapChain->SetSourceSize(newWidth, newHeight));
@@ -166,11 +165,11 @@ void RenderOutput::NextFrame(bool vsync)
 	UINT width, height;
 	CheckHR(swapChain->GetSourceSize(&width, &height));
 	const auto idx = swapChain->GetCurrentBackBufferIndex();
-	ComPtr<ID3D12Resource> rt;
-	CheckHR(swapChain->GetBuffer(idx, IID_PPV_ARGS(&rt)));
-	const auto rtvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	ComPtr<ID3D12Resource> output;
+	CheckHR(swapChain->GetBuffer(idx, IID_PPV_ARGS(&output)));
+	const D3D12_CPU_DESCRIPTOR_HANDLE dsv = dsvHeap->GetCPUDescriptorHandleForHeapStart(), dsvMSAA = CD3DX12_CPU_DESCRIPTOR_HANDLE(dsv, device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV));
 	globalFrameVersioning->OnFrameStart();
-	viewport->Render(rt.Get(), ZBuffer.Get(), CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvHeap->GetCPUDescriptorHandleForHeapStart(), idx, rtvDescriptorSize), dsvHeap->GetCPUDescriptorHandleForHeapStart(), width, height);
+	viewport->Render(output.Get(), renderTargetMSAA.Get(), ZBuffer.Get(), ZBufferMSAA.Get(), rtvHeap->GetCPUDescriptorHandleForHeapStart(), dsv, dsvMSAA, width, height);
 	CheckHR(swapChain->Present(vsync, 0));
 	globalFrameVersioning->OnFrameFinish();
 	viewport->OnFrameFinish();
@@ -178,22 +177,25 @@ void RenderOutput::NextFrame(bool vsync)
 	OnFrameFinish();
 }
 
-void RenderOutput::Fill_RTV_Heap(unsigned int bufferCount)
+void RenderOutput::CreateOffscreenSurfaces(UINT width, UINT height)
 {
-	const auto rtvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	const DXGI_SAMPLE_DESC MSAA_mode = Config::MSAA();
 
-	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvHeap->GetCPUDescriptorHandleForHeapStart());
-	for (unsigned i = 0; i < bufferCount; i++, rtvHandle.Offset(rtvDescriptorSize))
-	{
-		ComPtr<ID3D12Resource> rt;
-		CheckHR(swapChain->GetBuffer(i, IID_PPV_ARGS(&rt)));
-		device->CreateRenderTargetView(rt.Get(), NULL, rtvHandle);
-	}
-}
+	// create rendertarget
+	extern const float backgroundColor[4];
+	CheckHR(device->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Tex2D(Config::ColorFormat, width, height, 1, 1, MSAA_mode.Count, MSAA_mode.Quality, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET),
+		D3D12_RESOURCE_STATE_RENDER_TARGET,
+		&CD3DX12_CLEAR_VALUE(Config::ColorFormat, backgroundColor),
+		IID_PPV_ARGS(renderTargetMSAA.ReleaseAndGetAddressOf())
+	));
 
-void RenderOutput::CreateZBuffer(UINT width, UINT height)
-{
-	// create z/stencil buffer
+	// fill RTV heap
+	device->CreateRenderTargetView(renderTargetMSAA.Get(), NULL, rtvHeap->GetCPUDescriptorHandleForHeapStart());
+
+	// create z/stencil buffers
 	CheckHR(device->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 		D3D12_HEAP_FLAG_NONE,
@@ -202,7 +204,19 @@ void RenderOutput::CreateZBuffer(UINT width, UINT height)
 		&CD3DX12_CLEAR_VALUE(Config::ZFormat, 1.f, 0xef),
 		IID_PPV_ARGS(ZBuffer.ReleaseAndGetAddressOf())
 	));
+	CheckHR(device->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Tex2D(Config::ZFormat, width, height, 1, 1, MSAA_mode.Count, MSAA_mode.Quality, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
+		D3D12_RESOURCE_STATE_DEPTH_WRITE,
+		&CD3DX12_CLEAR_VALUE(Config::ZFormat, 1.f, UINT8_MAX),
+		IID_PPV_ARGS(ZBufferMSAA.ReleaseAndGetAddressOf())
+	));
 
 	// fill DSV heap
-	device->CreateDepthStencilView(ZBuffer.Get(), NULL, dsvHeap->GetCPUDescriptorHandleForHeapStart());
+	{
+		CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(dsvHeap->GetCPUDescriptorHandleForHeapStart());
+		device->CreateDepthStencilView(ZBuffer.Get(), NULL, dsvHandle);
+		device->CreateDepthStencilView(ZBufferMSAA.Get(), NULL, dsvHandle.Offset(device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV)));
+	}
 }

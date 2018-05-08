@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		05.05.2018 (c)Korotkov Andrey
+\date		08.05.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -115,7 +115,7 @@ auto Impl::Object3D::CreatePSOs() -> decltype(PSOs)
 		1,																// render targets
 		{ Config::ColorFormat },										// RT formats
 		Config::ZFormat,												// depth stencil format
-		{1}																// MSAA
+		Config::MSAA()													// MSAA
 	};
 
 	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result[false].GetAddressOf())));
