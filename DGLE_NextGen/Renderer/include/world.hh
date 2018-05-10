@@ -252,11 +252,11 @@ namespace Renderer
 		private:
 			class InstanceDeleter final
 			{
-				decltype(staticObjects)::const_iterator instsnceLocation;
+				decltype(staticObjects)::const_iterator instanceLocation;
 
 			public:
 				InstanceDeleter() = default;
-				explicit InstanceDeleter(decltype(instsnceLocation) instsnceLocation) : instsnceLocation(instsnceLocation) {}
+				explicit InstanceDeleter(decltype(instanceLocation) instanceLocation) : instanceLocation(instanceLocation) {}
 
 			public:
 				void operator ()(const Renderer::Instance *instanceToRemove) const;

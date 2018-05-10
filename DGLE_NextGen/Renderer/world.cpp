@@ -99,7 +99,7 @@ inline unsigned long int Impl::World::BVHObject::GetTriCount() const noexcept
 void Impl::World::InstanceDeleter::operator()(const Renderer::Instance *instanceToRemove) const
 {
 	instanceToRemove->GetWorld()->InvalidateStaticObjects();
-	instanceToRemove->GetWorld()->staticObjects.erase(instsnceLocation);
+	instanceToRemove->GetWorld()->staticObjects.erase(instanceLocation);
 }
 
 void Impl::World::InvalidateStaticObjects()
