@@ -698,7 +698,7 @@ void Impl::World::StagePost(CmdListPool::CmdList &cmdList) const
 			D3D12_HEAP_FLAG_NONE,
 			&targetZDesc,
 			D3D12_RESOURCE_STATE_COPY_DEST,
-			&CD3DX12_CLEAR_VALUE(Config::ZFormat, 1.f, UINT8_MAX),
+			NULL,
 			IID_PPV_ARGS(viewCtx->ZBufferHistory.ReleaseAndGetAddressOf())
 		));
 		NameObjectF(viewCtx->ZBufferHistory.Get(), L"Z buffer history (world view context %p) [%lu]", viewCtx, viewCtx->ZBufferHistoryVersion++);
