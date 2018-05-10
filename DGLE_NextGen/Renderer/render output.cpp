@@ -198,7 +198,7 @@ void RenderOutput::CreateOffscreenSurfaces(UINT width, UINT height)
 	CheckHR(device->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Tex2D(Config::ZFormat, width, height, 1, 1, MSAA_mode.Count, MSAA_mode.Quality, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
+		&CD3DX12_RESOURCE_DESC::Tex2D(Config::ZFormat, width, height, 1, 1, MSAA_mode.Count, MSAA_mode.Quality, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE),
 		D3D12_RESOURCE_STATE_DEPTH_WRITE,
 		&CD3DX12_CLEAR_VALUE(Config::ZFormat, 1.f, 0xef),
 		IID_PPV_ARGS(ZBuffer.ReleaseAndGetAddressOf())
