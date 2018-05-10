@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.04.2018 (c)Korotkov Andrey
+\date		11.05.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -108,21 +108,10 @@ Handle AllocatorBase::Allocate(unsigned long payloadSize, long int usage, LPCWST
 				lock_guard<decltype(mtx)> exclusiveLock(mtx);
 				if (!buffer || totalSize > buffer->GetDesc().Width)
 				{
-					const CD3DX12_RESOURCE_DESC bufferDesc(
-						D3D12_RESOURCE_DIMENSION_BUFFER,
-						D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
-						totalSize,
-						1,		// height
-						1,		// depth
-						1,		// mips
-						DXGI_FORMAT_UNKNOWN,
-						1, 0,	// MSAA
-						D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
-						D3D12_RESOURCE_FLAG_NONE);
 					CheckHR(device->CreateCommittedResource(
 						&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 						D3D12_HEAP_FLAG_NONE,
-						&bufferDesc,
+						&CD3DX12_RESOURCE_DESC::Buffer(totalSize),
 						D3D12_RESOURCE_STATE_COPY_DEST,
 						NULL,	// clear value
 						IID_PPV_ARGS(buffer.ReleaseAndGetAddressOf())));

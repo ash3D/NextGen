@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.04.2018 (c)Korotkov Andrey
+\date		11.05.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -137,21 +137,10 @@ void QueryBatch<TRANSIENT>::FinalSetup()
 
 				static unsigned long version;
 
-				const CD3DX12_RESOURCE_DESC resultsDesc(
-					D3D12_RESOURCE_DIMENSION_BUFFER,
-					D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
-					newResultsSize,
-					1,		// height
-					1,		// depth
-					1,		// mips
-					DXGI_FORMAT_UNKNOWN,
-					1, 0,	// MSAA
-					D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
-					D3D12_RESOURCE_FLAG_NONE);
 				CheckHR(device->CreateCommittedResource(
 					&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 					D3D12_HEAP_FLAG_NONE,
-					&resultsDesc,
+					&CD3DX12_RESOURCE_DESC::Buffer(newResultsSize),
 					D3D12_RESOURCE_STATE_COPY_DEST,
 					NULL,	// clear value
 					IID_PPV_ARGS(resultsPool.ReleaseAndGetAddressOf())));
@@ -211,21 +200,10 @@ void QueryBatch<PERSISTENT>::FinalSetup()
 {
 	if (const unsigned long requiredSize = count * sizeof(UINT64); !batchResults || batchResults->GetDesc().Width < requiredSize)
 	{
-		const CD3DX12_RESOURCE_DESC resultsDesc(
-			D3D12_RESOURCE_DIMENSION_BUFFER,
-			D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
-			requiredSize,
-			1,		// height
-			1,		// depth
-			1,		// mips
-			DXGI_FORMAT_UNKNOWN,
-			1, 0,	// MSAA
-			D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
-			D3D12_RESOURCE_FLAG_NONE);
 		CheckHR(device->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 			D3D12_HEAP_FLAG_NONE,
-			&resultsDesc,
+			&CD3DX12_RESOURCE_DESC::Buffer(requiredSize),
 			D3D12_RESOURCE_STATE_COPY_DEST,
 			NULL,	// clear value
 			IID_PPV_ARGS(batchResults.ReleaseAndGetAddressOf())));
@@ -268,21 +246,10 @@ void QueryBatch<DUAL>::FinalSetup()
 {
 	if (const unsigned long moietySize = count * sizeof(UINT64), requiredSize = AlignSize(moietySize, alignment) + moietySize; !batchResults || batchResults->GetDesc().Width < requiredSize)
 	{
-		const CD3DX12_RESOURCE_DESC resultsDesc(
-			D3D12_RESOURCE_DIMENSION_BUFFER,
-			D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
-			requiredSize,
-			1,		// height
-			1,		// depth
-			1,		// mips
-			DXGI_FORMAT_UNKNOWN,
-			1, 0,	// MSAA
-			D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
-			D3D12_RESOURCE_FLAG_NONE);
 		CheckHR(device->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 			D3D12_HEAP_FLAG_NONE,
-			&resultsDesc,
+			&CD3DX12_RESOURCE_DESC::Buffer(requiredSize),
 			D3D12_RESOURCE_STATE_COPY_DEST,
 			NULL,	// clear value
 			IID_PPV_ARGS(batchResults.ReleaseAndGetAddressOf())));
