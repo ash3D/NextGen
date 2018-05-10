@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		08.05.2018 (c)Korotkov Andrey
+\date		10.05.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -22,7 +22,7 @@ namespace Renderer
 	class RenderOutput
 	{
 		Impl::TrackedResource<IDXGISwapChain4> swapChain;
-		Impl::TrackedResource<ID3D12Resource> renderTargetMSAA, ZBuffer, ZBufferMSAA;
+		Impl::TrackedResource<ID3D12Resource> rt, ZBuffer;
 		Impl::TrackedResource<ID3D12DescriptorHeap> rtvHeap, dsvHeap;	// is tracking really needed?
 		Impl::TrackedRef::Ref<class Viewport> viewport;
 

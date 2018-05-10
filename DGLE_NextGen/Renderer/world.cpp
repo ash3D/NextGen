@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		08.05.2018 (c)Korotkov Andrey
+\date		10.05.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -266,7 +266,7 @@ auto Impl::World::CreateCullPassPSOs() -> decltype(cullPassPSOs)
 		0,																// render targets
 		{},																// RT formats
 		Config::ZFormat,												// depth stencil format
-		{1}																// MSAA
+		Config::MSAA()													// MSAA
 	};
 
 	decltype(cullPassPSOs) result;
@@ -275,7 +275,6 @@ auto Impl::World::CreateCullPassPSOs() -> decltype(cullPassPSOs)
 	NameObject(result[0].Get(), L"world objects first occlusion query pass PSO");
 
 	PSO_desc.DepthStencilState = dsDescs[1];
-	PSO_desc.SampleDesc = Config::MSAA();
 
 	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result[1].GetAddressOf())));
 	NameObject(result[1].Get(), L"world objects second occlusion query pass PSO");
@@ -323,7 +322,7 @@ void Impl::World::CullPassRange(CmdListPool::CmdList &cmdList, unsigned long ran
 
 	cmdList.Setup(cullPassPSOs[final].Get());
 
-	cullPassSetupCallback(cmdList, final);
+	cullPassSetupCallback(cmdList);
 	cmdList->SetGraphicsRootSignature(cullPassRootSig.Get());
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
@@ -366,7 +365,7 @@ void Impl::World::CullPassRange(CmdListPool::CmdList &cmdList, unsigned long ran
 }
 
 // 1 call site
-inline void Impl::World::SetupCullPass(function<void (ID3D12GraphicsCommandList2 *target, bool MSAA)> &&setupCallback) const
+inline void Impl::World::SetupCullPass(function<void (ID3D12GraphicsCommandList2 *target)> &&setupCallback) const
 {
 	cullPassSetupCallback = move(setupCallback);
 	queryStream.clear();
@@ -611,7 +610,7 @@ void Impl::World::StagePre(CmdListPool::CmdList &cmdList) const
 				initializer_list<D3D12_RESOURCE_BARRIER> barriers
 				{
 					CD3DX12_RESOURCE_BARRIER::Transition(ZBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_COPY_DEST),
-					CD3DX12_RESOURCE_BARRIER::Transition(viewCtx->ZBufferHistory.Get(), D3D12_RESOURCE_STATE_RESOLVE_DEST, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY)
+					CD3DX12_RESOURCE_BARRIER::Transition(viewCtx->ZBufferHistory.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY)
 				};
 				cmdList.ResourceBarrier(barriers);
 				cmdList.FlushBarriers<true>();
@@ -621,7 +620,7 @@ void Impl::World::StagePre(CmdListPool::CmdList &cmdList) const
 				initializer_list<D3D12_RESOURCE_BARRIER> barriers
 				{
 					CD3DX12_RESOURCE_BARRIER::Transition(ZBuffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_DEPTH_WRITE),
-					CD3DX12_RESOURCE_BARRIER::Transition(viewCtx->ZBufferHistory.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_RESOLVE_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY)
+					CD3DX12_RESOURCE_BARRIER::Transition(viewCtx->ZBufferHistory.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY)
 				};
 				cmdList.ResourceBarrier(barriers);
 				cmdList.FlushBarriers<true>();
@@ -658,6 +657,9 @@ void Impl::World::CullPass2MainPass(CmdListPool::CmdList &cmdList, bool final) c
 		if (!enableDebugDraw)
 			xformedAABBs.Finish(cmdList);
 	}
+	else
+		// no need to flush barriers, there should not be any pending barriers (it is good idea to 'assert' it here)
+		cmdList->ClearDepthStencilView({ dsv }, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, UINT8_MAX, 0, NULL);
 
 	visit([&cmdList, final](const auto &queryBatch) { queryBatch.Resolve(cmdList, final); }, occlusionQueryBatch);
 
@@ -681,21 +683,21 @@ void Impl::World::StagePost(CmdListPool::CmdList &cmdList) const
 
 #if 1
 	// enables 'force' for FlushBarriers() below
-	cmdList.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(ZBufferMSAA, D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_RESOLVE_SOURCE));
+	cmdList.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(ZBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_COPY_SOURCE));
 
 	const auto targetZDesc = ZBuffer->GetDesc();
 	if (viewCtx->ZBufferHistory)
 		if (const auto historyZDesc = viewCtx->ZBufferHistory->GetDesc(); targetZDesc.Width != historyZDesc.Width || targetZDesc.Height != historyZDesc.Height)
 			viewCtx->ZBufferHistory.Reset();
 	if (viewCtx->ZBufferHistory)
-		cmdList.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(viewCtx->ZBufferHistory.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_RESOLVE_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY));
+		cmdList.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(viewCtx->ZBufferHistory.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY));
 	else
 	{
 		CheckHR(device->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 			D3D12_HEAP_FLAG_NONE,
 			&targetZDesc,
-			D3D12_RESOURCE_STATE_RESOLVE_DEST,
+			D3D12_RESOURCE_STATE_COPY_DEST,
 			&CD3DX12_CLEAR_VALUE(Config::ZFormat, 1.f, UINT8_MAX),
 			IID_PPV_ARGS(viewCtx->ZBufferHistory.ReleaseAndGetAddressOf())
 		));
@@ -703,12 +705,12 @@ void Impl::World::StagePost(CmdListPool::CmdList &cmdList) const
 	}
 
 	cmdList.FlushBarriers<true>();
-	cmdList->ResolveSubresourceRegion(viewCtx->ZBufferHistory.Get(), 0, 0, 0, ZBufferMSAA, 0, &rect, targetZDesc.Format, D3D12_RESOLVE_MODE_MAX);
+	cmdList->CopyResource(viewCtx->ZBufferHistory.Get(), ZBuffer);
 	{
 		initializer_list<D3D12_RESOURCE_BARRIER> barriers
 		{
-			CD3DX12_RESOURCE_BARRIER::Transition(ZBufferMSAA, D3D12_RESOURCE_STATE_RESOLVE_SOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE),
-			CD3DX12_RESOURCE_BARRIER::Transition(viewCtx->ZBufferHistory.Get(), D3D12_RESOURCE_STATE_RESOLVE_DEST, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY)
+			CD3DX12_RESOURCE_BARRIER::Transition(ZBuffer, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE),
+			CD3DX12_RESOURCE_BARRIER::Transition(viewCtx->ZBufferHistory.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY)
 		};
 		cmdList.ResourceBarrier(barriers);
 	}
@@ -849,13 +851,11 @@ auto Renderer::Impl::World::GetAABBPassPost(unsigned int &) const -> RenderPipel
 }
 
 // 1 call site
-inline void Impl::World::Setup(WorldViewContext &viewCtx, ID3D12Resource *ZBuffer, ID3D12Resource *ZBufferMSAA, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, const RECT &rect, function<void (ID3D12GraphicsCommandList2 *target, bool MSAA)> &&cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> &&mainPassSetupCallback) const
+inline void Impl::World::Setup(WorldViewContext &viewCtx, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, function<void (ID3D12GraphicsCommandList2 *target)> &&cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> &&mainPassSetupCallback) const
 {
 	this->viewCtx = &viewCtx;
 	this->ZBuffer = ZBuffer;
-	this->ZBufferMSAA = ZBufferMSAA;
 	this->dsv = dsv.ptr;
-	this->rect = rect;
 	SetupCullPass(move(cullPassSetupCallback));
 	SetupMainPass(move(mainPassSetupCallback));
 }
@@ -886,7 +886,7 @@ static inline void CopyMatrix2CB(const float (&src)[rows][columns], volatile Imp
 	copy_n(src, rows, dst);
 }
 
-void Impl::World::Render(WorldViewContext &viewCtx, const float (&viewXform)[4][3], const float (&projXform)[4][4], ID3D12Resource *ZBuffer, ID3D12Resource *ZBufferMSAA, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, const RECT rect, const function<void (ID3D12GraphicsCommandList2 *target, bool MSAA, bool enableRT)> &setupRenderOutputCallback) const
+void Impl::World::Render(WorldViewContext &viewCtx, const float (&viewXform)[4][3], const float (&projXform)[4][4], ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, const function<void (ID3D12GraphicsCommandList2 *target, bool enableRT)> &setupRenderOutputCallback) const
 {
 	using namespace placeholders;
 
@@ -913,9 +913,9 @@ void Impl::World::Render(WorldViewContext &viewCtx, const float (&viewXform)[4][
 #endif
 	}
 
-	const function<void (ID3D12GraphicsCommandList2 *target)> cullPassSetupCallback = bind(setupRenderOutputCallback, _1, true, false), mainPassSetupCallback = bind(setupRenderOutputCallback, _1, true, true);
-	
-	GPUWorkSubmission::AppendPipelineStage<true>(&World::BuildRenderStage, this, ref(viewCtx), frustumTransform, worldViewTransform, ZBuffer, ZBufferMSAA, dsv, rect, function<void (ID3D12GraphicsCommandList2 *target, bool MSAA)>(bind(setupRenderOutputCallback, _1, _2, false)), mainPassSetupCallback);
+	const function<void (ID3D12GraphicsCommandList2 *target)> cullPassSetupCallback = bind(setupRenderOutputCallback, _1, false), mainPassSetupCallback = bind(setupRenderOutputCallback, _1, true);
+
+	GPUWorkSubmission::AppendPipelineStage<true>(&World::BuildRenderStage, this, ref(viewCtx), frustumTransform, worldViewTransform, ZBuffer, dsv, cullPassSetupCallback, mainPassSetupCallback);
 
 	for_each(terrainVectorLayers.cbegin(), terrainVectorLayers.cend(), bind(&decltype(terrainVectorLayers)::value_type::ScheduleRenderStage,
 		_1, FrustumCuller<2>(frustumTransform), cref(frustumTransform), cref(cullPassSetupCallback), cref(mainPassSetupCallback)));
@@ -1014,9 +1014,9 @@ void Impl::World::FlushUpdates() const
 	}
 }
 
-auto Impl::World::BuildRenderStage(WorldViewContext &viewCtx, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 &viewXform, ID3D12Resource *ZBuffer, ID3D12Resource *ZBufferMSAA, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, const RECT rect, function<void (ID3D12GraphicsCommandList2 *target, bool MSAA)> &cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> &mainPassSetupCallback) const -> RenderPipeline::RenderStage
+auto Impl::World::BuildRenderStage(WorldViewContext &viewCtx, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 &viewXform, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, function<void (ID3D12GraphicsCommandList2 *target)> &cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> &mainPassSetupCallback) const -> RenderPipeline::RenderStage
 {
-	Setup(viewCtx, ZBuffer, ZBufferMSAA, dsv, rect, move(cullPassSetupCallback), move(mainPassSetupCallback));
+	Setup(viewCtx, ZBuffer, dsv, move(cullPassSetupCallback), move(mainPassSetupCallback));
 
 	// schedule
 	bvhView.Schedule<false>(*GPU_AABB_allocator, FrustumCuller<3>(frustumXform), frustumXform, &viewXform);

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		08.05.2018 (c)Korotkov Andrey
+\date		10.05.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -696,7 +696,7 @@ ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateAABB_PSO()
 		1,																// render targets
 		{ Config::ColorFormat },										// RT formats
 		Config::ZFormat,												// depth stencil format
-		{1}																// MSAA
+		Config::MSAA()													// MSAA
 	};
 
 	ComPtr<ID3D12PipelineState> result;

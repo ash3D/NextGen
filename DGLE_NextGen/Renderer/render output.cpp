@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		08.05.2018 (c)Korotkov Andrey
+\date		10.05.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -71,7 +71,7 @@ RenderOutput::RenderOutput(HWND wnd, bool allowModeSwitch, unsigned int bufferCo
 		const D3D12_DESCRIPTOR_HEAP_DESC desc =
 		{
 			D3D12_DESCRIPTOR_HEAP_TYPE_DSV,
-			2,
+			1,
 			D3D12_DESCRIPTOR_HEAP_FLAG_NONE
 		};
 
@@ -167,9 +167,8 @@ void RenderOutput::NextFrame(bool vsync)
 	const auto idx = swapChain->GetCurrentBackBufferIndex();
 	ComPtr<ID3D12Resource> output;
 	CheckHR(swapChain->GetBuffer(idx, IID_PPV_ARGS(&output)));
-	const D3D12_CPU_DESCRIPTOR_HANDLE dsv = dsvHeap->GetCPUDescriptorHandleForHeapStart(), dsvMSAA = CD3DX12_CPU_DESCRIPTOR_HANDLE(dsv, device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV));
 	globalFrameVersioning->OnFrameStart();
-	viewport->Render(output.Get(), renderTargetMSAA.Get(), ZBuffer.Get(), ZBufferMSAA.Get(), rtvHeap->GetCPUDescriptorHandleForHeapStart(), dsv, dsvMSAA, width, height);
+	viewport->Render(output.Get(), rt.Get(), ZBuffer.Get(), rtvHeap->GetCPUDescriptorHandleForHeapStart(), dsvHeap->GetCPUDescriptorHandleForHeapStart(), width, height);
 	CheckHR(swapChain->Present(vsync, 0));
 	globalFrameVersioning->OnFrameFinish();
 	viewport->OnFrameFinish();
@@ -189,34 +188,22 @@ void RenderOutput::CreateOffscreenSurfaces(UINT width, UINT height)
 		&CD3DX12_RESOURCE_DESC::Tex2D(Config::ColorFormat, width, height, 1, 1, MSAA_mode.Count, MSAA_mode.Quality, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET),
 		D3D12_RESOURCE_STATE_RENDER_TARGET,
 		&CD3DX12_CLEAR_VALUE(Config::ColorFormat, backgroundColor),
-		IID_PPV_ARGS(renderTargetMSAA.ReleaseAndGetAddressOf())
+		IID_PPV_ARGS(rt.ReleaseAndGetAddressOf())
 	));
 
 	// fill RTV heap
-	device->CreateRenderTargetView(renderTargetMSAA.Get(), NULL, rtvHeap->GetCPUDescriptorHandleForHeapStart());
+	device->CreateRenderTargetView(rt.Get(), NULL, rtvHeap->GetCPUDescriptorHandleForHeapStart());
 
-	// create z/stencil buffers
-	CheckHR(device->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Tex2D(Config::ZFormat, width, height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
-		D3D12_RESOURCE_STATE_DEPTH_WRITE,
-		&CD3DX12_CLEAR_VALUE(Config::ZFormat, 1.f, 0xef),
-		IID_PPV_ARGS(ZBuffer.ReleaseAndGetAddressOf())
-	));
+	// create z/stencil buffer
 	CheckHR(device->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 		D3D12_HEAP_FLAG_NONE,
 		&CD3DX12_RESOURCE_DESC::Tex2D(Config::ZFormat, width, height, 1, 1, MSAA_mode.Count, MSAA_mode.Quality, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
 		D3D12_RESOURCE_STATE_DEPTH_WRITE,
-		&CD3DX12_CLEAR_VALUE(Config::ZFormat, 1.f, UINT8_MAX),
-		IID_PPV_ARGS(ZBufferMSAA.ReleaseAndGetAddressOf())
+		&CD3DX12_CLEAR_VALUE(Config::ZFormat, 1.f, 0xef),
+		IID_PPV_ARGS(ZBuffer.ReleaseAndGetAddressOf())
 	));
 
 	// fill DSV heap
-	{
-		CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(dsvHeap->GetCPUDescriptorHandleForHeapStart());
-		device->CreateDepthStencilView(ZBuffer.Get(), NULL, dsvHandle);
-		device->CreateDepthStencilView(ZBufferMSAA.Get(), NULL, dsvHandle.Offset(device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV)));
-	}
+	device->CreateDepthStencilView(ZBuffer.Get(), NULL, dsvHeap->GetCPUDescriptorHandleForHeapStart());
 }
