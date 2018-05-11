@@ -103,6 +103,26 @@ static auto CreateDevice()
 {
 	ComPtr<ID3D12Device2> device;
 	CheckHR(D3D12CreateDevice(NULL, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(device.GetAddressOf())));
+
+	// GBV device settings
+#if _DEBUG && ENABLE_GBV
+	{
+		ComPtr<ID3D12DebugDevice1> debugDeviceController;
+		if (const HRESULT hr = device.As(&debugDeviceController); FAILED(hr))
+			cerr << "Fail to setup device debug settings (hr=" << hr << "). Defaults used.";
+		else
+		{
+			const D3D12_DEBUG_DEVICE_GPU_BASED_VALIDATION_SETTINGS GBVSettings =
+			{
+				16,
+				D3D12_GPU_BASED_VALIDATION_SHADER_PATCH_MODE_NONE,
+				D3D12_GPU_BASED_VALIDATION_PIPELINE_STATE_CREATE_FLAG_NONE
+			};
+			debugDeviceController->SetDebugParameter(D3D12_DEBUG_DEVICE_PARAMETER_GPU_BASED_VALIDATION_SETTINGS, &GBVSettings, sizeof GBVSettings);
+		}
+	}
+#endif
+
 	return device;
 }
 
