@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		23.04.2018 (c)Korotkov Andrey
+\date		11.05.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -16,7 +16,7 @@ See "DGLE.h" for more details.
 
 struct Renderer::Impl::World::GlobalGPUBufferData
 {
-	struct alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) PerFrameData
+	struct alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) alignas(D3D12_COMMONSHADER_CONSTANT_BUFFER_PARTIAL_UPDATE_EXTENTS_BYTE_ALIGNMENT) PerFrameData
 	{
 		CBRegister::AlignedRow<4> projXform[4];
 		CBRegister::AlignedRow<3> viewXform[4], terrainXform[4];
@@ -25,7 +25,7 @@ struct Renderer::Impl::World::GlobalGPUBufferData
 		static inline auto CurFrameCB_offset() noexcept { return offsetof(GlobalGPUBufferData, perFrameDataCB) + globalFrameVersioning->GetContinuousRingIdx() * sizeof(PerFrameData); }
 	} perFrameDataCB[maxFrameLatency];
 
-	struct alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) AABB_3D_VisColors
+	struct alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) alignas(D3D12_COMMONSHADER_CONSTANT_BUFFER_PARTIAL_UPDATE_EXTENTS_BYTE_ALIGNMENT) AABB_3D_VisColors
 	{
 		CBRegister::AlignedRow<3> culled, rendered[2]/*phase 1 - phase 2*/;
 
