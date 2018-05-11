@@ -244,6 +244,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cmdlist pool.cpp" />
+    <ClCompile Include="config.cpp" />
     <ClCompile Include="frustum culling.cpp" />
     <ClCompile Include="GPU stream buffer allocator.cpp" />
     <ClCompile Include="GPU work submission.cpp" />
