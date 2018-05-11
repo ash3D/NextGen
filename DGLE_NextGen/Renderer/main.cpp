@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		23.04.2018 (c)Korotkov Andrey
+\date		11.05.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -17,7 +17,8 @@ See "DGLE.h" for more details.
 #include "GPU stream buffer allocator.inl"
 
 // auto init does not work with dll, hangs with Graphics Debugging
-#define ENABLE_AUTO_INIT 0
+#define ENABLE_AUTO_INIT	0
+#define ENABLE_GBV			1
 
 using namespace std;
 using Renderer::Impl::globalFrameVersioning;
@@ -81,11 +82,12 @@ static auto CreateFactory()
 	UINT creationFlags = 0;
 
 #ifdef _DEBUG
-	ComPtr<ID3D12Debug> debugController;
+	ComPtr<ID3D12Debug1> debugController;
 	const HRESULT hr = D3D12GetDebugInterface(IID_PPV_ARGS(debugController.GetAddressOf()));
 	if (SUCCEEDED(hr))
 	{
 		debugController->EnableDebugLayer();
+		debugController->SetEnableGPUBasedValidation(ENABLE_GBV);
 		creationFlags |= DXGI_CREATE_FACTORY_DEBUG;
 	}
 	else
