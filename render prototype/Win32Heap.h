@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		30.10.2017 (c)Korotkov Andrey
+\date		14.05.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -73,7 +73,7 @@ namespace Win32Heap
 			}
 			catch (...)
 			{
-				throw bad_alloc();
+				throw std::bad_alloc();
 			}
 		}
 		void deallocate(pointer ptr, size_type)
