@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		10.05.2018 (c)Korotkov Andrey
+\date		14.05.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -85,8 +85,8 @@ namespace
 		typedef iterator<random_access_iterator_tag, Object, signed int> iterator;
 
 	public:
-		using iterator::value_type;
-		using iterator::difference_type;
+		using typename iterator::value_type;
+		using typename iterator::difference_type;
 
 	public:
 		ObjIterator(const function<TerrainVectorLayer::ObjectData (unsigned int objIdx)> &getObjectData, unsigned int objIdx) :
