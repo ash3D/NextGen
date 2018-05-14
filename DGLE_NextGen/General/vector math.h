@@ -265,8 +265,8 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 #	ifndef __VECTOR_MATH_H__
 #	define __VECTOR_MATH_H__
 
-#	if defined _MSC_VER && _MSC_VER < 1913 && !defined  __clang__
-#	error Old MSVC compiler version. Visual Studio 2017 15.6 or later required.
+#	if defined _MSC_VER && _MSC_VER < 1914 && !defined  __clang__
+#	error Old MSVC compiler version. Visual Studio 2017 15.7 or later required.
 #	elif defined __GNUC__ && (__GNUC__ < 4 || (__GNUC__ >= 4 && __GNUC_MINOR__ < 7)) && !defined __clang__
 #	error Old GCC compiler version. GCC 4.7 or later required.	// need to be clarified
 #	endif
@@ -1247,11 +1247,6 @@ further investigations needed, including other compilers
 #if !defined _MSC_VER || defined __clang__
 			namespace ElementsCountHelpers
 			{
-#ifdef MSVC_LIMITATIONS
-				// empty
-				static integral_constant<unsigned int, 0u> ElementsCountHelper();
-#endif
-
 				// scalar
 				template<typename Type>
 				static enable_if_t<IsPureScalar<Type>, integral_constant<unsigned int, 1u>> ElementsCountHelper(const Type &);
@@ -1263,21 +1258,10 @@ further investigations needed, including other compilers
 				// matrix
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				static integral_constant<unsigned int, rows * columns> ElementsCountHelper(const matrix<ElementType, rows, columns> &);
-
-#ifdef MSVC_LIMITATIONS
-				template<typename First, typename Second, typename ...Rest>
-				static auto ElementsCountHelper(const First &first, const Second &second, const Rest &...rest)	// enable_if_t - workaround for VS 2015/2017
-					-> integral_constant<unsigned int, enable_if_t<true, decltype(ElementsCountHelper(first))>::value + enable_if_t<true, decltype(ElementsCountHelper(second, rest...))>::value>;
-#endif
 			}
 
-#ifdef MSVC_LIMITATIONS
-			template<typename ...Args>
-			static constexpr unsigned int ElementsCount = decltype(ElementsCountHelpers::ElementsCountHelper(declval<Args>()...))::value;
-#else
 			template<typename ...Args>
 			static constexpr unsigned int ElementsCount = (decltype(ElementsCountHelpers::ElementsCountHelper(declval<Args>()))::value + ...);
-#endif
 #endif
 
 			struct CDataCommon
@@ -1295,11 +1279,6 @@ further investigations needed, including other compilers
 
 #if defined _MSC_VER && !defined __clang__
 			private:
-#ifdef MSVC_LIMITATIONS
-				// empty
-				static integral_constant<unsigned int, 0u> ElementsCountHelper();
-#endif
-
 				// scalar
 				template<typename Type>
 				static enable_if_t<IsPureScalar<Type>, integral_constant<unsigned int, 1u>> ElementsCountHelper(const Type &);
@@ -1312,20 +1291,9 @@ further investigations needed, including other compilers
 				template<typename ElementType, unsigned int rows, unsigned int columns>
 				static integral_constant<unsigned int, rows * columns> ElementsCountHelper(const matrix<ElementType, rows, columns> &);
 
-#ifdef MSVC_LIMITATIONS
-				template<typename First, typename Second, typename ...Rest>
-				static auto ElementsCountHelper(const First &first, const Second &second, const Rest &...rest)	// enable_if_t - workaround for VS 2015/2017
-					-> integral_constant<unsigned int, enable_if_t<true, decltype(ElementsCountHelper(first))>::value + enable_if_t<true, decltype(ElementsCountHelper(second, rest...))>::value>;
-#endif
-
 			public:
-#ifdef MSVC_LIMITATIONS
-				template<typename ...Args>
-				static constexpr unsigned int ElementsCount = decltype(ElementsCountHelper(declval<Args>()...))::value;
-#else
 				template<typename ...Args>
 				static constexpr unsigned int ElementsCount = (decltype(ElementsCountHelper(declval<Args>()))::value + ...);
-#endif
 #endif
 
 			private:
