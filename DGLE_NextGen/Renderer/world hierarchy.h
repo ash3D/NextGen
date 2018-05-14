@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		14.05.2018 (c)Korotkov Andrey
+\date		15.05.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -140,28 +140,28 @@ namespace Renderer::Impl::Hierarchy
 		private:
 			std::decay_t<decltype(std::declval<Object>().GetAABB())> aabb;
 			std::unique_ptr<Node> children[treeStructure];
-			typename std::enable_if_t<true, decltype(objects)>::const_iterator objBegin, objExclusiveSeparator, objEnd;
+			typename decltype(objects)::const_iterator objBegin, objExclusiveSeparator, objEnd;
 			unsigned long int exclusiveTriCount, inclusiveTriCount;
 			unsigned long idx;
 			float occlusion;
 			unsigned char childrenCount{};
 
 		public:	// for make_unique
-			Node(unsigned long &nodeCounter, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, ...);
+			Node(unsigned long &nodeCounter, typename decltype(objects)::iterator begin, typename decltype(objects)::iterator end, SplitTechnique splitTechnique, ...);
 			Node(Node &&) = delete;
 			Node &operator =(Node &&) = delete;
 
 		private:
 			template<typename ...Params>
-			void CreateChildNode(bool splitted, unsigned long &nodeCounter, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, unsigned int idxOffset, Params ...params);
+			void CreateChildNode(bool splitted, unsigned long &nodeCounter, typename decltype(objects)::iterator begin, typename decltype(objects)::iterator end, SplitTechnique splitTechnique, unsigned int idxOffset, Params ...params);
 			template<Axis axis, class F>
-			void Split2(const F &action, bool &splitted, unsigned long &nodeCounter, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, decltype(aabb.Center()) splitPoint, double overlapThreshold, unsigned int idxOffset = 0);
-			void SplitQuadtree(bool &splitted, unsigned long &nodeCounter, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, decltype(aabb.Center()) splitPoint, double overlapThreshold, unsigned int idxOffset = 0);
-			void SplitOctree(bool &splitted, unsigned long &nodeCounter, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, decltype(aabb.Center()) splitPoint, double overlapThreshold);
+			void Split2(const F &action, bool &splitted, unsigned long &nodeCounter, typename decltype(objects)::iterator begin, typename decltype(objects)::iterator end, decltype(aabb.Center()) splitPoint, double overlapThreshold, unsigned int idxOffset = 0);
+			void SplitQuadtree(bool &splitted, unsigned long &nodeCounter, typename decltype(objects)::iterator begin, typename decltype(objects)::iterator end, SplitTechnique splitTechnique, decltype(aabb.Center()) splitPoint, double overlapThreshold, unsigned int idxOffset = 0);
+			void SplitOctree(bool &splitted, unsigned long &nodeCounter, typename decltype(objects)::iterator begin, typename decltype(objects)::iterator end, SplitTechnique splitTechnique, decltype(aabb.Center()) splitPoint, double overlapThreshold);
 			template<Axis axis, class F>
-			void Split3(const F &action, bool &splitted, unsigned long &nodeCounter, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, decltype(aabb.Center()) splitPoint, unsigned int idxOffset = 0);
-			void SplitEneaTree(bool &splitted, unsigned long &nodeCounter, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, decltype(aabb.Center()) splitPoint, unsigned int idxOffset = 0);
-			void SplitIcoseptree(bool &splitted, unsigned long &nodeCounter, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, decltype(aabb.Center()) splitPoint);
+			void Split3(const F &action, bool &splitted, unsigned long &nodeCounter, typename decltype(objects)::iterator begin, typename decltype(objects)::iterator end, decltype(aabb.Center()) splitPoint, unsigned int idxOffset = 0);
+			void SplitEneaTree(bool &splitted, unsigned long &nodeCounter, typename decltype(objects)::iterator begin, typename decltype(objects)::iterator end, SplitTechnique splitTechnique, decltype(aabb.Center()) splitPoint, unsigned int idxOffset = 0);
+			void SplitIcoseptree(bool &splitted, unsigned long &nodeCounter, typename decltype(objects)::iterator begin, typename decltype(objects)::iterator end, SplitTechnique splitTechnique, decltype(aabb.Center()) splitPoint);
 
 		public:
 #if defined _MSC_VER && _MSC_VER == 1914
@@ -179,7 +179,7 @@ namespace Renderer::Impl::Hierarchy
 			template<typename ...Args, typename NodeHandler, typename ReorderProvider>
 			void Traverse(NodeHandler &nodeHandler, ReorderProvider reorderProvider, Args ...args);
 			template<bool enableEarlyOut, class Allocator>
-			std::pair<unsigned long int, bool> Schedule(View &view, Allocator &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
+			std::pair<unsigned long int, bool> Schedule(View &view, Allocator &GPU_AABB_allocator, const FrustumCuller<decltype(aabb.Center())::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
 				bool parentInsideFrustum = false, float parentOcclusionCulledProjLength = INFINITY, float parentOcclusion = 0);
 			template<bool enableEarlyOut>
 			std::pair<unsigned long int, float> CollectOcclusionQueryBoxes(const View &view, const Node **boxesBegin, const Node **boxesEnd);
@@ -288,7 +288,7 @@ namespace Renderer::Impl::Hierarchy
 
 	public:
 		template<bool enableEarlyOut, class Allocator>
-		void Schedule(Allocator &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(std::declval<Object>().GetAABB().Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform = nullptr);
+		void Schedule(Allocator &GPU_AABB_allocator, const FrustumCuller<decltype(std::declval<Object>().GetAABB().Center())::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform = nullptr);
 		template<typename IssueOcclusion, typename IssueObjects>
 		void Issue(const IssueOcclusion &issueOcclusion, const IssueObjects &issueObjects, std::remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &occlusionProvider) const;
 		void Reset();

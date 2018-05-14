@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		14.05.2018 (c)Korotkov Andrey
+\date		15.05.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -972,7 +972,7 @@ void Impl::World::FlushUpdates() const
 {
 	if (!staticObjects.empty())
 	{
-		struct AdressIterator : enable_if_t<true, decltype(staticObjects)::const_iterator>
+		struct AdressIterator : decltype(staticObjects)::const_iterator
 		{
 			AdressIterator(decltype(staticObjects)::const_iterator src) : enable_if_t<true, decltype(staticObjects)::const_iterator>(src) {}	// replace with C++17 aggregate base class init
 			auto operator *() const noexcept { return &decltype(staticObjects)::const_iterator::operator *(); }

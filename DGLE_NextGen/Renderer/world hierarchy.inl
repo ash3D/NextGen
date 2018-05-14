@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		14.05.2018 (c)Korotkov Andrey
+\date		15.05.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -72,7 +72,7 @@ namespace Renderer::Impl::Hierarchy
 	}
 
 	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>
-	BVH<treeStructure, Object, CustomNodeData...>::Node::Node(unsigned long &nodeCounter, typename std::enable_if_t<true, decltype(objects)>::iterator srcBegin, typename std::enable_if_t<true, decltype(objects)>::iterator srcEnd, SplitTechnique splitTechnique, ...) :
+	BVH<treeStructure, Object, CustomNodeData...>::Node::Node(unsigned long &nodeCounter, typename decltype(objects)::iterator srcBegin, typename decltype(objects)::iterator srcEnd, SplitTechnique splitTechnique, ...) :
 		objBegin(srcBegin), objEnd(srcEnd), idx(nodeCounter++)
 	{
 		using namespace std;
@@ -169,7 +169,7 @@ namespace Renderer::Impl::Hierarchy
 
 	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>
 	template<typename ...Params>
-	inline void BVH<treeStructure, Object, CustomNodeData...>::Node::CreateChildNode(bool splitted, unsigned long &nodeCounter, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, unsigned int idxOffset, Params ...params)
+	inline void BVH<treeStructure, Object, CustomNodeData...>::Node::CreateChildNode(bool splitted, unsigned long &nodeCounter, typename decltype(objects)::iterator begin, typename decltype(objects)::iterator end, SplitTechnique splitTechnique, unsigned int idxOffset, Params ...params)
 	{
 		if (splitted)
 			children[idxOffset] = make_unique<Node>(nodeCounter, begin, end, splitTechnique, params...);
@@ -177,7 +177,7 @@ namespace Renderer::Impl::Hierarchy
 
 	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>
 	template<Axis axis, class F>
-	inline void BVH<treeStructure, Object, CustomNodeData...>::Node::Split2(const F &action, bool &splitted, unsigned long &nodeCounter, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, decltype(aabb.Center()) splitPoint, double overlapThreshold, unsigned int idxOffset)
+	inline void BVH<treeStructure, Object, CustomNodeData...>::Node::Split2(const F &action, bool &splitted, unsigned long &nodeCounter, typename decltype(objects)::iterator begin, typename decltype(objects)::iterator end, decltype(aabb.Center()) splitPoint, double overlapThreshold, unsigned int idxOffset)
 	{
 		using namespace std;
 
@@ -201,7 +201,7 @@ namespace Renderer::Impl::Hierarchy
 	}
 
 	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>
-	inline void BVH<treeStructure, Object, CustomNodeData...>::Node::SplitQuadtree(bool &splitted, unsigned long &nodeCounter, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, decltype(aabb.Center()) splitPoint, double overlapThreshold, unsigned int idxOffset)
+	inline void BVH<treeStructure, Object, CustomNodeData...>::Node::SplitQuadtree(bool &splitted, unsigned long &nodeCounter, typename decltype(objects)::iterator begin, typename decltype(objects)::iterator end, SplitTechnique splitTechnique, decltype(aabb.Center()) splitPoint, double overlapThreshold, unsigned int idxOffset)
 	{
 		using namespace std;
 		using namespace placeholders;
@@ -212,7 +212,7 @@ namespace Renderer::Impl::Hierarchy
 
 	// 1 call site
 	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>
-	inline void BVH<treeStructure, Object, CustomNodeData...>::Node::SplitOctree(bool &splitted, unsigned long &nodeCounter, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, decltype(aabb.Center()) splitPoint, double overlapThreshold)
+	inline void BVH<treeStructure, Object, CustomNodeData...>::Node::SplitOctree(bool &splitted, unsigned long &nodeCounter, typename decltype(objects)::iterator begin, typename decltype(objects)::iterator end, SplitTechnique splitTechnique, decltype(aabb.Center()) splitPoint, double overlapThreshold)
 	{
 		using namespace std;
 		using namespace placeholders;
@@ -222,7 +222,7 @@ namespace Renderer::Impl::Hierarchy
 
 	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>
 	template<Axis axis, class F>
-	void BVH<treeStructure, Object, CustomNodeData...>::Node::Split3(const F &action, bool &splitted, unsigned long &nodeCounter, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, decltype(aabb.Center()) splitPoint, unsigned int idxOffset)
+	void BVH<treeStructure, Object, CustomNodeData...>::Node::Split3(const F &action, bool &splitted, unsigned long &nodeCounter, typename decltype(objects)::iterator begin, typename decltype(objects)::iterator end, decltype(aabb.Center()) splitPoint, unsigned int idxOffset)
 	{
 		using namespace std;
 
@@ -244,7 +244,7 @@ namespace Renderer::Impl::Hierarchy
 	}
 
 	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>
-	inline void BVH<treeStructure, Object, CustomNodeData...>::Node::SplitEneaTree(bool &splitted, unsigned long &nodeCounter, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, decltype(aabb.Center()) splitPoint, unsigned int idxOffset)
+	inline void BVH<treeStructure, Object, CustomNodeData...>::Node::SplitEneaTree(bool &splitted, unsigned long &nodeCounter, typename decltype(objects)::iterator begin, typename decltype(objects)::iterator end, SplitTechnique splitTechnique, decltype(aabb.Center()) splitPoint, unsigned int idxOffset)
 	{
 		using namespace std;
 		using namespace placeholders;
@@ -255,7 +255,7 @@ namespace Renderer::Impl::Hierarchy
 
 	// 1 call site
 	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>
-	inline void BVH<treeStructure, Object, CustomNodeData...>::Node::SplitIcoseptree(bool &splitted, unsigned long &nodeCounter, typename std::enable_if_t<true, decltype(objects)>::iterator begin, typename std::enable_if_t<true, decltype(objects)>::iterator end, SplitTechnique splitTechnique, decltype(aabb.Center()) splitPoint)
+	inline void BVH<treeStructure, Object, CustomNodeData...>::Node::SplitIcoseptree(bool &splitted, unsigned long &nodeCounter, typename decltype(objects)::iterator begin, typename decltype(objects)::iterator end, SplitTechnique splitTechnique, decltype(aabb.Center()) splitPoint)
 	{
 		using namespace std;
 		using namespace placeholders;
@@ -279,7 +279,7 @@ namespace Renderer::Impl::Hierarchy
 
 	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>
 	template<bool enableEarlyOut, class Allocator>
-	std::pair<unsigned long int, bool> BVH<treeStructure, Object, CustomNodeData...>::Node::Schedule(View &view, Allocator &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
+	std::pair<unsigned long int, bool> BVH<treeStructure, Object, CustomNodeData...>::Node::Schedule(View &view, Allocator &GPU_AABB_allocator, const FrustumCuller<decltype(aabb.Center())::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
 		bool parentInsideFrustum, float parentOcclusionCulledProjLength, float parentOcclusion)
 	{
 		using namespace std;
@@ -649,7 +649,7 @@ namespace Renderer::Impl::Hierarchy
 
 	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>
 	template<bool enableEarlyOut, class Allocator>
-	inline void View<treeStructure, Object, CustomNodeData...>::Schedule(Allocator &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(std::declval<Object>().GetAABB().Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform)
+	inline void View<treeStructure, Object, CustomNodeData...>::Schedule(Allocator &GPU_AABB_allocator, const FrustumCuller<decltype(std::declval<Object>().GetAABB().Center())::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform)
 	{
 		bvh->root->Schedule<enableEarlyOut>(*this, GPU_AABB_allocator, frustumCuller, frustumXform, depthSortXform);
 	}

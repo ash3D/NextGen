@@ -1113,12 +1113,12 @@ further investigations needed, including other compilers
 							<
 								DstElementType, dstRows, dstColumns, DstSwizzleDesc,
 								remove_const_t<remove_reference_t<decltype(ExtractScalar(declval<SrcType>()))>>,
-								enable_if_t<true, decltype(GetSwizzleRows(declval<SrcType>()))>::value,
-								enable_if_t<true, decltype(GetSwizzleColumns(declval<SrcType>()))>::value,
+								decltype(GetSwizzleRows(declval<SrcType>()))::value,
+								decltype(GetSwizzleColumns(declval<SrcType>()))::value,
 #if USE_BOOST_MPL
-								CBroadcastScalarSwizzleDesc<mpl::front<typename enable_if_t<true, decltype(GetSwizzleDesc(declval<SrcType>()))>::CSwizzleVector>::type::value, DstSwizzleDesc::dimension>,
+								CBroadcastScalarSwizzleDesc<mpl::front<typename decltype(GetSwizzleDesc(declval<SrcType>()))::CSwizzleVector>::type::value, DstSwizzleDesc::dimension>,
 #else
-								CBroadcastScalarSwizzleDesc<enable_if_t<true, decltype(GetSwizzleDesc(declval<SrcType>()))>::FetchIdx(0), DstSwizzleDesc::dimension>,
+								CBroadcastScalarSwizzleDesc<decltype(GetSwizzleDesc(declval<SrcType>()))::FetchIdx(0), DstSwizzleDesc::dimension>,
 #endif
 								false
 							> {};
@@ -3783,7 +3783,7 @@ further investigations needed, including other compilers
 				inline auto mul(index_sequence<rowIdx...>,
 					const matrix<LeftElementType, leftRows, leftColumns> &left,
 					const matrix<RightElementType, rightRows, rightColumns> &right)
-					-> matrix<typename enable_if_t<true, decltype(mul(left[0], right))>::ElementType, leftRows, rightColumns>
+					-> matrix<typename decltype(mul(left[0], right))::ElementType, leftRows, rightColumns>
 				{
 					return{ mul(left[rowIdx], right)... };
 				}
