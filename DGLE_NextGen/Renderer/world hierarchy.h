@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.04.2018 (c)Korotkov Andrey
+\date		14.05.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -174,15 +174,9 @@ namespace Renderer::Impl::Hierarchy
 		private:
 			template<typename ...Args, typename NodeHandler, typename ReorderProvider>
 			void Traverse(NodeHandler &nodeHandler, ReorderProvider reorderProvider, Args ...args);
-#if defined _MSC_VER && _MSC_VER <= 1913
 			template<bool enableEarlyOut, class Allocator>
 			std::pair<unsigned long int, bool> Schedule(View &view, Allocator &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
 				bool parentInsideFrustum = false, float parentOcclusionCulledProjLength = INFINITY, float parentOcclusion = 0);
-#else
-			template<bool enableEarlyOut, LPCWSTR resourceName>
-			std::pair<unsigned long int, bool> Schedule(View &view, Allocator &GPU_AABB_allocator, const FrustumCuller<std::enable_if_t<true, decltype(aabb.Center())>::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform,
-				bool parentInsideFrustum = false, float parentOcclusionCulledProjLength = INFINITY, float parentOcclusion = 0);
-#endif
 			template<bool enableEarlyOut>
 			std::pair<unsigned long int, float> CollectOcclusionQueryBoxes(const View &view, const Node **boxesBegin, const Node **boxesEnd);
 		};
