@@ -99,7 +99,7 @@ namespace
 	public:
 		value_type operator *() const;
 		// replace with C++20 <=>
-#if defined _MSC_VER && _MSC_VER <= 1913
+#if defined _MSC_VER && _MSC_VER <= 1914
 		friend bool operator ==<>(ObjIterator left, ObjIterator right);
 		friend bool operator !=<>(ObjIterator left, ObjIterator right);
 		friend bool operator < <>(ObjIterator left, ObjIterator right);

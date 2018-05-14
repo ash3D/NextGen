@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.04.2018 (c)Korotkov Andrey
+\date		14.05.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -12,6 +12,9 @@ See "DGLE.h" for more details.
 #include <memory>
 #include "object 3D.hh"
 #include "../AABB.h"
+#if defined _MSC_VER && _MSC_VER == 1914
+#include "world.hh"	// for Allocator
+#endif
 
 struct ID3D12GraphicsCommandList2;
 
@@ -54,6 +57,11 @@ namespace Renderer
 			static const auto &GetRootSignature() noexcept { return Object3D::GetRootSignature(); }
 			const auto &GetStartPSO() const { return object.GetStartPSO(); }
 			void Render(ID3D12GraphicsCommandList2 *target) const;
+
+#if defined _MSC_VER && _MSC_VER == 1914
+			template<typename>
+			friend class Impl::World::Allocator;
+#endif
 		};
 	}
 

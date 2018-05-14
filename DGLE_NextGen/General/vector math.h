@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		08.03.2018 (c)Alexey Shaydurov
+\date		14.05.2018 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -274,7 +274,7 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 #	pragma warning(push)
 #	pragma warning(disable: 4003)
 
-#if defined _MSC_VER && _MSC_VER <= 1913 && !defined __clang__
+#if defined _MSC_VER && _MSC_VER <= 1914 && !defined __clang__
 #	define MSVC_LIMITATIONS
 #endif
 
@@ -644,7 +644,7 @@ further investigations needed, including other compilers
 				static constexpr bool isWriteMaskValid = true;
 			};
 #else
-#if defined _MSC_VER && (_MSC_VER == 1912 || _MSC_VER == 1913)
+#if defined _MSC_VER && (_MSC_VER == 1912 || _MSC_VER == 1913 || _MSC_VER == 1914)
 			class CPackedSwizzleBase
 			{
 				using TPackedSwizzle = unsigned long long int;
@@ -660,7 +660,7 @@ further investigations needed, including other compilers
 
 			template<unsigned int ...swizzleSeq>
 			class CPackedSwizzle
-#if defined _MSC_VER && (_MSC_VER == 1912 || _MSC_VER == 1913)
+#if defined _MSC_VER && (_MSC_VER == 1912 || _MSC_VER == 1913 || _MSC_VER == 1914)
 				: CPackedSwizzleBase
 #endif
 			{
@@ -676,7 +676,7 @@ further investigations needed, including other compilers
 
 			private:
 #ifdef MSVC_LIMITATIONS
-#if _MSC_VER != 1912 && _MSC_VER != 1913
+#if _MSC_VER != 1912 && _MSC_VER != 1913 && _MSC_VER != 1914
 //				template<unsigned int shift, TPackedSwizzle swizzleHead, TPackedSwizzle ...swizzleTail>
 //				static constexpr TPackedSwizzle PackSwizzleSeq() { return swizzleHead << shift | PackSwizzleSeq<shift + 4u, swizzleTail...>(); }
 //
@@ -699,7 +699,7 @@ further investigations needed, including other compilers
 
 			private:
 #ifdef MSVC_LIMITATIONS
-//#if _MSC_VER == 1912 || _MSC_VER == 1913
+//#if _MSC_VER == 1912 || _MSC_VER == 1913 || _MSC_VER == 1914
 //				static constexpr TPackedSwizzle packedSwizzle = PackSwizzleSeq<0u, swizzleSeq...>();
 //#else
 				static constexpr TPackedSwizzle packedSwizzle = PackSwizzleSeq<0u, swizzleSeq...>;

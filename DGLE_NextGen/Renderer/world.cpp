@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		10.05.2018 (c)Korotkov Andrey
+\date		14.05.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -82,7 +82,7 @@ auto Impl::World::MapGlobalGPUBuffer(const D3D12_RANGE *readRange) -> volatile G
 }
 
 // defined here, not in class in order to eliminate dependency on "instance.hh" in "world.hh"
-#if defined _MSC_VER && _MSC_VER <= 1913
+#if defined _MSC_VER && _MSC_VER <= 1914
 inline const AABB<3> &Impl::World::BVHObject::GetAABB() const noexcept
 #else
 inline const auto &Impl::World::BVHObject::GetAABB() const noexcept
@@ -1047,7 +1047,7 @@ auto Impl::World::GetDebugDrawRenderStage() const -> RenderPipeline::PipelineSta
 	but constructs containing object directly via placement new which does not have access to private members.
 	GCC meanwhile compiles it fine.
 */
-#if defined _MSC_VER && _MSC_VER <= 1913
+#if defined _MSC_VER && _MSC_VER <= 1914
 shared_ptr<World> __cdecl Renderer::MakeWorld(const float (&terrainXform)[4][3])
 {
 	return make_shared<World>(World::tag(), terrainXform);

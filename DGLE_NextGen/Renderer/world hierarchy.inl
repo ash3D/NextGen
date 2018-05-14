@@ -316,7 +316,7 @@ namespace Renderer::Impl::Hierarchy
 					execution::par,
 #endif
 					cbegin(children),
-#if defined _MSC_VER && _MSC_VER <= 1913 && MULTITHREADED_TREE_TRAVERSE == 2
+#if defined _MSC_VER && _MSC_VER <= 1914 && MULTITHREADED_TREE_TRAVERSE == 2
 					(unsigned int)
 #endif
 					childrenCount,
@@ -439,7 +439,7 @@ namespace Renderer::Impl::Hierarchy
 							// volatile requires corresponding overloads for AABB and vector math classes assignment
 							/*volatile*/ decltype(aabb) *VB_CPU_ptr;
 							CheckHR(viewData.occlusionQueryGeometry.VB->Map(0, &range, reinterpret_cast<void **>(/*const_cast<decltype(aabb) **>*/(&VB_CPU_ptr))));
-#if defined _MSC_VER && _MSC_VER <= 1913
+#if defined _MSC_VER && _MSC_VER <= 1914
 							transform(begin(boxes), boxesEnd, VB_CPU_ptr + viewData.occlusionQueryGeometry.startIdx, [](const Node *box) noexcept { return box->aabb; });
 #else
 							transform(begin(boxes), boxesEnd, VB_CPU_ptr + viewData.occlusionQueryGeometry.startIdx, [](remove_extent_t<decltype(boxes)> box) noexcept { return box->aabb; });
