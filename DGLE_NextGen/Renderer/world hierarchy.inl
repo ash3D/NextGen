@@ -587,13 +587,14 @@ namespace Renderer::Impl::Hierarchy
 	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>
 	inline View<treeStructure, Object, CustomNodeData...>::Node::Node()
 	{
+		using namespace std;
 		iota(begin(childrenOrder), end(childrenOrder), 0u);
 	}
 
 	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>
 	inline auto View<treeStructure, Object, CustomNodeData...>::Node::GetVisibility(OcclusionCullDomain override) const noexcept -> Visibility
 	{
-		return Visibility(underlying_type_t<Visibility>(visibility) & underlying_type_t<OcclusionCullDomain>(override));
+		return Visibility(std::underlying_type_t<Visibility>(visibility) & std::underlying_type_t<OcclusionCullDomain>(override));
 	}
 
 	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>
@@ -601,7 +602,7 @@ namespace Renderer::Impl::Hierarchy
 	{
 		// ChildrenOnly -> ForceComposite is senseless
 		assert(visibility == Visibility::Culled || overriden != OcclusionCullDomain::ChildrenOnly || occlusionCullDomain != OcclusionCullDomain::ForceComposite);
-		reinterpret_cast<underlying_type_t<OcclusionCullDomain> &>(overriden) |= underlying_type_t<OcclusionCullDomain>(occlusionCullDomain);	// strict aliasing rules violation?
+		reinterpret_cast<std::underlying_type_t<OcclusionCullDomain> &>(overriden) |= std::underlying_type_t<OcclusionCullDomain>(occlusionCullDomain);	// strict aliasing rules violation?
 	}
 
 	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>
