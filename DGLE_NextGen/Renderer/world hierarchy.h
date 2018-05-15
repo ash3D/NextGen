@@ -164,11 +164,7 @@ namespace Renderer::Impl::Hierarchy
 			void SplitIcoseptree(bool &splitted, unsigned long &nodeCounter, typename decltype(objects)::iterator begin, typename decltype(objects)::iterator end, SplitTechnique splitTechnique, decltype(aabb.Center()) splitPoint);
 
 		public:
-#if defined _MSC_VER && _MSC_VER == 1914
-			inline auto GetAABB() const noexcept -> decltype((aabb)) { return aabb; }
-#else
 			inline const auto &GetAABB() const noexcept { return aabb; }
-#endif
 			inline auto GetExclusiveObjectsRange() const noexcept { return std::make_pair(objBegin, objExclusiveSeparator); }
 			inline auto GetInclusiveObjectsRange() const noexcept { return std::make_pair(objBegin, objEnd); }
 			inline unsigned long int GetExclusiveTriCount() const noexcept { return exclusiveTriCount; }
