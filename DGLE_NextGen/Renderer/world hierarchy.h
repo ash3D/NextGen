@@ -55,7 +55,7 @@ namespace Renderer::Impl::Hierarchy
 	template<class AABB>
 	class AABBSizeSeparator
 	{
-		const decltype(std::declval<AABB>().Size()) size;
+		const std::remove_reference_t<decltype(std::declval<AABB>().Size())> size;
 
 	public:
 		AABBSizeSeparator(const decltype(size) &size) : size(size * .5f) {}
