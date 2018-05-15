@@ -51,7 +51,7 @@ namespace Renderer
 		Math::VectorMath::vector<std::conditional_t<dimension == 2, Math::SIMD::XMM, Math::SIMD::YMM>, 4> verts;
 
 	public:
-		ClipSpaceAABB(const HLSL::float4x4 &xform, const AABB<dimension> &aabb);
+		explicit ClipSpaceAABB(const HLSL::float4x4 &xform, const AABB<dimension> &aabb);
 
 	public:
 		explicit operator AABB<2>() const;
