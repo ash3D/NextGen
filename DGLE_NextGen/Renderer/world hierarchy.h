@@ -52,7 +52,6 @@ namespace Renderer::Impl::Hierarchy
 
 	enum class Axis : unsigned { X, Y, Z };
 
-	// use C++17 class template deduction when it will be supported
 	template<class AABB>
 	class AABBSizeSeparator
 	{

@@ -387,11 +387,7 @@ namespace Renderer::Impl::Hierarchy
 		else
 		{
 			// pre
-#if 1
-			const auto clipSpaceAABB = MakeClipSpaceAABB(frustumXform, aabb);
-#else
 			const ClipSpaceAABB clipSpaceAABB(frustumXform, aabb);
-#endif
 			const AABB<3> NDCSpaceAABB(clipSpaceAABB);
 			const HLSL::float2 aabbProjSize = NDCSpaceAABB.Size();
 			const float aabbProjSquare = aabbProjSize.x * aabbProjSize.y;

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		07.03.2018 (c)Korotkov Andrey
+\date		15.05.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -60,13 +60,6 @@ namespace Renderer
 	public:
 		float MinW() const;
 	};
-
-	// TODO: replace with C++17 deduction guides
-	template<unsigned dimension>
-	inline ClipSpaceAABB<dimension> MakeClipSpaceAABB(const HLSL::float4x4 &xform, const AABB<dimension> &aabb)
-	{
-		return { xform, aabb };
-	}
 
 	template<unsigned dimension>
 	inline auto TransformAABB(AABB<dimension> aabb, const Math::VectorMath::matrix<float, dimension + 1, dimension> &xform)
