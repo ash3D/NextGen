@@ -18,7 +18,7 @@ See "DGLE.h" for more details.
 
 // auto init does not work with dll, hangs with Graphics Debugging
 #define ENABLE_AUTO_INIT	0
-#define ENABLE_GBV			1
+#define ENABLE_GBV			0
 
 using namespace std;
 using Renderer::Impl::globalFrameVersioning;

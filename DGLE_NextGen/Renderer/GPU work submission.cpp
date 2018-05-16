@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		26.04.2018 (c)Korotkov Andrey
+\date		16.05.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -32,6 +32,10 @@ Need to keep track the status of Concurrency TS and reimplement waiting via 'wai
 #ifdef _MSC_VER
 #define WRAP_CMD_LIST 1
 #endif
+
+// prevents TDR when predication (e.g. occlusion culling) used in combination with Z buffer without miplevels (as required for MSAA)\
+seems as driver bug
+#define KEPLER_WORKAROUND 1
 
 namespace
 {
@@ -94,6 +98,10 @@ namespace
 	{
 		for (const auto &item : work)
 			item(target);
+
+#if KEPLER_WORKAROUND
+		target->ClearState(NULL);
+#endif
 
 		/*
 		NOTE: Current command list distribution approach doesn't account "transition" (pre/post) phases (where transition barriers occurs) and only breaks command lists on "range" phases.
