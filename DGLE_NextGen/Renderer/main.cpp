@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		14.05.2018 (c)Korotkov Andrey
+\date		16.05.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -118,7 +118,8 @@ static auto CreateDevice()
 				D3D12_GPU_BASED_VALIDATION_SHADER_PATCH_MODE_NONE,
 				D3D12_GPU_BASED_VALIDATION_PIPELINE_STATE_CREATE_FLAG_NONE
 			};
-			debugDeviceController->SetDebugParameter(D3D12_DEBUG_DEVICE_PARAMETER_GPU_BASED_VALIDATION_SETTINGS, &GBVSettings, sizeof GBVSettings);
+			if (const HRESULT hr = debugDeviceController->SetDebugParameter(D3D12_DEBUG_DEVICE_PARAMETER_GPU_BASED_VALIDATION_SETTINGS, &GBVSettings, sizeof GBVSettings); FAILED(hr))
+				cerr << "Fail to setup GBV settings (hr=" << hr << ")." << endl;
 		}
 	}
 #endif
