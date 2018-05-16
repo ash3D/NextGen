@@ -34,7 +34,7 @@ Need to keep track the status of Concurrency TS and reimplement waiting via 'wai
 #endif
 
 // prevents TDR when predication (e.g. occlusion culling) used in combination with Z buffer without miplevels (as required for MSAA)\
-seems as driver bug
+seems as a driver bug
 #define KEPLER_WORKAROUND 1
 
 namespace
@@ -100,7 +100,11 @@ namespace
 			item(target);
 
 #if KEPLER_WORKAROUND
+#if 0
 		target->ClearState(NULL);
+#else
+		target->SetPredication(NULL, 0, D3D12_PREDICATION_OP_EQUAL_ZERO);
+#endif
 #endif
 
 		/*
