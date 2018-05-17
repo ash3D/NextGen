@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		16.05.2018 (c)Korotkov Andrey
+\date		18.05.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -843,7 +843,7 @@ auto Impl::World::GetVisiblePassRange(unsigned int &length) const -> RenderPipel
 		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&World::AABBPassRange, this, _1, rangeBegin, rangeEnd, true); });
 }
 
-auto Renderer::Impl::World::GetAABBPassPost(unsigned int &) const -> RenderPipeline::PipelineItem
+auto Impl::World::GetAABBPassPost(unsigned int &) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
 	RenderPipeline::TerminateStageTraverse();
@@ -1038,7 +1038,7 @@ auto Impl::World::BuildRenderStage(WorldViewContext &viewCtx, const HLSL::float4
 
 auto Impl::World::GetDebugDrawRenderStage() const -> RenderPipeline::PipelineStage
 {
-	return RenderPipeline::PipelineStage(in_place_type<RenderPipeline::RenderStage>, static_cast<const RenderPipeline::IRenderStage *>(this), static_cast<decltype(phaseSelector)>(&World::GetHiddenPassRange));
+	return RenderPipeline::PipelineStage(in_place_type<RenderPipeline::RenderStage>, static_cast<const RenderPipeline::IRenderStage *>(this), static_cast<decltype(phaseSelector)>(&World::GetAABBPassPre));
 }
 
 /*
