@@ -34,7 +34,7 @@ See "DGLE.h" for more details.
 
 using namespace std;
 using namespace Renderer;
-using namespace Math::VectorMath::HLSL;
+using namespace HLSL;
 using WRL::ComPtr;
 
 extern ComPtr<ID3D12Device2> device;
