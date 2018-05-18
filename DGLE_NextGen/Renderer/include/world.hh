@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		19.05.2018 (c)Korotkov Andrey
+\date		14.05.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -159,7 +159,6 @@ namespace Renderer
 
 		private:
 			mutable struct WorldViewContext *viewCtx;
-			mutable HLSL::float4 groundPlane;
 			mutable ID3D12Resource *ZBuffer;
 			mutable SIZE_T dsv;
 
@@ -212,14 +211,11 @@ namespace Renderer
 #pragma region visualize occlusion pass
 		private:
 			static ComPtr<ID3D12RootSignature> AABB_RootSig, TryCreateAABB_RootSig(), CreateAABB_RootSig();
-			static struct AABB_PSOs
-			{
-				ComPtr<ID3D12PipelineState> clipped, occluded, visible;
-			} AABB_PSOs, TryCreateAABB_PSOs(), CreateAABB_PSOs();
+			static std::array<ComPtr<ID3D12PipelineState>, 2> AABB_PSOs, TryCreateAABB_PSOs(), CreateAABB_PSOs();
 
 		private:
 			void AABBPassPre(CmdListPool::CmdList &target) const, AABBPassPost(CmdListPool::CmdList &target) const;
-			void AABBPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, ID3D12PipelineState *PSO, const HLSL::float4 &groundPlane, unsigned colorsCB_offset) const;
+			void AABBPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, bool visible) const;
 #pragma endregion
 
 		private:
@@ -243,10 +239,10 @@ namespace Renderer
 				GetXformAABBPass2FirstCullPass(unsigned int &length) const, GetFirstCullPass2FirstMainPass(unsigned int &length) const, GetFirstMainPass2SecondCullPass(unsigned int &length) const, GetSecondCullPass2SecondMainPass(unsigned int &length) const,
 				GetMainPassPre(unsigned int &length) const, GetMainPassRange(unsigned int &length) const, GetMainPassPost(unsigned int &length) const,
 				GetAABBPassPre(unsigned int &length) const, GetAABBPassPost(unsigned int &length) const,
-				GetClippedPassRange(unsigned int &length) const, GetOccludedPassRange(unsigned int &length) const, GetVisiblePassRange(unsigned int &length) const;
+				GetHiddenPassRange(unsigned int &length) const, GetVisiblePassRange(unsigned int &length) const;
 
 		private:
-			void Setup(struct WorldViewContext &viewCtx, const HLSL::float4 &groundPlane, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, std::function<void (ID3D12GraphicsCommandList2 *target)> &&cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList2 *target)> &&mainPassSetupCallback) const, SetupOcclusionQueryBatch(decltype(OcclusionCulling::QueryBatchBase::npos) maxOcclusion) const;
+			void Setup(struct WorldViewContext &viewCtx, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, std::function<void (ID3D12GraphicsCommandList2 *target)> &&cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList2 *target)> &&mainPassSetupCallback) const, SetupOcclusionQueryBatch(decltype(OcclusionCulling::QueryBatchBase::npos) maxOcclusion) const;
 
 		private:
 			static constexpr const WCHAR AABB_VB_name[] = L"3D objects occlusion query boxes", xformedAABB_SO_name[] = L"3D objects xformed occlusion query boxes";
@@ -286,7 +282,7 @@ namespace Renderer
 			void FlushUpdates() const;	// const to be able to call from Render()
 
 		private:
-			RenderPipeline::RenderStage BuildRenderStage(struct WorldViewContext &viewCtx, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 &viewXform, const HLSL::float4 &groundPlane, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, std::function<void (ID3D12GraphicsCommandList2 *target)> &cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList2 *target)> &mainPassSetupCallback) const;
+			RenderPipeline::RenderStage BuildRenderStage(struct WorldViewContext &viewCtx, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 &viewXform, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, std::function<void (ID3D12GraphicsCommandList2 *target)> &cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList2 *target)> &mainPassSetupCallback) const;
 			RenderPipeline::PipelineStage GetDebugDrawRenderStage() const;
 		};
 	}

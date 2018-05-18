@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		19.05.2018 (c)Korotkov Andrey
+\date		16.05.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -220,7 +220,7 @@ ComPtr<ID3D12PipelineState>
 	TerrainVectorLayer::AABB_PSO					= TerrainVectorLayer::TryCreateAABB_PSO(),
 	World::xformAABB_PSO							= World::TryCreateXformAABB_PSO();
 decltype(World::cullPassPSOs) World::cullPassPSOs	= World::TryCreateCullPassPSOs();
-struct World::AABB_PSOs World::AABB_PSOs			= World::TryCreateAABB_PSOs();
+decltype(World::AABB_PSOs) World::AABB_PSOs			= World::TryCreateAABB_PSOs();
 decltype(Object3D::PSOs) Object3D::PSOs				= Object3D::TryCreatePSOs();
 
 #pragma region TryCreate...()
@@ -279,9 +279,9 @@ inline auto World::TryCreateCullPassPSOs() -> decltype(cullPassPSOs)
 	return device ? CreateCullPassPSOs() : decltype(cullPassPSOs)();
 }
 
-inline auto World::TryCreateAABB_PSOs() -> struct AABB_PSOs
+inline auto World::TryCreateAABB_PSOs() -> decltype(AABB_PSOs)
 {
-	return device ? CreateAABB_PSOs() : struct AABB_PSOs();
+	return device ? CreateAABB_PSOs() : decltype(AABB_PSOs)();
 }
 
 inline auto Object3D::TryCreatePSOs() -> decltype(PSOs)

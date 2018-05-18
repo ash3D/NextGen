@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		19.05.2018 (c)Korotkov Andrey
+\date		18.05.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -25,8 +25,6 @@ See "DGLE.h" for more details.
 #include "static objects data.h"
 #include "GPU work submission.h"
 #include "config.h"
-
-#include <DirectXMath.h>	// for matrix inverse
 
 #include "AABB_3D_xform.csh"
 #include "AABB_3D.csh"
@@ -172,9 +170,7 @@ ComPtr<ID3D12PipelineState> Impl::World::CreateXformAABB_PSO()
 
 ComPtr<ID3D12RootSignature> Impl::World::CreateCullPassRootSig()
 {
-	CD3DX12_ROOT_PARAMETER1 rootParam;
-	rootParam.InitAsConstants(4, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
-	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(1, &rootParam, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(0, (const D3D12_ROOT_PARAMETER *)NULL, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	return CreateRootSignature(sigDesc, L"world objects occlusion query root signature");
 }
 
@@ -328,7 +324,6 @@ void Impl::World::CullPassRange(CmdListPool::CmdList &cmdList, unsigned long ran
 
 	cullPassSetupCallback(cmdList);
 	cmdList->SetGraphicsRootSignature(cullPassRootSig.Get());
-	cmdList->SetGraphicsRoot32BitConstants(0, 4, &groundPlane, 0);
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
 	// setup IB/VB
@@ -455,17 +450,16 @@ bool Impl::World::IssueNodeObjects(const decltype(bvh)::Node &node, decltype(Occ
 #pragma region visualize occlusion pass
 ComPtr<ID3D12RootSignature> Impl::World::CreateAABB_RootSig()
 {
-	CD3DX12_ROOT_PARAMETER1 rootParams[5];
-	rootParams[0].InitAsConstants(4, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
-	rootParams[1].InitAsConstantBufferView(0, 1, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
-	rootParams[2].InitAsShaderResourceView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
-	rootParams[3].InitAsShaderResourceView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
-	rootParams[4].InitAsConstants(1, 1, 1, D3D12_SHADER_VISIBILITY_PIXEL);
-	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(size(rootParams), rootParams, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	CD3DX12_ROOT_PARAMETER1 rootParams[4];
+	rootParams[0].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
+	rootParams[1].InitAsShaderResourceView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
+	rootParams[2].InitAsShaderResourceView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
+	rootParams[3].InitAsConstants(1, 1, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(size(rootParams), rootParams, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT | D3D12_ROOT_SIGNATURE_FLAG_DENY_VERTEX_SHADER_ROOT_ACCESS);
 	return CreateRootSignature(sigDesc, L"world 3D objects AABB visualization root signature");
 }
 
-auto Impl::World::CreateAABB_PSOs() -> struct AABB_PSOs
+auto Impl::World::CreateAABB_PSOs() -> decltype(AABB_PSOs)
 {
 	const CD3DX12_RASTERIZER_DESC rasterDesc
 	(
@@ -488,9 +482,9 @@ auto Impl::World::CreateAABB_PSOs() -> struct AABB_PSOs
 
 	const CD3DX12_DEPTH_STENCIL_DESC dsDescHidden
 	(
-		FALSE,																									// depth
+		TRUE,																									// depth
 		D3D12_DEPTH_WRITE_MASK_ZERO,
-		D3D12_COMPARISON_FUNC_ALWAYS,
+		D3D12_COMPARISON_FUNC_GREATER_EQUAL,
 		FALSE,																									// stencil
 		D3D12_DEFAULT_STENCIL_READ_MASK,																		// stencil read mask
 		D3D12_DEFAULT_STENCIL_WRITE_MASK,																		// stencil write mask
@@ -529,23 +523,16 @@ auto Impl::World::CreateAABB_PSOs() -> struct AABB_PSOs
 		Config::MSAA()													// MSAA
 	};
 
-	struct AABB_PSOs result;
+	decltype(cullPassPSOs) result;
 	
-	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result.clipped.GetAddressOf())));
-	NameObject(result.clipped.Get(), L"world 3D objects clipped AABB visualization PSO");
+	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result[0].GetAddressOf())));
+	NameObject(result[0].Get(), L"world 3D objects hidden AABB visualization PSO");
 
-	// patch clipped -> occluded
-	PSO_desc.DepthStencilState.DepthEnable = TRUE;
-	PSO_desc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_GREATER_EQUAL;
-
-	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result.occluded.GetAddressOf())));
-	NameObject(result.occluded.Get(), L"world 3D objects occluded AABB visualization PSO");
-
-	// patch occluded -> visible
+	// patch hidden -> visible
 	PSO_desc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
 
-	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result.visible.GetAddressOf())));
-	NameObject(result.visible.Get(), L"world 3D objects visible AABB visualization PSO");
+	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result[1].GetAddressOf())));
+	NameObject(result[1].Get(), L"world 3D objects visible AABB visualization PSO");
 
 	return move(result);
 }
@@ -558,20 +545,19 @@ void Impl::World::AABBPassPre(CmdListPool::CmdList &cmdList) const
 	cmdList.FlushBarriers();
 }
 
-void Impl::World::AABBPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd, ID3D12PipelineState *PSO, const float4 &groundPlane, unsigned colorsCB_offset) const
+void Impl::World::AABBPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd, bool visible) const
 {
 	assert(rangeBegin < rangeEnd);
 
-	cmdList.Setup(PSO);
+	cmdList.Setup(AABB_PSOs[visible].Get());
 
 	const auto &queryBatch = get<true>(occlusionQueryBatch);
 
 	mainPassSetupCallback(cmdList);
 	cmdList->SetGraphicsRootSignature(AABB_RootSig.Get());
-	cmdList->SetGraphicsRoot32BitConstants(0, 4, &groundPlane, 0);
-	cmdList->SetGraphicsRootConstantBufferView(1, World::globalGPUBuffer->GetGPUVirtualAddress() + colorsCB_offset);
-	cmdList->SetGraphicsRootShaderResourceView(2, queryBatch.GetGPUPtr(false));
-	cmdList->SetGraphicsRootShaderResourceView(3, queryBatch.GetGPUPtr(true));
+	cmdList->SetGraphicsRootConstantBufferView(0, World::globalGPUBuffer->GetGPUVirtualAddress() + GlobalGPUBufferData::AABB_3D_VisColors::CB_offset(visible));
+	cmdList->SetGraphicsRootShaderResourceView(1, queryBatch.GetGPUPtr(false));
+	cmdList->SetGraphicsRootShaderResourceView(2, queryBatch.GetGPUPtr(true));
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
 	// setup IB/VB (consider sharing this with cull pass)
@@ -596,7 +582,7 @@ void Impl::World::AABBPassRange(CmdListPool::CmdList &cmdList, unsigned long ran
 	{
 		const auto &queryData = queryStream[rangeBegin];
 
-		cmdList->SetGraphicsRoot32BitConstant(4, rangeBegin * sizeof(UINT64), 0);
+		cmdList->SetGraphicsRoot32BitConstant(3, rangeBegin * sizeof(UINT64), 0);
 		cmdList->DrawIndexedInstanced(14, queryData.count, 0, 0, queryData.xformedStartIdx);
 
 	} while (++rangeBegin < rangeEnd);
@@ -839,29 +825,22 @@ auto Impl::World::GetStagePost(unsigned int &) const -> RenderPipeline::Pipeline
 auto Impl::World::GetAABBPassPre(unsigned int & length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetClippedPassRange);
+	phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetHiddenPassRange);
 	return bind(&World::AABBPassPre, this, _1);
 }
 
-auto Impl::World::GetClippedPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
-{
-	using namespace placeholders;
-	return IterateRenderPass(length, queryStream.size(), [] { phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetOccludedPassRange); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&World::AABBPassRange, this, _1, rangeBegin, rangeEnd, AABB_PSOs.clipped.Get(), -groundPlane, GlobalGPUBufferData::AABB_3D_VisColors::CB_offset<false>()); });
-}
-
-auto Impl::World::GetOccludedPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
+auto Impl::World::GetHiddenPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
 	return IterateRenderPass(length, queryStream.size(), [] { phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetVisiblePassRange); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&World::AABBPassRange, this, _1, rangeBegin, rangeEnd, AABB_PSOs.occluded.Get(), groundPlane, GlobalGPUBufferData::AABB_3D_VisColors::CB_offset<false>()); });
+		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&World::AABBPassRange, this, _1, rangeBegin, rangeEnd, false); });
 }
 
 auto Impl::World::GetVisiblePassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
 	return IterateRenderPass(length, queryStream.size(), [] { phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetAABBPassPost); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&World::AABBPassRange, this, _1, rangeBegin, rangeEnd, AABB_PSOs.visible.Get(), groundPlane, GlobalGPUBufferData::AABB_3D_VisColors::CB_offset<true>()); });
+		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&World::AABBPassRange, this, _1, rangeBegin, rangeEnd, true); });
 }
 
 auto Impl::World::GetAABBPassPost(unsigned int &) const -> RenderPipeline::PipelineItem
@@ -872,10 +851,9 @@ auto Impl::World::GetAABBPassPost(unsigned int &) const -> RenderPipeline::Pipel
 }
 
 // 1 call site
-inline void Impl::World::Setup(WorldViewContext &viewCtx, const float4 &groundPlane, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, function<void (ID3D12GraphicsCommandList2 *target)> &&cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> &&mainPassSetupCallback) const
+inline void Impl::World::Setup(WorldViewContext &viewCtx, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, function<void (ID3D12GraphicsCommandList2 *target)> &&cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> &&mainPassSetupCallback) const
 {
 	this->viewCtx = &viewCtx;
-	this->groundPlane = groundPlane;
 	this->ZBuffer = ZBuffer;
 	this->dsv = dsv.ptr;
 	SetupCullPass(move(cullPassSetupCallback));
@@ -916,17 +894,7 @@ void Impl::World::Render(WorldViewContext &viewCtx, const float (&viewXform)[4][
 
 	const float4x3 terrainTransform(terrainXform), viewTransform(viewXform),
 		worldViewTransform = mul(float4x4(terrainTransform[0], 0.f, terrainTransform[1], 0.f, terrainTransform[2], 0.f, terrainTransform[3], 1.f), viewTransform);
-	const float4x4 projTransform(projXform), frustumTransform = mul(float4x4(worldViewTransform[0], 0.f, worldViewTransform[1], 0.f, worldViewTransform[2], 0.f, worldViewTransform[3], 1.f), projTransform);
-
-	// calc clip space ground plane (transform {0, 0, 1, 0} from world space)
-	DirectX::XMFLOAT4A groundPlane;
-	{
-		const float4x4 viewProjTransform = mul(float4x4(viewTransform[0], 0.f, viewTransform[1], 0.f, viewTransform[2], 0.f, viewTransform[3], 1.f), projTransform);
-		using namespace DirectX;
-		// NOTE: not need to calc entire matrix inverse, single row/column needed for {0, 0, 1, 0} plane transform
-		const XMMATRIX planeTransform = XMMatrixTranspose(XMMatrixInverse(nullptr, XMMATRIX(reinterpret_cast<const float *>(&viewProjTransform))));	// strict aliasing rules violation/past-the-end pointer?
-		XMStoreFloat4A(&groundPlane, planeTransform.r[2]);
-	}
+	const float4x4 frustumTransform = mul(float4x4(worldViewTransform[0], 0.f, worldViewTransform[1], 0.f, worldViewTransform[2], 0.f, worldViewTransform[3], 1.f), float4x4(projXform));
 
 	// update per-frame CB
 	{
@@ -947,7 +915,7 @@ void Impl::World::Render(WorldViewContext &viewCtx, const float (&viewXform)[4][
 
 	const function<void (ID3D12GraphicsCommandList2 *target)> cullPassSetupCallback = bind(setupRenderOutputCallback, _1, false), mainPassSetupCallback = bind(setupRenderOutputCallback, _1, true);
 
-	GPUWorkSubmission::AppendPipelineStage<true>(&World::BuildRenderStage, this, ref(viewCtx), frustumTransform, worldViewTransform, float4(groundPlane.x, groundPlane.y, groundPlane.z, groundPlane.w), ZBuffer, dsv, cullPassSetupCallback, mainPassSetupCallback);
+	GPUWorkSubmission::AppendPipelineStage<true>(&World::BuildRenderStage, this, ref(viewCtx), frustumTransform, worldViewTransform, ZBuffer, dsv, cullPassSetupCallback, mainPassSetupCallback);
 
 	for_each(terrainVectorLayers.cbegin(), terrainVectorLayers.cend(), bind(&decltype(terrainVectorLayers)::value_type::ScheduleRenderStage,
 		_1, FrustumCuller<2>(frustumTransform), cref(frustumTransform), cref(cullPassSetupCallback), cref(mainPassSetupCallback)));
@@ -1045,9 +1013,9 @@ void Impl::World::FlushUpdates() const
 	}
 }
 
-auto Impl::World::BuildRenderStage(WorldViewContext &viewCtx, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 &viewXform, const float4 &groundPlane, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, function<void (ID3D12GraphicsCommandList2 *target)> &cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> &mainPassSetupCallback) const -> RenderPipeline::RenderStage
+auto Impl::World::BuildRenderStage(WorldViewContext &viewCtx, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 &viewXform, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, function<void (ID3D12GraphicsCommandList2 *target)> &cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> &mainPassSetupCallback) const -> RenderPipeline::RenderStage
 {
-	Setup(viewCtx, groundPlane, ZBuffer, dsv, move(cullPassSetupCallback), move(mainPassSetupCallback));
+	Setup(viewCtx, ZBuffer, dsv, move(cullPassSetupCallback), move(mainPassSetupCallback));
 
 	// schedule
 	bvhView.Schedule<false>(*GPU_AABB_allocator, FrustumCuller<3>(frustumXform), frustumXform, &viewXform);
