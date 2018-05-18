@@ -1,18 +1,18 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		21.04.2018 (c)Korotkov Andrey
+\date		19.05.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
 See "DGLE.h" for more details.
 */
 
-cbuffer Colors : register(b0)
+cbuffer Colors : register(b0, space1)
 {
 	float3 colors[3]/*culled - visible on cull phase 1 - visible on cull phase 2*/;
 }
 
-cbuffer Offset : register(b1)
+cbuffer Offset : register(b1, space1)
 {
 	uint visibilityOffset;	// in bytes
 }

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		11.05.2018 (c)Korotkov Andrey
+\date		19.05.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -30,7 +30,8 @@ struct Renderer::Impl::World::GlobalGPUBufferData
 		CBRegister::AlignedRow<3> culled, rendered[2]/*phase 1 - phase 2*/;
 
 	public:
-		static inline auto CB_offset(bool visible) noexcept { return offsetof(GlobalGPUBufferData, aabbVisColorsCB) + visible * sizeof(AABB_3D_VisColors); }
+		template<bool visible>
+		static constexpr auto CB_offset() noexcept { return offsetof(GlobalGPUBufferData, aabbVisColorsCB[visible]); }
 	} aabbVisColorsCB[2]/*hidden - visible*/;
 
 	/*
