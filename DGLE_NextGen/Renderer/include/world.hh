@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		14.05.2018 (c)Korotkov Andrey
+\date		23.06.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -121,6 +121,13 @@ namespace Renderer
 			// terrain
 			float terrainXform[4][3];
 			std::list<Renderer::TerrainVectorLayer, Allocator<Renderer::TerrainVectorLayer>> terrainVectorLayers;
+
+		private:
+			// sun
+			struct
+			{
+				float zenith, azimuth;
+			} sunDir;
 
 		private:
 			struct BVHObject
@@ -265,7 +272,7 @@ namespace Renderer
 			};
 
 		protected:
-			World(const float (&terrainXform)[4][3]);
+			World(const float (&terrainXform)[4][3], float zenith, float azimuth);
 			~World();
 			World(World &) = delete;
 			void operator =(World &) = delete;
@@ -276,6 +283,7 @@ namespace Renderer
 
 		public:
 			typedef std::unique_ptr<const Renderer::Instance, InstanceDeleter> InstancePtr;
+			void SetSunDir(float zenith, float azimuth);
 			std::shared_ptr<Renderer::Viewport> CreateViewport() const;
 			std::shared_ptr<Renderer::TerrainVectorLayer> AddTerrainVectorLayer(unsigned int layerIdx, const float (&color)[3], std::string layerName);
 			InstancePtr AddStaticObject(Renderer::Object3D object, const float (&xform)[4][3], const AABB<3> &worldAABB);
@@ -289,7 +297,7 @@ namespace Renderer
 
 	class World final : public Impl::World
 	{
-		friend std::shared_ptr<World> __cdecl MakeWorld(const float (&terrainXform)[4][3]);
+		friend std::shared_ptr<World> __cdecl MakeWorld(const float (&terrainXform)[4][3], float zenith = 0, float azimuth = 0);
 		friend class Impl::Viewport;
 		friend class Impl::TerrainVectorLayer;	// for Allocator
 		friend class TerrainVectorQuad;			// for Allocator
@@ -302,7 +310,7 @@ namespace Renderer
 		struct tag {};
 
 	public:
-		World(tag, const float(&terrainXform)[4][3]) : Impl::World(terrainXform) {}
+		World(tag, const float (&terrainXform)[4][3], float zenith, float azimuth) : Impl::World(terrainXform, zenith, azimuth) {}
 #else
 	private:
 		using Impl::World::World;

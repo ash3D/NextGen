@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		11.05.2018 (c)Korotkov Andrey
+\date		23.06.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -40,7 +40,7 @@ namespace
 {
 	struct alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) alignas(D3D12_COMMONSHADER_CONSTANT_BUFFER_PARTIAL_UPDATE_EXTENTS_BYTE_ALIGNMENT) MaterialData
 	{
-		Impl::CBRegister::AlignedRow<3> color;
+		Impl::CBRegister::AlignedRow<3> albedo;
 	};
 }
 #endif
@@ -49,7 +49,7 @@ WRL::ComPtr<ID3D12RootSignature> Impl::Object3D::CreateRootSig()
 {
 	ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC &desc, LPCWSTR name);
 	CD3DX12_ROOT_PARAMETER1 rootParams[3];
-	rootParams[0].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);	// per-frame data
+	rootParams[0].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_ALL);		// per-frame data
 	rootParams[1].InitAsConstantBufferView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);	// instance data
 #if INTEL_WORKAROUND
 	rootParams[2].InitAsConstantBufferView(0, 1, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_PIXEL);
@@ -91,9 +91,11 @@ auto Impl::Object3D::CreatePSOs() -> decltype(PSOs)
 		D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_ZERO, D3D12_COMPARISON_FUNC_ALWAYS		// back
 	);
 
+	// !: try to use less precision for normals (fixed point snorm)
 	const D3D12_INPUT_ELEMENT_DESC VB_decl[] =
 	{
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+		{ "POSITION",	0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "NORMAL",		0, DXGI_FORMAT_R32G32B32_FLOAT, 1, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
@@ -140,12 +142,12 @@ Impl::Object3D::Object3D(unsigned int subobjCount, const function<SubobjectData 
 	for (unsigned i = 0; i < subobjCount; i++)
 	{
 		const auto curSubobjData = getSubobjectData(i);
-		subobjects[i] = { curSubobjData.color, curSubobjData.aabb, vcount, tricount, curSubobjData.tricount, curSubobjData.doublesided };
+		subobjects[i] = { curSubobjData.albedo, curSubobjData.aabb, vcount, tricount, curSubobjData.tricount, curSubobjData.doublesided };
 		vcount += curSubobjData.vcount;
 		tricount += curSubobjData.tricount;
 	}
 
-	const unsigned long int VB_size = vcount * sizeof *SubobjectData::verts, IB_size = tricount * sizeof *SubobjectData::tris;
+	const unsigned long int VB_size = vcount * (sizeof *SubobjectData::verts + sizeof *SubobjectData::normals), IB_size = tricount * sizeof *SubobjectData::tris;
 
 	// create VIB
 	CheckHR(device->CreateCommittedResource(
@@ -196,9 +198,10 @@ Impl::Object3D::Object3D(unsigned int subobjCount, const function<SubobjectData 
 #endif
 
 #if INTEL_WORKAROUND
-			matPtr++->color = curSubobjData.color;
+			matPtr++->albedo = curSubobjData.albedo;
 #endif
 			memcpy(VB_ptr, curSubobjData.verts, curSubobjData.vcount * sizeof *curSubobjData.verts);
+			memcpy(VB_ptr += curSubobjData.vcount, curSubobjData.normals, curSubobjData.vcount * sizeof *curSubobjData.normals);
 			memcpy(IB_ptr, curSubobjData.tris, curSubobjData.tricount * sizeof *curSubobjData.tris);
 			VB_ptr += curSubobjData.vcount;
 			IB_ptr += curSubobjData.tricount;
@@ -209,9 +212,9 @@ Impl::Object3D::Object3D(unsigned int subobjCount, const function<SubobjectData 
 
 	// start bundle creation
 #ifdef _MSC_VER
-	bundle = async(CreateBundle, subobjects, subobjCount, ComPtr<ID3D12Resource>(VIB), VB_size, IB_size, move(convertedName));
+	bundle = async(CreateBundle, subobjects, subobjCount, ComPtr<ID3D12Resource>(VIB), vcount, IB_size, move(convertedName));
 #else
-	bundle = async(CreateBundle, subobjects, subobjCount, ComPtr<ID3D12Resource>(VIB), VB_size, IB_size, move(name));
+	bundle = async(CreateBundle, subobjects, subobjCount, ComPtr<ID3D12Resource>(VIB), vcount, IB_size, move(name));
 #endif
 }
 
@@ -252,9 +255,9 @@ const void Impl::Object3D::Render(ID3D12GraphicsCommandList2 *cmdList) const
 
 // need to copy subobjects to avoid dangling reference as the function can be executed in another thread
 #ifdef _MSC_VER
-auto Impl::Object3D::CreateBundle(const decltype(subobjects) &subobjects, unsigned int subobjCount, ComPtr<ID3D12Resource> VIB, unsigned long int VB_size, unsigned long int IB_size, wstring &&objectName) -> decay_t<decltype(bundle.get())>
+auto Impl::Object3D::CreateBundle(const decltype(subobjects) &subobjects, unsigned int subobjCount, ComPtr<ID3D12Resource> VIB, unsigned long int vcount, unsigned long int IB_size, wstring &&objectName) -> decay_t<decltype(bundle.get())>
 #else
-auto Impl::Object3D::CreateBundle(const decltype(subobjects) &subobjects, unsigned int subobjCount, ComPtr<ID3D12Resource> VIB, unsigned long int VB_size, unsigned long int IB_size, string &&objectName) -> decay_t<decltype(bundle.get())>
+auto Impl::Object3D::CreateBundle(const decltype(subobjects) &subobjects, unsigned int subobjCount, ComPtr<ID3D12Resource> VIB, unsigned long int vcount, unsigned long int IB_size, string &&objectName) -> decay_t<decltype(bundle.get())>
 #endif
 {
 	decay_t<decltype(bundle.get())> bundle;	// to be retunred
@@ -288,22 +291,31 @@ auto Impl::Object3D::CreateBundle(const decltype(subobjects) &subobjects, unsign
 
 		// setup VB/IB
 		{
-			const D3D12_VERTEX_BUFFER_VIEW VB_view =
+			const array<D3D12_VERTEX_BUFFER_VIEW, 2> VB_views =
 			{
+				{
+					{
 #if INTEL_WORKAROUND
-				subobjCount * sizeof(MaterialData) +
+						subobjCount * sizeof(MaterialData) +
 #endif
-				VIB->GetGPUVirtualAddress(),
-				VB_size,
-				sizeof(float [3])
+						VIB->GetGPUVirtualAddress(),
+						vcount * sizeof *SubobjectData::verts,
+						sizeof(float [3])
+					},
+					{
+						VB_views[0].BufferLocation + VB_views[0].SizeInBytes,
+						vcount * sizeof *SubobjectData::normals,
+						sizeof(float [3])
+					}
+				}
 			};
 			const D3D12_INDEX_BUFFER_VIEW IB_view =
 			{
-				VB_view.BufferLocation + VB_view.SizeInBytes,
+				VB_views.back().BufferLocation + VB_views.back().SizeInBytes,
 				IB_size,
 				DXGI_FORMAT_R16_UINT
 			};
-			bundle.second->IASetVertexBuffers(0, 1, &VB_view);
+			bundle.second->IASetVertexBuffers(0, VB_views.size(), VB_views.data());
 			bundle.second->IASetIndexBuffer(&IB_view);
 		}
 
@@ -320,8 +332,8 @@ auto Impl::Object3D::CreateBundle(const decltype(subobjects) &subobjects, unsign
 #if INTEL_WORKAROUND
 			bundle.second->SetGraphicsRootConstantBufferView(2, material_GPU_ptr), material_GPU_ptr += sizeof(MaterialData);
 #else
-			if (any(curColor != curSubobj.color))
-				bundle.second->SetGraphicsRoot32BitConstants(2, decltype(curColor)::dimension, &(curColor = curSubobj.color), 0);
+			if (any(curColor != curSubobj.albedo))
+				bundle.second->SetGraphicsRoot32BitConstants(2, decltype(curColor)::dimension, &(curColor = curSubobj.albedo), 0);
 #endif
 			bundle.second->DrawIndexedInstanced(curSubobj.tricount * 3, 1, curSubobj.triOffset * 3, curSubobj.vOffset, 0);
 		}

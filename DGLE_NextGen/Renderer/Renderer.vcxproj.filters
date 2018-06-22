@@ -128,6 +128,9 @@
     <ClInclude Include="config.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="sun.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -190,6 +193,9 @@
     <ClCompile Include="config.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="sun.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="vectorLayerVS.hlsl">
@@ -241,6 +247,15 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="AABB_3D.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="fresnel.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="lighting.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="object3D VS 2 PS.hlsli">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

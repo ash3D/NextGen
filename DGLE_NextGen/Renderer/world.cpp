@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.05.2018 (c)Korotkov Andrey
+\date		23.06.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -16,6 +16,7 @@ See "DGLE.h" for more details.
 #include "world hierarchy.inl"
 #include "GPU stream buffer allocator.inl"
 #include "cmdlist pool.inl"
+#include "sun.h"
 #include "world view context.h"
 #include "frustum culling.h"
 #include "occlusion query shceduling.h"
@@ -873,7 +874,7 @@ inline void Impl::World::SetupOcclusionQueryBatch(decltype(OcclusionCulling::Que
 	visit([maxOcclusion](OcclusionCulling::QueryBatchBase &queryBatch) { queryBatch.Setup(maxOcclusion + 1); }, occlusionQueryBatch);
 }
 
-Impl::World::World(const float (&terrainXform)[4][3])
+Impl::World::World(const float(&terrainXform)[4][3], float zenith, float azimuth) : sunDir{ zenith, azimuth }
 {
 	memcpy(this->terrainXform, terrainXform, sizeof terrainXform);
 }
@@ -907,6 +908,9 @@ void Impl::World::Render(WorldViewContext &viewCtx, const float (&viewXform)[4][
 		CopyMatrix2CB(projXform, curFrameCB_region.projXform);
 		CopyMatrix2CB(viewXform, curFrameCB_region.viewXform);
 		CopyMatrix2CB(terrainXform, curFrameCB_region.terrainXform);
+		const float3 sunDir = Sun::Dir(this->sunDir.zenith, this->sunDir.azimuth);
+		curFrameCB_region.sun.dir = reinterpret_cast<const float (&)[3]>(mul(sunDir, viewTransform));
+		curFrameCB_region.sun.radiance = reinterpret_cast<const float (&)[3]>(Sun::Radiance(this->sunDir.zenith, sunDir.z));
 #if !PERSISTENT_MAPS
 		range.End += sizeof(GlobalGPUBufferData::PerFrameData);
 		globalGPUBuffer->Unmap(0, &range);
@@ -932,6 +936,12 @@ void Impl::World::Render(WorldViewContext &viewCtx, const float (&viewXform)[4][
 void Impl::World::OnFrameFinish() const
 {
 	TerrainVectorLayer::OnFrameFinish();
+}
+
+inline void Impl::World::SetSunDir(float zenith, float azimuth)
+{
+	sunDir.zenith = zenith;
+	sunDir.azimuth = azimuth;
 }
 
 shared_ptr<Renderer::Viewport> Impl::World::CreateViewport() const
@@ -1047,13 +1057,13 @@ auto Impl::World::GetDebugDrawRenderStage() const -> RenderPipeline::PipelineSta
 	GCC meanwhile compiles it fine.
 */
 #if defined _MSC_VER && _MSC_VER <= 1914
-shared_ptr<World> __cdecl Renderer::MakeWorld(const float (&terrainXform)[4][3])
+shared_ptr<World> __cdecl Renderer::MakeWorld(const float (&terrainXform)[4][3], float zenith, float azimuth)
 {
-	return make_shared<World>(World::tag(), terrainXform);
+	return make_shared<World>(World::tag(), terrainXform, zenith, azimuth);
 }
 #else
 shared_ptr<World> __cdecl Renderer::MakeWorld(const float (&terrainXform)[4][3])
 {
-	return allocate_shared<World>(World::Allocator<World>(), terrainXform);
+	return allocate_shared<World>(World::Allocator<World>(), terrainXform, sunDir);
 }
 #endif

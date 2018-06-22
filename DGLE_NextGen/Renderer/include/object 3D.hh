@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.04.2018 (c)Korotkov Andrey
+\date		23.06.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -51,7 +51,7 @@ namespace Renderer
 		private:
 			struct Subobject
 			{
-				HLSL::float3 color;
+				HLSL::float3 albedo;
 				AABB<3> aabb;
 				unsigned long int vOffset, triOffset;
 				unsigned short int tricount;
@@ -61,11 +61,11 @@ namespace Renderer
 		public:
 			struct SubobjectData
 			{
-				float color[3];
+				float albedo[3];
 				AABB<3> aabb;
 				unsigned short int vcount, tricount;
 				bool doublesided;
-				const float (*verts)[3];
+				const float (*verts)[3], (*normals)[3];
 				const uint16_t (*tris)[3];
 			};
 

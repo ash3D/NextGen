@@ -235,6 +235,7 @@
     <ClInclude Include="SO buffer.h" />
     <ClInclude Include="static objects data.h" />
     <ClInclude Include="stdafx.h" />
+    <ClInclude Include="sun.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="tracked ref.h" />
     <ClInclude Include="tracked resource.h" />
@@ -263,6 +264,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="sun.cpp" />
     <ClCompile Include="terrain.cpp" />
     <ClCompile Include="tracked resource.cpp" />
     <ClCompile Include="frame versioning.cpp" />
@@ -328,7 +330,10 @@
     <None Include="AABB.inl" />
     <None Include="AABB_3D.hlsli" />
     <None Include="cmdlist pool.inl" />
+    <None Include="fresnel.hlsli" />
     <None Include="GPU stream buffer allocator.inl" />
+    <None Include="lighting.hlsli" />
+    <None Include="object3D VS 2 PS.hlsli" />
     <None Include="packages.config" />
     <None Include="per-frame data.hlsli" />
     <None Include="tracked ref.inl" />

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		11.05.2018 (c)Korotkov Andrey
+\date		23.06.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -20,6 +20,10 @@ struct Renderer::Impl::World::GlobalGPUBufferData
 	{
 		CBRegister::AlignedRow<4> projXform[4];
 		CBRegister::AlignedRow<3> viewXform[4], terrainXform[4];
+		struct
+		{
+			CBRegister::AlignedRow<3> dir, radiance;
+		} sun;
 
 	public:
 		static inline auto CurFrameCB_offset() noexcept { return offsetof(GlobalGPUBufferData, perFrameDataCB) + globalFrameVersioning->GetContinuousRingIdx() * sizeof(PerFrameData); }
