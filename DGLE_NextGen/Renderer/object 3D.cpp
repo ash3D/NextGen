@@ -300,12 +300,12 @@ auto Impl::Object3D::CreateBundle(const decltype(subobjects) &subobjects, unsign
 #endif
 						VIB->GetGPUVirtualAddress(),
 						vcount * sizeof *SubobjectData::verts,
-						sizeof(float [3])
+						sizeof *SubobjectData::verts
 					},
 					{
 						VB_views[0].BufferLocation + VB_views[0].SizeInBytes,
 						vcount * sizeof *SubobjectData::normals,
-						sizeof(float [3])
+						sizeof *SubobjectData::normals
 					}
 				}
 			};
