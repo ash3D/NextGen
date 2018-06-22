@@ -1,4 +1,4 @@
-﻿/**
+/**
 \author		Alexey Shaydurov aka ASH
 \date		23.06.2018 (c)Korotkov Andrey
 
@@ -12,7 +12,7 @@ See "DGLE.h" for more details.
 
 #include "fresnel.hlsli"
 
-// evaluate Smith Λ() function for GGX NDF
+// evaluate Smith ^() function for GGX NDF
 float GGXSmithIntegral(float a2, float NdotDir)
 {
 	const float cos2 = NdotDir * NdotDir;
