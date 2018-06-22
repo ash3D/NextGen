@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.07.2017 (c)Korotkov Andrey
+\date		23.06.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -40,12 +40,12 @@ FrustumCuller<dimension>::FrustumCuller(const float4x4 &frustumXform) :
 	// TODO: implement abs in vector math (with specialization for floating point types using fabs)
 	absFrustumPlanes
 	{
-		frustumPlanes[0].apply(fabs),
-		frustumPlanes[1].apply(fabs),
-		frustumPlanes[2].apply(fabs),
-		frustumPlanes[3].apply(fabs),
-		frustumPlanes[4].apply(fabs),
-		frustumPlanes[5].apply(fabs)
+		frustumPlanes[0].apply(fabsf),
+		frustumPlanes[1].apply(fabsf),
+		frustumPlanes[2].apply(fabsf),
+		frustumPlanes[3].apply(fabsf),
+		frustumPlanes[4].apply(fabsf),
+		frustumPlanes[5].apply(fabsf)
 	}
 {}
 

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		14.05.2018 (c)Alexey Shaydurov
+\date		23.06.2018 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -2413,23 +2413,23 @@ further investigations needed, including other compilers
 				vector<result_of_t<F &(ElementType)>, SwizzleDesc::dimension> apply(F f) const;
 
 				template<typename TResult>
-				vector<TResult, SwizzleDesc::dimension> apply(TResult f(ElementType)) const
+				vector<TResult, SwizzleDesc::dimension> apply(TResult __cdecl f(ElementType)) const
 				{
-					return apply<TResult(ElementType)>(f);
+					return apply<TResult __cdecl(ElementType)>(f);
 				}
 
 				template<typename TResult>
-				vector<TResult, SwizzleDesc::dimension> apply(TResult f(const ElementType &)) const
+				vector<TResult, SwizzleDesc::dimension> apply(TResult __cdecl f(const ElementType &)) const
 				{
-					return apply<TResult(const ElementType &)>(f);
+					return apply<TResult __cdecl(const ElementType &)>(f);
 				}
 
-				vector<ElementType, SwizzleDesc::dimension> apply(ElementType f(ElementType)) const
+				vector<ElementType, SwizzleDesc::dimension> apply(ElementType __cdecl f(ElementType)) const
 				{
 					return apply<ElementType>(f);
 				}
 
-				vector<ElementType, SwizzleDesc::dimension> apply(ElementType f(const ElementType &)) const
+				vector<ElementType, SwizzleDesc::dimension> apply(ElementType __cdecl f(const ElementType &)) const
 				{
 					return apply<ElementType>(f);
 				}
@@ -4171,23 +4171,23 @@ further investigations needed, including other compilers
 			matrix<std::result_of_t<F &(ElementType)>, rows, columns> apply(F f) const;
 
 			template<typename TResult>
-			matrix<TResult, rows, columns> apply(TResult f(ElementType)) const
+			matrix<TResult, rows, columns> apply(TResult __cdecl f(ElementType)) const
 			{
-				return apply<TResult (ElementType)>(f);
+				return apply<TResult __cdecl(ElementType)>(f);
 			}
 
 			template<typename TResult>
-			matrix<TResult, rows, columns> apply(TResult f(const ElementType &)) const
+			matrix<TResult, rows, columns> apply(TResult __cdecl f(const ElementType &)) const
 			{
-				return apply<TResult (const ElementType &)>(f);
+				return apply<TResult __cdecl(const ElementType &)>(f);
 			}
 
-			matrix<ElementType, rows, columns> apply(ElementType f(ElementType)) const
+			matrix<ElementType, rows, columns> apply(ElementType __cdecl f(ElementType)) const
 			{
 				return apply<ElementType>(f);
 			}
 
-			matrix<ElementType, rows, columns> apply(ElementType f(const ElementType &)) const
+			matrix<ElementType, rows, columns> apply(ElementType __cdecl f(const ElementType &)) const
 			{
 				return apply<ElementType>(f);
 			}
