@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		23.06.2018 (c)Alexey Shaydurov
+\date		25.06.2018 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -489,6 +489,7 @@ further investigations needed, including other compilers
 				Swizzle,
 				Vector,
 				Matrix,
+				Wrapped,
 			};
 
 			template<TagName name, bool scalar>
@@ -521,22 +522,25 @@ further investigations needed, including other compilers
 			};
 
 			template<typename Src>
-			static constexpr bool Is1D = CheckTag::Check<Src, TagName::Swizzle, true> || CheckTag::Check<Src, TagName::Vector, true>;
+			static constexpr bool IsWrappedAsScalar = CheckTag::Check<Src, TagName::Wrapped, true>;
 
 			template<typename Src>
-			static constexpr bool Is1x1 = CheckTag::Check<Src, TagName::Matrix, true>;
+			static constexpr bool Is1D = (CheckTag::Check<Src, TagName::Swizzle, true> || CheckTag::Check<Src, TagName::Vector, true>) && !IsWrappedAsScalar<Src>;
+
+			template<typename Src>
+			static constexpr bool Is1x1 = CheckTag::Check<Src, TagName::Matrix, true> && !IsWrappedAsScalar<Src>;
 
 			template<typename Src>
 			static constexpr bool IsPackedScalar = Is1D<Src> || Is1x1<Src>;
 
 			template<typename Src>
-			static constexpr bool IsScalar = !CheckTag::Check<Src, TagName::Swizzle, false> && !CheckTag::Check<Src, TagName::Vector, false> && !CheckTag::Check<Src, TagName::Matrix, false>;
+			static constexpr bool IsScalar = !CheckTag::Check<Src, TagName::Swizzle, false> && !CheckTag::Check<Src, TagName::Vector, false> && !CheckTag::Check<Src, TagName::Matrix, false> || IsWrappedAsScalar<Src>;
 
 			template<typename Src>
 			static constexpr bool IsPureScalar = IsScalar<Src> && !IsPackedScalar<Src>;
 
 			template<typename ElementType>
-			static constexpr bool IsElementTypeValid = (is_union_v<ElementType> || is_class_v<ElementType> || is_arithmetic_v<ElementType>) && !is_const_v<ElementType> && IsPureScalar<ElementType>;
+			static constexpr bool IsElementTypeValid = (is_union_v<ElementType> || is_class_v<ElementType> || is_arithmetic_v<ElementType>) && !is_const_v<ElementType> && !IsWrappedAsScalar<ElementType>;
 
 			template<class F>
 			static constexpr bool IsMaskOp = false;
@@ -2838,7 +2842,7 @@ further investigations needed, including other compilers
 						const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)
 						-> vector<decay_t<decltype(f(std::declval<LeftElementType>(), declval<RightElementType>()))>, sizeof...(idx)>
 					{
-						return{ f(left[idx], right[idx])... };
+						return{ AsScalar(f(left[idx], right[idx]))... };
 					}
 				}
 
@@ -2877,7 +2881,7 @@ further investigations needed, including other compilers
 						const RightType &right)
 						-> vector<decay_t<decltype(f(std::declval<LeftElementType>(), declval<RightType>()))>, sizeof...(idx)>
 					{
-						return{ f(left[idx], right)... };
+						return{ AsScalar(f(left[idx], right))... };
 					}
 				}
 
@@ -2916,7 +2920,7 @@ further investigations needed, including other compilers
 						const CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)
 						-> vector<decay_t<decltype(f(std::declval<LeftType>(), declval<RightElementType>()))>, sizeof...(idx)>
 					{
-						return{ f(left, right[idx])... };
+						return{ AsScalar(f(left, right[idx]))... };
 					}
 				}
 
@@ -4300,6 +4304,16 @@ further investigations needed, including other compilers
 #pragma endregion
 
 			using DataContainer::data;
+		};
+
+		template<class Wrapped/*vector or matrix*/>
+		class AsScalar final : public Impl::Tag<Impl::TagName::Wrapped, true>
+		{
+			const Wrapped &ref;
+
+		public:
+			explicit AsScalar(const Wrapped &src) noexcept : ref(src) {}
+			operator const Wrapped &() const noexcept { return ref; }
 		};
 
 		template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
