@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		23.06.2018 (c)Korotkov Andrey
+\date		25.06.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -18,7 +18,7 @@ cbuffer MaterialConstants : register(b0, space1)
 
 float4 main(in XformedVertex input) : SV_TARGET
 {
-	const float3 color = Lit(albedo, .5f, F0(1.55f), normalize(input.N), normalize(input.viewDir), sun.dir, sun.radiance);
+	const float3 color = Lit(albedo, .5f, F0(1.55f), normalize(input.N), normalize(input.viewDir), sun.dir, sun.irradiance);
 
 	// biuilt-in simple tonemapping for now
 	return float4(color / (color + 1), 1.f);

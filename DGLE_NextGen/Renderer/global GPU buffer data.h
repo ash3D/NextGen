@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		23.06.2018 (c)Korotkov Andrey
+\date		25.06.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -22,7 +22,7 @@ struct Renderer::Impl::World::GlobalGPUBufferData
 		CBRegister::AlignedRow<3> viewXform[4], terrainXform[4];
 		struct
 		{
-			CBRegister::AlignedRow<3> dir, radiance;
+			CBRegister::AlignedRow<3> dir, irradiance;
 		} sun;
 
 	public:

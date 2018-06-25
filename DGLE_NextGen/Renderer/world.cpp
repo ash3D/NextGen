@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		23.06.2018 (c)Korotkov Andrey
+\date		25.06.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -910,7 +910,7 @@ void Impl::World::Render(WorldViewContext &viewCtx, const float (&viewXform)[4][
 		CopyMatrix2CB(terrainXform, curFrameCB_region.terrainXform);
 		const float3 sunDir = Sun::Dir(this->sunDir.zenith, this->sunDir.azimuth);
 		curFrameCB_region.sun.dir = reinterpret_cast<const float (&)[3]>(mul(sunDir, viewTransform));
-		curFrameCB_region.sun.radiance = reinterpret_cast<const float (&)[3]>(Sun::Radiance(this->sunDir.zenith, sunDir.z));
+		curFrameCB_region.sun.irradiance = reinterpret_cast<const float (&)[3]>(Sun::Irradiance(this->sunDir.zenith, sunDir.z));
 #if !PERSISTENT_MAPS
 		range.End += sizeof(GlobalGPUBufferData::PerFrameData);
 		globalGPUBuffer->Unmap(0, &range);

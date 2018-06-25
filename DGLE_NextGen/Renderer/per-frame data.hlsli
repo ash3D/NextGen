@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		23.06.2018 (c)Korotkov Andrey
+\date		25.06.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -16,7 +16,7 @@ cbuffer PerFrameData : register(b0)
 	row_major float4x3 viewXform, terrainWorldXform;
 	struct
 	{
-		float3 dir, radiance;
+		float3 dir, irradiance;
 	} sun;
 };
 

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		23.06.2018 (c)Korotkov Andrey
+\date		25.06.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -31,7 +31,7 @@ const float G(float a2, float VdotN, float LdotN, float VdotL)
 
 // evaluate rendering equation for punctual light source, non-metal material
 // no low-level optimizations yet (such as avoiding H calculation in https://twvideo01.ubm-us.net/o1/vault/gdc2017/Presentations/Hammon_Earl_PBR_Diffuse_Lighting.pdf)
-float3 Lit(float3 albedo, float roughness, float F0, float N, float3 viewDir, float3 lightDir, float3 lightRadiance)
+float3 Lit(float3 albedo, float roughness, float F0, float N, float3 viewDir, float3 lightDir, float3 lightIrradiance)
 {
 	// TODO: move outside
 	static const float PI_rcp = .318309886183790671538f;
@@ -74,7 +74,7 @@ float3 Lit(float3 albedo, float roughness, float F0, float N, float3 viewDir, fl
 
 	const float3 diffuse = albedo * (single + albedo * multi);
 
-	return (spec + diffuse) * lightRadiance;
+	return (spec + diffuse) * lightIrradiance;
 }
 
 #endif	// LIGHTING_INCLUDED
