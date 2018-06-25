@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		14.05.2018 (c)Korotkov Andrey
+\date		25.06.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -247,7 +247,7 @@ extern vec2 Collision::RayKDOPIntersect(const vec3 &rayOrig, const vec3 &rayDir,
 	return vec2(fMax, bMin);
 }
 
-template vec2 Collision::RayKDOPIntersect<>(const vec3 &rayOrig, const vec3 &rayDir, const PlanePair(&planes)[3]) noexcept;
+template vec2 Collision::RayKDOPIntersect(const vec3 &rayOrig, const vec3 &rayDir, const PlanePair(&planes)[3]) noexcept;
 
 static inline nv_scalar RayPlaneIntersect(const vec3 &rayOrig, const vec3 &rayDir, const vec3 &n, const vec3 &v) noexcept
 {
