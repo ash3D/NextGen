@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		23.06.2018 (c)Korotkov Andrey
+\date		25.06.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -147,14 +147,14 @@ Impl::Object3D::Object3D(unsigned int subobjCount, const function<SubobjectData 
 		tricount += curSubobjData.tricount;
 	}
 
-	const unsigned long int VB_size = vcount * (sizeof *SubobjectData::verts + sizeof *SubobjectData::normals), IB_size = tricount * sizeof *SubobjectData::tris;
+	const unsigned long int IB_size = tricount * sizeof *SubobjectData::tris;
 
 	// create VIB
 	CheckHR(device->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 		D3D12_HEAP_FLAG_NONE,
 #if INTEL_WORKAROUND
-		&CD3DX12_RESOURCE_DESC::Buffer(sizeof(MaterialData) * subobjCount + VB_size + IB_size),
+		&CD3DX12_RESOURCE_DESC::Buffer(sizeof(MaterialData) * subobjCount + vcount * (sizeof *SubobjectData::verts + sizeof *SubobjectData::normals) + IB_size),
 #else
 		&CD3DX12_RESOURCE_DESC::Buffer(VB_size + IB_size),
 #endif
@@ -184,7 +184,8 @@ Impl::Object3D::Object3D(unsigned int subobjCount, const function<SubobjectData 
 		float (*VB_ptr)[3];
 		CheckHR(VIB->Map(0, &CD3DX12_RANGE(0, 0), reinterpret_cast<void **>(&VB_ptr)));
 #endif
-		uint16_t (*IB_ptr)[3] = reinterpret_cast<uint16_t (*)[3]>(reinterpret_cast<unsigned char *>(VB_ptr) + VB_size);
+		float (*NB_ptr)[3] = VB_ptr + vcount;
+		uint16_t (*IB_ptr)[3] = reinterpret_cast<uint16_t (*)[3]>(NB_ptr + vcount);
 
 		for (unsigned i = 0; i < subobjCount; i++)
 		{
@@ -201,9 +202,10 @@ Impl::Object3D::Object3D(unsigned int subobjCount, const function<SubobjectData 
 			matPtr++->albedo = curSubobjData.albedo;
 #endif
 			memcpy(VB_ptr, curSubobjData.verts, curSubobjData.vcount * sizeof *curSubobjData.verts);
-			memcpy(VB_ptr += curSubobjData.vcount, curSubobjData.normals, curSubobjData.vcount * sizeof *curSubobjData.normals);
+			memcpy(NB_ptr, curSubobjData.normals, curSubobjData.vcount * sizeof *curSubobjData.normals);
 			memcpy(IB_ptr, curSubobjData.tris, curSubobjData.tricount * sizeof *curSubobjData.tris);
 			VB_ptr += curSubobjData.vcount;
+			NB_ptr += curSubobjData.vcount;
 			IB_ptr += curSubobjData.tricount;
 		}
 
