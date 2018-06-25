@@ -2399,12 +2399,12 @@ further investigations needed, including other compilers
 
 				auto operator -() const
 				{
-					return Op(make_index_sequence<SwizzleDesc::dimension>(), std::negate<>());
+					return Op(make_index_sequence<SwizzleDesc::dimension>(), std::negate());
 				}
 
 				auto operator !() const
 				{
-					return Op(make_index_sequence<SwizzleDesc::dimension>(), std::logical_not<>());
+					return Op(make_index_sequence<SwizzleDesc::dimension>(), std::logical_not());
 				}
 #else
 				auto operator +() const;
@@ -2453,13 +2453,13 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			inline auto CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>::operator -() const
 			{
-				return Op(make_index_sequence<SwizzleDesc::dimension>(), std::negate<>());
+				return Op(make_index_sequence<SwizzleDesc::dimension>(), std::negate());
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			inline auto CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>::operator !() const
 			{
-				return Op(make_index_sequence<SwizzleDesc::dimension>(), std::logical_not<>());
+				return Op(make_index_sequence<SwizzleDesc::dimension>(), std::logical_not());
 			}
 #endif
 
@@ -2858,10 +2858,10 @@ further investigations needed, including other compilers
 						const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)										\
 						-> std::enable_if_t<(LeftSwizzleDesc::dimension > 1 == RightSwizzleDesc::dimension > 1),										\
 						decltype(Impl::SwizzleOpSwizzle(std::make_index_sequence<std::min(LeftSwizzleDesc::dimension, RightSwizzleDesc::dimension)>(),	\
-							std::F<>(), left, right))>																									\
+							std::F(), left, right))>																									\
 					{																																	\
 						constexpr unsigned int dimension = std::min(LeftSwizzleDesc::dimension, RightSwizzleDesc::dimension);							\
-						return Impl::SwizzleOpSwizzle(std::make_index_sequence<dimension>(), std::F<>(), left, right);									\
+						return Impl::SwizzleOpSwizzle(std::make_index_sequence<dimension>(), std::F(), left, right);									\
 					}
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
 				GENERATE_MASK_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
@@ -2897,10 +2897,10 @@ further investigations needed, including other compilers
 						const RightType &right)																											\
 						-> std::enable_if_t<(LeftSwizzleDesc::dimension > 1 ? Impl::IsScalar<RightType> : Impl::IsPureScalar<RightType>),				\
 						decltype(Impl::SwizzleOpScalar(std::make_index_sequence<LeftSwizzleDesc::dimension>(),											\
-							std::F<>(), left, Impl::ExtractScalar(right)))>																				\
+							std::F(), left, Impl::ExtractScalar(right)))>																				\
 					{																																	\
 						using namespace Impl;																											\
-						return SwizzleOpScalar(make_index_sequence<LeftSwizzleDesc::dimension>(), F<>(), left, ExtractScalar(right));					\
+						return SwizzleOpScalar(make_index_sequence<LeftSwizzleDesc::dimension>(), F(), left, ExtractScalar(right));						\
 					}
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
 				GENERATE_MASK_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
@@ -2936,10 +2936,10 @@ further investigations needed, including other compilers
 						const Impl::CSwizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)										\
 						-> std::enable_if_t<(RightSwizzleDesc::dimension > 1 ? Impl::IsScalar<LeftType> : Impl::IsPureScalar<LeftType>),				\
 						decltype(Impl::ScalarOpSwizzle(std::make_index_sequence<RightSwizzleDesc::dimension>(),											\
-							std::F<>(), Impl::ExtractScalar(left), right))>																				\
+							std::F(), Impl::ExtractScalar(left), right))>																				\
 					{																																	\
 						using namespace Impl;																											\
-						return ScalarOpSwizzle(make_index_sequence<RightSwizzleDesc::dimension>(), F<>(), ExtractScalar(left), right);					\
+						return ScalarOpSwizzle(make_index_sequence<RightSwizzleDesc::dimension>(), F(), ExtractScalar(left), right);					\
 					}
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
 				GENERATE_MASK_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
@@ -3085,14 +3085,14 @@ further investigations needed, including other compilers
 						const matrix<LeftElementType, leftRows, leftColumns> &left,																		\
 						const matrix<RightElementType, rightRows, rightColumns> &right)																	\
 						-> std::enable_if_t<(leftRows > 1 || leftColumns > 1) == (rightRows > 1 || rightColumns > 1),									\
-						decltype(Impl::MatrixOpMatrix(std::make_index_sequence<std::min(leftRows, rightRows)>(), std::F<>(), left, right))>				\
+						decltype(Impl::MatrixOpMatrix(std::make_index_sequence<std::min(leftRows, rightRows)>(), std::F(), left, right))>				\
 					{																																	\
 						typedef decltype(left op right) Result;																							\
 						constexpr static const bool vecMatMismatch = std::is_void_v<Result>;															\
 						static_assert(!std::is_null_pointer_v<Result>, "'matrix "#op" matrix': mismatched matrix dimensions");							\
 						static_assert(!(vecMatMismatch && leftRows == 1), "'matrix1xN -> vectorN "#op" matrix': cannot convert matrix to vector");		\
 						static_assert(!(vecMatMismatch && rightRows == 1), "'matrix "#op" matrix1xN -> vectorN': cannot convert matrix to vector");		\
-						return Impl::MatrixOpMatrix(std::make_index_sequence<std::min(leftRows, rightRows)>(), std::F<>(), left, right);				\
+						return Impl::MatrixOpMatrix(std::make_index_sequence<std::min(leftRows, rightRows)>(), std::F(), left, right);					\
 					}
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
 				GENERATE_MASK_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
@@ -3132,9 +3132,9 @@ further investigations needed, including other compilers
 						const matrix<LeftElementType, leftRows, leftColumns> &left,																		\
 						const RightType &right)																											\
 						-> std::enable_if_t<(leftRows > 1 || leftColumns > 1 ? Impl::IsScalar<RightType> : Impl::IsPureScalar<RightType>),				\
-						decltype(Impl::MatrixOpScalar(std::make_index_sequence<leftRows>(), std::F<>(), left, Impl::ExtractScalar(right)))>				\
+						decltype(Impl::MatrixOpScalar(std::make_index_sequence<leftRows>(), std::F(), left, Impl::ExtractScalar(right)))>				\
 					{																																	\
-						return Impl::MatrixOpScalar(std::make_index_sequence<leftRows>(), std::F<>(), left, Impl::ExtractScalar(right));				\
+						return Impl::MatrixOpScalar(std::make_index_sequence<leftRows>(), std::F(), left, Impl::ExtractScalar(right));					\
 					}
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
 				GENERATE_MASK_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
@@ -3174,9 +3174,9 @@ further investigations needed, including other compilers
 						const LeftType &left,																											\
 						const matrix<RightElementType, rightRows, rightColumns> &right)																	\
 						-> std::enable_if_t<(rightRows > 1 || rightColumns > 1 ? Impl::IsScalar<LeftType> : Impl::IsPureScalar<LeftType>),				\
-						decltype(Impl::ScalarOpMatrix(std::make_index_sequence<rightRows>(), std::F<>(), Impl::ExtractScalar(left), right))>			\
+						decltype(Impl::ScalarOpMatrix(std::make_index_sequence<rightRows>(), std::F(), Impl::ExtractScalar(left), right))>				\
 					{																																	\
-						return Impl::ScalarOpMatrix(std::make_index_sequence<rightRows>(), std::F<>(), Impl::ExtractScalar(left), right);				\
+						return Impl::ScalarOpMatrix(std::make_index_sequence<rightRows>(), std::F(), Impl::ExtractScalar(left), right);					\
 					}
 				GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
 				GENERATE_MASK_OPERATORS(OPERATOR_DEFINITION, F_2_PAIR)
@@ -4601,13 +4601,13 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			inline auto matrix<ElementType, rows, columns>::operator -() const
 			{
-				return Op(IdxSeq(), std::negate<>());
+				return Op(IdxSeq(), std::negate());
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			inline auto matrix<ElementType, rows, columns>::operator !() const
 			{
-				return Op(IdxSeq(), std::logical_not<>());
+				return Op(IdxSeq(), std::logical_not());
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
