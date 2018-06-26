@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.06.2018 (c)Korotkov Andrey
+\date		27.06.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -31,7 +31,7 @@ const float G(float a2, float VdotN, float LdotN, float VdotL)
 
 // evaluate rendering equation for punctual light source, non-metal material
 // no low-level optimizations yet (such as avoiding H calculation in https://twvideo01.ubm-us.net/o1/vault/gdc2017/Presentations/Hammon_Earl_PBR_Diffuse_Lighting.pdf)
-float3 Lit(float3 albedo, float roughness, float F0, float N, float3 viewDir, float3 lightDir, float3 lightIrradiance)
+float3 Lit(float3 albedo, float roughness, float F0, float3 N, float3 viewDir, float3 lightDir, float3 lightIrradiance)
 {
 	// TODO: move outside
 	static const float PI_rcp = .318309886183790671538f;
@@ -61,18 +61,23 @@ float3 Lit(float3 albedo, float roughness, float F0, float N, float3 viewDir, fl
 	GGX_denom *= GGX_denom;
 
 	// optimization opportunity: merge NDF and G denoms
-	const float spec = FresnelShlick(F0, dot(lightDir, H)) * G(a2, VdotN, LdotN, VdotL) * (.25f * PI_rcp) * a2 / (GGX_denom * LdotN);
+	const float spec = FresnelShlick(F0, dot(lightDir, H)) * G(a2, VdotN, LdotN, VdotL) * (.25f * PI_rcp) * a2 / (GGX_denom * abs(VdotN));
 
 	// GGX diffuse approximation from https://twvideo01.ubm-us.net/o1/vault/gdc2017/Presentations/Hammon_Earl_PBR_Diffuse_Lighting.pdf\
 	!: potential mad optimizations via manual '(1 - x) * y' transformations
 	const float
 		facing = .5f * VdotL + .5f,
-		rough = facing * (.9f - .4f * facing) * (.5f * NdotH + 1),
+		rough = facing * (.9f - .4f * facing) * (.5f / NdotH + 1),
 		smooth = (1 - FresnelShlick(F0, LdotN)) * 1.05f * (1 - pow(1 - abs(VdotN), 5)),
 		single = PI_rcp * lerp(smooth, rough, roughness),
 		multi = .1159f * roughness;
 
-	const float3 diffuse = albedo * (single + albedo * multi);
+	/*
+		LdotN factor here from rendering equation
+		it is absent for specular since it is canceled with specular microfacet BRDF
+		placed inside '()' in order to do more math in scalar rather than vector
+	*/
+	const float3 diffuse = albedo * ((single + albedo * multi) * LdotN);
 
 	return (spec + diffuse) * lightIrradiance;
 }

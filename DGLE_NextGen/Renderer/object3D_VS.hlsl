@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		23.06.2018 (c)Korotkov Andrey
+\date		27.06.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -32,6 +32,6 @@ XformedVertex main(in SrcVertex input, out float4 xformedPos : SV_POSITION, out 
 		xform normal
 		!: use vector xform for now, need to replace with covector xform (inverse transpose) for correct non-uniform scaling handling
 	*/
-	const XformedVertex output = { -viewPos, mul(mul(input.N, worldXform), terrainWorldXform) };
+	const XformedVertex output = { -viewPos, mul(mul(mul(input.N, worldXform), terrainWorldXform), viewXform) };
 	return output;
 }
