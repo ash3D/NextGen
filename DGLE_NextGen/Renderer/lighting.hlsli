@@ -19,14 +19,14 @@ float GGXSmithIntegral(float a2, float NdotDir)
 	return .5f * sqrt((a2 - a2 * cos2) / cos2 + 1) - .5f;
 }
 
-// height-direction-correlated GGX Smith masking & shadowing (from http://jcgt.org/published/0003/02/03/paper.pdf)
-const float G(float a2, float VdotN, float LdotN, float VdotL)
+// denominator of height-direction-correlated GGX Smith masking & shadowing (from http://jcgt.org/published/0003/02/03/paper.pdf)
+const float G_rcp(float a2, float VdotN, float LdotN, float VdotL)
 {
 	const float phi = acos(VdotL);
 	float lambda = 4.41 * phi;
 	lambda /= lambda + 1;
 	const float LambdaV = GGXSmithIntegral(a2, VdotN), LambdaL = GGXSmithIntegral(a2, LdotN);
-	return rcp(1 + max(LambdaV, LambdaL) + lambda * min(LambdaV, LambdaL));
+	return 1 + max(LambdaV, LambdaL) + lambda * min(LambdaV, LambdaL);
 }
 
 // evaluate rendering equation for punctual light source, non-metal material
@@ -43,12 +43,19 @@ float3 Lit(float3 albedo, float roughness, float F0, float3 N, float3 viewDir, f
 		In the latter case backface ideally should be never visible and advanced techniques such as POM can ensure it
 			by picking N at view ray intersection point.
 		Here just replace N with some frontfacing so that it won't appear dark (with proper light direction).
+
+		Optimization opportunity: get rid of sign() followed by mul and instead check backlighting with 'LdotN * VdotN <[=] 0',
+			then use abs(LdotN) in calculations below (abs should be free on input args on modern GPUs, it should be checked though).
+		This can change behavior in '== 0' case, it may be desired or not (need to thought it over).
 	*/
 	N *= sign(VdotN);
 
 	const float LdotN = dot(lightDir, N);
 
-	// early out (backlighting)
+	/*
+		early out (backlighting)
+		?: <= or <
+	*/
 	[branch]
 	if (LdotN <= 0)
 		return 0;
@@ -61,7 +68,7 @@ float3 Lit(float3 albedo, float roughness, float F0, float3 N, float3 viewDir, f
 	GGX_denom *= GGX_denom;
 
 	// optimization opportunity: merge NDF and G denoms
-	const float spec = FresnelShlick(F0, dot(lightDir, H)) * G(a2, VdotN, LdotN, VdotL) * (.25f * PI_rcp) * a2 / (GGX_denom * abs(VdotN));
+	const float spec = FresnelShlick(F0, dot(lightDir, H)) * (.25f * PI_rcp) * a2 / (GGX_denom * G_rcp(a2, VdotN, LdotN, VdotL) * abs(VdotN));
 
 	// GGX diffuse approximation from https://twvideo01.ubm-us.net/o1/vault/gdc2017/Presentations/Hammon_Earl_PBR_Diffuse_Lighting.pdf\
 	!: potential mad optimizations via manual '(1 - x) * y' transformations
