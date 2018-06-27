@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.06.2018 (c)Korotkov Andrey
+\date		27.06.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -39,6 +39,12 @@ using WRL::ComPtr;
 extern ComPtr<ID3D12Device2> device;
 void NameObject(ID3D12Object *object, LPCWSTR name) noexcept, NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
 ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC &desc, LPCWSTR name);
+
+static void CheckSunZenithArg(float zenith)
+{
+	if (fabs(zenith) > M_PI_2)
+		throw domain_error("Invalid sun zenith angle");
+}
 
 ComPtr<ID3D12Resource> Impl::World::CreateGlobalGPUBuffer()
 {
@@ -876,6 +882,7 @@ inline void Impl::World::SetupOcclusionQueryBatch(decltype(OcclusionCulling::Que
 
 Impl::World::World(const float(&terrainXform)[4][3], float zenith, float azimuth) : sunDir{ zenith, azimuth }
 {
+	CheckSunZenithArg(zenith);
 	memcpy(this->terrainXform, terrainXform, sizeof terrainXform);
 }
 
@@ -940,6 +947,7 @@ void Impl::World::OnFrameFinish() const
 
 inline void Impl::World::SetSunDir(float zenith, float azimuth)
 {
+	CheckSunZenithArg(zenith);
 	sunDir.zenith = zenith;
 	sunDir.azimuth = azimuth;
 }
