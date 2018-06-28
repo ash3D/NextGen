@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		14.05.2018 (c)Korotkov Andrey
+\date		29.06.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -23,7 +23,8 @@ See "DGLE.h" for more details.
 #include <locale>
 #endif
 
-#include "AABB_2d.csh"
+#include "AABB_2D.csh"
+#include "AABB_2D_vis.csh"
 #include "vectorLayerVS.csh"
 #include "vectorLayerPS.csh"
 
@@ -435,7 +436,7 @@ inline void Impl::TerrainVectorLayer::IssueOcclusion(ViewNode::OcclusionQueryGeo
 ComPtr<ID3D12RootSignature> Impl::TerrainVectorLayer::CreateMainPassRootSig()
 {
 	CD3DX12_ROOT_PARAMETER1 rootParams[2];
-	rootParams[0].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
+	rootParams[0].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_ALL);
 	rootParams[1].InitAsConstants(3, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
 	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(size(rootParams), rootParams, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	return CreateRootSignature(sigDesc, L"terrain main pass root signature");
@@ -506,7 +507,7 @@ ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateMainPassPSO()
 void Impl::TerrainVectorLayer::MainPassPre(CmdListPool::CmdList &cmdList) const
 {
 	const auto float2BYTE = [](float val) noexcept {return val * numeric_limits<BYTE>::max(); };
-	PIXBeginEvent(cmdList, PIX_COLOR(float2BYTE(color[0]), float2BYTE(color[1]), float2BYTE(color[2])), "main pass");
+	PIXBeginEvent(cmdList, PIX_COLOR(float2BYTE(albedo[0]), float2BYTE(albedo[1]), float2BYTE(albedo[2])), "main pass");
 	cmdList.FlushBarriers();
 }
 
@@ -519,7 +520,7 @@ void Impl::TerrainVectorLayer::MainPassRange(CmdListPool::CmdList &cmdList, unsi
 	mainPassSetupCallback(cmdList);
 	cmdList->SetGraphicsRootSignature(mainPassRootSig.Get());
 	cmdList->SetGraphicsRootConstantBufferView(0, World::globalGPUBuffer->GetGPUVirtualAddress() + World::GlobalGPUBufferData::PerFrameData::CurFrameCB_offset());
-	cmdList->SetGraphicsRoot32BitConstants(1, size(color), color, 0);
+	cmdList->SetGraphicsRoot32BitConstants(1, size(albedo), albedo, 0);
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	auto curOcclusionQueryIdx = OcclusionCulling::QueryBatchBase::npos;
@@ -681,7 +682,7 @@ ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateAABB_PSO()
 	{
 		mainPassRootSig.Get(),											// root signature
 		CD3DX12_SHADER_BYTECODE(AABB_2D, sizeof AABB_2D),				// VS
-		CD3DX12_SHADER_BYTECODE(vectorLayerPS, sizeof vectorLayerPS),	// PS
+		CD3DX12_SHADER_BYTECODE(AABB_2D_vis, sizeof AABB_2D_vis),		// PS
 		{},																// DS
 		{},																// HS
 		{},																// GS
@@ -860,8 +861,8 @@ void TerrainVectorLayer::QuadDeleter::operator()(const TerrainVectorQuad *quadTo
 	quadToRemove->layer->quads.erase(quadLocation);
 }
 
-Impl::TerrainVectorLayer::TerrainVectorLayer(shared_ptr<class Renderer::World> &&world, unsigned int layerIdx, const float (&color)[3], string &&layerName) :
-	world(move(world)), layerIdx(layerIdx), color{ color[0], color[1], color[2] }, layerName(move(layerName))
+Impl::TerrainVectorLayer::TerrainVectorLayer(shared_ptr<class Renderer::World> &&world, unsigned int layerIdx, const float (&albedo)[3], string &&layerName) :
+	world(move(world)), layerIdx(layerIdx), albedo{ albedo[0], albedo[1], albedo[2] }, layerName(move(layerName))
 {
 }
 

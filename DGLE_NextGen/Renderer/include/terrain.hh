@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		14.05.2018 (c)Korotkov Andrey
+\date		29.06.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -122,7 +122,7 @@ namespace Renderer
 			const unsigned int layerIdx;
 
 		private:
-			const float color[3];
+			const float albedo[3];
 			const std::string layerName;
 			std::list<class TerrainVectorQuad, World::Allocator<class TerrainVectorQuad>> quads;
 
@@ -240,7 +240,7 @@ namespace Renderer
 			};
 
 		protected:
-			TerrainVectorLayer(std::shared_ptr<class Renderer::World> &&world, unsigned int layerIdx, const float (&color)[3], std::string &&layerName);
+			TerrainVectorLayer(std::shared_ptr<class Renderer::World> &&world, unsigned int layerIdx, const float (&albedo)[3], std::string &&layerName);
 			~TerrainVectorLayer();
 			TerrainVectorLayer(TerrainVectorLayer &) = delete;
 			void operator =(TerrainVectorLayer &) = delete;

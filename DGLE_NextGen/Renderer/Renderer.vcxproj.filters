@@ -222,6 +222,9 @@
     <FxCompile Include="AABB_3D_vis.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="AABB_2D_vis.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="world hierarchy.inl">
