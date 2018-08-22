@@ -990,7 +990,7 @@ void Impl::World::FlushUpdates() const
 {
 	if (!staticObjects.empty())
 	{
-		class AdressIterator : decltype(staticObjects)::const_iterator
+		class AddressIterator : decltype(staticObjects)::const_iterator
 		{
 			typedef decltype(staticObjects)::const_iterator Base;
 
@@ -1004,16 +1004,16 @@ void Impl::World::FlushUpdates() const
 			using Base::operator --;
 
 		public:
-			AdressIterator(const Base &src) : Base(src) {}
+			AddressIterator(const Base &src) : Base(src) {}
 			auto operator *() const noexcept { return &Base::operator *(); }
-			bool operator ==(const AdressIterator &cmp) const { return Base::operator ==(cmp); }
-			bool operator !=(const AdressIterator &cmp) const { return Base::operator !=(cmp); }
+			bool operator ==(const AddressIterator &cmp) const { return Base::operator ==(cmp); }
+			bool operator !=(const AddressIterator &cmp) const { return Base::operator !=(cmp); }
 		};
 
 		// rebuild BVH
 		if (!bvh)
 		{
-			bvh = { AdressIterator{staticObjects.cbegin()}, AdressIterator{staticObjects.cend()}, Hierarchy::SplitTechnique::MEAN };
+			bvh = { AddressIterator{staticObjects.cbegin()}, AddressIterator{staticObjects.cend()}, Hierarchy::SplitTechnique::MEAN };
 			bvhView = { bvh };
 		}
 
