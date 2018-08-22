@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.06.2018 (c)Alexey Shaydurov
+\date		22.08.2018 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -274,7 +274,7 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 #	pragma warning(push)
 #	pragma warning(disable: 4003)
 
-#if defined _MSC_VER && _MSC_VER <= 1914 && !defined __clang__
+#if defined _MSC_VER && _MSC_VER <= 1915 && !defined __clang__
 #	define MSVC_LIMITATIONS
 #endif
 
@@ -648,7 +648,7 @@ further investigations needed, including other compilers
 				static constexpr bool isWriteMaskValid = true;
 			};
 #else
-#if defined _MSC_VER && (_MSC_VER == 1912 || _MSC_VER == 1913 || _MSC_VER == 1914)
+#if defined _MSC_VER && (_MSC_VER == 1912 || _MSC_VER == 1913 || _MSC_VER == 1914 || _MSC_VER == 1915)
 			class CPackedSwizzleBase
 			{
 				using TPackedSwizzle = unsigned long long int;
@@ -664,7 +664,7 @@ further investigations needed, including other compilers
 
 			template<unsigned int ...swizzleSeq>
 			class CPackedSwizzle
-#if defined _MSC_VER && (_MSC_VER == 1912 || _MSC_VER == 1913 || _MSC_VER == 1914)
+#if defined _MSC_VER && (_MSC_VER == 1912 || _MSC_VER == 1913 || _MSC_VER == 1914 || _MSC_VER == 1915)
 				: CPackedSwizzleBase
 #endif
 			{
@@ -680,7 +680,7 @@ further investigations needed, including other compilers
 
 			private:
 #ifdef MSVC_LIMITATIONS
-#if _MSC_VER != 1912 && _MSC_VER != 1913 && _MSC_VER != 1914
+#if _MSC_VER != 1912 && _MSC_VER != 1913 && _MSC_VER != 1914 && _MSC_VER != 1915
 //				template<unsigned int shift, TPackedSwizzle swizzleHead, TPackedSwizzle ...swizzleTail>
 //				static constexpr TPackedSwizzle PackSwizzleSeq() { return swizzleHead << shift | PackSwizzleSeq<shift + 4u, swizzleTail...>(); }
 //
@@ -703,7 +703,7 @@ further investigations needed, including other compilers
 
 			private:
 #ifdef MSVC_LIMITATIONS
-//#if _MSC_VER == 1912 || _MSC_VER == 1913 || _MSC_VER == 1914
+//#if _MSC_VER == 1912 || _MSC_VER == 1913 || _MSC_VER == 1914 || _MSC_VER == 1915
 //				static constexpr TPackedSwizzle packedSwizzle = PackSwizzleSeq<0u, swizzleSeq...>();
 //#else
 				static constexpr TPackedSwizzle packedSwizzle = PackSwizzleSeq<0u, swizzleSeq...>;
@@ -873,6 +873,16 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int rows, unsigned int columns, typename = void>
 			class CDataContainer;
 		}
+
+		template<class Wrapped/*vector or matrix*/>
+		class AsScalar final : public Impl::Tag<Impl::TagName::Wrapped, true>
+		{
+			const Wrapped &ref;
+
+		public:
+			explicit AsScalar(const Wrapped &src) noexcept : ref(src) {}
+			operator const Wrapped &() const noexcept { return ref; }
+		};
 
 		template<typename ElementType, unsigned int dimension>
 		class EBCO vector;
@@ -4306,16 +4316,6 @@ further investigations needed, including other compilers
 			using DataContainer::data;
 		};
 
-		template<class Wrapped/*vector or matrix*/>
-		class AsScalar final : public Impl::Tag<Impl::TagName::Wrapped, true>
-		{
-			const Wrapped &ref;
-
-		public:
-			explicit AsScalar(const Wrapped &src) noexcept : ref(src) {}
-			operator const Wrapped &() const noexcept { return ref; }
-		};
-
 		template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 		template<typename F>
 		inline vector<std::result_of_t<F &(ElementType)>, SwizzleDesc::dimension>
@@ -4334,7 +4334,7 @@ further investigations needed, including other compilers
 
 #if !defined _MSC_VER || defined __clang__
 #	define ELEMENTS_COUNT_PREFIX Impl::
-#elif 1
+#elif 0
 #	define ELEMENTS_COUNT_PREFIX Data::
 #else
 	// C++ standard core language defect?

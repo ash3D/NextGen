@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		15.05.2018 (c)Korotkov Andrey
+\date		22.08.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -172,7 +172,7 @@ namespace Renderer::Impl::Hierarchy
 	inline void BVH<treeStructure, Object, CustomNodeData...>::Node::CreateChildNode(bool splitted, unsigned long &nodeCounter, typename decltype(objects)::iterator begin, typename decltype(objects)::iterator end, SplitTechnique splitTechnique, unsigned int idxOffset, Params ...params)
 	{
 		if (splitted)
-			children[idxOffset] = make_unique<Node>(nodeCounter, begin, end, splitTechnique, params...);
+			children[idxOffset] = std::make_unique<Node>(nodeCounter, begin, end, splitTechnique, params...);
 	}
 
 	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>
@@ -316,7 +316,7 @@ namespace Renderer::Impl::Hierarchy
 					execution::par,
 #endif
 					cbegin(children),
-#if defined _MSC_VER && _MSC_VER <= 1914 && MULTITHREADED_TREE_TRAVERSE == 2
+#if defined _MSC_VER && _MSC_VER <= 1915 && MULTITHREADED_TREE_TRAVERSE == 2
 					(unsigned int)
 #endif
 					childrenCount,
@@ -657,7 +657,7 @@ namespace Renderer::Impl::Hierarchy
 		using namespace std;
 		using namespace placeholders;
 
-		const auto issueNode = bind(&Node::Issue<IssueOcclusion, IssueObjects>, _2, _1, cref(issueOcclusion), cref(issueObjects), ref(occlusionProvider), _3, _4, _5);
+		const auto issueNode = bind(&Node::template Issue<IssueOcclusion, IssueObjects>, _2, _1, cref(issueOcclusion), cref(issueObjects), ref(occlusionProvider), _3, _4, _5);
 		Traverse(issueNode, OcclusionCulling::QueryBatchBase::npos, OcclusionCulling::QueryBatchBase::npos, Node::OcclusionCullDomain::ChildrenOnly);
 	}
 

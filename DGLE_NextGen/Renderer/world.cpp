@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		27.06.2018 (c)Korotkov Andrey
+\date		22.08.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -89,7 +89,7 @@ auto Impl::World::MapGlobalGPUBuffer(const D3D12_RANGE *readRange) -> volatile G
 }
 
 // defined here, not in class in order to eliminate dependency on "instance.hh" in "world.hh"
-#if defined _MSC_VER && _MSC_VER <= 1914
+#if defined _MSC_VER && _MSC_VER <= 1915
 inline const AABB<3> &Impl::World::BVHObject::GetAABB() const noexcept
 #else
 inline const auto &Impl::World::BVHObject::GetAABB() const noexcept
@@ -990,9 +990,24 @@ void Impl::World::FlushUpdates() const
 {
 	if (!staticObjects.empty())
 	{
-		struct AdressIterator : decltype(staticObjects)::const_iterator
+		class AdressIterator : decltype(staticObjects)::const_iterator
 		{
-			auto operator *() const noexcept { return &decltype(staticObjects)::const_iterator::operator *(); }
+			typedef decltype(staticObjects)::const_iterator Base;
+
+		public:
+			using Base::iterator_category;
+			using Base::value_type;
+			using Base::difference_type;
+			using Base::pointer;
+			using Base::reference;
+			using Base::operator ++;
+			using Base::operator --;
+
+		public:
+			AdressIterator(const Base &src) : Base(src) {}
+			auto operator *() const noexcept { return &Base::operator *(); }
+			bool operator ==(const AdressIterator &cmp) const { return Base::operator ==(cmp); }
+			bool operator !=(const AdressIterator &cmp) const { return Base::operator !=(cmp); }
 		};
 
 		// rebuild BVH
@@ -1064,7 +1079,7 @@ auto Impl::World::GetDebugDrawRenderStage() const -> RenderPipeline::PipelineSta
 	but constructs containing object directly via placement new which does not have access to private members.
 	GCC meanwhile compiles it fine.
 */
-#if defined _MSC_VER && _MSC_VER <= 1914
+#if defined _MSC_VER && _MSC_VER <= 1915
 shared_ptr<World> __cdecl Renderer::MakeWorld(const float (&terrainXform)[4][3], float zenith, float azimuth)
 {
 	return make_shared<World>(World::tag(), terrainXform, zenith, azimuth);

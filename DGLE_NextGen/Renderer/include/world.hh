@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		23.06.2018 (c)Korotkov Andrey
+\date		22.08.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -63,7 +63,7 @@ namespace Renderer
 	{
 		class Viewport;
 		class TerrainVectorLayer;
-#if defined _MSC_VER && _MSC_VER == 1914
+#if defined _MSC_VER && (_MSC_VER == 1914 || _MSC_VER == 1915)
 		class Instance;
 #endif
 		using WRL::ComPtr;
@@ -141,7 +141,7 @@ namespace Renderer
 				operator const Renderer::Instance *() const noexcept { return instance; }
 
 			public:
-#if defined _MSC_VER && _MSC_VER <= 1914
+#if defined _MSC_VER && _MSC_VER <= 1915
 				inline const AABB<3> &GetAABB() const noexcept;
 #else
 				inline const auto &GetAABB() const noexcept;
@@ -301,11 +301,11 @@ namespace Renderer
 		friend class Impl::Viewport;
 		friend class Impl::TerrainVectorLayer;	// for Allocator
 		friend class TerrainVectorQuad;			// for Allocator
-#if defined _MSC_VER && _MSC_VER == 1914
+#if defined _MSC_VER && (_MSC_VER == 1914 || _MSC_VER == 1915)
 		friend class Impl::Instance;			// for Allocator
 #endif
 
-#if defined _MSC_VER && _MSC_VER <= 1914
+#if defined _MSC_VER && _MSC_VER <= 1915
 	private:
 		struct tag {};
 
