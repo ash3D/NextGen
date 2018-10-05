@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		27.06.2018 (c)Korotkov Andrey
+\date		05.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -21,5 +21,5 @@ float4 main(in XformedVertex input) : SV_TARGET
 	const float3 color = Lit(albedo, .5f, F0(1.55f), normalize(input.N), normalize(input.viewDir), sun.dir, sun.irradiance);
 
 	// built-in simple tonemapping for now
-	return float4(color / (color + 1), 1.f);
+	return Reinhard(color);
 }

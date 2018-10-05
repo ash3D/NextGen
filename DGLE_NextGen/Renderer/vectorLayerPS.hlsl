@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		29.06.2018 (c)Korotkov Andrey
+\date		05.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -25,5 +25,5 @@ float4 main(in float3 viewDir : ViewDir) : SV_TARGET
 	const float3 color = Lit(albedo, .5f, F0(1.55f), mul(terrainWorldXform[2], viewXform), normalize(viewDir), sun.dir, sun.irradiance);
 
 	// built-in simple tonemapping for now
-	return float4(color / (color + 1), 1.f);
+	return Reinhard(color);
 }

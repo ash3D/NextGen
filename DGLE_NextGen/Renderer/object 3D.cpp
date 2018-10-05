@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.06.2018 (c)Korotkov Andrey
+\date		05.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -115,7 +115,7 @@ auto Impl::Object3D::CreatePSOs() -> decltype(PSOs)
 		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,					// restart primtive
 		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,							// primitive topology
 		1,																// render targets
-		{ Config::ColorFormat },										// RT formats
+		{ Config::HDRFormat },											// RT formats
 		Config::ZFormat,												// depth stencil format
 		Config::MSAA()													// MSAA
 	};

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		10.05.2018 (c)Korotkov Andrey
+\date		05.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -12,6 +12,7 @@ See "DGLE.h" for more details.
 #include <memory>
 #include "../tracked resource.h"
 #include "../tracked ref.h"
+#include "../tonemap resource views stage.h"
 
 struct IDXGISwapChain4;
 struct ID3D12Resource;
@@ -22,8 +23,9 @@ namespace Renderer
 	class RenderOutput
 	{
 		Impl::TrackedResource<IDXGISwapChain4> swapChain;
-		Impl::TrackedResource<ID3D12Resource> rt, ZBuffer;
+		Impl::TrackedResource<ID3D12Resource> rtMSAA, rtResolved, ZBuffer, reductionBuffer;
 		Impl::TrackedResource<ID3D12DescriptorHeap> rtvHeap, dsvHeap;	// is tracking really needed?
+		Impl::Descriptors::TonemapResourceViewsStage tonemapViewsCPUHeap;
 		Impl::TrackedRef::Ref<class Viewport> viewport;
 
 	public:

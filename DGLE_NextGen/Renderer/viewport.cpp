@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		10.05.2018 (c)Korotkov Andrey
+\date		05.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -37,22 +37,22 @@ static inline RenderPipeline::PipelineStage Pre(ID3D12GraphicsCommandList2 *cmdL
 	return cmdList;
 }
 
-static inline RenderPipeline::PipelineStage Post(ID3D12GraphicsCommandList2 *cmdList, ID3D12Resource *output, ID3D12Resource *rt)
+static inline RenderPipeline::PipelineStage Post(ID3D12GraphicsCommandList2 *cmdList, ID3D12Resource *output, ID3D12Resource *rtMSAA)
 {
 	PIXScopedEvent(cmdList, PIX_COLOR_INDEX(PIXEvents::ViewportPost), "viewport post");
 	{
 		const D3D12_RESOURCE_BARRIER barriers[] =
 		{
-			CD3DX12_RESOURCE_BARRIER::Transition(rt, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_RESOLVE_SOURCE),
+			CD3DX12_RESOURCE_BARRIER::Transition(rtMSAA, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_RESOLVE_SOURCE),
 			CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RESOLVE_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY)
 		};
 		cmdList->ResourceBarrier(size(barriers), barriers);
 	}
-	cmdList->ResolveSubresource(output, 0, rt, 0, Config::ColorFormat);
+	cmdList->ResolveSubresource(output, 0, rtMSAA, 0, Config::HDRFormat);
 	{
 		const D3D12_RESOURCE_BARRIER barriers[] =
 		{
-			CD3DX12_RESOURCE_BARRIER::Transition(rt, D3D12_RESOURCE_STATE_RESOLVE_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET),	// !: use split barrier
+			CD3DX12_RESOURCE_BARRIER::Transition(rtMSAA, D3D12_RESOURCE_STATE_RESOLVE_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET),	// !: use split barrier
 			CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_RESOLVE_DEST, D3D12_RESOURCE_STATE_PRESENT)
 		};
 		cmdList->ResourceBarrier(size(barriers), barriers);
@@ -133,7 +133,7 @@ void Impl::Viewport::UpdateAspect(double invAspect)
 	projXform[0][0] = projXform[1][1] * invAspect;
 }
 
-void Impl::Viewport::Render(ID3D12Resource *output, ID3D12Resource *rt, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE rtv, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, UINT width, UINT height) const
+void Impl::Viewport::Render(ID3D12Resource *output, ID3D12Resource *rtMSAA, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE rtv, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, UINT width, UINT height) const
 {
 	auto cmdLists = cmdListsManager.OnFrameStart();
 	GPUWorkSubmission::Prepare();
@@ -154,7 +154,7 @@ void Impl::Viewport::Render(ID3D12Resource *output, ID3D12Resource *rt, ID3D12Re
 	if (world)
 		world->Render(ctx, viewXform, projXform, ZBuffer, dsv, setupRenderOutputCallback);
 
-	GPUWorkSubmission::AppendPipelineStage<false>(Post, cmdLists.post, output, rt);
+	GPUWorkSubmission::AppendPipelineStage<false>(Post, cmdLists.post, output, rtMSAA);
 
 	GPUWorkSubmission::Run();
 	cmdListsManager.OnFrameFinish();

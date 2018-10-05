@@ -131,12 +131,15 @@
     <ClInclude Include="sun.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="GPU descriptor heap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="tonemap resource views stage.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="render output.cpp">
@@ -196,6 +199,15 @@
     <ClCompile Include="sun.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="tonemap resource views stage.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GPU descriptor heap.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>Header Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="vectorLayerVS.hlsl">
@@ -223,6 +235,15 @@
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="AABB_2D_vis.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="reductionTexture.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="reductionBuffer.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="tonemapping.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>
@@ -259,6 +280,18 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="object3D VS 2 PS.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="luminance.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="tonemapping config.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="reductionTexture config.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="reductionBuffer config.hlsli">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

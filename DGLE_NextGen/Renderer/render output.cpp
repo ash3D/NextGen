@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		10.05.2018 (c)Korotkov Andrey
+\date		05.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -38,7 +38,7 @@ RenderOutput::RenderOutput(HWND wnd, bool allowModeSwitch, unsigned int bufferCo
 		const DXGI_SWAP_CHAIN_DESC1 desc =
 		{
 			0, 0,							// take width and height from wnd
-			Config::ColorFormat,			// format
+			Config::HDRFormat,				// format
 			FALSE,							// stereo
 			{1, 0},							// MSAA
 			0,								// usage
@@ -168,7 +168,7 @@ void RenderOutput::NextFrame(bool vsync)
 	ComPtr<ID3D12Resource> output;
 	CheckHR(swapChain->GetBuffer(idx, IID_PPV_ARGS(&output)));
 	globalFrameVersioning->OnFrameStart();
-	viewport->Render(output.Get(), rt.Get(), ZBuffer.Get(), rtvHeap->GetCPUDescriptorHandleForHeapStart(), dsvHeap->GetCPUDescriptorHandleForHeapStart(), width, height);
+	viewport->Render(output.Get(), rtMSAA.Get(), ZBuffer.Get(), rtvHeap->GetCPUDescriptorHandleForHeapStart(), dsvHeap->GetCPUDescriptorHandleForHeapStart(), width, height);
 	CheckHR(swapChain->Present(vsync, 0));
 	globalFrameVersioning->OnFrameFinish();
 	viewport->OnFrameFinish();
@@ -180,19 +180,29 @@ void RenderOutput::CreateOffscreenSurfaces(UINT width, UINT height)
 {
 	const DXGI_SAMPLE_DESC MSAA_mode = Config::MSAA();
 
-	// create rendertarget
+	// create MSAA rendertarget
 	extern const float backgroundColor[4];
 	CheckHR(device->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Tex2D(Config::ColorFormat, width, height, 1, 1, MSAA_mode.Count, MSAA_mode.Quality, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET),
+		&CD3DX12_RESOURCE_DESC::Tex2D(Config::HDRFormat, width, height, 1, 1, MSAA_mode.Count, MSAA_mode.Quality, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET),
 		D3D12_RESOURCE_STATE_RENDER_TARGET,
-		&CD3DX12_CLEAR_VALUE(Config::ColorFormat, backgroundColor),
-		IID_PPV_ARGS(rt.ReleaseAndGetAddressOf())
+		&CD3DX12_CLEAR_VALUE(Config::HDRFormat, backgroundColor),
+		IID_PPV_ARGS(rtMSAA.ReleaseAndGetAddressOf())
+	));
+
+	// create resolved rendertarget
+	CheckHR(device->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Tex2D(Config::HDRFormat, width, height, 1, 1),
+		D3D12_RESOURCE_STATE_RESOLVE_DEST,
+		NULL,
+		IID_PPV_ARGS(rtMSAA.ReleaseAndGetAddressOf())
 	));
 
 	// fill RTV heap
-	device->CreateRenderTargetView(rt.Get(), NULL, rtvHeap->GetCPUDescriptorHandleForHeapStart());
+	device->CreateRenderTargetView(rtMSAA.Get(), NULL, rtvHeap->GetCPUDescriptorHandleForHeapStart());
 
 	// create z/stencil buffer
 	CheckHR(device->CreateCommittedResource(
@@ -206,4 +216,17 @@ void RenderOutput::CreateOffscreenSurfaces(UINT width, UINT height)
 
 	// fill DSV heap
 	device->CreateDepthStencilView(ZBuffer.Get(), NULL, dsvHeap->GetCPUDescriptorHandleForHeapStart());
+
+	// create reduction buffer for tonemapping
+	CheckHR(device->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Buffer(width * height * sizeof(float [2]) / (reductionFactor * reductionFactor)),
+		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+		NULL,
+		IID_PPV_ARGS(reductionBuffer.ReleaseAndGetAddressOf())
+	));
+
+	// fill tonemap views CPU heap
+	tonemapViewsCPUHeap.Fill(rtResolved.Get(), reductionBuffer.Get());
 }

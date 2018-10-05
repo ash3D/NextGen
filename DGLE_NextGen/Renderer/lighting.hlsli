@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		27.06.2018 (c)Korotkov Andrey
+\date		05.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -10,7 +10,18 @@ See "DGLE.h" for more details.
 #ifndef LIGHTING_INCLUDED
 #define LIGHTING_INCLUDED
 
+#include "luminance.hlsli"
 #include "fresnel.hlsli"
+
+/*
+	it is possible to do multiplication in ROPs (blending) to free general purpase shader ALUs
+	but turning blending on can hurt perfomance and reduce precision (fp16 vs fp32)
+*/
+float4 Reinhard(float3 color)
+{
+	const float factor = rcp(1 + RGB_2_luminance(color));
+	return float4(color * factor, factor);
+}
 
 // evaluate Smith ^() function for GGX NDF
 float GGXSmithIntegral(float a2, float NdotDir)

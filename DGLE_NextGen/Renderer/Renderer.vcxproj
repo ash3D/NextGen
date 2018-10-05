@@ -217,6 +217,7 @@
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="frustum culling.h" />
     <ClInclude Include="global GPU buffer data.h" />
+    <ClInclude Include="GPU descriptor heap.h" />
     <ClInclude Include="GPU stream buffer allocator.h" />
     <ClInclude Include="GPU work submission.h" />
     <ClInclude Include="HRESULT.h" />
@@ -237,6 +238,7 @@
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="sun.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="tonemap resource views stage.h" />
     <ClInclude Include="tracked ref.h" />
     <ClInclude Include="tracked resource.h" />
     <ClInclude Include="frame versioning.h" />
@@ -247,6 +249,7 @@
     <ClCompile Include="cmdlist pool.cpp" />
     <ClCompile Include="config.cpp" />
     <ClCompile Include="frustum culling.cpp" />
+    <ClCompile Include="GPU descriptor heap.cpp" />
     <ClCompile Include="GPU stream buffer allocator.cpp" />
     <ClCompile Include="GPU work submission.cpp" />
     <ClCompile Include="instance.cpp" />
@@ -266,6 +269,7 @@
     </ClCompile>
     <ClCompile Include="sun.cpp" />
     <ClCompile Include="terrain.cpp" />
+    <ClCompile Include="tonemap resource views stage.cpp" />
     <ClCompile Include="tracked resource.cpp" />
     <ClCompile Include="frame versioning.cpp" />
     <ClCompile Include="viewport.cpp" />
@@ -319,6 +323,36 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
     </FxCompile>
+    <FxCompile Include="reductionBuffer.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="reductionTexture.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="tonemapping.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+    </FxCompile>
     <FxCompile Include="vectorLayerPS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
@@ -339,9 +373,13 @@
     <None Include="fresnel.hlsli" />
     <None Include="GPU stream buffer allocator.inl" />
     <None Include="lighting.hlsli" />
+    <None Include="luminance.hlsli" />
     <None Include="object3D VS 2 PS.hlsli" />
     <None Include="packages.config" />
     <None Include="per-frame data.hlsli" />
+    <None Include="reductionBuffer config.hlsli" />
+    <None Include="reductionTexture config.hlsli" />
+    <None Include="tonemapping config.hlsli" />
     <None Include="tracked ref.inl" />
     <None Include="tracked resource.inl" />
     <None Include="world hierarchy.inl" />

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.08.2018 (c)Korotkov Andrey
+\date		05.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -183,6 +183,11 @@ ComPtr<IDXGIFactory5> factory = TryCreateFactory();
 ComPtr<ID3D12Device2> device = TryCreateDevice();
 ComPtr<ID3D12CommandQueue> cmdQueue = device ? CreateCommandQueue() : nullptr;
 
+namespace Renderer::Impl::Descriptors::GPUDescriptorHeap
+{
+	ComPtr<ID3D12DescriptorHeap> CreateHeap(), heap = device ? CreateHeap() : nullptr;
+}
+
 struct RetiredResource
 {
 	UINT64 frameID;
@@ -345,8 +350,10 @@ extern void __cdecl InitRenderer()
 
 	if (!device)
 	{
+		namespace GPUDescriptorHeap = Renderer::Impl::Descriptors::GPUDescriptorHeap;
 		device = CreateDevice();
 		cmdQueue = CreateCommandQueue();
+		GPUDescriptorHeap::heap				= GPUDescriptorHeap::CreateHeap();
 		TerrainVectorLayer::cullPassRootSig	= TerrainVectorLayer::CreateCullPassRootSig();
 		TerrainVectorLayer::mainPassRootSig	= TerrainVectorLayer::CreateMainPassRootSig();
 		TerrainVectorLayer::cullPassPSO		= TerrainVectorLayer::CreateCullPassPSO();

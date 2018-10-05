@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		11.05.2018 (c)Korotkov Andrey
+\date		05.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -13,6 +13,6 @@ See "DGLE.h" for more details.
 
 namespace Renderer::Config
 {
-	constexpr DXGI_FORMAT ColorFormat = DXGI_FORMAT_R8G8B8A8_UNORM, ZFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	constexpr DXGI_FORMAT HDRFormat = DXGI_FORMAT_R16G16B16A16_FLOAT, DisplayFormat = DXGI_FORMAT_R8G8B8A8_UNORM, ZFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	DXGI_SAMPLE_DESC MSAA();
 }
