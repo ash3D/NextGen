@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		05.10.2018 (c)Korotkov Andrey
+\date		15.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -10,6 +10,8 @@ See "DGLE.h" for more details.
 #include "stdafx.h"
 #include "frame versioning.h"
 #include "occlusion query batch.h"
+#include "render output.hh"	// for tonemap reduction buffer
+#include "viewport.hh"		// for tonemap root sig & PSOs
 #include "world.hh"
 #include "terrain.hh"
 #include "object 3D.hh"
@@ -21,7 +23,9 @@ See "DGLE.h" for more details.
 #define ENABLE_GBV			0
 
 using namespace std;
+using Renderer::RenderOutput;
 using Renderer::Impl::globalFrameVersioning;
+using Renderer::Impl::Viewport;
 using Renderer::Impl::World;
 using Renderer::Impl::TerrainVectorLayer;
 using Renderer::Impl::Object3D;
@@ -183,10 +187,12 @@ ComPtr<IDXGIFactory5> factory = TryCreateFactory();
 ComPtr<ID3D12Device2> device = TryCreateDevice();
 ComPtr<ID3D12CommandQueue> cmdQueue = device ? CreateCommandQueue() : nullptr;
 
-namespace Renderer::Impl::Descriptors::GPUDescriptorHeap
+namespace Renderer::Impl::Descriptors::GPUDescriptorHeap::Impl
 {
 	ComPtr<ID3D12DescriptorHeap> CreateHeap(), heap = device ? CreateHeap() : nullptr;
 }
+
+ComPtr<ID3D12Resource> RenderOutput::tonemapReductionBuffer = device ? RenderOutput::CreaateTonemapReductionBuffer() : nullptr;
 
 struct RetiredResource
 {
@@ -213,6 +219,7 @@ void OnFrameFinish()
 
 #pragma region root sigs & PSOs
 ComPtr<ID3D12RootSignature>
+	Viewport::tonemapRootSig						= Viewport::TryCreateTonemapRootSig(),
 	TerrainVectorLayer::cullPassRootSig				= TerrainVectorLayer::TryCreateCullPassRootSig(),
 	TerrainVectorLayer::mainPassRootSig				= TerrainVectorLayer::TryCreateMainPassRootSig(),
 	World::xformAABB_RootSig						= World::TryCreateXformAABB_RootSig(),
@@ -220,6 +227,9 @@ ComPtr<ID3D12RootSignature>
 	World::AABB_RootSig								= World::TryCreateAABB_RootSig(),
 	Object3D::rootSig								= Object3D::TryCreateRootSig();
 ComPtr<ID3D12PipelineState>
+	Viewport::tonemapTextureReductionPSO			= Viewport::TryCreateTonemapTextureReductionPSO(),
+	Viewport::tonemapBufferReductionPSO				= Viewport::TryCreateTonemapBufferReductionPSO(),
+	Viewport::tonemapPSO							= Viewport::TryCreateTonemapPSO(),
 	TerrainVectorLayer::cullPassPSO					= TerrainVectorLayer::TryCreateCullPassPSO(),
 	TerrainVectorLayer::mainPassPSO					= TerrainVectorLayer::TryCreateMainPassPSO(),
 	TerrainVectorLayer::AABB_PSO					= TerrainVectorLayer::TryCreateAABB_PSO(),
@@ -229,6 +239,11 @@ decltype(World::AABB_PSOs) World::AABB_PSOs			= World::TryCreateAABB_PSOs();
 decltype(Object3D::PSOs) Object3D::PSOs				= Object3D::TryCreatePSOs();
 
 #pragma region TryCreate...()
+inline ComPtr<ID3D12RootSignature> Viewport::TryCreateTonemapRootSig()
+{
+	return device ? CreateTonemapRootSig() : nullptr;
+}
+
 inline ComPtr<ID3D12RootSignature> TerrainVectorLayer::TryCreateCullPassRootSig()
 {
 	return device ? CreateCullPassRootSig() : nullptr;
@@ -257,6 +272,21 @@ inline ComPtr<ID3D12RootSignature> World::TryCreateAABB_RootSig()
 inline ComPtr<ID3D12RootSignature> Object3D::TryCreateRootSig()
 {
 	return device ? CreateRootSig() : nullptr;
+}
+
+inline ComPtr<ID3D12PipelineState> Viewport::TryCreateTonemapTextureReductionPSO()
+{
+	return device ? CreateTonemapTextureReductionPSO() : nullptr;
+}
+
+inline ComPtr<ID3D12PipelineState> Viewport::TryCreateTonemapBufferReductionPSO()
+{
+	return device ? CreateTonemapBufferReductionPSO() : nullptr;
+}
+
+inline ComPtr<ID3D12PipelineState> Viewport::TryCreateTonemapPSO()
+{
+	return device ? CreateTonemapPSO() : nullptr;
 }
 
 inline ComPtr<ID3D12PipelineState> TerrainVectorLayer::TryCreateCullPassPSO()
@@ -353,21 +383,26 @@ extern void __cdecl InitRenderer()
 		namespace GPUDescriptorHeap = Renderer::Impl::Descriptors::GPUDescriptorHeap;
 		device = CreateDevice();
 		cmdQueue = CreateCommandQueue();
-		GPUDescriptorHeap::heap				= GPUDescriptorHeap::CreateHeap();
-		TerrainVectorLayer::cullPassRootSig	= TerrainVectorLayer::CreateCullPassRootSig();
-		TerrainVectorLayer::mainPassRootSig	= TerrainVectorLayer::CreateMainPassRootSig();
-		TerrainVectorLayer::cullPassPSO		= TerrainVectorLayer::CreateCullPassPSO();
-		TerrainVectorLayer::mainPassPSO		= TerrainVectorLayer::CreateMainPassPSO();
-		TerrainVectorLayer::AABB_PSO		= TerrainVectorLayer::CreateAABB_PSO();
-		World::xformAABB_RootSig			= World::CreateXformAABB_RootSig();
-		World::cullPassRootSig				= World::CreateCullPassRootSig();
-		World::AABB_RootSig					= World::CreateAABB_RootSig();
-		World::xformAABB_PSO				= World::CreateXformAABB_PSO();
-		World::cullPassPSOs					= World::CreateCullPassPSOs();
-		World::AABB_PSOs					= World::CreateAABB_PSOs();
-		Object3D::rootSig					= Object3D::CreateRootSig();
-		Object3D::PSOs						= Object3D::CreatePSOs();
-		World::globalGPUBuffer				= World::CreateGlobalGPUBuffer();
+		GPUDescriptorHeap::Impl::heap			= GPUDescriptorHeap::Impl::CreateHeap();
+		RenderOutput::tonemapReductionBuffer	= RenderOutput::CreaateTonemapReductionBuffer();
+		Viewport::tonemapRootSig				= Viewport::CreateTonemapRootSig();
+		Viewport::tonemapTextureReductionPSO	= Viewport::CreateTonemapTextureReductionPSO();
+		Viewport::tonemapBufferReductionPSO		= Viewport::CreateTonemapBufferReductionPSO();
+		Viewport::tonemapPSO					= Viewport::CreateTonemapPSO();
+		TerrainVectorLayer::cullPassRootSig		= TerrainVectorLayer::CreateCullPassRootSig();
+		TerrainVectorLayer::mainPassRootSig		= TerrainVectorLayer::CreateMainPassRootSig();
+		TerrainVectorLayer::cullPassPSO			= TerrainVectorLayer::CreateCullPassPSO();
+		TerrainVectorLayer::mainPassPSO			= TerrainVectorLayer::CreateMainPassPSO();
+		TerrainVectorLayer::AABB_PSO			= TerrainVectorLayer::CreateAABB_PSO();
+		World::xformAABB_RootSig				= World::CreateXformAABB_RootSig();
+		World::cullPassRootSig					= World::CreateCullPassRootSig();
+		World::AABB_RootSig						= World::CreateAABB_RootSig();
+		World::xformAABB_PSO					= World::CreateXformAABB_PSO();
+		World::cullPassPSOs						= World::CreateCullPassPSOs();
+		World::AABB_PSOs						= World::CreateAABB_PSOs();
+		Object3D::rootSig						= Object3D::CreateRootSig();
+		Object3D::PSOs							= Object3D::CreatePSOs();
+		World::globalGPUBuffer					= World::CreateGlobalGPUBuffer();
 #if PERSISTENT_MAPS
 		World::globalGPUBuffer_CPU_ptr = World::MapGlobalGPUBuffer();
 #endif

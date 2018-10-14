@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		05.10.2018 (c)Korotkov Andrey
+\date		15.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -11,7 +11,7 @@ See "DGLE.h" for more details.
 #include "luminance.hlsli"
 
 Texture2D src : register(t0);
-RWTexture2D<float4> dst : register(u0);
+RWTexture2D<float4> dst : register(u1);
 cbuffer TonemapParams : register(b0)
 {
 	float exposure, whitePointFactor/*1/whitePoint^2*/;

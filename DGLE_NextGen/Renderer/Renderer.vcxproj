@@ -231,6 +231,7 @@
     <ClInclude Include="occlusion tree.h" />
     <ClInclude Include="occlusion query batch.h" />
     <ClInclude Include="GPU work item.h" />
+    <ClInclude Include="reductionTexture config.h" />
     <ClInclude Include="render pipeline.h" />
     <ClInclude Include="render stage.h" />
     <ClInclude Include="SO buffer.h" />

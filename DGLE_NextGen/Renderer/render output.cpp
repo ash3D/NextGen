@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		05.10.2018 (c)Korotkov Andrey
+\date		15.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -14,20 +14,40 @@ See "DGLE.h" for more details.
 #include "tracked ref.inl"
 #include "frame versioning.h"
 #include "cmdlist pool.h"
+#include "GPU descriptor heap.h"
 #include "config.h"
+#include "reductionTexture config.h"
 
 using namespace std;
 using namespace Renderer;
 using Impl::globalFrameVersioning;
-using Microsoft::WRL::ComPtr;
+using WRL::ComPtr;
 
 extern ComPtr<IDXGIFactory5> factory;
 extern ComPtr<ID3D12Device2> device;
 extern ComPtr<ID3D12CommandQueue> cmdQueue;
 
+void NameObject(ID3D12Object *object, LPCWSTR name) noexcept;
+
 constexpr unsigned long int resizeThresholdPixels = 100'000ul;
 
-RenderOutput::RenderOutput(HWND wnd, bool allowModeSwitch, unsigned int bufferCount)
+ComPtr<ID3D12Resource> RenderOutput::CreaateTonemapReductionBuffer()
+{
+	ComPtr<ID3D12Resource> result;
+	CheckHR(device->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Buffer(sizeof(float [2048][2]), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS),
+		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+		NULL,
+		IID_PPV_ARGS(result.GetAddressOf())
+	));
+	NameObject(result.Get(), L"tonemap reduction buffer");
+
+	return result;
+}
+
+RenderOutput::RenderOutput(HWND wnd, bool allowModeSwitch, unsigned int bufferCount) : tonemapViewsCPUHeap(bufferCount)
 {
 	// create swap chain
 	{
@@ -38,10 +58,10 @@ RenderOutput::RenderOutput(HWND wnd, bool allowModeSwitch, unsigned int bufferCo
 		const DXGI_SWAP_CHAIN_DESC1 desc =
 		{
 			0, 0,							// take width and height from wnd
-			Config::HDRFormat,				// format
+			Config::DisplayFormat,			// format
 			FALSE,							// stereo
 			{1, 0},							// MSAA
-			0,								// usage
+			DXGI_USAGE_UNORDERED_ACCESS,	// usage
 			bufferCount,					// buffer count
 			DXGI_SCALING_STRETCH,			// scaling
 			DXGI_SWAP_EFFECT_FLIP_DISCARD,	// swap effect
@@ -151,6 +171,10 @@ void RenderOutput::OnResize()
 	else
 		CheckHR(swapChain->SetSourceSize(newWidth, newHeight));
 
+	// fill tonemap views CPU heap
+	const auto tonemapReductionTexDispatchSize = ReductionTextureConfig::DispatchSize({ newWidth, newHeight });
+	tonemapViewsCPUHeap.Fill(rtResolved.Get(), tonemapReductionBuffer.Get(), tonemapReductionTexDispatchSize.x * tonemapReductionTexDispatchSize.y, swapChain.Get());
+
 	if (viewport)
 		viewport->UpdateAspect(double(newHeight) / double(newWidth));
 }
@@ -168,7 +192,9 @@ void RenderOutput::NextFrame(bool vsync)
 	ComPtr<ID3D12Resource> output;
 	CheckHR(swapChain->GetBuffer(idx, IID_PPV_ARGS(&output)));
 	globalFrameVersioning->OnFrameStart();
-	viewport->Render(output.Get(), rtMSAA.Get(), ZBuffer.Get(), rtvHeap->GetCPUDescriptorHandleForHeapStart(), dsvHeap->GetCPUDescriptorHandleForHeapStart(), width, height);
+	const auto tonemapDescriptorTable = Impl::Descriptors::GPUDescriptorHeap::SetCurFrameTonemapReductionDescs(tonemapViewsCPUHeap, idx);
+	viewport->Render(output.Get(), rtMSAA.Get(), rtResolved.Get(), ZBuffer.Get(), tonemapReductionBuffer.Get(),
+		rtvHeap->GetCPUDescriptorHandleForHeapStart(), dsvHeap->GetCPUDescriptorHandleForHeapStart(), tonemapDescriptorTable, width, height);
 	CheckHR(swapChain->Present(vsync, 0));
 	globalFrameVersioning->OnFrameFinish();
 	viewport->OnFrameFinish();
@@ -198,7 +224,7 @@ void RenderOutput::CreateOffscreenSurfaces(UINT width, UINT height)
 		&CD3DX12_RESOURCE_DESC::Tex2D(Config::HDRFormat, width, height, 1, 1),
 		D3D12_RESOURCE_STATE_RESOLVE_DEST,
 		NULL,
-		IID_PPV_ARGS(rtMSAA.ReleaseAndGetAddressOf())
+		IID_PPV_ARGS(rtResolved.ReleaseAndGetAddressOf())
 	));
 
 	// fill RTV heap
@@ -216,17 +242,4 @@ void RenderOutput::CreateOffscreenSurfaces(UINT width, UINT height)
 
 	// fill DSV heap
 	device->CreateDepthStencilView(ZBuffer.Get(), NULL, dsvHeap->GetCPUDescriptorHandleForHeapStart());
-
-	// create reduction buffer for tonemapping
-	CheckHR(device->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(width * height * sizeof(float [2]) / (reductionFactor * reductionFactor)),
-		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-		NULL,
-		IID_PPV_ARGS(reductionBuffer.ReleaseAndGetAddressOf())
-	));
-
-	// fill tonemap views CPU heap
-	tonemapViewsCPUHeap.Fill(rtResolved.Get(), reductionBuffer.Get());
 }

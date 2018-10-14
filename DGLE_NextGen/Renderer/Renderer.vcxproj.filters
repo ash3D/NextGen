@@ -137,6 +137,9 @@
     <ClInclude Include="tonemap resource views stage.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="reductionTexture config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -206,7 +209,7 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp">
-      <Filter>Header Files</Filter>
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

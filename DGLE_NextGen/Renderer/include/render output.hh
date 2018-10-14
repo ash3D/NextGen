@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		05.10.2018 (c)Korotkov Andrey
+\date		15.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -18,15 +18,23 @@ struct IDXGISwapChain4;
 struct ID3D12Resource;
 struct ID3D12DescriptorHeap;
 
+extern void __cdecl InitRenderer();
+
 namespace Renderer
 {
+	namespace WRL = Microsoft::WRL;
+
 	class RenderOutput
 	{
 		Impl::TrackedResource<IDXGISwapChain4> swapChain;
-		Impl::TrackedResource<ID3D12Resource> rtMSAA, rtResolved, ZBuffer, reductionBuffer;
+		Impl::TrackedResource<ID3D12Resource> rtMSAA, rtResolved, ZBuffer;
 		Impl::TrackedResource<ID3D12DescriptorHeap> rtvHeap, dsvHeap;	// is tracking really needed?
 		Impl::Descriptors::TonemapResourceViewsStage tonemapViewsCPUHeap;
 		Impl::TrackedRef::Ref<class Viewport> viewport;
+
+	private:
+		friend extern void __cdecl ::InitRenderer();
+		static WRL::ComPtr<ID3D12Resource> tonemapReductionBuffer, CreaateTonemapReductionBuffer();
 
 	public:
 		RenderOutput(HWND wnd, bool allowModeSwitch, unsigned int bufferCount = 2);
