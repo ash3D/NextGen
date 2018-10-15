@@ -11,7 +11,7 @@ See "DGLE.h" for more details.
 #include "luminance.hlsli"
 
 Texture2D src : register(t0);
-RWByteAddressBuffer dst : register(u0);
+RWByteAddressBuffer dst : register(u1);
 
 groupshared float2 localData[groupSize * groupSize];
 
@@ -39,7 +39,15 @@ void main(in uint2 globalIdx : SV_DispatchThreadID, in uint flatLocalIdx : SV_Gr
 				[unroll]
 				for (; tileOffset.x < tileSize; tileOffset.x++)
 				{
-					const float lum = RGB_2_luminance(src[globalIdx * tileSize + interleaveOffset + tileOffset]);
+					float4 srcPixel = src[globalIdx * tileSize + interleaveOffset + tileOffset];
+					/*
+						'if' needed to correctly handle out-of-bounds pixels in edge tiles (which fetched as 0)
+						since 0/0 produses NaN according to DirectX floating-point rules (https://docs.microsoft.com/en-us/windows/desktop/direct3d11/floating-point-rules)
+					*/
+					[flatten]
+					if (srcPixel.a != 0)
+						srcPixel.rgb /= srcPixel.a;
+					const float lum = RGB_2_luminance(srcPixel.rgb);
 					// do weighting per-pixel rather than once in final reduction since mul is free here (merged into mad)\
 					NOTE: first iteration for unrolled loop can optimize add out thus making mul non-free
 					partialRedution.x += log2(lum + 1) * weight;
@@ -60,5 +68,5 @@ void main(in uint2 globalIdx : SV_DispatchThreadID, in uint flatLocalIdx : SV_Gr
 	// store result to global buffer
 	const uint flatGroupIdx = groupIdx.y * groupSize + groupIdx.x;
 	if (flatLocalIdx == 0)
-        dst.Store2(flatGroupIdx * 8, asuint(localData[0]));
+		dst.Store2(flatGroupIdx * 8, asuint(localData[0]));
 }

@@ -47,7 +47,7 @@ ComPtr<ID3D12Resource> RenderOutput::CreaateTonemapReductionBuffer()
 	return result;
 }
 
-RenderOutput::RenderOutput(HWND wnd, bool allowModeSwitch, unsigned int bufferCount) : tonemapViewsCPUHeap(bufferCount)
+RenderOutput::RenderOutput(HWND wnd, bool allowModeSwitch, unsigned int bufferCount)
 {
 	// create swap chain
 	{
@@ -61,7 +61,7 @@ RenderOutput::RenderOutput(HWND wnd, bool allowModeSwitch, unsigned int bufferCo
 			Config::DisplayFormat,			// format
 			FALSE,							// stereo
 			{1, 0},							// MSAA
-			DXGI_USAGE_UNORDERED_ACCESS,	// usage
+			0,								// usage
 			bufferCount,					// buffer count
 			DXGI_SCALING_STRETCH,			// scaling
 			DXGI_SWAP_EFFECT_FLIP_DISCARD,	// swap effect
@@ -169,11 +169,10 @@ void RenderOutput::OnResize()
 		CreateOffscreenSurfaces(newWidth, newHeight);
 	}
 	else
+	{
 		CheckHR(swapChain->SetSourceSize(newWidth, newHeight));
-
-	// fill tonemap views CPU heap
-	const auto tonemapReductionTexDispatchSize = ReductionTextureConfig::DispatchSize({ newWidth, newHeight });
-	tonemapViewsCPUHeap.Fill(rtResolved.Get(), tonemapReductionBuffer.Get(), tonemapReductionTexDispatchSize.x * tonemapReductionTexDispatchSize.y, swapChain.Get());
+		FillTonemapViewsCPUHeap(newWidth, newHeight);
+	}
 
 	if (viewport)
 		viewport->UpdateAspect(double(newHeight) / double(newWidth));
@@ -193,7 +192,7 @@ void RenderOutput::NextFrame(bool vsync)
 	CheckHR(swapChain->GetBuffer(idx, IID_PPV_ARGS(&output)));
 	globalFrameVersioning->OnFrameStart();
 	const auto tonemapDescriptorTable = Impl::Descriptors::GPUDescriptorHeap::SetCurFrameTonemapReductionDescs(tonemapViewsCPUHeap, idx);
-	viewport->Render(output.Get(), rtMSAA.Get(), rtResolved.Get(), ZBuffer.Get(), tonemapReductionBuffer.Get(),
+	viewport->Render(output.Get(), rendertarget.Get(), ZBuffer.Get(), HDRSurface.Get(), LDRSurface.Get(), tonemapReductionBuffer.Get(),
 		rtvHeap->GetCPUDescriptorHandleForHeapStart(), dsvHeap->GetCPUDescriptorHandleForHeapStart(), tonemapDescriptorTable, width, height);
 	CheckHR(swapChain->Present(vsync, 0));
 	globalFrameVersioning->OnFrameFinish();
@@ -214,21 +213,11 @@ void RenderOutput::CreateOffscreenSurfaces(UINT width, UINT height)
 		&CD3DX12_RESOURCE_DESC::Tex2D(Config::HDRFormat, width, height, 1, 1, MSAA_mode.Count, MSAA_mode.Quality, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET),
 		D3D12_RESOURCE_STATE_RENDER_TARGET,
 		&CD3DX12_CLEAR_VALUE(Config::HDRFormat, backgroundColor),
-		IID_PPV_ARGS(rtMSAA.ReleaseAndGetAddressOf())
-	));
-
-	// create resolved rendertarget
-	CheckHR(device->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Tex2D(Config::HDRFormat, width, height, 1, 1),
-		D3D12_RESOURCE_STATE_RESOLVE_DEST,
-		NULL,
-		IID_PPV_ARGS(rtResolved.ReleaseAndGetAddressOf())
+		IID_PPV_ARGS(rendertarget.ReleaseAndGetAddressOf())
 	));
 
 	// fill RTV heap
-	device->CreateRenderTargetView(rtMSAA.Get(), NULL, rtvHeap->GetCPUDescriptorHandleForHeapStart());
+	device->CreateRenderTargetView(rendertarget.Get(), NULL, rtvHeap->GetCPUDescriptorHandleForHeapStart());
 
 	// create z/stencil buffer
 	CheckHR(device->CreateCommittedResource(
@@ -242,4 +231,32 @@ void RenderOutput::CreateOffscreenSurfaces(UINT width, UINT height)
 
 	// fill DSV heap
 	device->CreateDepthStencilView(ZBuffer.Get(), NULL, dsvHeap->GetCPUDescriptorHandleForHeapStart());
+
+	// create HDR offscreen surface
+	CheckHR(device->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Tex2D(Config::HDRFormat, width, height, 1, 1),
+		D3D12_RESOURCE_STATE_RESOLVE_DEST,
+		NULL,
+		IID_PPV_ARGS(HDRSurface.ReleaseAndGetAddressOf())
+	));
+
+	// create LDR offscreen surface (D3D12 disallows UAV on swap chain backbuffers)
+	CheckHR(device->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Tex2D(Config::DisplayFormat, width, height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS),
+		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+		NULL,
+		IID_PPV_ARGS(LDRSurface.ReleaseAndGetAddressOf())
+	));
+
+	FillTonemapViewsCPUHeap(width, height);
+}
+
+void RenderOutput::FillTonemapViewsCPUHeap(UINT width, UINT height)
+{
+	const auto tonemapReductionTexDispatchSize = ReductionTextureConfig::DispatchSize({ width, height });
+	tonemapViewsCPUHeap.Fill(HDRSurface.Get(), LDRSurface.Get(), tonemapReductionBuffer.Get(), tonemapReductionTexDispatchSize.x * tonemapReductionTexDispatchSize.y);
 }

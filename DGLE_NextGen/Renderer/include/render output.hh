@@ -27,7 +27,7 @@ namespace Renderer
 	class RenderOutput
 	{
 		Impl::TrackedResource<IDXGISwapChain4> swapChain;
-		Impl::TrackedResource<ID3D12Resource> rtMSAA, rtResolved, ZBuffer;
+		Impl::TrackedResource<ID3D12Resource> rendertarget, ZBuffer, HDRSurface, LDRSurface;
 		Impl::TrackedResource<ID3D12DescriptorHeap> rtvHeap, dsvHeap;	// is tracking really needed?
 		Impl::Descriptors::TonemapResourceViewsStage tonemapViewsCPUHeap;
 		Impl::TrackedRef::Ref<class Viewport> viewport;
@@ -50,5 +50,6 @@ namespace Renderer
 
 	private:
 		void CreateOffscreenSurfaces(UINT width, UINT height);
+		void FillTonemapViewsCPUHeap(UINT width, UINT height);
 	};
 }

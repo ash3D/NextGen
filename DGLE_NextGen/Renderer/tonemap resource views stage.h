@@ -39,15 +39,14 @@ namespace Renderer::Impl::Descriptors
 		enum
 		{
 			SrcSRV,
+			DstUAV,
 			ReductionBufferUAV,
-			OffscreenBuffersCount,
-			DstUAVArray = OffscreenBuffersCount,
-			DescTableSize
+			ViewCount
 		};
 		WRL::ComPtr<ID3D12DescriptorHeap> allocation;	// CPU heap does not require lifetime tracking
 
 	public:
-		TonemapResourceViewsStage(unsigned int backBufferCount);
-		void Fill(ID3D12Resource *src, ID3D12Resource *reductionBuffer, UINT reductionBufferLength, IDXGISwapChain4 *dst);
+		TonemapResourceViewsStage();
+		void Fill(ID3D12Resource *src, ID3D12Resource *dst, ID3D12Resource *reductionBuffer, UINT reductionBufferLength);
 	};
 }

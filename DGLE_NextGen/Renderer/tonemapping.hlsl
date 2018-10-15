@@ -11,7 +11,7 @@ See "DGLE.h" for more details.
 #include "luminance.hlsli"
 
 Texture2D src : register(t0);
-RWTexture2D<float4> dst : register(u1);
+RWTexture2D<float4> dst : register(u0);
 cbuffer TonemapParams : register(b0)
 {
 	float exposure, whitePointFactor/*1/whitePoint^2*/;

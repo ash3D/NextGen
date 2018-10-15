@@ -15,27 +15,27 @@ using WRL::ComPtr;
 
 extern ComPtr<ID3D12Device2> device;
 	
-TonemapResourceViewsStage::TonemapResourceViewsStage(unsigned int backBufferCount)
+TonemapResourceViewsStage::TonemapResourceViewsStage()
 {
 	void NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
 
 	const D3D12_DESCRIPTOR_HEAP_DESC heapDesc =
 	{
 		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,	// type
-		OffscreenBuffersCount + backBufferCount,
+		ViewCount,
 		D3D12_DESCRIPTOR_HEAP_FLAG_NONE			// CPU visible
 	};
 	CheckHR(device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(allocation.GetAddressOf())));
 	NameObjectF(allocation.Get(), L"CPU descriptor stage for tonemap reduction resources (D3D object: %p, heap start CPU address: %p)", allocation.Get(), allocation->GetCPUDescriptorHandleForHeapStart());
 }
 
-void TonemapResourceViewsStage::Fill(ID3D12Resource *src, ID3D12Resource *reductionBuffer, UINT reductionBufferLength, IDXGISwapChain4 *dst)
+void TonemapResourceViewsStage::Fill(ID3D12Resource *src, ID3D12Resource *dst, ID3D12Resource *reductionBuffer, UINT reductionBufferLength)
 {
 	const auto descriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	const auto heapStart = allocation->GetCPUDescriptorHandleForHeapStart();
 
-	// offscreen buffer descriptors
 	device->CreateShaderResourceView(src, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, SrcSRV, descriptorSize));
+	device->CreateUnorderedAccessView(dst, NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DstUAV, descriptorSize));
 	{
 		D3D12_UNORDERED_ACCESS_VIEW_DESC UAVdesc =
 		{
@@ -51,18 +51,5 @@ void TonemapResourceViewsStage::Fill(ID3D12Resource *src, ID3D12Resource *reduct
 			D3D12_BUFFER_UAV_FLAG_RAW
 		};
 		device->CreateUnorderedAccessView(reductionBuffer, NULL, &UAVdesc, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, ReductionBufferUAV, descriptorSize));
-	}
-
-	// backbuffer descriptors
-	{
-		DXGI_SWAP_CHAIN_DESC dstDesc;
-		CheckHR(dst->GetDesc(&dstDesc));
-		CD3DX12_CPU_DESCRIPTOR_HANDLE descritor(heapStart, DstUAVArray, descriptorSize);
-		for (UINT idx = 0; idx < dstDesc.BufferCount; idx++, descritor.Offset(descriptorSize))
-		{
-			ComPtr<ID3D12Resource> backbuffer;
-			CheckHR(dst->GetBuffer(idx, IID_PPV_ARGS(backbuffer.GetAddressOf())));
-			device->CreateUnorderedAccessView(backbuffer.Get(), NULL, NULL, descritor);
-		}
 	}
 }

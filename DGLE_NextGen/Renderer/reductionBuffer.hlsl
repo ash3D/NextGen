@@ -9,7 +9,7 @@ See "DGLE.h" for more details.
 
 #include "reductionBuffer config.hlsli"
 
-RWByteAddressBuffer buffer : register(u0);
+RWByteAddressBuffer buffer : register(u1);
 
 groupshared float2 localData[blockSize];
 
@@ -34,8 +34,6 @@ inline float2 CalcTonemapParams(float2 src)
 void main(in uint globalIdx : SV_DispatchThreadID, in uint localIdx : SV_GroupIndex, in uint blockIdx : SV_GroupID)
 {
 	// global buffer loading combined with first level reduction
-	uint bufferSize;
-	buffer.GetDimensions(bufferSize);
     localData[localIdx] = Reduce(asfloat(buffer.Load2(globalIdx * 8)), asfloat(buffer.Load2((globalIdx + blockSize) * 8)));
 	GroupMemoryBarrierWithGroupSync();
 

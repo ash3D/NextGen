@@ -14,10 +14,6 @@ See "DGLE.h" for more details.
 #include "GPU descriptor heap.h"
 #include "config.h"
 #include "reductionTexture config.h"
-namespace Renderer::ReductionBufferConfig
-{
-#	include "reductionBuffer config.hlsli"
-}
 namespace Renderer::TonemappingConfig
 {
 #	include "tonemapping config.hlsli"
@@ -153,7 +149,7 @@ ComPtr<ID3D12PipelineState> Impl::Viewport::CreateTonemapPSO()
 inline RenderPipeline::PipelineStage Impl::Viewport::Pre(ID3D12GraphicsCommandList2 *cmdList, ID3D12Resource *output, D3D12_CPU_DESCRIPTOR_HANDLE rtv, D3D12_CPU_DESCRIPTOR_HANDLE dsv, UINT width, UINT height)
 {
 	PIXScopedEvent(cmdList, PIX_COLOR_INDEX(PIXEvents::ViewportPre), "viewport pre");
-	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY));
+	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY));
 	// need to zero out render target edges for correct tonemapping avg/max luminance reduction
 	{
 		const auto outputDesc = output->GetDesc();
@@ -171,35 +167,28 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Pre(ID3D12GraphicsCommandLi
 	return cmdList;
 }
 
-inline RenderPipeline::PipelineStage Impl::Viewport::Post(ID3D12GraphicsCommandList2 *cmdList, ID3D12Resource *output, ID3D12Resource *rtMSAA, ID3D12Resource *rtResolved, ID3D12Resource *tonemapReductionBuffer, D3D12_GPU_DESCRIPTOR_HANDLE tonemapDescriptorTable, UINT width, UINT height)
+inline RenderPipeline::PipelineStage Impl::Viewport::Post(ID3D12GraphicsCommandList2 *cmdList, ID3D12Resource *output, ID3D12Resource *rendertarget, ID3D12Resource *HDRSurface, ID3D12Resource *LDRSurface, ID3D12Resource *tonemapReductionBuffer, D3D12_GPU_DESCRIPTOR_HANDLE tonemapDescriptorTable, UINT width, UINT height)
 {
 	PIXScopedEvent(cmdList, PIX_COLOR_INDEX(PIXEvents::ViewportPost), "viewport post");
+
+	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(rendertarget, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_RESOLVE_SOURCE));
+
+	cmdList->ResolveSubresource(HDRSurface, 0, rendertarget, 0, Config::HDRFormat);
+	
+	{
+		const D3D12_RESOURCE_BARRIER barriers[] =
+		{
+			CD3DX12_RESOURCE_BARRIER::Transition(rendertarget, D3D12_RESOURCE_STATE_RESOLVE_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET),	// !: use split barrier
+			CD3DX12_RESOURCE_BARRIER::Transition(HDRSurface, D3D12_RESOURCE_STATE_RESOLVE_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE)
+		};
+		cmdList->ResourceBarrier(size(barriers), barriers);
+	}
 
 	// bind tonemapping resources
 	cmdList->SetDescriptorHeaps(1, Descriptors::GPUDescriptorHeap::GetHeap().GetAddressOf());
 	cmdList->SetComputeRootSignature(tonemapRootSig.Get());
 	cmdList->SetComputeRootDescriptorTable(ROOT_PARAM_DESC_TABLE, tonemapDescriptorTable);
 	cmdList->SetComputeRootConstantBufferView(ROOT_PARAM_CBV, tonemapReductionBuffer->GetGPUVirtualAddress());
-
-	{
-		const D3D12_RESOURCE_BARRIER barriers[] =
-		{
-			CD3DX12_RESOURCE_BARRIER::Transition(rtMSAA, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_RESOLVE_SOURCE),
-			CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY)
-		};
-		cmdList->ResourceBarrier(size(barriers), barriers);
-	}
-
-	cmdList->ResolveSubresource(rtResolved, 0, rtMSAA, 0, Config::HDRFormat);
-	
-	{
-		const D3D12_RESOURCE_BARRIER barriers[] =
-		{
-			CD3DX12_RESOURCE_BARRIER::Transition(rtMSAA, D3D12_RESOURCE_STATE_RESOLVE_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET),	// !: use split barrier
-			CD3DX12_RESOURCE_BARRIER::Transition(rtResolved, D3D12_RESOURCE_STATE_RESOLVE_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE)
-		};
-		cmdList->ResourceBarrier(size(barriers), barriers);
-	}
 
 	// initial texture reduction (PSO set during cmd list creation/reset)
 	const auto tonemapReductionTexDispatchSize = ReductionTextureConfig::DispatchSize({ width, height });
@@ -210,7 +199,7 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(ID3D12GraphicsCommandL
 
 	// final buffer reduction
 	cmdList->SetPipelineState(tonemapBufferReductionPSO.Get());
-	cmdList->Dispatch((tonemapReductionTexDispatchSize.x * tonemapReductionTexDispatchSize.y + ReductionBufferConfig::blockSize - 1) / ReductionBufferConfig::blockSize, 1, 1);
+	cmdList->Dispatch(1, 1, 1);
 
 	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(tonemapReductionBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
 
@@ -221,8 +210,22 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(ID3D12GraphicsCommandL
 	{
 		const D3D12_RESOURCE_BARRIER barriers[] =
 		{
+			CD3DX12_RESOURCE_BARRIER::Transition(HDRSurface, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RESOLVE_DEST),					// !: use split barrier
+			CD3DX12_RESOURCE_BARRIER::Transition(LDRSurface, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE),
 			CD3DX12_RESOURCE_BARRIER::Transition(tonemapReductionBuffer, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, D3D12_RESOURCE_STATE_UNORDERED_ACCESS),	// !: use split barrier
-			CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PRESENT)
+			CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY)
+		};
+		cmdList->ResourceBarrier(size(barriers), barriers);
+	}
+
+	// copy to output
+	cmdList->CopyTextureRegion(&CD3DX12_TEXTURE_COPY_LOCATION(output, 0), 0, 0, 0, &CD3DX12_TEXTURE_COPY_LOCATION(LDRSurface, 0), &CD3DX12_BOX(0, 0, width, height));
+
+	{
+		const D3D12_RESOURCE_BARRIER barriers[] =
+		{
+			CD3DX12_RESOURCE_BARRIER::Transition(LDRSurface, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS),	// !: use split barrier
+			CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT)
 		};
 		cmdList->ResourceBarrier(size(barriers), barriers);
 	}
@@ -262,7 +265,7 @@ void Impl::Viewport::UpdateAspect(double invAspect)
 	projXform[0][0] = projXform[1][1] * invAspect;
 }
 
-void Impl::Viewport::Render(ID3D12Resource *output, ID3D12Resource *rtMSAA, ID3D12Resource *rtResolved, ID3D12Resource *ZBuffer, ID3D12Resource *tonemapReductionBuffer,
+void Impl::Viewport::Render(ID3D12Resource *output, ID3D12Resource *rendertarget, ID3D12Resource *ZBuffer, ID3D12Resource *HDRSurface, ID3D12Resource *LDRSurface, ID3D12Resource *tonemapReductionBuffer,
 	const D3D12_CPU_DESCRIPTOR_HANDLE rtv, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, const D3D12_GPU_DESCRIPTOR_HANDLE tonemapDescriptorTable, UINT width, UINT height) const
 {
 	auto cmdLists = cmdListsManager.OnFrameStart();
@@ -284,7 +287,7 @@ void Impl::Viewport::Render(ID3D12Resource *output, ID3D12Resource *rtMSAA, ID3D
 	if (world)
 		world->Render(ctx, viewXform, projXform, ZBuffer, dsv, setupRenderOutputCallback);
 
-	GPUWorkSubmission::AppendPipelineStage<false>(Post, cmdLists.post, output, rtMSAA, rtResolved, tonemapReductionBuffer, tonemapDescriptorTable, width, height);
+	GPUWorkSubmission::AppendPipelineStage<false>(Post, cmdLists.post, output, rendertarget, HDRSurface, LDRSurface, tonemapReductionBuffer, tonemapDescriptorTable, width, height);
 
 	GPUWorkSubmission::Run();
 	cmdListsManager.OnFrameFinish();
