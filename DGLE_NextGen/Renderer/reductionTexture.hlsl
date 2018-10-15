@@ -40,14 +40,13 @@ void main(in uint2 globalIdx : SV_DispatchThreadID, in uint flatLocalIdx : SV_Gr
 				for (; tileOffset.x < tileSize; tileOffset.x++)
 				{
 					float4 srcPixel = src[globalIdx * tileSize + interleaveOffset + tileOffset];
+					srcPixel.rgb /= srcPixel.a;
 					/*
-						'if' needed to correctly handle out-of-bounds pixels in edge tiles (which fetched as 0)
-						since 0/0 produses NaN according to DirectX floating-point rules (https://docs.microsoft.com/en-us/windows/desktop/direct3d11/floating-point-rules)
+						'max' used to convert NaN to 0
+						NaN comes from out-of-bounds pixels in edge tiles - they are which fetched as 0
+						and 0/0 produses NaN according to DirectX floating-point rules (https://docs.microsoft.com/en-us/windows/desktop/direct3d11/floating-point-rules)
 					*/
-					[flatten]
-					if (srcPixel.a != 0)
-						srcPixel.rgb /= srcPixel.a;
-					const float lum = RGB_2_luminance(srcPixel.rgb);
+					const float lum = max(0, RGB_2_luminance(srcPixel.rgb));
 					// do weighting per-pixel rather than once in final reduction since mul is free here (merged into mad)\
 					NOTE: first iteration for unrolled loop can optimize add out thus making mul non-free
 					partialRedution.x += log2(lum + 1) * weight;
