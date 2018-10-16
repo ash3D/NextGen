@@ -34,7 +34,8 @@ inline float2 CalcTonemapParams(float2 src)
 void main(in uint globalIdx : SV_DispatchThreadID, in uint localIdx : SV_GroupIndex, in uint blockIdx : SV_GroupID)
 {
 	// global buffer loading combined with first level reduction
-	localData[localIdx] = Reduce(asfloat(buffer.Load2(globalIdx * 8)), asfloat(buffer.Load2((globalIdx + blockSize) * 8)));
+	const float4 batch = asfloat(buffer.Load4(globalIdx * 16));
+	localData[localIdx] = Reduce(batch.rg, batch.ba);
 	GroupMemoryBarrierWithGroupSync();
 
 	// recursive reduction in shared mem
