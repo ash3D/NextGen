@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		15.10.2018 (c)Korotkov Andrey
+\date		16.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -45,7 +45,7 @@ void TonemapResourceViewsStage::Fill(ID3D12Resource *src, ID3D12Resource *dst, I
 		UAVdesc.Buffer =
 		{
 			0,							// FirstElement
-			reductionBufferLength,		// NumElements
+			reductionBufferLength * 2,	// NumElements (x2 to account for {avg, max} layout, RAW buffer view specify num of 32bit elements)
 			0,							// StructureByteStride
 			0,							// CounterOffsetInBytes
 			D3D12_BUFFER_UAV_FLAG_RAW

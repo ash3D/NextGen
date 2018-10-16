@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		15.10.2018 (c)Korotkov Andrey
+\date		16.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -34,7 +34,7 @@ namespace Renderer
 
 	private:
 		friend extern void __cdecl ::InitRenderer();
-		static WRL::ComPtr<ID3D12Resource> tonemapReductionBuffer, CreaateTonemapReductionBuffer();
+		static WRL::ComPtr<ID3D12Resource> tonemapReductionBuffer, CreateTonemapReductionBuffer();
 
 	public:
 		RenderOutput(HWND wnd, bool allowModeSwitch, unsigned int bufferCount = 2);

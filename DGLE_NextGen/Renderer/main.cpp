@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		15.10.2018 (c)Korotkov Andrey
+\date		16.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -192,7 +192,7 @@ namespace Renderer::Impl::Descriptors::GPUDescriptorHeap::Impl
 	ComPtr<ID3D12DescriptorHeap> CreateHeap(), heap = device ? CreateHeap() : nullptr;
 }
 
-ComPtr<ID3D12Resource> RenderOutput::tonemapReductionBuffer = device ? RenderOutput::CreaateTonemapReductionBuffer() : nullptr;
+ComPtr<ID3D12Resource> RenderOutput::tonemapReductionBuffer = device ? RenderOutput::CreateTonemapReductionBuffer() : nullptr;
 
 struct RetiredResource
 {
@@ -384,7 +384,7 @@ extern void __cdecl InitRenderer()
 		device = CreateDevice();
 		cmdQueue = CreateCommandQueue();
 		GPUDescriptorHeap::Impl::heap			= GPUDescriptorHeap::Impl::CreateHeap();
-		RenderOutput::tonemapReductionBuffer	= RenderOutput::CreaateTonemapReductionBuffer();
+		RenderOutput::tonemapReductionBuffer	= RenderOutput::CreateTonemapReductionBuffer();
 		Viewport::tonemapRootSig				= Viewport::CreateTonemapRootSig();
 		Viewport::tonemapTextureReductionPSO	= Viewport::CreateTonemapTextureReductionPSO();
 		Viewport::tonemapBufferReductionPSO		= Viewport::CreateTonemapBufferReductionPSO();

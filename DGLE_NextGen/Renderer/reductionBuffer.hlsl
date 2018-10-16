@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		15.10.2018 (c)Korotkov Andrey
+\date		16.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -26,7 +26,7 @@ inline float LinearizeLum(float src)
 inline float2 CalcTonemapParams(float2 src)
 {
 	static const float keyValue = LinearizeLum(.5f);
-	const float middleGray = LinearizeLum(src[0]), exposure = keyValue / middleGray, whitePoint = src[1] * exposure;
+	const float middleGray = LinearizeLum(src[0]), exposure = keyValue / middleGray, whitePoint = max(src[1] * exposure, 1);
 	return float2(exposure, rcp(whitePoint * whitePoint));
 }
 
@@ -34,7 +34,7 @@ inline float2 CalcTonemapParams(float2 src)
 void main(in uint globalIdx : SV_DispatchThreadID, in uint localIdx : SV_GroupIndex, in uint blockIdx : SV_GroupID)
 {
 	// global buffer loading combined with first level reduction
-    localData[localIdx] = Reduce(asfloat(buffer.Load2(globalIdx * 8)), asfloat(buffer.Load2((globalIdx + blockSize) * 8)));
+	localData[localIdx] = Reduce(asfloat(buffer.Load2(globalIdx * 8)), asfloat(buffer.Load2((globalIdx + blockSize) * 8)));
 	GroupMemoryBarrierWithGroupSync();
 
 	// recursive reduction in shared mem
@@ -47,5 +47,5 @@ void main(in uint globalIdx : SV_DispatchThreadID, in uint localIdx : SV_GroupIn
 
 	// store result to global buffer
 	if (localIdx == 0)
-        buffer.Store2(0, asuint(CalcTonemapParams(localData[0])));
+		buffer.Store2(0, asuint(CalcTonemapParams(localData[0])));
 }

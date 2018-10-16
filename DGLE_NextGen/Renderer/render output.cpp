@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		15.10.2018 (c)Korotkov Andrey
+\date		16.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -31,7 +31,7 @@ void NameObject(ID3D12Object *object, LPCWSTR name) noexcept;
 
 constexpr unsigned long int resizeThresholdPixels = 100'000ul;
 
-ComPtr<ID3D12Resource> RenderOutput::CreaateTonemapReductionBuffer()
+ComPtr<ID3D12Resource> RenderOutput::CreateTonemapReductionBuffer()
 {
 	ComPtr<ID3D12Resource> result;
 	CheckHR(device->CreateCommittedResource(
