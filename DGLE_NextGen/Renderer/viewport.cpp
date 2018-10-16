@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		15.10.2018 (c)Korotkov Andrey
+\date		16.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -150,18 +150,7 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Pre(ID3D12GraphicsCommandLi
 {
 	PIXScopedEvent(cmdList, PIX_COLOR_INDEX(PIXEvents::ViewportPre), "viewport pre");
 	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY));
-	// need to zero out render target edges for correct tonemapping avg/max luminance reduction
-	{
-		const auto outputDesc = output->GetDesc();
-		const D3D12_RECT viewportRect = CD3DX12_RECT(0, 0, width, height), edgeRects[] =
-		{
-			CD3DX12_RECT(width, 0, outputDesc.Width, outputDesc.Height),
-			CD3DX12_RECT(0, height, width, outputDesc.Height)
-		};
-		const FLOAT black[4]{};
-		cmdList->ClearRenderTargetView(rtv, backgroundColor, 1, &viewportRect);
-		cmdList->ClearRenderTargetView(rtv, black, size(edgeRects), edgeRects);
-	}
+	cmdList->ClearRenderTargetView(rtv, backgroundColor, 0, NULL);
 	cmdList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0xef, 0, NULL);
 	CheckHR(cmdList->Close());
 	return cmdList;
@@ -219,7 +208,7 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(ID3D12GraphicsCommandL
 	}
 
 	// copy to output
-	cmdList->CopyTextureRegion(&CD3DX12_TEXTURE_COPY_LOCATION(output, 0), 0, 0, 0, &CD3DX12_TEXTURE_COPY_LOCATION(LDRSurface, 0), &CD3DX12_BOX(0, 0, width, height));
+	cmdList->CopyTextureRegion(&CD3DX12_TEXTURE_COPY_LOCATION(output, 0), 0, 0, 0, &CD3DX12_TEXTURE_COPY_LOCATION(LDRSurface, 0), NULL);
 
 	{
 		const D3D12_RESOURCE_BARRIER barriers[] =

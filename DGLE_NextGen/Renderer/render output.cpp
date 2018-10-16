@@ -166,13 +166,11 @@ void RenderOutput::OnResize()
 		vector<UINT> nodeMasks(swapChainDesc.BufferCount);
 		vector<IUnknown *> cmdQueues(swapChainDesc.BufferCount, cmdQueue.Get());
 		CheckHR(swapChain->ResizeBuffers1(swapChainDesc.BufferCount, newWidth, newHeight, DXGI_FORMAT_UNKNOWN, swapChainDesc.Flags, nodeMasks.data(), cmdQueues.data()));
-		CreateOffscreenSurfaces(newWidth, newHeight);
 	}
 	else
-	{
 		CheckHR(swapChain->SetSourceSize(newWidth, newHeight));
-		FillTonemapViewsCPUHeap(newWidth, newHeight);
-	}
+
+	CreateOffscreenSurfaces(newWidth, newHeight);
 
 	if (viewport)
 		viewport->UpdateAspect(double(newHeight) / double(newWidth));
@@ -252,11 +250,7 @@ void RenderOutput::CreateOffscreenSurfaces(UINT width, UINT height)
 		IID_PPV_ARGS(LDRSurface.ReleaseAndGetAddressOf())
 	));
 
-	FillTonemapViewsCPUHeap(width, height);
-}
-
-void RenderOutput::FillTonemapViewsCPUHeap(UINT width, UINT height)
-{
+	// fill tonemap views CPU heap
 	const auto tonemapReductionTexDispatchSize = ReductionTextureConfig::DispatchSize({ width, height });
 	tonemapViewsCPUHeap.Fill(HDRSurface.Get(), LDRSurface.Get(), tonemapReductionBuffer.Get(), tonemapReductionTexDispatchSize.x * tonemapReductionTexDispatchSize.y);
 }

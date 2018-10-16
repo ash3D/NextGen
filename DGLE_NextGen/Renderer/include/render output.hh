@@ -50,6 +50,5 @@ namespace Renderer
 
 	private:
 		void CreateOffscreenSurfaces(UINT width, UINT height);
-		void FillTonemapViewsCPUHeap(UINT width, UINT height);
 	};
 }
