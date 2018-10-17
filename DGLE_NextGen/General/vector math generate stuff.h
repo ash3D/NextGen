@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		10.03.2017 (c)Alexey Shaydurov
+\date		18.10.2018 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -58,7 +58,7 @@ See "DGLE2.h" for more details.
 #	undef CTOR_FORWARD
 #endif
 #pragma region generate typedefs
-#ifdef MSVC_LIMITATIONS
+#ifdef MSVC_PREPROCESSOR_WORKAROUND
 #	define PASS_THROUGH(x) x
 #endif
 #
@@ -68,7 +68,7 @@ See "DGLE2.h" for more details.
 #
 #	// scalar types mapping expected at '...'
 #	if ROWS == 0
-#ifdef MSVC_LIMITATIONS
+#ifdef MSVC_PREPROCESSOR_WORKAROUND
 #		define CPP_CLASS(...) vector<PASS_THROUGH(LOOKUP_CPP_TYPE(__VA_ARGS__)), COLUMNS>
 #else
 #		define CPP_CLASS(...) vector<LOOKUP_CPP_TYPE(__VA_ARGS__), COLUMNS>
@@ -76,7 +76,7 @@ See "DGLE2.h" for more details.
 #		define HLSL_CLASS(...) CONCAT(LOOKUP_HLSL_TYPE(__VA_ARGS__), COLUMNS)
 #		define GLSL_CLASS(...) CONCAT(CONCAT(LOOKUP_GLSL_TYPE(__VA_ARGS__), vec), COLUMNS)
 #	else
-#ifdef MSVC_LIMITATIONS
+#ifdef MSVC_PREPROCESSOR_WORKAROUND
 #		define CPP_CLASS(...) matrix<PASS_THROUGH(LOOKUP_CPP_TYPE(__VA_ARGS__)), ROWS, COLUMNS>
 #else
 #		define CPP_CLASS(...) matrix<LOOKUP_CPP_TYPE(__VA_ARGS__), ROWS, COLUMNS>
@@ -112,7 +112,7 @@ See "DGLE2.h" for more details.
 	}
 
 #pragma region cleanup
-#ifdef MSVC_LIMITATIONS
+#ifdef MSVC_PREPROCESSOR_WORKAROUND
 #	undef PASS_THROUGH
 #endif
 #	undef LOOKUP_CPP_TYPE

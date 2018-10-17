@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.08.2018 (c)Alexey Shaydurov
+\date		18.10.2018 (c)Alexey Shaydurov
 
 This file is a part of DGLE2 project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -283,6 +283,10 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 #	define MSVC_NAMESPACE_WORKAROUND
 #endif
 
+#if !defined _MSVC_TRADITIONAL || _MSVC_TRADITIONAL
+#	define MSVC_PREPROCESSOR_WORKAROUND
+#endif
+
 // it seems that MSVC violates C++ standard regarding temp objects lifetime with initializer lists\
 further investigations needed, including other compilers
 
@@ -401,7 +405,7 @@ further investigations needed, including other compilers
 #		define F_2_OP(F) OP_ ## F
 #		define F_2_PAIR(F) F_2_OP(F), F
 
-#ifdef MSVC_LIMITATIONS
+#ifdef MSVC_PREPROCESSOR_WORKAROUND
 #		define GENERATE_OPERATOR_IMPL(operatorTemplate, args) operatorTemplate args
 #		define GENERATE_OPERATOR(operatorTemplate, ...) GENERATE_OPERATOR_IMPL(operatorTemplate, (__VA_ARGS__))
 #else
@@ -1612,7 +1616,7 @@ further investigations needed, including other compilers
 #		include BOOST_PP_ITERATE()
 #else
 #pragma region swizzles generator
-#ifdef MSVC_LIMITATIONS
+#ifdef MSVC_PREPROCESSOR_WORKAROUND
 #		define CONCAT_IMPL_1(a, b) a ## b
 #		define CONCAT_IMPL_0(a, b) CONCAT_IMPL_1(a, b)
 #		define CONCAT_IMPL(a, b) CONCAT_IMPL_0(a, b)
@@ -1672,7 +1676,7 @@ further investigations needed, including other compilers
 #		define IDX_SEQ_2_SYMBOLS_2(xform, i0, i1) CONCAT(IDX_SEQ_2_SYMBOLS_1(xform, i0), xform i1)
 #		define IDX_SEQ_2_SYMBOLS_3(xform, i0, i1, i2) CONCAT(IDX_SEQ_2_SYMBOLS_2(xform, i0, i1), xform i2)
 #		define IDX_SEQ_2_SYMBOLS_4(xform, i0, i1, i2, i3) CONCAT(IDX_SEQ_2_SYMBOLS_3(xform, i0, i1, i2), xform i3)
-#ifdef MSVC_LIMITATIONS
+#ifdef MSVC_PREPROCESSOR_WORKAROUND
 #		define IDX_SEQ_2_SYMBOLS(swizDim, xform, ...) CONCAT(IDX_SEQ_2_SYMBOLS_, swizDim(xform, __VA_ARGS__))
 #else
 #		define IDX_SEQ_2_SYMBOLS(swizDim, xform, ...) IDX_SEQ_2_SYMBOLS_##swizDim(xform, __VA_ARGS__)
@@ -1761,7 +1765,7 @@ further investigations needed, including other compilers
 #		include "vector math generate stuff.h"
 
 #pragma region cleanup
-#ifdef MSVC_LIMITATIONS
+#ifdef MSVC_PREPROCESSOR_WORKAROUND
 #		undef CONCAT_IMPL_1
 #		undef CONCAT_IMPL_0
 #endif
@@ -4752,7 +4756,7 @@ further investigations needed, including other compilers
 #		undef F_2_OP
 #		undef F_2_PAIR
 
-#ifdef MSVC_LIMITATIONS
+#ifdef MSVC_PREPROCESSOR_WORKAROUND
 #		undef GENERATE_OPERATOR_IMPL
 #endif
 #		undef GENERATE_OPERATOR
@@ -4822,6 +4826,7 @@ further investigations needed, including other compilers
 	}
 
 #	undef MSVC_NAMESPACE_WORKAROUND
+#	undef MSVC_PREPROCESSOR_WORKAROUND
 #	undef EBCO
 #	undef INIT_LIST_ITEM_OVERFLOW_MSG
 
