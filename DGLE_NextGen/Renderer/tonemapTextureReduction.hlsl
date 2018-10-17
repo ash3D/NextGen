@@ -33,14 +33,14 @@ void main(in uint2 globalIdx : SV_DispatchThreadID, in uint flatLocalIdx : SV_Gr
 
 	const uint2 dispatchSize = DispatchSize(srcSize), interleaveStride = dispatchSize * blockSize;
 
-	for (uint2 interleaveOffset = 0; interleaveOffset.y < srcSize.y; interleaveOffset.y += interleaveStride.y)
-		for (interleaveOffset.x = 0; interleaveOffset.x < srcSize.x; interleaveOffset.x += interleaveStride.x)
+	for (uint2 tileCoord = globalIdx * tileSize; tileCoord.y < srcSize.y; tileCoord.y += interleaveStride.y)
+		for (tileCoord.x = globalIdx.x * tileSize; tileCoord.x < srcSize.x; tileCoord.x += interleaveStride.x)
 			[unroll]
 			for (uint2 tileOffset = 0; tileOffset.y < tileSize; tileOffset.y++)
 				[unroll]
 				for (tileOffset.x = 0; tileOffset.x < tileSize; tileOffset.x++)
 				{
-					float4 srcPixel = src[globalIdx * tileSize + interleaveOffset + tileOffset];
+					float4 srcPixel = src[tileCoord + tileOffset];
 					srcPixel.rgb /= srcPixel.a;
 					/*
 						'max' used to convert NaN to 0
