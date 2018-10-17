@@ -357,7 +357,10 @@ ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateCullPassPSO()
 		0,												// render targets
 		{},												// RT formats
 		Config::ZFormat,								// depth stencil format
-		Config::MSAA()									// MSAA
+		Config::MSAA(),									// MSAA
+		0,												// node mask
+		{},												// cached PSO
+		D3D12_PIPELINE_STATE_FLAG_NONE					// flags
 	};
 
 	ComPtr<ID3D12PipelineState> result;
@@ -499,7 +502,10 @@ ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateMainPassPSO()
 		1,												// render targets
 		{ Config::HDRFormat },							// RT formats
 		Config::ZFormat,								// depth stencil format
-		Config::MSAA()									// MSAA
+		Config::MSAA(),									// MSAA
+		0,												// node mask
+		{},												// cached PSO
+		D3D12_PIPELINE_STATE_FLAG_NONE					// flags
 	};
 
 	ComPtr<ID3D12PipelineState> result;
@@ -701,7 +707,10 @@ ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateAABB_PSO()
 		1,												// render targets
 		{ Config::HDRFormat },							// RT formats
 		Config::ZFormat,								// depth stencil format
-		Config::MSAA()									// MSAA
+		Config::MSAA(),									// MSAA
+		0,												// node mask
+		{},												// cached PSO
+		D3D12_PIPELINE_STATE_FLAG_NONE					// flags
 	};
 
 	ComPtr<ID3D12PipelineState> result;

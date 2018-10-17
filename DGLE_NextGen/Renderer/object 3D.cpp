@@ -121,7 +121,10 @@ auto Impl::Object3D::CreatePSOs() -> decltype(PSOs)
 		1,												// render targets
 		{ Config::HDRFormat },							// RT formats
 		Config::ZFormat,								// depth stencil format
-		Config::MSAA()									// MSAA
+		Config::MSAA(),									// MSAA
+		0,												// node mask
+		{},												// cached PSO
+		D3D12_PIPELINE_STATE_FLAG_NONE					// flags
 	};
 
 	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result[false].GetAddressOf())));

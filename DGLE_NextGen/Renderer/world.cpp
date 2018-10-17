@@ -170,7 +170,10 @@ ComPtr<ID3D12PipelineState> Impl::World::CreateXformAABB_PSO()
 		0,												// render targets
 		{},												// RT formats
 		DXGI_FORMAT_UNKNOWN,							// depth stencil format
-		{1}												// MSAA
+		{1},											// MSAA
+		0,												// node mask
+		{},												// cached PSO
+		D3D12_PIPELINE_STATE_FLAG_NONE					// flags
 	};
 
 	ComPtr<ID3D12PipelineState> result;
@@ -277,7 +280,10 @@ auto Impl::World::CreateCullPassPSOs() -> decltype(cullPassPSOs)
 		0,												// render targets
 		{},												// RT formats
 		Config::ZFormat,								// depth stencil format
-		Config::MSAA()									// MSAA
+		Config::MSAA(),									// MSAA
+		0,												// node mask
+		{},												// cached PSO
+		D3D12_PIPELINE_STATE_FLAG_NONE					// flags
 	};
 
 	decltype(cullPassPSOs) result;
@@ -531,7 +537,10 @@ auto Impl::World::CreateAABB_PSOs() -> decltype(AABB_PSOs)
 		1,												// render targets
 		{ Config::HDRFormat },							// RT formats
 		Config::ZFormat,								// depth stencil format
-		Config::MSAA()									// MSAA
+		Config::MSAA(),									// MSAA
+		0,												// node mask
+		{},												// cached PSO
+		D3D12_PIPELINE_STATE_FLAG_NONE					// flags
 	};
 
 	decltype(cullPassPSOs) result;
