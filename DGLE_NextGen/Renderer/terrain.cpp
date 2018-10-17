@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		05.10.2018 (c)Korotkov Andrey
+\date		17.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -17,16 +17,20 @@ See "DGLE.h" for more details.
 #include "global GPU buffer data.h"
 #include "GPU work submission.h"
 #include "occlusion query visualization.h"
+#include "shader bytecode.h"
 #include "config.h"
 #ifdef _MSC_VER
 #include <codecvt>
 #include <locale>
 #endif
 
-#include "AABB_2D.csh"
-#include "AABB_2D_vis.csh"
-#include "vectorLayerVS.csh"
-#include "vectorLayerPS.csh"
+namespace Shaders
+{
+#	include "AABB_2D.csh"
+#	include "AABB_2D_vis.csh"
+#	include "vectorLayerVS.csh"
+#	include "vectorLayerPS.csh"
+}
 
 // !: need to investigate for deadlocks possibility due to MSVC's std::async threadpool overflow
 /*
@@ -336,24 +340,24 @@ ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateCullPassPSO()
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
 	{
-		cullPassRootSig.Get(),											// root signature
-		CD3DX12_SHADER_BYTECODE(AABB_2D, sizeof AABB_2D),				// VS
-		{},																// PS
-		{},																// DS
-		{},																// HS
-		{},																// GS
-		{},																// SO
-		blendDesc,														// blend
-		UINT_MAX,														// sample mask
-		rasterDesc,														// rasterizer
-		dsDesc,															// depth stencil
-		{ VB_decl, size(VB_decl) },										// IA
-		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,					// restart primtive
-		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,							// primitive topology
-		0,																// render targets
-		{},																// RT formats
-		Config::ZFormat,												// depth stencil format
-		Config::MSAA()													// MSAA
+		cullPassRootSig.Get(),							// root signature
+		ShaderBytecode(Shaders::AABB_2D),				// VS
+		{},												// PS
+		{},												// DS
+		{},												// HS
+		{},												// GS
+		{},												// SO
+		blendDesc,										// blend
+		UINT_MAX,										// sample mask
+		rasterDesc,										// rasterizer
+		dsDesc,											// depth stencil
+		{ VB_decl, size(VB_decl) },						// IA
+		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,	// restart primtive
+		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,			// primitive topology
+		0,												// render targets
+		{},												// RT formats
+		Config::ZFormat,								// depth stencil format
+		Config::MSAA()									// MSAA
 	};
 
 	ComPtr<ID3D12PipelineState> result;
@@ -478,24 +482,24 @@ ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateMainPassPSO()
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
 	{
-		mainPassRootSig.Get(),											// root signature
-		CD3DX12_SHADER_BYTECODE(vectorLayerVS, sizeof vectorLayerVS),	// VS
-		CD3DX12_SHADER_BYTECODE(vectorLayerPS, sizeof vectorLayerPS),	// PS
-		{},																// DS
-		{},																// HS
-		{},																// GS
-		{},																// SO
-		CD3DX12_BLEND_DESC(D3D12_DEFAULT),								// blend
-		UINT_MAX,														// sample mask
-		rasterDesc,														// rasterizer
-		dsDesc,															// depth stencil
-		{ VB_decl, size(VB_decl) },										// IA
-		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,					// restart primtive
-		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,							// primitive topology
-		1,																// render targets
-		{ Config::HDRFormat },											// RT formats
-		Config::ZFormat,												// depth stencil format
-		Config::MSAA()													// MSAA
+		mainPassRootSig.Get(),							// root signature
+		ShaderBytecode(Shaders::vectorLayerVS),			// VS
+		ShaderBytecode(Shaders::vectorLayerPS),			// PS
+		{},												// DS
+		{},												// HS
+		{},												// GS
+		{},												// SO
+		CD3DX12_BLEND_DESC(D3D12_DEFAULT),				// blend
+		UINT_MAX,										// sample mask
+		rasterDesc,										// rasterizer
+		dsDesc,											// depth stencil
+		{ VB_decl, size(VB_decl) },						// IA
+		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,	// restart primtive
+		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,			// primitive topology
+		1,												// render targets
+		{ Config::HDRFormat },							// RT formats
+		Config::ZFormat,								// depth stencil format
+		Config::MSAA()									// MSAA
 	};
 
 	ComPtr<ID3D12PipelineState> result;
@@ -680,24 +684,24 @@ ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateAABB_PSO()
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
 	{
-		mainPassRootSig.Get(),											// root signature
-		CD3DX12_SHADER_BYTECODE(AABB_2D, sizeof AABB_2D),				// VS
-		CD3DX12_SHADER_BYTECODE(AABB_2D_vis, sizeof AABB_2D_vis),		// PS
-		{},																// DS
-		{},																// HS
-		{},																// GS
-		{},																// SO
-		blendDesc,														// blend
-		UINT_MAX,														// sample mask
-		rasterDesc,														// rasterizer
-		dsDesc,															// depth stencil
-		{ VB_decl, size(VB_decl) },										// IA
-		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,					// restart primtive
-		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,							// primitive topology
-		1,																// render targets
-		{ Config::HDRFormat },											// RT formats
-		Config::ZFormat,												// depth stencil format
-		Config::MSAA()													// MSAA
+		mainPassRootSig.Get(),							// root signature
+		ShaderBytecode(Shaders::AABB_2D),				// VS
+		ShaderBytecode(Shaders::AABB_2D_vis),			// PS
+		{},												// DS
+		{},												// HS
+		{},												// GS
+		{},												// SO
+		blendDesc,										// blend
+		UINT_MAX,										// sample mask
+		rasterDesc,										// rasterizer
+		dsDesc,											// depth stencil
+		{ VB_decl, size(VB_decl) },						// IA
+		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,	// restart primtive
+		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,			// primitive topology
+		1,												// render targets
+		{ Config::HDRFormat },							// RT formats
+		Config::ZFormat,								// depth stencil format
+		Config::MSAA()									// MSAA
 	};
 
 	ComPtr<ID3D12PipelineState> result;

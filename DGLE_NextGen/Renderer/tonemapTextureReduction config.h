@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		15.10.2018 (c)Korotkov Andrey
+\date		17.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -15,5 +15,5 @@ namespace Renderer::ReductionTextureConfig
 {
 	using Math::VectorMath::HLSL::uint2;
 
-#	include "reductionTexture config.hlsli"
+#	include "tonemapTextureReduction config.hlsli"
 }

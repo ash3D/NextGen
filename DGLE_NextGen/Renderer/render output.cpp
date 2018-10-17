@@ -16,7 +16,7 @@ See "DGLE.h" for more details.
 #include "cmdlist pool.h"
 #include "GPU descriptor heap.h"
 #include "config.h"
-#include "reductionTexture config.h"
+#include "tonemapTextureReduction config.h"
 
 using namespace std;
 using namespace Renderer;

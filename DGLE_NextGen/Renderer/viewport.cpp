@@ -12,16 +12,20 @@ See "DGLE.h" for more details.
 #include "world.hh"
 #include "GPU work submission.h"
 #include "GPU descriptor heap.h"
+#include "shader bytecode.h"
 #include "config.h"
-#include "reductionTexture config.h"
+#include "tonemapTextureReduction config.h"
 namespace Renderer::TonemappingConfig
 {
 #	include "tonemapping config.hlsli"
 }
 
-#include "reductionTexture.csh"
-#include "reductionBuffer.csh"
-#include "tonemapping.csh"
+namespace Shaders
+{
+#	include "tonemapTextureReduction.csh"
+#	include "tonemapBufferReduction.csh"
+#	include "tonemapping.csh"
+}
 
 // offsetof is conditionally supported for non-standard layout types since C++17
 #define ENABLE_NONSTDLAYOUT_OFFSETOF 1
@@ -98,11 +102,11 @@ ComPtr<ID3D12PipelineState> Impl::Viewport::CreateTonemapTextureReductionPSO()
 {
 	const D3D12_COMPUTE_PIPELINE_STATE_DESC PSO_desc =
 	{
-		tonemapRootSig.Get(),												// root signature
-		CD3DX12_SHADER_BYTECODE(reductionTexture, sizeof reductionTexture),	// CS
-		0,																	// node mask
-		{},																	// cached PSO
-		D3D12_PIPELINE_STATE_FLAG_NONE										// flags
+		tonemapRootSig.Get(),								// root signature
+		ShaderBytecode(Shaders::tonemapTextureReduction),	// CS
+		0,													// node mask
+		{},													// cached PSO
+		D3D12_PIPELINE_STATE_FLAG_NONE						// flags
 	};
 
 	ComPtr<ID3D12PipelineState> PSO;
@@ -115,11 +119,11 @@ ComPtr<ID3D12PipelineState> Impl::Viewport::CreateTonemapBufferReductionPSO()
 {
 	const D3D12_COMPUTE_PIPELINE_STATE_DESC PSO_desc =
 	{
-		tonemapRootSig.Get(),												// root signature
-		CD3DX12_SHADER_BYTECODE(reductionBuffer, sizeof reductionBuffer),	// CS
-		0,																	// node mask
-		{},																	// cached PSO
-		D3D12_PIPELINE_STATE_FLAG_NONE										// flags
+		tonemapRootSig.Get(),								// root signature
+		ShaderBytecode(Shaders::tonemapBufferReduction),	// CS
+		0,													// node mask
+		{},													// cached PSO
+		D3D12_PIPELINE_STATE_FLAG_NONE						// flags
 	};
 
 	ComPtr<ID3D12PipelineState> PSO;
@@ -132,11 +136,11 @@ ComPtr<ID3D12PipelineState> Impl::Viewport::CreateTonemapPSO()
 {
 	const D3D12_COMPUTE_PIPELINE_STATE_DESC PSO_desc =
 	{
-		tonemapRootSig.Get(),												// root signature
-		CD3DX12_SHADER_BYTECODE(tonemapping, sizeof tonemapping),			// CS
-		0,																	// node mask
-		{},																	// cached PSO
-		D3D12_PIPELINE_STATE_FLAG_NONE										// flags
+		tonemapRootSig.Get(),								// root signature
+		ShaderBytecode(Shaders::tonemapping),				// CS
+		0,													// node mask
+		{},													// cached PSO
+		D3D12_PIPELINE_STATE_FLAG_NONE						// flags
 	};
 
 	ComPtr<ID3D12PipelineState> PSO;

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		05.10.2018 (c)Korotkov Andrey
+\date		17.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -10,14 +10,18 @@ See "DGLE.h" for more details.
 #include "stdafx.h"
 #include "object 3D.hh"
 #include "tracked resource.inl"
+#include "shader bytecode.h"
 #include "config.h"
 #ifdef _MSC_VER
 #include <codecvt>
 #include <locale>
 #endif
 
-#include "object3D_VS.csh"
-#include "object3D_PS.csh"
+namespace Shaders
+{
+#	include "object3D_VS.csh"
+#	include "object3D_PS.csh"
+}
 
 using namespace std;
 using namespace Renderer;
@@ -100,24 +104,24 @@ auto Impl::Object3D::CreatePSOs() -> decltype(PSOs)
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
 	{
-		rootSig.Get(),													// root signature
-		CD3DX12_SHADER_BYTECODE(object3D_VS, sizeof object3D_VS),		// VS
-		CD3DX12_SHADER_BYTECODE(object3D_PS, sizeof object3D_PS),		// PS
-		{},																// DS
-		{},																// HS
-		{},																// GS
-		{},																// SO
-		CD3DX12_BLEND_DESC(D3D12_DEFAULT),								// blend
-		UINT_MAX,														// sample mask
-		rasterDesc,														// rasterizer
-		dsDesc,															// depth stencil
-		{ VB_decl, size(VB_decl) },										// IA
-		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,					// restart primtive
-		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,							// primitive topology
-		1,																// render targets
-		{ Config::HDRFormat },											// RT formats
-		Config::ZFormat,												// depth stencil format
-		Config::MSAA()													// MSAA
+		rootSig.Get(),									// root signature
+		ShaderBytecode(Shaders::object3D_VS),			// VS
+		ShaderBytecode(Shaders::object3D_PS),			// PS
+		{},												// DS
+		{},												// HS
+		{},												// GS
+		{},												// SO
+		CD3DX12_BLEND_DESC(D3D12_DEFAULT),				// blend
+		UINT_MAX,										// sample mask
+		rasterDesc,										// rasterizer
+		dsDesc,											// depth stencil
+		{ VB_decl, size(VB_decl) },						// IA
+		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,	// restart primtive
+		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,			// primitive topology
+		1,												// render targets
+		{ Config::HDRFormat },							// RT formats
+		Config::ZFormat,								// depth stencil format
+		Config::MSAA()									// MSAA
 	};
 
 	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result[false].GetAddressOf())));

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		05.10.2018 (c)Korotkov Andrey
+\date		17.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -25,11 +25,15 @@ See "DGLE.h" for more details.
 #include "global GPU buffer data.h"
 #include "static objects data.h"
 #include "GPU work submission.h"
+#include "shader bytecode.h"
 #include "config.h"
 
-#include "AABB_3D_xform.csh"
-#include "AABB_3D.csh"
-#include "AABB_3D_vis.csh"
+namespace Shaders
+{
+#	include "AABB_3D_xform.csh"
+#	include "AABB_3D.csh"
+#	include "AABB_3D_vis.csh"
+}
 
 using namespace std;
 using namespace Renderer;
@@ -120,7 +124,7 @@ void Impl::World::InvalidateStaticObjects()
 ComPtr<ID3D12RootSignature> Impl::World::CreateXformAABB_RootSig()
 {
 	ComPtr<ID3D12VersionedRootSignatureDeserializer> rootSigProvider;
-	CheckHR(D3D12CreateVersionedRootSignatureDeserializer(AABB_3D_xform, sizeof AABB_3D_xform, IID_PPV_ARGS(rootSigProvider.GetAddressOf())));
+	CheckHR(D3D12CreateVersionedRootSignatureDeserializer(Shaders::AABB_3D_xform, sizeof Shaders::AABB_3D_xform, IID_PPV_ARGS(rootSigProvider.GetAddressOf())));
 	return CreateRootSignature(*rootSigProvider->GetUnconvertedRootSignatureDesc(), L"Xform 3D AABB root signature");
 }
 
@@ -149,24 +153,24 @@ ComPtr<ID3D12PipelineState> Impl::World::CreateXformAABB_PSO()
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
 	{
-		xformAABB_RootSig.Get(),										// root signature
-		CD3DX12_SHADER_BYTECODE(AABB_3D_xform, sizeof AABB_3D_xform),	// VS
-		{},																// PS
-		{},																// DS
-		{},																// HS
-		{},																// GS
-		soDesc,															// SO
-		CD3DX12_BLEND_DESC(D3D12_DEFAULT),								// blend
-		UINT_MAX,														// sample mask
-		CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),							// rasterizer
-		CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT),						// depth stencil
-		{ VB_decl, size(VB_decl) },										// IA
-		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,					// restart primtive
-		D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT,							// primitive topology
-		0,																// render targets
-		{},																// RT formats
-		DXGI_FORMAT_UNKNOWN,											// depth stencil format
-		{1}																// MSAA
+		xformAABB_RootSig.Get(),						// root signature
+		ShaderBytecode(Shaders::AABB_3D_xform),			// VS
+		{},												// PS
+		{},												// DS
+		{},												// HS
+		{},												// GS
+		soDesc,											// SO
+		CD3DX12_BLEND_DESC(D3D12_DEFAULT),				// blend
+		UINT_MAX,										// sample mask
+		CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),			// rasterizer
+		CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT),		// depth stencil
+		{ VB_decl, size(VB_decl) },						// IA
+		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,	// restart primtive
+		D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT,			// primitive topology
+		0,												// render targets
+		{},												// RT formats
+		DXGI_FORMAT_UNKNOWN,							// depth stencil format
+		{1}												// MSAA
 	};
 
 	ComPtr<ID3D12PipelineState> result;
@@ -256,24 +260,24 @@ auto Impl::World::CreateCullPassPSOs() -> decltype(cullPassPSOs)
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
 	{
-		cullPassRootSig.Get(),											// root signature
-		CD3DX12_SHADER_BYTECODE(AABB_3D, sizeof AABB_3D),				// VS
-		{},																// PS
-		{},																// DS
-		{},																// HS
-		{},																// GS
-		{},																// SO
-		blendDesc,														// blend
-		UINT_MAX,														// sample mask
-		rasterDesc,														// rasterizer
-		dsDescs[0],														// depth stencil
-		{ VB_decl, size(VB_decl) },										// IA
-		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,					// restart primtive
-		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,							// primitive topology
-		0,																// render targets
-		{},																// RT formats
-		Config::ZFormat,												// depth stencil format
-		Config::MSAA()													// MSAA
+		cullPassRootSig.Get(),							// root signature
+		ShaderBytecode(Shaders::AABB_3D),				// VS
+		{},												// PS
+		{},												// DS
+		{},												// HS
+		{},												// GS
+		{},												// SO
+		blendDesc,										// blend
+		UINT_MAX,										// sample mask
+		rasterDesc,										// rasterizer
+		dsDescs[0],										// depth stencil
+		{ VB_decl, size(VB_decl) },						// IA
+		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,	// restart primtive
+		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,			// primitive topology
+		0,												// render targets
+		{},												// RT formats
+		Config::ZFormat,								// depth stencil format
+		Config::MSAA()									// MSAA
 	};
 
 	decltype(cullPassPSOs) result;
@@ -510,24 +514,24 @@ auto Impl::World::CreateAABB_PSOs() -> decltype(AABB_PSOs)
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
 	{
-		AABB_RootSig.Get(),												// root signature
-		CD3DX12_SHADER_BYTECODE(AABB_3D, sizeof AABB_3D),				// VS
-		CD3DX12_SHADER_BYTECODE(AABB_3D_vis, sizeof AABB_3D_vis),		// PS
-		{},																// DS
-		{},																// HS
-		{},																// GS
-		{},																// SO
-		CD3DX12_BLEND_DESC(D3D12_DEFAULT),								// blend
-		UINT_MAX,														// sample mask
-		rasterDesc,														// rasterizer
-		dsDescHidden,													// depth stencil
-		{ VB_decl, size(VB_decl) },										// IA
-		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,					// restart primtive
-		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,							// primitive topology
-		1,																// render targets
-		{ Config::HDRFormat },											// RT formats
-		Config::ZFormat,												// depth stencil format
-		Config::MSAA()													// MSAA
+		AABB_RootSig.Get(),								// root signature
+		ShaderBytecode(Shaders::AABB_3D),				// VS
+		ShaderBytecode(Shaders::AABB_3D_vis),			// PS
+		{},												// DS
+		{},												// HS
+		{},												// GS
+		{},												// SO
+		CD3DX12_BLEND_DESC(D3D12_DEFAULT),				// blend
+		UINT_MAX,										// sample mask
+		rasterDesc,										// rasterizer
+		dsDescHidden,									// depth stencil
+		{ VB_decl, size(VB_decl) },						// IA
+		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,	// restart primtive
+		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,			// primitive topology
+		1,												// render targets
+		{ Config::HDRFormat },							// RT formats
+		Config::ZFormat,								// depth stencil format
+		Config::MSAA()									// MSAA
 	};
 
 	decltype(cullPassPSOs) result;

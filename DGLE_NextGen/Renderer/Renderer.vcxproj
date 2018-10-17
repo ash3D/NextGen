@@ -231,7 +231,8 @@
     <ClInclude Include="occlusion tree.h" />
     <ClInclude Include="occlusion query batch.h" />
     <ClInclude Include="GPU work item.h" />
-    <ClInclude Include="reductionTexture config.h" />
+    <ClInclude Include="shader bytecode.h" />
+    <ClInclude Include="tonemapTextureReduction config.h" />
     <ClInclude Include="render pipeline.h" />
     <ClInclude Include="render stage.h" />
     <ClInclude Include="SO buffer.h" />
@@ -324,7 +325,7 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
     </FxCompile>
-    <FxCompile Include="reductionBuffer.hlsl">
+    <FxCompile Include="tonemapBufferReduction.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.1</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
@@ -334,7 +335,7 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
     </FxCompile>
-    <FxCompile Include="reductionTexture.hlsl">
+    <FxCompile Include="tonemapTextureReduction.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.1</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
@@ -378,8 +379,8 @@
     <None Include="object3D VS 2 PS.hlsli" />
     <None Include="packages.config" />
     <None Include="per-frame data.hlsli" />
-    <None Include="reductionBuffer config.hlsli" />
-    <None Include="reductionTexture config.hlsli" />
+    <None Include="tonemapBufferReduction config.hlsli" />
+    <None Include="tonemapTextureReduction config.hlsli" />
     <None Include="tonemapping config.hlsli" />
     <None Include="tracked ref.inl" />
     <None Include="tracked resource.inl" />

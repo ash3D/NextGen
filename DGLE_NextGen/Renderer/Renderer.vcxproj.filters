@@ -19,7 +19,11 @@
     </Filter>
     <Filter Include="Shaders">
       <UniqueIdentifier>{b4c2406f-1710-486c-be78-d77f8ac0d88c}</UniqueIdentifier>
-      <Extensions>hlsl;hlsli</Extensions>
+      <Extensions>hlsl</Extensions>
+    </Filter>
+    <Filter Include="Shaders\Include">
+      <UniqueIdentifier>{0a105f02-d18f-4746-991c-bca64f03871b}</UniqueIdentifier>
+      <Extensions>hlsli</Extensions>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -137,7 +141,10 @@
     <ClInclude Include="tonemap resource views stage.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="reductionTexture config.h">
+    <ClInclude Include="tonemapTextureReduction config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shader bytecode.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -240,13 +247,13 @@
     <FxCompile Include="AABB_2D_vis.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="reductionTexture.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="reductionBuffer.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
     <FxCompile Include="tonemapping.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="tonemapBufferReduction.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="tonemapTextureReduction.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>
@@ -270,32 +277,32 @@
     <None Include="tracked ref.inl">
       <Filter>Header Files</Filter>
     </None>
-    <None Include="per-frame data.hlsli">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="AABB_3D.hlsli">
-      <Filter>Shaders</Filter>
+      <Filter>Shaders\Include</Filter>
     </None>
     <None Include="fresnel.hlsli">
-      <Filter>Shaders</Filter>
+      <Filter>Shaders\Include</Filter>
     </None>
     <None Include="lighting.hlsli">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="object3D VS 2 PS.hlsli">
-      <Filter>Shaders</Filter>
+      <Filter>Shaders\Include</Filter>
     </None>
     <None Include="luminance.hlsli">
-      <Filter>Shaders</Filter>
+      <Filter>Shaders\Include</Filter>
+    </None>
+    <None Include="object3D VS 2 PS.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
+    <None Include="per-frame data.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
+    <None Include="tonemapBufferReduction config.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
+    <None Include="tonemapTextureReduction config.hlsli">
+      <Filter>Shaders\Include</Filter>
     </None>
     <None Include="tonemapping config.hlsli">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="reductionTexture config.hlsli">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="reductionBuffer config.hlsli">
-      <Filter>Shaders</Filter>
+      <Filter>Shaders\Include</Filter>
     </None>
   </ItemGroup>
 </Project>
