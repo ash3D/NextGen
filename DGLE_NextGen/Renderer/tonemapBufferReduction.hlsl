@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.10.2018 (c)Korotkov Andrey
+\date		18.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -23,9 +23,10 @@ inline float LinearizeLum(float src)
 	return exp2(src) - 1;
 }
 
+static const float keyValue = LinearizeLum(.5f);
+
 inline float2 CalcTonemapParams(float2 src)
 {
-	static const float keyValue = LinearizeLum(.5f);
 	const float middleGray = LinearizeLum(src[0]), exposure = keyValue / middleGray, whitePoint = max(src[1] * exposure, 1);
 	return float2(exposure, rcp(whitePoint * whitePoint));
 }
