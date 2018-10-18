@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.10.2018 (c)Korotkov Andrey
+\date		19.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -19,6 +19,11 @@ inline void Reduce(inout float2 dst, in float2 src)
 {
 	dst[0] += src[0];
 	dst[1] = max(dst[1], src[1]);
+}
+
+inline float2 ReduceSIMD(float2 src)
+{
+	return float2(WaveActiveSum(src[0]), WaveActiveMax(src[1]));
 }
 
 // !: no low-level optimizations yet (e.g. GPR pressure)
@@ -57,16 +62,17 @@ void main(in uint2 globalIdx : SV_DispatchThreadID, in uint flatLocalIdx : SV_Gr
 	localData[flatLocalIdx] = partialReduction;
 	GroupMemoryBarrierWithGroupSync();
 
-	// recursive reduction in shared mem
-	for (uint stride = groupSize * groupSize / 2u; stride; stride /= 2u)
+	// inter-warp recursive reduction in shared mem
+	uint stride = groupSize * groupSize;
+	while (stride > WaveGetLaneCount())
 	{
-		if (flatLocalIdx < stride)
+		if (flatLocalIdx < (stride /= 2u))
 			Reduce(localData[flatLocalIdx], localData[flatLocalIdx + stride]);
 		GroupMemoryBarrierWithGroupSync();
 	}
 
-	// store result to global buffer
+	// final intra-warp reduction and store result to global buffer
 	const uint flatGroupIdx = groupIdx.y * dispatchSize.x + groupIdx.x;
-	if (flatLocalIdx == 0)
-		dst.Store2(flatGroupIdx * 8, asuint(localData[0]));
+	if (flatLocalIdx < stride)
+		dst.Store2(flatGroupIdx * 8, asuint(ReduceSIMD(localData[flatLocalIdx])));
 }

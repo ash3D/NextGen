@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		16.10.2018 (c)Korotkov Andrey
+\date		19.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -107,6 +107,12 @@ static auto CreateDevice()
 {
 	ComPtr<ID3D12Device2> device;
 	CheckHR(D3D12CreateDevice(NULL, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(device.GetAddressOf())));
+
+	// validate HLSL SIMD feature support
+	D3D12_FEATURE_DATA_D3D12_OPTIONS1 caps;
+	CheckHR(device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS1, &caps, sizeof caps));
+	if (!caps.WaveOps)
+		throw runtime_error("Old GPU or driver: HLSL SIMD ops not supported.");
 
 	// GBV device settings
 #if _DEBUG && ENABLE_GBV

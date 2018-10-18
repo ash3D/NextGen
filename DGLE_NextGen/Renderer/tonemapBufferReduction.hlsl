@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.10.2018 (c)Korotkov Andrey
+\date		19.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -16,6 +16,11 @@ groupshared float2 localData[blockSize];
 inline float2 Reduce(float2 a, float2 b)
 {
 	return float2(a[0] + b[0], max(a[1], b[1]));
+}
+
+inline float2 ReduceSIMD(float2 src)
+{
+	return float2(WaveActiveSum(src[0]), WaveActiveMax(src[1]));
 }
 
 inline float LinearizeLum(float src)
@@ -39,15 +44,16 @@ void main(in uint globalIdx : SV_DispatchThreadID, in uint localIdx : SV_GroupIn
 	localData[localIdx] = Reduce(batch.rg, batch.ba);
 	GroupMemoryBarrierWithGroupSync();
 
-	// recursive reduction in shared mem
-	for (uint stride = blockSize / 2u; stride; stride /= 2u)
+	// inter-warp recursive reduction in shared mem
+	uint stride = blockSize;
+	while (stride > WaveGetLaneCount())
 	{
-		if (localIdx < stride)
+		if (localIdx < (stride /= 2u))
 			localData[localIdx] = Reduce(localData[localIdx], localData[localIdx + stride]);
 		GroupMemoryBarrierWithGroupSync();
 	}
 
-	// store result to global buffer
-	if (localIdx == 0)
-		buffer.Store2(0, asuint(CalcTonemapParams(localData[0])));
+	// final intra-warp reduction and store result to global buffer
+	if (localIdx < stride)
+		buffer.Store2(0, asuint(CalcTonemapParams(ReduceSIMD(localData[localIdx]))));
 }
