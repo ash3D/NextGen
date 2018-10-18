@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.08.2018 (c)Korotkov Andrey
+\date		18.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -563,6 +563,7 @@ namespace Renderer::Impl::Hierarchy
 	template<typename ...Args, typename F>
 	inline void BVH<treeStructure, Object, CustomNodeData...>::Traverse(F &nodeHandler, const Args &...args)
 	{
+		assert(root);
 		root->Traverse(nodeHandler, [](const Node &) { return [](unsigned char i) { return i; }; }, args...);
 	}
 
@@ -632,6 +633,7 @@ namespace Renderer::Impl::Hierarchy
 	template<typename ...Args, typename F>
 	inline void View<treeStructure, Object, CustomNodeData...>::Traverse(F &nodeHandler, const Args &...args) const
 	{
+		assert(nodes);
 		const auto nodeHandlerWrapper = [&](const BVH::Node &bvhNode, Args &...args)
 		{
 			return nodeHandler(bvhNode, nodes[bvhNode.idx], args...);
@@ -647,6 +649,7 @@ namespace Renderer::Impl::Hierarchy
 	template<bool enableEarlyOut, class Allocator>
 	inline void View<treeStructure, Object, CustomNodeData...>::Schedule(Allocator &GPU_AABB_allocator, const FrustumCuller<decltype(std::declval<Object>().GetAABB().Center())::dimension> &frustumCuller, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 *depthSortXform)
 	{
+		assert(nodes);
 		bvh->root->Schedule<enableEarlyOut>(*this, GPU_AABB_allocator, frustumCuller, frustumXform, depthSortXform);
 	}
 

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		15.05.2018 (c)Korotkov Andrey
+\date		18.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -232,7 +232,7 @@ namespace Renderer::Impl::Hierarchy
 				unsigned int count;
 
 			public:
-				operator bool() const noexcept { return VB; }
+				explicit operator bool() const noexcept { return VB; }
 				void operator =(std::nullptr_t src) noexcept { VB = src; }
 			};
 

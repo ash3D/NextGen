@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.10.2018 (c)Korotkov Andrey
+\date		18.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -1043,17 +1043,20 @@ auto Impl::World::BuildRenderStage(WorldViewContext &viewCtx, const HLSL::float4
 {
 	Setup(viewCtx, ZBuffer, dsv, move(cullPassSetupCallback), move(mainPassSetupCallback));
 
-	// schedule
-	bvhView.Schedule<false>(*GPU_AABB_allocator, FrustumCuller<3>(frustumXform), frustumXform, &viewXform);
-
 	auto occlusionProvider = OcclusionCulling::QueryBatchBase::npos;
 	unsigned long int AABBCount = 0;
 
-	// issue
+	if (bvh)
 	{
-		using namespace placeholders;
+		// schedule
+		bvhView.Schedule<false>(*GPU_AABB_allocator, FrustumCuller<3>(frustumXform), frustumXform, &viewXform);
 
-		bvhView.Issue(bind(&World::IssueOcclusion, this, _1, ref(AABBCount)), bind(&World::IssueNodeObjects, this, _1, _2, _3, _4), occlusionProvider);
+		// issue
+		{
+			using namespace placeholders;
+
+			bvhView.Issue(bind(&World::IssueOcclusion, this, _1, ref(AABBCount)), bind(&World::IssueNodeObjects, this, _1, _2, _3, _4), occlusionProvider);
+		}
 	}
 
 	SetupOcclusionQueryBatch(occlusionProvider);
