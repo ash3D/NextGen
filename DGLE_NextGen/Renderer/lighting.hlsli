@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		05.10.2018 (c)Korotkov Andrey
+\date		19.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -86,7 +86,7 @@ float3 Lit(float3 albedo, float roughness, float F0, float3 N, float3 viewDir, f
 	const float
 		facing = .5f * VdotL + .5f,
 		rough = facing * (.9f - .4f * facing) * (.5f / NdotH + 1),
-		smooth = (1 - FresnelShlick(F0, LdotN)) * 1.05f * (1 - pow(1 - abs(VdotN), 5)),
+		smooth = (1 - FresnelShlick(F0, LdotN)) * 1.05f * (1 - Pow5(1 - abs(VdotN))),
 		single = PI_rcp * lerp(smooth, rough, roughness),
 		multi = .1159f * roughness;
 

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		23.06.2018 (c)Korotkov Andrey
+\date		19.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -12,9 +12,16 @@ See "DGLE.h" for more details.
 
 // currently for non-metals only
 
+inline float Pow5(float x)
+{
+	float p = x * x;
+	p *= p;
+	return p * x;
+}
+
 float FresnelShlick(float F0, float LdotN)
 {
-	return lerp(pow(1 - LdotN, 5), 1, F0);
+	return lerp(Pow5(1 - LdotN), 1, F0);
 }
 
 // from https://seblagarde.wordpress.com/2013/03/19/water-drop-3a-physically-based-wet-surfaces/
