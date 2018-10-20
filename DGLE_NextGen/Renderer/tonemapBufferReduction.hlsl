@@ -28,7 +28,7 @@ inline float2 CalcTonemapParams(float2 src)
 }
 
 [numthreads(blockSize, 1, 1)]
-void main(in uint globalIdx : SV_DispatchThreadID, in uint localIdx : SV_GroupIndex, in uint blockIdx : SV_GroupID)
+void main(in uint globalIdx : SV_DispatchThreadID, in uint localIdx : SV_GroupIndex)
 {
 	// global buffer loading combined with first level reduction
 	const float4 batch = asfloat(buffer.Load4(globalIdx * 16));
