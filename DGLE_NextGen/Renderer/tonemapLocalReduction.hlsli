@@ -33,8 +33,10 @@ float2 LocalReduce(float2 init, uint localIdx)
 	while (stride > WaveGetLaneCount())
 	{
 		if (localIdx < (stride /= 2u))
+		{
 			Reduce(localData[localIdx], localData[localIdx + stride]);
-		GroupMemoryBarrierWithGroupSync();
+			GroupMemoryBarrierWithGroupSync();
+		}
 	}
 
 	// final intra-warp reduction
