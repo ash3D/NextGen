@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		19.10.2018 (c)Korotkov Andrey
+\date		20.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -10,21 +10,11 @@ See "DGLE.h" for more details.
 #include "tonemapTextureReduction config.hlsli"
 #include "luminance.hlsli"
 
+static const uint localDataSize = groupSize * groupSize;
+#include "tonemapLocalReduction.hlsli"
+
 Texture2D src : register(t0);
 RWByteAddressBuffer dst : register(u1);
-
-groupshared float2 localData[groupSize * groupSize];
-
-inline void Reduce(inout float2 dst, in float2 src)
-{
-	dst[0] += src[0];
-	dst[1] = max(dst[1], src[1]);
-}
-
-inline float2 ReduceSIMD(float2 src)
-{
-	return float2(WaveActiveSum(src[0]), WaveActiveMax(src[1]));
-}
 
 // !: no low-level optimizations yet (e.g. GPR pressure)
 [numthreads(groupSize, groupSize, 1)]
@@ -38,6 +28,7 @@ void main(in uint2 globalIdx : SV_DispatchThreadID, in uint flatLocalIdx : SV_Gr
 
 	const uint2 dispatchSize = DispatchSize(srcSize), interleaveStride = dispatchSize * blockSize;
 
+	// interleaved tile reduction
 	for (uint2 tileCoord = globalIdx * tileSize; tileCoord.y < srcSize.y; tileCoord.y += interleaveStride.y)
 		for (tileCoord.x = globalIdx.x * tileSize; tileCoord.x < srcSize.x; tileCoord.x += interleaveStride.x)
 			[unroll]
@@ -59,20 +50,11 @@ void main(in uint2 globalIdx : SV_DispatchThreadID, in uint flatLocalIdx : SV_Gr
 					partialReduction.y = max(partialReduction.y, lum);
 				}
 
-	localData[flatLocalIdx] = partialReduction;
-	GroupMemoryBarrierWithGroupSync();
+	// bulk of reduction work
+	const float2 finalReduction = LocalReduce(partialReduction, flatLocalIdx);
 
-	// inter-warp recursive reduction in shared mem
-	uint stride = groupSize * groupSize;
-	while (stride > WaveGetLaneCount())
-	{
-		if (flatLocalIdx < (stride /= 2u))
-			Reduce(localData[flatLocalIdx], localData[flatLocalIdx + stride]);
-		GroupMemoryBarrierWithGroupSync();
-	}
-
-	// final intra-warp reduction and store result to global buffer
+	// store result to global buffer
 	const uint flatGroupIdx = groupIdx.y * dispatchSize.x + groupIdx.x;
-	if (flatLocalIdx < stride)
-		dst.Store2(flatGroupIdx * 8, asuint(ReduceSIMD(localData[flatLocalIdx])));
+	if (flatLocalIdx == 0)
+		dst.Store2(flatGroupIdx * 8, asuint(finalReduction));
 }

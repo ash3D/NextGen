@@ -368,6 +368,7 @@
     <None Include="packages.config" />
     <None Include="per-frame data.hlsli" />
     <None Include="tonemapBufferReduction config.hlsli" />
+    <None Include="tonemapLocalReduction.hlsli" />
     <None Include="tonemapTextureReduction config.hlsli" />
     <None Include="tonemapping config.hlsli" />
     <None Include="tracked ref.inl" />
