@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		20.10.2018 (c)Korotkov Andrey
+\date		25.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -12,7 +12,12 @@ See "DGLE.h" for more details.
 static const uint localDataSize = blockSize;
 #include "tonemapLocalReduction.hlsli"
 
-RWByteAddressBuffer buffer : register(u1);
+ByteAddressBuffer buffer : register(t1);
+RWByteAddressBuffer tonemapParams : register(u2);
+cbuffer LumAdaptation : register(b1)
+{
+	float lerpFactor;
+}
 
 inline float LinearizeLum(float src)
 {
@@ -37,7 +42,7 @@ void main(in uint globalIdx : SV_DispatchThreadID, in uint localIdx : SV_GroupIn
 	// bulk of reduction work
 	const float2 finalReduction = LocalReduce(partialReduction, localIdx);
 
-	// store result to global buffer
+	// update tonemap params buffer
 	if (localIdx == 0)
-		buffer.Store2(0, asuint(CalcTonemapParams(finalReduction)));
+		tonemapParams.Store2(0, asuint(lerp(CalcTonemapParams(finalReduction), asfloat(tonemapParams.Load2(0)), lerpFactor)));
 }

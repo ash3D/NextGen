@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		15.10.2018 (c)Korotkov Andrey
+\date		25.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -41,6 +41,7 @@ namespace Renderer::Impl::Descriptors
 			SrcSRV,
 			DstUAV,
 			ReductionBufferUAV,
+			ReductionBufferSRV,
 			ViewCount
 		};
 		WRL::ComPtr<ID3D12DescriptorHeap> allocation;	// CPU heap does not require lifetime tracking

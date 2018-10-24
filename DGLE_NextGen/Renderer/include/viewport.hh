@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		15.10.2018 (c)Korotkov Andrey
+\date		25.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -11,6 +11,7 @@ See "DGLE.h" for more details.
 
 #include <limits>
 #include <memory>
+#include "../tracked resource.h"
 #include "../tracked ref.h"
 #include "../frame versioning.h"
 #include "../cmd buffer.h"
@@ -48,6 +49,8 @@ namespace Renderer
 			{
 				ROOT_PARAM_DESC_TABLE,
 				ROOT_PARAM_CBV,
+				ROOT_PARAM_UAV,
+				ROOT_PARAM_LERP_FACTOR,
 				ROOT_PARAM_COUNT
 			};
 
@@ -68,6 +71,10 @@ namespace Renderer
 			const shared_ptr<const class Renderer::World> world;
 			mutable WorldViewContext ctx;
 			float viewXform[4][3], projXform[4][4];
+			typedef std::chrono::steady_clock Clock;
+			mutable Clock::time_point time = Clock::now();
+			TrackedResource<ID3D12Resource> tonemapParamsBuffer;
+			mutable bool fresh = true;
 
 		private:
 			friend extern void __cdecl ::InitRenderer();
@@ -77,9 +84,9 @@ namespace Renderer
 			static WRL::ComPtr<ID3D12PipelineState> tonemapPSO, TryCreateTonemapPSO(), CreateTonemapPSO();
 
 		private:
-			static RenderPipeline::PipelineStage
-				Pre(ID3D12GraphicsCommandList2 *cmdList, ID3D12Resource *output, D3D12_CPU_DESCRIPTOR_HANDLE rtv, D3D12_CPU_DESCRIPTOR_HANDLE dsv, UINT width, UINT height),
-				Post(ID3D12GraphicsCommandList2 *cmdList, ID3D12Resource *output, ID3D12Resource *rendertarget, ID3D12Resource *HDRSurface, ID3D12Resource *LDRSurface, ID3D12Resource *tonemapReductionBuffer, D3D12_GPU_DESCRIPTOR_HANDLE tonemapDescriptorTable, UINT width, UINT height);
+			RenderPipeline::PipelineStage
+				Pre(ID3D12GraphicsCommandList2 *cmdList, ID3D12Resource *output, D3D12_CPU_DESCRIPTOR_HANDLE rtv, D3D12_CPU_DESCRIPTOR_HANDLE dsv, UINT width, UINT height) const,
+				Post(ID3D12GraphicsCommandList2 *cmdList, ID3D12Resource *output, ID3D12Resource *rendertarget, ID3D12Resource *HDRSurface, ID3D12Resource *LDRSurface, ID3D12Resource *tonemapReductionBuffer, D3D12_GPU_DESCRIPTOR_HANDLE tonemapDescriptorTable, float tonemapLerpFactor, UINT width, UINT height) const;
 
 		protected:
 		public:

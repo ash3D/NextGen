@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		16.10.2018 (c)Korotkov Andrey
+\date		25.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -13,6 +13,7 @@ See "DGLE.h" for more details.
 #include "GPU work submission.h"
 #include "GPU descriptor heap.h"
 #include "shader bytecode.h"
+#include "CB register.h"
 #include "config.h"
 #include "tonemapTextureReduction config.h"
 namespace Renderer::TonemappingConfig
@@ -40,6 +41,13 @@ void NameObject(ID3D12Object *object, LPCWSTR name) noexcept, NameObjectF(ID3D12
 ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC &desc, LPCWSTR name);
 	
 extern const float backgroundColor[4] = { .0f, .2f, .4f, 1.f };
+
+static inline float CalculateTonemapParamsLerpFactor(float delta)
+{
+	static constexpr float adaptationSpeed = 1;
+
+	return exp(-adaptationSpeed * delta);
+}
 
 // result valid until call to 'OnFrameFinish()'
 auto Impl::Viewport::CmdListsManager::OnFrameStart() -> PrePostCmds<ID3D12GraphicsCommandList2 *>
@@ -89,11 +97,15 @@ ComPtr<ID3D12RootSignature> Impl::Viewport::CreateTonemapRootSig()
 	CD3DX12_ROOT_PARAMETER1 rootParams[ROOT_PARAM_COUNT];
 	const D3D12_DESCRIPTOR_RANGE1 descTable[] =
 	{
+		// desc volatile flags below for hardware out-of-bounds access checking for reduction buffer SRV/UAV
 		CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0),
-		CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 2, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE/*for hardware out-of-bounds access checking*/)
+		CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 2, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE),
+		CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE | D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE)
 	};
 	rootParams[ROOT_PARAM_DESC_TABLE].InitAsDescriptorTable(size(descTable), descTable);
 	rootParams[ROOT_PARAM_CBV].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE);	// alternatively can place into desc table with desc static flag
+	rootParams[ROOT_PARAM_UAV].InitAsUnorderedAccessView(2);
+	rootParams[ROOT_PARAM_LERP_FACTOR].InitAsConstants(1, 1);
 	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(size(rootParams), rootParams);
 	return CreateRootSignature(sigDesc, L"tonemapping root signature");
 }
@@ -150,17 +162,35 @@ ComPtr<ID3D12PipelineState> Impl::Viewport::CreateTonemapPSO()
 }
 #pragma endregion
 
-inline RenderPipeline::PipelineStage Impl::Viewport::Pre(ID3D12GraphicsCommandList2 *cmdList, ID3D12Resource *output, D3D12_CPU_DESCRIPTOR_HANDLE rtv, D3D12_CPU_DESCRIPTOR_HANDLE dsv, UINT width, UINT height)
+inline RenderPipeline::PipelineStage Impl::Viewport::Pre(ID3D12GraphicsCommandList2 *cmdList, ID3D12Resource *output, D3D12_CPU_DESCRIPTOR_HANDLE rtv, D3D12_CPU_DESCRIPTOR_HANDLE dsv, UINT width, UINT height) const
 {
 	PIXScopedEvent(cmdList, PIX_COLOR_INDEX(PIXEvents::ViewportPre), "viewport pre");
-	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY));
+	if (fresh)
+	{
+		// ClearUnorderedAccessViewFloat() can be used instead but it requies CPU & GPU view handles
+		constexpr float initVal = 1;
+		const D3D12_WRITEBUFFERIMMEDIATE_PARAMETER initParams[] =
+		{
+			{tonemapParamsBuffer->GetGPUVirtualAddress(), reinterpret_cast<const UINT &>(initVal)/*strict aliasing rule violation, use C++20 bit_cast instead*/},
+			{initParams[0].Dest + sizeof(float), initParams[0].Value}
+		};
+		cmdList->WriteBufferImmediate(size(initParams), initParams, NULL);
+	}
+	{
+		const D3D12_RESOURCE_BARRIER barriers[] =
+		{
+			CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
+			CD3DX12_RESOURCE_BARRIER::Transition(tonemapParamsBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY)
+		};
+		cmdList->ResourceBarrier(1 + fresh, barriers);
+	}
 	cmdList->ClearRenderTargetView(rtv, backgroundColor, 0, NULL);
 	cmdList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0xef, 0, NULL);
 	CheckHR(cmdList->Close());
 	return cmdList;
 }
 
-inline RenderPipeline::PipelineStage Impl::Viewport::Post(ID3D12GraphicsCommandList2 *cmdList, ID3D12Resource *output, ID3D12Resource *rendertarget, ID3D12Resource *HDRSurface, ID3D12Resource *LDRSurface, ID3D12Resource *tonemapReductionBuffer, D3D12_GPU_DESCRIPTOR_HANDLE tonemapDescriptorTable, UINT width, UINT height)
+inline RenderPipeline::PipelineStage Impl::Viewport::Post(ID3D12GraphicsCommandList2 *cmdList, ID3D12Resource *output, ID3D12Resource *rendertarget, ID3D12Resource *HDRSurface, ID3D12Resource *LDRSurface, ID3D12Resource *tonemapReductionBuffer, D3D12_GPU_DESCRIPTOR_HANDLE tonemapDescriptorTable, float tonemapLerpFactor, UINT width, UINT height) const
 {
 	PIXScopedEvent(cmdList, PIX_COLOR_INDEX(PIXEvents::ViewportPost), "viewport post");
 
@@ -178,23 +208,41 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(ID3D12GraphicsCommandL
 	}
 
 	// bind tonemapping resources
-	cmdList->SetDescriptorHeaps(1, Descriptors::GPUDescriptorHeap::GetHeap().GetAddressOf());
-	cmdList->SetComputeRootSignature(tonemapRootSig.Get());
-	cmdList->SetComputeRootDescriptorTable(ROOT_PARAM_DESC_TABLE, tonemapDescriptorTable);
-	cmdList->SetComputeRootConstantBufferView(ROOT_PARAM_CBV, tonemapReductionBuffer->GetGPUVirtualAddress());
+	{
+		const auto tonemapParamsBufferGPUAddress = tonemapParamsBuffer->GetGPUVirtualAddress();
+		cmdList->SetDescriptorHeaps(1, Descriptors::GPUDescriptorHeap::GetHeap().GetAddressOf());
+		cmdList->SetComputeRootSignature(tonemapRootSig.Get());
+		cmdList->SetComputeRootDescriptorTable(ROOT_PARAM_DESC_TABLE, tonemapDescriptorTable);
+		cmdList->SetComputeRootConstantBufferView(ROOT_PARAM_CBV, tonemapParamsBufferGPUAddress);
+		cmdList->SetComputeRootUnorderedAccessView(ROOT_PARAM_UAV, tonemapParamsBufferGPUAddress);
+		cmdList->SetComputeRoot32BitConstant(ROOT_PARAM_LERP_FACTOR, reinterpret_cast<const UINT &>(tonemapLerpFactor)/*use C++20 bit_cast instead*/, 0);
+	}
 
 	// initial texture reduction (PSO set during cmd list creation/reset)
 	const auto tonemapReductionTexDispatchSize = ReductionTextureConfig::DispatchSize({ width, height });
 	cmdList->Dispatch(tonemapReductionTexDispatchSize.x, tonemapReductionTexDispatchSize.y, 1);
 
-	// UAV barrier
-	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(tonemapReductionBuffer));
+	{
+		const D3D12_RESOURCE_BARRIER barriers[] =
+		{
+			CD3DX12_RESOURCE_BARRIER::Transition(tonemapReductionBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),
+			CD3DX12_RESOURCE_BARRIER::Transition(tonemapParamsBuffer.Get(), fresh ? D3D12_RESOURCE_STATE_COPY_DEST : D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY)
+		};
+		cmdList->ResourceBarrier(size(barriers), barriers);
+	}
 
 	// final buffer reduction
 	cmdList->SetPipelineState(tonemapBufferReductionPSO.Get());
 	cmdList->Dispatch(1, 1, 1);
 
-	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(tonemapReductionBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
+	{
+		const D3D12_RESOURCE_BARRIER barriers[] =
+		{
+			CD3DX12_RESOURCE_BARRIER::Transition(tonemapReductionBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS),	// !: use split barrier
+			CD3DX12_RESOURCE_BARRIER::Transition(tonemapParamsBuffer.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER)
+		};
+		cmdList->ResourceBarrier(size(barriers), barriers);
+	}
 
 	// tonemapping main pass
 	cmdList->SetPipelineState(tonemapPSO.Get());
@@ -205,7 +253,7 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(ID3D12GraphicsCommandL
 		{
 			CD3DX12_RESOURCE_BARRIER::Transition(HDRSurface, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RESOLVE_DEST),					// !: use split barrier
 			CD3DX12_RESOURCE_BARRIER::Transition(LDRSurface, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE),
-			CD3DX12_RESOURCE_BARRIER::Transition(tonemapReductionBuffer, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, D3D12_RESOURCE_STATE_UNORDERED_ACCESS),	// !: use split barrier
+			CD3DX12_RESOURCE_BARRIER::Transition(tonemapParamsBuffer.Get(), D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
 			CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY)
 		};
 		cmdList->ResourceBarrier(size(barriers), barriers);
@@ -230,6 +278,20 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(ID3D12GraphicsCommandL
 Impl::Viewport::Viewport(shared_ptr<const Renderer::World> world) : world(move(world)), viewXform(), projXform()
 {
 	viewXform[0][0] = viewXform[1][1] = viewXform[2][2] = projXform[0][0] = projXform[1][1] = projXform[2][2] = projXform[3][3] = 1.f;
+
+	/*
+		create tonemap params buffer
+		very small size - consider sharing it with other viewport persistent data
+	*/
+	CheckHR(device->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Buffer(sizeof(Impl::CBRegister::AlignedRow<2>/*or just 'float [2]'?*/), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS),
+		D3D12_RESOURCE_STATE_COPY_DEST,
+		NULL,
+		IID_PPV_ARGS(tonemapParamsBuffer.GetAddressOf())
+	));
+	NameObjectF(tonemapParamsBuffer.Get(), L"tonemap params buffer for viewport %p", static_cast<Renderer::Viewport *>(this));
 }
 
 void Impl::Viewport::SetViewTransform(const float (&matrix)[4][3])
@@ -261,10 +323,16 @@ void Impl::Viewport::UpdateAspect(double invAspect)
 void Impl::Viewport::Render(ID3D12Resource *output, ID3D12Resource *rendertarget, ID3D12Resource *ZBuffer, ID3D12Resource *HDRSurface, ID3D12Resource *LDRSurface, ID3D12Resource *tonemapReductionBuffer,
 	const D3D12_CPU_DESCRIPTOR_HANDLE rtv, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, const D3D12_GPU_DESCRIPTOR_HANDLE tonemapDescriptorTable, UINT width, UINT height) const
 {
+	// time
+	using namespace chrono;
+	const Clock::time_point curTime = Clock::now();
+	const float delta = duration_cast<duration<float>>(curTime - time).count();
+	time = curTime;
+
 	auto cmdLists = cmdListsManager.OnFrameStart();
 	GPUWorkSubmission::Prepare();
 
-	GPUWorkSubmission::AppendPipelineStage<false>(Pre, cmdLists.pre, output, rtv, dsv, width, height);
+	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Pre, this, cmdLists.pre, output, rtv, dsv, width, height);
 
 	const function<void (ID3D12GraphicsCommandList2 *target, bool enableRT)> setupRenderOutputCallback =
 		[
@@ -280,9 +348,10 @@ void Impl::Viewport::Render(ID3D12Resource *output, ID3D12Resource *rendertarget
 	if (world)
 		world->Render(ctx, viewXform, projXform, ZBuffer, dsv, setupRenderOutputCallback);
 
-	GPUWorkSubmission::AppendPipelineStage<false>(Post, cmdLists.post, output, rendertarget, HDRSurface, LDRSurface, tonemapReductionBuffer, tonemapDescriptorTable, width, height);
+	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Post, this, cmdLists.post, output, rendertarget, HDRSurface, LDRSurface, tonemapReductionBuffer, tonemapDescriptorTable, CalculateTonemapParamsLerpFactor(delta), width, height);
 
 	GPUWorkSubmission::Run();
+	fresh = false;
 	cmdListsManager.OnFrameFinish();
 }
 
