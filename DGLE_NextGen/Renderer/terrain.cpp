@@ -738,6 +738,7 @@ void Impl::TerrainVectorLayer::AABBPassRange(CmdListPool::CmdList &cmdList, unsi
 	cmdList->SetGraphicsRootSignature(mainPassRootSig.Get());
 	cmdList->SetGraphicsRootConstantBufferView(0, World::globalGPUBuffer->GetGPUVirtualAddress() + World::GlobalGPUBufferData::PerFrameData::CurFrameCB_offset());
 	cmdList->SetGraphicsRoot32BitConstants(1, size(color), color, 0);
+	cmdList->SetGraphicsRootConstantBufferView(2, tonemapParamsGPUAddress);
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
 	const auto &queryBatch = get<true>(occlusionQueryBatch);

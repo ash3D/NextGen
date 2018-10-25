@@ -1,11 +1,13 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		21.04.2018 (c)Korotkov Andrey
+\date		26.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
 See "DGLE.h" for more details.
 */
+
+#include "tonemap params.hlsli"
 
 cbuffer Colors : register(b0)
 {
@@ -17,6 +19,8 @@ cbuffer Offset : register(b1)
 	uint visibilityOffset;	// in bytes
 }
 
+ConstantBuffer<TonemapParams> tonemapParams : register(b2);
+
 #if 0
 ByteAddressBuffer visibility[2] : register(t0);
 #else
@@ -27,5 +31,5 @@ ByteAddressBuffer visibilityPhase1 : register(t0), visibilityPhase2 : register(t
 float4 main() : SV_TARGET
 {
 	const uint colorIdx = visibilityPhase1.Load(visibilityOffset) | visibilityPhase2.Load(visibilityOffset) << 1u;
-	return float4(colors[colorIdx], 1.f);
+	return float4(colors[colorIdx], tonemapParams.exposure);
 }
