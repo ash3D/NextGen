@@ -493,8 +493,8 @@ auto Impl::World::CreateAABB_PSOs() -> decltype(AABB_PSOs)
 		D3D12_DEFAULT_DEPTH_BIAS_CLAMP,
 		D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
 		TRUE,										// depth clip
-		FALSE,										// MSAA
-		TRUE,										// AA line
+		TRUE,										// MSAA
+		FALSE,										// AA line
 		0,											// force sample count
 		D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF
 	);

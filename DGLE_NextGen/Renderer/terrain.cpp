@@ -639,24 +639,6 @@ inline void Impl::TerrainVectorLayer::IssueQuad(ID3D12Resource *VIB, unsigned lo
 #pragma region visualize occlusion pass
 ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateAABB_PSO()
 {
-	const D3D12_BLEND_DESC blendDesc
-	{
-		FALSE,								// alpha2covarage
-		FALSE,								// independent blend
-		{
-			TRUE,							// blend enable
-			FALSE,							// logic op enable
-			D3D12_BLEND_SRC_ALPHA,			// src blend
-			D3D12_BLEND_INV_SRC_ALPHA,		// dst blend
-			D3D12_BLEND_OP_ADD,				// blend op
-			D3D12_BLEND_ONE,				// src blend alpha
-			D3D12_BLEND_ZERO,				// dst blend alpha
-			D3D12_BLEND_OP_ADD,				// blend op alpha
-			D3D12_LOGIC_OP_NOOP,			// logic op
-			D3D12_COLOR_WRITE_ENABLE_ALL	// write mask
-		}
-	};
-
 	const CD3DX12_RASTERIZER_DESC rasterDesc
 	(
 		D3D12_FILL_MODE_WIREFRAME,
@@ -666,8 +648,8 @@ ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateAABB_PSO()
 		D3D12_DEFAULT_DEPTH_BIAS_CLAMP,
 		D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
 		TRUE,										// depth clip
-		FALSE,										// MSAA
-		TRUE,										// AA line
+		TRUE,										// MSAA
+		FALSE,										// AA line
 		0,											// force sample count
 		D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF
 	);
@@ -699,7 +681,7 @@ ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateAABB_PSO()
 		{},												// HS
 		{},												// GS
 		{},												// SO
-		blendDesc,										// blend
+		CD3DX12_BLEND_DESC(D3D12_DEFAULT),				// blend
 		UINT_MAX,										// sample mask
 		rasterDesc,										// rasterizer
 		dsDesc,											// depth stencil
