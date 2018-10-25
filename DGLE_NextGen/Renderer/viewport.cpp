@@ -344,19 +344,21 @@ void Impl::Viewport::Render(ID3D12Resource *output, ID3D12Resource *rendertarget
 
 	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Pre, this, cmdLists.pre, output, rtv, dsv, width, height);
 
-	const function<void (ID3D12GraphicsCommandList2 *target, bool enableRT)> setupRenderOutputCallback =
-		[
-			rtv, dsv,
-			viewport = CD3DX12_VIEWPORT(0.f, 0.f, width, height),
-			scissorRect = CD3DX12_RECT(0, 0, width, height)
-		](ID3D12GraphicsCommandList2 *cmdList, bool enableRT)
-	{
-		cmdList->OMSetRenderTargets(enableRT, &rtv, TRUE, &dsv);
-		cmdList->RSSetViewports(1, &viewport);
-		cmdList->RSSetScissorRects(1, &scissorRect);
-	};
 	if (world)
+	{
+		const function<void (ID3D12GraphicsCommandList2 *target, bool enableRT)> setupRenderOutputCallback =
+			[
+				rtv, dsv,
+				viewport = CD3DX12_VIEWPORT(0.f, 0.f, width, height),
+				scissorRect = CD3DX12_RECT(0, 0, width, height)
+			](ID3D12GraphicsCommandList2 *cmdList, bool enableRT)
+		{
+			cmdList->OMSetRenderTargets(enableRT, &rtv, TRUE, &dsv);
+			cmdList->RSSetViewports(1, &viewport);
+			cmdList->RSSetScissorRects(1, &scissorRect);
+		};
 		world->Render(ctx, viewXform, projXform, tonemapParamsBuffer->GetGPUVirtualAddress(), ZBuffer, dsv, setupRenderOutputCallback);
+	}
 
 	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Post, this, cmdLists.post, output, rendertarget, HDRSurface, LDRSurface, tonemapReductionBuffer, tonemapDescriptorTable, CalculateTonemapParamsLerpFactor(delta), width, height);
 
