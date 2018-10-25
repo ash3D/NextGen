@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		19.10.2018 (c)Korotkov Andrey
+\date		26.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -14,13 +14,16 @@ See "DGLE.h" for more details.
 #include "fresnel.hlsli"
 
 /*
+	simple Reinhard tonemapping for proper hardware MSAA resolve
+
 	it is possible to do multiplication in ROPs (blending) to free general purpase shader ALUs
 	but turning blending on can hurt perfomance and reduce precision (fp16 vs fp32)
 */
-float4 Reinhard(float3 color)
+float4 EncodeHDR(float3 color, float exposure)
 {
-	const float factor = rcp(1 + RGB_2_luminance(color));
-	return float4(color * factor, factor);
+	color *= exposure;
+	const float reinhardFactor = rcp(1 + RGB_2_luminance(color));
+	return float4(color * reinhardFactor, reinhardFactor * exposure);
 }
 
 // evaluate Smith ^() function for GGX NDF

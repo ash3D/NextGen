@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		25.10.2018 (c)Korotkov Andrey
+\date		26.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -177,10 +177,14 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Pre(ID3D12GraphicsCommandLi
 		cmdList->WriteBufferImmediate(size(initParams), initParams, NULL);
 	}
 	{
+		/*
+			could potentially use split barrier for tonemapParamsBuffer to overlap with occlusion culling but it would require conditional finish barrier in world render
+			anyway barrier happens only once at viewport creation
+		*/
 		const D3D12_RESOURCE_BARRIER barriers[] =
 		{
 			CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
-			CD3DX12_RESOURCE_BARRIER::Transition(tonemapParamsBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY)
+			CD3DX12_RESOURCE_BARRIER::Transition(tonemapParamsBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER)
 		};
 		cmdList->ResourceBarrier(1 + fresh, barriers);
 	}
@@ -194,7 +198,14 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(ID3D12GraphicsCommandL
 {
 	PIXScopedEvent(cmdList, PIX_COLOR_INDEX(PIXEvents::ViewportPost), "viewport post");
 
-	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(rendertarget, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_RESOLVE_SOURCE));
+	{
+		const D3D12_RESOURCE_BARRIER barriers[] =
+		{
+			CD3DX12_RESOURCE_BARRIER::Transition(tonemapParamsBuffer.Get(), D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
+			CD3DX12_RESOURCE_BARRIER::Transition(rendertarget, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_RESOLVE_SOURCE)
+		};
+		cmdList->ResourceBarrier(size(barriers), barriers);
+	}
 
 	cmdList->ResolveSubresource(HDRSurface, 0, rendertarget, 0, Config::HDRFormat);
 	
@@ -226,7 +237,7 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(ID3D12GraphicsCommandL
 		const D3D12_RESOURCE_BARRIER barriers[] =
 		{
 			CD3DX12_RESOURCE_BARRIER::Transition(tonemapReductionBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),
-			CD3DX12_RESOURCE_BARRIER::Transition(tonemapParamsBuffer.Get(), fresh ? D3D12_RESOURCE_STATE_COPY_DEST : D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY)
+			CD3DX12_RESOURCE_BARRIER::Transition(tonemapParamsBuffer.Get(), D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY)
 		};
 		cmdList->ResourceBarrier(size(barriers), barriers);
 	}
@@ -253,7 +264,6 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(ID3D12GraphicsCommandL
 		{
 			CD3DX12_RESOURCE_BARRIER::Transition(HDRSurface, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RESOLVE_DEST),					// !: use split barrier
 			CD3DX12_RESOURCE_BARRIER::Transition(LDRSurface, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE),
-			CD3DX12_RESOURCE_BARRIER::Transition(tonemapParamsBuffer.Get(), D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
 			CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY)
 		};
 		cmdList->ResourceBarrier(size(barriers), barriers);
@@ -346,7 +356,7 @@ void Impl::Viewport::Render(ID3D12Resource *output, ID3D12Resource *rendertarget
 		cmdList->RSSetScissorRects(1, &scissorRect);
 	};
 	if (world)
-		world->Render(ctx, viewXform, projXform, ZBuffer, dsv, setupRenderOutputCallback);
+		world->Render(ctx, viewXform, projXform, tonemapParamsBuffer->GetGPUVirtualAddress(), ZBuffer, dsv, setupRenderOutputCallback);
 
 	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Post, this, cmdLists.post, output, rendertarget, HDRSurface, LDRSurface, tonemapReductionBuffer, tonemapDescriptorTable, CalculateTonemapParamsLerpFactor(delta), width, height);
 

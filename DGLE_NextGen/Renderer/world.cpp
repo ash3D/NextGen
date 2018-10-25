@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		18.10.2018 (c)Korotkov Andrey
+\date		26.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -416,6 +416,7 @@ void Impl::World::MainPassRange(CmdListPool::CmdList &cmdList, unsigned long ran
 	mainPassSetupCallback(cmdList);
 	cmdList->SetGraphicsRootSignature(decltype(staticObjects)::value_type::GetRootSignature().Get());
 	cmdList->SetGraphicsRootConstantBufferView(0, globalGPUBuffer->GetGPUVirtualAddress() + GlobalGPUBufferData::PerFrameData::CurFrameCB_offset());
+	cmdList->SetGraphicsRootConstantBufferView(1, tonemapParamsGPUAddress);
 
 	for_each(next(renderStream.cbegin(), rangeBegin), next(renderStream.cbegin(), rangeEnd), [&, curOcclusionQueryIdx = OcclusionCulling::QueryBatchBase::npos, final](remove_reference_t<decltype(renderStream)>::value_type renderData) mutable
 	{
@@ -871,9 +872,10 @@ auto Impl::World::GetAABBPassPost(unsigned int &) const -> RenderPipeline::Pipel
 }
 
 // 1 call site
-inline void Impl::World::Setup(WorldViewContext &viewCtx, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, function<void (ID3D12GraphicsCommandList2 *target)> &&cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> &&mainPassSetupCallback) const
+inline void Impl::World::Setup(WorldViewContext &viewCtx, UINT64 tonemapParamsGPUAddress, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, function<void (ID3D12GraphicsCommandList2 *target)> &&cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> &&mainPassSetupCallback) const
 {
 	this->viewCtx = &viewCtx;
+	this->tonemapParamsGPUAddress = tonemapParamsGPUAddress;
 	this->ZBuffer = ZBuffer;
 	this->dsv = dsv.ptr;
 	SetupCullPass(move(cullPassSetupCallback));
@@ -907,7 +909,7 @@ static inline void CopyMatrix2CB(const float (&src)[rows][columns], volatile Imp
 	copy_n(src, rows, dst);
 }
 
-void Impl::World::Render(WorldViewContext &viewCtx, const float (&viewXform)[4][3], const float (&projXform)[4][4], ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, const function<void (ID3D12GraphicsCommandList2 *target, bool enableRT)> &setupRenderOutputCallback) const
+void Impl::World::Render(WorldViewContext &viewCtx, const float (&viewXform)[4][3], const float (&projXform)[4][4], UINT64 tonemapParamsGPUAddress, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, const function<void (ID3D12GraphicsCommandList2 *target, bool enableRT)> &setupRenderOutputCallback) const
 {
 	using namespace placeholders;
 
@@ -939,10 +941,10 @@ void Impl::World::Render(WorldViewContext &viewCtx, const float (&viewXform)[4][
 
 	const function<void (ID3D12GraphicsCommandList2 *target)> cullPassSetupCallback = bind(setupRenderOutputCallback, _1, false), mainPassSetupCallback = bind(setupRenderOutputCallback, _1, true);
 
-	GPUWorkSubmission::AppendPipelineStage<true>(&World::BuildRenderStage, this, ref(viewCtx), frustumTransform, worldViewTransform, ZBuffer, dsv, cullPassSetupCallback, mainPassSetupCallback);
+	GPUWorkSubmission::AppendPipelineStage<true>(&World::BuildRenderStage, this, ref(viewCtx), frustumTransform, worldViewTransform, tonemapParamsGPUAddress, ZBuffer, dsv, cullPassSetupCallback, mainPassSetupCallback);
 
 	for_each(terrainVectorLayers.cbegin(), terrainVectorLayers.cend(), bind(&decltype(terrainVectorLayers)::value_type::ScheduleRenderStage,
-		_1, FrustumCuller<2>(frustumTransform), cref(frustumTransform), cref(cullPassSetupCallback), cref(mainPassSetupCallback)));
+		_1, FrustumCuller<2>(frustumTransform), cref(frustumTransform), tonemapParamsGPUAddress, cref(cullPassSetupCallback), cref(mainPassSetupCallback)));
 
 	extern bool enableDebugDraw;
 	if (enableDebugDraw)
@@ -1039,9 +1041,9 @@ void Impl::World::FlushUpdates() const
 	}
 }
 
-auto Impl::World::BuildRenderStage(WorldViewContext &viewCtx, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 &viewXform, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, function<void (ID3D12GraphicsCommandList2 *target)> &cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> &mainPassSetupCallback) const -> RenderPipeline::RenderStage
+auto Impl::World::BuildRenderStage(WorldViewContext &viewCtx, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 &viewXform, UINT64 tonemapParamsGPUAddress, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, function<void (ID3D12GraphicsCommandList2 *target)> &cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> &mainPassSetupCallback) const -> RenderPipeline::RenderStage
 {
-	Setup(viewCtx, ZBuffer, dsv, move(cullPassSetupCallback), move(mainPassSetupCallback));
+	Setup(viewCtx, tonemapParamsGPUAddress, ZBuffer, dsv, move(cullPassSetupCallback), move(mainPassSetupCallback));
 
 	auto occlusionProvider = OcclusionCulling::QueryBatchBase::npos;
 	unsigned long int AABBCount = 0;

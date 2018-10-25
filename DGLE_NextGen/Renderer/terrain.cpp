@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.10.2018 (c)Korotkov Andrey
+\date		26.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -442,9 +442,10 @@ inline void Impl::TerrainVectorLayer::IssueOcclusion(ViewNode::OcclusionQueryGeo
 #pragma region main pass
 ComPtr<ID3D12RootSignature> Impl::TerrainVectorLayer::CreateMainPassRootSig()
 {
-	CD3DX12_ROOT_PARAMETER1 rootParams[2];
+	CD3DX12_ROOT_PARAMETER1 rootParams[3];
 	rootParams[0].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_ALL);
 	rootParams[1].InitAsConstants(3, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+	rootParams[2].InitAsConstantBufferView(1, 1, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
 	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(size(rootParams), rootParams, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	return CreateRootSignature(sigDesc, L"terrain main pass root signature");
 }
@@ -531,6 +532,7 @@ void Impl::TerrainVectorLayer::MainPassRange(CmdListPool::CmdList &cmdList, unsi
 	cmdList->SetGraphicsRootSignature(mainPassRootSig.Get());
 	cmdList->SetGraphicsRootConstantBufferView(0, World::globalGPUBuffer->GetGPUVirtualAddress() + World::GlobalGPUBufferData::PerFrameData::CurFrameCB_offset());
 	cmdList->SetGraphicsRoot32BitConstants(1, size(albedo), albedo, 0);
+	cmdList->SetGraphicsRootConstantBufferView(2, tonemapParamsGPUAddress);
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	auto curOcclusionQueryIdx = OcclusionCulling::QueryBatchBase::npos;
@@ -850,8 +852,9 @@ auto Impl::TerrainVectorLayer::GetCulledPassRange(unsigned int &length) const ->
 }
 
 // 1 call site
-inline void Impl::TerrainVectorLayer::Setup(function<void (ID3D12GraphicsCommandList2 *target)> &&cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> &&mainPassSetupCallback) const
+inline void Impl::TerrainVectorLayer::Setup(UINT64 tonemapParamsGPUAddress, function<void (ID3D12GraphicsCommandList2 *target)> &&cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> &&mainPassSetupCallback) const
 {
+	this->tonemapParamsGPUAddress = tonemapParamsGPUAddress;
 	SetupCullPass(move(cullPassSetupCallback));
 	SetupMainPass(move(mainPassSetupCallback));
 }
@@ -887,12 +890,12 @@ auto Impl::TerrainVectorLayer::AddQuad(unsigned long int vcount, const function<
 	return { &quads.back(), QuadDeleter{ prev(quads.cend()) } };
 }
 
-auto Impl::TerrainVectorLayer::BuildRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList2 *target)> &cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> &mainPassSetupCallback) const -> RenderPipeline::RenderStage
+auto Impl::TerrainVectorLayer::BuildRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, UINT64 tonemapParamsGPUAddress, function<void (ID3D12GraphicsCommandList2 *target)> &cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> &mainPassSetupCallback) const -> RenderPipeline::RenderStage
 {
 	using namespace placeholders;
 
 	PIXScopedEvent(PIX_COLOR_INDEX(PIXEvents::TerrainBuildRenderStage), "terrain layer [%u] build render stage", layerIdx);
-	Setup(move(cullPassSetupCallback), move(mainPassSetupCallback));
+	Setup(tonemapParamsGPUAddress, move(cullPassSetupCallback), move(mainPassSetupCallback));
 
 	// schedule
 	{
@@ -947,9 +950,9 @@ auto Impl::TerrainVectorLayer::GetDebugDrawRenderStage() const -> RenderPipeline
 	return RenderPipeline::PipelineStage(in_place_type<RenderPipeline::RenderStage>, static_cast<const RenderPipeline::IRenderStage *>(this), static_cast<decltype(phaseSelector)>(&TerrainVectorLayer::GetAABBPassPre));
 }
 
-void Impl::TerrainVectorLayer::ScheduleRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, function<void (ID3D12GraphicsCommandList2 *target)> cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> mainPassSetupCallback) const
+void Impl::TerrainVectorLayer::ScheduleRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, UINT64 tonemapParamsGPUAddress, function<void (ID3D12GraphicsCommandList2 *target)> cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> mainPassSetupCallback) const
 {
-	GPUWorkSubmission::AppendPipelineStage<true>(&TerrainVectorLayer::BuildRenderStage, this, /*cref*/(frustumCuller), /*cref*/(frustumXform), move(cullPassSetupCallback), move(mainPassSetupCallback));
+	GPUWorkSubmission::AppendPipelineStage<true>(&TerrainVectorLayer::BuildRenderStage, this, /*cref*/(frustumCuller), /*cref*/(frustumXform), tonemapParamsGPUAddress, move(cullPassSetupCallback), move(mainPassSetupCallback));
 }
 
 void Impl::TerrainVectorLayer::ScheduleDebugDrawRenderStage() const

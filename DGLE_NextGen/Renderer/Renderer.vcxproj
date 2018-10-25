@@ -367,6 +367,7 @@
     <None Include="object3D VS 2 PS.hlsli" />
     <None Include="packages.config" />
     <None Include="per-frame data.hlsli" />
+    <None Include="tonemap params.hlsli" />
     <None Include="tonemapBufferReduction config.hlsli" />
     <None Include="tonemapLocalReduction.hlsli" />
     <None Include="tonemapTextureReduction config.hlsli" />

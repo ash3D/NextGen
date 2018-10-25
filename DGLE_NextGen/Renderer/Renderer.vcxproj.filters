@@ -307,5 +307,8 @@
     <None Include="tonemapLocalReduction.hlsli">
       <Filter>Shaders\Include</Filter>
     </None>
+    <None Include="tonemap params.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
   </ItemGroup>
 </Project>

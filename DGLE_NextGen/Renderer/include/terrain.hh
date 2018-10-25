@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		22.08.2018 (c)Korotkov Andrey
+\date		26.10.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -130,6 +130,9 @@ namespace Renderer
 			typedef decltype(TerrainVectorQuad::subtree)::Node TreeNode;
 			typedef decltype(TerrainVectorQuad::subtreeView)::Node ViewNode;
 
+		private:
+			mutable UINT64 tonemapParamsGPUAddress;
+
 #pragma region occlusion query pass
 		private:
 			static WRL::ComPtr<ID3D12RootSignature> cullPassRootSig, TryCreateCullPassRootSig(), CreateCullPassRootSig();
@@ -221,7 +224,7 @@ namespace Renderer
 				GetVisiblePassRange(unsigned int &length) const, GetCulledPassRange(unsigned int &length) const;
 
 		private:
-			void Setup(std::function<void (ID3D12GraphicsCommandList2 *target)> &&cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList2 *target)> &&mainPassSetupCallback) const, SetupOcclusionQueryBatch(decltype(OcclusionCulling::QueryBatchBase::npos) maxOcclusion) const;
+			void Setup(UINT64 tonemapParamsGPUAddress, std::function<void (ID3D12GraphicsCommandList2 *target)> &&cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList2 *target)> &&mainPassSetupCallback) const, SetupOcclusionQueryBatch(decltype(OcclusionCulling::QueryBatchBase::npos) maxOcclusion) const;
 
 		private:
 			static std::optional<GPUStreamBuffer::Allocator<sizeof(AABB<2>), TerrainVectorQuad::AABB_VB_name>> GPU_AABB_allocator;
@@ -251,11 +254,11 @@ namespace Renderer
 			QuadPtr AddQuad(unsigned long int vcount, const std::function<void __cdecl(volatile float verts[][2])> &fillVB, unsigned int objCount, bool IB32bit, const std::function<ObjectData __cdecl(unsigned int objIdx)> &getObjectData);
 
 		private:
-			RenderPipeline::RenderStage BuildRenderStage(const FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, std::function<void (ID3D12GraphicsCommandList2 *target)> &cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList2 *target)> &mainPassSetupCallback) const;
+			RenderPipeline::RenderStage BuildRenderStage(const FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, UINT64 tonemapParamsGPUAddress, std::function<void (ID3D12GraphicsCommandList2 *target)> &cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList2 *target)> &mainPassSetupCallback) const;
 			RenderPipeline::PipelineStage GetDebugDrawRenderStage() const;
 
 		protected:
-			void ScheduleRenderStage(const FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, std::function<void (ID3D12GraphicsCommandList2 *target)> cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList2 *target)> mainPassSetupCallback) const;
+			void ScheduleRenderStage(const FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, UINT64 tonemapParamsGPUAddress, std::function<void (ID3D12GraphicsCommandList2 *target)> cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList2 *target)> mainPassSetupCallback) const;
 			void ScheduleDebugDrawRenderStage() const;	// must be after ScheduleRenderStage()
 			static void OnFrameFinish() { GPU_AABB_allocator->OnFrameFinish(); }
 
