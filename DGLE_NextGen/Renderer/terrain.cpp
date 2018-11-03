@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		26.10.2018 (c)Korotkov Andrey
+\date		03.11.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -440,12 +440,20 @@ inline void Impl::TerrainVectorLayer::IssueOcclusion(ViewNode::OcclusionQueryGeo
 #pragma endregion
 
 #pragma region main pass
+enum
+{
+	MAIN_PASS_ROOT_PARAM_PER_FRAME_DATA_CBV,
+	MAIN_PASS_ROOT_PARAM_ALBEDO,
+	MAIN_PASS_ROOT_PARAM_TONEMAP_PARAMS_CBV,
+	MAIN_PASS_ROOT_PARAM_COUNT
+};
+
 ComPtr<ID3D12RootSignature> Impl::TerrainVectorLayer::CreateMainPassRootSig()
 {
-	CD3DX12_ROOT_PARAMETER1 rootParams[3];
-	rootParams[0].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_ALL);
-	rootParams[1].InitAsConstants(3, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
-	rootParams[2].InitAsConstantBufferView(1, 1, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
+	CD3DX12_ROOT_PARAMETER1 rootParams[MAIN_PASS_ROOT_PARAM_COUNT];
+	rootParams[MAIN_PASS_ROOT_PARAM_PER_FRAME_DATA_CBV].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_ALL);
+	rootParams[MAIN_PASS_ROOT_PARAM_ALBEDO].InitAsConstants(3, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+	rootParams[MAIN_PASS_ROOT_PARAM_TONEMAP_PARAMS_CBV].InitAsConstantBufferView(1, 1, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
 	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(size(rootParams), rootParams, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	return CreateRootSignature(sigDesc, L"terrain main pass root signature");
 }
@@ -530,9 +538,9 @@ void Impl::TerrainVectorLayer::MainPassRange(CmdListPool::CmdList &cmdList, unsi
 
 	mainPassSetupCallback(cmdList);
 	cmdList->SetGraphicsRootSignature(mainPassRootSig.Get());
-	cmdList->SetGraphicsRootConstantBufferView(0, World::globalGPUBuffer->GetGPUVirtualAddress() + World::GlobalGPUBufferData::PerFrameData::CurFrameCB_offset());
-	cmdList->SetGraphicsRoot32BitConstants(1, size(albedo), albedo, 0);
-	cmdList->SetGraphicsRootConstantBufferView(2, tonemapParamsGPUAddress);
+	cmdList->SetGraphicsRootConstantBufferView(MAIN_PASS_ROOT_PARAM_PER_FRAME_DATA_CBV, World::globalGPUBuffer->GetGPUVirtualAddress() + World::GlobalGPUBufferData::PerFrameData::CurFrameCB_offset());
+	cmdList->SetGraphicsRoot32BitConstants(MAIN_PASS_ROOT_PARAM_ALBEDO, size(albedo), albedo, 0);
+	cmdList->SetGraphicsRootConstantBufferView(MAIN_PASS_ROOT_PARAM_TONEMAP_PARAMS_CBV, tonemapParamsGPUAddress);
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	auto curOcclusionQueryIdx = OcclusionCulling::QueryBatchBase::npos;

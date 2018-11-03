@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		26.10.2018 (c)Korotkov Andrey
+\date		03.11.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -415,8 +415,8 @@ void Impl::World::MainPassRange(CmdListPool::CmdList &cmdList, unsigned long ran
 
 	mainPassSetupCallback(cmdList);
 	cmdList->SetGraphicsRootSignature(decltype(staticObjects)::value_type::GetRootSignature().Get());
-	cmdList->SetGraphicsRootConstantBufferView(0, globalGPUBuffer->GetGPUVirtualAddress() + GlobalGPUBufferData::PerFrameData::CurFrameCB_offset());
-	cmdList->SetGraphicsRootConstantBufferView(1, tonemapParamsGPUAddress);
+	cmdList->SetGraphicsRootConstantBufferView(Renderer::Object3D::ROOT_PARAM_PER_FRAME_DATA_CBV, globalGPUBuffer->GetGPUVirtualAddress() + GlobalGPUBufferData::PerFrameData::CurFrameCB_offset());
+	cmdList->SetGraphicsRootConstantBufferView(Renderer::Object3D::ROOT_PARAM_TONEMAP_PARAMS_CBV, tonemapParamsGPUAddress);
 
 	for_each(next(renderStream.cbegin(), rangeBegin), next(renderStream.cbegin(), rangeEnd), [&, curOcclusionQueryIdx = OcclusionCulling::QueryBatchBase::npos, final](remove_reference_t<decltype(renderStream)>::value_type renderData) mutable
 	{
@@ -466,13 +466,23 @@ bool Impl::World::IssueNodeObjects(const decltype(bvh)::Node &node, decltype(Occ
 #pragma endregion
 
 #pragma region visualize occlusion pass
+enum
+{
+	AABB_PASS_ROOT_PARAM_COLOR_CBV,
+	AABB_PASS_ROOT_PARAM_TONEMAP_PARAMS_CBV,
+	AABB_PASS_ROOT_PARAM_VISIBILITY1_SRV,
+	AABB_PASS_ROOT_PARAM_VISIBILITY2_SRV,
+	AABB_PASS_ROOT_PARAM_VISIBLILITY_OFFSET,
+	AABB_PASS_ROOT_PARAM_COUNT
+};
+
 ComPtr<ID3D12RootSignature> Impl::World::CreateAABB_RootSig()
 {
 	CD3DX12_ROOT_PARAMETER1 rootParams[5];
-	rootParams[0].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
-	rootParams[1].InitAsConstantBufferView(2, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
-	rootParams[2].InitAsShaderResourceView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
-	rootParams[3].InitAsShaderResourceView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
+	rootParams[AABB_PASS_ROOT_PARAM_COLOR_CBV].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
+	rootParams[AABB_PASS_ROOT_PARAM_TONEMAP_PARAMS_CBV].InitAsConstantBufferView(2, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
+	rootParams[AABB_PASS_ROOT_PARAM_VISIBILITY1_SRV].InitAsShaderResourceView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
+	rootParams[AABB_PASS_ROOT_PARAM_VISIBILITY2_SRV].InitAsShaderResourceView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParams[4].InitAsConstants(1, 1, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(size(rootParams), rootParams, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT | D3D12_ROOT_SIGNATURE_FLAG_DENY_VERTEX_SHADER_ROOT_ACCESS);
 	return CreateRootSignature(sigDesc, L"world 3D objects AABB visualization root signature");
@@ -577,10 +587,10 @@ void Impl::World::AABBPassRange(CmdListPool::CmdList &cmdList, unsigned long ran
 
 	mainPassSetupCallback(cmdList);
 	cmdList->SetGraphicsRootSignature(AABB_RootSig.Get());
-	cmdList->SetGraphicsRootConstantBufferView(0, World::globalGPUBuffer->GetGPUVirtualAddress() + GlobalGPUBufferData::AABB_3D_VisColors::CB_offset(visible));
-	cmdList->SetGraphicsRootConstantBufferView(1, tonemapParamsGPUAddress);
-	cmdList->SetGraphicsRootShaderResourceView(2, queryBatch.GetGPUPtr(false));
-	cmdList->SetGraphicsRootShaderResourceView(3, queryBatch.GetGPUPtr(true));
+	cmdList->SetGraphicsRootConstantBufferView(AABB_PASS_ROOT_PARAM_COLOR_CBV, World::globalGPUBuffer->GetGPUVirtualAddress() + GlobalGPUBufferData::AABB_3D_VisColors::CB_offset(visible));
+	cmdList->SetGraphicsRootConstantBufferView(AABB_PASS_ROOT_PARAM_TONEMAP_PARAMS_CBV, tonemapParamsGPUAddress);
+	cmdList->SetGraphicsRootShaderResourceView(AABB_PASS_ROOT_PARAM_VISIBILITY1_SRV, queryBatch.GetGPUPtr(false));
+	cmdList->SetGraphicsRootShaderResourceView(AABB_PASS_ROOT_PARAM_VISIBILITY2_SRV, queryBatch.GetGPUPtr(true));
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
 	// setup IB/VB (consider sharing this with cull pass)
@@ -605,7 +615,7 @@ void Impl::World::AABBPassRange(CmdListPool::CmdList &cmdList, unsigned long ran
 	{
 		const auto &queryData = queryStream[rangeBegin];
 
-		cmdList->SetGraphicsRoot32BitConstant(4, rangeBegin * sizeof(UINT64), 0);
+		cmdList->SetGraphicsRoot32BitConstant(AABB_PASS_ROOT_PARAM_VISIBLILITY_OFFSET, rangeBegin * sizeof(UINT64), 0);
 		cmdList->DrawIndexedInstanced(14, queryData.count, 0, 0, queryData.xformedStartIdx);
 
 	} while (++rangeBegin < rangeEnd);

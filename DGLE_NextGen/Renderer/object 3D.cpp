@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		26.10.2018 (c)Korotkov Andrey
+\date		03.11.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -52,14 +52,14 @@ namespace
 WRL::ComPtr<ID3D12RootSignature> Impl::Object3D::CreateRootSig()
 {
 	ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC &desc, LPCWSTR name);
-	CD3DX12_ROOT_PARAMETER1 rootParams[4];
-	rootParams[0].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_ALL);		// per-frame data
-	rootParams[1].InitAsConstantBufferView(1, 1, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);	// tonemap params
-	rootParams[2].InitAsConstantBufferView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);	// instance data
+	CD3DX12_ROOT_PARAMETER1 rootParams[ROOT_PARAM_COUNT];
+	rootParams[ROOT_PARAM_PER_FRAME_DATA_CBV].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_ALL);		// per-frame data
+	rootParams[ROOT_PARAM_TONEMAP_PARAMS_CBV].InitAsConstantBufferView(1, 1, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);	// tonemap params
+	rootParams[ROOT_PARAM_INSTANCE_DATA_CBV].InitAsConstantBufferView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);	// instance data
 #if INTEL_WORKAROUND
-	rootParams[3].InitAsConstantBufferView(0, 1, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_PIXEL);
+	rootParams[ROOT_PARAM_MATERIAL].InitAsConstantBufferView(0, 1, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_PIXEL);
 #else
-	rootParams[3].InitAsConstants(3, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+	rootParams[ROOT_PARAM_MATERIAL].InitAsConstants(3, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
 #endif
 	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(size(rootParams), rootParams, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	return CreateRootSignature(sigDesc, L"object 3D root signature");
@@ -340,10 +340,10 @@ auto Impl::Object3D::CreateBundle(const decltype(subobjects) &subobjects, unsign
 			if (ID3D12PipelineState *const subobjPSO = PSOs[curSubobj.doublesided].Get(); curPSO != subobjPSO)
 				bundle.second->SetPipelineState(curPSO = subobjPSO);
 #if INTEL_WORKAROUND
-			bundle.second->SetGraphicsRootConstantBufferView(3, material_GPU_ptr), material_GPU_ptr += sizeof(MaterialData);
+			bundle.second->SetGraphicsRootConstantBufferView(ROOT_PARAM_MATERIAL, material_GPU_ptr), material_GPU_ptr += sizeof(MaterialData);
 #else
 			if (any(curColor != curSubobj.albedo))
-				bundle.second->SetGraphicsRoot32BitConstants(3, decltype(curColor)::dimension, &(curColor = curSubobj.albedo), 0);
+				bundle.second->SetGraphicsRoot32BitConstants(ROOT_PARAM_MATERIAL, decltype(curColor)::dimension, &(curColor = curSubobj.albedo), 0);
 #endif
 			bundle.second->DrawIndexedInstanced(curSubobj.tricount * 3, 1, curSubobj.triOffset * 3, curSubobj.vOffset, 0);
 		}

@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		23.06.2018 (c)Korotkov Andrey
+\date		03.11.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -42,6 +42,7 @@ namespace Renderer
 
 	namespace Impl
 	{
+		class World;
 		class Instance;
 
 		class Object3D
@@ -67,6 +68,16 @@ namespace Renderer
 				bool doublesided;
 				const float (*verts)[3], (*normals)[3];
 				const uint16_t (*tris)[3];
+			};
+
+		protected:
+			enum
+			{
+				ROOT_PARAM_PER_FRAME_DATA_CBV,
+				ROOT_PARAM_TONEMAP_PARAMS_CBV,
+				ROOT_PARAM_INSTANCE_DATA_CBV,
+				ROOT_PARAM_MATERIAL,
+				ROOT_PARAM_COUNT
 			};
 
 		private:
@@ -112,6 +123,7 @@ namespace Renderer
 
 	class Object3D : public Impl::Object3D
 	{
+		friend class Impl::World;
 		friend class Impl::Instance;
 
 	public:
