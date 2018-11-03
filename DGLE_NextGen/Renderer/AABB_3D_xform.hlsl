@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		17.04.2018 (c)Korotkov Andrey
+\date		03.11.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -24,7 +24,7 @@ inline float4 XformDir(uint axis, float extent)
 
 #define ROOT_SIGNATURE														\
 	"RootFlags(ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT | ALLOW_STREAM_OUTPUT),"	\
-	"CBV(b0, visibility = SHADER_VISIBILITY_VERTEX)"
+	"CBV(b0, flags = DATA_STATIC, visibility = SHADER_VISIBILITY_VERTEX)"
 
 [RootSignature(ROOT_SIGNATURE)]
 ClipSpaceAABB main(in uint quadVertexID : SV_VertexID, in AABB aabb)

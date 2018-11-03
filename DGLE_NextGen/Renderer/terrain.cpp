@@ -280,7 +280,7 @@ inline void TerrainVectorQuad::Issue(remove_const_t<decltype(OcclusionCulling::Q
 ComPtr<ID3D12RootSignature> Impl::TerrainVectorLayer::CreateCullPassRootSig()
 {
 	CD3DX12_ROOT_PARAMETER1 CBV_param;
-	CBV_param.InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
+	CBV_param.InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_VERTEX);	// per-frame data
 	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(1, &CBV_param, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	return CreateRootSignature(sigDesc, L"terrain occlusion query root signature");
 }
@@ -451,7 +451,7 @@ enum
 ComPtr<ID3D12RootSignature> Impl::TerrainVectorLayer::CreateMainPassRootSig()
 {
 	CD3DX12_ROOT_PARAMETER1 rootParams[MAIN_PASS_ROOT_PARAM_COUNT];
-	rootParams[MAIN_PASS_ROOT_PARAM_PER_FRAME_DATA_CBV].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_ALL);
+	rootParams[MAIN_PASS_ROOT_PARAM_PER_FRAME_DATA_CBV].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC);
 	rootParams[MAIN_PASS_ROOT_PARAM_ALBEDO].InitAsConstants(3, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParams[MAIN_PASS_ROOT_PARAM_TONEMAP_PARAMS_CBV].InitAsConstantBufferView(1, 1, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
 	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(size(rootParams), rootParams, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
