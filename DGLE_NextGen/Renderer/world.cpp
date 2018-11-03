@@ -587,7 +587,7 @@ void Impl::World::AABBPassRange(CmdListPool::CmdList &cmdList, unsigned long ran
 
 	mainPassSetupCallback(cmdList);
 	cmdList->SetGraphicsRootSignature(AABB_RootSig.Get());
-	cmdList->SetGraphicsRootConstantBufferView(AABB_PASS_ROOT_PARAM_COLOR_CBV, World::globalGPUBuffer->GetGPUVirtualAddress() + GlobalGPUBufferData::AABB_3D_VisColors::CB_offset(visible));
+	cmdList->SetGraphicsRootConstantBufferView(AABB_PASS_ROOT_PARAM_COLOR_CBV, globalGPUBuffer->GetGPUVirtualAddress() + GlobalGPUBufferData::AABB_3D_VisColors::CB_offset(visible));
 	cmdList->SetGraphicsRootConstantBufferView(AABB_PASS_ROOT_PARAM_TONEMAP_PARAMS_CBV, tonemapParamsGPUAddress);
 	cmdList->SetGraphicsRootShaderResourceView(AABB_PASS_ROOT_PARAM_VISIBILITY1_SRV, queryBatch.GetGPUPtr(false));
 	cmdList->SetGraphicsRootShaderResourceView(AABB_PASS_ROOT_PARAM_VISIBILITY2_SRV, queryBatch.GetGPUPtr(true));
