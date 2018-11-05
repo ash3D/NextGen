@@ -215,6 +215,7 @@
     <ClInclude Include="cmdlist pool.h" />
     <ClInclude Include="config.h" />
     <ClInclude Include="d3dx12.h" />
+    <ClInclude Include="DDSTextureLoader12.h" />
     <ClInclude Include="frustum culling.h" />
     <ClInclude Include="global GPU buffer data.h" />
     <ClInclude Include="GPU descriptor heap.h" />
@@ -232,6 +233,7 @@
     <ClInclude Include="occlusion query batch.h" />
     <ClInclude Include="GPU work item.h" />
     <ClInclude Include="shader bytecode.h" />
+    <ClInclude Include="texture.hh" />
     <ClInclude Include="tonemapTextureReduction config.h" />
     <ClInclude Include="render pipeline.h" />
     <ClInclude Include="render stage.h" />
@@ -250,6 +252,16 @@
   <ItemGroup>
     <ClCompile Include="cmdlist pool.cpp" />
     <ClCompile Include="config.cpp" />
+    <ClCompile Include="DDSTextureLoader12.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+      <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Cdecl</CallingConvention>
+      <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Cdecl</CallingConvention>
+      <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Cdecl</CallingConvention>
+      <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Cdecl</CallingConvention>
+    </ClCompile>
     <ClCompile Include="frustum culling.cpp" />
     <ClCompile Include="GPU descriptor heap.cpp" />
     <ClCompile Include="GPU stream buffer allocator.cpp" />
@@ -271,6 +283,7 @@
     </ClCompile>
     <ClCompile Include="sun.cpp" />
     <ClCompile Include="terrain.cpp" />
+    <ClCompile Include="texture.cpp" />
     <ClCompile Include="tonemap resource views stage.cpp" />
     <ClCompile Include="tracked resource.cpp" />
     <ClCompile Include="frame versioning.cpp" />

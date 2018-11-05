@@ -147,6 +147,12 @@
     <ClInclude Include="shader bytecode.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="texture.hh">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="DDSTextureLoader12.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -216,6 +222,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="texture.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DDSTextureLoader12.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
