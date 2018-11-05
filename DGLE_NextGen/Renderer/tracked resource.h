@@ -1,6 +1,6 @@
 /**
 \author		Alexey Shaydurov aka ASH
-\date		14.01.2018 (c)Korotkov Andrey
+\date		06.11.2018 (c)Korotkov Andrey
 
 This file is a part of DGLE project and is distributed
 under the terms of the GNU Lesser General Public License.
@@ -11,8 +11,16 @@ See "DGLE.h" for more details.
 
 #define NOMINMAX
 
+// inheriting ctor/SFINAE problem, further research needed (e.g. try with other compilers)
+#if defined _MSC_VER && _MSC_VER <= 1915
+#define CTOR_WORKAROUND
+#endif
+
 #include <cstddef>
 #include <wrl/client.h>
+#ifdef CTOR_WORKAROUND
+#include <utility>	// for move()
+#endif
 
 namespace Renderer::Impl
 {
@@ -41,6 +49,10 @@ namespace Renderer::Impl
 		TrackedResource() = default;
 		TrackedResource(const TrackedResource &) = default;
 		TrackedResource(TrackedResource &&) = default;
+#ifdef CTOR_WORKAROUND
+		TrackedResource(const Resource &src) : Resource(src) {}
+		TrackedResource(Resource &&src) : Resource(std::move(src)) {}
+#endif
 		~TrackedResource();
 
 	public:
@@ -65,3 +77,5 @@ namespace Renderer::Impl
 		void Swap(TrackedResource &src), Swap(TrackedResource &&src);
 	};
 }
+
+#undef CTOR_WORKAROUND
