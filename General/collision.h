@@ -1,12 +1,3 @@
-/**
-\author		Alexey Shaydurov aka ASH
-\date		09.08.2016 (c)Korotkov Andrey
-
-This file is a part of DGLE project and is distributed
-under the terms of the GNU Lesser General Public License.
-See "DGLE.h" for more details.
-*/
-
 #pragma once
 
 #define INCLUDE_DGLE_EXTENSIONS	0

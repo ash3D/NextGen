@@ -1,12 +1,3 @@
-/**
-\author		Alexey Shaydurov aka ASH
-\date		16.10.2018 (c)Korotkov Andrey
-
-This file is a part of DGLE project and is distributed
-under the terms of the GNU Lesser General Public License.
-See "DGLE.h" for more details.
-*/
-
 #include "stdafx.h"
 #include "render output.hh"
 #include "viewport.hh"

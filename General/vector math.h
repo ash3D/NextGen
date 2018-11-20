@@ -1,12 +1,3 @@
-/**
-\author		Alexey Shaydurov aka ASH
-\date		18.10.2018 (c)Alexey Shaydurov
-
-This file is a part of DGLE2 project and is distributed
-under the terms of the GNU Lesser General Public License.
-See "DGLE2.h" for more details.
-*/
-
 #pragma region design considerations
 /*
 it is safe to use const_cast if const version returns 'const &', not value, and '*this' object is not const

@@ -1,12 +1,3 @@
-/**
-\author		Alexey Shaydurov aka ASH
-\date		27.06.2018 (c)Korotkov Andrey
-
-This file is a part of DGLE project and is distributed
-under the terms of the GNU Lesser General Public License.
-See "DGLE.h" for more details.
-*/
-
 #include "per-frame data.hlsli"
 #include "object3D VS 2 PS.hlsli"
 
