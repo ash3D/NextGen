@@ -1,5 +1,0 @@
-NAME	"DirectInput.dll"
-
-EXPORTS
-	InitPlugin			PRIVATE
-	FreePlugin			PRIVATE
