@@ -1,0 +1,326 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Include">
+      <UniqueIdentifier>{91efd9a0-1e89-4237-a870-82ebf8ee853e}</UniqueIdentifier>
+      <Extensions>hh;inc</Extensions>
+    </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{b4c2406f-1710-486c-be78-d77f8ac0d88c}</UniqueIdentifier>
+      <Extensions>hlsl</Extensions>
+    </Filter>
+    <Filter Include="Shaders\Include">
+      <UniqueIdentifier>{0a105f02-d18f-4746-991c-bca64f03871b}</UniqueIdentifier>
+      <Extensions>hlsli</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="ReadMe.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="stdafx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\render output.hh">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="d3dx12.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="HRESULT.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\world.hh">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\viewport.hh">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\instance.hh">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\terrain.hh">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="world hierarchy.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="AABB.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="frustum culling.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="occlusion tree.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="occlusion query shceduling.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="tracked resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GPU work submission.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cmdlist pool.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="render pipeline.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="frame versioning.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GPU stream buffer allocator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="occlusion query batch.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="render stage.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="tracked ref.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\object 3D.hh">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="CB register.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="static objects data.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GPU work item.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="occlusion query visualization.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="world view context.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SO buffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="global GPU buffer data.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cmd buffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cmd ctx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="sun.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GPU descriptor heap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="tonemap resource views stage.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="tonemapTextureReduction config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shader bytecode.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="texture.hh">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="DDSTextureLoader12.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="stdafx.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="render output.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="world.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="instance.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="viewport.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="terrain.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="frustum culling.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="occlusion tree.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="tracked resource.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GPU work submission.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="cmdlist pool.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="render pipeline.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="frame versioning.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GPU stream buffer allocator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="occlusion query batch.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="render stage.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="object 3D.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SO buffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="config.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="sun.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="tonemap resource views stage.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GPU descriptor heap.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="texture.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DDSTextureLoader12.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="vectorLayerVS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="vectorLayerPS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="AABB_2D.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="object3D_VS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="object3D_PS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="AABB_3D_xform.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="AABB_3D.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="AABB_3D_vis.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="AABB_2D_vis.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="tonemapping.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="tonemapBufferReduction.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="tonemapTextureReduction.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="world hierarchy.inl">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="AABB.inl">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="tracked resource.inl">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="GPU stream buffer allocator.inl">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="packages.config" />
+    <None Include="cmdlist pool.inl">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="tracked ref.inl">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="AABB_3D.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
+    <None Include="fresnel.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
+    <None Include="lighting.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
+    <None Include="luminance.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
+    <None Include="object3D VS 2 PS.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
+    <None Include="per-frame data.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
+    <None Include="tonemapBufferReduction config.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
+    <None Include="tonemapTextureReduction config.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
+    <None Include="tonemapping config.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
+    <None Include="tonemapLocalReduction.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
+    <None Include="tonemap params.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
+  </ItemGroup>
+</Project>

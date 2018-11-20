@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ProjectSchemaDefinitions xmlns="clr-namespace:Microsoft.Build.Framework.XamlTypes;assembly=Microsoft.Build.Framework">
+  <Rule Name="ReferencedPackagesd0a1b0a1-2624-42fe-89ee-b51d7267c4a8" PageTemplate="tool" DisplayName="Referenced Packages" SwitchPrefix="/" Order="1">
+    <Rule.Categories>
+      <Category Name="fx11_desktop_2015" DisplayName="fx11_desktop_2015" />
+    </Rule.Categories>
+    <Rule.DataSource>
+      <DataSource Persistence="ProjectFile" ItemType="" />
+    </Rule.DataSource>
+    <EnumProperty Name="Linkages-fx11_desktop_2015" DisplayName="Linkages" Description="Which version of the .lib file to link to this library" Category="fx11_desktop_2015">
+      <EnumValue Name="" DisplayName="Dynamic Library (DLL)" />
+      <EnumValue Name="static" DisplayName="Static" />
+    </EnumProperty>
+  </Rule>
+</ProjectSchemaDefinitions>
