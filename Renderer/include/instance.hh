@@ -3,7 +3,7 @@
 #include <memory>
 #include "object 3D.hh"
 #include "../AABB.h"
-#if defined _MSC_VER && (_MSC_VER == 1914 || _MSC_VER == 1915)
+#if defined _MSC_VER && (_MSC_VER == 1914 || _MSC_VER == 1915 || _MSC_VER == 1916)
 #include "world.hh"	// for Allocator
 #endif
 
@@ -49,7 +49,7 @@ namespace Renderer
 			const auto &GetStartPSO() const { return object.GetStartPSO(); }
 			void Render(ID3D12GraphicsCommandList2 *target) const;
 
-#if defined _MSC_VER && (_MSC_VER == 1914 || _MSC_VER == 1915)
+#if defined _MSC_VER && (_MSC_VER == 1914 || _MSC_VER == 1915 || _MSC_VER == 1916)
 			template<typename>
 			friend class Impl::World::Allocator;
 #endif

@@ -341,11 +341,11 @@ inline volatile World::PerFrameData *World::TryMapGlobalGPUBuffer()
 
 namespace Renderer::Impl
 {
-#if defined _MSC_VER && _MSC_VER <= 1915
+#if defined _MSC_VER && _MSC_VER <= 1916
 	decltype(globalFrameVersioning) globalFrameVersioning;
 #else
 	// guaranteed copy elision required\
-	still does not work on MSVC 1913/1914/1915, further investigation reqired
+	still does not work on MSVC 1913/1914/1915/1916, further investigation reqired
 	decltype(globalFrameVersioning) globalFrameVersioning(device ? decltype(globalFrameVersioning)(in_place) : nullopt);
 #endif
 }
@@ -358,7 +358,7 @@ decltype(QueryBatchBase::heapPool) QueryBatchBase::heapPool;
 decltype(QueryBatch<OcclusionCulling::TRANSIENT>::resultsPool) QueryBatch<OcclusionCulling::TRANSIENT>::resultsPool;
 
 // allocators contains tracked resource
-#if defined _MSC_VER && _MSC_VER <= 1915
+#if defined _MSC_VER && _MSC_VER <= 1916
 decltype(TerrainVectorLayer::GPU_AABB_allocator) TerrainVectorLayer::GPU_AABB_allocator;
 decltype(World::GPU_AABB_allocator) World::GPU_AABB_allocator;
 #else

@@ -68,7 +68,7 @@ namespace Renderer
 
 			// interface for BVH
 		public:
-#if defined _MSC_VER && _MSC_VER <= 1915
+#if defined _MSC_VER && _MSC_VER <= 1916
 			const AABB<2> &GetAABB() const noexcept { return aabb; }
 #else
 			const auto &GetAABB() const noexcept { return aabb; }
@@ -253,7 +253,7 @@ namespace Renderer
 			void ScheduleDebugDrawRenderStage() const;	// must be after ScheduleRenderStage()
 			static void OnFrameFinish() { GPU_AABB_allocator->OnFrameFinish(); }
 
-#if defined _MSC_VER && (_MSC_VER == 1914 || _MSC_VER == 1915)
+#if defined _MSC_VER && (_MSC_VER == 1914 || _MSC_VER == 1915 || _MSC_VER == 1916)
 			template<typename>
 			friend class World::Allocator;
 #endif
@@ -264,7 +264,7 @@ namespace Renderer
 	{
 		friend class Impl::World;
 		using Impl::TerrainVectorLayer::TerrainVectorLayer;
-#if defined _MSC_VER && _MSC_VER <= 1915 && !defined __clang__
+#if defined _MSC_VER && _MSC_VER <= 1916 && !defined __clang__
 		// this workaround makes '&TerrainVectorLayer::ScheduleRenderStage' accessible from 'Impl::World'\
 		somewhat strange as the problem does not reproduce for simple synthetic experiment
 		using Impl::TerrainVectorLayer::ScheduleRenderStage;

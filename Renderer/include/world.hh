@@ -54,7 +54,7 @@ namespace Renderer
 	{
 		class Viewport;
 		class TerrainVectorLayer;
-#if defined _MSC_VER && (_MSC_VER == 1914 || _MSC_VER == 1915)
+#if defined _MSC_VER && (_MSC_VER == 1914 || _MSC_VER == 1915 || _MSC_VER == 1916)
 		class Instance;
 #endif
 		using WRL::ComPtr;
@@ -132,7 +132,7 @@ namespace Renderer
 				operator const Renderer::Instance *() const noexcept { return instance; }
 
 			public:
-#if defined _MSC_VER && _MSC_VER <= 1915
+#if defined _MSC_VER && _MSC_VER <= 1916
 				inline const AABB<3> &GetAABB() const noexcept;
 #else
 				inline const auto &GetAABB() const noexcept;
@@ -293,11 +293,11 @@ namespace Renderer
 		friend class Impl::Viewport;
 		friend class Impl::TerrainVectorLayer;	// for Allocator
 		friend class TerrainVectorQuad;			// for Allocator
-#if defined _MSC_VER && (_MSC_VER == 1914 || _MSC_VER == 1915)
+#if defined _MSC_VER && (_MSC_VER == 1914 || _MSC_VER == 1915 || _MSC_VER == 1916)
 		friend class Impl::Instance;			// for Allocator
 #endif
 
-#if defined _MSC_VER && _MSC_VER <= 1915
+#if defined _MSC_VER && _MSC_VER <= 1916
 	private:
 		struct tag {};
 
