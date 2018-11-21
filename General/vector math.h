@@ -256,8 +256,8 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 #	ifndef __VECTOR_MATH_H__
 #	define __VECTOR_MATH_H__
 
-#	if defined _MSC_VER && _MSC_VER < 1914 && !defined  __clang__
-#	error Old MSVC compiler version. Visual Studio 2017 15.7 or later required.
+#	if defined _MSC_VER && _MSC_VER < 1916 && !defined  __clang__
+#	error Old MSVC compiler version. Visual Studio 2017 15.9 or later required.
 #	elif defined __GNUC__ && (__GNUC__ < 4 || (__GNUC__ >= 4 && __GNUC_MINOR__ < 7)) && !defined __clang__
 #	error Old GCC compiler version. GCC 4.7 or later required.	// need to be clarified
 #	endif
@@ -2396,26 +2396,9 @@ further investigations needed, including other compilers
 				}
 
 			public:
-#ifdef MSVC_LIMITATIONS
-				auto operator +() const
-				{
-					return Op(make_index_sequence<SwizzleDesc::dimension>(), positive());
-				}
-
-				auto operator -() const
-				{
-					return Op(make_index_sequence<SwizzleDesc::dimension>(), std::negate());
-				}
-
-				auto operator !() const
-				{
-					return Op(make_index_sequence<SwizzleDesc::dimension>(), std::logical_not());
-				}
-#else
 				auto operator +() const;
 				auto operator -() const;
 				auto operator !() const;
-#endif
 
 			public:
 				template<typename F>
@@ -2448,7 +2431,6 @@ further investigations needed, including other compilers
 				inline vector<result_of_t<F &(ElementType)>, SwizzleDesc::dimension> apply(F f, index_sequence<idx...>) const;
 			};
 
-#ifndef MSVC_LIMITATIONS
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			inline auto CSwizzleCommon<ElementType, rows, columns, SwizzleDesc>::operator +() const
 			{
@@ -2466,7 +2448,6 @@ further investigations needed, including other compilers
 			{
 				return Op(make_index_sequence<SwizzleDesc::dimension>(), std::logical_not());
 			}
-#endif
 
 #ifdef MSVC_NAMESPACE_WORKAROUND
 		}
