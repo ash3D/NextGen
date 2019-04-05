@@ -132,7 +132,7 @@ namespace Renderer
 				operator const Renderer::Instance *() const noexcept { return instance; }
 
 			public:
-#if defined _MSC_VER && _MSC_VER <= 1916
+#if defined _MSC_VER && _MSC_VER <= 1920
 				inline const AABB<3> &GetAABB() const noexcept;
 #else
 				inline const auto &GetAABB() const noexcept;
@@ -297,7 +297,7 @@ namespace Renderer
 		friend class Impl::Instance;			// for Allocator
 #endif
 
-#if defined _MSC_VER && _MSC_VER <= 1916
+#if defined _MSC_VER && _MSC_VER <= 1920
 	private:
 		struct tag {};
 

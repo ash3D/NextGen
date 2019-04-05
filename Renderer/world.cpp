@@ -84,7 +84,7 @@ auto Impl::World::MapGlobalGPUBuffer(const D3D12_RANGE *readRange) -> volatile G
 }
 
 // defined here, not in class in order to eliminate dependency on "instance.hh" in "world.hh"
-#if defined _MSC_VER && _MSC_VER <= 1916
+#if defined _MSC_VER && _MSC_VER <= 1920
 inline const AABB<3> &Impl::World::BVHObject::GetAABB() const noexcept
 #else
 inline const auto &Impl::World::BVHObject::GetAABB() const noexcept
@@ -1076,11 +1076,11 @@ auto Impl::World::GetDebugDrawRenderStage() const -> RenderPipeline::PipelineSta
 }
 
 /*
-	VS 2017 STL uses allocator's construct() to construct combined object (main object + shared ptr data)
+	VS 2017/2019 STL uses allocator's construct() to construct combined object (main object + shared ptr data)
 	but constructs containing object directly via placement new which does not have access to private members.
 	GCC meanwhile compiles it fine.
 */
-#if defined _MSC_VER && _MSC_VER <= 1916
+#if defined _MSC_VER && _MSC_VER <= 1920
 shared_ptr<World> __cdecl Renderer::MakeWorld(const float (&terrainXform)[4][3], float zenith, float azimuth)
 {
 	return make_shared<World>(World::tag(), terrainXform, zenith, azimuth);

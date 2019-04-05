@@ -265,7 +265,7 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 #	pragma warning(push)
 #	pragma warning(disable: 4003)
 
-#if defined _MSC_VER && _MSC_VER <= 1916 && !defined __clang__
+#if defined _MSC_VER && _MSC_VER <= 1920 && !defined __clang__
 #	define MSVC_LIMITATIONS
 #endif
 
@@ -643,7 +643,7 @@ further investigations needed, including other compilers
 				static constexpr bool isWriteMaskValid = true;
 			};
 #else
-#if defined _MSC_VER && (_MSC_VER == 1912 || _MSC_VER == 1913 || _MSC_VER == 1914 || _MSC_VER == 1915 || _MSC_VER == 1916)
+#if defined _MSC_VER && (_MSC_VER == 1912 || _MSC_VER == 1913 || _MSC_VER == 1914 || _MSC_VER == 1915 || _MSC_VER == 1916 || _MSC_VER == 1920)
 			class CPackedSwizzleBase
 			{
 				using TPackedSwizzle = unsigned long long int;
@@ -659,7 +659,7 @@ further investigations needed, including other compilers
 
 			template<unsigned int ...swizzleSeq>
 			class CPackedSwizzle
-#if defined _MSC_VER && (_MSC_VER == 1912 || _MSC_VER == 1913 || _MSC_VER == 1914 || _MSC_VER == 1915 || _MSC_VER == 1916)
+#if defined _MSC_VER && (_MSC_VER == 1912 || _MSC_VER == 1913 || _MSC_VER == 1914 || _MSC_VER == 1915 || _MSC_VER == 1916 || _MSC_VER == 1920)
 				: CPackedSwizzleBase
 #endif
 			{
@@ -675,7 +675,7 @@ further investigations needed, including other compilers
 
 			private:
 #ifdef MSVC_LIMITATIONS
-#if _MSC_VER != 1912 && _MSC_VER != 1913 && _MSC_VER != 1914 && _MSC_VER != 1915 && _MSC_VER != 1916
+#if _MSC_VER != 1912 && _MSC_VER != 1913 && _MSC_VER != 1914 && _MSC_VER != 1915 && _MSC_VER != 1916 && _MSC_VER != 1920
 //				template<unsigned int shift, TPackedSwizzle swizzleHead, TPackedSwizzle ...swizzleTail>
 //				static constexpr TPackedSwizzle PackSwizzleSeq() { return swizzleHead << shift | PackSwizzleSeq<shift + 4u, swizzleTail...>(); }
 //
@@ -698,7 +698,7 @@ further investigations needed, including other compilers
 
 			private:
 #ifdef MSVC_LIMITATIONS
-//#if _MSC_VER == 1912 || _MSC_VER == 1913 || _MSC_VER == 1914 || _MSC_VER == 1915 || _MSC_VER == 1916
+//#if _MSC_VER == 1912 || _MSC_VER == 1913 || _MSC_VER == 1914 || _MSC_VER == 1915 || _MSC_VER == 1916 || _MSC_VER == 1920
 //				static constexpr TPackedSwizzle packedSwizzle = PackSwizzleSeq<0u, swizzleSeq...>();
 //#else
 				static constexpr TPackedSwizzle packedSwizzle = PackSwizzleSeq<0u, swizzleSeq...>;

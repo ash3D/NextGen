@@ -3,7 +3,7 @@
 #define NOMINMAX
 
 // inheriting ctor/SFINAE problem, further research needed (e.g. try with other compilers)
-#if defined _MSC_VER && _MSC_VER <= 1916
+#if defined _MSC_VER && _MSC_VER <= 1920
 #define CTOR_WORKAROUND
 #endif
 
