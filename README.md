@@ -3,7 +3,7 @@
 NextGen is a special-purpose 3D rendering engine written in modern C++. It uses DirectX 12 exclusively as rendering API.
 ## Prerequisites
 ### Build
-* Visual Studio 2017 15.9 (older versions are not supported) with C++ development workload and Windows 10 SDK version 10.0.17763.0.
+* Visual Studio 2019 (older versions are not supported) with C++ development workload and Windows 10 SDK version 10.0.17763.0.
 ### Runtime
 * Windows 10
 * GPU with DX12 driver supporting `WriteBufferImmediate` and Shader Model 6.0.
