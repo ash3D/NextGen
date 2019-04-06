@@ -252,11 +252,6 @@ namespace Renderer
 			void ScheduleRenderStage(const FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, UINT64 tonemapParamsGPUAddress, std::function<void (ID3D12GraphicsCommandList2 *target)> cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList2 *target)> mainPassSetupCallback) const;
 			void ScheduleDebugDrawRenderStage() const;	// must be after ScheduleRenderStage()
 			static void OnFrameFinish() { GPU_AABB_allocator->OnFrameFinish(); }
-
-#if defined _MSC_VER && (_MSC_VER == 1914 || _MSC_VER == 1915 || _MSC_VER == 1916)
-			template<typename>
-			friend class World::Allocator;
-#endif
 		};
 	}
 

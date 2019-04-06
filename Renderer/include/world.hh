@@ -54,9 +54,6 @@ namespace Renderer
 	{
 		class Viewport;
 		class TerrainVectorLayer;
-#if defined _MSC_VER && (_MSC_VER == 1914 || _MSC_VER == 1915 || _MSC_VER == 1916)
-		class Instance;
-#endif
 		using WRL::ComPtr;
 
 		class World : public std::enable_shared_from_this<Renderer::World>, RenderPipeline::IRenderStage
@@ -293,9 +290,6 @@ namespace Renderer
 		friend class Impl::Viewport;
 		friend class Impl::TerrainVectorLayer;	// for Allocator
 		friend class TerrainVectorQuad;			// for Allocator
-#if defined _MSC_VER && (_MSC_VER == 1914 || _MSC_VER == 1915 || _MSC_VER == 1916)
-		friend class Impl::Instance;			// for Allocator
-#endif
 
 #if defined _MSC_VER && _MSC_VER <= 1920
 	private:
