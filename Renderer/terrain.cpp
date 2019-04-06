@@ -53,22 +53,7 @@ namespace
 	typename ObjIterator<Object>::difference_type operator -(ObjIterator<Object> left, ObjIterator<Object> right);
 
 	template<class Object>
-	bool operator ==(ObjIterator<Object> left, ObjIterator<Object> right);
-
-	template<class Object>
-	bool operator !=(ObjIterator<Object> left, ObjIterator<Object> right);
-
-	template<class Object>
-	bool operator <(ObjIterator<Object> left, ObjIterator<Object> right);
-
-	template<class Object>
-	bool operator <=(ObjIterator<Object> left, ObjIterator<Object> right);
-
-	template<class Object>
-	bool operator >(ObjIterator<Object> left, ObjIterator<Object> right);
-
-	template<class Object>
-	bool operator >=(ObjIterator<Object> left, ObjIterator<Object> right);
+	strong_ordering operator <=>(ObjIterator<Object> left, ObjIterator<Object> right);
 
 	template<class Object>
 	class ObjIterator : public iterator<random_access_iterator_tag, Object, signed int>
@@ -94,19 +79,7 @@ namespace
 
 	public:
 		value_type operator *() const;
-		// replace with C++20 <=>
-#if defined _MSC_VER && _MSC_VER <= 1920
-		friend bool operator ==<>(ObjIterator left, ObjIterator right);
-		friend bool operator !=<>(ObjIterator left, ObjIterator right);
-		friend bool operator < <>(ObjIterator left, ObjIterator right);
-		friend bool operator <=<>(ObjIterator left, ObjIterator right);
-		friend bool operator > <>(ObjIterator left, ObjIterator right);
-		friend bool operator >=<>(ObjIterator left, ObjIterator right);
-#else
-		friend bool operator ==<>(ObjIterator left, ObjIterator right), operator !=<>(ObjIterator left, ObjIterator right),
-			operator < <>(ObjIterator left, ObjIterator right), operator <= <>(ObjIterator left, ObjIterator right),
-			operator > <>(ObjIterator left, ObjIterator right), operator >= <>(ObjIterator left, ObjIterator right);
-#endif
+		friend strong_ordering operator <=><>(ObjIterator left, ObjIterator right);
 	};
 
 	template<class Object>
@@ -143,45 +116,10 @@ namespace
 	}
 
 	template<class Object>
-	inline bool operator ==(ObjIterator<Object> left, ObjIterator<Object> right)
+	inline strong_ordering operator <=>(ObjIterator<Object> left, ObjIterator<Object> right)
 	{
 		assert(&left.getObjectData.get() == &right.getObjectData.get());
-		return left.objIdx == right.objIdx;
-	}
-
-	template<class Object>
-	inline bool operator !=(ObjIterator<Object> left, ObjIterator<Object> right)
-	{
-		assert(&left.getObjectData.get() == &right.getObjectData.get());
-		return left.objIdx != right.objIdx;
-	}
-
-	template<class Object>
-	inline bool operator <(ObjIterator<Object> left, ObjIterator<Object> right)
-	{
-		assert(&left.getObjectData.get() == &right.getObjectData.get());
-		return left.objIdx < right.objIdx;
-	}
-
-	template<class Object>
-	inline bool operator <=(ObjIterator<Object> left, ObjIterator<Object> right)
-	{
-		assert(&left.getObjectData.get() == &right.getObjectData.get());
-		return left.objIdx <= right.objIdx;
-	}
-
-	template<class Object>
-	inline bool operator >(ObjIterator<Object> left, ObjIterator<Object> right)
-	{
-		assert(&left.getObjectData.get() == &right.getObjectData.get());
-		return left.objIdx > right.objIdx;
-	}
-
-	template<class Object>
-	inline bool operator >=(ObjIterator<Object> left, ObjIterator<Object> right)
-	{
-		assert(&left.getObjectData.get() == &right.getObjectData.get());
-		return left.objIdx >= right.objIdx;
+		return left.objIdx <=> right.objIdx;
 	}
 #	pragma endregion
 

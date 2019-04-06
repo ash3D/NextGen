@@ -25,6 +25,7 @@
 #include <cmath>
 #include <utility>
 #include <type_traits>
+#include <compare>
 #include <tuple>
 #include <limits>
 #include <memory>
