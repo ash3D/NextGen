@@ -274,6 +274,10 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 #	define MSVC_NAMESPACE_WORKAROUND
 #endif
 
+#if defined _MSC_VER && (_MSC_VER == 1912 || _MSC_VER == 1913 || _MSC_VER == 1914 || _MSC_VER == 1915 || _MSC_VER == 1916 || _MSC_VER == 1920)
+#	define MSVC_PACKED_SWIZZLE_WORKAROUND
+#endif
+
 #if !defined _MSVC_TRADITIONAL || _MSVC_TRADITIONAL
 #	define MSVC_PREPROCESSOR_WORKAROUND
 #endif
@@ -643,7 +647,7 @@ further investigations needed, including other compilers
 				static constexpr bool isWriteMaskValid = true;
 			};
 #else
-#if defined _MSC_VER && (_MSC_VER == 1912 || _MSC_VER == 1913 || _MSC_VER == 1914 || _MSC_VER == 1915 || _MSC_VER == 1916 || _MSC_VER == 1920)
+#ifdef MSVC_PACKED_SWIZZLE_WORKAROUND
 			class CPackedSwizzleBase
 			{
 				using TPackedSwizzle = unsigned long long int;
@@ -659,7 +663,7 @@ further investigations needed, including other compilers
 
 			template<unsigned int ...swizzleSeq>
 			class CPackedSwizzle
-#if defined _MSC_VER && (_MSC_VER == 1912 || _MSC_VER == 1913 || _MSC_VER == 1914 || _MSC_VER == 1915 || _MSC_VER == 1916 || _MSC_VER == 1920)
+#ifdef MSVC_PACKED_SWIZZLE_WORKAROUND
 				: CPackedSwizzleBase
 #endif
 			{
@@ -675,7 +679,7 @@ further investigations needed, including other compilers
 
 			private:
 #ifdef MSVC_LIMITATIONS
-#if _MSC_VER != 1912 && _MSC_VER != 1913 && _MSC_VER != 1914 && _MSC_VER != 1915 && _MSC_VER != 1916 && _MSC_VER != 1920
+#ifndef MSVC_PACKED_SWIZZLE_WORKAROUND
 //				template<unsigned int shift, TPackedSwizzle swizzleHead, TPackedSwizzle ...swizzleTail>
 //				static constexpr TPackedSwizzle PackSwizzleSeq() { return swizzleHead << shift | PackSwizzleSeq<shift + 4u, swizzleTail...>(); }
 //
@@ -698,7 +702,7 @@ further investigations needed, including other compilers
 
 			private:
 #ifdef MSVC_LIMITATIONS
-//#if _MSC_VER == 1912 || _MSC_VER == 1913 || _MSC_VER == 1914 || _MSC_VER == 1915 || _MSC_VER == 1916 || _MSC_VER == 1920
+//#ifdef MSVC_PACKED_SWIZZLE_WORKAROUND
 //				static constexpr TPackedSwizzle packedSwizzle = PackSwizzleSeq<0u, swizzleSeq...>();
 //#else
 				static constexpr TPackedSwizzle packedSwizzle = PackSwizzleSeq<0u, swizzleSeq...>;
@@ -4798,6 +4802,7 @@ further investigations needed, including other compilers
 	}
 
 #	undef MSVC_NAMESPACE_WORKAROUND
+#	undef MSVC_PACKED_SWIZZLE_WORKAROUND
 #	undef MSVC_PREPROCESSOR_WORKAROUND
 #	undef EBCO
 #	undef INIT_LIST_ITEM_OVERFLOW_MSG
