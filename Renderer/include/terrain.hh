@@ -45,6 +45,11 @@ namespace Renderer
 		class FrustumCuller;
 	}
 
+	namespace TerrainMaterials
+	{
+		class Interface;
+	}
+
 	class TerrainVectorQuad final
 	{
 		friend class Impl::TerrainVectorLayer;
@@ -113,8 +118,8 @@ namespace Renderer
 			const unsigned int layerIdx;
 
 		private:
-			const float albedo[3];
 			const std::string layerName;
+			const std::shared_ptr<TerrainMaterials::Interface> layerMaterial;
 			std::list<class TerrainVectorQuad, World::Allocator<class TerrainVectorQuad>> quads;
 
 		private:
@@ -150,10 +155,6 @@ namespace Renderer
 
 #pragma region main pass
 		private:
-			static WRL::ComPtr<ID3D12RootSignature> mainPassRootSig, TryCreateMainPassRootSig(), CreateMainPassRootSig();
-			static WRL::ComPtr<ID3D12PipelineState> mainPassPSO, TryCreateMainPassPSO(), CreateMainPassPSO();
-
-		private:
 			mutable std::function<void (ID3D12GraphicsCommandList2 *target)> mainPassSetupCallback;
 			struct RenderData
 			{
@@ -187,7 +188,7 @@ namespace Renderer
 
 #pragma region visualize occlusion pass
 		private:
-			// reuse main pass root signature for now
+			static WRL::ComPtr<ID3D12RootSignature> AABB_rootSig, TryCreateAABB_RootSig(), CreateAABB_RootSig();
 			static WRL::ComPtr<ID3D12PipelineState> AABB_PSO, TryCreateAABB_PSO(), CreateAABB_PSO();
 
 		private:
@@ -234,7 +235,7 @@ namespace Renderer
 			};
 
 		protected:
-			TerrainVectorLayer(std::shared_ptr<class Renderer::World> &&world, unsigned int layerIdx, const float (&albedo)[3], std::string &&layerName);
+			TerrainVectorLayer(std::shared_ptr<class Renderer::World> &&world, std::shared_ptr<TerrainMaterials::Interface> &&layerMaterial, unsigned int layerIdx, std::string &&layerName);
 			~TerrainVectorLayer();
 			TerrainVectorLayer(TerrainVectorLayer &) = delete;
 			void operator =(TerrainVectorLayer &) = delete;

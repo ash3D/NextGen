@@ -224,6 +224,7 @@
     <ClInclude Include="HRESULT.h" />
     <ClInclude Include="include\instance.hh" />
     <ClInclude Include="include\object 3D.hh" />
+    <ClInclude Include="include\terrain materials.hh" />
     <ClInclude Include="include\terrain.hh" />
     <ClInclude Include="include\viewport.hh" />
     <ClInclude Include="include\world.hh" />
@@ -233,6 +234,7 @@
     <ClInclude Include="occlusion query batch.h" />
     <ClInclude Include="GPU work item.h" />
     <ClInclude Include="shader bytecode.h" />
+    <ClInclude Include="terrain material interface.h" />
     <ClInclude Include="texture.hh" />
     <ClInclude Include="tonemapTextureReduction config.h" />
     <ClInclude Include="render pipeline.h" />
@@ -282,6 +284,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="sun.cpp" />
+    <ClCompile Include="terrain materials.cpp" />
     <ClCompile Include="terrain.cpp" />
     <ClCompile Include="texture.cpp" />
     <ClCompile Include="tonemap resource views stage.cpp" />

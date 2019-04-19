@@ -975,7 +975,7 @@ shared_ptr<Renderer::Viewport> Impl::World::CreateViewport() const
 	return make_shared<Renderer::Viewport>(shared_from_this());
 }
 
-shared_ptr<Renderer::TerrainVectorLayer> Impl::World::AddTerrainVectorLayer(unsigned int layerIdx, const float (&color)[3], string layerName)
+shared_ptr<Renderer::TerrainVectorLayer> Impl::World::AddTerrainVectorLayer(shared_ptr<TerrainMaterials::Interface> layerMaterial, unsigned int layerIdx, string layerName)
 {
 	// keep layers list sorted by idx
 	class Idx
@@ -990,7 +990,7 @@ shared_ptr<Renderer::TerrainVectorLayer> Impl::World::AddTerrainVectorLayer(unsi
 		operator unsigned int () const noexcept { return idx; }
 	};
 	const auto insertLocation = lower_bound(terrainVectorLayers.cbegin(), terrainVectorLayers.cend(), layerIdx, greater<Idx>());
-	const auto inserted = terrainVectorLayers.emplace(insertLocation, shared_from_this(), layerIdx, color, move(layerName));
+	const auto inserted = terrainVectorLayers.emplace(insertLocation, shared_from_this(), move(layerMaterial), layerIdx, move(layerName));
 	// consider using custom allocator for shared_ptr's internal data in order to improve memory management
 	return { &*inserted, [inserted](::TerrainVectorLayer *layerToRemove) { layerToRemove->world->terrainVectorLayers.erase(inserted); } };
 }

@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "terrain.hh"
+#include "terrain materials.hh"
 #include "world.hh"	// for globalGPUBuffer
 #include "tracked resource.inl"
 #include "world hierarchy.inl"
@@ -19,8 +20,6 @@ namespace Shaders
 {
 #	include "AABB_2D.csh"
 #	include "AABB_2D_vis.csh"
-#	include "vectorLayerVS.csh"
-#	include "vectorLayerPS.csh"
 }
 
 // !: need to investigate for deadlocks possibility due to MSVC's std::async threadpool overflow
@@ -369,93 +368,9 @@ inline void Impl::TerrainVectorLayer::IssueOcclusion(ViewNode::OcclusionQueryGeo
 #pragma endregion
 
 #pragma region main pass
-enum
-{
-	MAIN_PASS_ROOT_PARAM_PER_FRAME_DATA_CBV,
-	MAIN_PASS_ROOT_PARAM_ALBEDO,
-	MAIN_PASS_ROOT_PARAM_TONEMAP_PARAMS_CBV,
-	MAIN_PASS_ROOT_PARAM_COUNT
-};
-
-ComPtr<ID3D12RootSignature> Impl::TerrainVectorLayer::CreateMainPassRootSig()
-{
-	CD3DX12_ROOT_PARAMETER1 rootParams[MAIN_PASS_ROOT_PARAM_COUNT];
-	rootParams[MAIN_PASS_ROOT_PARAM_PER_FRAME_DATA_CBV].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC);
-	rootParams[MAIN_PASS_ROOT_PARAM_ALBEDO].InitAsConstants(3, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
-	rootParams[MAIN_PASS_ROOT_PARAM_TONEMAP_PARAMS_CBV].InitAsConstantBufferView(1, 1, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
-	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(size(rootParams), rootParams, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-	return CreateRootSignature(sigDesc, L"terrain main pass root signature");
-}
-
-ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateMainPassPSO()
-{
-	const CD3DX12_RASTERIZER_DESC rasterDesc
-	(
-		D3D12_FILL_MODE_SOLID,
-		D3D12_CULL_MODE_NONE,
-		FALSE,										// front CCW
-		D3D12_DEFAULT_DEPTH_BIAS,
-		D3D12_DEFAULT_DEPTH_BIAS_CLAMP,
-		D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
-		TRUE,										// depth clip
-		FALSE,										// MSAA
-		FALSE,										// AA line
-		0,											// force sample count
-		D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF
-	);
-
-	const CD3DX12_DEPTH_STENCIL_DESC dsDesc
-	(
-		FALSE,																									// depth
-		D3D12_DEPTH_WRITE_MASK_ZERO,
-		D3D12_COMPARISON_FUNC_ALWAYS,
-		TRUE,																									// stencil
-		D3D12_DEFAULT_STENCIL_READ_MASK,																		// stencil read mask
-		D3D12_DEFAULT_STENCIL_WRITE_MASK,																		// stencil write mask
-		D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_ZERO, D3D12_COMPARISON_FUNC_NOT_EQUAL,	// front
-		D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_ZERO, D3D12_COMPARISON_FUNC_NOT_EQUAL	// back
-	);
-
-	const D3D12_INPUT_ELEMENT_DESC VB_decl[] =
-	{
-		{ "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-	};
-
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
-	{
-		mainPassRootSig.Get(),							// root signature
-		ShaderBytecode(Shaders::vectorLayerVS),			// VS
-		ShaderBytecode(Shaders::vectorLayerPS),			// PS
-		{},												// DS
-		{},												// HS
-		{},												// GS
-		{},												// SO
-		CD3DX12_BLEND_DESC(D3D12_DEFAULT),				// blend
-		UINT_MAX,										// sample mask
-		rasterDesc,										// rasterizer
-		dsDesc,											// depth stencil
-		{ VB_decl, size(VB_decl) },						// IA
-		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,	// restart primtive
-		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,			// primitive topology
-		1,												// render targets
-		{ Config::HDRFormat },							// RT formats
-		Config::ZFormat,								// depth stencil format
-		Config::MSAA(),									// MSAA
-		0,												// node mask
-		{},												// cached PSO
-		D3D12_PIPELINE_STATE_FLAG_NONE					// flags
-	};
-
-	ComPtr<ID3D12PipelineState> result;
-	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result.GetAddressOf())));
-	NameObject(result.Get(), L"terrain main pass PSO");
-	return move(result);
-}
-
 void Impl::TerrainVectorLayer::MainPassPre(CmdListPool::CmdList &cmdList) const
 {
-	const auto float2BYTE = [](float val) noexcept {return val * numeric_limits<BYTE>::max(); };
-	PIXBeginEvent(cmdList, PIX_COLOR(float2BYTE(albedo[0]), float2BYTE(albedo[1]), float2BYTE(albedo[2])), "main pass");
+	PIXBeginEvent(cmdList, layerMaterial->color, "main pass");
 	cmdList.FlushBarriers();
 }
 
@@ -463,13 +378,10 @@ void Impl::TerrainVectorLayer::MainPassRange(CmdListPool::CmdList &cmdList, unsi
 {
 	assert(rangeBegin < rangeEnd);
 
-	cmdList.Setup(mainPassPSO.Get());
+	cmdList.Setup(layerMaterial->PSO.Get());
 
 	mainPassSetupCallback(cmdList);
-	cmdList->SetGraphicsRootSignature(mainPassRootSig.Get());
-	cmdList->SetGraphicsRootConstantBufferView(MAIN_PASS_ROOT_PARAM_PER_FRAME_DATA_CBV, World::globalGPUBuffer->GetGPUVirtualAddress() + World::GlobalGPUBufferData::PerFrameData::CurFrameCB_offset());
-	cmdList->SetGraphicsRoot32BitConstants(MAIN_PASS_ROOT_PARAM_ALBEDO, size(albedo), albedo, 0);
-	cmdList->SetGraphicsRootConstantBufferView(MAIN_PASS_ROOT_PARAM_TONEMAP_PARAMS_CBV, tonemapParamsGPUAddress);
+	layerMaterial->Setup(cmdList, World::globalGPUBuffer->GetGPUVirtualAddress() + World::GlobalGPUBufferData::PerFrameData::CurFrameCB_offset(), tonemapParamsGPUAddress);
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	auto curOcclusionQueryIdx = OcclusionCulling::QueryBatchBase::npos;
@@ -574,6 +486,24 @@ inline void Impl::TerrainVectorLayer::IssueQuad(ID3D12Resource *VIB, unsigned lo
 #pragma endregion
 
 #pragma region visualize occlusion pass
+enum
+{
+	AABB_PASS_ROOT_PARAM_PER_FRAME_DATA_CBV,
+	AABB_PASS_ROOT_PARAM_ALBEDO,
+	AABB_PASS_ROOT_PARAM_TONEMAP_PARAMS_CBV,
+	AABB_PASS_ROOT_PARAM_COUNT
+};
+
+ComPtr<ID3D12RootSignature> Impl::TerrainVectorLayer::CreateAABB_RootSig()
+{
+	CD3DX12_ROOT_PARAMETER1 rootParams[AABB_PASS_ROOT_PARAM_COUNT];
+	rootParams[AABB_PASS_ROOT_PARAM_PER_FRAME_DATA_CBV].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC);
+	rootParams[AABB_PASS_ROOT_PARAM_ALBEDO].InitAsConstants(3, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+	rootParams[AABB_PASS_ROOT_PARAM_TONEMAP_PARAMS_CBV].InitAsConstantBufferView(1, 1, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
+	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(size(rootParams), rootParams, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	return CreateRootSignature(sigDesc, L"terrain AABB visualization root signature");
+}
+
 ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateAABB_PSO()
 {
 	const CD3DX12_RASTERIZER_DESC rasterDesc
@@ -611,7 +541,7 @@ ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateAABB_PSO()
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
 	{
-		mainPassRootSig.Get(),							// root signature
+		AABB_rootSig.Get(),								// root signature
 		ShaderBytecode(Shaders::AABB_2D),				// VS
 		ShaderBytecode(Shaders::AABB_2D_vis),			// PS
 		{},												// DS
@@ -654,7 +584,7 @@ void Impl::TerrainVectorLayer::AABBPassRange(CmdListPool::CmdList &cmdList, unsi
 	cmdList.Setup(AABB_PSO.Get());
 
 	mainPassSetupCallback(cmdList);
-	cmdList->SetGraphicsRootSignature(mainPassRootSig.Get());
+	cmdList->SetGraphicsRootSignature(AABB_rootSig.Get());
 	cmdList->SetGraphicsRootConstantBufferView(0, World::globalGPUBuffer->GetGPUVirtualAddress() + World::GlobalGPUBufferData::PerFrameData::CurFrameCB_offset());
 	cmdList->SetGraphicsRoot32BitConstants(1, size(color), color, 0);
 	cmdList->SetGraphicsRootConstantBufferView(2, tonemapParamsGPUAddress);
@@ -797,9 +727,11 @@ void TerrainVectorLayer::QuadDeleter::operator()(const TerrainVectorQuad *quadTo
 	quadToRemove->layer->quads.erase(quadLocation);
 }
 
-Impl::TerrainVectorLayer::TerrainVectorLayer(shared_ptr<class Renderer::World> &&world, unsigned int layerIdx, const float (&albedo)[3], string &&layerName) :
-	world(move(world)), layerIdx(layerIdx), albedo{ albedo[0], albedo[1], albedo[2] }, layerName(move(layerName))
+Impl::TerrainVectorLayer::TerrainVectorLayer(shared_ptr<class Renderer::World> &&world, shared_ptr<TerrainMaterials::Interface> &&layerMaterial, unsigned int layerIdx, string &&layerName) :
+	world(move(world)), layerIdx(layerIdx), layerName(move(layerName)), layerMaterial(move(layerMaterial))
 {
+	if (!this->layerMaterial)
+		throw logic_error("Attempt to create terrain vector layer with empty material.");
 }
 
 Impl::TerrainVectorLayer::~TerrainVectorLayer() = default;

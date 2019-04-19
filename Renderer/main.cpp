@@ -5,6 +5,7 @@
 #include "viewport.hh"		// for tonemap root sig & PSOs
 #include "world.hh"
 #include "terrain.hh"
+#include "terrain materials.hh"
 #include "object 3D.hh"
 #include "tracked resource.inl"
 #include "GPU stream buffer allocator.inl"
@@ -21,6 +22,7 @@ using Renderer::Impl::World;
 using Renderer::Impl::TerrainVectorLayer;
 using Renderer::Impl::Object3D;
 using Microsoft::WRL::ComPtr;
+namespace TerrainMaterials = Renderer::TerrainMaterials;
 
 static constexpr size_t maxD3D12NameLength = 256;
 
@@ -184,11 +186,6 @@ ComPtr<IDXGIFactory5> factory = TryCreateFactory();
 ComPtr<ID3D12Device2> device = TryCreateDevice();
 ComPtr<ID3D12CommandQueue> cmdQueue = device ? CreateCommandQueue() : nullptr;
 
-namespace Renderer::Impl::Descriptors::GPUDescriptorHeap::Impl
-{
-	ComPtr<ID3D12DescriptorHeap> CreateHeap(), heap = device ? CreateHeap() : nullptr;
-}
-
 ComPtr<ID3D12Resource> RenderOutput::tonemapReductionBuffer = device ? RenderOutput::CreateTonemapReductionBuffer() : nullptr;
 
 struct RetiredResource
@@ -218,7 +215,8 @@ void OnFrameFinish()
 ComPtr<ID3D12RootSignature>
 	Viewport::tonemapRootSig						= Viewport::TryCreateTonemapRootSig(),
 	TerrainVectorLayer::cullPassRootSig				= TerrainVectorLayer::TryCreateCullPassRootSig(),
-	TerrainVectorLayer::mainPassRootSig				= TerrainVectorLayer::TryCreateMainPassRootSig(),
+	TerrainVectorLayer::AABB_rootSig				= TerrainVectorLayer::TryCreateAABB_RootSig(),
+	TerrainMaterials::Flat::rootSig					= TerrainMaterials::Flat::TryCreateRootSig(),
 	World::xformAABB_RootSig						= World::TryCreateXformAABB_RootSig(),
 	World::cullPassRootSig							= World::TryCreateCullPassRootSig(),
 	World::AABB_RootSig								= World::TryCreateAABB_RootSig(),
@@ -228,8 +226,8 @@ ComPtr<ID3D12PipelineState>
 	Viewport::tonemapBufferReductionPSO				= Viewport::TryCreateTonemapBufferReductionPSO(),
 	Viewport::tonemapPSO							= Viewport::TryCreateTonemapPSO(),
 	TerrainVectorLayer::cullPassPSO					= TerrainVectorLayer::TryCreateCullPassPSO(),
-	TerrainVectorLayer::mainPassPSO					= TerrainVectorLayer::TryCreateMainPassPSO(),
 	TerrainVectorLayer::AABB_PSO					= TerrainVectorLayer::TryCreateAABB_PSO(),
+	TerrainMaterials::Flat::PSO						= TerrainMaterials::Flat::TryCreatePSO(),
 	World::xformAABB_PSO							= World::TryCreateXformAABB_PSO();
 decltype(World::cullPassPSOs) World::cullPassPSOs	= World::TryCreateCullPassPSOs();
 decltype(World::AABB_PSOs) World::AABB_PSOs			= World::TryCreateAABB_PSOs();
@@ -246,9 +244,14 @@ inline ComPtr<ID3D12RootSignature> TerrainVectorLayer::TryCreateCullPassRootSig(
 	return device ? CreateCullPassRootSig() : nullptr;
 }
 
-inline ComPtr<ID3D12RootSignature> TerrainVectorLayer::TryCreateMainPassRootSig()
+inline ComPtr<ID3D12RootSignature> TerrainVectorLayer::TryCreateAABB_RootSig()
 {
-	return device ? CreateMainPassRootSig() : nullptr;
+	return device ? CreateAABB_RootSig() : nullptr;
+}
+
+inline ComPtr<ID3D12RootSignature> TerrainMaterials::Flat::TryCreateRootSig()
+{
+	return device ? CreateRootSig() : nullptr;
 }
 
 inline ComPtr<ID3D12RootSignature> World::TryCreateXformAABB_RootSig()
@@ -291,14 +294,14 @@ inline ComPtr<ID3D12PipelineState> TerrainVectorLayer::TryCreateCullPassPSO()
 	return device ? CreateCullPassPSO() : nullptr;
 }
 
-inline ComPtr<ID3D12PipelineState> TerrainVectorLayer::TryCreateMainPassPSO()
-{
-	return device ? CreateMainPassPSO() : nullptr;
-}
-
 inline ComPtr<ID3D12PipelineState> TerrainVectorLayer::TryCreateAABB_PSO()
 {
 	return device ? CreateAABB_PSO() : nullptr;
+}
+
+inline ComPtr<ID3D12PipelineState> TerrainMaterials::Flat::TryCreatePSO()
+{
+	return device ? CreatePSO() : nullptr;
 }
 
 inline ComPtr<ID3D12PipelineState> World::TryCreateXformAABB_PSO()
@@ -351,6 +354,10 @@ namespace Renderer::Impl
 }
 
 // tracked resource should be destroyed before globalFrameVersioning => should be defined after globalFrameVersioning
+namespace Renderer::Impl::Descriptors::GPUDescriptorHeap::Impl
+{
+	TrackedResource<ID3D12DescriptorHeap> heap;
+}
 namespace OcclusionCulling = Renderer::Impl::OcclusionCulling;
 using OcclusionCulling::QueryBatchBase;
 using OcclusionCulling::QueryBatch;
@@ -377,20 +384,19 @@ extern void __cdecl InitRenderer()
 
 	if (!device)
 	{
-		namespace GPUDescriptorHeap = Renderer::Impl::Descriptors::GPUDescriptorHeap;
 		device = CreateDevice();
 		cmdQueue = CreateCommandQueue();
-		GPUDescriptorHeap::Impl::heap			= GPUDescriptorHeap::Impl::CreateHeap();
 		RenderOutput::tonemapReductionBuffer	= RenderOutput::CreateTonemapReductionBuffer();
 		Viewport::tonemapRootSig				= Viewport::CreateTonemapRootSig();
 		Viewport::tonemapTextureReductionPSO	= Viewport::CreateTonemapTextureReductionPSO();
 		Viewport::tonemapBufferReductionPSO		= Viewport::CreateTonemapBufferReductionPSO();
 		Viewport::tonemapPSO					= Viewport::CreateTonemapPSO();
 		TerrainVectorLayer::cullPassRootSig		= TerrainVectorLayer::CreateCullPassRootSig();
-		TerrainVectorLayer::mainPassRootSig		= TerrainVectorLayer::CreateMainPassRootSig();
+		TerrainVectorLayer::AABB_rootSig		= TerrainVectorLayer::CreateAABB_RootSig();
 		TerrainVectorLayer::cullPassPSO			= TerrainVectorLayer::CreateCullPassPSO();
-		TerrainVectorLayer::mainPassPSO			= TerrainVectorLayer::CreateMainPassPSO();
 		TerrainVectorLayer::AABB_PSO			= TerrainVectorLayer::CreateAABB_PSO();
+		TerrainMaterials::Flat::rootSig			= TerrainMaterials::Flat::CreateRootSig();
+		TerrainMaterials::Flat::PSO				= TerrainMaterials::Flat::CreatePSO();
 		World::xformAABB_RootSig				= World::CreateXformAABB_RootSig();
 		World::cullPassRootSig					= World::CreateCullPassRootSig();
 		World::AABB_RootSig						= World::CreateAABB_RootSig();

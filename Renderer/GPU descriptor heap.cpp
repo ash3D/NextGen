@@ -2,27 +2,47 @@
 #include "GPU descriptor heap.h"
 #include "tonemap resource views stage.h"
 #include "frame versioning.h"
+#include "tracked resource.inl"
 
 using namespace Renderer::Impl;
 using namespace Descriptors;
-using Microsoft::WRL::ComPtr;
+using GPUDescriptorHeap::Impl::heap;
 
-extern ComPtr<ID3D12Device2> device;
+extern Microsoft::WRL::ComPtr<ID3D12Device2> device;
+static constexpr auto heapStaticBlockSize = TonemapResourceViewsStage::ViewCount * maxFrameLatency;
+static UINT heapSize = heapStaticBlockSize;
+decltype(GPUDescriptorHeap::AllocationClient::registeredClients) GPUDescriptorHeap::AllocationClient::registeredClients;
 
-ComPtr<ID3D12DescriptorHeap> GPUDescriptorHeap::Impl::CreateHeap()
+void GPUDescriptorHeap::OnFrameStart()
 {
-	void NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
-
-	const D3D12_DESCRIPTOR_HEAP_DESC desc =
+	// create heap if needed
+	if (!heap)
 	{
-		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,					// type
-		TonemapResourceViewsStage::ViewCount * maxFrameLatency,	// count
-		D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE				// GPU visible
-	};
-	ComPtr<ID3D12DescriptorHeap> result;
-	CheckHR(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(result.GetAddressOf())));
-	NameObjectF(result.Get(), L"GPU descriptor heap (heap start CPU address: %p)", result->GetCPUDescriptorHandleForHeapStart());
-	return result;
+		void NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
+		static unsigned long version;
+
+		const D3D12_DESCRIPTOR_HEAP_DESC desc =
+		{
+			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,		// type
+			heapSize,									// count
+			D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE	// GPU visible
+		};
+		CheckHR(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(heap.GetAddressOf())));
+		NameObjectF(heap.Get(), L"GPU descriptor heap [%lu] (heap start CPU address: %p)", version++, heap->GetCPUDescriptorHandleForHeapStart());
+	}
+
+	// go over registered clients and invoke allocation handler\
+	TODO: use C++20 initializer in range-based for
+	const auto descriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	CD3DX12_CPU_DESCRIPTOR_HANDLE CPU_ptr(heap->GetCPUDescriptorHandleForHeapStart(), heapStaticBlockSize, descriptorSize);
+	CD3DX12_GPU_DESCRIPTOR_HANDLE GPU_ptr(heap->GetGPUDescriptorHandleForHeapStart(), heapStaticBlockSize, descriptorSize);
+	for (const auto &allocClient : AllocationClient::registeredClients)
+	{
+		allocClient.first->GPUDescriptorsAllocation = GPU_ptr.ptr;
+		allocClient.first->Commit(CPU_ptr);
+		CPU_ptr.Offset(allocClient.second, descriptorSize);
+		GPU_ptr.Offset(allocClient.second, descriptorSize);
+	}
 }
 
 D3D12_GPU_DESCRIPTOR_HANDLE GPUDescriptorHeap::SetCurFrameTonemapReductionDescs(const TonemapResourceViewsStage &stage, UINT backBufferIdx)
@@ -32,4 +52,21 @@ D3D12_GPU_DESCRIPTOR_HANDLE GPUDescriptorHeap::SetCurFrameTonemapReductionDescs(
 	const CD3DX12_CPU_DESCRIPTOR_HANDLE dst(GetHeap()->GetCPUDescriptorHandleForHeapStart(), GPUHeapOffset), src(stage.allocation->GetCPUDescriptorHandleForHeapStart());
 	device->CopyDescriptorsSimple(TonemapResourceViewsStage::ViewCount, dst, src, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	return CD3DX12_GPU_DESCRIPTOR_HANDLE(GetHeap()->GetGPUDescriptorHandleForHeapStart(), GPUHeapOffset);
+}
+
+GPUDescriptorHeap::AllocationClient::AllocationClient(unsigned allocSize)
+{
+	// force heap to recreate on next frame
+	heap.Reset();
+
+	registeredClients.emplace_back(this, allocSize);
+	heapSize += allocSize;
+	clientLocation = prev(registeredClients.cend());
+}
+
+// heap recreation is not mandatory, just descriptor memory would not be reclaimed and would remain wasted (trade it for perf here)
+GPUDescriptorHeap::AllocationClient::~AllocationClient()
+{
+	heapSize -= clientLocation->second;
+	registeredClients.erase(clientLocation);
 }

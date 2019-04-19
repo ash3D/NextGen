@@ -50,6 +50,11 @@ namespace Renderer
 	class Instance;
 	class World;
 
+	namespace TerrainMaterials
+	{
+		class Interface;
+	}
+
 	namespace Impl
 	{
 		class Viewport;
@@ -274,7 +279,7 @@ namespace Renderer
 			typedef std::unique_ptr<const Renderer::Instance, InstanceDeleter> InstancePtr;
 			void SetSunDir(float zenith, float azimuth);
 			std::shared_ptr<Renderer::Viewport> CreateViewport() const;
-			std::shared_ptr<Renderer::TerrainVectorLayer> AddTerrainVectorLayer(unsigned int layerIdx, const float (&color)[3], std::string layerName);
+			std::shared_ptr<Renderer::TerrainVectorLayer> AddTerrainVectorLayer(std::shared_ptr<TerrainMaterials::Interface> layerMaterial, unsigned int layerIdx, std::string layerName);
 			InstancePtr AddStaticObject(Renderer::Object3D object, const float (&xform)[4][3], const AABB<3> &worldAABB);
 			void FlushUpdates() const;	// const to be able to call from Render()
 
@@ -284,12 +289,18 @@ namespace Renderer
 		};
 	}
 
+	namespace TerrainMaterials
+	{
+		class Flat;
+	}
+
 	class World final : public Impl::World
 	{
 		friend std::shared_ptr<World> __cdecl MakeWorld(const float (&terrainXform)[4][3], float zenith = 0, float azimuth = 0);
 		friend class Impl::Viewport;
 		friend class Impl::TerrainVectorLayer;	// for Allocator
 		friend class TerrainVectorQuad;			// for Allocator
+		friend class TerrainMaterials::Flat;	// for Allocator
 
 #if defined _MSC_VER && _MSC_VER <= 1920
 	private:

@@ -15,18 +15,14 @@ namespace Renderer::Impl::Descriptors
 
 	namespace GPUDescriptorHeap
 	{
-		namespace Impl
-		{
-			WRL::ComPtr<ID3D12DescriptorHeap> CreateHeap();
-		}
 		D3D12_GPU_DESCRIPTOR_HANDLE SetCurFrameTonemapReductionDescs(const TonemapResourceViewsStage &src, UINT backBufferIdx);
 	}
 
 	class TonemapResourceViewsStage
 	{
-		friend WRL::ComPtr<ID3D12DescriptorHeap> GPUDescriptorHeap::Impl::CreateHeap();
 		friend D3D12_GPU_DESCRIPTOR_HANDLE GPUDescriptorHeap::SetCurFrameTonemapReductionDescs(const TonemapResourceViewsStage &src, UINT backBufferIdx);
 
+	public:
 		enum
 		{
 			SrcSRV,
@@ -35,6 +31,8 @@ namespace Renderer::Impl::Descriptors
 			ReductionBufferSRV,
 			ViewCount
 		};
+
+	private:
 		WRL::ComPtr<ID3D12DescriptorHeap> allocation;	// CPU heap does not require lifetime tracking
 
 	public:

@@ -153,6 +153,12 @@
     <ClInclude Include="DDSTextureLoader12.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="terrain material interface.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\terrain materials.hh">
+      <Filter>Include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -228,6 +234,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="DDSTextureLoader12.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="terrain materials.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
