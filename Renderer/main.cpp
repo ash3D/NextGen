@@ -217,9 +217,9 @@ ComPtr<ID3D12RootSignature>
 	TerrainVectorLayer::cullPassRootSig				= TerrainVectorLayer::TryCreateCullPassRootSig(),
 	TerrainVectorLayer::AABB_rootSig				= TerrainVectorLayer::TryCreateAABB_RootSig(),
 	TerrainMaterials::Flat::rootSig					= TerrainMaterials::Flat::TryCreateRootSig(),
-	World::xformAABB_RootSig						= World::TryCreateXformAABB_RootSig(),
+	World::xformAABB_rootSig						= World::TryCreateXformAABB_RootSig(),
 	World::cullPassRootSig							= World::TryCreateCullPassRootSig(),
-	World::AABB_RootSig								= World::TryCreateAABB_RootSig(),
+	World::AABB_rootSig								= World::TryCreateAABB_RootSig(),
 	Object3D::rootSig								= Object3D::TryCreateRootSig();
 ComPtr<ID3D12PipelineState>
 	Viewport::tonemapTextureReductionPSO			= Viewport::TryCreateTonemapTextureReductionPSO(),
@@ -397,9 +397,9 @@ extern void __cdecl InitRenderer()
 		TerrainVectorLayer::AABB_PSO			= TerrainVectorLayer::CreateAABB_PSO();
 		TerrainMaterials::Flat::rootSig			= TerrainMaterials::Flat::CreateRootSig();
 		TerrainMaterials::Flat::PSO				= TerrainMaterials::Flat::CreatePSO();
-		World::xformAABB_RootSig				= World::CreateXformAABB_RootSig();
+		World::xformAABB_rootSig				= World::CreateXformAABB_RootSig();
 		World::cullPassRootSig					= World::CreateCullPassRootSig();
-		World::AABB_RootSig						= World::CreateAABB_RootSig();
+		World::AABB_rootSig						= World::CreateAABB_RootSig();
 		World::xformAABB_PSO					= World::CreateXformAABB_PSO();
 		World::cullPassPSOs						= World::CreateCullPassPSOs();
 		World::AABB_PSOs						= World::CreateAABB_PSOs();

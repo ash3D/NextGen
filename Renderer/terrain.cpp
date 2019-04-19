@@ -489,8 +489,8 @@ inline void Impl::TerrainVectorLayer::IssueQuad(ID3D12Resource *VIB, unsigned lo
 enum
 {
 	AABB_PASS_ROOT_PARAM_PER_FRAME_DATA_CBV,
-	AABB_PASS_ROOT_PARAM_ALBEDO,
 	AABB_PASS_ROOT_PARAM_TONEMAP_PARAMS_CBV,
+	AABB_PASS_ROOT_PARAM_COLOR,
 	AABB_PASS_ROOT_PARAM_COUNT
 };
 
@@ -498,8 +498,8 @@ ComPtr<ID3D12RootSignature> Impl::TerrainVectorLayer::CreateAABB_RootSig()
 {
 	CD3DX12_ROOT_PARAMETER1 rootParams[AABB_PASS_ROOT_PARAM_COUNT];
 	rootParams[AABB_PASS_ROOT_PARAM_PER_FRAME_DATA_CBV].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC);
-	rootParams[AABB_PASS_ROOT_PARAM_ALBEDO].InitAsConstants(3, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParams[AABB_PASS_ROOT_PARAM_TONEMAP_PARAMS_CBV].InitAsConstantBufferView(1, 1, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
+	rootParams[AABB_PASS_ROOT_PARAM_COLOR].InitAsConstants(3, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
 	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(size(rootParams), rootParams, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	return CreateRootSignature(sigDesc, L"terrain AABB visualization root signature");
 }
@@ -585,9 +585,9 @@ void Impl::TerrainVectorLayer::AABBPassRange(CmdListPool::CmdList &cmdList, unsi
 
 	mainPassSetupCallback(cmdList);
 	cmdList->SetGraphicsRootSignature(AABB_rootSig.Get());
-	cmdList->SetGraphicsRootConstantBufferView(0, World::globalGPUBuffer->GetGPUVirtualAddress() + World::GlobalGPUBufferData::PerFrameData::CurFrameCB_offset());
-	cmdList->SetGraphicsRoot32BitConstants(1, size(color), color, 0);
-	cmdList->SetGraphicsRootConstantBufferView(2, tonemapParamsGPUAddress);
+	cmdList->SetGraphicsRootConstantBufferView(AABB_PASS_ROOT_PARAM_PER_FRAME_DATA_CBV, World::globalGPUBuffer->GetGPUVirtualAddress() + World::GlobalGPUBufferData::PerFrameData::CurFrameCB_offset());
+	cmdList->SetGraphicsRootConstantBufferView(AABB_PASS_ROOT_PARAM_TONEMAP_PARAMS_CBV, tonemapParamsGPUAddress);
+	cmdList->SetGraphicsRoot32BitConstants(AABB_PASS_ROOT_PARAM_COLOR, size(color), color, 0);
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
 	const auto &queryBatch = get<true>(occlusionQueryBatch);

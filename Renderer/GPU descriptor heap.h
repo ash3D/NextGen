@@ -11,40 +11,40 @@ struct D3D12_GPU_DESCRIPTOR_HANDLE;
 namespace Renderer::Impl::Descriptors
 {
 	class TonemapResourceViewsStage;
-}
 
-namespace Renderer::Impl::Descriptors::GPUDescriptorHeap
-{
-	namespace Impl
+	namespace GPUDescriptorHeap
 	{
-		extern TrackedResource<ID3D12DescriptorHeap> heap;
+		namespace Impl
+		{
+			extern TrackedResource<ID3D12DescriptorHeap> heap;
+		}
+
+		inline const auto &GetHeap() noexcept { return Impl::heap; }
+		void OnFrameStart();
+		D3D12_GPU_DESCRIPTOR_HANDLE SetCurFrameTonemapReductionDescs(const TonemapResourceViewsStage &src, UINT backBufferIdx);
+
+		class AllocationClient
+		{
+			friend void OnFrameStart();
+
+		private:
+			static std::list<std::pair<const AllocationClient *, unsigned>> registeredClients;
+			decltype(registeredClients)::const_iterator clientLocation;
+			mutable UINT64 GPUDescriptorsAllocation;
+
+		protected:
+			AllocationClient(unsigned allocSize);
+			~AllocationClient();
+
+		public:
+			AllocationClient(AllocationClient &) = delete;
+			void operator =(AllocationClient &) = delete;
+
+		protected:
+			inline auto GetGPUDescriptorsAllocation() const noexcept { return GPUDescriptorsAllocation; }
+
+		private:
+			virtual void Commit(D3D12_CPU_DESCRIPTOR_HANDLE dst) const = 0;
+		};
 	}
-
-	inline const auto &GetHeap() noexcept { return Impl::heap; }
-	void OnFrameStart();
-	D3D12_GPU_DESCRIPTOR_HANDLE SetCurFrameTonemapReductionDescs(const TonemapResourceViewsStage &src, UINT backBufferIdx);
-
-	class AllocationClient
-	{
-		friend void OnFrameStart();
-
-	private:
-		static std::list<std::pair<const AllocationClient *, unsigned>> registeredClients;
-		decltype(registeredClients)::const_iterator clientLocation;
-		mutable UINT64 GPUDescriptorsAllocation;
-
-	protected:
-		AllocationClient(unsigned allocSize);
-		~AllocationClient();
-
-	public:
-		AllocationClient(AllocationClient &) = delete;
-		void operator =(AllocationClient &) = delete;
-
-	protected:
-		inline auto GetGPUDescriptorsAllocation() const noexcept { return GPUDescriptorsAllocation; }
-
-	private:
-		virtual void Commit(D3D12_CPU_DESCRIPTOR_HANDLE dst) const = 0;
-	};
 }

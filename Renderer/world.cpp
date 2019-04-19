@@ -144,7 +144,7 @@ ComPtr<ID3D12PipelineState> Impl::World::CreateXformAABB_PSO()
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
 	{
-		xformAABB_RootSig.Get(),						// root signature
+		xformAABB_rootSig.Get(),						// root signature
 		ShaderBytecode(Shaders::AABB_3D_xform),			// VS
 		{},												// PS
 		{},												// DS
@@ -296,7 +296,7 @@ void Impl::World::XformAABBPassRange(CmdListPool::CmdList &cmdList, unsigned lon
 
 	cmdList.Setup(xformAABB_PSO.Get());
 
-	cmdList->SetGraphicsRootSignature(xformAABB_RootSig.Get());
+	cmdList->SetGraphicsRootSignature(xformAABB_rootSig.Get());
 	cmdList->SetGraphicsRootConstantBufferView(0, globalGPUBuffer->GetGPUVirtualAddress() + GlobalGPUBufferData::PerFrameData::CurFrameCB_offset());
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
 
@@ -523,7 +523,7 @@ auto Impl::World::CreateAABB_PSOs() -> decltype(AABB_PSOs)
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
 	{
-		AABB_RootSig.Get(),								// root signature
+		AABB_rootSig.Get(),								// root signature
 		ShaderBytecode(Shaders::AABB_3D),				// VS
 		ShaderBytecode(Shaders::AABB_3D_vis),			// PS
 		{},												// DS
@@ -577,7 +577,7 @@ void Impl::World::AABBPassRange(CmdListPool::CmdList &cmdList, unsigned long ran
 	const auto &queryBatch = get<true>(occlusionQueryBatch);
 
 	mainPassSetupCallback(cmdList);
-	cmdList->SetGraphicsRootSignature(AABB_RootSig.Get());
+	cmdList->SetGraphicsRootSignature(AABB_rootSig.Get());
 	cmdList->SetGraphicsRootConstantBufferView(AABB_PASS_ROOT_PARAM_COLOR_CBV, globalGPUBuffer->GetGPUVirtualAddress() + GlobalGPUBufferData::AABB_3D_VisColors::CB_offset(visible));
 	cmdList->SetGraphicsRootConstantBufferView(AABB_PASS_ROOT_PARAM_TONEMAP_PARAMS_CBV, tonemapParamsGPUAddress);
 	cmdList->SetGraphicsRootShaderResourceView(AABB_PASS_ROOT_PARAM_VISIBILITY1_SRV, queryBatch.GetGPUPtr(false));

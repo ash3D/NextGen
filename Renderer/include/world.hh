@@ -165,7 +165,7 @@ namespace Renderer
 
 #pragma region occlusion query passes
 		private:
-			static ComPtr<ID3D12RootSignature> xformAABB_RootSig, TryCreateXformAABB_RootSig(), CreateXformAABB_RootSig();
+			static ComPtr<ID3D12RootSignature> xformAABB_rootSig, TryCreateXformAABB_RootSig(), CreateXformAABB_RootSig();
 			static ComPtr<ID3D12PipelineState> xformAABB_PSO, TryCreateXformAABB_PSO(), CreateXformAABB_PSO();
 			static ComPtr<ID3D12RootSignature> cullPassRootSig, TryCreateCullPassRootSig(), CreateCullPassRootSig();
 			static std::array<ComPtr<ID3D12PipelineState>, 2> cullPassPSOs, TryCreateCullPassPSOs(), CreateCullPassPSOs();
@@ -211,7 +211,7 @@ namespace Renderer
 
 #pragma region visualize occlusion pass
 		private:
-			static ComPtr<ID3D12RootSignature> AABB_RootSig, TryCreateAABB_RootSig(), CreateAABB_RootSig();
+			static ComPtr<ID3D12RootSignature> AABB_rootSig, TryCreateAABB_RootSig(), CreateAABB_RootSig();
 			static std::array<ComPtr<ID3D12PipelineState>, 2> AABB_PSOs, TryCreateAABB_PSOs(), CreateAABB_PSOs();
 
 		private:
