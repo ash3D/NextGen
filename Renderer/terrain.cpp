@@ -316,7 +316,7 @@ void Impl::TerrainVectorLayer::CullPassRange(CmdListPool::CmdList &cmdList, unsi
 
 	cullPassSetupCallback(cmdList);
 	cmdList->SetGraphicsRootSignature(cullPassRootSig.Get());
-	cmdList->SetGraphicsRootConstantBufferView(0, World::globalGPUBuffer->GetGPUVirtualAddress() + World::GlobalGPUBufferData::PerFrameData::CurFrameCB_offset());
+	cmdList->SetGraphicsRootConstantBufferView(0, World::GetCurFrameGPUDataPtr());
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
 	const OcclusionCulling::QueryBatchBase &queryBatch = visit([](const OcclusionCulling::QueryBatchBase &queryBatch) noexcept -> const auto & { return queryBatch; }, occlusionQueryBatch);
@@ -381,7 +381,7 @@ void Impl::TerrainVectorLayer::MainPassRange(CmdListPool::CmdList &cmdList, unsi
 	cmdList.Setup(layerMaterial->PSO.Get());
 
 	mainPassSetupCallback(cmdList);
-	layerMaterial->Setup(cmdList, World::globalGPUBuffer->GetGPUVirtualAddress() + World::GlobalGPUBufferData::PerFrameData::CurFrameCB_offset(), tonemapParamsGPUAddress);
+	layerMaterial->Setup(cmdList, World::GetCurFrameGPUDataPtr(), tonemapParamsGPUAddress);
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	auto curOcclusionQueryIdx = OcclusionCulling::QueryBatchBase::npos;
@@ -585,7 +585,7 @@ void Impl::TerrainVectorLayer::AABBPassRange(CmdListPool::CmdList &cmdList, unsi
 
 	mainPassSetupCallback(cmdList);
 	cmdList->SetGraphicsRootSignature(AABB_rootSig.Get());
-	cmdList->SetGraphicsRootConstantBufferView(AABB_PASS_ROOT_PARAM_PER_FRAME_DATA_CBV, World::globalGPUBuffer->GetGPUVirtualAddress() + World::GlobalGPUBufferData::PerFrameData::CurFrameCB_offset());
+	cmdList->SetGraphicsRootConstantBufferView(AABB_PASS_ROOT_PARAM_PER_FRAME_DATA_CBV, World::GetCurFrameGPUDataPtr());
 	cmdList->SetGraphicsRootConstantBufferView(AABB_PASS_ROOT_PARAM_TONEMAP_PARAMS_CBV, tonemapParamsGPUAddress);
 	cmdList->SetGraphicsRoot32BitConstants(AABB_PASS_ROOT_PARAM_COLOR, size(color), color, 0);
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);

@@ -95,20 +95,18 @@ namespace Renderer
 				}
 			};
 
-		protected:
+		private:
 			// hazard tracking is not needed here - all the waiting required perormed in globalFrameVersioning dtor
-			static ComPtr<ID3D12Resource> globalGPUBuffer;
+			static ComPtr<ID3D12Resource> globalGPUBuffer, TryCreateGlobalGPUBuffer(), CreateGlobalGPUBuffer();
 			struct GlobalGPUBufferData;	// defined in "global GPU buffer data.h" to eliminate dependencies on d3d12.h here
-
-		private:
-			static ComPtr<ID3D12Resource> TryCreateGlobalGPUBuffer(), CreateGlobalGPUBuffer();
-
-		private:
 			static volatile struct GlobalGPUBufferData
 #if PERSISTENT_MAPS
 				*globalGPUBuffer_CPU_ptr, *TryMapGlobalGPUBuffer(),
 #endif
 				*MapGlobalGPUBuffer(const D3D12_RANGE *readRange = NULL);
+
+		protected:
+			static UINT64 GetCurFrameGPUDataPtr();	// PerFrameData GPU address for cur frame
 
 		private:
 			// terrain

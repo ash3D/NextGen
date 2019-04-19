@@ -83,6 +83,11 @@ auto Impl::World::MapGlobalGPUBuffer(const D3D12_RANGE *readRange) -> volatile G
 	return CPU_ptr;
 }
 
+UINT64 Impl::World::GetCurFrameGPUDataPtr()
+{
+	return globalGPUBuffer->GetGPUVirtualAddress() + GlobalGPUBufferData::PerFrameData::CurFrameCB_offset();
+}
+
 // defined here, not in class in order to eliminate dependency on "instance.hh" in "world.hh"
 #if defined _MSC_VER && _MSC_VER <= 1920
 inline const AABB<3> &Impl::World::BVHObject::GetAABB() const noexcept
@@ -297,7 +302,7 @@ void Impl::World::XformAABBPassRange(CmdListPool::CmdList &cmdList, unsigned lon
 	cmdList.Setup(xformAABB_PSO.Get());
 
 	cmdList->SetGraphicsRootSignature(xformAABB_rootSig.Get());
-	cmdList->SetGraphicsRootConstantBufferView(0, globalGPUBuffer->GetGPUVirtualAddress() + GlobalGPUBufferData::PerFrameData::CurFrameCB_offset());
+	cmdList->SetGraphicsRootConstantBufferView(0, GetCurFrameGPUDataPtr());
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
 
 	// set SO
@@ -406,7 +411,7 @@ void Impl::World::MainPassRange(CmdListPool::CmdList &cmdList, unsigned long ran
 
 	mainPassSetupCallback(cmdList);
 	cmdList->SetGraphicsRootSignature(decltype(staticObjects)::value_type::GetRootSignature().Get());
-	cmdList->SetGraphicsRootConstantBufferView(Renderer::Object3D::ROOT_PARAM_PER_FRAME_DATA_CBV, globalGPUBuffer->GetGPUVirtualAddress() + GlobalGPUBufferData::PerFrameData::CurFrameCB_offset());
+	cmdList->SetGraphicsRootConstantBufferView(Renderer::Object3D::ROOT_PARAM_PER_FRAME_DATA_CBV, GetCurFrameGPUDataPtr());
 	cmdList->SetGraphicsRootConstantBufferView(Renderer::Object3D::ROOT_PARAM_TONEMAP_PARAMS_CBV, tonemapParamsGPUAddress);
 
 	for_each(next(renderStream.cbegin(), rangeBegin), next(renderStream.cbegin(), rangeEnd), [&, curOcclusionQueryIdx = OcclusionCulling::QueryBatchBase::npos, final](remove_reference_t<decltype(renderStream)>::value_type renderData) mutable
