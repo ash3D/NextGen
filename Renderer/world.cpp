@@ -1093,6 +1093,6 @@ shared_ptr<World> __cdecl Renderer::MakeWorld(const float (&terrainXform)[4][3],
 #else
 shared_ptr<World> __cdecl Renderer::MakeWorld(const float (&terrainXform)[4][3], float zenith, float azimuth)
 {
-	return allocate_shared<World>(World::Allocator<World>(), terrainXform, zenith, azimuth);
+	return allocate_shared<World>(Misc::AllocatorProxy<World>(), terrainXform, zenith, azimuth);
 }
 #endif

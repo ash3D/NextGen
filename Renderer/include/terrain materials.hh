@@ -4,7 +4,7 @@
 #include <wrl/client.h>
 #include "../terrain material interface.h"
 #include "../GPU descriptor heap.h"
-#include "world.hh"	// temp for Allocator
+#include "allocator adaptors.h"
 
 struct ID3D12RootSignature;
 struct ID3D12PipelineState;
@@ -36,8 +36,8 @@ namespace Renderer::TerrainMaterials
 
 	class Flat : public Interface
 	{
-		template<typename>
-		friend class World::Allocator;
+		template<class>
+		friend class Misc::AllocatorProxyAdaptor;
 
 	private:
 		friend extern void __cdecl ::InitRenderer();

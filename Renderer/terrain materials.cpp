@@ -16,6 +16,7 @@ namespace Shaders
 using namespace std;
 using namespace Renderer::TerrainMaterials;
 using WRL::ComPtr;
+using Misc::AllocatorProxy;
 
 extern ComPtr<ID3D12Device2> device;
 void NameObject(ID3D12Object *object, LPCWSTR name) noexcept, NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
@@ -162,7 +163,7 @@ shared_ptr<Interface> Flat::Make(const float (&albedo)[3])
 #if defined _MSC_VER && _MSC_VER <= 1920
 	return make_shared<Flat>(tag(), albedo);
 #else
-	return allocate_shared<Flat>(World::Allocator<Flat>(), albedo);
+	return allocate_shared<Flat>(AllocatorPeoxy<Flat>(), albedo);
 #endif
 }
 

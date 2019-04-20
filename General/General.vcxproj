@@ -315,6 +315,7 @@
   <ItemGroup>
     <ClInclude Include="AABB.h" />
     <ClInclude Include="align.h" />
+    <ClInclude Include="allocator adaptors.h" />
     <ClInclude Include="binaryIO.h" />
     <ClInclude Include="collision.h" />
     <ClInclude Include="CompilerCheck.h" />

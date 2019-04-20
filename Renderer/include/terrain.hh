@@ -11,7 +11,6 @@
 #include <optional>
 #include <variant>
 #include <wrl/client.h>
-#include "world.hh"	// temp for Allocator
 #include "../tracked resource.h"
 #include "../AABB.h"
 #include "../world hierarchy.h"
@@ -19,6 +18,7 @@
 #include "../render pipeline.h"
 #include "../GPU stream buffer allocator.h"
 #include "../occlusion query batch.h"
+#include "allocator adaptors.h"
 #define DISABLE_MATRIX_SWIZZLES
 #if !__INTELLISENSE__ 
 #include "vector math.h"
@@ -36,6 +36,8 @@ namespace Renderer
 	namespace WRL = Microsoft::WRL;
 	namespace HLSL = Math::VectorMath::HLSL;
 
+	class World;
+
 	namespace Impl
 	{
 		class World;
@@ -43,6 +45,8 @@ namespace Renderer
 
 		template<unsigned int dimension>
 		class FrustumCuller;
+
+		using Misc::AllocatorProxy;
 	}
 
 	namespace TerrainMaterials
@@ -52,10 +56,9 @@ namespace Renderer
 
 	class TerrainVectorQuad final
 	{
+		template<class>
+		friend class Misc::AllocatorProxyAdaptor;
 		friend class Impl::TerrainVectorLayer;
-
-		template<typename>
-		friend class World::Allocator;
 
 	private:
 		struct ObjectData
@@ -120,7 +123,7 @@ namespace Renderer
 		private:
 			const std::string layerName;
 			const std::shared_ptr<TerrainMaterials::Interface> layerMaterial;
-			std::list<class TerrainVectorQuad, World::Allocator<class TerrainVectorQuad>> quads;
+			std::list<class TerrainVectorQuad, AllocatorProxy<class TerrainVectorQuad>> quads;
 
 		private:
 			typedef decltype(TerrainVectorQuad::subtree)::Node TreeNode;
@@ -258,8 +261,13 @@ namespace Renderer
 
 	class TerrainVectorLayer final : public Impl::TerrainVectorLayer
 	{
+		template<class>
+		friend class Misc::AllocatorProxyAdaptor;
 		friend class Impl::World;
+
+	private:
 		using Impl::TerrainVectorLayer::TerrainVectorLayer;
+		~TerrainVectorLayer() = default;
 #if defined _MSC_VER && _MSC_VER <= 1920 && !defined __clang__
 		// this workaround makes '&TerrainVectorLayer::ScheduleRenderStage' accessible from 'Impl::World'\
 		somewhat strange as the problem does not reproduce for simple synthetic experiment

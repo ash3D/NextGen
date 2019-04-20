@@ -21,6 +21,7 @@
 #include "../GPU stream buffer allocator.h"
 #include "../SO buffer.h"
 #include "../occlusion query batch.h"
+#include "allocator adaptors.h"
 #define DISABLE_MATRIX_SWIZZLES
 #if !__INTELLISENSE__ 
 #include "vector math.h"
@@ -60,40 +61,12 @@ namespace Renderer
 		class Viewport;
 		class TerrainVectorLayer;
 		using WRL::ComPtr;
+		using Misc::AllocatorProxy;
 
 		class World : public std::enable_shared_from_this<Renderer::World>, RenderPipeline::IRenderStage
 		{
 			friend extern void __cdecl ::InitRenderer();
 			friend struct WorldViewContext;
-
-		protected:
-			// custom allocator needed because standard one does not have access to private ctor/dtor
-			template<typename T>
-			class Allocator : public std::allocator<T>
-			{
-			public:
-				template<class Other>
-				struct rebind
-				{
-					typedef Allocator<Other> other;
-				};
-
-			public:
-				using std::allocator<T>::allocator;
-
-			public:
-				template<class Class, typename ...Params>
-				void construct(Class *p, Params &&...params)
-				{
-					::new((void *)p) Class(std::forward<Params>(params)...);
-				}
-
-				template<class Class>
-				void destroy(Class *p)
-				{
-					p->~Class();
-				}
-			};
 
 		private:
 			// hazard tracking is not needed here - all the waiting required perormed in globalFrameVersioning dtor
@@ -111,7 +84,7 @@ namespace Renderer
 		private:
 			// terrain
 			float terrainXform[4][3];
-			std::list<Renderer::TerrainVectorLayer, Allocator<Renderer::TerrainVectorLayer>> terrainVectorLayers;
+			std::list<Renderer::TerrainVectorLayer, AllocatorProxy<Renderer::TerrainVectorLayer>> terrainVectorLayers;
 
 		private:
 			// sun
@@ -150,7 +123,7 @@ namespace Renderer
 			// static objects
 			mutable Hierarchy::BVH<Hierarchy::ENNEATREE, BVHObject> bvh;
 			mutable decltype(bvh)::View bvhView;
-			mutable std::list<Renderer::Instance, Allocator<Renderer::Instance>> staticObjects;
+			mutable std::list<Renderer::Instance, AllocatorProxy<Renderer::Instance>> staticObjects;
 			mutable TrackedResource<ID3D12Resource> staticObjectsCB;
 			struct StaticObjectData;
 			void InvalidateStaticObjects();
@@ -287,18 +260,13 @@ namespace Renderer
 		};
 	}
 
-	namespace TerrainMaterials
-	{
-		class Flat;
-	}
-
 	class World final : public Impl::World
 	{
+		template<class>
+		friend class Misc::AllocatorProxyAdaptor;
 		friend std::shared_ptr<World> __cdecl MakeWorld(const float (&terrainXform)[4][3], float zenith = 0, float azimuth = 0);
 		friend class Impl::Viewport;
-		friend class Impl::TerrainVectorLayer;	// for Allocator
-		friend class TerrainVectorQuad;			// for Allocator
-		friend class TerrainMaterials::Flat;	// for Allocator
+		friend class Impl::TerrainVectorLayer;	// for GetCurFrameGPUDataPtr()
 
 #if defined _MSC_VER && _MSC_VER <= 1920
 	private:

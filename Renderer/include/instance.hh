@@ -3,6 +3,7 @@
 #include <memory>
 #include "object 3D.hh"
 #include "../AABB.h"
+#include "allocator adaptors.h"
 
 struct ID3D12GraphicsCommandList2;
 
@@ -50,9 +51,12 @@ namespace Renderer
 
 	class Instance final : public Impl::Instance
 	{
+		template<class>
+		friend class Misc::AllocatorProxyAdaptor;
 		friend class Impl::World;
 
 	private:
 		using Impl::Instance::Instance;
+		~Instance() = default;
 	};
 }
