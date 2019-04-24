@@ -147,9 +147,6 @@
     <ClInclude Include="shader bytecode.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="texture.hh">
-      <Filter>Include</Filter>
-    </ClInclude>
     <ClInclude Include="DDSTextureLoader12.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -157,6 +154,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\terrain materials.hh">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="GPU texture sampler table.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\texture.hh">
       <Filter>Include</Filter>
     </ClInclude>
   </ItemGroup>
@@ -239,12 +242,12 @@
     <ClCompile Include="terrain materials.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="GPU texture sampler table.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="vectorLayerVS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="vectorLayerPS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="AABB_2D.hlsl">
@@ -275,6 +278,15 @@
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="tonemapTextureReduction.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="vectorLayerVS_UV.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="vectorLayerFlatPS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="vectorLayerTexPS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>
@@ -329,6 +341,9 @@
       <Filter>Shaders\Include</Filter>
     </None>
     <None Include="tonemap params.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
+    <None Include="samplers.hlsli">
       <Filter>Shaders\Include</Filter>
     </None>
   </ItemGroup>

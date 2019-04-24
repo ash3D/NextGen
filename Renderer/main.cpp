@@ -186,6 +186,11 @@ ComPtr<IDXGIFactory5> factory = TryCreateFactory();
 ComPtr<ID3D12Device2> device = TryCreateDevice();
 ComPtr<ID3D12CommandQueue> cmdQueue = device ? CreateCommandQueue() : nullptr;
 
+namespace Renderer::Impl::Descriptors::TextureSampers::Impl
+{
+	ComPtr<ID3D12DescriptorHeap> CreateHeap(), heap = device ? CreateHeap() : nullptr;
+}
+
 ComPtr<ID3D12Resource> RenderOutput::tonemapReductionBuffer = device ? RenderOutput::CreateTonemapReductionBuffer() : nullptr;
 
 struct RetiredResource
@@ -217,6 +222,7 @@ ComPtr<ID3D12RootSignature>
 	TerrainVectorLayer::cullPassRootSig				= TerrainVectorLayer::TryCreateCullPassRootSig(),
 	TerrainVectorLayer::AABB_rootSig				= TerrainVectorLayer::TryCreateAABB_RootSig(),
 	TerrainMaterials::Flat::rootSig					= TerrainMaterials::Flat::TryCreateRootSig(),
+	TerrainMaterials::Textured::rootSig				= TerrainMaterials::Textured::TryCreateRootSig(),
 	World::xformAABB_rootSig						= World::TryCreateXformAABB_RootSig(),
 	World::cullPassRootSig							= World::TryCreateCullPassRootSig(),
 	World::AABB_rootSig								= World::TryCreateAABB_RootSig(),
@@ -228,6 +234,7 @@ ComPtr<ID3D12PipelineState>
 	TerrainVectorLayer::cullPassPSO					= TerrainVectorLayer::TryCreateCullPassPSO(),
 	TerrainVectorLayer::AABB_PSO					= TerrainVectorLayer::TryCreateAABB_PSO(),
 	TerrainMaterials::Flat::PSO						= TerrainMaterials::Flat::TryCreatePSO(),
+	TerrainMaterials::Textured::PSO					= TerrainMaterials::Textured::TryCreatePSO(),
 	World::xformAABB_PSO							= World::TryCreateXformAABB_PSO();
 decltype(World::cullPassPSOs) World::cullPassPSOs	= World::TryCreateCullPassPSOs();
 decltype(World::AABB_PSOs) World::AABB_PSOs			= World::TryCreateAABB_PSOs();
@@ -250,6 +257,11 @@ inline ComPtr<ID3D12RootSignature> TerrainVectorLayer::TryCreateAABB_RootSig()
 }
 
 inline ComPtr<ID3D12RootSignature> TerrainMaterials::Flat::TryCreateRootSig()
+{
+	return device ? CreateRootSig() : nullptr;
+}
+
+inline ComPtr<ID3D12RootSignature> TerrainMaterials::Textured::TryCreateRootSig()
 {
 	return device ? CreateRootSig() : nullptr;
 }
@@ -300,6 +312,11 @@ inline ComPtr<ID3D12PipelineState> TerrainVectorLayer::TryCreateAABB_PSO()
 }
 
 inline ComPtr<ID3D12PipelineState> TerrainMaterials::Flat::TryCreatePSO()
+{
+	return device ? CreatePSO() : nullptr;
+}
+
+inline ComPtr<ID3D12PipelineState> TerrainMaterials::Textured::TryCreatePSO()
 {
 	return device ? CreatePSO() : nullptr;
 }
@@ -384,8 +401,10 @@ extern void __cdecl InitRenderer()
 
 	if (!device)
 	{
+		namespace TextureSampers = Renderer::Impl::Descriptors::TextureSampers;
 		device = CreateDevice();
 		cmdQueue = CreateCommandQueue();
+		TextureSampers::Impl::heap				= TextureSampers::Impl::CreateHeap();
 		RenderOutput::tonemapReductionBuffer	= RenderOutput::CreateTonemapReductionBuffer();
 		Viewport::tonemapRootSig				= Viewport::CreateTonemapRootSig();
 		Viewport::tonemapTextureReductionPSO	= Viewport::CreateTonemapTextureReductionPSO();
@@ -396,7 +415,9 @@ extern void __cdecl InitRenderer()
 		TerrainVectorLayer::cullPassPSO			= TerrainVectorLayer::CreateCullPassPSO();
 		TerrainVectorLayer::AABB_PSO			= TerrainVectorLayer::CreateAABB_PSO();
 		TerrainMaterials::Flat::rootSig			= TerrainMaterials::Flat::CreateRootSig();
+		TerrainMaterials::Textured::rootSig		= TerrainMaterials::Textured::CreateRootSig();
 		TerrainMaterials::Flat::PSO				= TerrainMaterials::Flat::CreatePSO();
+		TerrainMaterials::Textured::PSO			= TerrainMaterials::Textured::CreatePSO();
 		World::xformAABB_rootSig				= World::CreateXformAABB_RootSig();
 		World::cullPassRootSig					= World::CreateCullPassRootSig();
 		World::AABB_rootSig						= World::CreateAABB_RootSig();

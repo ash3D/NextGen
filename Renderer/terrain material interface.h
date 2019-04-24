@@ -5,6 +5,7 @@
 struct ID3D12RootSignature;
 struct ID3D12PipelineState;
 struct ID3D12GraphicsCommandList2;
+struct CD3DX12_ROOT_PARAMETER1;
 
 namespace Renderer::Impl
 {
@@ -32,6 +33,7 @@ namespace Renderer::TerrainMaterials
 				ROOT_PARAM_TONEMAP_PARAMS_CBV,
 				GLOBAL_ROOT_PARAM_COUNT
 			};
+			static void FillRootParams(CD3DX12_ROOT_PARAMETER1 dst[]);
 
 		protected:
 			Interface(const WRL::ComPtr<ID3D12RootSignature> &rootSig, const WRL::ComPtr<ID3D12PipelineState> &PSO, UINT color);

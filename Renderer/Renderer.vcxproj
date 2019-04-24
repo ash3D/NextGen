@@ -220,12 +220,14 @@
     <ClInclude Include="global GPU buffer data.h" />
     <ClInclude Include="GPU descriptor heap.h" />
     <ClInclude Include="GPU stream buffer allocator.h" />
+    <ClInclude Include="GPU texture sampler table.h" />
     <ClInclude Include="GPU work submission.h" />
     <ClInclude Include="HRESULT.h" />
     <ClInclude Include="include\instance.hh" />
     <ClInclude Include="include\object 3D.hh" />
     <ClInclude Include="include\terrain materials.hh" />
     <ClInclude Include="include\terrain.hh" />
+    <ClInclude Include="include\texture.hh" />
     <ClInclude Include="include\viewport.hh" />
     <ClInclude Include="include\world.hh" />
     <ClInclude Include="occlusion query shceduling.h" />
@@ -235,7 +237,6 @@
     <ClInclude Include="GPU work item.h" />
     <ClInclude Include="shader bytecode.h" />
     <ClInclude Include="terrain material interface.h" />
-    <ClInclude Include="texture.hh" />
     <ClInclude Include="tonemapTextureReduction config.h" />
     <ClInclude Include="render pipeline.h" />
     <ClInclude Include="render stage.h" />
@@ -267,6 +268,7 @@
     <ClCompile Include="frustum culling.cpp" />
     <ClCompile Include="GPU descriptor heap.cpp" />
     <ClCompile Include="GPU stream buffer allocator.cpp" />
+    <ClCompile Include="GPU texture sampler table.cpp" />
     <ClCompile Include="GPU work submission.cpp" />
     <ClCompile Include="instance.cpp" />
     <ClCompile Include="main.cpp" />
@@ -363,13 +365,25 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compute</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
     </FxCompile>
-    <FxCompile Include="vectorLayerPS.hlsl">
+    <FxCompile Include="vectorLayerFlatPS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="vectorLayerTexPS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
     </FxCompile>
     <FxCompile Include="vectorLayerVS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+    </FxCompile>
+    <FxCompile Include="vectorLayerVS_UV.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
@@ -387,6 +401,7 @@
     <None Include="object3D VS 2 PS.hlsli" />
     <None Include="packages.config" />
     <None Include="per-frame data.hlsli" />
+    <None Include="samplers.hlsli" />
     <None Include="tonemap params.hlsli" />
     <None Include="tonemapBufferReduction config.hlsli" />
     <None Include="tonemapLocalReduction.hlsli" />

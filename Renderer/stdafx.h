@@ -52,6 +52,7 @@
 #include <chrono>
 #include <iostream>
 #include <iomanip>
+#include <filesystem>
 #include <stdexcept>
 #include <wrl/client.h>
 #include <dxgi1_6.h>

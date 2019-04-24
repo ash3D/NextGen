@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "viewport.hh"
 #include "world.hh"
+#include "texture.hh"	// for pendingg barriers
 #include "GPU work submission.h"
 #include "GPU descriptor heap.h"
 #include "shader bytecode.h"
@@ -168,16 +169,21 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Pre(ID3D12GraphicsCommandLi
 		cmdList->WriteBufferImmediate(size(initParams), initParams, NULL);
 	}
 	{
-		/*
-			could potentially use split barrier for tonemapParamsBuffer to overlap with occlusion culling but it would require conditional finish barrier in world render
-			anyway barrier happens only once at viewport creation
-		*/
-		const D3D12_RESOURCE_BARRIER barriers[] =
+		const auto pendingTextureBarriers = Texture::AcquirePendingBarriers();	// have to keep it alive in order to hold ComPtr`s
+		vector<D3D12_RESOURCE_BARRIER> barriers;
+		barriers.reserve(pendingTextureBarriers.size() + 1 + fresh);
+		transform(pendingTextureBarriers.cbegin(), pendingTextureBarriers.cend(), back_inserter(barriers), [](decltype(pendingTextureBarriers)::const_reference texBarrier)
 		{
-			CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
-			CD3DX12_RESOURCE_BARRIER::Transition(tonemapParamsBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER)
-		};
-		cmdList->ResourceBarrier(1 + fresh, barriers);
+			return CD3DX12_RESOURCE_BARRIER::Transition(texBarrier.first.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATES(texBarrier.second));
+		});
+		/*
+			could potentially use split barrier for pending texture barriers and tonemapParamsBuffer to overlap with occlusion culling but it would require conditional finish barrier in world render
+			anyway tonemapParamsBuffer barrier happens only once at viewport creation
+		*/
+		barriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY));
+		if (fresh)
+			barriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(tonemapParamsBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
+		cmdList->ResourceBarrier(barriers.size(), barriers.data());
 	}
 	cmdList->ClearRenderTargetView(rtv, backgroundColor, 0, NULL);
 	cmdList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0xef, 0, NULL);
