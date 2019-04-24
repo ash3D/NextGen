@@ -1085,7 +1085,8 @@ namespace
         DXGI_FORMAT format,
         D3D12_RESOURCE_FLAGS resFlags,
         unsigned int loadFlags,
-        _Outptr_ ID3D12Resource** texture)
+		std::underlying_type_t<DDS_CPU_ACCESS_FLAGS> CPUAccessFlags,
+		_Outptr_ ID3D12Resource** texture)
     {
         if (!d3dDevice)
             return E_POINTER;
@@ -1107,14 +1108,26 @@ namespace
         desc.SampleDesc.Count = 1;
         desc.SampleDesc.Quality = 0;
         desc.Dimension = resDim;
+		switch (CPUAccessFlags & 3)
+		{
+		case DDS_CPU_ACCESS_DENY:
+		case DDS_CPU_ACCESS_INDIRECT:
+			desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+			break;
+		case DDS_CPU_ACCESS_DIRECT:
+			desc.Layout = D3D12_TEXTURE_LAYOUT_64KB_STANDARD_SWIZZLE;
+			break;
+		}
 
-        CD3DX12_HEAP_PROPERTIES defaultHeapProperties(D3D12_HEAP_TYPE_DEFAULT);
+        CD3DX12_HEAP_PROPERTIES heapProperties = CPUAccessFlags == DDS_CPU_ACCESS_DENY
+			? CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT)
+			: CD3DX12_HEAP_PROPERTIES(CPUAccessFlags & DDS_CPU_ACCESS_ALLOW_READS ? D3D12_CPU_PAGE_PROPERTY_WRITE_BACK : D3D12_CPU_PAGE_PROPERTY_WRITE_COMBINE, D3D12_MEMORY_POOL_L0);
 
         hr = d3dDevice->CreateCommittedResource(
-            &defaultHeapProperties,
+            &heapProperties,
             D3D12_HEAP_FLAG_NONE,
             &desc,
-            D3D12_RESOURCE_STATE_COPY_DEST,
+			CPUAccessFlags == DDS_CPU_ACCESS_DENY ? D3D12_RESOURCE_STATE_COPY_DEST : D3D12_RESOURCE_STATE_COMMON,
             nullptr,
             IID_PPV_ARGS(texture));
         if (SUCCEEDED(hr))
@@ -1135,10 +1148,23 @@ namespace
         size_t maxsize,
         D3D12_RESOURCE_FLAGS resFlags,
         unsigned int loadFlags,
-        _Outptr_ ID3D12Resource** texture,
+		DDS_CPU_ACCESS_FLAGS CPUAccessFlags,
+		_Outptr_ ID3D12Resource** texture,
         std::vector<D3D12_SUBRESOURCE_DATA>& subresources,
         _Out_opt_ bool* outIsCubeMap)
     {
+		switch (CPUAccessFlags)
+		{
+		case DDS_CPU_ACCESS_DENY:
+		case DDS_CPU_ACCESS_INDIRECT:
+		case DDS_CPU_ACCESS_DIRECT:
+		case DDS_CPU_ACCESS_INDIRECT | DDS_CPU_ACCESS_ALLOW_READS:
+		case DDS_CPU_ACCESS_DIRECT | DDS_CPU_ACCESS_ALLOW_READS:
+			break;
+		default:
+			return E_INVALIDARG;
+		}
+
         HRESULT hr = S_OK;
 
         UINT width = header->width;
@@ -1351,7 +1377,7 @@ namespace
             }
 
             hr = CreateTextureResource(d3dDevice, resDim, twidth, theight, tdepth, reservedMips - skipMip, arraySize,
-                format, resFlags, loadFlags, texture);
+                format, resFlags, loadFlags, CPUAccessFlags, texture);
 
             if (FAILED(hr) && !maxsize && (mipCount > 1))
             {
@@ -1368,7 +1394,7 @@ namespace
                 if (SUCCEEDED(hr))
                 {
                     hr = CreateTextureResource(d3dDevice, resDim, twidth, theight, tdepth, mipCount - skipMip, arraySize,
-                        format, resFlags, loadFlags, texture);
+                        format, resFlags, loadFlags, CPUAccessFlags, texture);
                 }
             }
         }
@@ -1459,6 +1485,7 @@ HRESULT DirectX::LoadDDSTextureFromMemory(
         maxsize,
         D3D12_RESOURCE_FLAG_NONE,
         DDS_LOADER_DEFAULT,
+		DDS_CPU_ACCESS_DENY,
         texture,
         subresources,
         alphaMode,
@@ -1473,7 +1500,8 @@ HRESULT DirectX::LoadDDSTextureFromMemoryEx(
     size_t ddsDataSize,
     size_t maxsize,
     D3D12_RESOURCE_FLAGS resFlags,
-    unsigned int loadFlags,
+	unsigned int loadFlags,
+	DDS_CPU_ACCESS_FLAGS CPUAccessFlags,
     ID3D12Resource** texture,
     std::vector<D3D12_SUBRESOURCE_DATA>& subresources,
     DDS_ALPHA_MODE* alphaMode,
@@ -1514,7 +1542,7 @@ HRESULT DirectX::LoadDDSTextureFromMemoryEx(
 
     hr = CreateTextureFromDDS(d3dDevice,
         header, bitData, bitSize, maxsize,
-        resFlags, loadFlags,
+        resFlags, loadFlags, CPUAccessFlags,
         texture, subresources, isCubeMap);
     if (SUCCEEDED(hr))
     {
@@ -1549,6 +1577,7 @@ HRESULT DirectX::LoadDDSTextureFromFile(
         maxsize,
         D3D12_RESOURCE_FLAG_NONE,
         DDS_LOADER_DEFAULT,
+		DDS_CPU_ACCESS_DENY,
         texture,
         ddsData,
         subresources,
@@ -1563,7 +1592,8 @@ HRESULT DirectX::LoadDDSTextureFromFileEx(
     size_t maxsize,
     D3D12_RESOURCE_FLAGS resFlags,
     unsigned int loadFlags,
-    ID3D12Resource** texture,
+	DDS_CPU_ACCESS_FLAGS CPUAccessFlags,
+	ID3D12Resource** texture,
     std::unique_ptr<uint8_t[]>& ddsData,
     std::vector<D3D12_SUBRESOURCE_DATA>& subresources,
     DDS_ALPHA_MODE* alphaMode,
@@ -1604,7 +1634,7 @@ HRESULT DirectX::LoadDDSTextureFromFileEx(
 
     hr = CreateTextureFromDDS(d3dDevice,
         header, bitData, bitSize, maxsize,
-        resFlags, loadFlags,
+        resFlags, loadFlags, CPUAccessFlags,
         texture, subresources, isCubeMap);
 
     if (SUCCEEDED(hr))
