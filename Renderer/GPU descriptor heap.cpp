@@ -15,33 +15,35 @@ decltype(GPUDescriptorHeap::AllocationClient::registeredClients) GPUDescriptorHe
 
 void GPUDescriptorHeap::OnFrameStart()
 {
-	// create heap if needed
 	if (!heap)
 	{
-		void NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
-		static unsigned long version;
-
-		const D3D12_DESCRIPTOR_HEAP_DESC desc =
+		// create heap
 		{
-			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,		// type
-			heapSize,									// count
-			D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE	// GPU visible
-		};
-		CheckHR(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(heap.GetAddressOf())));
-		NameObjectF(heap.Get(), L"GPU descriptor heap [%lu] (heap start CPU address: %p)", version++, heap->GetCPUDescriptorHandleForHeapStart());
-	}
+			void NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
+			static unsigned long version;
 
-	// go over registered clients and invoke allocation handler\
-	TODO: use C++20 initializer in range-based for
-	const auto descriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	CD3DX12_CPU_DESCRIPTOR_HANDLE CPU_ptr(heap->GetCPUDescriptorHandleForHeapStart(), heapStaticBlockSize, descriptorSize);
-	CD3DX12_GPU_DESCRIPTOR_HANDLE GPU_ptr(heap->GetGPUDescriptorHandleForHeapStart(), heapStaticBlockSize, descriptorSize);
-	for (const auto &allocClient : AllocationClient::registeredClients)
-	{
-		allocClient.first->GPUDescriptorsAllocation = GPU_ptr.ptr;
-		allocClient.first->Commit(CPU_ptr);
-		CPU_ptr.Offset(allocClient.second, descriptorSize);
-		GPU_ptr.Offset(allocClient.second, descriptorSize);
+			const D3D12_DESCRIPTOR_HEAP_DESC desc =
+			{
+				D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,		// type
+				heapSize,									// count
+				D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE	// GPU visible
+			};
+			CheckHR(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(heap.GetAddressOf())));
+			NameObjectF(heap.Get(), L"GPU descriptor heap [%lu] (heap start CPU address: %p)", version++, heap->GetCPUDescriptorHandleForHeapStart());
+		}
+
+		// go over registered clients and invoke allocation handler\
+		TODO: use C++20 initializer in range-based for
+		const auto descriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		CD3DX12_CPU_DESCRIPTOR_HANDLE CPU_ptr(heap->GetCPUDescriptorHandleForHeapStart(), heapStaticBlockSize, descriptorSize);
+		CD3DX12_GPU_DESCRIPTOR_HANDLE GPU_ptr(heap->GetGPUDescriptorHandleForHeapStart(), heapStaticBlockSize, descriptorSize);
+		for (const auto &allocClient : AllocationClient::registeredClients)
+		{
+			allocClient.first->GPUDescriptorsAllocation = GPU_ptr.ptr;
+			allocClient.first->Commit(CPU_ptr);
+			CPU_ptr.Offset(allocClient.second, descriptorSize);
+			GPU_ptr.Offset(allocClient.second, descriptorSize);
+		}
 	}
 }
 
