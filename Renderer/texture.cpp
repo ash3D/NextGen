@@ -20,6 +20,33 @@ static inline pair<D3D12_RESOURCE_STATES, DirectX::DDS_LOADER_FLAGS> DecodeTextu
 	}
 }
 
+// 1 call site
+static inline void ValidateTextureFormat(DXGI_FORMAT format, TextureUsage usage)
+{
+	switch(usage)
+	{
+	case TextureUsage::AlbedoMap:
+		switch (format)
+		{
+		case DXGI_FORMAT_R10G10B10A2_UNORM:
+		case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+		case DXGI_FORMAT_BC1_UNORM_SRGB:
+		case DXGI_FORMAT_BC2_UNORM_SRGB:
+		case DXGI_FORMAT_BC3_UNORM_SRGB:
+		case DXGI_FORMAT_B5G6R5_UNORM:
+		case DXGI_FORMAT_B5G5R5A1_UNORM:
+		case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+		case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:
+		case DXGI_FORMAT_BC7_UNORM_SRGB:
+		case DXGI_FORMAT_B4G4R4A4_UNORM:
+			break;
+		default:
+			throw invalid_argument("Wrong texture format for albedo map.");
+		}
+		break;
+	}
+}
+
 // out-of-line to break dependency on ComPtr`s copy ctor
 Impl::Texture::operator Impl::TrackedResource<ID3D12Resource>() const
 {
@@ -37,6 +64,7 @@ Impl::Texture::Texture(const filesystem::path &fileName, TextureUsage usage)
 	vector<D3D12_SUBRESOURCE_DATA> subresources;
 	using namespace DirectX;
 	CheckHR(LoadDDSTextureFromFileEx(device.Get(), fileName.c_str(), 0, D3D12_RESOURCE_FLAG_NONE, loadFlags, DDS_CPU_ACCESS_INDIRECT, tex.GetAddressOf(), data, subresources));
+	ValidateTextureFormat(tex->GetDesc().Format, usage);
 
 	// write texture data\
 	TODO: implement loop tiling optimization for cache-friendly access pattern (https://docs.microsoft.com/en-us/windows/desktop/api/d3d12/nf-d3d12-id3d12resource-writetosubresource#remarks)
