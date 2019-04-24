@@ -19,6 +19,11 @@ namespace Renderer
 		class Textured;
 	}
 
+	enum class TextureUsage
+	{
+		AlbedoMap,
+	};
+
 	namespace Impl
 	{
 		class Viewport;
@@ -29,14 +34,14 @@ namespace Renderer
 		*/
 		class Texture
 		{
-			WRL::ComPtr<ID3D12Resource> tex;	// in upload heap
+			WRL::ComPtr<ID3D12Resource> tex;	// in system RAM
 
 		protected:
 			// acquire GPU lifetime tracked resource
 			operator TrackedResource<ID3D12Resource>() const;
 
 		public:
-			explicit Texture(const std::filesystem::path &fileName);
+			explicit Texture(const std::filesystem::path &fileName, TextureUsage usage);
 
 			// define outside to break dependency on ComPtr`s implementation
 		protected:

@@ -8,21 +8,35 @@ using WRL::ComPtr;
 
 decltype(Impl::Texture::pendingBarriers) Impl::Texture::pendingBarriers;
 
+static inline pair<D3D12_RESOURCE_STATES, DirectX::DDS_LOADER_FLAGS> DecodeTextureUsage(TextureUsage usage)
+{
+	switch (usage)
+	{
+	case TextureUsage::AlbedoMap:
+		return { D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, DirectX::DDS_LOADER_FORCE_SRGB };
+		break;
+	default:
+		throw invalid_argument("Invalid texture usage param.");
+	}
+}
+
 // out-of-line to break dependency on ComPtr`s copy ctor
 Impl::Texture::operator Impl::TrackedResource<ID3D12Resource>() const
 {
 	return tex;
 }
 
-Impl::Texture::Texture(const filesystem::path &fileName)
+Impl::Texture::Texture(const filesystem::path &fileName, TextureUsage usage)
 {
 	extern ComPtr<ID3D12Device2> device;
+
+	const auto [targetState, loadFlags] = DecodeTextureUsage(usage);
 
 	// load from file & create texture in sys RAM
 	unique_ptr<uint8_t []> data;
 	vector<D3D12_SUBRESOURCE_DATA> subresources;
 	using namespace DirectX;
-	CheckHR(LoadDDSTextureFromFileEx(device.Get(), fileName.c_str(), 0, D3D12_RESOURCE_FLAG_NONE, DDS_LOADER_DEFAULT, DDS_CPU_ACCESS_INDIRECT, tex.GetAddressOf(), data, subresources));
+	CheckHR(LoadDDSTextureFromFileEx(device.Get(), fileName.c_str(), 0, D3D12_RESOURCE_FLAG_NONE, loadFlags, DDS_CPU_ACCESS_INDIRECT, tex.GetAddressOf(), data, subresources));
 
 	// write texture data\
 	TODO: implement loop tiling optimization for cache-friendly access pattern (https://docs.microsoft.com/en-us/windows/desktop/api/d3d12/nf-d3d12-id3d12resource-writetosubresource#remarks)
@@ -34,9 +48,9 @@ Impl::Texture::Texture(const filesystem::path &fileName)
 		tex->Unmap(mip, NULL);
 	}
 
-	// plan transition to shader accessibble state for next frame preparation stage
+	// schedule transition to shader accessibble state for next frame preparation stage
 	static_assert(sizeof(decltype(pendingBarriers)::value_type::second_type) >= sizeof D3D12_RESOURCE_STATES);
-	pendingBarriers.push_back({ tex, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE });
+	pendingBarriers.push_back({ tex, targetState });
 }
 
 Impl::Texture::Texture(const Texture &) = default;
