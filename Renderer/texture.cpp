@@ -21,12 +21,17 @@ static inline pair<D3D12_RESOURCE_STATES, DirectX::DDS_LOADER_FLAGS> DecodeTextu
 }
 
 // 1 call site
-static inline void ValidateTextureFormat(DXGI_FORMAT format, TextureUsage usage)
+static inline void ValidateTexture(const D3D12_RESOURCE_DESC &desc, TextureUsage usage)
 {
+	// check dimension
+	if (desc.Dimension != D3D12_RESOURCE_DIMENSION_TEXTURE2D)
+		throw invalid_argument("Trying to load texture with wrong dimension. 2D texture expected.");
+
+	// check format for usage
 	switch(usage)
 	{
 	case TextureUsage::AlbedoMap:
-		switch (format)
+		switch (desc.Format)
 		{
 		case DXGI_FORMAT_R10G10B10A2_UNORM:
 		case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
@@ -64,7 +69,7 @@ Impl::Texture::Texture(const filesystem::path &fileName, TextureUsage usage)
 	vector<D3D12_SUBRESOURCE_DATA> subresources;
 	using namespace DirectX;
 	CheckHR(LoadDDSTextureFromFileEx(device.Get(), fileName.c_str(), 0, D3D12_RESOURCE_FLAG_NONE, loadFlags, DDS_CPU_ACCESS_INDIRECT, tex.GetAddressOf(), data, subresources));
-	ValidateTextureFormat(tex->GetDesc().Format, usage);
+	ValidateTexture(tex->GetDesc(), usage);
 
 	// write texture data\
 	TODO: implement loop tiling optimization for cache-friendly access pattern (https://docs.microsoft.com/en-us/windows/desktop/api/d3d12/nf-d3d12-id3d12resource-writetosubresource#remarks)
