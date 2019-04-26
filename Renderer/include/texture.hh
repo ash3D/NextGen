@@ -35,6 +35,7 @@ namespace Renderer
 		class Texture
 		{
 			WRL::ComPtr<ID3D12Resource> tex;	// in system RAM
+			TextureUsage usage;					// not const to enable 'operator ='
 
 		protected:
 			// acquire GPU lifetime tracked resource
@@ -49,6 +50,9 @@ namespace Renderer
 			Texture(Texture &&);
 			Texture &operator =(const Texture &), &operator =(Texture &&);
 			~Texture();
+
+		public:
+			auto Usage() const noexcept { return usage; }
 
 		private:
 			static std::vector<std::pair<WRL::ComPtr<ID3D12Resource>, int/*dst state (src is COMMON)*/>> pendingBarriers;

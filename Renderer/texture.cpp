@@ -58,7 +58,7 @@ Impl::Texture::operator Impl::TrackedResource<ID3D12Resource>() const
 	return tex;
 }
 
-Impl::Texture::Texture(const filesystem::path &fileName, TextureUsage usage)
+Impl::Texture::Texture(const filesystem::path &fileName, TextureUsage usage) : usage(usage)
 {
 	extern ComPtr<ID3D12Device2> device;
 

@@ -277,6 +277,8 @@ Textured::Textured(const float (&albedo)[3], const Texture &tex, float texScale,
 	DescriptorTable(1, materialName), Flat(albedo, rootSig, PSO), tex(tex), texScale(texScale)
 #endif
 {
+	if (tex.Usage() != TextureUsage::AlbedoMap)
+		throw invalid_argument("Terrain material: incompatible texture usage, albedo map expected.");
 	device->CreateShaderResourceView(this->tex.Get(), NULL, GetCPUStage()->GetCPUDescriptorHandleForHeapStart());
 }
 
