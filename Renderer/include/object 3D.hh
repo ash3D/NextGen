@@ -72,8 +72,8 @@ namespace Renderer
 			};
 
 		private:
-			static WRL::ComPtr<ID3D12RootSignature> rootSig, TryCreateRootSig(), CreateRootSig();
-			static std::array<WRL::ComPtr<ID3D12PipelineState>, 2> PSOs, TryCreatePSOs(), CreatePSOs();
+			static WRL::ComPtr<ID3D12RootSignature> rootSig, CreateRootSig();
+			static std::array<WRL::ComPtr<ID3D12PipelineState>, 2> PSOs, CreatePSOs();
 
 		private:
 			// is GPU lifetime tracking is necessary for cmd list (or is it enough for cmd allocator only)?

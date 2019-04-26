@@ -8,7 +8,7 @@ using namespace Renderer;
 using namespace GPUWorkSubmission;
 using Microsoft::WRL::ComPtr;
 
-extern ComPtr<ID3D12CommandQueue> cmdQueue;
+extern ComPtr<ID3D12CommandQueue> gfxQueue;
 
 /*
 Current tasks wait implementation based on 'condition_variable' notification mechanism.
@@ -235,7 +235,7 @@ void GPUWorkSubmission::Run()
 			{
 				static vector<ID3D12CommandList *> listsToExequte;
 				listsToExequte.assign(ROB.begin(), readyWorkEnd);
-				cmdQueue->ExecuteCommandLists(listsToExequte.size(), listsToExequte.data());
+				gfxQueue->ExecuteCommandLists(listsToExequte.size(), listsToExequte.data());
 				ROB.erase(ROB.begin(), readyWorkEnd);
 			}
 		} while (!ROB.empty() || !RenderPipeline::Empty());

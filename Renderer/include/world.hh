@@ -70,7 +70,7 @@ namespace Renderer
 
 		private:
 			// hazard tracking is not needed here - all the waiting required perormed in globalFrameVersioning dtor
-			static ComPtr<ID3D12Resource> globalGPUBuffer, TryCreateGlobalGPUBuffer(), CreateGlobalGPUBuffer();
+			static ComPtr<ID3D12Resource> globalGPUBuffer, CreateGlobalGPUBuffer();
 			struct GlobalGPUBufferData;	// defined in "global GPU buffer data.h" to eliminate dependencies on d3d12.h here
 			static volatile struct GlobalGPUBufferData
 #if PERSISTENT_MAPS
@@ -136,10 +136,10 @@ namespace Renderer
 
 #pragma region occlusion query passes
 		private:
-			static ComPtr<ID3D12RootSignature> xformAABB_rootSig, TryCreateXformAABB_RootSig(), CreateXformAABB_RootSig();
-			static ComPtr<ID3D12PipelineState> xformAABB_PSO, TryCreateXformAABB_PSO(), CreateXformAABB_PSO();
-			static ComPtr<ID3D12RootSignature> cullPassRootSig, TryCreateCullPassRootSig(), CreateCullPassRootSig();
-			static std::array<ComPtr<ID3D12PipelineState>, 2> cullPassPSOs, TryCreateCullPassPSOs(), CreateCullPassPSOs();
+			static ComPtr<ID3D12RootSignature> xformAABB_rootSig, CreateXformAABB_RootSig();
+			static ComPtr<ID3D12PipelineState> xformAABB_PSO, CreateXformAABB_PSO();
+			static ComPtr<ID3D12RootSignature> cullPassRootSig, CreateCullPassRootSig();
+			static std::array<ComPtr<ID3D12PipelineState>, 2> cullPassPSOs, CreateCullPassPSOs();
 
 		private:
 			mutable std::function<void (ID3D12GraphicsCommandList2 *target)> cullPassSetupCallback;
@@ -182,8 +182,8 @@ namespace Renderer
 
 #pragma region visualize occlusion pass
 		private:
-			static ComPtr<ID3D12RootSignature> AABB_rootSig, TryCreateAABB_RootSig(), CreateAABB_RootSig();
-			static std::array<ComPtr<ID3D12PipelineState>, 2> AABB_PSOs, TryCreateAABB_PSOs(), CreateAABB_PSOs();
+			static ComPtr<ID3D12RootSignature> AABB_rootSig, CreateAABB_RootSig();
+			static std::array<ComPtr<ID3D12PipelineState>, 2> AABB_PSOs, CreateAABB_PSOs();
 
 		private:
 			void AABBPassPre(CmdListPool::CmdList &target) const, AABBPassPost(CmdListPool::CmdList &target) const;

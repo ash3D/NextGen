@@ -130,11 +130,9 @@ static auto CreateDevice()
 	return device;
 }
 
-static auto CreateCommandQueue()
+static auto CreateGraphicsCommandQueue()
 {
 	extern ComPtr<ID3D12Device2> device;
-	if (!device)
-		throw E_FAIL;
 
 	const D3D12_COMMAND_QUEUE_DESC desc =
 	{
@@ -148,6 +146,26 @@ static auto CreateCommandQueue()
 	return cmdQueue;
 }
 
+static void PrintError(const exception_ptr &error, const char object[])
+{
+	try
+	{
+		rethrow_exception(error);
+	}
+	catch (HRESULT hr)
+	{
+		clog << "Fail to automatically create " << object << ", manual call to 'InitRenderer()' required (hr=" << hr << ")." << endl;
+	}
+	catch (const exception &error)
+	{
+		clog << "Fail to automatically create " << object << ": " << error.what() << ". Manual call to 'InitRenderer()' required." << endl;
+	}
+	catch (...)
+	{
+		clog << "Fail to automatically create " << object << " (unknown error). Manual call to 'InitRenderer()' required." << endl;
+	}
+}
+
 static inline ComPtr<IDXGIFactory5> TryCreateFactory()
 {
 #if ENABLE_AUTO_INIT
@@ -155,14 +173,12 @@ static inline ComPtr<IDXGIFactory5> TryCreateFactory()
 	{
 		return CreateFactory();
 	}
-	catch (HRESULT hr)
+	catch (...)
 	{
-		clog << "Fail to automatically create DXGI factory, manual call to 'InitRenderer()' required (hr=" << hr << ")." << endl;
-		return nullptr;
+		PrintError(current_exception(), "DXGI factory");
 	}
-#else
-	return nullptr;
 #endif
+	return nullptr;
 }
 
 static inline ComPtr<ID3D12Device2> TryCreateDevice()
@@ -172,23 +188,57 @@ static inline ComPtr<ID3D12Device2> TryCreateDevice()
 	{
 		return CreateDevice();
 	}
-	catch (HRESULT hr)
+	catch (...)
 	{
-		clog << "Fail to automatically create D3D12 device, manual call to 'InitRenderer()' required (hr=" << hr << ")." << endl;
-		return nullptr;
+		PrintError(current_exception(), "D3D12 device");
 	}
-#else
-	return nullptr;
 #endif
+	return nullptr;
+}
+
+template<typename Result>
+static Result Try(Result Create(), const char object[])
+{
+	extern ComPtr<ID3D12Device2> device;
+	if (device)
+	{
+		try
+		{
+			return Create();
+		}
+		catch (...)
+		{
+			PrintError(current_exception(), object);
+		}
+	}
+	device.Reset();	// force recreation everything in 'InitRenderer()'
+	return {};
 }
 
 ComPtr<IDXGIFactory5> factory = TryCreateFactory();
 ComPtr<ID3D12Device2> device = TryCreateDevice();
-ComPtr<ID3D12CommandQueue> cmdQueue = device ? CreateCommandQueue() : nullptr;
+ComPtr<ID3D12CommandQueue> gfxQueue = Try(CreateGraphicsCommandQueue, "main GFX command queue");
+
+template<class Optional>
+static inline Optional TryCreate(const char object[])
+{
+	if (device)
+	{
+		try
+		{
+			return Optional(in_place);
+		}
+		catch (...)
+		{
+			PrintError(current_exception(), object);
+		}
+	}
+	return nullopt;
+}
 
 namespace Renderer::Impl::Descriptors::TextureSampers::Impl
 {
-	ComPtr<ID3D12DescriptorHeap> CreateHeap(), heap = device ? CreateHeap() : nullptr;
+	ComPtr<ID3D12DescriptorHeap> CreateHeap(), heap = Try(CreateHeap, "GPU texture sampler heap");
 }
 
 ComPtr<ID3D12Resource> RenderOutput::tonemapReductionBuffer = device ? RenderOutput::CreateTonemapReductionBuffer() : nullptr;
@@ -218,141 +268,34 @@ void OnFrameFinish()
 
 #pragma region root sigs & PSOs
 ComPtr<ID3D12RootSignature>
-	Viewport::tonemapRootSig						= Viewport::TryCreateTonemapRootSig(),
-	TerrainVectorLayer::cullPassRootSig				= TerrainVectorLayer::TryCreateCullPassRootSig(),
-	TerrainVectorLayer::AABB_rootSig				= TerrainVectorLayer::TryCreateAABB_RootSig(),
-	TerrainMaterials::Flat::rootSig					= TerrainMaterials::Flat::TryCreateRootSig(),
-	TerrainMaterials::Textured::rootSig				= TerrainMaterials::Textured::TryCreateRootSig(),
-	World::xformAABB_rootSig						= World::TryCreateXformAABB_RootSig(),
-	World::cullPassRootSig							= World::TryCreateCullPassRootSig(),
-	World::AABB_rootSig								= World::TryCreateAABB_RootSig(),
-	Object3D::rootSig								= Object3D::TryCreateRootSig();
+	Viewport::tonemapRootSig						= Try(Viewport::CreateTonemapRootSig, "tonemapping root signature"),
+	TerrainVectorLayer::cullPassRootSig				= Try(TerrainVectorLayer::CreateCullPassRootSig, "terrain occlusion query root signature"),
+	TerrainVectorLayer::AABB_rootSig				= Try(TerrainVectorLayer::CreateAABB_RootSig, "terrain AABB visualization root signature"),
+	TerrainMaterials::Flat::rootSig					= Try(TerrainMaterials::Flat::CreateRootSig, "terrain flat material root signature"),
+	TerrainMaterials::Textured::rootSig				= Try(TerrainMaterials::Textured::CreateRootSig, "terrain textured material root signature"),
+	World::xformAABB_rootSig						= Try(World::CreateXformAABB_RootSig, "Xform 3D AABB root signature"),
+	World::cullPassRootSig							= Try(World::CreateCullPassRootSig, "world objects occlusion query root signature"),
+	World::AABB_rootSig								= Try(World::CreateAABB_RootSig, "world 3D objects AABB visualization root signature"),
+	Object3D::rootSig								= Try(Object3D::CreateRootSig, "object 3D root signature");
 ComPtr<ID3D12PipelineState>
-	Viewport::tonemapTextureReductionPSO			= Viewport::TryCreateTonemapTextureReductionPSO(),
-	Viewport::tonemapBufferReductionPSO				= Viewport::TryCreateTonemapBufferReductionPSO(),
-	Viewport::tonemapPSO							= Viewport::TryCreateTonemapPSO(),
-	TerrainVectorLayer::cullPassPSO					= TerrainVectorLayer::TryCreateCullPassPSO(),
-	TerrainVectorLayer::AABB_PSO					= TerrainVectorLayer::TryCreateAABB_PSO(),
-	TerrainMaterials::Flat::PSO						= TerrainMaterials::Flat::TryCreatePSO(),
-	TerrainMaterials::Textured::PSO					= TerrainMaterials::Textured::TryCreatePSO(),
-	World::xformAABB_PSO							= World::TryCreateXformAABB_PSO();
-decltype(World::cullPassPSOs) World::cullPassPSOs	= World::TryCreateCullPassPSOs();
-decltype(World::AABB_PSOs) World::AABB_PSOs			= World::TryCreateAABB_PSOs();
-decltype(Object3D::PSOs) Object3D::PSOs				= Object3D::TryCreatePSOs();
-
-#pragma region TryCreate...()
-inline ComPtr<ID3D12RootSignature> Viewport::TryCreateTonemapRootSig()
-{
-	return device ? CreateTonemapRootSig() : nullptr;
-}
-
-inline ComPtr<ID3D12RootSignature> TerrainVectorLayer::TryCreateCullPassRootSig()
-{
-	return device ? CreateCullPassRootSig() : nullptr;
-}
-
-inline ComPtr<ID3D12RootSignature> TerrainVectorLayer::TryCreateAABB_RootSig()
-{
-	return device ? CreateAABB_RootSig() : nullptr;
-}
-
-inline ComPtr<ID3D12RootSignature> TerrainMaterials::Flat::TryCreateRootSig()
-{
-	return device ? CreateRootSig() : nullptr;
-}
-
-inline ComPtr<ID3D12RootSignature> TerrainMaterials::Textured::TryCreateRootSig()
-{
-	return device ? CreateRootSig() : nullptr;
-}
-
-inline ComPtr<ID3D12RootSignature> World::TryCreateXformAABB_RootSig()
-{
-	return device ? CreateXformAABB_RootSig() : nullptr;
-}
-
-inline ComPtr<ID3D12RootSignature> World::TryCreateCullPassRootSig()
-{
-	return device ? CreateCullPassRootSig() : nullptr;
-}
-
-inline ComPtr<ID3D12RootSignature> World::TryCreateAABB_RootSig()
-{
-	return device ? CreateAABB_RootSig() : nullptr;
-}
-
-inline ComPtr<ID3D12RootSignature> Object3D::TryCreateRootSig()
-{
-	return device ? CreateRootSig() : nullptr;
-}
-
-inline ComPtr<ID3D12PipelineState> Viewport::TryCreateTonemapTextureReductionPSO()
-{
-	return device ? CreateTonemapTextureReductionPSO() : nullptr;
-}
-
-inline ComPtr<ID3D12PipelineState> Viewport::TryCreateTonemapBufferReductionPSO()
-{
-	return device ? CreateTonemapBufferReductionPSO() : nullptr;
-}
-
-inline ComPtr<ID3D12PipelineState> Viewport::TryCreateTonemapPSO()
-{
-	return device ? CreateTonemapPSO() : nullptr;
-}
-
-inline ComPtr<ID3D12PipelineState> TerrainVectorLayer::TryCreateCullPassPSO()
-{
-	return device ? CreateCullPassPSO() : nullptr;
-}
-
-inline ComPtr<ID3D12PipelineState> TerrainVectorLayer::TryCreateAABB_PSO()
-{
-	return device ? CreateAABB_PSO() : nullptr;
-}
-
-inline ComPtr<ID3D12PipelineState> TerrainMaterials::Flat::TryCreatePSO()
-{
-	return device ? CreatePSO() : nullptr;
-}
-
-inline ComPtr<ID3D12PipelineState> TerrainMaterials::Textured::TryCreatePSO()
-{
-	return device ? CreatePSO() : nullptr;
-}
-
-inline ComPtr<ID3D12PipelineState> World::TryCreateXformAABB_PSO()
-{
-	return device ? CreateXformAABB_PSO() : nullptr;
-}
-
-inline auto World::TryCreateCullPassPSOs() -> decltype(cullPassPSOs)
-{
-	return device ? CreateCullPassPSOs() : decltype(cullPassPSOs)();
-}
-
-inline auto World::TryCreateAABB_PSOs() -> decltype(AABB_PSOs)
-{
-	return device ? CreateAABB_PSOs() : decltype(AABB_PSOs)();
-}
-
-inline auto Object3D::TryCreatePSOs() -> decltype(PSOs)
-{
-	return device ? CreatePSOs() : decltype(PSOs)();
-}
-#pragma endregion define here to enable inline
-#pragma endregion
+	Viewport::tonemapTextureReductionPSO			= Try(Viewport::CreateTonemapTextureReductionPSO, "tonemap texture reduction PSO"),
+	Viewport::tonemapBufferReductionPSO				= Try(Viewport::CreateTonemapBufferReductionPSO, "tonemap buffer reduction PSO"),
+	Viewport::tonemapPSO							= Try(Viewport::CreateTonemapPSO, "tonemapping PSO"),
+	TerrainVectorLayer::cullPassPSO					= Try(TerrainVectorLayer::CreateCullPassPSO, "terrain occlusion query PSO"),
+	TerrainVectorLayer::AABB_PSO					= Try(TerrainVectorLayer::CreateAABB_PSO, "terrain AABB visualization PSO"),
+	TerrainMaterials::Flat::PSO						= Try(TerrainMaterials::Flat::CreatePSO, "terrain flat material PSO"),
+	TerrainMaterials::Textured::PSO					= Try(TerrainMaterials::Textured::CreatePSO, "terrain textured material PSO"),
+	World::xformAABB_PSO							= Try(World::CreateXformAABB_PSO, "Xform 3D AABB PSO");
+decltype(World::cullPassPSOs) World::cullPassPSOs	= Try(World::CreateCullPassPSOs, "world objects occlusion query passes PSOs");
+decltype(World::AABB_PSOs) World::AABB_PSOs			= Try(World::CreateAABB_PSOs, "world 3D objects AABB visualization PSOs");
+decltype(Object3D::PSOs) Object3D::PSOs				= Try(Object3D::CreatePSOs, "object 3D PSOs");
 
 // should be defined before globalFrameVersioning in order to be destroyed after waiting in globalFrameVersioning dtor completes
 using Renderer::Impl::World;
-ComPtr<ID3D12Resource> World::globalGPUBuffer = World::TryCreateGlobalGPUBuffer();
-// define Try...() functions here to enable inline
-inline ComPtr<ID3D12Resource> World::TryCreateGlobalGPUBuffer()
-{
-	return device ? CreateGlobalGPUBuffer() : nullptr;
-}
+ComPtr<ID3D12Resource> World::globalGPUBuffer = Try(World::CreateGlobalGPUBuffer, "global GPU buffer");
 #if PERSISTENT_MAPS
 volatile World::PerFrameData *World::globalGPUBuffer_CPU_ptr = World::TryMapGlobalGPUBuffer();
+// define here to enable inline
 inline volatile World::PerFrameData *World::TryMapGlobalGPUBuffer()
 {
 	return globalGPUBuffer ? MapGlobalGPUBuffer(&CD3DX12_RANGE(0, 0)) : nullptr;
@@ -361,13 +304,7 @@ inline volatile World::PerFrameData *World::TryMapGlobalGPUBuffer()
 
 namespace Renderer::Impl
 {
-#if defined _MSC_VER && _MSC_VER <= 1920
-	decltype(globalFrameVersioning) globalFrameVersioning;
-#else
-	// guaranteed copy elision required\
-	still does not work on MSVC 1913/1914/1915/1916/1920, further investigation reqired
-	decltype(globalFrameVersioning) globalFrameVersioning(device ? decltype(globalFrameVersioning)(in_place) : nullopt);
-#endif
+	decltype(globalFrameVersioning) globalFrameVersioning = TryCreate<decltype(globalFrameVersioning)>("global frame versionong");
 }
 
 // tracked resource should be destroyed before globalFrameVersioning => should be defined after globalFrameVersioning
@@ -381,29 +318,21 @@ using OcclusionCulling::QueryBatch;
 decltype(QueryBatchBase::heapPool) QueryBatchBase::heapPool;
 decltype(QueryBatch<OcclusionCulling::TRANSIENT>::resultsPool) QueryBatch<OcclusionCulling::TRANSIENT>::resultsPool;
 
-// allocators contains tracked resource
-#if defined _MSC_VER && _MSC_VER <= 1920
-decltype(TerrainVectorLayer::GPU_AABB_allocator) TerrainVectorLayer::GPU_AABB_allocator;
-decltype(World::GPU_AABB_allocator) World::GPU_AABB_allocator;
-#else
-// guaranteed copy elision required
-decltype(TerrainVectorLayer::GPU_AABB_allocator) TerrainVectorLayer::GPU_AABB_allocator(device ? decltype(TerrainVectorLayer::GPU_AABB_allocator)(in_place) : nullopt);
-decltype(World::GPU_AABB_allocator) World::GPU_AABB_allocator(device ? decltype(World::GPU_AABB_allocator)(in_place) : nullopt);
-#endif
+// allocators contains tracked resource (=> after globalFrameVersioning)
+decltype(TerrainVectorLayer::GPU_AABB_allocator) TerrainVectorLayer::GPU_AABB_allocator = TryCreate<decltype(TerrainVectorLayer::GPU_AABB_allocator)>("GPU AABB allocator for terrain vector layers");
+decltype(World::GPU_AABB_allocator) World::GPU_AABB_allocator = TryCreate<decltype(World::GPU_AABB_allocator)>("GPU AABB allocator for world 3D objects");
 decltype(World::xformedAABBsStorage) World::xformedAABBsStorage;
 
 extern bool enableDebugDraw = false;
 
 extern void __cdecl InitRenderer()
 {
-	if (!factory)
-		factory = CreateFactory();
-
-	if (!device)
+	if (!factory || !device)
 	{
 		namespace TextureSampers = Renderer::Impl::Descriptors::TextureSampers;
-		device = CreateDevice();
-		cmdQueue = CreateCommandQueue();
+		factory									= CreateFactory();
+		device									= CreateDevice();
+		gfxQueue								= CreateGraphicsCommandQueue();
 		TextureSampers::Impl::heap				= TextureSampers::Impl::CreateHeap();
 		RenderOutput::tonemapReductionBuffer	= RenderOutput::CreateTonemapReductionBuffer();
 		Viewport::tonemapRootSig				= Viewport::CreateTonemapRootSig();
@@ -428,7 +357,7 @@ extern void __cdecl InitRenderer()
 		Object3D::PSOs							= Object3D::CreatePSOs();
 		World::globalGPUBuffer					= World::CreateGlobalGPUBuffer();
 #if PERSISTENT_MAPS
-		World::globalGPUBuffer_CPU_ptr = World::MapGlobalGPUBuffer();
+		World::globalGPUBuffer_CPU_ptr			= World::MapGlobalGPUBuffer();
 #endif
 		globalFrameVersioning.emplace();
 		TerrainVectorLayer::GPU_AABB_allocator.emplace();

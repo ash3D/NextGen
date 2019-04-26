@@ -134,8 +134,8 @@ namespace Renderer
 
 #pragma region occlusion query pass
 		private:
-			static WRL::ComPtr<ID3D12RootSignature> cullPassRootSig, TryCreateCullPassRootSig(), CreateCullPassRootSig();
-			static WRL::ComPtr<ID3D12PipelineState> cullPassPSO, TryCreateCullPassPSO(), CreateCullPassPSO();
+			static WRL::ComPtr<ID3D12RootSignature> cullPassRootSig, CreateCullPassRootSig();
+			static WRL::ComPtr<ID3D12PipelineState> cullPassPSO, CreateCullPassPSO();
 
 		private:
 			mutable std::function<void (ID3D12GraphicsCommandList2 *target)> cullPassSetupCallback;
@@ -191,8 +191,8 @@ namespace Renderer
 
 #pragma region visualize occlusion pass
 		private:
-			static WRL::ComPtr<ID3D12RootSignature> AABB_rootSig, TryCreateAABB_RootSig(), CreateAABB_RootSig();
-			static WRL::ComPtr<ID3D12PipelineState> AABB_PSO, TryCreateAABB_PSO(), CreateAABB_PSO();
+			static WRL::ComPtr<ID3D12RootSignature> AABB_rootSig, CreateAABB_RootSig();
+			static WRL::ComPtr<ID3D12PipelineState> AABB_PSO, CreateAABB_PSO();
 
 		private:
 			void AABBPassPre(CmdListPool::CmdList &target) const, AABBPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, const float (&color)[3], bool visible) const;

@@ -52,7 +52,7 @@ unsigned short FrameVersioning<void>::OnFrameStart()
 
 void FrameVersioning<void>::OnFrameFinish()
 {
-	extern ComPtr<ID3D12CommandQueue> cmdQueue;
-	CheckHR(cmdQueue->Signal(fence.Get(), frameID));
+	extern ComPtr<ID3D12CommandQueue> gfxQueue;
+	CheckHR(gfxQueue->Signal(fence.Get(), frameID));
 	++ringBufferIdx %= frameLatency;
 }

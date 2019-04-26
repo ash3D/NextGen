@@ -54,8 +54,8 @@ namespace Renderer::TerrainMaterials
 
 	private:
 		friend extern void __cdecl ::InitRenderer();
-		static WRL::ComPtr<ID3D12RootSignature> rootSig, TryCreateRootSig(), CreateRootSig();
-		static WRL::ComPtr<ID3D12PipelineState> PSO, TryCreatePSO(), CreatePSO();
+		static WRL::ComPtr<ID3D12RootSignature> rootSig, CreateRootSig();
+		static WRL::ComPtr<ID3D12PipelineState> PSO, CreatePSO();
 
 	private:
 		const float albedo[3];
@@ -92,8 +92,8 @@ namespace Renderer::TerrainMaterials
 
 	private:
 		friend extern void __cdecl ::InitRenderer();
-		static WRL::ComPtr<ID3D12RootSignature> rootSig, TryCreateRootSig(), CreateRootSig();
-		static WRL::ComPtr<ID3D12PipelineState> PSO, TryCreatePSO(), CreatePSO();
+		static WRL::ComPtr<ID3D12RootSignature> rootSig, CreateRootSig();
+		static WRL::ComPtr<ID3D12PipelineState> PSO, CreatePSO();
 
 	private:
 		const Renderer::Impl::TrackedResource<ID3D12Resource> tex;

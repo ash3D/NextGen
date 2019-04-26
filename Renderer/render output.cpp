@@ -16,7 +16,7 @@ using WRL::ComPtr;
 
 extern ComPtr<IDXGIFactory5> factory;
 extern ComPtr<ID3D12Device2> device;
-extern ComPtr<ID3D12CommandQueue> cmdQueue;
+extern ComPtr<ID3D12CommandQueue> gfxQueue;
 
 void NameObject(ID3D12Object *object, LPCWSTR name) noexcept;
 
@@ -61,7 +61,7 @@ RenderOutput::RenderOutput(HWND wnd, bool allowModeSwitch, unsigned int bufferCo
 		};
 
 		ComPtr<IDXGISwapChain1> swapChain;
-		CheckHR(factory->CreateSwapChainForHwnd(cmdQueue.Get(), wnd, &desc, NULL, NULL, &swapChain));
+		CheckHR(factory->CreateSwapChainForHwnd(gfxQueue.Get(), wnd, &desc, NULL, NULL, &swapChain));
 		CheckHR(swapChain.As(&this->swapChain));
 	}
 
@@ -155,7 +155,7 @@ void RenderOutput::OnResize()
 		globalFrameVersioning->WaitForGPU();
 
 		vector<UINT> nodeMasks(swapChainDesc.BufferCount);
-		vector<IUnknown *> cmdQueues(swapChainDesc.BufferCount, cmdQueue.Get());
+		vector<IUnknown *> cmdQueues(swapChainDesc.BufferCount, gfxQueue.Get());
 		CheckHR(swapChain->ResizeBuffers1(swapChainDesc.BufferCount, newWidth, newHeight, DXGI_FORMAT_UNKNOWN, swapChainDesc.Flags, nodeMasks.data(), cmdQueues.data()));
 	}
 	else

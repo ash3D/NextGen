@@ -69,10 +69,10 @@ namespace Renderer
 
 		private:
 			friend extern void __cdecl ::InitRenderer();
-			static WRL::ComPtr<ID3D12RootSignature> tonemapRootSig, TryCreateTonemapRootSig(), CreateTonemapRootSig();
-			static WRL::ComPtr<ID3D12PipelineState> tonemapTextureReductionPSO, TryCreateTonemapTextureReductionPSO(), CreateTonemapTextureReductionPSO();
-			static WRL::ComPtr<ID3D12PipelineState> tonemapBufferReductionPSO, TryCreateTonemapBufferReductionPSO(), CreateTonemapBufferReductionPSO();
-			static WRL::ComPtr<ID3D12PipelineState> tonemapPSO, TryCreateTonemapPSO(), CreateTonemapPSO();
+			static WRL::ComPtr<ID3D12RootSignature> tonemapRootSig, CreateTonemapRootSig();
+			static WRL::ComPtr<ID3D12PipelineState> tonemapTextureReductionPSO, CreateTonemapTextureReductionPSO();
+			static WRL::ComPtr<ID3D12PipelineState> tonemapBufferReductionPSO, CreateTonemapBufferReductionPSO();
+			static WRL::ComPtr<ID3D12PipelineState> tonemapPSO, CreateTonemapPSO();
 
 		private:
 			RenderPipeline::PipelineStage
