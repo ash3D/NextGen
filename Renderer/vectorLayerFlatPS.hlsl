@@ -12,11 +12,10 @@ cbuffer Constants : register(b1, space1)
 float4 main(in float3 viewDir : ViewDir) : SV_TARGET
 {
 	/*
-		xform (0, 0, 1) normal by terrainWorldXform matrix, then by viewXform
-		assumes both terrainWorldXform and viewXform are orthonormal, need inverse transpose otherwise (and normalize)
-		current mul is suboptimal: viewXform[2] can be used if terrainWorldXform keeps Z line (which is the case) or merged in worldViewXform
+		xform (0, 0, 1) world space normal by viewXform
+		assumes viewXform is orthonormal, need inverse transpose otherwise (and normalize)
 	*/
-	const float3 color = Lit(albedo, .5f, F0(1.55f), mul(terrainWorldXform[2], viewXform), normalize(viewDir), sun.dir, sun.irradiance);
+	const float3 color = Lit(albedo, .5f, F0(1.55f), viewXform[2], normalize(viewDir), sun.dir, sun.irradiance);
 
 	return EncodeHDR(color, tonemapParams.exposure);
 }
