@@ -14,6 +14,10 @@ static inline pair<D3D12_RESOURCE_STATES, DirectX::DDS_LOADER_FLAGS> DecodeTextu
 	{
 	case TextureUsage::AlbedoMap:
 		return { D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, DirectX::DDS_LOADER_FORCE_SRGB };
+	case TextureUsage::FresnelMap:
+	case TextureUsage::RoughnessMap:
+	case TextureUsage::NormalMap:
+		return { D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, DirectX::DDS_LOADER_DEFAULT };
 		break;
 	default:
 		throw invalid_argument("Invalid texture usage param.");
@@ -47,6 +51,38 @@ static inline void ValidateTexture(const D3D12_RESOURCE_DESC &desc, TextureUsage
 			break;
 		default:
 			throw invalid_argument("Wrong texture format for albedo map.");
+		}
+		break;
+
+	case TextureUsage::FresnelMap:
+		switch (desc.Format)
+		{
+		case DXGI_FORMAT_R8_UNORM:
+		case DXGI_FORMAT_BC4_UNORM:
+			break;
+		default:
+			throw invalid_argument("Wrong texture format for fresnel map.");
+		}
+		break;
+
+	case TextureUsage::RoughnessMap:
+		switch (desc.Format)
+		{
+		case DXGI_FORMAT_R8_UNORM:
+		case DXGI_FORMAT_BC4_UNORM:
+			break;
+		default:
+			throw invalid_argument("Wrong texture format for roughness map.");
+		}
+		break;
+
+	case TextureUsage::NormalMap:
+		switch (desc.Format)
+		{
+		case DXGI_FORMAT_BC5_SNORM:
+			break;
+		default:
+			throw invalid_argument("Wrong texture format for normal map.");
 		}
 		break;
 	}

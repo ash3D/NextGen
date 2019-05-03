@@ -47,6 +47,60 @@ ComPtr<ID3D12DescriptorHeap> TextureSampers::Impl::CreateHeap()
 			};
 			device->CreateSampler(&desc, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, TERRAIN_ALBEDO_SAMPLER, descriptorSize));
 		}
+
+		// terrain fresnel
+		{
+			const D3D12_SAMPLER_DESC desc =
+			{
+				D3D12_FILTER_ANISOTROPIC,
+				D3D12_TEXTURE_ADDRESS_MODE_MIRROR,
+				D3D12_TEXTURE_ADDRESS_MODE_MIRROR,
+				D3D12_TEXTURE_ADDRESS_MODE_MIRROR,
+				0,									// LOD bias
+				Aniso::Terrain::fresnel,
+				D3D12_COMPARISON_FUNC_NEVER,
+				{},									// border color
+				-D3D12_FLOAT32_MAX,					// min LOD
+				+D3D12_FLOAT32_MAX					// max LOD
+			};
+			device->CreateSampler(&desc, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, TERRAIN_FRESNEL_SAMPLER, descriptorSize));
+		}
+
+		// terrain roughness
+		{
+			const D3D12_SAMPLER_DESC desc =
+			{
+				D3D12_FILTER_ANISOTROPIC,
+				D3D12_TEXTURE_ADDRESS_MODE_MIRROR,
+				D3D12_TEXTURE_ADDRESS_MODE_MIRROR,
+				D3D12_TEXTURE_ADDRESS_MODE_MIRROR,
+				0,									// LOD bias
+				Aniso::Terrain::roughness,
+				D3D12_COMPARISON_FUNC_NEVER,
+				{},									// border color
+				-D3D12_FLOAT32_MAX,					// min LOD
+				+D3D12_FLOAT32_MAX					// max LOD
+			};
+			device->CreateSampler(&desc, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, TERRAIN_ROUGHNESS_SAMPLER, descriptorSize));
+		}
+
+		// terrain bump
+		{
+			const D3D12_SAMPLER_DESC desc =
+			{
+				D3D12_FILTER_ANISOTROPIC,
+				D3D12_TEXTURE_ADDRESS_MODE_MIRROR,
+				D3D12_TEXTURE_ADDRESS_MODE_MIRROR,
+				D3D12_TEXTURE_ADDRESS_MODE_MIRROR,
+				0,									// LOD bias
+				Aniso::Terrain::bump,
+				D3D12_COMPARISON_FUNC_NEVER,
+				{},									// border color
+				-D3D12_FLOAT32_MAX,					// min LOD
+				+D3D12_FLOAT32_MAX					// max LOD
+			};
+			device->CreateSampler(&desc, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, TERRAIN_BUMP_SAMPLER, descriptorSize));
+		}
 	}
 
 	return result;

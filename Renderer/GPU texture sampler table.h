@@ -16,6 +16,9 @@ namespace Renderer::Impl::Descriptors::TextureSampers
 	enum
 	{
 		TERRAIN_ALBEDO_SAMPLER,
+		TERRAIN_FRESNEL_SAMPLER,
+		TERRAIN_ROUGHNESS_SAMPLER,
+		TERRAIN_BUMP_SAMPLER,
 		SAMPLER_TABLE_SIZE
 	};
 

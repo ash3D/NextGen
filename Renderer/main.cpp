@@ -273,6 +273,8 @@ ComPtr<ID3D12RootSignature>
 	TerrainVectorLayer::AABB_rootSig				= Try(TerrainVectorLayer::CreateAABB_RootSig, "terrain AABB visualization root signature"),
 	TerrainMaterials::Flat::rootSig					= Try(TerrainMaterials::Flat::CreateRootSig, "terrain flat material root signature"),
 	TerrainMaterials::Textured::rootSig				= Try(TerrainMaterials::Textured::CreateRootSig, "terrain textured material root signature"),
+	TerrainMaterials::Standard::rootSig				= Try(TerrainMaterials::Standard::CreateRootSig, "terrain standard material root signature"),
+	TerrainMaterials::Extended::rootSig				= Try(TerrainMaterials::Extended::CreateRootSig, "terrain extended material root signature"),
 	World::xformAABB_rootSig						= Try(World::CreateXformAABB_RootSig, "Xform 3D AABB root signature"),
 	World::cullPassRootSig							= Try(World::CreateCullPassRootSig, "world objects occlusion query root signature"),
 	World::AABB_rootSig								= Try(World::CreateAABB_RootSig, "world 3D objects AABB visualization root signature"),
@@ -285,6 +287,8 @@ ComPtr<ID3D12PipelineState>
 	TerrainVectorLayer::AABB_PSO					= Try(TerrainVectorLayer::CreateAABB_PSO, "terrain AABB visualization PSO"),
 	TerrainMaterials::Flat::PSO						= Try(TerrainMaterials::Flat::CreatePSO, "terrain flat material PSO"),
 	TerrainMaterials::Textured::PSO					= Try(TerrainMaterials::Textured::CreatePSO, "terrain textured material PSO"),
+	TerrainMaterials::Standard::PSO					= Try(TerrainMaterials::Standard::CreatePSO, "terrain standard material PSO"),
+	TerrainMaterials::Extended::PSO					= Try(TerrainMaterials::Extended::CreatePSO, "terrain extended material PSO"),
 	World::xformAABB_PSO							= Try(World::CreateXformAABB_PSO, "Xform 3D AABB PSO");
 decltype(World::cullPassPSOs) World::cullPassPSOs	= Try(World::CreateCullPassPSOs, "world objects occlusion query passes PSOs");
 decltype(World::AABB_PSOs) World::AABB_PSOs			= Try(World::CreateAABB_PSOs, "world 3D objects AABB visualization PSOs");
@@ -345,8 +349,12 @@ extern void __cdecl InitRenderer()
 		TerrainVectorLayer::AABB_PSO			= TerrainVectorLayer::CreateAABB_PSO();
 		TerrainMaterials::Flat::rootSig			= TerrainMaterials::Flat::CreateRootSig();
 		TerrainMaterials::Textured::rootSig		= TerrainMaterials::Textured::CreateRootSig();
+		TerrainMaterials::Standard::rootSig		= TerrainMaterials::Standard::CreateRootSig();
+		TerrainMaterials::Extended::rootSig		= TerrainMaterials::Extended::CreateRootSig();
 		TerrainMaterials::Flat::PSO				= TerrainMaterials::Flat::CreatePSO();
 		TerrainMaterials::Textured::PSO			= TerrainMaterials::Textured::CreatePSO();
+		TerrainMaterials::Standard::PSO			= TerrainMaterials::Standard::CreatePSO();
+		TerrainMaterials::Extended::PSO			= TerrainMaterials::Extended::CreatePSO();
 		World::xformAABB_rootSig				= World::CreateXformAABB_RootSig();
 		World::cullPassRootSig					= World::CreateCullPassRootSig();
 		World::AABB_rootSig						= World::CreateAABB_RootSig();

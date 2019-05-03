@@ -162,6 +162,9 @@
     <ClInclude Include="include\texture.hh">
       <Filter>Include</Filter>
     </ClInclude>
+    <ClInclude Include="fresnel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -287,6 +290,12 @@
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="vectorLayerTexPS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="vectorLayerStdPS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="vectorLayerExtPS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>

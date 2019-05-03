@@ -3,12 +3,12 @@
 #include "lighting.hlsli"
 #include "samplers.hlsli"
 
-cbuffer Constants : register(b0, space1)
+ConstantBuffer<TonemapParams> tonemapParams : register(b0, space1);
+
+cbuffer Constants : register(b1, space1)
 {
 	float3 albedo;
 }
-
-ConstantBuffer<TonemapParams> tonemapParams : register(b1, space1);
 
 Texture2D tex : register(t0);
 

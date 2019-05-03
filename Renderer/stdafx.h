@@ -73,6 +73,7 @@ namespace Renderer::PIXEvents
 		ViewportPost,
 		TerrainLayer,
 		TerrainOcclusionQueryPass,
+		TerrainMainPass,
 		TerrainBuildRenderStage,
 		TerrainSchedule,
 		TerrainIssue,

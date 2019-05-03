@@ -17,11 +17,16 @@ namespace Renderer
 	namespace TerrainMaterials
 	{
 		class Textured;
+		class Standard;
+		class Extended;
 	}
 
 	enum class TextureUsage
 	{
 		AlbedoMap,
+		FresnelMap,
+		RoughnessMap,
+		NormalMap,
 	};
 
 	namespace Impl
@@ -80,6 +85,8 @@ namespace Renderer
 	class Texture : public Impl::Texture
 	{
 		friend class TerrainMaterials::Textured;
+		friend class TerrainMaterials::Standard;
+		friend class TerrainMaterials::Extended;
 		friend class Impl::Viewport;	// for pending barriers
 
 	public:

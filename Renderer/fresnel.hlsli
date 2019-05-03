@@ -10,14 +10,17 @@ inline float Pow5(float x)
 	return p * x;
 }
 
-float FresnelShlick(float F0, float LdotN)
+inline float FresnelShlick(float F0, float LdotN)
 {
 	return lerp(Pow5(1 - LdotN), 1, F0);
 }
 
-// from https://seblagarde.wordpress.com/2013/03/19/water-drop-3a-physically-based-wet-surfaces/
 float FresnelFull(float IOR, float LdotN);
-float FresnelFull(float IOR, float c)
+/*
+	from https://seblagarde.wordpress.com/2013/03/19/water-drop-3a-physically-based-wet-surfaces/
+	inline to allow for #include in C++
+*/
+inline float FresnelFull(float IOR, float c)
 {
 	const float G = IOR * IOR + c * c - 1;
 
@@ -28,13 +31,13 @@ float FresnelFull(float IOR, float c)
 	return .5f * p * p * (1 + q * q);
 }
 
-float F0(float IOR)
+inline float F0(float IOR)
 {
 	const float p = (IOR - 1) / (IOR + 1);
 	return p * p;
 }
 
-float F0(float IOR1, float IOR2)
+inline float F0(float IOR1, float IOR2)
 {
 	const float p = (IOR2 - IOR1) / (IOR2 + IOR1);
 	return p * p;
