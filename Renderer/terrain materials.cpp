@@ -29,7 +29,7 @@ extern ComPtr<ID3D12Device2> device;
 void NameObject(ID3D12Object *object, LPCWSTR name) noexcept, NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
 ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC &desc, LPCWSTR name);
 
-// !: descriptor tables specify DATA_STATIC flag so textures must be loaded upfront
+// !: do not specify DATA_STATIC flag for textures descriptor tables as their state changed after data upload gets finished (COMMON -> SHADER RESOURCE)
 
 #pragma region Interface
 inline void Impl::Interface::FillRootParams(CD3DX12_ROOT_PARAMETER1 rootParams[])
@@ -240,7 +240,7 @@ ComPtr<ID3D12RootSignature> Textured::CreateRootSig()
 	// desc tables lifetime must last up to create call so if it gets filled in helper function (FillRootParams) it must be static
 	CD3DX12_ROOT_PARAMETER1 rootParams[ROOT_PARAM_COUNT];
 	Flat::FillRootParams(rootParams);
-	const CD3DX12_DESCRIPTOR_RANGE1 descTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+	const CD3DX12_DESCRIPTOR_RANGE1 descTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
 	rootParams[ROOT_PARAM_TEXTURE_DESC_TABLE].InitAsDescriptorTable(1, &descTable, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParams[ROOT_PARAM_SAMPLER_DESC_TABLE] = Impl::Descriptors::TextureSampers::GetDescTable(D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParams[ROOT_PARAM_TEXTURE_SCALE].InitAsConstants(1, 0, 2, D3D12_SHADER_VISIBILITY_VERTEX);
@@ -347,7 +347,7 @@ ComPtr<ID3D12RootSignature> Standard::CreateRootSig()
 	// desc tables lifetime must last up to create call so if it gets filled in helper function (FillRootParams) it must be static
 	CD3DX12_ROOT_PARAMETER1 rootParams[ROOT_PARAM_COUNT];
 	Interface::FillRootParams(rootParams);
-	const CD3DX12_DESCRIPTOR_RANGE1 descTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, TEXTURE_COUNT, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+	const CD3DX12_DESCRIPTOR_RANGE1 descTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, TEXTURE_COUNT, 0);
 	rootParams[ROOT_PARAM_TEXTURE_DESC_TABLE].InitAsDescriptorTable(1, &descTable, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParams[ROOT_PARAM_SAMPLER_DESC_TABLE] = Impl::Descriptors::TextureSampers::GetDescTable(D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParams[ROOT_PARAM_TEXTURE_SCALE].InitAsConstants(1, 0, 2, D3D12_SHADER_VISIBILITY_VERTEX);
@@ -473,7 +473,7 @@ ComPtr<ID3D12RootSignature> Extended::CreateRootSig()
 	// desc tables lifetime must last up to create call so if it gets filled in helper function (FillRootParams) it must be static
 	CD3DX12_ROOT_PARAMETER1 rootParams[ROOT_PARAM_COUNT];
 	Interface::FillRootParams(rootParams);
-	const CD3DX12_DESCRIPTOR_RANGE1 descTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, TEXTURE_COUNT, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+	const CD3DX12_DESCRIPTOR_RANGE1 descTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, TEXTURE_COUNT, 0);
 	rootParams[ROOT_PARAM_TEXTURE_DESC_TABLE].InitAsDescriptorTable(1, &descTable, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParams[ROOT_PARAM_SAMPLER_DESC_TABLE] = Impl::Descriptors::TextureSampers::GetDescTable(D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParams[ROOT_PARAM_TEXTURE_SCALE].InitAsConstants(1, 0, 2, D3D12_SHADER_VISIBILITY_VERTEX);
