@@ -37,17 +37,10 @@ static inline void ValidateTexture(const D3D12_RESOURCE_DESC &desc, TextureUsage
 	case TextureUsage::AlbedoMap:
 		switch (desc.Format)
 		{
-		case DXGI_FORMAT_R10G10B10A2_UNORM:
-		case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
 		case DXGI_FORMAT_BC1_UNORM_SRGB:
 		case DXGI_FORMAT_BC2_UNORM_SRGB:
 		case DXGI_FORMAT_BC3_UNORM_SRGB:
-		case DXGI_FORMAT_B5G6R5_UNORM:
-		case DXGI_FORMAT_B5G5R5A1_UNORM:
-		case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
-		case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:
 		case DXGI_FORMAT_BC7_UNORM_SRGB:
-		case DXGI_FORMAT_B4G4R4A4_UNORM:
 			break;
 		default:
 			throw invalid_argument("Wrong texture format for albedo map.");
@@ -57,7 +50,6 @@ static inline void ValidateTexture(const D3D12_RESOURCE_DESC &desc, TextureUsage
 	case TextureUsage::FresnelMap:
 		switch (desc.Format)
 		{
-		case DXGI_FORMAT_R8_UNORM:
 		case DXGI_FORMAT_BC4_UNORM:
 			break;
 		default:
@@ -68,7 +60,6 @@ static inline void ValidateTexture(const D3D12_RESOURCE_DESC &desc, TextureUsage
 	case TextureUsage::RoughnessMap:
 		switch (desc.Format)
 		{
-		case DXGI_FORMAT_R8_UNORM:
 		case DXGI_FORMAT_BC4_UNORM:
 			break;
 		default:
