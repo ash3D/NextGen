@@ -36,7 +36,7 @@ const float G_rcp(float a2, float VdotN, float LdotN, float VdotL)
 	float lambda = 4.41 * phi;
 	lambda /= lambda + 1;
 	const float LambdaV = GGXSmithIntegral(a2, VdotN), LambdaL = GGXSmithIntegral(a2, LdotN);
-	return 1 + max(LambdaV, LambdaL) + lambda * min(LambdaV, LambdaL);
+	return isfinite(LambdaV) ? 1 + max(LambdaV, LambdaL) + lambda * min(LambdaV, LambdaL) : LambdaV * 0/*generate NaN*/;
 }
 
 // evaluate rendering equation for punctual light source, non-metal material
@@ -66,7 +66,21 @@ float3 Lit(float3 albedo, float roughness, float F0, float3 N, float3 viewDir, f
 	GGX_denom *= GGX_denom;
 
 	// optimization opportunity: merge NDF and G denoms
-	const float spec = FresnelShlick(F0, dot(lightDir, H)) * (.25f * PI_rcp) * a2 / (GGX_denom * G_rcp(a2, VdotN, LdotN, VdotL) * abs(VdotN));
+	float spec = FresnelShlick(F0, dot(lightDir, H)) * (.25f * PI_rcp) * a2, specDenom = G_rcp(a2, VdotN, LdotN, VdotL) * abs(VdotN);
+
+	/*
+		handle 'VdotN == 0' case: 'G_rcp(_, 0, _, _) == inf' giving 'specDenom = inf * 0 == NaN'
+		analyzing 'G_rcp() * abs(VdotN)' gives '.5 * a' in limit 'VdotN -> 0' (a2 = a * a, a = roughness)
+
+		fp precision issues can get 'G_rcp == inf' when 'VdotN ~ 0' (but not exactly 0): VdotN squared inside G_rcp thus near-to-zero can became zero (which causes inf ultimately)
+		this case would give 'inf * ~0 == inf' for specDenom while NaN is desired
+		to handle it G_rcp() have special mend which translates inf induced by VdotN param into NaN which propagates in specDenom which in turn triggers special 'VdotN == 0' case handling
+	*/
+	[flatten]
+	if (isnan(specDenom))
+		specDenom = .5f * roughness;
+	specDenom *= GGX_denom;
+	spec /= specDenom;
 
 	// GGX diffuse approximation from https://twvideo01.ubm-us.net/o1/vault/gdc2017/Presentations/Hammon_Earl_PBR_Diffuse_Lighting.pdf\
 	!: potential mad optimizations via manual '(1 - x) * y' transformations
