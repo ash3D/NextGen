@@ -20,17 +20,17 @@ float4 main(in float3 viewDir : ViewDir, in float2 uv : UV) : SV_TARGET
 		{0, 1, 0}
 		{0, 0, 1}
 	*/
-	float3 N;
-	N.xy = normalMap.Sample(terrainBumpSampler, uv);
-	N.z = sqrt(saturate(1.f - length(N.xy)));
+	float3 n;
+	n.xy = normalMap.Sample(terrainBumpSampler, uv);
+	n.z = sqrt(saturate(1.f - length(n.xy)));
 
 	/*
-		xform normal 'world space ' -> 'view space'
+		xform normal 'world space' -> 'view space'
 		similar note as for Flat shader applicable (viewXform assumed to be orthonormal, need inverse transpose / normalize otherwise)
 	*/
-	N = mul(N, viewXform);
+	n = mul(n, viewXform);
 
-	const float3 color = Lit(albedoMap.Sample(terrainAlbedoSampler, uv), roughnessMap.Sample(terrainRoughnessSampler, uv), f0, N, normalize(viewDir), sun.dir, sun.irradiance);
+	const float3 color = Lit(albedoMap.Sample(terrainAlbedoSampler, uv), roughnessMap.Sample(terrainRoughnessSampler, uv), f0, viewXform[2], n, normalize(viewDir), sun.dir, sun.irradiance);
 
 	return EncodeHDR(color, tonemapParams.exposure);
 }

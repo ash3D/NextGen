@@ -10,14 +10,14 @@ Texture2D albedoMap : register(t0), fresnelMap : register(t1), roughnessMap : re
 float4 main(in float3 viewDir : ViewDir, in float2 uv : UV) : SV_TARGET
 {
 	// same notes on normal as for std material
-	float3 N;
-	N.xy = normalMap.Sample(terrainBumpSampler, uv);
-	N.z = sqrt(saturate(1.f - length(N.xy)));
-	N = mul(N, viewXform);
+	float3 n;
+	n.xy = normalMap.Sample(terrainBumpSampler, uv);
+	n.z = sqrt(saturate(1.f - length(n.xy)));
+	n = mul(n, viewXform);
 
 	const float3 albedo = albedoMap.Sample(terrainAlbedoSampler, uv);
 	const float roughnes = roughnessMap.Sample(terrainRoughnessSampler, uv), fresnel = fresnelMap.Sample(terrainFresnelSampler, uv);
-	const float3 color = Lit(albedo, roughnes, fresnel, N, normalize(viewDir), sun.dir, sun.irradiance);
+	const float3 color = Lit(albedo, roughnes, fresnel, viewXform[2], n, normalize(viewDir), sun.dir, sun.irradiance);
 
 	return EncodeHDR(color, tonemapParams.exposure);
 }

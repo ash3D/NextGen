@@ -10,9 +10,12 @@ cbuffer MaterialConstants : register(b0, space1)
 
 ConstantBuffer<TonemapParams> tonemapParams : register(b1, space1);
 
-float4 main(in XformedVertex input) : SV_TARGET
+float4 main(in XformedVertex input, in bool front : SV_IsFrontFace) : SV_TARGET
 {
-	const float3 color = Lit(albedo, .5f, F0(1.55f), normalize(input.N), normalize(input.viewDir), sun.dir, sun.irradiance);
+	input.N = normalize(front ? +input.N : -input.N);	// handles two-sided materials
+	input.viewDir = normalize(input.viewDir);
+	FixNormal(input.N, input.viewDir);
+	const float3 color = Lit(albedo, .5f, F0(1.55f), input.N, input.viewDir, sun.dir, sun.irradiance);
 
 	return EncodeHDR(color, tonemapParams.exposure);
 }
