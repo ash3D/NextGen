@@ -236,6 +236,7 @@
     <ClInclude Include="occlusion tree.h" />
     <ClInclude Include="occlusion query batch.h" />
     <ClInclude Include="GPU work item.h" />
+    <ClInclude Include="PIX events.h" />
     <ClInclude Include="shader bytecode.h" />
     <ClInclude Include="terrain material interface.h" />
     <ClInclude Include="tonemapTextureReduction config.h" />

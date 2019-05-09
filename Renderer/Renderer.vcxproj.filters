@@ -165,6 +165,9 @@
     <ClInclude Include="fresnel.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="PIX events.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">

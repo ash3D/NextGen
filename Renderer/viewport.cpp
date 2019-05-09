@@ -7,6 +7,7 @@
 #include "shader bytecode.h"
 #include "CB register.h"
 #include "config.h"
+#include "PIX events.h"
 #include "tonemapTextureReduction config.h"
 namespace Renderer::TonemappingConfig
 {

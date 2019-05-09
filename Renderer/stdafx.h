@@ -64,18 +64,3 @@
 #if !__INTELLISENSE__ 
 #include "vector math.h"
 #endif
-
-namespace Renderer::PIXEvents
-{
-	enum
-	{
-		ViewportPre,
-		ViewportPost,
-		TerrainLayer,
-		TerrainOcclusionQueryPass,
-		TerrainMainPass,
-		TerrainBuildRenderStage,
-		TerrainSchedule,
-		TerrainIssue,
-	};
-}

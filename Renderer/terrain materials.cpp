@@ -5,6 +5,7 @@
 #include "fresnel.h"
 #include "shader bytecode.h"
 #include "config.h"
+#include "PIX events.h"
 #ifdef _MSC_VER
 #include <codecvt>
 #include <locale>
