@@ -169,7 +169,7 @@ namespace Renderer
 			{
 				unsigned long int streamEnd;
 				HLSL::float2 center;
-				ID3D12Resource *VIB;	// no reference/lifetime tracking required, it would induce unnecessary overhead (lifetime tracking leads to mutex locs)
+				ID3D12Resource *VIB;	// no reference/lifetime tracking required, it would induce unnecessary overhead (lifetime tracking leads to mutex locks)
 				unsigned long int VB_size, IB_size;
 				bool IB32bit;
 			};
