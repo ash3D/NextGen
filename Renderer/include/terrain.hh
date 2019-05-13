@@ -168,6 +168,7 @@ namespace Renderer
 			struct Quad
 			{
 				unsigned long int streamEnd;
+				HLSL::float2 center;
 				ID3D12Resource *VIB;	// no reference/lifetime tracking required, it would induce unnecessary overhead (lifetime tracking leads to mutex locs)
 				unsigned long int VB_size, IB_size;
 				bool IB32bit;
@@ -186,7 +187,7 @@ namespace Renderer
 			void IssueChildren(const TreeNode &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion);
 			void IssueWholeNode(const TreeNode &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion);
 			bool IssueNodeObjects(const TreeNode &node, decltype(OcclusionCulling::QueryBatchBase::npos) coarseOcclusion,  decltype(OcclusionCulling::QueryBatchBase::npos) fineOcclusion, ViewNode::Visibility visibility);
-			void IssueQuad(ID3D12Resource *VIB, unsigned long int VB_size, unsigned long int IB_size, bool IB32bit);
+			void IssueQuad(HLSL::float2 quadCenter, ID3D12Resource *VIB, unsigned long int VB_size, unsigned long int IB_size, bool IB32bit);
 #pragma endregion
 
 #pragma region visualize occlusion pass

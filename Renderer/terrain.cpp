@@ -199,8 +199,14 @@ inline void TerrainVectorQuad::Issue(remove_const_t<decltype(OcclusionCulling::Q
 {
 	using namespace placeholders;
 
+	/*
+		note on why copy quad`s data to layer`s quad stream rather than just put quad ptr there:
+		'subtreeView' touched here so neighbour quad data is probably in cache line now anyway so accessing it now is cheap
+		later during cmd list recording trying to access quad data via ptr would cause ptr chasing and cache pullution
+		storing copy of quad data instead of ptr eliminate this performance pitfall
+	*/
 	subtreeView.Issue(bind(&TerrainVectorLayer::IssueOcclusion, layer.get(), _1), bind(&TerrainVectorLayer::IssueNodeObjects, layer.get(), _1, _2, _3, _4), occlusionProvider);
-	layer->IssueQuad(VIB.Get(), VB_size, IB_size, IB32bit);
+	layer->IssueQuad(subtree.GetAABB().Center(), VIB.Get(), VB_size, IB_size, IB32bit);
 }
 #pragma endregion
 
@@ -390,6 +396,8 @@ void Impl::TerrainVectorLayer::MainPassRange(CmdListPool::CmdList &cmdList, unsi
 	{
 		const auto &quad = quadStram[renderStream[rangeBegin].startQuadIdx];
 
+		layerMaterial->SetupQuad(cmdList, quad.center);
+
 		// setup VB/IB
 		{
 			const D3D12_VERTEX_BUFFER_VIEW VB_view =
@@ -480,9 +488,9 @@ bool Impl::TerrainVectorLayer::IssueNodeObjects(const TreeNode &node, decltype(O
 }
 
 // 1 call site
-inline void Impl::TerrainVectorLayer::IssueQuad(ID3D12Resource *VIB, unsigned long int VB_size, unsigned long int IB_size, bool IB32bit)
+inline void Impl::TerrainVectorLayer::IssueQuad(HLSL::float2 quadCenter, ID3D12Resource *VIB, unsigned long int VB_size, unsigned long int IB_size, bool IB32bit)
 {
-	quadStram.push_back({ renderStream.size(), VIB, VB_size, IB_size, IB32bit });
+	quadStram.push_back({ renderStream.size(), quadCenter, VIB, VB_size, IB_size, IB32bit });
 }
 #pragma endregion
 

@@ -15,20 +15,23 @@ Texture2D albedoMap : register(t0), roughnessMap : register(t1), normalMap : reg
 float4 main(in float3 viewDir : ViewDir, in float2 uv : UV) : SV_TARGET
 {
 	/*
-		TBN space for terrain in world space is
+		TBN space for terrain in terrain space is
 		{1, 0, 0}
 		{0, 1, 0}
-		{0, 0, 1}
+		{0, 0, -1}
+		terrain 'up' inverted so -1 for N
 	*/
 	float3 n;
 	n.xy = normalMap.Sample(terrainBumpSampler, uv);
-	n.z = sqrt(saturate(1.f - length(n.xy)));
+	n.z = -sqrt(saturate(1.f - length(n.xy)));
 
 	/*
-		xform normal 'world space' -> 'view space'
-		similar note as for Flat shader applicable (viewXform assumed to be orthonormal, need inverse transpose / normalize otherwise)
+		xform normal 'terrain space' -> 'view space'
+		similar note as for Flat shader applicable:
+			both terrainWorldXform and viewXform assumed to be orthonormal, need inverse transpose otherwise
+			mul with terrainWorldXform is suboptimal: get rid of terrain xform at all or merge in worldViewXform
 	*/
-	n = mul(n, viewXform);
+	n = mul(mul(n, terrainWorldXform), viewXform);
 
 	const float3 color = Lit(albedoMap.Sample(terrainAlbedoSampler, uv), roughnessMap.Sample(terrainRoughnessSampler, uv), f0, viewXform[2], n, normalize(viewDir), sun.dir, sun.irradiance);
 

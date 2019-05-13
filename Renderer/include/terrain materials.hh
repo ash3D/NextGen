@@ -59,6 +59,7 @@ namespace Renderer::TerrainMaterials
 			{
 				ROOT_PARAM_TEXTURE_DESC_TABLE = Base::ROOT_PARAM_COUNT,
 				ROOT_PARAM_SAMPLER_DESC_TABLE,
+				ROOT_PARAM_QUAD_TEXGEN_REDUCTION,
 				ROOT_PARAM_TEXTURE_SCALE,
 				ROOT_PARAM_COUNT
 			};
@@ -67,6 +68,9 @@ namespace Renderer::TerrainMaterials
 			template<typename ExtraArg>
 			TexStuff(float texScale, unsigned textureCount, const char materialName[], const ExtraArg &extraArg, const WRL::ComPtr<ID3D12RootSignature> &rootSig, const WRL::ComPtr<ID3D12PipelineState> &PSO);
 			~TexStuff() = default;
+
+		private:
+			void SetupQuad(ID3D12GraphicsCommandList2 *target, HLSL::float2 quadCenter) const override;
 
 		protected:
 			// Inherited via Interface

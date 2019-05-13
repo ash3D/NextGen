@@ -1,6 +1,10 @@
 #pragma once
 
 #include <wrl/client.h>
+#define DISABLE_MATRIX_SWIZZLES
+#if !__INTELLISENSE__ 
+#include "vector math.h"
+#endif
 
 struct ID3D12RootSignature;
 struct ID3D12PipelineState;
@@ -15,6 +19,7 @@ namespace Renderer::Impl
 namespace Renderer::TerrainMaterials
 {
 	namespace WRL = Microsoft::WRL;
+	namespace HLSL = Math::VectorMath::HLSL;
 
 	namespace Impl
 	{
@@ -45,6 +50,7 @@ namespace Renderer::TerrainMaterials
 
 		protected:
 			void Setup(ID3D12GraphicsCommandList2 *target, UINT64 globalGPUBufferPtr, UINT64 tonemapParamsBufferPtr) const;
+			virtual void SetupQuad(ID3D12GraphicsCommandList2 *target, HLSL::float2 quadCenter) const {/*nop*/}
 
 		private:
 			virtual void FinishSetup(ID3D12GraphicsCommandList2 *target) const = 0;

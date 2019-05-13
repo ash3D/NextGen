@@ -98,6 +98,12 @@ public:
 	static constexpr bool value = decltype(Test<TexStuff>(nullptr))::value;
 };
 
+template<class Base>
+void Impl::TexStuff<Base>::SetupQuad(ID3D12GraphicsCommandList2 *cmdList, HLSL::float2 quadCenter) const
+{
+	cmdList->SetGraphicsRoot32BitConstants(ROOT_PARAM_QUAD_TEXGEN_REDUCTION, 2, &(quadCenter * texScale).apply(roundf), 0);
+}
+
 // inline for devirtualized call from derived
 template<class Base>
 inline void Impl::TexStuff<Base>::FinishSetup(ID3D12GraphicsCommandList2 *cmdList) const
@@ -244,7 +250,8 @@ ComPtr<ID3D12RootSignature> Textured::CreateRootSig()
 	const CD3DX12_DESCRIPTOR_RANGE1 descTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
 	rootParams[ROOT_PARAM_TEXTURE_DESC_TABLE].InitAsDescriptorTable(1, &descTable, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParams[ROOT_PARAM_SAMPLER_DESC_TABLE] = Impl::Descriptors::TextureSampers::GetDescTable(D3D12_SHADER_VISIBILITY_PIXEL);
-	rootParams[ROOT_PARAM_TEXTURE_SCALE].InitAsConstants(1, 0, 2, D3D12_SHADER_VISIBILITY_VERTEX);
+	rootParams[ROOT_PARAM_QUAD_TEXGEN_REDUCTION].InitAsConstants(2, 0, 2, D3D12_SHADER_VISIBILITY_VERTEX);
+	rootParams[ROOT_PARAM_TEXTURE_SCALE].InitAsConstants(1, 1, 2, D3D12_SHADER_VISIBILITY_VERTEX);
 	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(size(rootParams), rootParams, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	return CreateRootSignature(sigDesc, L"terrain textured material root signature");
 }
@@ -351,7 +358,8 @@ ComPtr<ID3D12RootSignature> Standard::CreateRootSig()
 	const CD3DX12_DESCRIPTOR_RANGE1 descTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, TEXTURE_COUNT, 0);
 	rootParams[ROOT_PARAM_TEXTURE_DESC_TABLE].InitAsDescriptorTable(1, &descTable, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParams[ROOT_PARAM_SAMPLER_DESC_TABLE] = Impl::Descriptors::TextureSampers::GetDescTable(D3D12_SHADER_VISIBILITY_PIXEL);
-	rootParams[ROOT_PARAM_TEXTURE_SCALE].InitAsConstants(1, 0, 2, D3D12_SHADER_VISIBILITY_VERTEX);
+	rootParams[ROOT_PARAM_QUAD_TEXGEN_REDUCTION].InitAsConstants(2, 0, 2, D3D12_SHADER_VISIBILITY_VERTEX);
+	rootParams[ROOT_PARAM_TEXTURE_SCALE].InitAsConstants(1, 1, 2, D3D12_SHADER_VISIBILITY_VERTEX);
 	rootParams[ROOT_PARAM_F0].InitAsConstants(1, 1, 1, D3D12_SHADER_VISIBILITY_PIXEL);
 	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(size(rootParams), rootParams, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	return CreateRootSignature(sigDesc, L"terrain standard material root signature");
@@ -477,7 +485,8 @@ ComPtr<ID3D12RootSignature> Extended::CreateRootSig()
 	const CD3DX12_DESCRIPTOR_RANGE1 descTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, TEXTURE_COUNT, 0);
 	rootParams[ROOT_PARAM_TEXTURE_DESC_TABLE].InitAsDescriptorTable(1, &descTable, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParams[ROOT_PARAM_SAMPLER_DESC_TABLE] = Impl::Descriptors::TextureSampers::GetDescTable(D3D12_SHADER_VISIBILITY_PIXEL);
-	rootParams[ROOT_PARAM_TEXTURE_SCALE].InitAsConstants(1, 0, 2, D3D12_SHADER_VISIBILITY_VERTEX);
+	rootParams[ROOT_PARAM_QUAD_TEXGEN_REDUCTION].InitAsConstants(2, 0, 2, D3D12_SHADER_VISIBILITY_VERTEX);
+	rootParams[ROOT_PARAM_TEXTURE_SCALE].InitAsConstants(1, 1, 2, D3D12_SHADER_VISIBILITY_VERTEX);
 	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(size(rootParams), rootParams, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	return CreateRootSignature(sigDesc, L"terrain extended material root signature");
 }
