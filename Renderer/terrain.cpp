@@ -34,6 +34,7 @@ namespace Shaders
 
 using namespace std;
 using namespace Renderer;
+using namespace HLSL;
 using WRL::ComPtr;
 namespace GPUStreamBuffer = Impl::GPUStreamBuffer;
 namespace OcclusionCulling = Impl::OcclusionCulling;
@@ -189,7 +190,7 @@ TerrainVectorQuad::TerrainVectorQuad(shared_ptr<TerrainVectorLayer> &&layer, uns
 TerrainVectorQuad::~TerrainVectorQuad() = default;
 
 // 1 call site
-inline void TerrainVectorQuad::Schedule(GPUStreamBuffer::Allocator<sizeof AABB<2>, AABB_VB_name> &GPU_AABB_allocator, const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform) const
+inline void TerrainVectorQuad::Schedule(GPUStreamBuffer::Allocator<sizeof AABB<2>, AABB_VB_name> &GPU_AABB_allocator, const Impl::FrustumCuller<2> &frustumCuller, const float4x4 &frustumXform) const
 {
 	subtreeView.Schedule<true>(GPU_AABB_allocator, frustumCuller, frustumXform);
 }
@@ -488,7 +489,7 @@ bool Impl::TerrainVectorLayer::IssueNodeObjects(const TreeNode &node, decltype(O
 }
 
 // 1 call site
-inline void Impl::TerrainVectorLayer::IssueQuad(HLSL::float2 quadCenter, ID3D12Resource *VIB, unsigned long int VB_size, unsigned long int IB_size, bool IB32bit)
+inline void Impl::TerrainVectorLayer::IssueQuad(float2 quadCenter, ID3D12Resource *VIB, unsigned long int VB_size, unsigned long int IB_size, bool IB32bit)
 {
 	quadStram.push_back({ renderStream.size(), quadCenter, VIB, VB_size, IB_size, IB32bit });
 }
@@ -751,7 +752,7 @@ auto Impl::TerrainVectorLayer::AddQuad(unsigned long int vcount, const function<
 	return { &quads.back(), QuadDeleter{ prev(quads.cend()) } };
 }
 
-auto Impl::TerrainVectorLayer::BuildRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, UINT64 tonemapParamsGPUAddress, function<void (ID3D12GraphicsCommandList2 *target)> &cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> &mainPassSetupCallback) const -> RenderPipeline::RenderStage
+auto Impl::TerrainVectorLayer::BuildRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const float4x4 &frustumXform, UINT64 tonemapParamsGPUAddress, function<void (ID3D12GraphicsCommandList2 *target)> &cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> &mainPassSetupCallback) const -> RenderPipeline::RenderStage
 {
 	using namespace placeholders;
 
@@ -811,7 +812,7 @@ auto Impl::TerrainVectorLayer::GetDebugDrawRenderStage() const -> RenderPipeline
 	return RenderPipeline::PipelineStage(in_place_type<RenderPipeline::RenderStage>, static_cast<const RenderPipeline::IRenderStage *>(this), static_cast<decltype(phaseSelector)>(&TerrainVectorLayer::GetAABBPassPre));
 }
 
-void Impl::TerrainVectorLayer::ScheduleRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, UINT64 tonemapParamsGPUAddress, function<void (ID3D12GraphicsCommandList2 *target)> cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> mainPassSetupCallback) const
+void Impl::TerrainVectorLayer::ScheduleRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const float4x4 &frustumXform, UINT64 tonemapParamsGPUAddress, function<void (ID3D12GraphicsCommandList2 *target)> cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> mainPassSetupCallback) const
 {
 	GPUWorkSubmission::AppendPipelineStage<true>(&TerrainVectorLayer::BuildRenderStage, this, /*cref*/(frustumCuller), /*cref*/(frustumXform), tonemapParamsGPUAddress, move(cullPassSetupCallback), move(mainPassSetupCallback));
 }

@@ -1049,7 +1049,7 @@ void Impl::World::FlushUpdates() const
 	}
 }
 
-auto Impl::World::BuildRenderStage(WorldViewContext &viewCtx, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 &viewXform, UINT64 tonemapParamsGPUAddress, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, function<void (ID3D12GraphicsCommandList2 *target)> &cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> &mainPassSetupCallback) const -> RenderPipeline::RenderStage
+auto Impl::World::BuildRenderStage(WorldViewContext &viewCtx, const float4x4 &frustumXform, const float4x3 &viewXform, UINT64 tonemapParamsGPUAddress, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, function<void (ID3D12GraphicsCommandList2 *target)> &cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> &mainPassSetupCallback) const -> RenderPipeline::RenderStage
 {
 	Setup(viewCtx, tonemapParamsGPUAddress, ZBuffer, dsv, move(cullPassSetupCallback), move(mainPassSetupCallback));
 
