@@ -39,8 +39,8 @@ const float G_rcp(float a2, float VdotN, float LdotN, float VdotL)
 	return isfinite(LambdaV) ? 1 + max(LambdaV, LambdaL) + lambda * min(LambdaV, LambdaL) : LambdaV * 0/*generate NaN*/;
 }
 
-// evaluate rendering equation for punctual light source, non-metal material
-// no low-level optimizations yet (such as avoiding H calculation in https://twvideo01.ubm-us.net/o1/vault/gdc2017/Presentations/Hammon_Earl_PBR_Diffuse_Lighting.pdf)
+// evaluate rendering equation for punctual light source, non-metal material\
+!: no low-level optimizations yet (such as avoiding H calculation in https://twvideo01.ubm-us.net/o1/vault/gdc2017/Presentations/Hammon_Earl_PBR_Diffuse_Lighting.pdf)
 float3 Lit(float3 albedo, float roughness, float F0, float3 N, float3 viewDir, float3 lightDir, float3 lightIrradiance)
 {
 	// TODO: move outside
@@ -82,7 +82,7 @@ float3 Lit(float3 albedo, float roughness, float F0, float3 N, float3 viewDir, f
 	specDenom *= GGX_denom;
 	spec /= specDenom;
 
-	// GGX diffuse approximation from https://twvideo01.ubm-us.net/o1/vault/gdc2017/Presentations/Hammon_Earl_PBR_Diffuse_Lighting.pdf\
+	// GGX diffuse approximation from https://twvideo01.ubm-us.net/o1/vault/gdc2017/Presentations/Hammon_Earl_PBR_Diffuse_Lighting.pdf \
 	!: potential mad optimizations via manual '(1 - x) * y' transformations
 	const float
 		facing = .5f * VdotL + .5f,
