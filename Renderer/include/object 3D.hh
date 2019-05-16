@@ -79,7 +79,7 @@ namespace Renderer
 			// is GPU lifetime tracking is necessary for cmd list (or is it enough for cmd allocator only)?
 			std::shared_future<std::pair<Impl::TrackedResource<ID3D12CommandAllocator>, Impl::TrackedResource<ID3D12GraphicsCommandList2>>> bundle;
 			std::shared_ptr<Subobject []> subobjects;
-			Impl::TrackedResource<ID3D12Resource> VIB;	// Vertex/Index Buffer, also contin material for Intel workaround
+			Impl::TrackedResource<ID3D12Resource> VIB;	// Vertex/Index Buffer, also contain material for Intel workaround
 			unsigned long int tricount;
 			unsigned int subobjCount;
 
