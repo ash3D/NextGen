@@ -410,9 +410,7 @@ void Impl::World::MainPassRange(CmdListPool::CmdList &cmdList, unsigned long ran
 	cmdList.Setup(renderStream[rangeBegin].instance->GetStartPSO().Get());
 
 	mainPassSetupCallback(cmdList);
-	cmdList->SetGraphicsRootSignature(decltype(staticObjects)::value_type::GetRootSignature().Get());
-	cmdList->SetGraphicsRootConstantBufferView(Renderer::Object3D::ROOT_PARAM_PER_FRAME_DATA_CBV, GetCurFrameGPUDataPtr());
-	cmdList->SetGraphicsRootConstantBufferView(Renderer::Object3D::ROOT_PARAM_TONEMAP_PARAMS_CBV, tonemapParamsGPUAddress);
+	decltype(staticObjects)::value_type::Setup(cmdList, GetCurFrameGPUDataPtr(), tonemapParamsGPUAddress);
 
 	for_each(next(renderStream.cbegin(), rangeBegin), next(renderStream.cbegin(), rangeEnd), [&, curOcclusionQueryIdx = OcclusionCulling::QueryBatchBase::npos, final](remove_reference_t<decltype(renderStream)>::value_type renderData) mutable
 	{

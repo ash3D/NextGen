@@ -244,6 +244,13 @@ AABB<3> Impl::Object3D::GetXformedAABB(const HLSL::float4x3 &xform) const
 	return result;
 }
 
+void Impl::Object3D::Setup(ID3D12GraphicsCommandList2 *cmdList, UINT64 frameDataGPUPtr, UINT64 tonemapParamsGPUPtr)
+{
+	cmdList->SetGraphicsRootSignature(rootSig.Get());
+	cmdList->SetGraphicsRootConstantBufferView(ROOT_PARAM_PER_FRAME_DATA_CBV, frameDataGPUPtr);
+	cmdList->SetGraphicsRootConstantBufferView(ROOT_PARAM_TONEMAP_PARAMS_CBV, tonemapParamsGPUPtr);
+}
+
 const ComPtr<ID3D12PipelineState> &Impl::Object3D::GetStartPSO() const
 {
 	return PSOs[subobjects[0].doublesided];

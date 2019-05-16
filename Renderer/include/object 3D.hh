@@ -99,7 +99,7 @@ namespace Renderer
 			unsigned long int GetTriCount() const noexcept { return tricount; }
 
 		protected:
-			static const auto &GetRootSignature() noexcept { return rootSig; }
+			static void Setup(ID3D12GraphicsCommandList2 *target, UINT64 frameDataGPUPtr, UINT64 tonemapParamsGPUPtr);
 			const WRL::ComPtr<ID3D12PipelineState> &GetStartPSO() const;
 			const void Render(ID3D12GraphicsCommandList2 *target) const;
 
@@ -114,7 +114,6 @@ namespace Renderer
 
 	class Object3D : public Impl::Object3D
 	{
-		friend class Impl::World;
 		friend class Impl::Instance;
 
 	public:
@@ -122,7 +121,8 @@ namespace Renderer
 
 		// hide from protected
 	private:
-		using Impl::Object3D::GetRootSignature;
+		using Impl::Object3D::Setup;
+		using Impl::Object3D::GetStartPSO;
 		using Impl::Object3D::Render;
 	};
 }
