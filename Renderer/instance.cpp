@@ -14,6 +14,6 @@ Impl::Instance::~Instance() = default;
 
 void Impl::Instance::Render(ID3D12GraphicsCommandList2 *cmdList) const
 {
-	cmdList->SetGraphicsRootConstantBufferView(Renderer::Object3D::ROOT_PARAM_INSTANCE_DATA_CBV/*consider or callback to root param binding abstraction instead*/, CB_GPU_ptr);
+	cmdList->SetGraphicsRootConstantBufferView(Renderer::Object3D::ROOT_PARAM_INSTANCE_DATA_CBV/*consider callback to root param binding abstraction instead*/, CB_GPU_ptr);
 	object.Render(cmdList);
 }
