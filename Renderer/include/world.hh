@@ -105,7 +105,7 @@ namespace Renderer
 				operator const Renderer::Instance *() const noexcept { return instance; }
 
 			public:
-#if defined _MSC_VER && _MSC_VER <= 1920
+#if defined _MSC_VER && _MSC_VER <= 1921
 				inline const AABB<3> &GetAABB() const noexcept;
 #else
 				inline const auto &GetAABB() const noexcept;
@@ -268,7 +268,7 @@ namespace Renderer
 		friend class Impl::Viewport;
 		friend class Impl::TerrainVectorLayer;	// for GetCurFrameGPUDataPtr()
 
-#if defined _MSC_VER && _MSC_VER <= 1920
+#if defined _MSC_VER && _MSC_VER <= 1921
 	private:
 		struct tag {};
 

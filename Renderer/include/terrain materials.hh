@@ -101,7 +101,7 @@ namespace Renderer::TerrainMaterials
 
 	protected:
 		explicit Flat(const float (&albedo)[3], const WRL::ComPtr<ID3D12RootSignature> &rootSig = rootSig, const WRL::ComPtr<ID3D12PipelineState> &PSO = PSO);
-#if defined _MSC_VER && _MSC_VER <= 1920
+#if defined _MSC_VER && _MSC_VER <= 1921
 	public:
 		explicit Flat(tag, const float (&albedo)[3], const WRL::ComPtr<ID3D12RootSignature> &rootSig = rootSig, const WRL::ComPtr<ID3D12PipelineState> &PSO = PSO);
 #else
@@ -130,7 +130,7 @@ namespace Renderer::TerrainMaterials
 	private:
 		const Renderer::Impl::TrackedResource<ID3D12Resource> tex;
 
-#if defined _MSC_VER && _MSC_VER <= 1920
+#if defined _MSC_VER && _MSC_VER <= 1921
 	public:
 		explicit Textured(tag, const float (&albedoFactor)[3], const Texture &tex, float texScale, const char materialName[]);
 		~Textured();
@@ -172,7 +172,7 @@ namespace Renderer::TerrainMaterials
 			ROOT_PARAM_COUNT
 		};
 
-#if defined _MSC_VER && _MSC_VER <= 1920
+#if defined _MSC_VER && _MSC_VER <= 1921
 	public:
 		explicit Standard(tag, const Texture &albedoMap, const Texture &roughnessMap, const Texture &normalMap, float texScale, float IOR, const char materialName[]);
 		~Standard();
@@ -211,7 +211,7 @@ namespace Renderer::TerrainMaterials
 		};
 		const Renderer::Impl::TrackedResource<ID3D12Resource> textures[TEXTURE_COUNT];
 
-#if defined _MSC_VER && _MSC_VER <= 1920
+#if defined _MSC_VER && _MSC_VER <= 1921
 	public:
 		explicit Extended(tag, const Texture &albedoMap, const Texture &fresnelMap, const Texture &roughnessMap, const Texture &normalMap, float texScale, const char materialName[]);
 		~Extended();

@@ -265,7 +265,7 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 #	pragma warning(push)
 #	pragma warning(disable: 4003)
 
-#if defined _MSC_VER && _MSC_VER <= 1920 && !defined __clang__
+#if defined _MSC_VER && _MSC_VER <= 1921 && !defined __clang__
 #	define MSVC_LIMITATIONS
 #endif
 
@@ -274,7 +274,7 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 #	define MSVC_NAMESPACE_WORKAROUND
 #endif
 
-#if defined _MSC_VER && (_MSC_VER == 1912 || _MSC_VER == 1913 || _MSC_VER == 1914 || _MSC_VER == 1915 || _MSC_VER == 1916 || _MSC_VER == 1920)
+#if defined _MSC_VER && (_MSC_VER == 1912 || _MSC_VER == 1913 || _MSC_VER == 1914 || _MSC_VER == 1915 || _MSC_VER == 1916 || _MSC_VER == 1920 || _MSC_VER == 1921)
 #	define MSVC_PACKED_SWIZZLE_WORKAROUND
 #endif
 
