@@ -2881,13 +2881,7 @@ public:
 	constexpr difference_type operator -(const SegmentIterator sub) const noexcept { return segIdx - sub.segIdx; }
 
 public:
-	// TODO: replace with C++20 <=>
-	constexpr bool operator < (const SegmentIterator cmp) const noexcept { return segIdx <  cmp.segIdx; }
-	constexpr bool operator > (const SegmentIterator cmp) const noexcept { return segIdx >  cmp.segIdx; }
-	constexpr bool operator <=(const SegmentIterator cmp) const noexcept { return segIdx <= cmp.segIdx; }
-	constexpr bool operator >=(const SegmentIterator cmp) const noexcept { return segIdx >= cmp.segIdx; }
-	constexpr bool operator ==(const SegmentIterator cmp) const noexcept { return segIdx == cmp.segIdx; }
-	constexpr bool operator !=(const SegmentIterator cmp) const noexcept { return segIdx != cmp.segIdx; }
+	friend constexpr auto operator <=>(const SegmentIterator left, const SegmentIterator right) noexcept { return left.segIdx <=> right.segIdx; }
 
 public:
 	value_type operator *() const;
