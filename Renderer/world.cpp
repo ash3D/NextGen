@@ -147,7 +147,7 @@ ComPtr<ID3D12PipelineState> Impl::World::CreateXformAABB_PSO()
 		D3D12_SO_NO_RASTERIZED_STREAM
 	};
 
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
+	const D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
 	{
 		.pRootSignature			= xformAABB_rootSig.Get(),
 		.VS						= ShaderBytecode(Shaders::AABB_3D_xform),

@@ -171,7 +171,7 @@ ComPtr<ID3D12PipelineState> Flat::CreatePSO()
 		{ "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
 
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
+	const D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
 	{
 		.pRootSignature			= rootSig.Get(),
 		.VS						= ShaderBytecode(Shaders::vectorLayerVS),
@@ -284,7 +284,7 @@ ComPtr<ID3D12PipelineState> Textured::CreatePSO()
 		{ "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
 
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
+	const D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
 	{
 		.pRootSignature			= rootSig.Get(),
 		.VS						= ShaderBytecode(Shaders::vectorLayerVS_UV),
@@ -387,7 +387,7 @@ ComPtr<ID3D12PipelineState> Standard::CreatePSO()
 		{ "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
 
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
+	const D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
 	{
 		.pRootSignature			= rootSig.Get(),
 		.VS						= ShaderBytecode(Shaders::vectorLayerVS_UV),
@@ -507,7 +507,7 @@ ComPtr<ID3D12PipelineState> Extended::CreatePSO()
 		{ "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
 
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
+	const D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
 	{
 		.pRootSignature			= rootSig.Get(),
 		.VS						= ShaderBytecode(Shaders::vectorLayerVS_UV),

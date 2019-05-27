@@ -273,7 +273,7 @@ ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateCullPassPSO()
 		{ "AABB_max", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 }
 	};
 
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
+	const D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
 	{
 		.pRootSignature			= cullPassRootSig.Get(),
 		.VS						= ShaderBytecode(Shaders::AABB_2D),
@@ -539,7 +539,7 @@ ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateAABB_PSO()
 		{ "AABB_max", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 }
 	};
 
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
+	const D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
 	{
 		.pRootSignature			= AABB_rootSig.Get(),
 		.VS						= ShaderBytecode(Shaders::AABB_2D),
