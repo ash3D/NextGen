@@ -275,27 +275,18 @@ ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateCullPassPSO()
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
 	{
-		cullPassRootSig.Get(),							// root signature
-		ShaderBytecode(Shaders::AABB_2D),				// VS
-		{},												// PS
-		{},												// DS
-		{},												// HS
-		{},												// GS
-		{},												// SO
-		blendDesc,										// blend
-		UINT_MAX,										// sample mask
-		rasterDesc,										// rasterizer
-		dsDesc,											// depth stencil
-		{ VB_decl, size(VB_decl) },						// IA
-		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,	// restart primtive
-		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,			// primitive topology
-		0,												// render targets
-		{},												// RT formats
-		Config::ZFormat,								// depth stencil format
-		Config::MSAA(),									// MSAA
-		0,												// node mask
-		{},												// cached PSO
-		D3D12_PIPELINE_STATE_FLAG_NONE					// flags
+		.pRootSignature			= cullPassRootSig.Get(),
+		.VS						= ShaderBytecode(Shaders::AABB_2D),
+		.BlendState				= blendDesc,
+		.SampleMask				= UINT_MAX,
+		.RasterizerState		= rasterDesc,
+		.DepthStencilState		= dsDesc,
+		.InputLayout			= { VB_decl, size(VB_decl) },
+		.IBStripCutValue		= D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,
+		.PrimitiveTopologyType	= D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+		.DSVFormat				= Config::ZFormat,
+		.SampleDesc				= Config::MSAA(),
+		.Flags					= D3D12_PIPELINE_STATE_FLAG_NONE
 	};
 
 	ComPtr<ID3D12PipelineState> result;
@@ -550,27 +541,21 @@ ComPtr<ID3D12PipelineState> Impl::TerrainVectorLayer::CreateAABB_PSO()
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
 	{
-		AABB_rootSig.Get(),								// root signature
-		ShaderBytecode(Shaders::AABB_2D),				// VS
-		ShaderBytecode(Shaders::AABB_2D_vis),			// PS
-		{},												// DS
-		{},												// HS
-		{},												// GS
-		{},												// SO
-		CD3DX12_BLEND_DESC(D3D12_DEFAULT),				// blend
-		UINT_MAX,										// sample mask
-		rasterDesc,										// rasterizer
-		dsDesc,											// depth stencil
-		{ VB_decl, size(VB_decl) },						// IA
-		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,	// restart primtive
-		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,			// primitive topology
-		1,												// render targets
-		{ Config::HDRFormat },							// RT formats
-		Config::ZFormat,								// depth stencil format
-		Config::MSAA(),									// MSAA
-		0,												// node mask
-		{},												// cached PSO
-		D3D12_PIPELINE_STATE_FLAG_NONE					// flags
+		.pRootSignature			= AABB_rootSig.Get(),
+		.VS						= ShaderBytecode(Shaders::AABB_2D),
+		.PS						= ShaderBytecode(Shaders::AABB_2D_vis),
+		.BlendState				= CD3DX12_BLEND_DESC(D3D12_DEFAULT),
+		.SampleMask				= UINT_MAX,
+		.RasterizerState		= rasterDesc,
+		.DepthStencilState		= dsDesc,
+		.InputLayout			= { VB_decl, size(VB_decl) },
+		.IBStripCutValue		= D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,
+		.PrimitiveTopologyType	= D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+		.NumRenderTargets		= 1,
+		.RTVFormats				= { Config::HDRFormat },
+		.DSVFormat				= Config::ZFormat,
+		.SampleDesc				= Config::MSAA(),
+		.Flags					= D3D12_PIPELINE_STATE_FLAG_NONE
 	};
 
 	ComPtr<ID3D12PipelineState> result;

@@ -149,27 +149,19 @@ ComPtr<ID3D12PipelineState> Impl::World::CreateXformAABB_PSO()
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
 	{
-		xformAABB_rootSig.Get(),						// root signature
-		ShaderBytecode(Shaders::AABB_3D_xform),			// VS
-		{},												// PS
-		{},												// DS
-		{},												// HS
-		{},												// GS
-		soDesc,											// SO
-		CD3DX12_BLEND_DESC(D3D12_DEFAULT),				// blend
-		UINT_MAX,										// sample mask
-		CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),			// rasterizer
-		CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT),		// depth stencil
-		{ VB_decl, size(VB_decl) },						// IA
-		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,	// restart primtive
-		D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT,			// primitive topology
-		0,												// render targets
-		{},												// RT formats
-		DXGI_FORMAT_UNKNOWN,							// depth stencil format
-		{1},											// MSAA
-		0,												// node mask
-		{},												// cached PSO
-		D3D12_PIPELINE_STATE_FLAG_NONE					// flags
+		.pRootSignature			= xformAABB_rootSig.Get(),
+		.VS						= ShaderBytecode(Shaders::AABB_3D_xform),
+		.StreamOutput			= soDesc,
+		.BlendState				= CD3DX12_BLEND_DESC(D3D12_DEFAULT),
+		.SampleMask				= UINT_MAX,
+		.RasterizerState		= CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),
+		.DepthStencilState		= CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT),
+		.InputLayout			= { VB_decl, size(VB_decl) },
+		.IBStripCutValue		= D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,
+		.PrimitiveTopologyType	= D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT,
+		.DSVFormat				= DXGI_FORMAT_UNKNOWN,
+		.SampleDesc				= {1},
+		.Flags					= D3D12_PIPELINE_STATE_FLAG_NONE
 	};
 
 	ComPtr<ID3D12PipelineState> result;
@@ -259,27 +251,18 @@ auto Impl::World::CreateCullPassPSOs() -> decltype(cullPassPSOs)
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
 	{
-		cullPassRootSig.Get(),							// root signature
-		ShaderBytecode(Shaders::AABB_3D),				// VS
-		{},												// PS
-		{},												// DS
-		{},												// HS
-		{},												// GS
-		{},												// SO
-		blendDesc,										// blend
-		UINT_MAX,										// sample mask
-		rasterDesc,										// rasterizer
-		dsDescs[0],										// depth stencil
-		{ VB_decl, size(VB_decl) },						// IA
-		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,	// restart primtive
-		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,			// primitive topology
-		0,												// render targets
-		{},												// RT formats
-		Config::ZFormat,								// depth stencil format
-		Config::MSAA(),									// MSAA
-		0,												// node mask
-		{},												// cached PSO
-		D3D12_PIPELINE_STATE_FLAG_NONE					// flags
+		.pRootSignature			= cullPassRootSig.Get(),
+		.VS						= ShaderBytecode(Shaders::AABB_3D),
+		.BlendState				= blendDesc,
+		.SampleMask				= UINT_MAX,
+		.RasterizerState		= rasterDesc,
+		.DepthStencilState		= dsDescs[0],
+		.InputLayout			= { VB_decl, size(VB_decl) },
+		.IBStripCutValue		= D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,
+		.PrimitiveTopologyType	= D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+		.DSVFormat				= Config::ZFormat,
+		.SampleDesc				= Config::MSAA(),
+		.Flags					= D3D12_PIPELINE_STATE_FLAG_NONE
 	};
 
 	decltype(cullPassPSOs) result;
@@ -526,27 +509,21 @@ auto Impl::World::CreateAABB_PSOs() -> decltype(AABB_PSOs)
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
 	{
-		AABB_rootSig.Get(),								// root signature
-		ShaderBytecode(Shaders::AABB_3D),				// VS
-		ShaderBytecode(Shaders::AABB_3D_vis),			// PS
-		{},												// DS
-		{},												// HS
-		{},												// GS
-		{},												// SO
-		CD3DX12_BLEND_DESC(D3D12_DEFAULT),				// blend
-		UINT_MAX,										// sample mask
-		rasterDesc,										// rasterizer
-		dsDescHidden,									// depth stencil
-		{ VB_decl, size(VB_decl) },						// IA
-		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,	// restart primtive
-		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,			// primitive topology
-		1,												// render targets
-		{ Config::HDRFormat },							// RT formats
-		Config::ZFormat,								// depth stencil format
-		Config::MSAA(),									// MSAA
-		0,												// node mask
-		{},												// cached PSO
-		D3D12_PIPELINE_STATE_FLAG_NONE					// flags
+		.pRootSignature			= AABB_rootSig.Get(),
+		.VS						= ShaderBytecode(Shaders::AABB_3D),
+		.PS						= ShaderBytecode(Shaders::AABB_3D_vis),
+		.BlendState				= CD3DX12_BLEND_DESC(D3D12_DEFAULT),
+		.SampleMask				= UINT_MAX,
+		.RasterizerState		= rasterDesc,
+		.DepthStencilState		= dsDescHidden,
+		.InputLayout			= { VB_decl, size(VB_decl) },
+		.IBStripCutValue		= D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,
+		.PrimitiveTopologyType	= D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+		.NumRenderTargets		= 1,
+		.RTVFormats				= { Config::HDRFormat },
+		.DSVFormat				= Config::ZFormat,
+		.SampleDesc				= Config::MSAA(),
+		.Flags					= D3D12_PIPELINE_STATE_FLAG_NONE
 	};
 
 	decltype(cullPassPSOs) result;

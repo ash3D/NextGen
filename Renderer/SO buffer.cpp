@@ -63,9 +63,13 @@ void Handle::Finish(CmdListPool::CmdList &cmdList) const
 const D3D12_STREAM_OUTPUT_BUFFER_VIEW Handle::GetSOView() const
 {
 	assert(size);
-	// C++20 designated init?
 	const auto GPUPtr = GetGPUPtr();
-	return { GPUPtr, size, GPUPtr + size };
+	return
+	{
+		.BufferLocation = GPUPtr,
+		.SizeInBytes = size,
+		.BufferFilledSizeLocation = GPUPtr + size
+	};
 }
 
 const UINT64 Handle::GetGPUPtr() const
