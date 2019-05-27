@@ -178,7 +178,7 @@ namespace Renderer::TerrainMaterials
 		~Standard();
 #else
 	private:
-		explicit Standard(const Texture &albedoMap, const Texture &roughnessMap, const Texture &normalMap, const Texture &tex, float texScale, float IOR, const char materialName[]);
+		explicit Standard(const Texture &albedoMap, const Texture &roughnessMap, const Texture &normalMap, float texScale, float IOR, const char materialName[]);
 		~Standard();
 #endif
 
@@ -217,7 +217,7 @@ namespace Renderer::TerrainMaterials
 		~Extended();
 #else
 	private:
-		explicit Extended(const Texture &albedoMap, const Texture &fresnelMap, const Texture &roughnessMap, const Texture &normalMap, const Texture &tex, float texScale, const char materialName[]);
+		explicit Extended(const Texture &albedoMap, const Texture &fresnelMap, const Texture &roughnessMap, const Texture &normalMap, float texScale, const char materialName[]);
 		~Extended();
 #endif
 

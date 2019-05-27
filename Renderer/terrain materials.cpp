@@ -445,9 +445,9 @@ shared_ptr<Interface> __cdecl Standard::Make(const Renderer::Texture &albedoMap,
 	return make_shared<Standard>(tag(), albedoMap, roughnessMap, normalMap, texScale, IOR, materialName);
 }
 #else
-shared_ptr<Interface> __cdecl Standard::Make(const Texture &albedoMap, const Texture &roughnessMap, const Texture &normalMap, float texScale, const char materialName[])
+shared_ptr<Interface> __cdecl Standard::Make(const Texture &albedoMap, const Texture &roughnessMap, const Texture &normalMap, float texScale, float IOR, const char materialName[])
 {
-	return allocate_shared<Standard>(albedoMap, roughnessMap, normalMap, texScale, IOR, materialName);
+	return allocate_shared<Standard>(AllocatorProxy<Standard>(), albedoMap, roughnessMap, normalMap, texScale, IOR, materialName);
 }
 #endif
 
@@ -568,7 +568,7 @@ shared_ptr<Interface> __cdecl Extended::Make(const Renderer::Texture &albedoMap,
 #else
 shared_ptr<Interface> __cdecl Extended::Make(const Texture &albedoMap, const Texture &fresnelMap, const Texture &roughnessMap, const Texture &normalMap, float texScale, const char materialName[])
 {
-	return allocate_shared<Extended>(albedoMap, fresnelMap, roughnessMap, normalMap, texScale, materialName);
+	return allocate_shared<Extended>(AllocatorProxy<Extended>(), albedoMap, fresnelMap, roughnessMap, normalMap, texScale, materialName);
 }
 #endif
 #pragma endregion
