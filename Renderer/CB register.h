@@ -16,5 +16,10 @@ namespace Renderer::Impl::CBRegister
 		{
 			memcpy(const_cast<AlignedRow *>(this)->data(), src, sizeof src);
 		}
+
+		void operator =(const Math::VectorMath::vector<float, length> &src) volatile noexcept
+		{
+			operator =(reinterpret_cast<const float (&)[length]>(src));
+		}
 	};
 }

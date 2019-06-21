@@ -12,7 +12,13 @@ struct SrcVertex
 	float3 N	: NORMAL;
 };
 
-XformedVertex main(in SrcVertex input, out float4 xformedPos : SV_POSITION, out float height : SV_ClipDistance)
+// 2 view space
+float3 XformOrthoUniform(float3 vec)
+{
+	return mul(mul(mul(vec, worldXform), terrainWorldXform), viewXform);
+}
+
+XformedVertex VS(in SrcVertex input, out float4 xformedPos : SV_POSITION, out float height : SV_ClipDistance)
 {
 	const float3 worldPos = mul(float4(mul(input.pos, worldXform), 1.f), terrainWorldXform);
 	height = worldPos.z;	// do not render anything under terrain
@@ -23,6 +29,6 @@ XformedVertex main(in SrcVertex input, out float4 xformedPos : SV_POSITION, out 
 		xform normal
 		!: use vector xform for now, need to replace with covector xform (inverse transpose) for correct non-uniform scaling handling
 	*/
-	const XformedVertex output = { -viewPos, mul(mul(mul(input.N, worldXform), terrainWorldXform), viewXform) };
+	const XformedVertex output = { -viewPos, XformOrthoUniform(input.N) };
 	return output;
 }

@@ -101,6 +101,96 @@ ComPtr<ID3D12DescriptorHeap> TextureSampers::Impl::CreateHeap()
 			};
 			device->CreateSampler(&desc, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, TERRAIN_BUMP_SAMPLER, descriptorSize));
 		}
+
+		// 3D object albedo
+		{
+			const D3D12_SAMPLER_DESC desc =
+			{
+				D3D12_FILTER_ANISOTROPIC,
+				D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+				D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+				D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+				0,									// LOD bias
+				Aniso::Object3D::albedo,
+				D3D12_COMPARISON_FUNC_NEVER,
+				{},									// border color
+				-D3D12_FLOAT32_MAX,					// min LOD
+				+D3D12_FLOAT32_MAX					// max LOD
+			};
+			device->CreateSampler(&desc, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, OBJ3D_ALBEDO_SAMPLER, descriptorSize));
+		}
+
+		// 3D object albedo with alphatest
+		{
+			const D3D12_SAMPLER_DESC desc =
+			{
+				D3D12_FILTER_ANISOTROPIC,
+				D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+				D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+				D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+				-log2(sqrt(Config::MSAA().Count)),	// neative LOD bias to account for supersampled alphatest
+				Aniso::Object3D::albedo,
+				D3D12_COMPARISON_FUNC_NEVER,
+				{},									// border color
+				-D3D12_FLOAT32_MAX,					// min LOD
+				+D3D12_FLOAT32_MAX					// max LOD
+			};
+			device->CreateSampler(&desc, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, TERRAIN_ALBEDO_ALPHATEST_SAMPLER, descriptorSize));
+		}
+
+		// 3D object bump
+		{
+			const D3D12_SAMPLER_DESC desc =
+			{
+				D3D12_FILTER_ANISOTROPIC,
+				D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+				D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+				D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+				0,									// LOD bias
+				Aniso::Object3D::bump,
+				D3D12_COMPARISON_FUNC_NEVER,
+				{},									// border color
+				-D3D12_FLOAT32_MAX,					// min LOD
+				+D3D12_FLOAT32_MAX					// max LOD
+			};
+			device->CreateSampler(&desc, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, OBJ3D_BUMP_SAMPLER, descriptorSize));
+		}
+
+		// 3D object glass mask
+		{
+			const D3D12_SAMPLER_DESC desc =
+			{
+				D3D12_FILTER_ANISOTROPIC,
+				D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+				D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+				D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+				0,									// LOD bias
+				Aniso::Object3D::glassMask,
+				D3D12_COMPARISON_FUNC_NEVER,
+				{},									// border color
+				-D3D12_FLOAT32_MAX,					// min LOD
+				+D3D12_FLOAT32_MAX					// max LOD
+			};
+			device->CreateSampler(&desc, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, OBJ3D_GLASS_MASK_SAMPLER, descriptorSize));
+		}
+
+		// 3D object TV
+		{
+			const D3D12_SAMPLER_DESC desc =
+			{
+				D3D12_FILTER_ANISOTROPIC,
+				D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+				D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+				D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+				0,									// LOD bias
+				Aniso::Object3D::TV,
+				D3D12_COMPARISON_FUNC_NEVER,
+				{},									// border color
+				-D3D12_FLOAT32_MAX,					// min LOD
+				+D3D12_FLOAT32_MAX					// max LOD
+			};
+			device->CreateSampler(&desc, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, OBJ3D_TV_SAMPLER, descriptorSize));
+		}
 	}
 
 	return result;

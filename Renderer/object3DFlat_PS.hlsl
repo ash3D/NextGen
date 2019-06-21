@@ -1,12 +1,8 @@
 #include "per-frame data.hlsli"
 #include "tonemap params.hlsli"
+#include "object3D material.hlsli"
 #include "object3D VS 2 PS.hlsli"
 #include "lighting.hlsli"
-
-cbuffer MaterialConstants : register(b0, space1)
-{
-	float3 albedo;
-}
 
 ConstantBuffer<TonemapParams> tonemapParams : register(b1, space1);
 

@@ -262,9 +262,6 @@
     <FxCompile Include="object3D_VS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="object3D_PS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
     <FxCompile Include="AABB_3D_xform.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
@@ -301,6 +298,33 @@
     <FxCompile Include="vectorLayerExtPS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="object3DFlat_PS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="object3DTex_PS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="object3DGlass_PS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="object3DAlphatest_PS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="object3DBump_PS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="object3DBumpGlass_PS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="object3DTV_PS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="object3D_VS_UV.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="object3D_VS_UV_TG.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="world hierarchy.inl">
@@ -334,9 +358,6 @@
     <None Include="luminance.hlsli">
       <Filter>Shaders\Include</Filter>
     </None>
-    <None Include="object3D VS 2 PS.hlsli">
-      <Filter>Shaders\Include</Filter>
-    </None>
     <None Include="per-frame data.hlsli">
       <Filter>Shaders\Include</Filter>
     </None>
@@ -356,6 +377,21 @@
       <Filter>Shaders\Include</Filter>
     </None>
     <None Include="samplers.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
+    <None Include="object3D material.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
+    <None Include="object3D VS 2 PS.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
+    <None Include="object3D tex PS.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
+    <None Include="glass.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
+    <None Include="object3D bump PS.hlsli">
       <Filter>Shaders\Include</Filter>
     </None>
   </ItemGroup>

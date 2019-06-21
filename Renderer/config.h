@@ -9,7 +9,12 @@ namespace Renderer::Config
 	{
 		namespace Terrain
 		{
-			constexpr UINT albedo = 16, fresnel = 12, roughness = 4, bump = 8;
+			constexpr UINT albedo = 14, fresnel = 12, roughness = 5, bump = 7;
+		}
+
+		namespace Object3D
+		{
+			constexpr UINT albedo = 16, bump = 8, glassMask = 4, TV = 16;
 		}
 	}
 	DXGI_SAMPLE_DESC MSAA();

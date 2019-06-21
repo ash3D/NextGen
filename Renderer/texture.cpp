@@ -12,11 +12,13 @@ static inline pair<D3D12_RESOURCE_STATES, DirectX::DDS_LOADER_FLAGS> DecodeTextu
 {
 	switch (usage)
 	{
+	case TextureUsage::TVScreen:
 	case TextureUsage::AlbedoMap:
 		return { D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, DirectX::DDS_LOADER_FORCE_SRGB };
 	case TextureUsage::FresnelMap:
 	case TextureUsage::RoughnessMap:
 	case TextureUsage::NormalMap:
+	case TextureUsage::GlassMask:
 		return { D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, DirectX::DDS_LOADER_DEFAULT };
 		break;
 	default:
@@ -34,6 +36,18 @@ static inline void ValidateTexture(const D3D12_RESOURCE_DESC &desc, TextureUsage
 	// check format for usage
 	switch(usage)
 	{
+	case TextureUsage::TVScreen:
+		switch (desc.Format)
+		{
+		case DXGI_FORMAT_BC1_UNORM_SRGB:
+		case DXGI_FORMAT_BC6H_UF16:
+		case DXGI_FORMAT_BC7_UNORM_SRGB:
+			break;
+		default:
+			throw invalid_argument("Wrong texture format for TV screen.");
+		}
+		break;
+
 	case TextureUsage::AlbedoMap:
 		switch (desc.Format)
 		{
@@ -76,6 +90,16 @@ static inline void ValidateTexture(const D3D12_RESOURCE_DESC &desc, TextureUsage
 			throw invalid_argument("Wrong texture format for normal map.");
 		}
 		break;
+
+	case TextureUsage::GlassMask:
+		switch (desc.Format)
+		{
+		case DXGI_FORMAT_BC4_UNORM:
+			break;
+		default:
+			throw invalid_argument("Wrong texture format for glass mask.");
+		}
+		break;
 	}
 }
 
@@ -83,6 +107,10 @@ static inline void ValidateTexture(const D3D12_RESOURCE_DESC &desc, TextureUsage
 Impl::Texture::operator Impl::TrackedResource<ID3D12Resource>() const
 {
 	return tex;
+}
+
+Impl::Texture::Texture() : usage{ ~0 }
+{
 }
 
 Impl::Texture::Texture(const filesystem::path &fileName, TextureUsage usage) : usage(usage)
@@ -118,6 +146,11 @@ Impl::Texture::Texture(Texture &&) = default;
 Impl::Texture &Impl::Texture::operator =(const Texture &) = default;
 Impl::Texture &Impl::Texture::operator =(Texture &&) = default;
 Impl::Texture::~Texture() = default;
+
+Impl::Texture::operator bool() const noexcept
+{
+	return tex;
+}
 
 // triggers ComPtr`s impementation if inline (dtor for temp object?)
 auto Impl::Texture::AcquirePendingBarriers() noexcept -> decltype(pendingBarriers)

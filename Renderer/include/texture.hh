@@ -23,14 +23,17 @@ namespace Renderer
 
 	enum class TextureUsage
 	{
+		TVScreen,
 		AlbedoMap,
 		FresnelMap,
 		RoughnessMap,
 		NormalMap,
+		GlassMask,
 	};
 
 	namespace Impl
 	{
+		class Object3D;
 		class Viewport;
 
 		/*
@@ -47,6 +50,7 @@ namespace Renderer
 			operator TrackedResource<ID3D12Resource>() const;
 
 		public:
+			Texture();
 			explicit Texture(const std::filesystem::path &fileName, TextureUsage usage);
 
 			// define outside to break dependency on ComPtr`s implementation
@@ -57,6 +61,7 @@ namespace Renderer
 			~Texture();
 
 		public:
+			explicit operator bool() const noexcept;
 			auto Usage() const noexcept { return usage; }
 
 		private:
@@ -87,6 +92,7 @@ namespace Renderer
 		friend class TerrainMaterials::Textured;
 		friend class TerrainMaterials::Standard;
 		friend class TerrainMaterials::Extended;
+		friend class Impl::Object3D;
 		friend class Impl::Viewport;	// for pending barriers
 
 	public:
