@@ -271,8 +271,11 @@ static queue<RetiredResource> retiredResources;
 void RetireResource(ComPtr<IUnknown> resource)
 {
 	static mutex mtx;
-	lock_guard<decltype(mtx)> lck(mtx);
-	retiredResources.push({ globalFrameVersioning->GetCurFrameID(), move(resource) });
+	if (globalFrameVersioning->GetCurFrameID() > globalFrameVersioning->GetCompletedFrameID())
+	{
+		lock_guard<decltype(mtx)> lck(mtx);
+		retiredResources.push({ globalFrameVersioning->GetCurFrameID(), move(resource) });
+	}
 }
 
 // NOTE: not thread-safe
