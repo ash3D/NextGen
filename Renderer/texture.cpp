@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "texture.hh"
+#include "DMA engine.h"
 #include "DDSTextureLoader12.h"
 
 using namespace std;
@@ -113,9 +114,22 @@ Impl::Texture::Texture() : usage{ ~0 }
 {
 }
 
-Impl::Texture::Texture(const filesystem::path &fileName, TextureUsage usage) : usage(usage)
+Impl::Texture::Texture(const filesystem::path &fileName, TextureUsage usage, bool useSysRAM) : usage(usage)
 {
 	extern ComPtr<ID3D12Device2> device;
+
+	if (!useSysRAM)
+	{
+		D3D12_FEATURE_DATA_ARCHITECTURE GPUArch{};
+		CheckHR(device->CheckFeatureSupport(D3D12_FEATURE_ARCHITECTURE, &GPUArch, sizeof GPUArch));
+		assert(GPUArch.UMA || !GPUArch.CacheCoherentUMA);
+		useSysRAM = GPUArch.UMA;
+		/*
+		or CacheCoherentUMA ?
+		or check device id ?
+		https://docs.microsoft.com/en-us/windows/desktop/api/d3d12/ns-d3d12-d3d12_feature_data_architecture#how-to-use-uma-and-cachecoherentuma
+		*/
+	}
 
 	const auto [targetState, loadFlags] = DecodeTextureUsage(usage);
 
@@ -123,18 +137,23 @@ Impl::Texture::Texture(const filesystem::path &fileName, TextureUsage usage) : u
 	unique_ptr<uint8_t []> data;
 	vector<D3D12_SUBRESOURCE_DATA> subresources;
 	using namespace DirectX;
-	CheckHR(LoadDDSTextureFromFileEx(device.Get(), fileName.c_str(), 0, D3D12_RESOURCE_FLAG_NONE, loadFlags, DDS_CPU_ACCESS_INDIRECT, tex.GetAddressOf(), data, subresources));
+	CheckHR(LoadDDSTextureFromFileEx(device.Get(), fileName.c_str(), 0, D3D12_RESOURCE_FLAG_NONE, loadFlags, useSysRAM ? DDS_CPU_ACCESS_INDIRECT : DDS_CPU_ACCESS_DENY, tex.GetAddressOf(), data, subresources));
 	ValidateTexture(tex->GetDesc(), usage);
 
-	// write texture data\
-	TODO: implement loop tiling optimization for cache-friendly access pattern (https://docs.microsoft.com/en-us/windows/desktop/api/d3d12/nf-d3d12-id3d12resource-writetosubresource#remarks)
-	for (unsigned mip = 0; mip < size(subresources); mip++)
+	// write texture data
+	if (useSysRAM)
 	{
-		CheckHR(tex->Map(mip, &CD3DX12_RANGE(0, 0), NULL));
-		const auto &curMipData = subresources[mip];
-		CheckHR(tex->WriteToSubresource(mip, NULL, curMipData.pData, curMipData.RowPitch, curMipData.SlicePitch));
-		tex->Unmap(mip, NULL);
+		//TODO: implement loop tiling optimization for cache-friendly access pattern (https://docs.microsoft.com/en-us/windows/desktop/api/d3d12/nf-d3d12-id3d12resource-writetosubresource#remarks)
+		for (unsigned mip = 0; mip < size(subresources); mip++)
+		{
+			CheckHR(tex->Map(mip, &CD3DX12_RANGE(0, 0), NULL));
+			const auto &curMipData = subresources[mip];
+			CheckHR(tex->WriteToSubresource(mip, NULL, curMipData.pData, curMipData.RowPitch, curMipData.SlicePitch));
+			tex->Unmap(mip, NULL);
+		}
 	}
+	else
+		DMA::Upload2VRAM(tex, subresources, fileName.filename().c_str());
 
 	// schedule transition to shader accessibble state for next frame preparation stage
 	static_assert(sizeof(decltype(pendingBarriers)::value_type::second_type) >= sizeof D3D12_RESOURCE_STATES);

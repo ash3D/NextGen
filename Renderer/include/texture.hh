@@ -36,10 +36,6 @@ namespace Renderer
 		class Object3D;
 		class Viewport;
 
-		/*
-			store textures in sys RAM for now which means accessing it over PCIe on discrete GPUs, thouugh it is optimal for iGPUs (no redundant copy needed)
-			need to develop [batched] copy (sys RAM -> VRAM) mechanism on dedicated DMA cmd queue (enable it for discrete GPUs only)
-		*/
 		class Texture
 		{
 			WRL::ComPtr<ID3D12Resource> tex;	// in system RAM
@@ -51,7 +47,7 @@ namespace Renderer
 
 		public:
 			Texture();
-			explicit Texture(const std::filesystem::path &fileName, TextureUsage usage);
+			explicit Texture(const std::filesystem::path &fileName, TextureUsage usage, bool forceSysRAM);
 
 			// define outside to break dependency on ComPtr`s implementation
 		protected:

@@ -12,7 +12,7 @@ namespace Renderer::CmdListPool
 
 namespace Renderer::Impl
 {
-	struct CmdCtx : private CmdBuffer
+	struct CmdCtx : private CmdBuffer<>
 	{
 		friend class CmdListPool::CmdList;
 

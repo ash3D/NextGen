@@ -6,6 +6,7 @@
 #include <deque>
 #include <optional>
 #include <wrl/client.h>
+#include "../event handle.h"
 #include "../cmd ctx.h"
 
 struct ID3D12Fence;
@@ -23,19 +24,7 @@ namespace Renderer::Impl
 	class FrameVersioning<void>
 	{
 		UINT64 frameID = 0;
-		class EventHandle
-		{
-			const HANDLE handle;
-
-		public:
-			EventHandle();
-			~EventHandle();
-			EventHandle(EventHandle &) = delete;
-			void operator =(EventHandle &) = delete;
-
-		public:
-			operator HANDLE () const noexcept { return handle; }
-		} fenceEvent;
+		EventHandle fenceEvent;
 		WRL::ComPtr<ID3D12Fence> fence;
 		unsigned short frameLatency = 1, ringBufferIdx = 0;
 

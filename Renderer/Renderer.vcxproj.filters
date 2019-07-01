@@ -168,6 +168,12 @@
     <ClInclude Include="PIX events.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="DMA engine.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="event handle.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -249,6 +255,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="GPU texture sampler table.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DMA engine.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="event handle.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

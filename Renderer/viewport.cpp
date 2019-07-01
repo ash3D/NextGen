@@ -6,6 +6,7 @@
 #include "GPU descriptor heap.h"
 #include "shader bytecode.h"
 #include "CB register.h"
+#include "DMA engine.h"
 #include "config.h"
 #include "PIX events.h"
 #include "tonemapTextureReduction config.h"
@@ -364,6 +365,15 @@ void Impl::Viewport::Render(ID3D12Resource *output, ID3D12Resource *rendertarget
 	}
 
 	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Post, this, cmdLists.post, output, rendertarget, HDRSurface, LDRSurface, tonemapReductionBuffer, tonemapDescriptorTable, CalculateTonemapParamsLerpFactor(delta), width, height);
+
+	/*
+	defer as much as possible in order to reduce chances wating to be inserted in GFX queue (DMA queue can progress enough by this point)
+	it's tempting to drop syncing if world is not attached (no rendering would done in this case thus no dependencies to DMA uploads)
+	but potential transition barriers executed in Pre() regardless of weither world attached or not
+	could consider to execute barriers only if world attached as well
+	but such optimization seems not worthwhile since empty world is pathological case
+	*/
+	DMA::Sync();
 
 	GPUWorkSubmission::Run();
 	fresh = false;

@@ -216,6 +216,8 @@
     <ClInclude Include="config.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="DDSTextureLoader12.h" />
+    <ClInclude Include="DMA engine.h" />
+    <ClInclude Include="event handle.h" />
     <ClInclude Include="fresnel.h" />
     <ClInclude Include="frustum culling.h" />
     <ClInclude Include="global GPU buffer data.h" />
@@ -267,6 +269,8 @@
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Cdecl</CallingConvention>
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Cdecl</CallingConvention>
     </ClCompile>
+    <ClCompile Include="DMA engine.cpp" />
+    <ClCompile Include="event handle.cpp" />
     <ClCompile Include="frustum culling.cpp" />
     <ClCompile Include="GPU descriptor heap.cpp" />
     <ClCompile Include="GPU stream buffer allocator.cpp" />

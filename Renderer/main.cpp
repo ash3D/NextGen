@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "frame versioning.h"
 #include "occlusion query batch.h"
+#include "DMA engine.h"
 #include "render output.hh"	// for tonemap reduction buffer
 #include "viewport.hh"		// for tonemap root sig & PSOs
 #include "world.hh"
@@ -146,6 +147,22 @@ static auto CreateGraphicsCommandQueue()
 	return cmdQueue;
 }
 
+static auto CreateDMACommandQueue()
+{
+	extern ComPtr<ID3D12Device2> device;
+
+	const D3D12_COMMAND_QUEUE_DESC desc =
+	{
+		D3D12_COMMAND_LIST_TYPE_COPY,
+		D3D12_COMMAND_QUEUE_PRIORITY_NORMAL,
+		D3D12_COMMAND_QUEUE_FLAG_NONE
+	};
+	ComPtr<ID3D12CommandQueue> cmdQueue;
+	CheckHR(device->CreateCommandQueue(&desc, IID_PPV_ARGS(cmdQueue.GetAddressOf())));
+	NameObject(cmdQueue.Get(), L"DMA engine command queue");
+	return cmdQueue;
+}
+
 static void PrintError(const exception_ptr &error, const char object[])
 {
 	try
@@ -217,7 +234,7 @@ static Result Try(Result Create(), const char object[])
 
 ComPtr<IDXGIFactory5> factory = TryCreateFactory();
 ComPtr<ID3D12Device2> device = TryCreateDevice();
-ComPtr<ID3D12CommandQueue> gfxQueue = Try(CreateGraphicsCommandQueue, "main GFX command queue");
+ComPtr<ID3D12CommandQueue> gfxQueue = Try(CreateGraphicsCommandQueue, "main GFX command queue"), dmaQueue = Try(CreateDMACommandQueue, "DMA engine command queue");
 
 template<class Optional>
 static inline Optional TryCreate(const char object[])
@@ -327,6 +344,12 @@ decltype(TerrainVectorLayer::GPU_AABB_allocator) TerrainVectorLayer::GPU_AABB_al
 decltype(World::GPU_AABB_allocator) World::GPU_AABB_allocator = TryCreate<decltype(World::GPU_AABB_allocator)>("GPU AABB allocator for world 3D objects");
 decltype(World::xformedAABBsStorage) World::xformedAABBsStorage;
 
+namespace Renderer::DMA::Impl
+{
+	decltype(cmdBuffers) cmdBuffers = Try(CreateCmdBuffers, "DMA engine command buffers");
+	ComPtr<ID3D12Fence> fence = Try(CreateFence, "DMA engine fence");
+}
+
 extern bool enableDebugDraw = false;
 
 extern void __cdecl InitRenderer()
@@ -334,9 +357,11 @@ extern void __cdecl InitRenderer()
 	if (!factory || !device)
 	{
 		namespace TextureSampers = Renderer::Impl::Descriptors::TextureSampers;
+		namespace DMAEngine = Renderer::DMA::Impl;
 		factory									= CreateFactory();
 		device									= CreateDevice();
 		gfxQueue								= CreateGraphicsCommandQueue();
+		dmaQueue								= CreateDMACommandQueue();
 		TextureSampers::Impl::heap				= TextureSampers::Impl::CreateHeap();
 		RenderOutput::tonemapReductionBuffer	= RenderOutput::CreateTonemapReductionBuffer();
 		Viewport::tonemapRootSig				= Viewport::CreateTonemapRootSig();
@@ -370,5 +395,7 @@ extern void __cdecl InitRenderer()
 		globalFrameVersioning.emplace();
 		TerrainVectorLayer::GPU_AABB_allocator.emplace();
 		World::GPU_AABB_allocator.emplace();
+		DMAEngine::cmdBuffers					= DMAEngine::CreateCmdBuffers();
+		DMAEngine::fence						= DMAEngine::CreateFence();
 	}
 }

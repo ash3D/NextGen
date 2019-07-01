@@ -51,7 +51,7 @@ namespace Renderer
 			{
 				Cmd pre, post;
 			};
-			mutable class CmdListsManager : FrameVersioning<PrePostCmds<CmdBuffer>>
+			mutable class CmdListsManager : FrameVersioning<PrePostCmds<CmdBuffer<>>>
 			{
 			public:
 				PrePostCmds<ID3D12GraphicsCommandList2 *> OnFrameStart();

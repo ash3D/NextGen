@@ -5,18 +5,6 @@ using namespace std;
 using namespace Renderer::Impl;
 using WRL::ComPtr;
 
-FrameVersioning<void>::EventHandle::EventHandle() : handle(CreateEvent(NULL, FALSE, FALSE, NULL))
-{
-	if (!handle)
-		throw HRESULT_FROM_WIN32(GetLastError());
-}
-
-FrameVersioning<void>::EventHandle::~EventHandle()
-{
-	if (!CloseHandle(handle))
-		cerr << "Fail to close event handle (hr=" << HRESULT_FROM_WIN32(GetLastError()) << ")." << endl;
-}
-
 FrameVersioning<void>::FrameVersioning()
 {
 	extern ComPtr<ID3D12Device2> device;
