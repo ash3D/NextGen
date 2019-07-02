@@ -194,6 +194,12 @@ void RenderOutput::NextFrame(bool vsync)
 
 void RenderOutput::CreateOffscreenSurfaces(UINT width, UINT height)
 {
+	// cleanup all at once beforehand in order to reduce chances of VRAM fragmentation
+	rendertarget.Reset();
+	ZBuffer.Reset();
+	HDRSurface.Reset();
+	LDRSurface.Reset();
+
 	const DXGI_SAMPLE_DESC MSAA_mode = Config::MSAA();
 
 	// create MSAA rendertarget
@@ -204,7 +210,7 @@ void RenderOutput::CreateOffscreenSurfaces(UINT width, UINT height)
 		&CD3DX12_RESOURCE_DESC::Tex2D(Config::HDRFormat, width, height, 1, 1, MSAA_mode.Count, MSAA_mode.Quality, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET),
 		D3D12_RESOURCE_STATE_RENDER_TARGET,
 		&CD3DX12_CLEAR_VALUE(Config::HDRFormat, backgroundColor),
-		IID_PPV_ARGS(rendertarget.ReleaseAndGetAddressOf())
+		IID_PPV_ARGS(rendertarget.GetAddressOf())
 	));
 
 	// fill RTV heap
@@ -217,7 +223,7 @@ void RenderOutput::CreateOffscreenSurfaces(UINT width, UINT height)
 		&CD3DX12_RESOURCE_DESC::Tex2D(Config::ZFormat, width, height, 1, 1, MSAA_mode.Count, MSAA_mode.Quality, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE),
 		D3D12_RESOURCE_STATE_DEPTH_WRITE,
 		&CD3DX12_CLEAR_VALUE(Config::ZFormat, 1.f, 0xef),
-		IID_PPV_ARGS(ZBuffer.ReleaseAndGetAddressOf())
+		IID_PPV_ARGS(ZBuffer.GetAddressOf())
 	));
 
 	// fill DSV heap
@@ -230,7 +236,7 @@ void RenderOutput::CreateOffscreenSurfaces(UINT width, UINT height)
 		&CD3DX12_RESOURCE_DESC::Tex2D(Config::HDRFormat, width, height, 1, 1),
 		D3D12_RESOURCE_STATE_RESOLVE_DEST,
 		NULL,
-		IID_PPV_ARGS(HDRSurface.ReleaseAndGetAddressOf())
+		IID_PPV_ARGS(HDRSurface.GetAddressOf())
 	));
 
 	// create LDR offscreen surface (D3D12 disallows UAV on swap chain backbuffers)
@@ -240,7 +246,7 @@ void RenderOutput::CreateOffscreenSurfaces(UINT width, UINT height)
 		&CD3DX12_RESOURCE_DESC::Tex2D(Config::DisplayFormat, width, height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS),
 		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 		NULL,
-		IID_PPV_ARGS(LDRSurface.ReleaseAndGetAddressOf())
+		IID_PPV_ARGS(LDRSurface.GetAddressOf())
 	));
 
 	// fill tonemap views CPU heap
