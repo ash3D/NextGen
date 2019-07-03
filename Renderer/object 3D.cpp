@@ -248,7 +248,8 @@ WRL::ComPtr<ID3D12RootSignature> Impl::Object3D::CreateRootSig()
 #else
 	rootParams[ROOT_PARAM_MATERIAL].InitAsConstants(decltype(Context::curColor)::dimension + 1, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
 #endif
-	const CD3DX12_DESCRIPTOR_RANGE1 descTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, UINT_MAX/*unbounded*/, 0);
+	// an unbounded range declared as STATIC means the rest of the heap is STATIC => specify VOLATILE
+	const CD3DX12_DESCRIPTOR_RANGE1 descTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, UINT_MAX/*unbounded*/, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
 	rootParams[ROOT_PARAM_TEXTURE_DESC_TABLE].InitAsDescriptorTable(1, &descTable, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParams[ROOT_PARAM_SAMPLER_DESC_TABLE] = Descriptors::TextureSampers::GetDescTable(D3D12_SHADER_VISIBILITY_PIXEL);
 	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(size(rootParams), rootParams, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
