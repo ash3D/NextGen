@@ -41,14 +41,13 @@ void NameObject(ID3D12Object *object, LPCWSTR name) noexcept, NameObjectF(ID3D12
 #define INTEL_WORKAROUND 1
 
 #if INTEL_WORKAROUND
-#include "CB register.h"
 namespace
 {
 	struct alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) alignas(D3D12_COMMONSHADER_CONSTANT_BUFFER_PARTIAL_UPDATE_EXTENTS_BYTE_ALIGNMENT) MaterialData
 	{
-		Impl::CBRegister::AlignedRow<3>	albedo;
-		uint32_t						descriptorTableOffset;
-		float							TVBrighntess;
+		float3		albedo;
+		uint32_t	descriptorTableOffset;
+		float		TVBrighntess;
 	};
 }
 #endif
@@ -150,7 +149,7 @@ inline void Impl::Object3D::Subobject::Setup(ID3D12GraphicsCommandList2 *target,
 #if INTEL_WORKAROUND
 inline void Impl::Object3D::Subobject::FillAlbedoMaterial(volatile MaterialData *dst) const
 {
-	dst->albedo = albedo;
+	const_cast<float3 &>(dst->albedo) = albedo;
 }
 
 inline void Impl::Object3D::Subobject::FillTexMaterial(volatile MaterialData *dst) const
