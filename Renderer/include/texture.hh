@@ -61,7 +61,7 @@ namespace Renderer
 			auto Usage() const noexcept { return usage; }
 
 		private:
-			static std::vector<std::pair<WRL::ComPtr<ID3D12Resource>, int/*dst state (src is COMMON)*/>> pendingBarriers;
+			static std::vector<std::pair<TrackedResource<ID3D12Resource>, int/*dst state (src is COMMON)*/>> pendingBarriers;
 
 		protected:
 			//static class PendingBarriersHandle
