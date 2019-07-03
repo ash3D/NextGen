@@ -135,7 +135,7 @@ ComPtr<ID3D12DescriptorHeap> TextureSampers::Impl::CreateHeap()
 				-D3D12_FLOAT32_MAX,					// min LOD
 				+D3D12_FLOAT32_MAX					// max LOD
 			};
-			device->CreateSampler(&desc, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, TERRAIN_ALBEDO_ALPHATEST_SAMPLER, descriptorSize));
+			device->CreateSampler(&desc, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, OBJ3D_ALBEDO_ALPHATEST_SAMPLER, descriptorSize));
 		}
 
 		// 3D object bump
