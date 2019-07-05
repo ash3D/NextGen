@@ -202,12 +202,10 @@ inline float3 Lit(float3 albedo, float roughness, float F0, float3 N, float3 n, 
 	normally it should be achieved automatically by BRDF but normal mapping introduces discrepancy between N and n
 		causing brightly highlighted pixels even at grazing macrosurface angles
 	
-	try smoothstep() for softer look?
-	research needed to estimate quality vs perf tradeoff
+	research needed to estimate quality vs perf tradeoff of smoothstep() vs cheaper alternatives
 	*/
 	static const float backshadowSoftness = 1e-1f;
-	float backshadow = saturate(LdotN / backshadowSoftness);
-	backshadow *= backshadow;
+	const float backshadow = smoothstep(0, backshadowSoftness, LdotN);
 	
 	return Lit(albedo, roughness, F0, n, viewDir, lightDir, lightIrradiance) * backshadow;
 }
