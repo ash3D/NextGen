@@ -16,6 +16,7 @@ enum TextureID
 #include "samplers.hlsli"
 #include "glass.hlsli"
 #include "lighting.hlsli"
+#include "HDR codec.hlsli"
 
 ConstantBuffer<TonemapParams> tonemapParams : register(b1, space1);
 

@@ -1,4 +1,5 @@
 #include "tonemap params.hlsli"
+#include "HDR codec.hlsli"
 
 cbuffer Constants : register(b0, space1)
 {
@@ -9,5 +10,5 @@ ConstantBuffer<TonemapParams> tonemapParams : register(b1, space1);
 
 float4 main() : SV_TARGET
 {
-	return float4(color, tonemapParams.exposure);
+	return EncodeLDR(color, tonemapParams.exposure);
 }

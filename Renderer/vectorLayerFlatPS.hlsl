@@ -1,6 +1,7 @@
 #include "per-frame data.hlsli"
 #include "tonemap params.hlsli"
 #include "lighting.hlsli"
+#include "HDR codec.hlsli"
 
 ConstantBuffer<TonemapParams> tonemapParams : register(b0, space1);
 

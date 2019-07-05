@@ -1,4 +1,5 @@
 #include "tonemap params.hlsli"
+#include "HDR codec.hlsli"
 
 cbuffer Colors : register(b0)
 {
@@ -22,5 +23,5 @@ ByteAddressBuffer visibilityPhase1 : register(t0), visibilityPhase2 : register(t
 float4 main() : SV_TARGET
 {
 	const uint colorIdx = visibilityPhase1.Load(visibilityOffset) | visibilityPhase2.Load(visibilityOffset) << 1u;
-	return float4(colors[colorIdx], tonemapParams.exposure);
+	return EncodeLDR(colors[colorIdx], tonemapParams.exposure);
 }

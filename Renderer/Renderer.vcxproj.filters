@@ -406,5 +406,8 @@
     <None Include="object3D bump PS.hlsli">
       <Filter>Shaders\Include</Filter>
     </None>
+    <None Include="HDR codec.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
   </ItemGroup>
 </Project>

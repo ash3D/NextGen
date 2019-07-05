@@ -9,19 +9,6 @@
 
 static const float2 parallaxCurvatureParams = float2(.1f, 1.3f);
 
-/*
-	simple Reinhard tonemapping for proper hardware MSAA resolve
-
-	it is possible to do multiplication in ROPs (blending) to free general purpase shader ALUs
-	but turning blending on can hurt perfomance and reduce precision (fp16 vs fp32)
-*/
-float4 EncodeHDR(float3 color, float exposure)
-{
-	color *= exposure;
-	const float reinhardFactor = rcp(1 + RGB_2_luminance(color));
-	return float4(color * reinhardFactor, reinhardFactor * exposure);
-}
-
 // evaluate Smith ^() function for GGX NDF
 float GGXSmithIntegral(float a2, float NdotDir)
 {

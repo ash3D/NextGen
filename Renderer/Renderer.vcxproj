@@ -475,6 +475,7 @@
     <None Include="fresnel.hlsli" />
     <None Include="glass.hlsli" />
     <None Include="GPU stream buffer allocator.inl" />
+    <None Include="HDR codec.hlsli" />
     <None Include="lighting.hlsli" />
     <None Include="luminance.hlsli" />
     <None Include="object3D bump PS.hlsli" />

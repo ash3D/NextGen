@@ -3,6 +3,7 @@
 #include "object3D material.hlsli"
 #include "object3D VS 2 PS.hlsli"
 #include "lighting.hlsli"
+#include "HDR codec.hlsli"
 
 ConstantBuffer<TonemapParams> tonemapParams : register(b1, space1);
 

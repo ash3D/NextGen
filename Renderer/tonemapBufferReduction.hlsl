@@ -1,4 +1,5 @@
 #include "tonemapBufferReduction config.hlsli"
+#include "tonemap params.hlsli"
 
 static const uint localDataSize = blockSize;
 #include "tonemapLocalReduction.hlsli"
@@ -24,16 +25,6 @@ inline float Compress(float x, uniform float scale)
 {
 	return x * scale / (scale + abs(x));
 }
-
-static const float
-	referenceKeyValue = .1f /*radiomentric (W) which is ~ 68.3 Nit*/,
-	maxExposureCompensation = /*+/-*/2 /*stops relative to referenceKeyValue*/,
-	normalizedMiddleGray = .18f /*for linear 10/16-bit color space*/,
-	normFactor = normalizedMiddleGray / referenceKeyValue /*maps referenceKeyValue to display normalizedMiddleGray*/,
-	sensorSaturation = ldexp(normalizedMiddleGray, +5 /*stops*/) /*normalized*/,
-	maxExposureOffset = /*+/-*/12 /*stops*/;
-
-static const float2 exposureLimits = ldexp(normFactor, float2(-maxExposureOffset, +maxExposureOffset));
 
 inline float3 CalcTonemapParams(float2 src, float2 history)
 {

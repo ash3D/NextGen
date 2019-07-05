@@ -1,4 +1,5 @@
 #include "tonemapTextureReduction config.hlsli"
+#include "HDR codec.hlsli"
 #include "luminance.hlsli"
 
 static const uint localDataSize = groupSize * groupSize;
@@ -27,8 +28,7 @@ void main(in uint2 globalIdx : SV_DispatchThreadID, in uint flatLocalIdx : SV_Gr
 				[unroll]
 				for (tileOffset.x = 0; tileOffset.x < tileSize; tileOffset.x++)
 				{
-					float4 srcPixel = src.Load(uint3(tileCoord, 0), tileOffset);
-					srcPixel.rgb /= srcPixel.a;
+					const float3 srcPixel = DecodeHDR(src.Load(uint3(tileCoord, 0), tileOffset));
 					/*
 						'max' used to convert NaN to 0
 						NaN comes from out-of-bounds pixels in edge tiles - they are which fetched as 0
