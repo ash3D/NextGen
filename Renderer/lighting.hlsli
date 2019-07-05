@@ -9,6 +9,21 @@
 
 static const float2 parallaxCurvatureParams = float2(.1f, 1.3f);
 
+/*
+fadeout on glancing incident angles to prevent hard cutoff by surface backlight blocking (simulates soft selfshadowing)
+normally it should be achieved automatically by BRDF but normal mapping introduces discrepancy between N and n
+	causing brightly highlighted pixels even at grazing macrosurface angles
+it appears that it helps in other scenarios too (no normal mapping) - BRDF itself fades out not fast enough
+	and exposure can boost dark parts to appear brighter
+
+research needed to estimate quality vs perf tradeoff of smoothstep() vs cheaper alternatives
+*/
+float SoftBackshadow(float LdotN)
+{
+	static const float backshadowSoftness = 1e-1f;
+	return smoothstep(0, backshadowSoftness, LdotN);
+}
+
 // evaluate Smith ^() function for GGX NDF
 float GGXSmithIntegral(float a2, float NdotDir)
 {
@@ -85,7 +100,7 @@ float3 Lit(float3 albedo, float roughness, float F0, float3 N, float3 viewDir, f
 	*/
 	const float3 diffuse = albedo * ((single + albedo * multi) * LdotN);
 
-	return (spec + diffuse) * lightIrradiance;
+	return (spec + diffuse) * lightIrradiance * SoftBackshadow(LdotN);
 }
 
 /*
@@ -196,18 +211,8 @@ inline float3 Lit(float3 albedo, float roughness, float F0, float3 N, float3 n, 
 		return 0;
 
 	FixNormal(N, n, viewDir);
-
-	/*
-	fadeout on glancing incident angles to prevent hard cutoff by macro surface backlight blocking (simulates soft selfshadowing)
-	normally it should be achieved automatically by BRDF but normal mapping introduces discrepancy between N and n
-		causing brightly highlighted pixels even at grazing macrosurface angles
 	
-	research needed to estimate quality vs perf tradeoff of smoothstep() vs cheaper alternatives
-	*/
-	static const float backshadowSoftness = 1e-1f;
-	const float backshadow = smoothstep(0, backshadowSoftness, LdotN);
-	
-	return Lit(albedo, roughness, F0, n, viewDir, lightDir, lightIrradiance) * backshadow;
+	return Lit(albedo, roughness, F0, n, viewDir, lightDir, lightIrradiance) * SoftBackshadow(LdotN);
 }
 
 #endif	// LIGHTING_INCLUDED
