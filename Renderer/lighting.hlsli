@@ -188,13 +188,28 @@ n - micro normal
 */
 inline float3 Lit(float3 albedo, float roughness, float F0, float3 N, float3 n, float3 viewDir, float3 lightDir, float3 lightIrradiance)
 {
+	const float LdotN = dot(lightDir, N);
+
 	// blocks light leaking from under the macro surface caused by normal maps
 	[branch]
-	if (dot(lightDir, N) <= 0)
+	if (LdotN <= 0)
 		return 0;
 
 	FixNormal(N, n, viewDir);
-	return Lit(albedo, roughness, F0, n, viewDir, lightDir, lightIrradiance);
+
+	/*
+	fadeout on glancing incident angles to prevent hard cutoff by macro surface backlight blocking (simulates soft selfshadowing)
+	normally it should be achieved automatically by BRDF but normal mapping introduces discrepancy between N and n
+		causing brightly highlighted pixels even at grazing macrosurface angles
+	
+	try smoothstep() for softer look?
+	research needed to estimate quality vs perf tradeoff
+	*/
+	static const float backshadowSoftness = 1e-1f;
+	float backshadow = saturate(LdotN / backshadowSoftness);
+	backshadow *= backshadow;
+	
+	return Lit(albedo, roughness, F0, n, viewDir, lightDir, lightIrradiance) * backshadow;
 }
 
 #endif	// LIGHTING_INCLUDED
