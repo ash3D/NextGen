@@ -17,5 +17,7 @@ float3 Reinhard(float3 color, float whitePointFactor)
 void main(in uint2 coord : SV_DispatchThreadID)
 {
 	const float3 exposedPixel = DecodeHDRExp(src[coord], tonemapParams.exposure);
-	dst[coord] = float4(Reinhard(exposedPixel, tonemapParams.whitePointFactor), 1);
+	
+	// Reinhard maps inf to NaN (inf/inf), 'min' converts it to large value
+	dst[coord] = float4(min(Reinhard(exposedPixel, tonemapParams.whitePointFactor), 64e3f), 1);
 }
