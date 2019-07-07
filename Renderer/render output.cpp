@@ -9,6 +9,9 @@
 #include "config.h"
 #include "tonemapTextureReduction config.h"
 
+// workaround for Kepler driver issue causing sporadic device removal on first present in case of complex frame
+#define ENABLE_SWAPCHAIN_WARMUP 1
+
 using namespace std;
 using namespace Renderer;
 using Impl::globalFrameVersioning;
@@ -63,6 +66,9 @@ RenderOutput::RenderOutput(HWND wnd, bool allowModeSwitch, unsigned int bufferCo
 		ComPtr<IDXGISwapChain1> swapChain;
 		CheckHR(factory->CreateSwapChainForHwnd(gfxQueue.Get(), wnd, &desc, NULL, NULL, &swapChain));
 		CheckHR(swapChain.As(&this->swapChain));
+#if ENABLE_SWAPCHAIN_WARMUP
+		CheckHR(swapChain->Present(0, 0));
+#endif
 	}
 
 	// create rtv desctriptor heap
