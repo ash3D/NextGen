@@ -23,6 +23,6 @@ XformedVertex_UV_TG VS_UV_TB(in SrcVertex_UV_TG input, out float4 xformedPos : S
 			- normalize it in PS (after hw interpolation)
 			- do normal mapping
 	*/
-	const XformedVertex_UV_TG output = { baseVert, XformOrthoUniform(input.tangents[0]), XformOrthoUniform(input.tangents[1]) };
+	const XformedVertex_UV_TG output = { baseVert, XformOrthoUniform(input.tangents[0]), XformOrthoUniform(input.tangents[1]), float2(length(input.tangents[0]), length(input.tangents[1])) };
 	return output;
 }

@@ -21,20 +21,27 @@ enum TextureID
 
 ConstantBuffer<TonemapParams> tonemapParams : register(b1, space1);
 
+// preserve 0
+float3 SafeNormalize(float3 vec)
+{
+	vec = normalize(vec);
+	return isfinite(vec) ? vec : 0;
+}
+
 float4 PS(in XformedVertex_UV_TG input, in bool front, uniform bool enableGlassMask)
 {
 	input.viewDir = normalize(input.viewDir);
 #if 0
 	// validation error on current HLSL compiler, try with future version
-	float3x3 TBN = { normalize(input.tangents[0]), normalize(input.tangents[1]), normalize(input.N) };
+	float3x3 TBN = { SafeNormalize(input.tangents[0]), SafeNormalize(input.tangents[1]), normalize(input.N) };
 	if (!front)	// handle two-sided materials
 		TBN = -TBN;
 #else
-	float3x3 TBN = { normalize(front ? +input.tangents[0] : -input.tangents[0]), normalize(front ? +input.tangents[1] : -input.tangents[1]), normalize(front ? +input.N : -input.N) };	// handles two-sided materials
+	float3x3 TBN = { SafeNormalize(front ? +input.tangents[0] : -input.tangents[0]), SafeNormalize(front ? +input.tangents[1] : -input.tangents[1]), normalize(front ? +input.N : -input.N) };	// handles two-sided materials
 #endif
 	FixTBN(TBN, input.viewDir);
 	float3 n;
-	n.xy = SelectTexture(NORMAL_MAP).Sample(obj3DBumpSampler, input.uv);
+	n.xy = SelectTexture(NORMAL_MAP).Sample(obj3DBumpSampler, input.uv) * input.normalScale;
 	n.z = sqrt(saturate(1.f - length(n.xy)));
 	n = mul(n, TBN);
 

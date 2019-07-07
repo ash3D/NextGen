@@ -13,7 +13,8 @@ struct XformedVertex_UV : XformedVertex
 
 struct XformedVertex_UV_TG : XformedVertex_UV
 {
-	float3 tangents[2] : TANGENTS;
+	float3 tangents[2]	: TANGENTS;
+	float2 normalScale	: BumpStrength;
 };
 
 #endif	// OBJECT3D_VS_2_PS_INCLUDED
