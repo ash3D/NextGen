@@ -4,32 +4,64 @@
 #include "frame versioning.h"
 #include "tracked resource.inl"
 
+// Kepler driver issue workaround, it fails to create heap after a lot of textures have been created
+#define ENABLE_PREALLOCATION 1
+
+using namespace std;
 using namespace Renderer::Impl;
 using namespace Descriptors;
-using GPUDescriptorHeap::Impl::heap;
 
 extern Microsoft::WRL::ComPtr<ID3D12Device2> device;
 static constexpr auto heapStaticBlockSize = TonemapResourceViewsStage::ViewCount * maxFrameLatency;
 static UINT heapSize = heapStaticBlockSize;
 decltype(GPUDescriptorHeap::AllocationClient::registeredClients) GPUDescriptorHeap::AllocationClient::registeredClients;
+#if ENABLE_PREALLOCATION
+static constexpr UINT preallocSize = 16384U;
+static bool commited;
+#endif
+
+static TrackedResource<ID3D12DescriptorHeap> CreateHeap(UINT size)
+{
+	void NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
+	static unsigned long version;
+
+	TrackedResource<ID3D12DescriptorHeap> heap;
+	const D3D12_DESCRIPTOR_HEAP_DESC desc =
+	{
+		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,		// type
+		size,										// count
+		D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE	// GPU visible
+	};
+	CheckHR(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(heap.GetAddressOf())));
+	NameObjectF(heap.Get(), L"GPU descriptor heap [%lu] (heap start CPU address: %p)", version++, heap->GetCPUDescriptorHandleForHeapStart());
+	return move(heap);
+}
+
+TrackedResource<ID3D12DescriptorHeap> GPUDescriptorHeap::Impl::PreallocateHeap()
+{
+#if ENABLE_PREALLOCATION
+	return CreateHeap(preallocSize);
+#else
+	return nullptr;
+#endif
+}
+
+using GPUDescriptorHeap::Impl::heap;
 
 void GPUDescriptorHeap::OnFrameStart()
 {
+#if ENABLE_PREALLOCATION
+	if (!commited)
+#else
 	if (!heap)
+#endif
 	{
-		// create heap
+#if ENABLE_PREALLOCATION
+		if (heap->GetDesc().NumDescriptors < heapSize || globalFrameVersioning->GetCurFrameID() < globalFrameVersioning->GetCompletedFrameID())
+#endif
 		{
-			void NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
-			static unsigned long version;
-
-			const D3D12_DESCRIPTOR_HEAP_DESC desc =
-			{
-				D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,		// type
-				heapSize,									// count
-				D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE	// GPU visible
-			};
-			CheckHR(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(heap.GetAddressOf())));
-			NameObjectF(heap.Get(), L"GPU descriptor heap [%lu] (heap start CPU address: %p)", version++, heap->GetCPUDescriptorHandleForHeapStart());
+			// create heap
+			heap = CreateHeap(heapSize);
 		}
 
 		// go over registered clients and invoke allocation handler\
@@ -44,6 +76,10 @@ void GPUDescriptorHeap::OnFrameStart()
 			CPU_ptr.Offset(allocClient.second, descriptorSize);
 			GPU_ptr.Offset(allocClient.second, descriptorSize);
 		}
+
+#if ENABLE_PREALLOCATION
+		commited = true;
+#endif
 	}
 }
 
@@ -59,7 +95,11 @@ D3D12_GPU_DESCRIPTOR_HANDLE GPUDescriptorHeap::SetCurFrameTonemapReductionDescs(
 GPUDescriptorHeap::AllocationClient::AllocationClient(unsigned allocSize)
 {
 	// force heap to recreate on next frame
+#if ENABLE_PREALLOCATION
+	commited = false;
+#else
 	heap.Reset();
+#endif
 
 	registeredClients.emplace_back(this, allocSize);
 	heapSize += allocSize;

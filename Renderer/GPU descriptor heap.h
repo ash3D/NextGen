@@ -16,7 +16,7 @@ namespace Renderer::Impl::Descriptors
 	{
 		namespace Impl
 		{
-			extern TrackedResource<ID3D12DescriptorHeap> heap;
+			extern TrackedResource<ID3D12DescriptorHeap> heap, PreallocateHeap();
 		}
 
 		inline const auto &GetHeap() noexcept { return Impl::heap; }

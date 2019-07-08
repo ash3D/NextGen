@@ -334,7 +334,7 @@ namespace Renderer::Impl
 // tracked resource should be destroyed before globalFrameVersioning => should be defined after globalFrameVersioning
 namespace Renderer::Impl::Descriptors::GPUDescriptorHeap::Impl
 {
-	TrackedResource<ID3D12DescriptorHeap> heap;
+	TrackedResource<ID3D12DescriptorHeap> PreallocateHeap(), heap = Try(PreallocateHeap, "GPU descriptor heap (preallocation)");
 }
 namespace OcclusionCulling = Renderer::Impl::OcclusionCulling;
 using OcclusionCulling::QueryBatchBase;
@@ -360,6 +360,7 @@ extern void __cdecl InitRenderer()
 	if (!factory || !device)
 	{
 		namespace TextureSampers = Renderer::Impl::Descriptors::TextureSampers;
+		namespace GPUDescriptorHeap = Renderer::Impl::Descriptors::GPUDescriptorHeap;
 		namespace DMAEngine = Renderer::DMA::Impl;
 		factory									= CreateFactory();
 		device									= CreateDevice();
@@ -396,6 +397,7 @@ extern void __cdecl InitRenderer()
 		World::globalGPUBuffer_CPU_ptr			= World::MapGlobalGPUBuffer();
 #endif
 		globalFrameVersioning.emplace();
+		GPUDescriptorHeap::Impl::heap			= GPUDescriptorHeap::Impl::PreallocateHeap();
 		TerrainVectorLayer::GPU_AABB_allocator.emplace();
 		World::GPU_AABB_allocator.emplace();
 		DMAEngine::cmdBuffers					= DMAEngine::CreateCmdBuffers();
