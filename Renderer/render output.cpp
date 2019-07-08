@@ -146,7 +146,7 @@ void RenderOutput::OnResize()
 	CheckHR(swapChain->GetHwnd(&wnd));
 	RECT newWndRect;
 	if (!GetWindowRect(wnd, &newWndRect))
-		throw HRESULT_FROM_WIN32(GetLastError());
+		throw _com_error(HRESULT_FROM_WIN32(GetLastError()));
 	const unsigned long int newWidth = newWndRect.right - newWndRect.left, newHeight = newWndRect.bottom - newWndRect.top;
 
 	// resize if necessarily or in case of significant shrink, modify source region otherwise

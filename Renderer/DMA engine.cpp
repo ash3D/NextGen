@@ -37,7 +37,7 @@ static void WaitForGPU(UINT64 batchID)
 	{
 		CheckHR(fence->SetEventOnCompletion(batchID, fenceEvent));
 		if (WaitForSingleObject(fenceEvent, INFINITE) == WAIT_FAILED)
-			throw HRESULT_FROM_WIN32(GetLastError());
+			throw _com_error(HRESULT_FROM_WIN32(GetLastError()));
 	}
 }
 

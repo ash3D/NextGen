@@ -32,7 +32,7 @@ static inline void ValidateTexture(const D3D12_RESOURCE_DESC &desc, TextureUsage
 {
 	// check dimension
 	if (desc.Dimension != D3D12_RESOURCE_DIMENSION_TEXTURE2D)
-		throw invalid_argument("Trying to load texture with wrong dimension. 2D texture expected.");
+		throw logic_error("Trying to load texture with wrong dimension. 2D texture expected.");
 
 	// check format for usage
 	switch(usage)
@@ -45,7 +45,7 @@ static inline void ValidateTexture(const D3D12_RESOURCE_DESC &desc, TextureUsage
 		case DXGI_FORMAT_BC7_UNORM_SRGB:
 			break;
 		default:
-			throw invalid_argument("Wrong texture format for TV screen.");
+			throw logic_error("Wrong texture format for TV screen.");
 		}
 		break;
 
@@ -61,7 +61,7 @@ static inline void ValidateTexture(const D3D12_RESOURCE_DESC &desc, TextureUsage
 		case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:
 			break;
 		default:
-			throw invalid_argument("Wrong texture format for albedo map.");
+			throw logic_error("Wrong texture format for albedo map.");
 		}
 		break;
 
@@ -71,7 +71,7 @@ static inline void ValidateTexture(const D3D12_RESOURCE_DESC &desc, TextureUsage
 		case DXGI_FORMAT_BC4_UNORM:
 			break;
 		default:
-			throw invalid_argument("Wrong texture format for fresnel map.");
+			throw logic_error("Wrong texture format for fresnel map.");
 		}
 		break;
 
@@ -81,7 +81,7 @@ static inline void ValidateTexture(const D3D12_RESOURCE_DESC &desc, TextureUsage
 		case DXGI_FORMAT_BC4_UNORM:
 			break;
 		default:
-			throw invalid_argument("Wrong texture format for roughness map.");
+			throw logic_error("Wrong texture format for roughness map.");
 		}
 		break;
 
@@ -91,7 +91,7 @@ static inline void ValidateTexture(const D3D12_RESOURCE_DESC &desc, TextureUsage
 		case DXGI_FORMAT_BC5_SNORM:
 			break;
 		default:
-			throw invalid_argument("Wrong texture format for normal map.");
+			throw logic_error("Wrong texture format for normal map.");
 		}
 		break;
 
@@ -101,7 +101,7 @@ static inline void ValidateTexture(const D3D12_RESOURCE_DESC &desc, TextureUsage
 		case DXGI_FORMAT_BC4_UNORM:
 			break;
 		default:
-			throw invalid_argument("Wrong texture format for glass mask.");
+			throw logic_error("Wrong texture format for glass mask.");
 		}
 		break;
 	}

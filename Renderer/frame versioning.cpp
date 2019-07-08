@@ -22,7 +22,7 @@ void FrameVersioning<void>::WaitForGPU(UINT64 waitFrameID) const
 {
 	CheckHR(fence->SetEventOnCompletion(waitFrameID, fenceEvent));
 	if (WaitForSingleObject(fenceEvent, INFINITE) == WAIT_FAILED)
-		throw HRESULT_FROM_WIN32(GetLastError());
+		throw _com_error(HRESULT_FROM_WIN32(GetLastError()));
 }
 
 unsigned short FrameVersioning<void>::OnFrameStart()
