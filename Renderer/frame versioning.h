@@ -17,11 +17,7 @@ namespace Renderer::Impl
 
 	static constexpr unsigned short maxFrameLatency = 3;
 
-	template<class Data>
-	class FrameVersioning;
-
-	template<>
-	class FrameVersioning<void>
+	class FrameVersioningBase
 	{
 		UINT64 frameID = 0;
 		EventHandle fenceEvent;
@@ -29,10 +25,10 @@ namespace Renderer::Impl
 		unsigned short frameLatency = 1, ringBufferIdx = 0;
 
 	protected:
-		FrameVersioning();
-		FrameVersioning(FrameVersioning &) = delete;
-		FrameVersioning &operator =(FrameVersioning &) = delete;
-		~FrameVersioning();
+		FrameVersioningBase(LPCWSTR objectName);
+		FrameVersioningBase(FrameVersioningBase &) = delete;
+		FrameVersioningBase &operator =(FrameVersioningBase &) = delete;
+		~FrameVersioningBase();
 
 	public:
 		// frameLatency corresponds to ringBuffer size, maxFrameLatency - to its capacity
@@ -53,12 +49,13 @@ namespace Renderer::Impl
 		void OnFrameFinish();
 	};
 
-	template<class Data>
-	class FrameVersioning : public FrameVersioning<void>
+	template<class Data, LPCWSTR objectName>
+	class FrameVersioning : public FrameVersioningBase
 	{
 		Data ringBuffer[maxFrameLatency];
 
 	public:
+		FrameVersioning() : FrameVersioningBase(objectName) {}
 		~FrameVersioning() { WaitForGPU(); }
 
 	public:
@@ -67,17 +64,18 @@ namespace Renderer::Impl
 
 	private:
 		// hide from protected
-		using FrameVersioning<void>::GetRingBufferIdx;
+		using FrameVersioningBase::GetRingBufferIdx;
 	};
 
 	// Data here is a cmd ctx pool
-	extern std::optional<FrameVersioning<std::deque<struct CmdCtx>>> globalFrameVersioning;
+	constexpr const WCHAR globalFrameVersioningName[] = L"global frame versioning";
+	extern std::optional<FrameVersioning<std::deque<struct CmdCtx>, globalFrameVersioningName>> globalFrameVersioning;
 
 	// template impl
-	template<class Data>
-	void FrameVersioning<Data>::OnFrameStart()
+	template<class Data, LPCWSTR objectName>
+	void FrameVersioning<Data, objectName>::OnFrameStart()
 	{
-		if (const unsigned short rangeEndIdx = FrameVersioning<void>::OnFrameStart())
+		if (const unsigned short rangeEndIdx = FrameVersioningBase::OnFrameStart())
 		{
 			const auto rangeBegin = ringBuffer + GetRingBufferIdx(), rangeEnd = ringBuffer + rangeEndIdx;
 			std::move_backward(rangeBegin, rangeEnd, rangeEnd + 1);

@@ -51,7 +51,8 @@ namespace Renderer
 			{
 				Cmd pre, post;
 			};
-			mutable class CmdListsManager : FrameVersioning<PrePostCmds<CmdBuffer<>>>
+			static constexpr const WCHAR viewportName[] = L"viewport";
+			mutable class CmdListsManager : FrameVersioning<PrePostCmds<CmdBuffer<>>, viewportName>
 			{
 			public:
 				PrePostCmds<ID3D12GraphicsCommandList2 *> OnFrameStart();

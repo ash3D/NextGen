@@ -192,7 +192,11 @@ class Impl::Object3D::DescriptorTablePack final : Descriptors::GPUDescriptorHeap
 	vector<TrackedResource<ID3D12Resource>> textures;	// hold refs
 
 public:
-	DescriptorTablePack(vector<TrackedResource<ID3D12Resource>> &&textures);
+#ifdef _MSC_VER
+	DescriptorTablePack(vector<TrackedResource<ID3D12Resource>> &&textures, const wstring &objectName);
+#else
+	DescriptorTablePack(vector<TrackedResource<ID3D12Resource>> &&textures, const string &objectName);
+#endif
 
 public:
 	inline void Set(ID3D12GraphicsCommandList2 *target) const;
@@ -202,7 +206,11 @@ private:
 	virtual void Commit(D3D12_CPU_DESCRIPTOR_HANDLE dst) const override;
 };
 
-Impl::Object3D::DescriptorTablePack::DescriptorTablePack(vector<TrackedResource<ID3D12Resource>> &&textures) :
+#ifdef _MSC_VER
+Impl::Object3D::DescriptorTablePack::DescriptorTablePack(vector<TrackedResource<ID3D12Resource>> &&textures, const wstring &objectName) :
+#else
+Impl::Object3D::DescriptorTablePack::DescriptorTablePack(vector<TrackedResource<ID3D12Resource>> &&textures, const string &objectName) :
+#endif
 	AllocationClient(textures.size()), textures(move(textures))
 {
 	this->textures.shrink_to_fit();
@@ -213,6 +221,11 @@ Impl::Object3D::DescriptorTablePack::DescriptorTablePack(vector<TrackedResource<
 		D3D12_DESCRIPTOR_HEAP_FLAG_NONE				// GPU invisible
 	};
 	CheckHR(device->CreateDescriptorHeap(&packDesc, IID_PPV_ARGS(CPUStore.GetAddressOf())));
+#ifdef _MSC_VER
+	NameObjectF(CPUStore.Get(), L"\"%ls\" descriptor table CPU backing store", objectName.c_str());
+#else
+	NameObjectF(CPUStore.Get(), L"\"%s\" descriptor table CPU backing store", objectName.c_str());
+#endif
 	const auto descriptorSize = device->GetDescriptorHandleIncrementSize(packDesc.Type);
 	// TODO: use C++20 initializer in range-based for
 	CD3DX12_CPU_DESCRIPTOR_HANDLE dstDesc(CPUStore->GetCPUDescriptorHandleForHeapStart());
@@ -522,9 +535,23 @@ Impl::Object3D::Object3D(unsigned int subobjCount, const SubobjectDataCallback &
 		subobjects[i] = visit(subobjParser, curSubobjData);
 	}
 
+#ifdef _MSC_VER
+	// same workaround as for terrain quad
+#if 0
+	wstring_convert<codecvt_utf8<WCHAR>> converter;
+	wstring convertedName = converter.from_bytes(name);
+#else
+	wstring convertedName(name.cbegin(), name.cend());
+#endif
+#endif
+
 	// allocate descriptor table if needed
 	if (!texs.empty())
-		descriptorTablePack = make_shared<DescriptorTablePack>(move(texs));
+#ifdef _MSC_VER
+		descriptorTablePack = make_shared<DescriptorTablePack>(move(texs), convertedName);
+#else
+		descriptorTablePack = make_shared<DescriptorTablePack>(move(texs), name);
+#endif
 
 	// rearrange subobjects VBs so that fat ones (with uv and tangents) comes first
 	{
@@ -583,13 +610,6 @@ Impl::Object3D::Object3D(unsigned int subobjCount, const SubobjectDataCallback &
 		NULL,	// clear value
 		IID_PPV_ARGS(VIB.GetAddressOf())));
 #ifdef _MSC_VER
-	// same workaround as for terrain quad
-#if 0
-	wstring_convert<codecvt_utf8<WCHAR>> converter;
-	wstring convertedName = converter.from_bytes(name);
-#else
-	wstring convertedName(name.cbegin(), name.cend());
-#endif
 	NameObjectF(VIB.Get(), L"\"%ls\" geometry (contains %u subobjects)", convertedName.c_str(), subobjCount);
 #else
 	NameObjectF(VIB.Get(), L"\"%s\" geometry (contains %u subobjects)", name.c_str(), subobjCount);
