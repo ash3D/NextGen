@@ -19,6 +19,7 @@
 #include <assert.h>
 #include <algorithm>
 #include <memory>
+#include <functional>
 
 #include "d3dx12.h"
 
@@ -1123,14 +1124,14 @@ namespace
 			? CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT)
 			: CD3DX12_HEAP_PROPERTIES(CPUAccessFlags & DDS_CPU_ACCESS_ALLOW_READS ? D3D12_CPU_PAGE_PROPERTY_WRITE_BACK : D3D12_CPU_PAGE_PROPERTY_WRITE_COMBINE, D3D12_MEMORY_POOL_L0);
 
-        hr = d3dDevice->CreateCommittedResource(
-            &heapProperties,
-            D3D12_HEAP_FLAG_NONE,
-            &desc,
-			CPUAccessFlags == DDS_CPU_ACCESS_DENY ? D3D12_RESOURCE_STATE_COPY_DEST : D3D12_RESOURCE_STATE_COMMON,
-            nullptr,
-            IID_PPV_ARGS(texture));
-        if (SUCCEEDED(hr))
+		hr = d3dDevice->CreateCommittedResource(
+			&heapProperties,
+			D3D12_HEAP_FLAG_NONE,
+			&desc,
+			D3D12_RESOURCE_STATE_COMMON,
+			nullptr,
+			IID_PPV_ARGS(texture));
+		if (SUCCEEDED(hr))
         {
             _Analysis_assume_(*texture != nullptr);
 
