@@ -47,7 +47,7 @@ namespace Renderer
 
 		public:
 			Texture();
-			explicit Texture(const std::filesystem::path &fileName, TextureUsage usage, bool forceSysRAM);
+			explicit Texture(const std::filesystem::path &fileName, TextureUsage usage, bool enablePacking, bool forceSysRAM);
 
 			// define outside to break dependency on ComPtr`s implementation
 		protected:

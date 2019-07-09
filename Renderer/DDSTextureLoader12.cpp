@@ -1109,6 +1109,8 @@ namespace
         desc.SampleDesc.Count = 1;
         desc.SampleDesc.Quality = 0;
         desc.Dimension = resDim;
+		if (loadFlags & DDS_LOADER_ENABLE_PACKING)
+			desc.Alignment = D3D12_SMALL_RESOURCE_PLACEMENT_ALIGNMENT;
 		switch (CPUAccessFlags & 3)
 		{
 		case DDS_CPU_ACCESS_DENY:
@@ -1124,14 +1126,20 @@ namespace
 			? CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT)
 			: CD3DX12_HEAP_PROPERTIES(CPUAccessFlags & DDS_CPU_ACCESS_ALLOW_READS ? D3D12_CPU_PAGE_PROPERTY_WRITE_BACK : D3D12_CPU_PAGE_PROPERTY_WRITE_COMBINE, D3D12_MEMORY_POOL_L0);
 
-		hr = d3dDevice->CreateCommittedResource(
-			&heapProperties,
-			D3D12_HEAP_FLAG_NONE,
-			&desc,
+        const auto CreateTexture = std::bind(&ID3D12Device::CreateCommittedResource,
+			d3dDevice,
+            &heapProperties,
+            D3D12_HEAP_FLAG_NONE,
+            &desc,
 			D3D12_RESOURCE_STATE_COMMON,
-			nullptr,
-			IID_PPV_ARGS(texture));
-		if (SUCCEEDED(hr))
+            nullptr,
+            IID_PPV_ARGS(texture));
+		if (hr = CreateTexture(); hr == E_INVALIDARG && desc.Alignment)
+		{
+			desc.Alignment = 0;
+			hr = CreateTexture();
+		}
+        if (SUCCEEDED(hr))
         {
             _Analysis_assume_(*texture != nullptr);
 

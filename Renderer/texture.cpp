@@ -117,9 +117,10 @@ Impl::Texture::Texture() : usage{ ~0 }
 {
 }
 
-Impl::Texture::Texture(const filesystem::path &fileName, TextureUsage usage, bool useSysRAM) : usage(usage)
+Impl::Texture::Texture(const filesystem::path &fileName, TextureUsage usage, bool enablePacking, bool useSysRAM) : usage(usage)
 {
 	extern ComPtr<ID3D12Device2> device;
+	using namespace DirectX;
 
 	if (!useSysRAM)
 	{
@@ -134,12 +135,17 @@ Impl::Texture::Texture(const filesystem::path &fileName, TextureUsage usage, boo
 		*/
 	}
 
-	const auto [targetState, loadFlags] = DecodeTextureUsage(usage);
+	auto [targetState, loadFlags] = DecodeTextureUsage(usage);
+#if 1
+	if (enablePacking)
+		reinterpret_cast<underlying_type_t<DDS_LOADER_FLAGS> &>(loadFlags) |= DDS_LOADER_ENABLE_PACKING;
+#else
+	reinterpret_cast<underlying_type_t<DDS_LOADER_FLAGS> &>(loadFlags) |= DDS_LOADER_ENABLE_PACKING & -enablePacking;
+#endif
 
 	// load from file & create texture in sys RAM
 	unique_ptr<uint8_t []> data;
 	vector<D3D12_SUBRESOURCE_DATA> subresources;
-	using namespace DirectX;
 	CheckHR(LoadDDSTextureFromFileEx(device.Get(), fileName.c_str(), 0, D3D12_RESOURCE_FLAG_NONE, loadFlags, useSysRAM ? DDS_CPU_ACCESS_INDIRECT : DDS_CPU_ACCESS_DENY, tex.GetAddressOf(), data, subresources));
 	ValidateTexture(tex->GetDesc(), usage);
 
