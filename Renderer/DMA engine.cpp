@@ -90,16 +90,6 @@ extern void __cdecl FlushPendingUploads(unsigned long batchSizeLimit = 1ul, unsi
 	}
 }
 
-ComPtr<ID3D12Fence> DMA::Impl::CreateFence()
-{
-	ComPtr<ID3D12Fence> fence;
-	CheckHR(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
-	NameObject(fence.Get(), L"DMA engine fence");
-	if (atexit([] { WaitForGPU(lastBatchID); }))
-		throw runtime_error("Fail to register GPU queue finalization for DMA engine.");
-	return fence;
-}
-
 decltype(cmdBuffers) DMA::Impl::CreateCmdBuffers()
 {
 	decltype(cmdBuffers) cmdBuffers;
@@ -112,6 +102,16 @@ decltype(cmdBuffers) DMA::Impl::CreateCmdBuffers()
 		NameObjectF(curCmdBuff.list.Get(), L"DMA engine command list [%u]", i);
 	}
 	return cmdBuffers;
+}
+
+ComPtr<ID3D12Fence> DMA::Impl::CreateFence()
+{
+	ComPtr<ID3D12Fence> fence;
+	CheckHR(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
+	NameObject(fence.Get(), L"DMA engine fence");
+	if (atexit([] { WaitForGPU(lastBatchID); }))
+		throw runtime_error("Fail to register GPU queue finalization for DMA engine.");
+	return fence;
 }
 
 void DMA::Upload2VRAM(const ComPtr<ID3D12Resource> &dst, const vector<D3D12_SUBRESOURCE_DATA> &src, LPCWSTR name)
@@ -180,7 +180,7 @@ void DMA::Sync()
 	{
 		void RetireResource(ComPtr<IUnknown> resource);
 		/*
-		fence going to be signaled on another queue
+		fence going to be waited on another queue
 		extend its lifetime by means of additional ref tracking
 
 		it's called on beginning of a frame (waiting inserted at GFX queue) while end of the frame gets signaled by frame versioning fence

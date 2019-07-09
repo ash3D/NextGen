@@ -265,7 +265,7 @@ struct RetiredResource
 	UINT64 frameID;
 	ComPtr<IUnknown> resource;
 };
-static queue<RetiredResource> retiredResources;
+static queue<RetiredResource> retireQueue;
 
 // keeps resource alive while accessed by GPU
 void RetireResource(ComPtr<IUnknown> resource)
@@ -274,7 +274,7 @@ void RetireResource(ComPtr<IUnknown> resource)
 	if (globalFrameVersioning->GetCurFrameID() > globalFrameVersioning->GetCompletedFrameID())
 	{
 		lock_guard<decltype(mtx)> lck(mtx);
-		retiredResources.push({ globalFrameVersioning->GetCurFrameID(), move(resource) });
+		retireQueue.push({ globalFrameVersioning->GetCurFrameID(), move(resource) });
 	}
 }
 
@@ -282,8 +282,8 @@ void RetireResource(ComPtr<IUnknown> resource)
 void OnFrameFinish()
 {
 	const UINT64 completedFrameID = globalFrameVersioning->GetCompletedFrameID();
-	while (!retiredResources.empty() && retiredResources.front().frameID <= completedFrameID)
-		retiredResources.pop();
+	while (!retireQueue.empty() && retireQueue.front().frameID <= completedFrameID)
+		retireQueue.pop();
 }
 
 #pragma region root sigs & PSOs
@@ -353,7 +353,7 @@ namespace Renderer::DMA::Impl
 	ComPtr<ID3D12Fence> fence = Try(CreateFence, "DMA engine fence");
 }
 
-extern bool enableDebugDraw = false;
+bool enableDebugDraw;
 
 extern void __cdecl InitRenderer()
 {

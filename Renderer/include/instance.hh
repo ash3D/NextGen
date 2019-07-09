@@ -44,7 +44,7 @@ namespace Renderer
 
 		protected:
 			static void Setup(ID3D12GraphicsCommandList2 *target, UINT64 frameDataGPUPtr, UINT64 tonemapParamsGPUPtr) { Object3D::Setup(target, frameDataGPUPtr, tonemapParamsGPUPtr); }
-			const auto &GetStartPSO() const { return object.GetStartPSO(); }
+			const auto GetStartPSO() const { return object.GetStartPSO(); }
 			void Render(ID3D12GraphicsCommandList2 *target) const;
 		};
 	}

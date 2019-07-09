@@ -390,7 +390,7 @@ void Impl::World::MainPassRange(CmdListPool::CmdList &cmdList, unsigned long ran
 
 	const auto &renderStream = renderStreams[final];
 
-	cmdList.Setup(renderStream[rangeBegin].instance->GetStartPSO().Get());
+	cmdList.Setup(renderStream[rangeBegin].instance->GetStartPSO());
 
 	mainPassSetupCallback(cmdList);
 	decltype(staticObjects)::value_type::Setup(cmdList, GetCurFrameGPUDataPtr(), tonemapParamsGPUAddress);

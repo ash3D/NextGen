@@ -711,7 +711,7 @@ void Impl::Object3D::Setup(ID3D12GraphicsCommandList2 *cmdList, UINT64 frameData
 	cmdList->SetGraphicsRootDescriptorTable(ROOT_PARAM_SAMPLER_DESC_TABLE, descHeaps[1]/*samplers heap*/->GetGPUDescriptorHandleForHeapStart());
 }
 
-const ComPtr<ID3D12PipelineState> &Impl::Object3D::GetStartPSO() const
+ID3D12PipelineState *Impl::Object3D::GetStartPSO() const
 {
 	return subobjects[0].PSO;
 }

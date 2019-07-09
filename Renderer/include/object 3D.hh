@@ -160,7 +160,7 @@ namespace Renderer
 
 		protected:
 			static void Setup(ID3D12GraphicsCommandList2 *target, UINT64 frameDataGPUPtr, UINT64 tonemapParamsGPUPtr);
-			const WRL::ComPtr<ID3D12PipelineState> &GetStartPSO() const;
+			ID3D12PipelineState *GetStartPSO() const;
 			const void Render(ID3D12GraphicsCommandList2 *target) const;
 
 		private:
