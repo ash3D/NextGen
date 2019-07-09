@@ -326,6 +326,20 @@ inline volatile World::PerFrameData *World::TryMapGlobalGPUBuffer()
 }
 #endif
 
+/*
+fence going to be waited on another queue in 'DMA::Sync()'
+define it before globalFrameVersioning to get destruction order that honors dependencies:
+	wait in globalFrameVersioning's dtor happens first
+	now fence no longer used on GFX queue
+	then destroy fence
+more robust alternative is to extend its lifetime by means of additional ref tracking (such as 'SetPrivateDataInterface()')
+*/
+namespace Renderer::DMA::Impl
+{
+	decltype(cmdBuffers) cmdBuffers = Try(CreateCmdBuffers, "DMA engine command buffers");
+	ComPtr<ID3D12Fence> fence = Try(CreateFence, "DMA engine fence");
+}
+
 namespace Renderer::Impl
 {
 	decltype(globalFrameVersioning) globalFrameVersioning = TryCreate<decltype(globalFrameVersioning)>("global frame versionong");
@@ -346,12 +360,6 @@ decltype(QueryBatch<OcclusionCulling::TRANSIENT>::resultsPool) QueryBatch<Occlus
 decltype(TerrainVectorLayer::GPU_AABB_allocator) TerrainVectorLayer::GPU_AABB_allocator = TryCreate<decltype(TerrainVectorLayer::GPU_AABB_allocator)>("GPU AABB allocator for terrain vector layers");
 decltype(World::GPU_AABB_allocator) World::GPU_AABB_allocator = TryCreate<decltype(World::GPU_AABB_allocator)>("GPU AABB allocator for world 3D objects");
 decltype(World::xformedAABBsStorage) World::xformedAABBsStorage;
-
-namespace Renderer::DMA::Impl
-{
-	decltype(cmdBuffers) cmdBuffers = Try(CreateCmdBuffers, "DMA engine command buffers");
-	ComPtr<ID3D12Fence> fence = Try(CreateFence, "DMA engine fence");
-}
 
 bool enableDebugDraw;
 

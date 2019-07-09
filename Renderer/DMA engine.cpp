@@ -111,15 +111,6 @@ ComPtr<ID3D12Fence> DMA::Impl::CreateFence()
 	NameObject(fence.Get(), L"DMA engine fence");
 	if (atexit([] { WaitForGPU(lastBatchID); }))
 		throw runtime_error("Fail to register GPU queue finalization for DMA engine.");
-	// {F8192321-014D-46D7-A483-254B2904CB4C}
-	static const GUID DMAFenceTrackingGUID =
-	{ 0xf8192321, 0x14d, 0x46d7, { 0xa4, 0x83, 0x25, 0x4b, 0x29, 0x4, 0xcb, 0x4c } };
-	/*
-	fence going to be waited on another queue in 'DMA::Sync()'
-	extend its lifetime by means of additional ref tracking
-	alternative is to arange definitions to get destruction order that honors dependencies
-	*/
-	CheckHR(gfxQueue->SetPrivateDataInterface(DMAFenceTrackingGUID, fence.Get()));
 	return fence;
 }
 
