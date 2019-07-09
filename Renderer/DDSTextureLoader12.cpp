@@ -17,6 +17,7 @@
 #include "DDSTextureLoader12.h"
 
 #include <assert.h>
+#include <climits>
 #include <algorithm>
 #include <memory>
 #include <functional>
@@ -1109,8 +1110,6 @@ namespace
         desc.SampleDesc.Count = 1;
         desc.SampleDesc.Quality = 0;
         desc.Dimension = resDim;
-		if (loadFlags & DDS_LOADER_ENABLE_PACKING)
-			desc.Alignment = D3D12_SMALL_RESOURCE_PLACEMENT_ALIGNMENT;
 		switch (CPUAccessFlags & 3)
 		{
 		case DDS_CPU_ACCESS_DENY:
@@ -1121,6 +1120,9 @@ namespace
 			desc.Layout = D3D12_TEXTURE_LAYOUT_64KB_STANDARD_SWIZZLE;
 			break;
 		}
+		// perform fast coarse size (under)estimation to eliminate wasteful D3D runtime/driver stressing for large textures
+		if (loadFlags & DDS_LOADER_ENABLE_PACKING && uint_fast64_t(width * height) * BitsPerPixel(format) / CHAR_BIT <= D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT)
+			desc.Alignment = D3D12_SMALL_RESOURCE_PLACEMENT_ALIGNMENT;
 
         CD3DX12_HEAP_PROPERTIES heapProperties = CPUAccessFlags == DDS_CPU_ACCESS_DENY
 			? CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT)
