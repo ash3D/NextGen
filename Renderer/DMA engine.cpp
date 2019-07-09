@@ -111,6 +111,15 @@ ComPtr<ID3D12Fence> DMA::Impl::CreateFence()
 	NameObject(fence.Get(), L"DMA engine fence");
 	if (atexit([] { WaitForGPU(lastBatchID); }))
 		throw runtime_error("Fail to register GPU queue finalization for DMA engine.");
+	// {F8192321-014D-46D7-A483-254B2904CB4C}
+	static const GUID DMAFenceTrackingGUID =
+	{ 0xf8192321, 0x14d, 0x46d7, { 0xa4, 0x83, 0x25, 0x4b, 0x29, 0x4, 0xcb, 0x4c } };
+	/*
+	fence going to be waited on another queue in 'DMA::Sync()'
+	extend its lifetime by means of additional ref tracking
+	alternative is to arange definitions to get destruction order that honors dependencies
+	*/
+	CheckHR(gfxQueue->SetPrivateDataInterface(DMAFenceTrackingGUID, fence.Get()));
 	return fence;
 }
 
@@ -178,11 +187,7 @@ void DMA::Sync()
 	FlushPendingUploads();
 	if (fence->GetCompletedValue() < lastBatchID)
 	{
-		void RetireResource(ComPtr<IUnknown> resource);
 		/*
-		fence going to be waited on another queue
-		extend its lifetime by means of additional ref tracking
-
 		it's called on beginning of a frame (waiting inserted at GFX queue) while end of the frame gets signaled by frame versioning fence
 		hence last frame awaiting in frame versioning dtor will also wait for DMA fence to be reached on GPU
 		any errors occured during frame rendering currently must terminate process without cleanup (such errors unrecoverable yet)
@@ -190,7 +195,6 @@ void DMA::Sync()
 		for more robust handling one may always insert additional signal (e.g. ~0) in frame versioning dtor (and wait for it)
 		it would ensure proper waiting regardless of weither last GFX queu operation was frame finish
 		*/
-		RetireResource(fence);
 		CheckHR(gfxQueue->Wait(fence.Get(), lastBatchID));
 	}
 	CleanupFinishedUploads();
