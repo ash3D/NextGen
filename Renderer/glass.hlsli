@@ -12,7 +12,7 @@ void ApplyGlassMask(in float2 uv, inout float roughness, inout float f0)
 	const float glass = SelectTexture(GLASS_MASK).Sample(obj3DGlassMaskSampler, uv);
 	if (glass >= threshold)
 	{
-		// just replace rough & IOR for now, consider multilayered material instead
+		// just replace rough & IOR for now, consider multi-layered material instead
 		roughness = glassRough;
 		f0 = F0(glassIOR);
 	}

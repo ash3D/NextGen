@@ -25,7 +25,7 @@ namespace Math::Splines
 		Direct bezier evaluation currently used as it requires less operations
 		(especially for high dimensions) (if binomial coefficient being computed at compile time).
 		But De Casteljau’s subdivision used for tessellation as it provides more reliable
-		“sufficiently close to being a straight line” test then midpoint test avaliable at both methods.
+		“sufficiently close to being a straight line” test then midpoint test available at both methods.
 	*/
 
 #pragma region CompositePoint

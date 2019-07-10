@@ -12,7 +12,7 @@ cbuffer MaterialConstants : register(b0, space1)
 	float	TVBrighntess;
 
 #ifdef ENABBLE_TEX
-	// TextureID is an enum to be defined before thhis file #inclusion
+	// TextureID is an enum to be defined before this file #inclusion
 	Texture2D SelectTexture(TextureID id)
 	{
 		return textures[descriptorTableOffset + id];

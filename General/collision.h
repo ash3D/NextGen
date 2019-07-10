@@ -146,7 +146,7 @@ namespace Math::Collision
 		void operator ()(const CSphereXformHandler &sphereXformHandler, const vec3 &v0, const vec3 &v1, const vec3 &v2);
 	};
 
-	// collide with edge's cilinders
+	// collide with edge's cylinders
 	class CEdgeCollider final : private CBasePrimitiveCollider
 	{
 	public:
@@ -157,7 +157,7 @@ namespace Math::Collision
 		void operator ()(const CSphereXformHandler &sphereXformHandler, const vec3 &v0, const vec3 &v1);
 	};
 
-	// collide with verex's spheres
+	// collide with vertex's spheres
 	class CVertexCollider final : private CBasePrimitiveCollider
 	{
 	public:

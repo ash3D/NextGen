@@ -201,8 +201,8 @@ inline void TerrainVectorQuad::Issue(remove_const_t<decltype(OcclusionCulling::Q
 
 	/*
 		note on why copy quad`s data to layer`s quad stream rather than just put quad ptr there:
-		'subtreeView' touched here so neighbour quad data is probably in cache line now anyway so accessing it now is cheap
-		later during cmd list recording trying to access quad data via ptr would cause ptr chasing and cache pullution
+		'subtreeView' touched here so neighbor quad data is probably in cache line now anyway so accessing it now is cheap
+		later during cmd list recording trying to access quad data via ptr would cause ptr chasing and cache pollution
 		storing copy of quad data instead of ptr eliminate this performance pitfall
 	*/
 	subtreeView.Issue(bind(&TerrainVectorLayer::IssueOcclusion, layer.get(), _1), bind(&TerrainVectorLayer::IssueNodeObjects, layer.get(), _1, _2, _3, _4), occlusionProvider);
@@ -303,7 +303,7 @@ void Impl::TerrainVectorLayer::CullPassPre(CmdListPool::CmdList &cmdList) const
 
 /*
 	Hardware occlusion query technique used here.
-	It has advantage over shader based batched occlusoin test in that it does not stresses UAV writes in PS for visible objects -
+	It has advantage over shader based batched occlusion test in that it does not stresses UAV writes in PS for visible objects -
 		hardware occlusion query does not incur any overhead in addition to regular depth/stencil test.
 */
 void Impl::TerrainVectorLayer::CullPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd) const

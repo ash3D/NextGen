@@ -82,7 +82,7 @@ extern void __cdecl FlushPendingUploads(unsigned long batchSizeLimit = 1ul, unsi
 		dmaQueue->ExecuteCommandLists(1, CommandListCast(cmdList.GetAddressOf()));
 		CheckHR(dmaQueue->Signal(fence.Get(), ++lastBatchID));
 		/*
-		could just wait for previous batch comletion here and reset cmd alloc & list
+		could just wait for previous batch completion here and reset cmd alloc & list
 		instead use more complicated scheme 'GetCmdList' to defer waiting as much as possible
 			it allows for more job to be done before waiting and reduces chances waiting to be required ever
 		*/
@@ -181,10 +181,10 @@ void DMA::Sync()
 		/*
 		it's called on beginning of a frame (waiting inserted at GFX queue) while end of the frame gets signaled by frame versioning fence
 		hence last frame awaiting in frame versioning dtor will also wait for DMA fence to be reached on GPU
-		any errors occured during frame rendering currently must terminate process without cleanup (such errors unrecoverable yet)
+		any errors occurred during frame rendering currently must terminate process without cleanup (such errors unrecoverable yet)
 		so last item in GFX queue during frame versioning dtor execution is last frame`s signal
 		for more robust handling one may always insert additional signal (e.g. ~0) in frame versioning dtor (and wait for it)
-		it would ensure proper waiting regardless of weither last GFX queu operation was frame finish
+		it would ensure proper waiting regardless of whether last GFX queue operation was frame finish
 		*/
 		CheckHR(gfxQueue->Wait(fence.Get(), lastBatchID));
 	}

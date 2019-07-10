@@ -85,7 +85,7 @@ auto OcclusionTree::FindTileForAABBProjection(const AABB<2> &aabb) const -> pair
 
 	// deduce tree level from AABB size
 	const auto &size = aabb.Size();
-	const unsigned depth = clamp<signed>(log2(2.f / fmax(size.x, size.y)), 0, height), stride = 1u << depth;	// trancate fractional part
+	const unsigned depth = clamp<signed>(log2(2.f / fmax(size.x, size.y)), 0, height), stride = 1u << depth;	// truncate fractional part
 
 	// [-1, +1] -> [0, stride]
 	auto center = aabb.Center();

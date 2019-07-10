@@ -5,7 +5,7 @@ using namespace Renderer::Impl;
 using namespace HLSL;
 using Math::VectorMath::vector;
 
-// TODO: implment transpose in vector math
+// TODO: implement transpose in vector math
 static inline float4 Column(const float4x4 &m, unsigned c)
 {
 	return { m[0][c], m[1][c], m[2][c], m[3][c] };

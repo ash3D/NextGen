@@ -6,7 +6,7 @@ struct AABB
 };
 
 /*
-VS + hardware instancing approah currently used.
+VS + hardware instancing approach currently used.
 Quad expansion in GS allows to perform transform once per AABB rather than per quad vertex.
 But there can be lack of AABBs to fill up VS/GS SIMD whereas instancing increases VS thread utilization by a factor of 4.
 GPU should support packing of different instances into single SIMD (as AMD Vega does) for this approach to work efficiently, otherwise GS approach can result in better GPU utilization.

@@ -23,7 +23,7 @@ similar approach used in STL (functions like min/max always accepts refs regardl
 aliasing can potentially hinder compiler to perform some optimizations, consider using '__restrict' to prevent this
 
 similar to HLSL:
-1D swizzle op 1x1 matrix -> 1D swizle
+1D swizzle op 1x1 matrix -> 1D swizzle
 1x1 matrix op 1D swizzle -> 1x1 matrix
 min/max does not treat 1D swizzles / 1x1 matrices as scalars
 1xN matrices converted to vectors in some situations if DISABLE_MATRIX_DECAY is non specified to 1
@@ -963,7 +963,7 @@ further investigations needed, including other compilers
 						static constexpr typename Result::value_type value = Result::value;
 					};
 
-					// mpl::transform does not work with ranges (bug in mpl?) => use mpl::transform_view (even if it can ponentially be less efficient)
+					// mpl::transform does not work with ranges (bug in mpl?) => use mpl::transform_view (even if it can potentially be less efficient)
 					template<class SwizzleDesc, unsigned int rowIdx>
 					using RowSwizzleDesc_2_MatrixSwizzleVector = mpl::transform_view<typename SwizzleDesc::CSwizzleVector, mpl::bitor_<_, mpl::integral_c<unsigned, rowIdx << 2>>>;
 
@@ -2875,7 +2875,7 @@ further investigations needed, including other compilers
 					}
 				}
 
-				// swizzle op scalar / 1D swizle op pure scalar
+				// swizzle op scalar / 1D swizzle op pure scalar
 #				define OPERATOR_DEFINITION(op, F)																										\
 					template																															\
 					<																																	\
@@ -3831,7 +3831,7 @@ further investigations needed, including other compilers
 				return swizzle / length(swizzle);
 			}
 
-#			pragma region "series of matrices delimitted by ',' interpreted as series of successive transforms; inspirited by boost's function superposition"
+#			pragma region "series of matrices delimited by ',' interpreted as series of successive transforms; inspirited by boost's function superposition"
 				template
 				<
 					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,
@@ -3949,8 +3949,8 @@ further investigations needed, including other compilers
 		template<typename ElementType_, unsigned int rows_, unsigned int columns_>
 		class EBCO matrix : public Impl::CDataContainer<ElementType_, rows_, columns_>, public Impl::Tag<Impl::TagName::Matrix, rows_ == 1 && columns_ == 1>
 		{
-			static_assert(rows_ > 0, "matrix should contain at leat 1 row");
-			static_assert(columns_ > 0, "matrix should contain at leat 1 column");
+			static_assert(rows_ > 0, "matrix should contain at least 1 row");
+			static_assert(columns_ > 0, "matrix should contain at least 1 column");
 			static_assert(Impl::IsElementTypeValid<ElementType_>, "invalid matrix element type");
 			typedef vector<ElementType_, columns_> TRow;
 			typedef Impl::CDataContainer<ElementType_, rows_, columns_> DataContainer;

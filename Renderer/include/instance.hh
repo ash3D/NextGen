@@ -26,7 +26,7 @@ namespace Renderer
 			/*
 				to be set by World
 				D3D12_GPU_VIRTUAL_ADDRESS is a synonym of UINT64 according to MSDN, use UINT64 here to avoid dependency on d3d12.h
-				it is also possible to store index instead of address, it potentially can save storage (4 bytess instead of 8) but probably will not due to alignment
+				it is also possible to store index instead of address, it potentially can save storage (4 bytes instead of 8) but probably will not due to alignment
 			*/
 			UINT64 CB_GPU_ptr;
 

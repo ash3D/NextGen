@@ -33,7 +33,7 @@ void QueryBatchBase::Setup(unsigned long count)
 		{
 			/*
 			try to reduce pool realloc count by accounting for other render stages requests
-			reset every frame is not necessary since currently there is no pool shrinking mechanism, it grwos monotonically
+			reset every frame is not necessary since currently there is no pool shrinking mechanism, it grows monotonically
 			*/
 			static atomic<unsigned long> globalCountRequest;
 			AtomicMax(globalCountRequest, count);

@@ -34,7 +34,7 @@ void NameObject(ID3D12Object *object, LPCWSTR name) noexcept, NameObjectF(ID3D12
 
 /*
 	it seems that INTEL fails to set root constants inside bundle so use cbuffer instead
-	constider GPU/driver detection in runtume instead of current fixed compiletime approach
+	consider GPU/driver detection in runtime instead of current fixed compiletime approach
 	btw, using static data flag in root signature v1.1 allows driver to place cbuffer content directly in root signature, thus this workaround can have no impact on shader performance
 		(although buffer storage still need to be allocated)
 */
@@ -507,7 +507,7 @@ Impl::Object3D::Object3D(unsigned int subobjCount, const SubobjectDataCallback &
 				ID3D12PipelineState *const PSO = PSOs[subobjAdvanced.doublesided].advanced[materialFlags - 1].Get();
 				const unsigned int descriptorTableOffset = texs.size();
 
-				// !: order of texture insertions is essential - it must mutch shader signature
+				// !: order of texture insertions is essential - it must match shader signature
 				if (subobjAdvanced.albedoMap.Usage() != TextureUsage::AlbedoMap)
 					throw invalid_argument("3D object material: incompatible texture usage, albedo map expected.");
 				texs.push_back(subobjAdvanced.albedoMap);
@@ -731,7 +731,7 @@ auto Impl::Object3D::CreateBundle(const decltype(subobjects) &subobjects, unsign
 auto Impl::Object3D::CreateBundle(const decltype(subobjects) &subobjects, unsigned int subobjCount, ComPtr<ID3D12Resource> VIB, unsigned long int vcount, unsigned long int uvcount, unsigned long int tgcount, unsigned long int IB_size, string &&objectName) -> decay_t<decltype(bundle.get())>
 #endif
 {
-	decay_t<decltype(bundle.get())> bundle;	// to be retunred
+	decay_t<decltype(bundle.get())> bundle;	// to be returned
 
 	// context
 	Context ctx = { subobjects[0].PSO };

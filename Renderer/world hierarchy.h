@@ -235,7 +235,7 @@ namespace Renderer::Impl::Hierarchy
 				WholeNode		= 0b1111,
 				ChildrenOnly	= 0b0111,
 				ForceComposite	= 0b0010,
-			} occlusionCullDomain{};	// can be overriden by parent during tree traverse; need to init in order to eliminate possible UB due to uninit read in OverrideOcclusionCullDomain()
+			} occlusionCullDomain{};	// can be overridden by parent during tree traverse; need to init in order to eliminate possible UB due to uninit read in OverrideOcclusionCullDomain()
 			OcclusionQueryGeometry occlusionQueryGeometry;
 
 		public:

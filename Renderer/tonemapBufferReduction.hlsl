@@ -18,7 +18,7 @@ inline float LinearizeLum(float src)
 
 /*
 	similar to Reinhard, maps [0, inf] -> [0, scale]
-	!: can produse NaN in corner cases (0, inf, both x and scale)
+	!: can produce NaN in corner cases (0, inf, both x and scale)
 	alternative formulation can be used: x / (1 + abs(x) / scale), which could be faster (mad + div) and behaves differently in corner cases
 */
 inline float Compress(float x, uniform float scale)

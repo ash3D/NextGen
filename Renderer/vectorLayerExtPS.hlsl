@@ -17,8 +17,8 @@ float4 main(in float3 viewDir : ViewDir, in float2 uv : UV) : SV_TARGET
 	n = mul(mul(n, terrainWorldXform), viewXform);
 
 	const float3 albedo = albedoMap.Sample(terrainAlbedoSampler, uv);
-	const float roughnes = roughnessMap.Sample(terrainRoughnessSampler, uv), fresnel = fresnelMap.Sample(terrainFresnelSampler, uv);
-	const float3 color = Lit(albedo, roughnes, fresnel, viewXform[2], n, normalize(viewDir), sun.dir, sun.irradiance);
+	const float roughness = roughnessMap.Sample(terrainRoughnessSampler, uv), fresnel = fresnelMap.Sample(terrainFresnelSampler, uv);
+	const float3 color = Lit(albedo, roughness, fresnel, viewXform[2], n, normalize(viewDir), sun.dir, sun.irradiance);
 
 	return EncodeHDR(color, tonemapParams.exposure);
 }

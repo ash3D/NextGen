@@ -16,7 +16,7 @@ cbuffer QuadParams : register(b0, space2)
 	lower frequency of update (layer vs quad) so place in dedicated root signature slot
 	AMD GCN can benefit from placing it into CB (which can be combined with IV/VB) rather than root constants
 		although space would be wasted considering CB requires 256-byte alignment
-		so this approach will became more resonable if more layer data required
+		so this approach will became more reasonable if more layer data required
 */
 cbuffer LayerParams : register(b1, space2)
 {

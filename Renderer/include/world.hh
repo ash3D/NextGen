@@ -69,7 +69,7 @@ namespace Renderer
 			friend struct WorldViewContext;
 
 		private:
-			// hazard tracking is not needed here - all the waiting required perormed in globalFrameVersioning dtor
+			// hazard tracking is not needed here - all the waiting required performed in globalFrameVersioning dtor
 			static ComPtr<ID3D12Resource> globalGPUBuffer, CreateGlobalGPUBuffer();
 			struct GlobalGPUBufferData;	// defined in "global GPU buffer data.h" to eliminate dependencies on d3d12.h here
 			static volatile struct GlobalGPUBufferData

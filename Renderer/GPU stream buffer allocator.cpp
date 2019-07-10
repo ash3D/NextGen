@@ -84,7 +84,7 @@ void AllocatorBase::OnFrameFinish()
 		freeEnd = retiredFrames.front().usedEnd;
 	}
 
-	// reset start allocatin position if chunk is completely free - it can reduce the chance of overflow when large continuous ranges being allocated
+	// reset start allocation position if chunk is completely free - it can reduce the chance of overflow when large continuous ranges being allocated
 	if (retiredFrames.empty())
 	{
 		freeBegin.store(freeEnd = 0, memory_order_relaxed);

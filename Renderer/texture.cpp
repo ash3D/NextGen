@@ -164,7 +164,7 @@ Impl::Texture::Texture(const filesystem::path &fileName, TextureUsage usage, boo
 	else
 		DMA::Upload2VRAM(tex, subresources, fileName.filename().c_str());
 
-	// schedule transition to shader accessibble state for next frame preparation stage
+	// schedule transition to shader accessible state for next frame preparation stage
 	static_assert(sizeof(decltype(pendingBarriers)::value_type::second_type) >= sizeof D3D12_RESOURCE_STATES);
 	pendingBarriers.push_back({ tex, targetState });
 }
@@ -180,7 +180,7 @@ Impl::Texture::operator bool() const noexcept
 	return tex;
 }
 
-// triggers ComPtr`s impementation if inline (dtor for temp object?)
+// triggers ComPtr`s implementation if inline (dtor for temp object?)
 auto Impl::Texture::AcquirePendingBarriers() noexcept -> decltype(pendingBarriers)
 {
 	return std::move(pendingBarriers);

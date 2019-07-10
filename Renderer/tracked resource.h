@@ -18,9 +18,9 @@ namespace Renderer::Impl
 	namespace WRL = Microsoft::WRL;
 
 	/*
-	ComPtr is publically accessible but it should be treated cautiously.
+	ComPtr is publicly accessible but it should be treated cautiously.
 	Do not perform actions that causes to reference loosing or ownership transfer. It can results in GPU accessing to destroyed resource.
-	In particular do not move construct or move assign ComPtr from tracked ressource. Copy construct/assign on the other hand is valid.
+	In particular do not move construct or move assign ComPtr from tracked resource. Copy construct/assign on the other hand is valid.
 	It is possible to remove public access to ComPtr to prevent invalid usage but it would be less concise; therewith direct access to ComPtr is probably rarely needed.
 	*/
 	template<class Interface>

@@ -92,7 +92,7 @@ namespace Renderer::Impl::OcclusionCulling
 	public:
 		void Set(ID3D12GraphicsCommandList2 *target, unsigned long queryIdx, bool visible = true) const { QueryBatchBase::Set(target, queryIdx, batchResults.Get(), visible); }
 		void Resolve(CmdListPool::CmdList &target, long int/*instead of D3D12_RESOURCE_STATES to eliminate dependency in d3d12.h here*/ usage = 0) const;
-		UINT64 GetGPUPtr() const;	// valid after Reslove if 'usage' was specified accordingly
+		UINT64 GetGPUPtr() const;	// valid after Resolve if 'usage' was specified accordingly
 	};
 
 	template<>
@@ -115,7 +115,7 @@ namespace Renderer::Impl::OcclusionCulling
 	public:
 		void Set(ID3D12GraphicsCommandList2 *target, unsigned long queryIdx, bool second, bool visible = true) const { QueryBatchBase::Set(target, queryIdx, batchResults.Get(), visible, Offset(second)); }
 		void Resolve(CmdListPool::CmdList &target, bool second) const;
-		UINT64 GetGPUPtr(bool second) const;	// valid after Reslove if corresponding 'usage' was specified accordingly
+		UINT64 GetGPUPtr(bool second) const;	// valid after Resolve if corresponding 'usage' was specified accordingly
 
 	private:
 		unsigned long Offset(bool second) const noexcept;

@@ -342,7 +342,7 @@ namespace Renderer::DMA::Impl
 
 namespace Renderer::Impl
 {
-	decltype(globalFrameVersioning) globalFrameVersioning = TryCreate<decltype(globalFrameVersioning)>("global frame versionong");
+	decltype(globalFrameVersioning) globalFrameVersioning = TryCreate<decltype(globalFrameVersioning)>("global frame versioning");
 }
 
 // tracked resource should be destroyed before globalFrameVersioning => should be defined after globalFrameVersioning

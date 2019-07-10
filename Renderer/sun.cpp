@@ -12,7 +12,7 @@ using namespace Sun::HLSL;
 	[380-780] nm range, variable step
 	
 	In the source it is noted that data published in 1969, in https://www.ngdc.noaa.gov/stp/solar/solarirrad.html it is placed in "Older, archival databases" section.
-	Maybe it is worh to use more fresh data?
+	Maybe it is worth to use more fresh data?
 */
 constexpr double spectralIrradianceTable[][2] =
 {
@@ -2929,7 +2929,7 @@ const double3 sunExtraterrestrialIrradianceRGB = []
 
 	const auto EvalSeg = [](const DataSegmentIterator::value_type &data, const WeightsSegmentIterator::value_type &weights)
 	{
-		return dot(data.second, weights) * (.5/*avaraging factor after dot*/ * (data.first[1] - data.first[0])/*dλ*/);
+		return dot(data.second, weights) * (.5/*averaging factor after dot*/ * (data.first[1] - data.first[0])/*dλ*/);
 	};
 	const double3 XYZ = inner_product(DataSegmentIterator(0), DataSegmentIterator(size(spectralIrradianceTable)), WeightsSegmentIterator(0), double3(), plus(), EvalSeg);
 	return mul(XYZ_2_RGB, XYZ);

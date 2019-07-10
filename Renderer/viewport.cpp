@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "viewport.hh"
 #include "world.hh"
-#include "texture.hh"	// for pendingg barriers
+#include "texture.hh"	// for pending barriers
 #include "GPU work submission.h"
 #include "GPU descriptor heap.h"
 #include "shader bytecode.h"
@@ -166,7 +166,7 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Pre(ID3D12GraphicsCommandLi
 	PIXScopedEvent(cmdList, PIX_COLOR_INDEX(PIXEvents::ViewportPre), "viewport pre");
 	if (fresh)
 	{
-		// ClearUnorderedAccessViewFloat() can be used instead but it requies CPU & GPU view handles
+		// ClearUnorderedAccessViewFloat() can be used instead but it requires CPU & GPU view handles
 		constexpr float initVal = 1;
 		const D3D12_WRITEBUFFERIMMEDIATE_PARAMETER initParams[] =
 		{
@@ -367,9 +367,9 @@ void Impl::Viewport::Render(ID3D12Resource *output, ID3D12Resource *rendertarget
 	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Post, this, cmdLists.post, output, rendertarget, HDRSurface, LDRSurface, tonemapReductionBuffer, tonemapDescriptorTable, CalculateTonemapParamsLerpFactor(delta), width, height);
 
 	/*
-	defer as much as possible in order to reduce chances wating to be inserted in GFX queue (DMA queue can progress enough by this point)
+	defer as much as possible in order to reduce chances waiting to be inserted in GFX queue (DMA queue can progress enough by this point)
 	it's tempting to drop syncing if world is not attached (no rendering would done in this case thus no dependencies to DMA uploads)
-	but potential transition barriers executed in Pre() regardless of weither world attached or not
+	but potential transition barriers executed in Pre() regardless of whether world attached or not
 	could consider to execute barriers only if world attached as well
 	but such optimization seems not worthwhile since empty world is pathological case
 	*/

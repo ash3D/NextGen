@@ -2,7 +2,7 @@
 
 #include "stdafx.h"
 
-// research needed: consider smoothing blending of various params with different weights, take screen resoulution into account etc
+// research needed: consider smoothing blending of various params with different weights, take screen resolution into account etc
 namespace Renderer::Impl::OcclusionCulling
 {
 	// C++17

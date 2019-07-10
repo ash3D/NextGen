@@ -32,7 +32,7 @@ void main(in uint2 globalIdx : SV_DispatchThreadID, in uint flatLocalIdx : SV_Gr
 					/*
 						'max' used to convert NaN to 0
 						NaN comes from out-of-bounds pixels in edge tiles - they are which fetched as 0
-						and 0/0 produses NaN according to DirectX floating-point rules (https://docs.microsoft.com/en-us/windows/desktop/direct3d11/floating-point-rules)
+						and 0/0 produces NaN according to DirectX floating-point rules (https://docs.microsoft.com/en-us/windows/desktop/direct3d11/floating-point-rules)
 						'min' clamps fp16 overflow (inf)
 						can't use clamp here as it doesn't handle NaN
 					*/

@@ -14,8 +14,8 @@ extern ComPtr<ID3D12CommandQueue> gfxQueue;
 Current tasks wait implementation based on 'condition_variable' notification mechanism.
 
 'launch::async' policy required in order to guarantee deadlocks elimination that are possible if stdlib select deferred launch policy.
-It forces stdlib to launch dedicated thread for task but MSVC implementaion is non-conforming in that regard and uses thread pool.
-Such behavior (thread pool) is desired here. It would be better if there was additional bitmask for thred pool launh policy as an extension.
+It forces stdlib to launch dedicated thread for task but MSVC implementation is non-conforming in that regard and uses thread pool.
+Such behavior (thread pool) is desired here. It would be better if there was additional bitmask for thread pool launch policy as an extension.
 
 Need to keep track the status of Concurrency TS and reimplement waiting via 'wait_all'.
 */
@@ -101,14 +101,14 @@ namespace
 		/*
 		NOTE: Current command list distribution approach doesn't account "transition" (pre/post) phases (where transition barriers occurs) and only breaks command lists on "range" phases.
 		GPU work submission mechanism waits for next render stage even if work batch is saturated in order to butch up all "transition" phases into current batch (greedy approach).
-		Thus currently command list breaking should not left any pending barriers and FlushBarriers() call below may only take effect on pipelane finish
+		Thus currently command list breaking should not left any pending barriers and FlushBarriers() call below may only take effect on pipeline finish
 		(e.g. World::AABBPassPost() when debug draw enabled) and so it should not lead to any GPU inefficiency due to limited barrier batching.
 
 		It is however possible to implement more generic solution which is capable to batch up inter-stage barriers regardless of
 		command list distribution and GPU work submission details - instead of FlushBarriers() here acquire barriers from next cmd list via std::future.
 		First FlushBarriers() on cmd list would fire promise and switch function pointer to normal flushing behavior (pass it to D3D12 ResourceBarrier()).
-		Synchronisation implied by waiting for std::future is not harmful here as it occurs at 'current cmd list finish - next cmd list start'.
-		Care should be taken to avoid deadlocks due to threadpool implemntaton details (e.g. perform final barriers flush on main thread).
+		Synchronization implied by waiting for std::future is not harmful here as it occurs at 'current cmd list finish - next cmd list start'.
+		Care should be taken to avoid deadlocks due to threadpool implementation details (e.g. perform final barriers flush on main thread).
 		*/
 		target.FlushBarriers();
 
@@ -162,7 +162,7 @@ namespace
 void GPUWorkSubmission::Prepare()
 {
 	/*
-	This makes renderer non-reinterable after exception thrown during pipeline construction.
+	This makes renderer non-reenterable after exception thrown during pipeline construction.
 	But currently there is no recovery mechanism so renderer left in invalid state anyway, application should be aborted on exception.
 	In the future however when recovery will be implemented std::unique_lock or similar should be used to provide exception guarantee.
 	*/
@@ -207,7 +207,7 @@ void GPUWorkSubmission::Run()
 				{
 					if (*stageItem)
 						workBatch.push_back(move(*stageItem));
-					else // batch oferflow
+					else // batch overflow
 						FlushWorkBatch(lck);
 				}
 				else // stage waiting/pipeline finish

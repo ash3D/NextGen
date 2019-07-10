@@ -17,7 +17,7 @@
 	sorting by near AABB z needed for occlusion culling to work properly for nested objects
 	doing this results in somewhat unexpected results though
 	sorting by AABB center z is cheaper and behaves more predictable in some situations but it has it's own inconsistencies (probably due to node overlapping)
-	futher research needed
+	further research needed
 */
 #define SORT_AABB_NEAR_Z 1
 
@@ -198,7 +198,7 @@ namespace Renderer::Impl::Hierarchy
 		using namespace placeholders;
 
 		const auto createChildNode = bind(&Node::CreateChildNode<double>, this, _1/*splitted*/, _2/*nodeCounter*/, _3/*begin*/, _4/*end*/, splitTechnique, _6/*idxOffset*/, _5/*overlapThreshold*/);
-		Split2<Axis::Y>(bind(&Node::Split2<Axis::X, decltype(cref(createChildNode))>, this, cref(createChildNode), _1/*slpitted*/, _2/*nodeCounter*/, _3/*begin*/, _4/*end*/, splitPoint, _5/*overlapThreshold*/, _6/*idxOffset*/), splitted, nodeCounter, begin, end, splitPoint, overlapThreshold, idxOffset);
+		Split2<Axis::Y>(bind(&Node::Split2<Axis::X, decltype(cref(createChildNode))>, this, cref(createChildNode), _1/*splitted*/, _2/*nodeCounter*/, _3/*begin*/, _4/*end*/, splitPoint, _5/*overlapThreshold*/, _6/*idxOffset*/), splitted, nodeCounter, begin, end, splitPoint, overlapThreshold, idxOffset);
 	}
 
 	// 1 call site
@@ -208,7 +208,7 @@ namespace Renderer::Impl::Hierarchy
 		using namespace std;
 		using namespace placeholders;
 
-		Split2<Axis::Z>(bind(&Node::SplitQuadtree, this, _1/*slpitted*/, _2/*nodeCounter*/, _3/*begin*/, _4/*end*/, splitTechnique, splitPoint, _5/*overlapThreshold*/, _6/*idxOffset*/), splitted, nodeCounter, begin, end, splitPoint, overlapThreshold);
+		Split2<Axis::Z>(bind(&Node::SplitQuadtree, this, _1/*splitted*/, _2/*nodeCounter*/, _3/*begin*/, _4/*end*/, splitTechnique, splitPoint, _5/*overlapThreshold*/, _6/*idxOffset*/), splitted, nodeCounter, begin, end, splitPoint, overlapThreshold);
 	}
 
 	template<TreeStructure treeStructure, class Object, class ...CustomNodeData>
@@ -472,7 +472,7 @@ namespace Renderer::Impl::Hierarchy
 					{
 						auto &childViewData = view.nodes[child->idx];
 
-						// reset 'culled' bit which can potetially be set in previous frame and not updated yet during Schedule() due to early out
+						// reset 'culled' bit which can potentially be set in previous frame and not updated yet during Schedule() due to early out
 						reinterpret_cast<underlying_type_t<Visibility> &>(childViewData.visibility) &= 0b01;
 
 						// ensure Atomic visibility propagated for early out nodes
@@ -481,7 +481,7 @@ namespace Renderer::Impl::Hierarchy
 						/*
 						'childrenFilter' guarantees that it is either required to clear 'occlusionQueryGeometry' or it is already cleared (=> additional clear here has not effect)
 						so additional check is not necessary and is can only serve as optimization to avoid redundant clear
-						but clear itself is currently cheap and additional chek would probably be an anti-optimization
+						but clear itself is currently cheap and additional check would probably be an anti-optimization
 						another more costly clear implementation though can potentially benefit from additional check
 						*/
 #if 0

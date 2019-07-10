@@ -71,7 +71,7 @@ RenderOutput::RenderOutput(HWND wnd, bool allowModeSwitch, unsigned int bufferCo
 #endif
 	}
 
-	// create rtv desctriptor heap
+	// create rtv descriptor heap
 	{
 		const D3D12_DESCRIPTOR_HEAP_DESC desc =
 		{
@@ -154,7 +154,7 @@ void RenderOutput::OnResize()
 	{
 		/*
 		wait until GPU has finished using swap chain buffers as rendertargets
-		TODO: invistigate if it worth to wait
+		TODO: investigate if it worth to wait
 		- until Present() (it seems that without it device gets hung sometimes)
 		- for the case of modification source region via SetSourceSize()
 		*/

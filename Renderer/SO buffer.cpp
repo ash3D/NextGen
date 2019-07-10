@@ -55,7 +55,7 @@ void Handle::UseSOResults(CmdListPool::CmdList &cmdList) const
 
 void Handle::Finish(CmdListPool::CmdList &cmdList) const
 {
-	// !: optimization opportunity: do not perform transition barrier on last buffer usage (rely on implicit state transition for next frame), it woud require providing this info in Sync() or at creation
+	// !: optimization opportunity: do not perform transition barrier on last buffer usage (rely on implicit state transition for next frame), it would require providing this info in Sync() or at creation
 	if (size)
 		cmdList.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(buffer, D3D12_RESOURCE_STATES(curUsage), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY));
 }

@@ -9,7 +9,7 @@ template<unsigned alignment, typename UInt>
 constexpr inline auto AlignSize(UInt x)
 {
 	static_assert(std::is_unsigned_v<UInt>, "alignment can only be applied to unsigned integral");
-	static_assert(popcnt<>(alignment) == 1, "alignemt should be power of 2");
+	static_assert(popcnt<>(alignment) == 1, "alignment should be power of 2");
 	return x + alignment - 1 & ~(alignment - 1);
 }
 

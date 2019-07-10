@@ -9,7 +9,7 @@ using namespace RenderPipeline;
 static queue<future<PipelineStage>> pipeline;
 static const IRenderStage *curRenderStage;
 
-// returns std::monostate on stage waiting/pipeline finish, null RenderStageItem on batch oferflow
+// returns std::monostate on stage waiting/pipeline finish, null RenderStageItem on batch overflow
 PipelineItem RenderPipeline::GetNext(unsigned int &length)
 {
 	if (!curRenderStage)
@@ -19,7 +19,7 @@ PipelineItem RenderPipeline::GetNext(unsigned int &length)
 			const auto stage = pipeline.front().get();
 			pipeline.pop();
 
-			// if pipelone stage is cmd list
+			// if pipeline stage is cmd list
 			if (const auto cmdList = get_if<ID3D12GraphicsCommandList2 *>(&stage))
 				return *cmdList;
 

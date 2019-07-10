@@ -139,7 +139,7 @@ void FixNormal(in float3 N, inout float3 n, in float3 viewDir)
 #ifdef FP_DEGENERATE_POSSIBLE
 #undef FP_DEGENERATE_POSSIBLE
 		[flatten]
-		if (all(isfinite(fixed)))	// extra check for degenerate case, should never happened according to math but posssible due to floating point precision issues
+		if (all(isfinite(fixed)))	// extra check for degenerate case, should never happened according to math but possible due to floating point precision issues
 #endif
 			n = fixed;
 #else
@@ -176,7 +176,7 @@ void FixTBN(inout float3x3 TBN, in float3 viewDir)
 		/*
 			rotation matrix from quaternion
 			!:	consider alternative rot matrix construction from {axis, angle}, compare ALU stress / GPR pressure
-				GPR pressure probably more imporant, particulary considering that it will run for quite few pixels
+				GPR pressure probably more important, particular considering that it will run for quite few pixels
 		*/
 		const float3 H = normalize(N + TBN[2]);
 		float4 q, q2;

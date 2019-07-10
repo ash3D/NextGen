@@ -9,8 +9,8 @@ static const float fp16Range = 64e3f/*65504.f, leave some room for fp32 precisio
 /*
 	simple Reinhard tonemapping for proper hardware MSAA resolve
 
-	it is possible to do multiplication in ROPs (blending) to free general purpase shader ALUs
-	but turning blending on can hurt perfomance and reduce precision (fp16 vs fp32)
+	it is possible to do multiplication in ROPs (blending) to free general purpose shader ALUs
+	but turning blending on can hurt performance and reduce precision (fp16 vs fp32)
 
 	rescale alpha to utilize fp16 range more fully and prevent flush to 0 for bright pixels (which leads to inf after decode)
 	current rescale is quite limited due to necessity to honor exposure limits

@@ -32,7 +32,7 @@ namespace Renderer
 		void Transform(const Math::VectorMath::matrix<float, dimension + 1, dimension> &xform);
 		inline auto Center() const { return (min + max) * .5f; }
 		inline auto Size() const { return max - min; }
-		inline float Measure() const;	// squere for 2D, volume for 3D
+		inline float Measure() const;	// square for 2D, volume for 3D
 	};
 
 	template<unsigned dimension>

@@ -23,7 +23,7 @@ namespace Math
 
 	/*
 	+=/-=(CExp<T> &, CExp<T>) performed via +=/-=(CExp<T> &, T) with ctor CExp(T) for T
-	operator T &() can not be used to substitude +=/-=(CExp<T> &, T) with +=/-=(T, CExp<T>)
+	operator T &() can not be used to substitute +=/-=(CExp<T> &, T) with +=/-=(T, CExp<T>)
 	because +=/-=(CExp<T> &, T) will use default +=/-=(T &, T)
 	*/
 
