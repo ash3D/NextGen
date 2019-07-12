@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "DMA engine.h"
 #include "event handle.h"
+#include "align.h"
 
 using namespace std;
 using namespace Renderer;
@@ -11,15 +12,22 @@ extern ComPtr<ID3D12Device2> device;
 extern ComPtr<ID3D12CommandQueue> gfxQueue, dmaQueue;
 void NameObject(ID3D12Object *object, LPCWSTR name) noexcept, NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
 
-static constexpr auto batchSizeLimit = /*128ul*/64ul * 1024ul * 1024ul;
+static constexpr auto defaultChunkSize = /*128ul*/32ul * 1024ul * 1024ul;
 static constexpr auto batchLenLimit = /*1024u*/256u;
 
 static UINT64 lastBatchID;
-static UINT64 curBatchSize;
+static UINT64 curBatchSuballocOffset;
 static UINT curBatchLen;
 
 static Impl::EventHandle fenceEvent;
-static vector<array<ComPtr<ID3D12Resource>, 2>> outstandingUploads[size(cmdBuffers)];
+
+struct Batch
+{
+	ComPtr<ID3D12Resource> chunk;
+	unsigned long chunkVersion;
+	vector<ComPtr<ID3D12Resource>> outstandingRefs;
+};
+static Batch uploadQueue[size(cmdBuffers)];
 
 static inline unsigned LastRingIdx() noexcept
 {
@@ -41,11 +49,11 @@ static void WaitForGPU(UINT64 batchID)
 	}
 }
 
-template<bool newBatchPossible>
+template<bool enableSync/*for new batch*/>
 static inline const auto &GetCmdList()
 {
 	const auto &curCmdBuff = cmdBuffers[CurRingIdx()];
-	if constexpr (newBatchPossible)
+	if constexpr (enableSync)
 	{
 		if (!curBatchLen && lastBatchID >= size(cmdBuffers))	// started new batch but not initial (cmd list inited during creation)
 		{
@@ -54,6 +62,8 @@ static inline const auto &GetCmdList()
 			CheckHR(curCmdBuff.list->Reset(curCmdBuff.allocator.Get(), NULL));
 		}
 	}
+	else
+		assert(curBatchLen);
 	return curCmdBuff.list;
 }
 
@@ -64,30 +74,42 @@ static void CleanupFinishedUploads()
 	{
 		// if new batch started CurRingIdx() wraps around ringbuffer size
 		if (!curBatchLen)
-			outstandingUploads[CurRingIdx()].clear();
+			uploadQueue[CurRingIdx()].outstandingRefs.clear();
 
 		// cleanup ringbuffer for batches until current, hardcoded for buffer size = 2 (i.e. clear 1 entry)
 		if (finishedBatchID >= lastBatchID)
-			outstandingUploads[LastRingIdx()].clear();
+			uploadQueue[LastRingIdx()].outstandingRefs.clear();
 	}
 }
 
-extern void __cdecl FlushPendingUploads(unsigned long batchSizeLimit = 1ul, unsigned batchLenLimit = 1u)
+static void FinishCurBatch()
 {
-	if (curBatchSize >= batchSizeLimit || curBatchLen >= batchLenLimit)
-	{
-		assert(curBatchSize && curBatchLen);
-		const auto &cmdList = GetCmdList<false>();
-		CheckHR(cmdList->Close());
-		dmaQueue->ExecuteCommandLists(1, CommandListCast(cmdList.GetAddressOf()));
-		CheckHR(dmaQueue->Signal(fence.Get(), ++lastBatchID));
-		/*
-		could just wait for previous batch completion here and reset cmd alloc & list
-		instead use more complicated scheme 'GetCmdList' to defer waiting as much as possible
-			it allows for more job to be done before waiting and reduces chances waiting to be required ever
-		*/
-		curBatchSize = curBatchLen = 0;
-	}
+	assert(curBatchSuballocOffset && curBatchLen);
+	
+	// keep chunk ref
+	auto &curBatch = uploadQueue[CurRingIdx()];
+	curBatch.outstandingRefs.push_back(curBatch.chunk);
+	
+	const auto &cmdList = GetCmdList<false>();
+	CheckHR(cmdList->Close());
+	dmaQueue->ExecuteCommandLists(1, CommandListCast(cmdList.GetAddressOf()));
+	CheckHR(dmaQueue->Signal(fence.Get(), ++lastBatchID));
+	/*
+	could just wait for previous batch completion here and reset cmd alloc & list
+	instead use more complicated scheme 'GetCmdList' to defer waiting as much as possible
+		it allows for more job to be done before waiting and reduces chances waiting to be required ever
+	*/
+	curBatchSuballocOffset = curBatchLen = 0;
+}
+
+extern void __cdecl FlushPendingUploads()
+{
+	if (curBatchLen)
+		FinishCurBatch();
+
+	// release DMA buffers, no uploads expected in near future
+	for (auto &batch : uploadQueue)
+		batch.chunk.Reset();
 }
 
 decltype(cmdBuffers) DMA::Impl::CreateCmdBuffers()
@@ -120,30 +142,29 @@ void DMA::Upload2VRAM(const ComPtr<ID3D12Resource> &dst, const vector<D3D12_SUBR
 	const auto layouts = make_unique<D3D12_PLACED_SUBRESOURCE_FOOTPRINT []>(src.size());
 	const auto numRows = make_unique<UINT []>(src.size());
 	const auto rowSizes = make_unique<UINT64 []>(src.size());
-	UINT64 totalSize;
-	device->GetCopyableFootprints(&dst->GetDesc(), 0, src.size(), 0, layouts.get(), numRows.get(), rowSizes.get(), &totalSize);
-
-	// create scratch buffer
-	ComPtr<ID3D12Resource> scratchBuffer;
-	CheckHR(device->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(totalSize),
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		NULL,	// clear value
-		IID_PPV_ARGS(scratchBuffer.GetAddressOf())));
-	NameObjectF(scratchBuffer.Get(), L"scratch buffer for \"%ls\"", name);
-
-	// copy data to scratch buffer
-	std::byte *scratchBuffPtr;
-	CheckHR(scratchBuffer->Map(0, &CD3DX12_RANGE(0, 0), reinterpret_cast<void **>(&scratchBuffPtr)));
-	for (unsigned i = 0; i < src.size(); i++)
+	const auto suballocate = [&, dstDesc = dst->GetDesc()]
 	{
-		const auto &curLayout = layouts[i];
-		const D3D12_MEMCPY_DEST cpyDst = { scratchBuffPtr + curLayout.Offset, curLayout.Footprint.RowPitch, curLayout.Footprint.RowPitch * numRows[i] };
-		MemcpySubresource(&cpyDst, &src[i], rowSizes[i], numRows[i], curLayout.Footprint.Depth);
+		curBatchSuballocOffset = AlignSize<D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT>(curBatchSuballocOffset);
+		UINT64 totalSize;
+		device->GetCopyableFootprints(&dstDesc, 0, src.size(), curBatchSuballocOffset, layouts.get(), numRows.get(), rowSizes.get(), &totalSize);
+		D3D12_RANGE allocation{ curBatchSuballocOffset };
+		allocation.End = curBatchSuballocOffset += totalSize;
+		return allocation;
+	};
+
+	auto allocRange = suballocate();
+	auto *curBatch = uploadQueue + CurRingIdx();
+
+	// start new batch and reallocate if overflow
+	if (curBatchLen && curBatch->chunk && curBatchSuballocOffset > curBatch->chunk->GetDesc().Width)
+	{
+		FinishCurBatch();	// invalidates curBatch (updates ring idx)
+		curBatch = uploadQueue + CurRingIdx();
+
+		// suballocate again
+		assert(!curBatchSuballocOffset);	// should be reseted in 'FinishCurBatch()' above
+		allocRange = suballocate();
 	}
-	scratchBuffer->Unmap(0, NULL);
 
 	// prepare cmd list, including possible waiting for GPU progress
 	const auto &cmdList = GetCmdList<true>();	// !: sync happens here
@@ -151,26 +172,53 @@ void DMA::Upload2VRAM(const ComPtr<ID3D12Resource> &dst, const vector<D3D12_SUBR
 	/*
 	good point for cleanup:
 		after sync during cmd list preparation
+		before possible chunk recreation
 		while new batch scenario possible causing to CurRingIdx() wrapping to older batch (later batch marked as started making it no longer wrapped thus preventing its cleanup until later time)
 	*/
 	CleanupFinishedUploads();
 
-	// advance counters, mark batch as started (curBatchLen > 0)
-	curBatchSize += totalSize;
+	// handle initial case (chunk not created yet) and overflows due to huge textures not fitted into current chunk
+	if (!curBatch->chunk || curBatchSuballocOffset > curBatch->chunk->GetDesc().Width)
+	{
+		assert(!curBatchLen);
+
+		// defer chunk recreation after waiting for GPU in 'GetCmdList()' above to avoid RAM overuse - destroy old chunk before creating new one
+		CheckHR(device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+			D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Buffer(AlignSize<D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT>(max<UINT64>(defaultChunkSize, curBatchSuballocOffset))),
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			NULL,	// clear value
+			IID_PPV_ARGS(curBatch->chunk.ReleaseAndGetAddressOf())));
+		NameObjectF(curBatch->chunk.Get(), L"DMA engine upload chunk [%u][%lu]", CurRingIdx(), curBatch->chunkVersion++);
+	}
+
+	// advance counter, mark batch as started (curBatchLen > 0)
 	curBatchLen += src.size();
 	assert(curBatchLen);
 
-	// keep refs
-	outstandingUploads[CurRingIdx()].push_back({ scratchBuffer, dst });
+	// keep dst ref
+	curBatch->outstandingRefs.push_back(dst);
 
-	// record GPU commands for DMA engine
+	// copy data to upload chunk & record GPU commands for DMA engine
+	std::byte *uploadPtr;
+	CheckHR(curBatch->chunk->Map(0, &CD3DX12_RANGE(0, 0), reinterpret_cast<void **>(&uploadPtr)));
 	for (unsigned i = 0; i < src.size(); i++)
 	{
-		const CD3DX12_TEXTURE_COPY_LOCATION cpyDst(dst.Get(), i), cpySrc(scratchBuffer.Get(), layouts[i]);
-		cmdList->CopyTextureRegion(&cpyDst, 0, 0, 0, &cpySrc, NULL);
+		const auto &curLayout = layouts[i];
+		{
+			const D3D12_MEMCPY_DEST cpyDst = { uploadPtr + curLayout.Offset, curLayout.Footprint.RowPitch, curLayout.Footprint.RowPitch * numRows[i] };
+			MemcpySubresource(&cpyDst, &src[i], rowSizes[i], numRows[i], curLayout.Footprint.Depth);
+		}
+		{
+			const CD3DX12_TEXTURE_COPY_LOCATION cpyDst(dst.Get(), i), cpySrc(curBatch->chunk.Get(), curLayout);
+			cmdList->CopyTextureRegion(&cpyDst, 0, 0, 0, &cpySrc, NULL);
+		}
 	}
+	curBatch->chunk->Unmap(0, &allocRange);
 
-	FlushPendingUploads(batchSizeLimit, batchLenLimit);
+	if (curBatchLen >= batchLenLimit || curBatchSuballocOffset >= curBatch->chunk->GetDesc().Width)
+		FinishCurBatch();
 }
 
 void DMA::Sync()
