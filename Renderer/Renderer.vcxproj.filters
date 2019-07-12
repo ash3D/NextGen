@@ -351,7 +351,6 @@
     <None Include="GPU stream buffer allocator.inl">
       <Filter>Header Files</Filter>
     </None>
-    <None Include="packages.config" />
     <None Include="cmdlist pool.inl">
       <Filter>Header Files</Filter>
     </None>
@@ -409,5 +408,6 @@
     <None Include="HDR codec.hlsli">
       <Filter>Shaders\Include</Filter>
     </None>
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>
