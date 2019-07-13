@@ -115,13 +115,16 @@ extern void __cdecl FlushPendingUploads()
 decltype(cmdBuffers) DMA::Impl::CreateCmdBuffers()
 {
 	decltype(cmdBuffers) cmdBuffers;
-	for (unsigned i = 0; i < size(cmdBuffers); i++)
+	if (dmaQueue)
 	{
-		auto &curCmdBuff = cmdBuffers[i];
-		CheckHR(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COPY, IID_PPV_ARGS(curCmdBuff.allocator.GetAddressOf())));
-		NameObjectF(curCmdBuff.allocator.Get(), L"DMA engine command allocator [%u]", i);
-		CheckHR(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COPY, curCmdBuff.allocator.Get(), NULL, IID_PPV_ARGS(curCmdBuff.list.GetAddressOf())));
-		NameObjectF(curCmdBuff.list.Get(), L"DMA engine command list [%u]", i);
+		for (unsigned i = 0; i < size(cmdBuffers); i++)
+		{
+			auto &curCmdBuff = cmdBuffers[i];
+			CheckHR(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COPY, IID_PPV_ARGS(curCmdBuff.allocator.GetAddressOf())));
+			NameObjectF(curCmdBuff.allocator.Get(), L"DMA engine command allocator [%u]", i);
+			CheckHR(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COPY, curCmdBuff.allocator.Get(), NULL, IID_PPV_ARGS(curCmdBuff.list.GetAddressOf())));
+			NameObjectF(curCmdBuff.list.Get(), L"DMA engine command list [%u]", i);
+		}
 	}
 	return cmdBuffers;
 }
@@ -129,15 +132,20 @@ decltype(cmdBuffers) DMA::Impl::CreateCmdBuffers()
 ComPtr<ID3D12Fence> DMA::Impl::CreateFence()
 {
 	ComPtr<ID3D12Fence> fence;
-	CheckHR(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
-	NameObject(fence.Get(), L"DMA engine fence");
-	if (atexit([] { WaitForGPU(lastBatchID); }))
-		throw runtime_error("Fail to register GPU queue finalization for DMA engine.");
+	if (dmaQueue)
+	{
+		CheckHR(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
+		NameObject(fence.Get(), L"DMA engine fence");
+		if (atexit([] { WaitForGPU(lastBatchID); }))
+			throw runtime_error("Fail to register GPU queue finalization for DMA engine.");
+	}
 	return fence;
 }
 
 void DMA::Upload2VRAM(const ComPtr<ID3D12Resource> &dst, const vector<D3D12_SUBRESOURCE_DATA> &src, LPCWSTR name)
 {
+	assert(dmaQueue);
+
 	// use C++20 make_unique_default_init & monotonic_buffer_resource or allocation fusion
 	const auto layouts = make_unique<D3D12_PLACED_SUBRESOURCE_FOOTPRINT []>(src.size());
 	const auto numRows = make_unique<UINT []>(src.size());
@@ -223,18 +231,21 @@ void DMA::Upload2VRAM(const ComPtr<ID3D12Resource> &dst, const vector<D3D12_SUBR
 
 void DMA::Sync()
 {
-	FlushPendingUploads();
-	if (fence->GetCompletedValue() < lastBatchID)
+	if (dmaQueue)
 	{
-		/*
-		it's called on beginning of a frame (waiting inserted at GFX queue) while end of the frame gets signaled by frame versioning fence
-		hence last frame awaiting in frame versioning dtor will also wait for DMA fence to be reached on GPU
-		any errors occurred during frame rendering currently must terminate process without cleanup (such errors unrecoverable yet)
-		so last item in GFX queue during frame versioning dtor execution is last frame`s signal
-		for more robust handling one may always insert additional signal (e.g. ~0) in frame versioning dtor (and wait for it)
-		it would ensure proper waiting regardless of whether last GFX queue operation was frame finish
-		*/
-		CheckHR(gfxQueue->Wait(fence.Get(), lastBatchID));
+		FlushPendingUploads();
+		if (fence->GetCompletedValue() < lastBatchID)
+		{
+			/*
+			it's called on beginning of a frame (waiting inserted at GFX queue) while end of the frame gets signaled by frame versioning fence
+			hence last frame awaiting in frame versioning dtor will also wait for DMA fence to be reached on GPU
+			any errors occurred during frame rendering currently must terminate process without cleanup (such errors unrecoverable yet)
+			so last item in GFX queue during frame versioning dtor execution is last frame`s signal
+			for more robust handling one may always insert additional signal (e.g. ~0) in frame versioning dtor (and wait for it)
+			it would ensure proper waiting regardless of whether last GFX queue operation was frame finish
+			*/
+			CheckHR(gfxQueue->Wait(fence.Get(), lastBatchID));
+		}
+		CleanupFinishedUploads();
 	}
-	CleanupFinishedUploads();
 }

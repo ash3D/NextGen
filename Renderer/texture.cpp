@@ -120,20 +120,10 @@ Impl::Texture::Texture() : usage{ ~0 }
 Impl::Texture::Texture(const filesystem::path &fileName, TextureUsage usage, bool enablePacking, bool useSysRAM) : usage(usage)
 {
 	extern ComPtr<ID3D12Device2> device;
+	extern ComPtr<ID3D12CommandQueue> dmaQueue;
 	using namespace DirectX;
 
-	if (!useSysRAM)
-	{
-		D3D12_FEATURE_DATA_ARCHITECTURE GPUArch{};
-		CheckHR(device->CheckFeatureSupport(D3D12_FEATURE_ARCHITECTURE, &GPUArch, sizeof GPUArch));
-		assert(GPUArch.UMA || !GPUArch.CacheCoherentUMA);
-		useSysRAM = GPUArch.UMA;
-		/*
-		or CacheCoherentUMA ?
-		or check device id ?
-		https://docs.microsoft.com/en-us/windows/desktop/api/d3d12/ns-d3d12-d3d12_feature_data_architecture#how-to-use-uma-and-cachecoherentuma
-		*/
-	}
+	useSysRAM |= !dmaQueue;
 
 	auto [targetState, loadFlags] = DecodeTextureUsage(usage);
 #if 1

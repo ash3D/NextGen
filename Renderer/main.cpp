@@ -151,15 +151,28 @@ static auto CreateDMACommandQueue()
 {
 	extern ComPtr<ID3D12Device2> device;
 
-	const D3D12_COMMAND_QUEUE_DESC desc =
-	{
-		D3D12_COMMAND_LIST_TYPE_COPY,
-		D3D12_COMMAND_QUEUE_PRIORITY_NORMAL,
-		D3D12_COMMAND_QUEUE_FLAG_NONE
-	};
 	ComPtr<ID3D12CommandQueue> cmdQueue;
-	CheckHR(device->CreateCommandQueue(&desc, IID_PPV_ARGS(cmdQueue.GetAddressOf())));
-	NameObject(cmdQueue.Get(), L"DMA engine command queue");
+	D3D12_FEATURE_DATA_ARCHITECTURE GPUArch{};
+	CheckHR(device->CheckFeatureSupport(D3D12_FEATURE_ARCHITECTURE, &GPUArch, sizeof GPUArch));
+	assert(GPUArch.UMA || !GPUArch.CacheCoherentUMA);
+
+	// init DMA engine for discrete GPUs only
+	if (!GPUArch.UMA)
+	{
+		/*
+		or CacheCoherentUMA ?
+		or check device id ?
+		https://docs.microsoft.com/en-us/windows/desktop/api/d3d12/ns-d3d12-d3d12_feature_data_architecture#how-to-use-uma-and-cachecoherentuma
+		*/
+		const D3D12_COMMAND_QUEUE_DESC desc =
+		{
+			D3D12_COMMAND_LIST_TYPE_COPY,
+			D3D12_COMMAND_QUEUE_PRIORITY_NORMAL,
+			D3D12_COMMAND_QUEUE_FLAG_NONE
+		};
+		CheckHR(device->CreateCommandQueue(&desc, IID_PPV_ARGS(cmdQueue.GetAddressOf())));
+		NameObject(cmdQueue.Get(), L"DMA engine command queue");
+	}
 	return cmdQueue;
 }
 
