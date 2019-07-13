@@ -82,9 +82,9 @@ private:
 
 public:
 	inline Subobject() = default;
-	inline Subobject(const AABB<3> & aabb, unsigned long int vOffset, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, const float3 &albedo);
-	inline Subobject(const AABB<3> & aabb, unsigned long int vOffset, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, unsigned short int descriptorTableOffset);
-	inline Subobject(const AABB<3> & aabb, unsigned long int vOffset, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, const float3 &albedo, float TVBrighntess, unsigned short int descriptorTableOffset);
+	inline Subobject(const AABB<3> &aabb, unsigned long int vOffset, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, const float3 &albedo);
+	inline Subobject(const AABB<3> &aabb, unsigned long int vOffset, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, unsigned short int descriptorTableOffset);
+	inline Subobject(const AABB<3> &aabb, unsigned long int vOffset, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, const float3 &albedo, float TVBrighntess, unsigned short int descriptorTableOffset);
 
 public:
 #if INTEL_WORKAROUND
