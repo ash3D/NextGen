@@ -112,6 +112,13 @@ extern void __cdecl FlushPendingUploads()
 		batch.chunk.Reset();
 }
 
+// wait for completion and free upload resources, implies 'FlushPendingUploads()' called before
+extern void __cdecl ForceUploadsCompletion()
+{
+	WaitForGPU(lastBatchID);
+	CleanupFinishedUploads();
+}
+
 decltype(cmdBuffers) DMA::Impl::CreateCmdBuffers()
 {
 	decltype(cmdBuffers) cmdBuffers;
