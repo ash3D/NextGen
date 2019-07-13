@@ -165,9 +165,11 @@ namespace Renderer
 
 		private:
 #ifdef _MSC_VER
-			static std::decay_t<decltype(bundle.get())> CreateBundle(const decltype(subobjects) &subobjects, unsigned short int subobjCount, WRL::ComPtr<ID3D12Resource> VIB, unsigned long int VB_size, unsigned long int UVB_size, unsigned long int TGB_size, unsigned long int IB_size, std::wstring &&objectName);
+			static std::decay_t<decltype(bundle.get())> CreateBundle(const decltype(subobjects) &subobjects, unsigned short int subobjCount, WRL::ComPtr<ID3D12Resource> VIB,
+				unsigned long int VB_size, unsigned long int UVB_size, unsigned long int TGB_size, unsigned long int IB_size, std::wstring &&objectName);
 #else
-			static std::decay_t<decltype(bundle.get())> CreateBundle(const decltype(subobjects) &subobjects, unsigned short int subobjCount, WRL::ComPtr<ID3D12Resource> VIB, unsigned long int VB_size, unsigned long int UVB_size, unsigned long int TGB_size, unsigned long int IB_size, std::string &&objectName);
+			static std::decay_t<decltype(bundle.get())> CreateBundle(const decltype(subobjects) &subobjects, unsigned short int subobjCount, WRL::ComPtr<ID3D12Resource> VIB,
+				unsigned long int VB_size, unsigned long int UVB_size, unsigned long int TGB_size, unsigned long int IB_size, std::string &&objectName);
 #endif
 		};
 	}

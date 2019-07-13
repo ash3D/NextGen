@@ -57,7 +57,7 @@ struct Impl::Object3D::Context
 	ID3D12PipelineState *curPSO;
 #if !INTEL_WORKAROUND
 	// NAN ensures first compare to trigger
-	float3 curColor = NAN;
+	float3 curAlbedo = NAN;
 	float curTVBrighntess = NAN;
 #endif
 };
@@ -166,13 +166,13 @@ void Impl::Object3D::Subobject::FillTVMaterial(volatile MaterialData *dst) const
 #else
 inline void Impl::Object3D::Subobject::SetupAlbedo(ID3D12GraphicsCommandList2 *cmdList, Context &ctx) const
 {
-	if (any(ctx.curColor != albedo))
-		cmdList->SetGraphicsRoot32BitConstants(ROOT_PARAM_MATERIAL, decltype(ctx.curColor)::dimension, &(ctx.curColor = albedo), 0);
+	if (any(ctx.curAlbedo != albedo))
+		cmdList->SetGraphicsRoot32BitConstants(ROOT_PARAM_MATERIAL, decltype(ctx.curAlbedo)::dimension, &(ctx.curAlbedo = albedo), 0);
 }
 
 inline void Impl::Object3D::Subobject::SetupTex(ID3D12GraphicsCommandList2 *cmdList, Context &) const
 {
-	cmdList->SetGraphicsRoot32BitConstant(ROOT_PARAM_MATERIAL, descriptorTableOffset, decltype(Context::curColor)::dimension);
+	cmdList->SetGraphicsRoot32BitConstant(ROOT_PARAM_MATERIAL, descriptorTableOffset, decltype(Context::curAlbedo)::dimension);
 }
 
 void Impl::Object3D::Subobject::SetupTV(ID3D12GraphicsCommandList2 *cmdList, Context &ctx) const
@@ -180,7 +180,7 @@ void Impl::Object3D::Subobject::SetupTV(ID3D12GraphicsCommandList2 *cmdList, Con
 	SetupAlbedo(cmdList, ctx);
 	SetupTex(cmdList, ctx);
 	if (ctx.curTVBrighntess != TVBrighntess)
-		cmdList->SetGraphicsRoot32BitConstant(ROOT_PARAM_MATERIAL, reinterpret_cast<const UINT &>(ctx.curTVBrighntess = TVBrighntess), decltype(Context::curColor)::dimension + 1);	// strict aliasing rule violation, use C++20 bit_cast instead
+		cmdList->SetGraphicsRoot32BitConstant(ROOT_PARAM_MATERIAL, reinterpret_cast<const UINT &>(ctx.curTVBrighntess = TVBrighntess), decltype(Context::curAlbedo)::dimension + 1);	// strict aliasing rule violation, use C++20 bit_cast instead
 }
 #endif
 #pragma endregion
@@ -258,7 +258,7 @@ WRL::ComPtr<ID3D12RootSignature> Impl::Object3D::CreateRootSig()
 #if INTEL_WORKAROUND
 	rootParams[ROOT_PARAM_MATERIAL].InitAsConstantBufferView(0, 1, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_PIXEL);
 #else
-	rootParams[ROOT_PARAM_MATERIAL].InitAsConstants(decltype(Context::curColor)::dimension + 1, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+	rootParams[ROOT_PARAM_MATERIAL].InitAsConstants(decltype(Context::curAlbedo)::dimension + 1, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
 #endif
 	// an unbounded range declared as STATIC means the rest of the heap is STATIC => specify VOLATILE
 	const CD3DX12_DESCRIPTOR_RANGE1 descTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, UINT_MAX/*unbounded*/, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
@@ -595,21 +595,21 @@ Impl::Object3D::Object3D(unsigned short int subobjCount, const SubobjectDataCall
 		}
 	}
 
-	const unsigned long int IB_size = tricount * sizeof *SubobjectDataBase::tris;
+	const unsigned long int
+		VB_size = vcount * sizeof *SubobjectDataBase::verts,
+		UVB_size = uvcount * sizeof *SubobjectDataUV::uv,
+		TGB_size = tgcount * sizeof *SubobjectData<SubobjectType::Advanced>::tangents,
+		IB_size = tricount * sizeof *SubobjectDataBase::tris;
 
 	// create VIB
 	CheckHR(device->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Buffer(
 #if INTEL_WORKAROUND
-		&CD3DX12_RESOURCE_DESC::Buffer(sizeof(MaterialData) * subobjCount
-			+ vcount * (sizeof *SubobjectDataBase::verts + sizeof *SubobjectDataBase::normals)
-			+ uvcount * sizeof *SubobjectDataUV::uv
-			+ tgcount * sizeof *SubobjectData<SubobjectType::Advanced>::tangents
-			+ IB_size),
-#else
-		&CD3DX12_RESOURCE_DESC::Buffer(VB_size + IB_size),
+			sizeof(MaterialData) * subobjCount +
 #endif
+			VB_size * 2/*coord + N*/ + UVB_size + TGB_size + IB_size),
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		NULL,	// clear value
 		IID_PPV_ARGS(VIB.GetAddressOf())));
@@ -673,9 +673,9 @@ Impl::Object3D::Object3D(unsigned short int subobjCount, const SubobjectDataCall
 
 	// start bundle creation
 #ifdef _MSC_VER
-	bundle = async(CreateBundle, subobjects, subobjCount, ComPtr<ID3D12Resource>(VIB), vcount, uvcount, tgcount, IB_size, move(convertedName));
+	bundle = async(CreateBundle, subobjects, subobjCount, ComPtr<ID3D12Resource>(VIB), VB_size, UVB_size, TGB_size, IB_size, move(convertedName));
 #else
-	bundle = async(CreateBundle, subobjects, subobjCount, ComPtr<ID3D12Resource>(VIB), vcount, uvcount, tgcount, IB_size, move(name));
+	bundle = async(CreateBundle, subobjects, subobjCount, ComPtr<ID3D12Resource>(VIB), VB_size, UVB_size, TGB_size, IB_size, move(name));
 #endif
 }
 
@@ -730,9 +730,11 @@ const void Impl::Object3D::Render(ID3D12GraphicsCommandList2 *cmdList) const
 
 // need to copy subobjects to avoid dangling reference as the function can be executed in another thread
 #ifdef _MSC_VER
-auto Impl::Object3D::CreateBundle(const decltype(subobjects) &subobjects, unsigned short int subobjCount, ComPtr<ID3D12Resource> VIB, unsigned long int vcount, unsigned long int uvcount, unsigned long int tgcount, unsigned long int IB_size, wstring &&objectName) -> decay_t<decltype(bundle.get())>
+auto Impl::Object3D::CreateBundle(const decltype(subobjects) &subobjects, unsigned short int subobjCount, ComPtr<ID3D12Resource> VIB,
+	unsigned long int VB_size, unsigned long int UVB_size, unsigned long int TGB_size, unsigned long int IB_size, wstring &&objectName) -> decay_t<decltype(bundle.get())>
 #else
-auto Impl::Object3D::CreateBundle(const decltype(subobjects) &subobjects, unsigned short int subobjCount, ComPtr<ID3D12Resource> VIB, unsigned long int vcount, unsigned long int uvcount, unsigned long int tgcount, unsigned long int IB_size, string &&objectName) -> decay_t<decltype(bundle.get())>
+auto Impl::Object3D::CreateBundle(const decltype(subobjects) &subobjects, unsigned short int subobjCount, ComPtr<ID3D12Resource> VIB,
+	unsigned long int VB_size, unsigned long int UVB_size, unsigned long int TGB_size, unsigned long int IB_size, string &&objectName) -> decay_t<decltype(bundle.get())>
 #endif
 {
 	decay_t<decltype(bundle.get())> bundle;	// to be returned
@@ -771,23 +773,19 @@ auto Impl::Object3D::CreateBundle(const decltype(subobjects) &subobjects, unsign
 						subobjCount * sizeof(MaterialData) +
 #endif
 						VIB->GetGPUVirtualAddress(),
-						vcount * sizeof *SubobjectDataBase::verts,
-						sizeof *SubobjectDataBase::verts
+						VB_size, sizeof *SubobjectDataBase::verts
 					},
 					{
 						VB_views[0].BufferLocation + VB_views[0].SizeInBytes,
-						vcount * sizeof *SubobjectDataBase::normals,
-						sizeof *SubobjectDataBase::normals
+						VB_size, sizeof *SubobjectDataBase::normals
 					},
 					{
 						VB_views[1].BufferLocation + VB_views[1].SizeInBytes,
-						uvcount * sizeof *SubobjectDataUV::uv,
-						sizeof *SubobjectDataUV::uv
+						UVB_size, sizeof *SubobjectDataUV::uv
 					},
 					{
 						VB_views[2].BufferLocation + VB_views[2].SizeInBytes,
-						tgcount * sizeof *SubobjectData<SubobjectType::Advanced>::tangents,
-						sizeof *SubobjectData<SubobjectType::Advanced>::tangents
+						TGB_size, sizeof *SubobjectData<SubobjectType::Advanced>::tangents
 					}
 				}
 			};
@@ -797,8 +795,8 @@ auto Impl::Object3D::CreateBundle(const decltype(subobjects) &subobjects, unsign
 				IB_size,
 				DXGI_FORMAT_R16_UINT
 			};
-			assert(uvcount || !tgcount);
-			bundle.second->IASetVertexBuffers(0, 2 + bool(uvcount) + bool(tgcount)/*set UVB/TGB only if necessary*/, VB_views.data());
+			assert(UVB_size || !TGB_size);
+			bundle.second->IASetVertexBuffers(0, 2 + bool(UVB_size) + bool(TGB_size)/*set UVB/TGB only if necessary*/, VB_views.data());
 			bundle.second->IASetIndexBuffer(&IB_view);
 		}
 
