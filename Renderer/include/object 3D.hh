@@ -135,7 +135,7 @@ namespace Renderer
 			std::shared_ptr<DescriptorTablePack> descriptorTablePack;	// serves all subobjects
 			Impl::TrackedResource<ID3D12Resource> VIB;	// Vertex/Index Buffer, also contain material for Intel workaround
 			unsigned long int tricount;
-			unsigned int subobjCount;
+			unsigned short int subobjCount;
 
 		public:	// for inherited ctor
 			typedef std::function<std::variant<
@@ -144,7 +144,7 @@ namespace Renderer
 				SubobjectData<SubobjectType::TV>,
 				SubobjectData<SubobjectType::Advanced>>
 				__cdecl(unsigned int subobjIdx)> SubobjectDataCallback;
-			Object3D(unsigned int subobjCount, const SubobjectDataCallback &getSubobjectData, std::string name);
+			Object3D(unsigned short int subobjCount, const SubobjectDataCallback &getSubobjectData, std::string name);
 
 		protected:
 			Object3D();
@@ -165,9 +165,9 @@ namespace Renderer
 
 		private:
 #ifdef _MSC_VER
-			static std::decay_t<decltype(bundle.get())> CreateBundle(const decltype(subobjects) &subobjects, unsigned int subobjCount, WRL::ComPtr<ID3D12Resource> VIB, unsigned long int VB_size, unsigned long int UVB_size, unsigned long int TGB_size, unsigned long int IB_size, std::wstring &&objectName);
+			static std::decay_t<decltype(bundle.get())> CreateBundle(const decltype(subobjects) &subobjects, unsigned short int subobjCount, WRL::ComPtr<ID3D12Resource> VIB, unsigned long int VB_size, unsigned long int UVB_size, unsigned long int TGB_size, unsigned long int IB_size, std::wstring &&objectName);
 #else
-			static std::decay_t<decltype(bundle.get())> CreateBundle(const decltype(subobjects) &subobjects, unsigned int subobjCount, WRL::ComPtr<ID3D12Resource> VIB, unsigned long int VB_size, unsigned long int UVB_size, unsigned long int TGB_size, unsigned long int IB_size, std::string &&objectName);
+			static std::decay_t<decltype(bundle.get())> CreateBundle(const decltype(subobjects) &subobjects, unsigned short int subobjCount, WRL::ComPtr<ID3D12Resource> VIB, unsigned long int VB_size, unsigned long int UVB_size, unsigned long int TGB_size, unsigned long int IB_size, std::string &&objectName);
 #endif
 		};
 	}

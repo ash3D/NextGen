@@ -71,7 +71,7 @@ struct Impl::Object3D::Subobject
 	unsigned short int tricount;
 
 private:
-	unsigned int descriptorTableOffset;
+	unsigned short int descriptorTableOffset;
 	float3 albedo;
 	float TVBrighntess;
 #if INTEL_WORKAROUND
@@ -83,8 +83,8 @@ private:
 public:
 	inline Subobject() = default;
 	inline Subobject(const AABB<3> & aabb, unsigned long int vOffset, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, const float3 &albedo);
-	inline Subobject(const AABB<3> & aabb, unsigned long int vOffset, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, unsigned int descriptorTableOffset);
-	inline Subobject(const AABB<3> & aabb, unsigned long int vOffset, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, const float3 &albedo, float TVBrighntess, unsigned int descriptorTableOffset);
+	inline Subobject(const AABB<3> & aabb, unsigned long int vOffset, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, unsigned short int descriptorTableOffset);
+	inline Subobject(const AABB<3> & aabb, unsigned long int vOffset, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, const float3 &albedo, float TVBrighntess, unsigned short int descriptorTableOffset);
 
 public:
 #if INTEL_WORKAROUND
@@ -110,7 +110,7 @@ inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long i
 {
 }
 
-inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long int vOffset, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, unsigned int descriptorTableOffset) :
+inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long int vOffset, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, unsigned short int descriptorTableOffset) :
 	PSO(PSO), aabb(aabb), vOffset(vOffset), triOffset(triOffset), tricount(tricount), descriptorTableOffset(descriptorTableOffset),
 #if INTEL_WORKAROUND
 	FillMaterialSelector(&Subobject::FillTexMaterial)
@@ -120,7 +120,7 @@ inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long i
 {
 }
 
-inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long int vOffset, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, const float3 &albedo, float TVBrighntess, unsigned int descriptorTableOffset) :
+inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long int vOffset, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, const float3 &albedo, float TVBrighntess, unsigned short int descriptorTableOffset) :
 	PSO(PSO), aabb(aabb), vOffset(vOffset), triOffset(triOffset), tricount(tricount), descriptorTableOffset(descriptorTableOffset), albedo(albedo), TVBrighntess(TVBrighntess),
 #if INTEL_WORKAROUND
 	FillMaterialSelector(&Subobject::FillTVMaterial)
@@ -410,7 +410,7 @@ namespace
 		return visit([](const auto &src) noexcept -> const Object3D::SubobjectDataBase & { return src; }, subobjData);
 	}
 
-	const class SeqIterator final : public iterator<random_access_iterator_tag, unsigned int, signed int>
+	const class SeqIterator final : public iterator<random_access_iterator_tag, unsigned short int, signed int>
 	{
 		value_type idx;
 
@@ -420,8 +420,8 @@ namespace
 	public:
 		SeqIterator &operator ++() noexcept { return ++idx, *this; }
 		SeqIterator operator ++(int) noexcept { return SeqIterator{ idx++ }; }
-		SeqIterator operator +(difference_type offset) const noexcept { return SeqIterator{ idx + offset }; }
-		friend SeqIterator operator -(SeqIterator a, SeqIterator b) noexcept { return SeqIterator{ a.idx - b.idx }; }
+		SeqIterator operator +(difference_type offset) const noexcept { return SeqIterator(idx + offset); }
+		friend SeqIterator operator -(SeqIterator a, SeqIterator b) noexcept { return SeqIterator(a.idx - b.idx); }
 
 	public:
 		value_type operator *() const noexcept { return idx; }
@@ -429,7 +429,7 @@ namespace
 	};
 }
 
-Impl::Object3D::Object3D(unsigned int subobjCount, const SubobjectDataCallback &getSubobjectData, string name) :
+Impl::Object3D::Object3D(unsigned short int subobjCount, const SubobjectDataCallback &getSubobjectData, string name) :
 	// use C++20 make_shared for arrays
 	subobjects(new Subobject[subobjCount]), tricount(), subobjCount(subobjCount)
 {
@@ -449,7 +449,7 @@ Impl::Object3D::Object3D(unsigned int subobjCount, const SubobjectDataCallback &
 	texs.reserve(subobjCount * TEXTURE_COUNT);
 
 	// first pass
-	for (unsigned i = 0; i < subobjCount; i++)
+	for (unsigned short i = 0; i < subobjCount; i++)
 	{
 		const auto curSubobjData = getSubobjectData(i);
 		const auto &curSubobjDataBase = ExtractBase(curSubobjData);
@@ -547,20 +547,24 @@ Impl::Object3D::Object3D(unsigned int subobjCount, const SubobjectDataCallback &
 
 	// allocate descriptor table if needed
 	if (!texs.empty())
+	{
+		if (texs.size() > USHRT_MAX)
+			throw out_of_range("3D object material: too many textures.");
 #ifdef _MSC_VER
 		descriptorTablePack = make_shared<DescriptorTablePack>(move(texs), convertedName);
 #else
 		descriptorTablePack = make_shared<DescriptorTablePack>(move(texs), name);
 #endif
+	}
 
 	// rearrange subobjects VBs so that fat ones (with uv and tangents) comes first
 	{
 		// alternative is to use itoa() with in-place sort
 		const SeqIterator a{ 0 }, b{ subobjCount };
 
-		const auto VBOrdering = [&getSubobjectData](unsigned int left, unsigned int right)
+		const auto VBOrdering = [&getSubobjectData](unsigned short int left, unsigned short int right)
 		{
-			const auto VBComplexity = [&getSubobjectData](unsigned int i)
+			const auto VBComplexity = [&getSubobjectData](unsigned short int i)
 			{
 				// use C++20 templated lambda
 				return visit([](const auto &subobjectData)
@@ -581,7 +585,7 @@ Impl::Object3D::Object3D(unsigned int subobjCount, const SubobjectDataCallback &
 		if (!is_sorted(a, b, VBOrdering))	// potentially saves allocation and apply remap step
 		{
 			// use C++20 make_unique_default_init
-			const auto remap = make_unique<unsigned int []>(subobjCount);
+			const auto remap = make_unique<unsigned short int []>(subobjCount);
 			partial_sort_copy(a, b, remap.get(), remap.get() + subobjCount, VBOrdering);
 
 			// apply remap
@@ -610,9 +614,9 @@ Impl::Object3D::Object3D(unsigned int subobjCount, const SubobjectDataCallback &
 		NULL,	// clear value
 		IID_PPV_ARGS(VIB.GetAddressOf())));
 #ifdef _MSC_VER
-	NameObjectF(VIB.Get(), L"\"%ls\" geometry (contains %u subobjects)", convertedName.c_str(), subobjCount);
+	NameObjectF(VIB.Get(), L"\"%ls\" geometry (contains %hu subobjects)", convertedName.c_str(), subobjCount);
 #else
-	NameObjectF(VIB.Get(), L"\"%s\" geometry (contains %u subobjects)", name.c_str(), subobjCount);
+	NameObjectF(VIB.Get(), L"\"%s\" geometry (contains %hu subobjects)", name.c_str(), subobjCount);
 #endif
 
 	// fill VIB (second pass)
@@ -628,7 +632,7 @@ Impl::Object3D::Object3D(unsigned int subobjCount, const SubobjectDataCallback &
 		float (*const NB_ptr)[3] = VB_ptr + vcount, (*const UVB_ptr)[2] = reinterpret_cast<float (*)[2]>(NB_ptr + vcount), (*const TGB_ptr)[2][3] = reinterpret_cast<float (*)[2][3]>(UVB_ptr + uvcount);
 		uint16_t (*IB_ptr)[3] = reinterpret_cast<uint16_t (*)[3]>(TGB_ptr + tgcount);
 
-		for (unsigned i = 0; i < subobjCount; i++)
+		for (unsigned short i = 0; i < subobjCount; i++)
 		{
 			const auto curSubobjData = getSubobjectData(i);
 			const auto &curSubobjDataBase = ExtractBase(curSubobjData);
@@ -726,9 +730,9 @@ const void Impl::Object3D::Render(ID3D12GraphicsCommandList2 *cmdList) const
 
 // need to copy subobjects to avoid dangling reference as the function can be executed in another thread
 #ifdef _MSC_VER
-auto Impl::Object3D::CreateBundle(const decltype(subobjects) &subobjects, unsigned int subobjCount, ComPtr<ID3D12Resource> VIB, unsigned long int vcount, unsigned long int uvcount, unsigned long int tgcount, unsigned long int IB_size, wstring &&objectName) -> decay_t<decltype(bundle.get())>
+auto Impl::Object3D::CreateBundle(const decltype(subobjects) &subobjects, unsigned short int subobjCount, ComPtr<ID3D12Resource> VIB, unsigned long int vcount, unsigned long int uvcount, unsigned long int tgcount, unsigned long int IB_size, wstring &&objectName) -> decay_t<decltype(bundle.get())>
 #else
-auto Impl::Object3D::CreateBundle(const decltype(subobjects) &subobjects, unsigned int subobjCount, ComPtr<ID3D12Resource> VIB, unsigned long int vcount, unsigned long int uvcount, unsigned long int tgcount, unsigned long int IB_size, string &&objectName) -> decay_t<decltype(bundle.get())>
+auto Impl::Object3D::CreateBundle(const decltype(subobjects) &subobjects, unsigned short int subobjCount, ComPtr<ID3D12Resource> VIB, unsigned long int vcount, unsigned long int uvcount, unsigned long int tgcount, unsigned long int IB_size, string &&objectName) -> decay_t<decltype(bundle.get())>
 #endif
 {
 	decay_t<decltype(bundle.get())> bundle;	// to be returned
