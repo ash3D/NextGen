@@ -67,7 +67,11 @@ struct Impl::Object3D::Subobject
 {
 	ID3D12PipelineState *PSO;	// no reference tracking required
 	AABB<3> aabb;
-	unsigned long int vOffset, triOffset;
+	union
+	{
+		unsigned long int vcount, vOffset;
+	};
+	unsigned long int triOffset;
 	unsigned short int tricount;
 
 private:
@@ -82,9 +86,9 @@ private:
 
 public:
 	inline Subobject() = default;
-	inline Subobject(const AABB<3> &aabb, unsigned long int vOffset, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, const float3 &albedo);
-	inline Subobject(const AABB<3> &aabb, unsigned long int vOffset, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, unsigned short int descriptorTableOffset);
-	inline Subobject(const AABB<3> &aabb, unsigned long int vOffset, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, const float3 &albedo, float TVBrighntess, unsigned short int descriptorTableOffset);
+	inline Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, const float3 &albedo);
+	inline Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, unsigned short int descriptorTableOffset);
+	inline Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, const float3 &albedo, float TVBrighntess, unsigned short int descriptorTableOffset);
 
 public:
 #if INTEL_WORKAROUND
@@ -100,8 +104,8 @@ private:
 #endif
 };
 
-inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long int vOffset, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, const float3 &albedo) :
-	PSO(PSO), aabb(aabb), vOffset(vOffset), triOffset(triOffset), tricount(tricount), albedo(albedo),
+inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, const float3 &albedo) :
+	PSO(PSO), aabb(aabb), vcount(vcount), triOffset(triOffset), tricount(tricount), albedo(albedo),
 #if INTEL_WORKAROUND
 	FillMaterialSelector(&Subobject::FillAlbedoMaterial)
 #else
@@ -110,8 +114,8 @@ inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long i
 {
 }
 
-inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long int vOffset, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, unsigned short int descriptorTableOffset) :
-	PSO(PSO), aabb(aabb), vOffset(vOffset), triOffset(triOffset), tricount(tricount), descriptorTableOffset(descriptorTableOffset),
+inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, unsigned short int descriptorTableOffset) :
+	PSO(PSO), aabb(aabb), vcount(vcount), triOffset(triOffset), tricount(tricount), descriptorTableOffset(descriptorTableOffset),
 #if INTEL_WORKAROUND
 	FillMaterialSelector(&Subobject::FillTexMaterial)
 #else
@@ -120,8 +124,8 @@ inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long i
 {
 }
 
-inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long int vOffset, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, const float3 &albedo, float TVBrighntess, unsigned short int descriptorTableOffset) :
-	PSO(PSO), aabb(aabb), vOffset(vOffset), triOffset(triOffset), tricount(tricount), descriptorTableOffset(descriptorTableOffset), albedo(albedo), TVBrighntess(TVBrighntess),
+inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, const float3 &albedo, float TVBrighntess, unsigned short int descriptorTableOffset) :
+	PSO(PSO), aabb(aabb), vcount(vcount), triOffset(triOffset), tricount(tricount), descriptorTableOffset(descriptorTableOffset), albedo(albedo), TVBrighntess(TVBrighntess),
 #if INTEL_WORKAROUND
 	FillMaterialSelector(&Subobject::FillTVMaterial)
 #else
@@ -453,7 +457,7 @@ Impl::Object3D::Object3D(unsigned short int subobjCount, const SubobjectDataCall
 	{
 		const auto curSubobjData = getSubobjectData(i);
 		const auto &curSubobjDataBase = ExtractBase(curSubobjData);
-		const auto commonArgs = make_tuple(cref(curSubobjDataBase.aabb), vcount, tricount, curSubobjDataBase.tricount);
+		const auto commonArgs = make_tuple(cref(curSubobjDataBase.aabb), curSubobjDataBase.vcount, tricount, curSubobjDataBase.tricount);
 
 		const class SubobjParser final
 		{
@@ -582,16 +586,26 @@ Impl::Object3D::Object3D(unsigned short int subobjCount, const SubobjectDataCall
 			return VBComplexity(left) > VBComplexity(right);
 		};
 
-		if (!is_sorted(a, b, VBOrdering))	// potentially saves allocation and apply remap step
+		const auto FillVertexOffsets = [subobjCount, this](const auto &remapper)
+		{
+			unsigned long int vOffsetReordered = 0;
+			for (unsigned int i = 0; i < subobjCount; i++)
+			{
+				auto &remapped = subobjects[remapper(i)];
+				const auto vcount = remapped.vcount;
+				remapped.vOffset = vOffsetReordered;
+				vOffsetReordered += vcount;
+			}
+		};
+
+		if (is_sorted(a, b, VBOrdering))	// potentially saves allocation
+			FillVertexOffsets([](unsigned int i) noexcept { return i; });
+		else
 		{
 			// use C++20 make_unique_default_init
 			const auto remap = make_unique<unsigned short int []>(subobjCount);
 			partial_sort_copy(a, b, remap.get(), remap.get() + subobjCount, VBOrdering);
-
-			// apply remap
-			unsigned long int vOffsetReordered = 0;
-			for (unsigned int i = 0; i < subobjCount; vOffsetReordered += ExtractBase(getSubobjectData(remap[i++])).vcount)
-				subobjects[remap[i]].vOffset = vOffsetReordered;
+			FillVertexOffsets([&remap](unsigned int i) { return remap[i]; });
 		}
 	}
 
