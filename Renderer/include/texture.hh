@@ -3,7 +3,6 @@
 #define NOMINMAX
 
 #include <utility>
-#include <vector>
 #include <filesystem>
 #include <wrl/client.h>
 #include "../tracked resource.h"
@@ -34,7 +33,6 @@ namespace Renderer
 	namespace Impl
 	{
 		class Object3D;
-		class Viewport;
 
 		class Texture
 		{
@@ -59,27 +57,6 @@ namespace Renderer
 		public:
 			explicit operator bool() const noexcept;
 			auto Usage() const noexcept { return usage; }
-
-		private:
-			static std::vector<std::pair<TrackedResource<ID3D12Resource>, int/*dst state (src is COMMON)*/>> pendingBarriers;
-
-		protected:
-			//static class PendingBarriersHandle
-			//{
-			//	friend class Impl::Texture;
-
-			//private:
-			//	PendingBarriersHandle() = default;
-			//	PendingBarriersHandle(PendingBarriersHandle &) = delete;
-			//	void operator =(PendingBarriersHandle &) = delete;
-
-			//public:
-			//	~PendingBarriersHandle();
-
-			//public:
-			//	const decltype(pendingBarriers) *operator ->() const noexcept { return &pendingBarriers; }
-			//} AcquirePendingBarriers();
-			static decltype(pendingBarriers) AcquirePendingBarriers() noexcept;
 		};
 	}
 
@@ -89,7 +66,6 @@ namespace Renderer
 		friend class TerrainMaterials::Standard;
 		friend class TerrainMaterials::Extended;
 		friend class Impl::Object3D;
-		friend class Impl::Viewport;	// for pending barriers
 
 	public:
 		using Impl::Texture::Texture;
@@ -97,6 +73,5 @@ namespace Renderer
 		// hide from protected
 	private:
 		using Impl::Texture::operator Impl::TrackedResource<ID3D12Resource>;
-		using Impl::Texture::AcquirePendingBarriers;
 	};
 }

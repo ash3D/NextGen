@@ -7,8 +7,6 @@ using namespace std;
 using namespace Renderer;
 using WRL::ComPtr;
 
-decltype(Impl::Texture::pendingBarriers) Impl::Texture::pendingBarriers;
-
 static inline pair<D3D12_RESOURCE_STATES, DirectX::DDS_LOADER_FLAGS> DecodeTextureUsage(TextureUsage usage)
 {
 	switch (usage)
@@ -153,10 +151,6 @@ Impl::Texture::Texture(const filesystem::path &fileName, TextureUsage usage, boo
 	}
 	else
 		DMA::Upload2VRAM(tex, subresources, fileName.filename().c_str());
-
-	// schedule transition to shader accessible state for next frame preparation stage
-	static_assert(sizeof(decltype(pendingBarriers)::value_type::second_type) >= sizeof D3D12_RESOURCE_STATES);
-	pendingBarriers.push_back({ tex, targetState });
 }
 
 Impl::Texture::Texture(const Texture &) = default;
@@ -168,10 +162,4 @@ Impl::Texture::~Texture() = default;
 Impl::Texture::operator bool() const noexcept
 {
 	return tex;
-}
-
-// triggers ComPtr`s implementation if inline (dtor for temp object?)
-auto Impl::Texture::AcquirePendingBarriers() noexcept -> decltype(pendingBarriers)
-{
-	return std::move(pendingBarriers);
 }

@@ -1,7 +1,6 @@
 #include "stdafx.h"
 #include "viewport.hh"
 #include "world.hh"
-#include "texture.hh"	// for pending barriers
 #include "GPU work submission.h"
 #include "GPU descriptor heap.h"
 #include "shader bytecode.h"
@@ -176,21 +175,16 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Pre(ID3D12GraphicsCommandLi
 		cmdList->WriteBufferImmediate(size(initParams), initParams, NULL);
 	}
 	{
-		const auto pendingTextureBarriers = Texture::AcquirePendingBarriers();	// have to keep it alive in order to hold ComPtr`s
-		vector<D3D12_RESOURCE_BARRIER> barriers;
-		barriers.reserve(pendingTextureBarriers.size() + 1 + fresh);
-		transform(pendingTextureBarriers.cbegin(), pendingTextureBarriers.cend(), back_inserter(barriers), [](decltype(pendingTextureBarriers)::const_reference texBarrier)
-		{
-			return CD3DX12_RESOURCE_BARRIER::Transition(texBarrier.first.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATES(texBarrier.second));
-		});
 		/*
-			could potentially use split barrier for pending texture barriers and tonemapParamsBuffer to overlap with occlusion culling but it would require conditional finish barrier in world render
-			anyway tonemapParamsBuffer barrier happens only once at viewport creation
+			could potentially use split barrier for tonemapParamsBuffer to overlap with occlusion culling but it would require conditional finish barrier in world render
+			anyway barrier happens only once at viewport creation
 		*/
-		barriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY));
-		if (fresh)
-			barriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(tonemapParamsBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
-		cmdList->ResourceBarrier(barriers.size(), barriers.data());
+		const D3D12_RESOURCE_BARRIER barriers[] =
+		{
+			CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
+			CD3DX12_RESOURCE_BARRIER::Transition(tonemapParamsBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER)
+		};
+		cmdList->ResourceBarrier(1 + fresh, barriers);
 	}
 	cmdList->ClearRenderTargetView(rtv, backgroundColor, 0, NULL);
 	cmdList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0xef, 0, NULL);
@@ -362,18 +356,22 @@ void Impl::Viewport::Render(ID3D12Resource *output, ID3D12Resource *rendertarget
 			cmdList->RSSetScissorRects(1, &scissorRect);
 		};
 		world->Render(ctx, viewXform, projXform, tonemapParamsBuffer->GetGPUVirtualAddress(), ZBuffer, dsv, setupRenderOutputCallback);
+
+		/*
+		defer as much as possible in order to reduce chances waiting to be inserted in GFX queue (DMA queue can progress enough by this point)
+		drop syncing if world is not attached (no rendering would done in this case thus no dependencies to DMA uploads)
+			caveat: it makes things slightly more complicated and less robust, need to take into account specific subsystems details and dependencies
+			further such optimization seems not worthwhile since empty world is pathological case
+			future plans is to reconsider empty world case handling and prohibit it (throw an exception)
+			current behavior for empty world is to just clear output (and perform tonemapping which is already somewhat strange)
+			later when full world rendering be implemented (sky, no holes in terrain) no background color will be needed
+				and discard can be used for color output (another optimization especially for tiled GPUs)
+			such behavior will imply that world is mandatory
+		*/
+		DMA::Sync();
 	}
 
 	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Post, this, cmdLists.post, output, rendertarget, HDRSurface, LDRSurface, tonemapReductionBuffer, tonemapDescriptorTable, CalculateTonemapParamsLerpFactor(delta), width, height);
-
-	/*
-	defer as much as possible in order to reduce chances waiting to be inserted in GFX queue (DMA queue can progress enough by this point)
-	it's tempting to drop syncing if world is not attached (no rendering would done in this case thus no dependencies to DMA uploads)
-	but potential transition barriers executed in Pre() regardless of whether world attached or not
-	could consider to execute barriers only if world attached as well
-	but such optimization seems not worthwhile since empty world is pathological case
-	*/
-	DMA::Sync();
 
 	GPUWorkSubmission::Run();
 	fresh = false;
