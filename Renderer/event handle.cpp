@@ -6,7 +6,7 @@ using namespace Renderer;
 
 Impl::EventHandle::EventHandle() : handle(CreateEvent(NULL, FALSE, FALSE, NULL))
 {
-	if (!handle)
+	if (handle == INVALID_HANDLE_VALUE)
 		throw _com_error(HRESULT_FROM_WIN32(GetLastError()));
 }
 
