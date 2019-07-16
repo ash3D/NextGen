@@ -5,11 +5,28 @@
 #include <comdef.h>
 #include "system.h"
 #include <cstddef>	// for offsetof
+#include <cwchar>
 #include <iostream>
 #include <string>
 #define NOMINMAX
 
 using namespace std;
+
+void __fastcall System::WideIOPrologue(FILE *stream, const char accessMode[])
+{
+	if (fwide(stream, 0) < 0)
+	{
+		[[maybe_unused]] const auto reopened = freopen(NULL, accessMode, stream);
+		assert(reopened);
+	}
+}
+
+void __fastcall System::WideIOEpilogue(FILE *stream, const char accessMode[])
+{
+	// reopen again to reset orientation
+	[[maybe_unused]] const auto reopened = freopen(NULL, accessMode, stream);
+	assert(reopened);
+}
 
 void __fastcall System::ValidateHandle(HANDLE handle)
 {

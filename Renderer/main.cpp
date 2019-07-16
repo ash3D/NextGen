@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "system.h"
 #include "event handle.h"
 #include "frame versioning.h"
 #include "occlusion query batch.h"
@@ -32,17 +33,8 @@ void NameObject(ID3D12Object *object, LPCWSTR name) noexcept
 {
 	if (const HRESULT hr = object->SetName(name); FAILED(hr))
 	{
-		if (fwide(stderr, 0) < 0)
-		{
-			[[maybe_unused]] const auto reopened = freopen(NULL, "w", stderr);
-			assert(reopened);
-		}
-
+		System::WideIOGuard IOGuard(stderr);
 		wcerr << "Fail to set name " << quoted(name) << " for D3D12 object \'" << object << "\' (hr=" << hr << ")." << endl;
-
-		// reopen again to reset orientation
-		[[maybe_unused]] const auto reopened = freopen(NULL, "w", stderr);
-		assert(reopened);
 	}
 }
 

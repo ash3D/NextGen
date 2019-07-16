@@ -4,11 +4,31 @@
 #define NOMINMAX
 #include <Windows.h>
 #include <winerror.h>
+#include <cstdio>
 #include <filesystem>
 #include <iostream>
 
 namespace System
 {
+#pragma region wide IO
+	constexpr const char defaulStreamAccessMode[] = "w";
+	extern void __fastcall WideIOPrologue(FILE *stream, const char accessMode[] = defaulStreamAccessMode), __fastcall WideIOEpilogue(FILE *stream, const char accessMode[] = defaulStreamAccessMode);
+
+	template<const char accessMode[] = defaulStreamAccessMode>
+	class WideIOGuard
+	{
+		FILE *const stream;
+
+	public:
+		explicit WideIOGuard(FILE *stream) : stream(stream) { WideIOPrologue(stream, accessMode); }
+		~WideIOGuard() { WideIOEpilogue(stream, accessMode); }
+		WideIOGuard(WideIOGuard &) = delete;
+		void operator =(WideIOGuard &) = delete;
+	};
+#pragma endregion
+
+
+#pragma region HANDLE
 	extern void __fastcall ValidateHandle(HANDLE handle);
 
 	template<const char name[]>
@@ -25,6 +45,8 @@ namespace System
 	public:
 		operator HANDLE() const noexcept { return handle; }
 	};
+#pragma endregion
+
 
 	extern bool __fastcall DetectSSD(const std::filesystem::path &location) noexcept;
 }
