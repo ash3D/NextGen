@@ -294,7 +294,7 @@ void RetireResource(ComPtr<IUnknown> resource)
 	static mutex mtx;
 	if (globalFrameVersioning->GetCurFrameID() > globalFrameVersioning->GetCompletedFrameID())
 	{
-		lock_guard<decltype(mtx)> lck(mtx);
+		lock_guard lck(mtx);
 		retireQueue.push({ globalFrameVersioning->GetCurFrameID(), move(resource) });
 	}
 }

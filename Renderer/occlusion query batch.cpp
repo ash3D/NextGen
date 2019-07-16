@@ -50,7 +50,7 @@ void QueryBatchBase::Setup(unsigned long count)
 			{
 				sharedLock.unlock();
 				{
-					lock_guard<decltype(mtx)> exclusiveLock(mtx);
+					lock_guard exclusiveLock(mtx);
 					// other thread can have chance to replenish the pool, check again
 					if (count > heapPoolSize)
 					{
@@ -119,7 +119,7 @@ void QueryBatch<TRANSIENT>::FinalSetup()
 	{
 		sharedLock.unlock();
 		{
-			lock_guard<decltype(mtx)> exclusiveLock(mtx);
+			lock_guard exclusiveLock(mtx);
 			// other thread can have chance to replenish the pool, check again
 			if (!resultsPool || requiredSize > resultsPool->GetDesc().Width)
 			{

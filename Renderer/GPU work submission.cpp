@@ -128,7 +128,7 @@ namespace
 	{
 		task(move(work), move(target));
 		{
-			lock_guard<decltype(mtx)> lck(mtx);
+			lock_guard lck(mtx);
 			runningTaskCount--;
 		}
 		workReadyEvent.notify_one();
@@ -175,7 +175,7 @@ namespace Renderer::GPUWorkSubmission
 	{
 		RenderPipeline::AppendStage(buildRenderStage.get_future());
 		auto asyncRef = async(launch::async, LaunchBuildRenderStage, move(buildRenderStage));
-		unique_lock<decltype(mtx)> lckSentry(mtx, adopt_lock);
+		unique_lock lckSentry(mtx, adopt_lock);
 		pendingAsyncRefs.push_back(move(asyncRef));
 		lckSentry.release();
 	}
@@ -184,7 +184,7 @@ namespace Renderer::GPUWorkSubmission
 void GPUWorkSubmission::Run()
 {
 	{
-		unique_lock<decltype(mtx)> lck(mtx, adopt_lock);
+		unique_lock lck(mtx, adopt_lock);
 
 		do
 		{

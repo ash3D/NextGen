@@ -234,7 +234,7 @@ namespace
 		DWORD BytesRead = 0;
 		{
 			static std::mutex mtx;
-			std::unique_lock<decltype(mtx)> lck(mtx, std::defer_lock);
+			std::unique_lock lck(mtx, std::defer_lock);
 			if (throttleIO)
 				lck.lock();
 

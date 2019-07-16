@@ -36,7 +36,7 @@ start:
 	{
 		const unsigned savedLockStamp = lockStamp;
 		sharedLock.unlock();
-		lock_guard<decltype(mtx)> exclusiveLock(mtx);
+		lock_guard exclusiveLock(mtx);
 		if (lockStamp != savedLockStamp)
 			goto start;	// try again
 		else

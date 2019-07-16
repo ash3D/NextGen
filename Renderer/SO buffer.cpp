@@ -100,7 +100,7 @@ Handle AllocatorBase::Allocate(unsigned long payloadSize, long int usage, LPCWST
 		{
 			sharedLock.unlock();
 			{
-				lock_guard<decltype(mtx)> exclusiveLock(mtx);
+				lock_guard exclusiveLock(mtx);
 				if (!buffer || totalSize > buffer->GetDesc().Width)
 				{
 					CheckHR(device->CreateCommittedResource(

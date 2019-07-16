@@ -106,7 +106,7 @@ static void FinishCurBatch()
 
 static void FlushPendingUploads(bool cleanup)
 {
-	lock_guard<decltype(mtx)> lck(mtx);
+	lock_guard lck(mtx);
 
 	if (curBatchLen)
 		FinishCurBatch();
@@ -126,7 +126,7 @@ extern void __cdecl FinishLoads()
 // wait for completion and free upload resources, implies 'FinishLoads()' called before
 extern void __cdecl ForceLoadsCompletion()
 {
-	lock_guard<decltype(mtx)> lck(mtx);
+	lock_guard lck(mtx);
 	assert(!curBatchLen);
 	assert(Texture::PendingLoadsCompleted());
 	WaitForGPU(lastBatchID);
@@ -167,7 +167,7 @@ void DMA::Upload2VRAM(const ComPtr<ID3D12Resource> &dst, const vector<D3D12_SUBR
 {
 	assert(dmaQueue);
 
-	lock_guard<decltype(mtx)> lck(mtx);
+	lock_guard lck(mtx);
 
 	// use C++20 make_unique_default_init & monotonic_buffer_resource or allocation fusion
 	const auto layouts = make_unique<D3D12_PLACED_SUBRESOURCE_FOOTPRINT []>(src.size());
@@ -256,7 +256,7 @@ void DMA::Sync()
 {
 	if (dmaQueue)
 	{
-		lock_guard<decltype(mtx)> lck(mtx);
+		lock_guard lck(mtx);
 		FlushPendingUploads(Texture::PendingLoadsCompleted());
 		if (fence->GetCompletedValue() < lastBatchID)
 		{
