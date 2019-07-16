@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "event handle.h"
 #include "frame versioning.h"
 #include "occlusion query batch.h"
 #include "DMA engine.h"
@@ -57,6 +58,11 @@ void NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept
 		NameObject(object, buf);
 	assert(length >= 0 && length < maxD3D12NameLength);
 	va_end(args);
+}
+
+// define it here to eliminate creation tiny dedicated .cpp for such a little stuff
+Renderer::Impl::EventHandle::EventHandle() : Handle(CreateEvent(NULL, FALSE, FALSE, NULL))
+{
 }
 
 ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC &desc, LPCWSTR name)

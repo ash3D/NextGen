@@ -274,7 +274,6 @@
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Cdecl</CallingConvention>
     </ClCompile>
     <ClCompile Include="DMA engine.cpp" />
-    <ClCompile Include="event handle.cpp" />
     <ClCompile Include="frustum culling.cpp" />
     <ClCompile Include="GPU descriptor heap.cpp" />
     <ClCompile Include="GPU stream buffer allocator.cpp" />

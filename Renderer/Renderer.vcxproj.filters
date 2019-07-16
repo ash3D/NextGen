@@ -260,9 +260,6 @@
     <ClCompile Include="DMA engine.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="event handle.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="vectorLayerVS.hlsl">

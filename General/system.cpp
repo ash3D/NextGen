@@ -1,50 +1,29 @@
-#include "system.h"
-#include <cstddef>	// for offsetof
-#include <iostream>
-#include <string>
-#define NOMINMAX
 #include <Windows.h>
 //#include <ntddstor.h>
 #include <ntddscsi.h>
 #include <winerror.h>
 #include <comdef.h>
+#include "system.h"
+#include <cstddef>	// for offsetof
+#include <iostream>
+#include <string>
+#define NOMINMAX
 
 using namespace std;
 
-namespace
+void __fastcall System::ValidateHandle(HANDLE handle)
 {
-	class Handle
-	{
-		const HANDLE handle;
-
-	public:
-		Handle(HANDLE handle);
-		~Handle();
-		Handle(Handle &) = delete;
-		void operator =(Handle &) = delete;
-
-	public:
-		operator HANDLE() const noexcept { return handle; }
-	};
-
-	Handle::Handle(HANDLE handle) : handle(handle)
-	{
-		if (handle == INVALID_HANDLE_VALUE)
-			throw _com_error(HRESULT_FROM_WIN32(GetLastError()));
-	}
-
-	Handle::~Handle()
-	{
-		if (!CloseHandle(handle))
-			cerr << "Fail to close event handle (hr=" << HRESULT_FROM_WIN32(GetLastError()) << ")." << endl;
-	}
-
-	template<typename Char>
-	void PrintError(const Char *msg)
-	{
-		cerr << "Fail to detect drive type" << msg << ")." << endl;
-	}
+	if (handle == INVALID_HANDLE_VALUE)
+		throw _com_error(HRESULT_FROM_WIN32(GetLastError()));
 }
+
+template<typename Char>
+static void PrintError(const Char *msg)
+{
+	cerr << "Fail to detect drive type" << msg << ")." << endl;
+}
+
+static constexpr const char driveHandleName[] = "drive";
 
 // based on https://stackoverflow.com/a/33359142/7155994
 bool __fastcall System::DetectSSD(const filesystem::path &location) noexcept
@@ -54,10 +33,10 @@ bool __fastcall System::DetectSSD(const filesystem::path &location) noexcept
 		const auto driveName = L"\\\\.\\" + (location.has_root_name() ? location : filesystem::current_path()).root_name().native();
 
 #ifdef _MSC_VER
-		const Handle driveHandle(CreateFileW(driveName.c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL));
+		const Handle<driveHandleName> driveHandle(CreateFileW(driveName.c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL));
 		const auto StorageQuery = [&driveHandle]
 #else
-		const auto StorageQuery = [driveHandle = Handle(CreateFileW(driveName.c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL))]
+		const auto StorageQuery = [driveHandle = Handle<driveHandleName>(CreateFileW(driveName.c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL))]
 #endif
 		(DWORD controlCode, auto &in, auto &out)
 		{
