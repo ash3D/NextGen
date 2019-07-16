@@ -263,9 +263,9 @@ template<class ...Points>
 Math::Splines::CBezier<ScalarType, dimension, degree, Attribs...>::CBezier(Points &&...controlPoints) :
 controlPoints{ std::forward<Points>(controlPoints)... }
 {
-	constexpr auto cout = degree + 1;
-	static_assert(sizeof...(Points) >= cout, "too few control points");
-	static_assert(sizeof...(Points) <= cout, "too many control points");
+	constexpr auto count = degree + 1;
+	static_assert(sizeof...(Points) >= count, "too few control points");
+	static_assert(sizeof...(Points) <= count, "too many control points");
 }
 
 #ifndef MSVC_LIMITATIONS
