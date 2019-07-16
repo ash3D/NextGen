@@ -3,7 +3,7 @@
 #define NOMINMAX
 
 #include <utility>
-#include <list>
+#include <vector>
 #include <filesystem>
 #include <future>
 #include <wrl/client.h>
@@ -71,11 +71,9 @@ namespace Renderer
 			struct PendingLoad : std::shared_future<Renderer::Texture>
 			{
 				using shared_future::shared_future;
-				PendingLoad(PendingLoad &) = delete;
-				void operator =(PendingLoad &) = delete;
 				~PendingLoad() noexcept(false);
 			};
-			static std::list<PendingLoad> pendingLoads;
+			static std::vector<PendingLoad> pendingLoads;
 		};
 	}
 

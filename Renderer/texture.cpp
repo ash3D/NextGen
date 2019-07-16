@@ -27,7 +27,7 @@ using namespace std;
 using namespace Renderer;
 using WRL::ComPtr;
 
-list<Impl::Texture::PendingLoad> Impl::Texture::pendingLoads;
+vector<Impl::Texture::PendingLoad> Impl::Texture::pendingLoads;
 
 static inline pair<D3D12_RESOURCE_STATES, DirectX::DDS_LOADER_FLAGS> DecodeTextureUsage(TextureUsage usage)
 {
@@ -201,7 +201,8 @@ Impl::Texture::operator bool() const noexcept
 // static container, no temps (seemingly, maybe STL does make), thus no stack unwinding so no problems for exceptions in dtor (although it breaks STL`s exception safety guarantee)
 Impl::Texture::PendingLoad::~PendingLoad() noexcept(false)
 {
-	wait();
+	if (valid())
+		wait();
 }
 
 void Impl::Texture::WaitForPendingLoads()
