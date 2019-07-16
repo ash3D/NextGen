@@ -72,12 +72,18 @@
     <ClInclude Include="allocator adaptors.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="system.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="collision.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="nv_algebra.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="system.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

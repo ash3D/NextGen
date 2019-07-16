@@ -103,7 +103,8 @@
       <SubSystem>Windows</SubSystem>
     </Link>
     <Lib>
-      <AdditionalDependencies>DXGI.lib;D3D12.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>DXGI.lib;D3D12.lib;General.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Lib>
     <FxCompile>
       <HeaderFileOutput>$(IntDir)shaders\%(Filename).csh</HeaderFileOutput>
@@ -131,7 +132,8 @@
       <SubSystem>Windows</SubSystem>
     </Link>
     <Lib>
-      <AdditionalDependencies>DXGI.lib;D3D12.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>DXGI.lib;D3D12.lib;General.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Lib>
     <FxCompile>
       <HeaderFileOutput>$(IntDir)shaders\%(Filename).csh</HeaderFileOutput>
@@ -162,7 +164,8 @@
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
     <Lib>
-      <AdditionalDependencies>DXGI.lib;D3D12.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>DXGI.lib;D3D12.lib;General.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Lib>
     <FxCompile>
       <HeaderFileOutput>$(IntDir)shaders\%(Filename).csh</HeaderFileOutput>
@@ -193,7 +196,8 @@
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
     <Lib>
-      <AdditionalDependencies>DXGI.lib;D3D12.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>DXGI.lib;D3D12.lib;General.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Lib>
     <FxCompile>
       <HeaderFileOutput>$(IntDir)shaders\%(Filename).csh</HeaderFileOutput>
@@ -493,6 +497,11 @@
     <None Include="tracked ref.inl" />
     <None Include="tracked resource.inl" />
     <None Include="world hierarchy.inl" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\General\General.vcxproj">
+      <Project>{9e10bac6-2aeb-4a56-a500-2abc22a4ec70}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

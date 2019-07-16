@@ -1,11 +1,33 @@
 #include "stdafx.h"
 #include "texture.hh"
 #include "DMA engine.h"
+#include "system.h"
 #include "DDSTextureLoader12.h"
+
+#define FORCE_PARALLEL_IO 0
+
+/*
+Design considerations on async loading architecture:
+	Current implementation is rather glimpse on "final perfect" architecture that hopefully will be implemented somewhen in future.
+	This "perfect" arch will initially load small mips and then stream full-lod texs based on priority queue.
+	Priority will be calculated based on "importance" of texture type and visibility/frequency of access (usage in several objects, occlusion query results etc).
+	Current std::[shared_]future approach is quite limited in providing asynchrony meaning that game level loader will have to wait for loading to complete
+		when it's time to passing texture to object constructor that needs it (terrain material, 3D object).
+	So game can do something concurrently with texture loading during this time period [start texture loading .. create textured object].
+	The reason why asynchrony implemented in such manner instead of doing async internally (return Texture instead of [shared_]future<Texture>) and blocking when
+		texture is really needed to render frame is error reporting considerations - game can retrieve loading errors (file not found, format/usage validation fails)
+		and respond appropriately (e.g. use different material).
+	In "future perfect" design validation reporting will happen for small mips only while big ones will not block game loader,
+		error reporting for them is not required since small ones was already loaded successfully.
+	So blocking can happen only for initial small mips loads which is not critical. Moreover async perhaps is not needed for small mips at all.
+	Although current [shared_]future mechanism can be employed for them.
+*/
 
 using namespace std;
 using namespace Renderer;
 using WRL::ComPtr;
+
+list<Impl::Texture::PendingLoad> Impl::Texture::pendingLoads;
 
 static inline pair<D3D12_RESOURCE_STATES, DirectX::DDS_LOADER_FLAGS> DecodeTextureUsage(TextureUsage usage)
 {
@@ -130,6 +152,10 @@ Impl::Texture::Texture(const filesystem::path &fileName, TextureUsage usage, boo
 #else
 	reinterpret_cast<underlying_type_t<DDS_LOADER_FLAGS> &>(loadFlags) |= DDS_LOADER_ENABLE_PACKING & -enablePacking;
 #endif
+#if !FORCE_PARALLEL_IO
+	if (!System::DetectSSD(fileName))
+		reinterpret_cast<underlying_type_t<DDS_LOADER_FLAGS> &>(loadFlags) |= DDS_LOADER_THROTTLE_IO;
+#endif
 
 	// load from file & create texture
 	unique_ptr<uint8_t []> data;
@@ -153,6 +179,14 @@ Impl::Texture::Texture(const filesystem::path &fileName, TextureUsage usage, boo
 		DMA::Upload2VRAM(tex, subresources, fileName.filename().c_str());
 }
 
+// not thread-safe
+shared_future<::Texture> __cdecl Impl::Texture::LoadAsync(filesystem::path fileName, TextureUsage usage, bool enablePacking, bool forceSysRAM)
+{
+	auto args = make_tuple(move(fileName), usage, enablePacking, forceSysRAM);
+	pendingLoads.emplace_back(async(make_from_tuple<::Texture, decltype(args)>, move(args)));
+	return pendingLoads.back();
+}
+
 Impl::Texture::Texture(const Texture &) = default;
 Impl::Texture::Texture(Texture &&) = default;
 Impl::Texture &Impl::Texture::operator =(const Texture &) = default;
@@ -162,4 +196,23 @@ Impl::Texture::~Texture() = default;
 Impl::Texture::operator bool() const noexcept
 {
 	return tex;
+}
+
+// static container, no temps (seemingly, maybe STL does make), thus no stack unwinding so no problems for exceptions in dtor (although it breaks STL`s exception safety guarantee)
+Impl::Texture::PendingLoad::~PendingLoad() noexcept(false)
+{
+	wait();
+}
+
+void Impl::Texture::WaitForPendingLoads()
+{
+	pendingLoads.clear();
+}
+
+bool Impl::Texture::PendingLoadsCompleted()
+{
+	const bool completed = all_of(pendingLoads.cbegin(), pendingLoads.cend(), [](const PendingLoad &load) { return load.wait_for(0s) == future_status::ready; });
+	if (completed)
+		pendingLoads.clear();
+	return completed;
 }

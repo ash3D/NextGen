@@ -3,7 +3,9 @@
 #define NOMINMAX
 
 #include <utility>
+#include <list>
 #include <filesystem>
+#include <future>
 #include <wrl/client.h>
 #include "../tracked resource.h"
 
@@ -30,6 +32,8 @@ namespace Renderer
 		GlassMask,
 	};
 
+	class Texture;
+
 	namespace Impl
 	{
 		class Object3D;
@@ -46,6 +50,7 @@ namespace Renderer
 		public:
 			Texture();
 			explicit Texture(const std::filesystem::path &fileName, TextureUsage usage, bool enablePacking, bool forceSysRAM);
+			static std::shared_future<Renderer::Texture> __cdecl LoadAsync(std::filesystem::path fileName, TextureUsage usage, bool enablePacking, bool forceSysRAM);
 
 			// define outside to break dependency on ComPtr`s implementation
 		protected:
@@ -57,6 +62,20 @@ namespace Renderer
 		public:
 			explicit operator bool() const noexcept;
 			auto Usage() const noexcept { return usage; }
+
+		public:
+			static void WaitForPendingLoads();
+			static bool PendingLoadsCompleted();
+
+		private:
+			struct PendingLoad : std::shared_future<Renderer::Texture>
+			{
+				using shared_future::shared_future;
+				PendingLoad(PendingLoad &) = delete;
+				void operator =(PendingLoad &) = delete;
+				~PendingLoad() noexcept(false);
+			};
+			static std::list<PendingLoad> pendingLoads;
 		};
 	}
 

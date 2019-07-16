@@ -42,6 +42,7 @@ namespace DirectX
         DDS_LOADER_FORCE_SRGB = 0x1,
         DDS_LOADER_MIP_RESERVE = 0x8,
         DDS_LOADER_ENABLE_PACKING = 0x10,
+        DDS_LOADER_THROTTLE_IO = 0x20,
     };
 
 	enum DDS_CPU_ACCESS_FLAGS

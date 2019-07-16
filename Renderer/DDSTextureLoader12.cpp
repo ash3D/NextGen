@@ -20,6 +20,7 @@
 #include <climits>
 #include <algorithm>
 #include <memory>
+#include <mutex>
 #include <functional>
 
 #include "d3dx12.h"
@@ -221,62 +222,70 @@ namespace
         std::unique_ptr<uint8_t[]>& ddsData,
         const DDS_HEADER** header,
         const uint8_t** bitData,
-        size_t* bitSize)
+        size_t* bitSize,
+		bool throttleIO)
     {
         if (!header || !bitData || !bitSize)
         {
             return E_POINTER;
         }
 
-        // open the file
-        ScopedHandle hFile(safe_handle(CreateFile2(fileName,
-            GENERIC_READ,
-            FILE_SHARE_READ,
-            OPEN_EXISTING,
-            nullptr)));
+		FILE_STANDARD_INFO fileInfo;
+		DWORD BytesRead = 0;
+		{
+			static std::mutex mtx;
+			std::unique_lock<decltype(mtx)> lck(mtx, std::defer_lock);
+			if (throttleIO)
+				lck.lock();
 
-        if (!hFile)
-        {
-            return HRESULT_FROM_WIN32(GetLastError());
-        }
+			// open the file
+			ScopedHandle hFile(safe_handle(CreateFile2(fileName,
+				GENERIC_READ,
+				FILE_SHARE_READ,
+				OPEN_EXISTING,
+				nullptr)));
 
-        // Get the file size
-        FILE_STANDARD_INFO fileInfo;
-        if (!GetFileInformationByHandleEx(hFile.get(), FileStandardInfo, &fileInfo, sizeof(fileInfo)))
-        {
-            return HRESULT_FROM_WIN32(GetLastError());
-        }
+			if (!hFile)
+			{
+				return HRESULT_FROM_WIN32(GetLastError());
+			}
 
-        // File is too big for 32-bit allocation, so reject read
-        if (fileInfo.EndOfFile.HighPart > 0)
-        {
-            return E_FAIL;
-        }
+			// Get the file size
+			if (!GetFileInformationByHandleEx(hFile.get(), FileStandardInfo, &fileInfo, sizeof(fileInfo)))
+			{
+				return HRESULT_FROM_WIN32(GetLastError());
+			}
 
-        // Need at least enough data to fill the header and magic number to be a valid DDS
-        if (fileInfo.EndOfFile.LowPart < (sizeof(DDS_HEADER) + sizeof(uint32_t)))
-        {
-            return E_FAIL;
-        }
+			// File is too big for 32-bit allocation, so reject read
+			if (fileInfo.EndOfFile.HighPart > 0)
+			{
+				return E_FAIL;
+			}
 
-        // create enough space for the file data
-        ddsData.reset(new (std::nothrow) uint8_t[fileInfo.EndOfFile.LowPart]);
-        if (!ddsData)
-        {
-            return E_OUTOFMEMORY;
-        }
+			// Need at least enough data to fill the header and magic number to be a valid DDS
+			if (fileInfo.EndOfFile.LowPart < (sizeof(DDS_HEADER) + sizeof(uint32_t)))
+			{
+				return E_FAIL;
+			}
 
-        // read the data in
-        DWORD BytesRead = 0;
-        if (!ReadFile(hFile.get(),
-            ddsData.get(),
-            fileInfo.EndOfFile.LowPart,
-            &BytesRead,
-            nullptr
-        ))
-        {
-            return HRESULT_FROM_WIN32(GetLastError());
-        }
+			// create enough space for the file data
+			ddsData.reset(new (std::nothrow) uint8_t[fileInfo.EndOfFile.LowPart]);
+			if (!ddsData)
+			{
+				return E_OUTOFMEMORY;
+			}
+
+			// read the data in
+			if (!ReadFile(hFile.get(),
+				ddsData.get(),
+				fileInfo.EndOfFile.LowPart,
+				&BytesRead,
+				nullptr
+			))
+			{
+				return HRESULT_FROM_WIN32(GetLastError());
+			}
+		}
 
         if (BytesRead < fileInfo.EndOfFile.LowPart)
         {
@@ -1636,7 +1645,8 @@ HRESULT DirectX::LoadDDSTextureFromFileEx(
         ddsData,
         &header,
         &bitData,
-        &bitSize
+        &bitSize,
+		loadFlags & DDS_LOADER_THROTTLE_IO
     );
     if (FAILED(hr))
     {

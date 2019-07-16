@@ -329,12 +329,14 @@
     <ClInclude Include="rotate.h" />
     <ClInclude Include="SIMD.h" />
     <ClInclude Include="splines.h" />
+    <ClInclude Include="system.h" />
     <ClInclude Include="vector math generate stuff.h" />
     <ClInclude Include="vector math.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="collision.cpp" />
     <ClCompile Include="nv_algebra.cpp" />
+    <ClCompile Include="system.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="gauss.inl" />

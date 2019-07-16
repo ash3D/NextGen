@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "DMA engine.h"
+#include "texture.hh"
 #include "event handle.h"
 #include "align.h"
 
@@ -20,6 +21,7 @@ static UINT64 curBatchSuballocOffset;
 static UINT curBatchLen;
 
 static Impl::EventHandle fenceEvent;
+static recursive_mutex mtx;
 
 struct Batch
 {
@@ -102,19 +104,31 @@ static void FinishCurBatch()
 	curBatchSuballocOffset = curBatchLen = 0;
 }
 
-extern void __cdecl FlushPendingUploads()
+static void FlushPendingUploads(bool cleanup)
 {
+	lock_guard<decltype(mtx)> lck(mtx);
+
 	if (curBatchLen)
 		FinishCurBatch();
 
 	// release DMA buffers, no uploads expected in near future
-	for (auto &batch : uploadQueue)
-		batch.chunk.Reset();
+	if (cleanup)
+		for (auto &batch : uploadQueue)
+			batch.chunk.Reset();
 }
 
-// wait for completion and free upload resources, implies 'FlushPendingUploads()' called before
-extern void __cdecl ForceUploadsCompletion()
+extern void __cdecl FinishLoads()
 {
+	Texture::WaitForPendingLoads();
+	FlushPendingUploads(true);
+}
+
+// wait for completion and free upload resources, implies 'FinishLoads()' called before
+extern void __cdecl ForceLoadsCompletion()
+{
+	lock_guard<decltype(mtx)> lck(mtx);
+	assert(!curBatchLen);
+	assert(Texture::PendingLoadsCompleted());
 	WaitForGPU(lastBatchID);
 	CleanupFinishedUploads();
 }
@@ -152,6 +166,8 @@ ComPtr<ID3D12Fence> DMA::Impl::CreateFence()
 void DMA::Upload2VRAM(const ComPtr<ID3D12Resource> &dst, const vector<D3D12_SUBRESOURCE_DATA> &src, LPCWSTR name)
 {
 	assert(dmaQueue);
+
+	lock_guard<decltype(mtx)> lck(mtx);
 
 	// use C++20 make_unique_default_init & monotonic_buffer_resource or allocation fusion
 	const auto layouts = make_unique<D3D12_PLACED_SUBRESOURCE_FOOTPRINT []>(src.size());
@@ -240,7 +256,8 @@ void DMA::Sync()
 {
 	if (dmaQueue)
 	{
-		FlushPendingUploads();
+		lock_guard<decltype(mtx)> lck(mtx);
+		FlushPendingUploads(Texture::PendingLoadsCompleted());
 		if (fence->GetCompletedValue() < lastBatchID)
 		{
 			/*
