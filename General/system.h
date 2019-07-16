@@ -4,6 +4,7 @@
 #define NOMINMAX
 #include <Windows.h>
 #include <winerror.h>
+#include <comdef.h>
 #include <cstdio>
 #include <filesystem>
 #include <iostream>
@@ -62,6 +63,9 @@ template<const char name[]>
 System::Handle<name>::~Handle()
 {
 	if (!::CloseHandle(handle))
-		std::cerr << "Fail to close " << name << " handle (hr=" << HRESULT_FROM_WIN32(GetLastError()) << ")." << std::endl;
+	{
+		System::WideIOGuard IOGuard(stderr);
+		std::wcerr << "Fail to close " << name << " handle: " << _com_error(HRESULT_FROM_WIN32(GetLastError())).ErrorMessage() << std::endl;
+	}
 }
 #pragma endregion

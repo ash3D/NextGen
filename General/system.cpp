@@ -34,10 +34,17 @@ void __fastcall System::ValidateHandle(HANDLE handle)
 		throw _com_error(HRESULT_FROM_WIN32(GetLastError()));
 }
 
-template<typename Char>
-static void PrintError(const Char *msg)
+const char driveDetectionFailMsgPrefix[] = "Fail to detect drive type: ";
+
+static void PrintError(const char *msg)
 {
-	cerr << "Fail to detect drive type" << msg << ")." << endl;
+	cerr << driveDetectionFailMsgPrefix << msg << endl;
+}
+
+static void PrintError(const wchar_t *msg)
+{
+	System::WideIOGuard IOGuard(stderr);
+	wcerr << driveDetectionFailMsgPrefix << msg << endl;
 }
 
 static constexpr const char driveHandleName[] = "drive";
@@ -128,7 +135,7 @@ bool __fastcall System::DetectSSD(const filesystem::path &location) noexcept
 	}
 	catch (...)
 	{
-		PrintError("unknown error");
+		PrintError("unknown error.");
 	}
 
 	// fail to query anything, go conservative (assume HDD)

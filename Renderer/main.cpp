@@ -87,7 +87,10 @@ static auto CreateFactory()
 		creationFlags |= DXGI_CREATE_FACTORY_DEBUG;
 	}
 	else
-		cerr << "Fail to enable D3D12 debug layer (hr=" << hr << ")." << endl;
+	{
+		System::WideIOGuard IOGuard(stderr);
+		wcerr << "Fail to enable D3D12 debug layer: " << _com_error(hr).ErrorMessage() << endl;
+	}
 #endif
 
 	ComPtr<IDXGIFactory5> factory;
@@ -111,7 +114,10 @@ static auto CreateDevice()
 	{
 		ComPtr<ID3D12DebugDevice1> debugDeviceController;
 		if (const HRESULT hr = device.As(&debugDeviceController); FAILED(hr))
-			cerr << "Fail to setup device debug settings (hr=" << hr << "). Defaults used.";
+		{
+			System::WideIOGuard IOGuard(stderr);
+			wcerr << "Fail to setup device debug settings, defaults used: " << _com_error(hr).ErrorMessage() << endl;
+		}
 		else
 		{
 			const D3D12_DEBUG_DEVICE_GPU_BASED_VALIDATION_SETTINGS GBVSettings =
@@ -121,7 +127,10 @@ static auto CreateDevice()
 				D3D12_GPU_BASED_VALIDATION_PIPELINE_STATE_CREATE_FLAG_NONE
 			};
 			if (const HRESULT hr = debugDeviceController->SetDebugParameter(D3D12_DEBUG_DEVICE_PARAMETER_GPU_BASED_VALIDATION_SETTINGS, &GBVSettings, sizeof GBVSettings); FAILED(hr))
-				cerr << "Fail to setup GBV settings (hr=" << hr << ")." << endl;
+			{
+				System::WideIOGuard IOGuard(stderr);
+				wcerr << "Fail to setup GBV settings: " << _com_error(hr).ErrorMessage() << endl;
+			}
 		}
 	}
 #endif
@@ -180,9 +189,10 @@ static void PrintError(const exception_ptr &error, const char object[])
 	{
 		rethrow_exception(error);
 	}
-	catch (HRESULT hr)
+	catch (const _com_error &error)
 	{
-		clog << "Fail to automatically create " << object << ", manual call to 'InitRenderer()' required (hr=" << hr << ")." << endl;
+		System::WideIOGuard IOGuard(stderr);
+		wclog << "Fail to automatically create " << object << ", manual call to 'InitRenderer()' required: " << error.ErrorMessage() << endl;
 	}
 	catch (const exception &error)
 	{
