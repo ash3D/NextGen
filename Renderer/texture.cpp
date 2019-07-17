@@ -153,7 +153,7 @@ Impl::Texture::Texture(const filesystem::path &fileName, TextureUsage usage, boo
 	reinterpret_cast<underlying_type_t<DDS_LOADER_FLAGS> &>(loadFlags) |= DDS_LOADER_ENABLE_PACKING & -enablePacking;
 #endif
 #if !FORCE_PARALLEL_IO
-	if (!System::DetectSSD(fileName))
+	if (!System::DetectSSD(fileName, true))
 		reinterpret_cast<underlying_type_t<DDS_LOADER_FLAGS> &>(loadFlags) |= DDS_LOADER_THROTTLE_IO;
 #endif
 

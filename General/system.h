@@ -49,7 +49,7 @@ namespace System
 #pragma endregion
 
 
-	extern bool __fastcall DetectSSD(const std::filesystem::path &location) noexcept;
+	extern bool __fastcall DetectSSD(const std::filesystem::path &location, bool optimizeForSMT = false) noexcept;
 }
 
 #pragma region inline/template impl
