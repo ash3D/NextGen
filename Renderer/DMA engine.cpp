@@ -106,6 +106,11 @@ static void FinishCurBatch()
 
 static void FlushPendingUploads(bool cleanup)
 {
+	/*
+		not actually needed ?
+		no pending uploads after waiting for them (thus no asyncs to sync with) if called from 'FinishLoads()'
+		keep it for robustness / possible future arch changes
+	*/
 	lock_guard lck(mtx);
 
 	if (curBatchLen)
@@ -213,7 +218,7 @@ void DMA::Upload2VRAM(const ComPtr<ID3D12Resource> &dst, const vector<D3D12_SUBR
 	{
 		assert(!curBatchLen);
 
-		// defer chunk recreation after waiting for GPU in 'GetCmdList()' above to avoid RAM overuse - destroy old chunk before creating new one
+		// defer chunk recreation after waiting for GPU in 'GetCmdList()' above (and releasing ref to old chunk in 'CleanupFinishedUploads()') to avoid RAM overuse - destroy old chunk before creating new one
 		CheckHR(device->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 			D3D12_HEAP_FLAG_NONE,
