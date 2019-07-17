@@ -29,18 +29,18 @@ using WRL::ComPtr;
 
 forward_list<shared_future<Texture>> Texture::pendingLoads;
 
-static inline pair<D3D12_RESOURCE_STATES, DirectX::DDS_LOADER_FLAGS> DecodeTextureUsage(TextureUsage usage)
+static inline DirectX::DDS_LOADER_FLAGS DecodeTextureUsage(TextureUsage usage)
 {
 	switch (usage)
 	{
 	case TextureUsage::TVScreen:
 	case TextureUsage::AlbedoMap:
-		return { D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, DirectX::DDS_LOADER_FORCE_SRGB };
+		return DirectX::DDS_LOADER_FORCE_SRGB;
 	case TextureUsage::FresnelMap:
 	case TextureUsage::RoughnessMap:
 	case TextureUsage::NormalMap:
 	case TextureUsage::GlassMask:
-		return { D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, DirectX::DDS_LOADER_DEFAULT };
+		return DirectX::DDS_LOADER_DEFAULT;
 		break;
 	default:
 		throw invalid_argument("Invalid texture usage param.");
@@ -145,7 +145,7 @@ Impl::Texture::Texture(const filesystem::path &fileName, TextureUsage usage, boo
 
 	useSysRAM |= !dmaQueue;
 
-	auto [targetState, loadFlags] = DecodeTextureUsage(usage);
+	DDS_LOADER_FLAGS loadFlags = DecodeTextureUsage(usage);
 #if 1
 	if (enablePacking)
 		reinterpret_cast<underlying_type_t<DDS_LOADER_FLAGS> &>(loadFlags) |= DDS_LOADER_ENABLE_PACKING;

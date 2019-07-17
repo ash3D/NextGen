@@ -53,6 +53,7 @@
 #include <iostream>
 #include <iomanip>
 #include <filesystem>
+#include <exception>
 #include <stdexcept>
 #include <wrl/client.h>
 #include <dxgi1_6.h>
