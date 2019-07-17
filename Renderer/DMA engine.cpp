@@ -28,6 +28,7 @@ struct Batch
 	ComPtr<ID3D12Resource> chunk;
 	unsigned long chunkVersion;
 	vector<ComPtr<ID3D12Resource>> outstandingRefs;
+	vector<future<void>> deferredMemcpys;
 };
 static Batch uploadQueue[size(cmdBuffers)];
 
@@ -91,6 +92,10 @@ static void FinishCurBatch()
 	// keep chunk ref
 	auto &curBatch = uploadQueue[CurRingIdx()];
 	curBatch.outstandingRefs.push_back(curBatch.chunk);
+
+	// wait for differed memcpys completion
+	for_each(curBatch.deferredMemcpys.begin(), curBatch.deferredMemcpys.end(), mem_fn(&decltype(curBatch.deferredMemcpys)::value_type::get));
+	curBatch.deferredMemcpys.clear();
 	
 	const auto &cmdList = GetCmdList<false>();
 	CheckHR(cmdList->Close());
@@ -172,7 +177,7 @@ void DMA::Upload2VRAM(const ComPtr<ID3D12Resource> &dst, const vector<D3D12_SUBR
 {
 	assert(dmaQueue);
 
-	lock_guard lck(mtx);
+	unique_lock lck(mtx);
 
 	// use C++20 make_unique_default_init & monotonic_buffer_resource or allocation fusion
 	const auto layouts = make_unique<D3D12_PLACED_SUBRESOURCE_FOOTPRINT []>(src.size());
@@ -237,24 +242,47 @@ void DMA::Upload2VRAM(const ComPtr<ID3D12Resource> &dst, const vector<D3D12_SUBR
 	curBatch->outstandingRefs.push_back(dst);
 
 	// copy data to upload chunk & record GPU commands for DMA engine
-	std::byte *uploadPtr;
-	CheckHR(curBatch->chunk->Map(0, &CD3DX12_RANGE(0, 0), reinterpret_cast<void **>(&uploadPtr)));
 	for (unsigned i = 0; i < src.size(); i++)
 	{
-		const auto &curLayout = layouts[i];
-		{
-			const D3D12_MEMCPY_DEST cpyDst = { uploadPtr + curLayout.Offset, curLayout.Footprint.RowPitch, curLayout.Footprint.RowPitch * numRows[i] };
-			MemcpySubresource(&cpyDst, &src[i], rowSizes[i], numRows[i], curLayout.Footprint.Depth);
-		}
-		{
-			const CD3DX12_TEXTURE_COPY_LOCATION cpyDst(dst.Get(), i), cpySrc(curBatch->chunk.Get(), curLayout);
-			cmdList->CopyTextureRegion(&cpyDst, 0, 0, 0, &cpySrc, NULL);
-		}
+		const CD3DX12_TEXTURE_COPY_LOCATION cpyDst(dst.Get(), i), cpySrc(curBatch->chunk.Get(), layouts[i]);
+		cmdList->CopyTextureRegion(&cpyDst, 0, 0, 0, &cpySrc, NULL);
 	}
-	curBatch->chunk->Unmap(0, &allocRange);
+
+	/*
+	defer memcpys to perform after mutex unlock to enable multithreaded copy
+	can benefit on AMD Zen 2 CPUs:
+		benchmarks shows half RAM write bandwidth on 1 CCD CPUs while 2 CCD doesn't have such slowdown
+		one assumption is Infinity Fabric limitations
+		if this assumption is true then singlethreaded writes can't saturate RAM bus on CPUs comprising of 2 CCD (both CCD have to do writes to fully utilize RAM bus)
+		while copy ops do not subject to this performance issue on Zen 2, this workload (copy to GPU accessible buffer) can essentially be write op:
+			after textures have been read from file to writeback (cached) RAM region they can reside in cache (especially considering large L3 cache on Zen 2)
+			then texture data have to be written to GPU accessible writecombine (thus uncached, i.e. it write to RAM, not to cache) region
+			so copy cache -> RAM is essentially write from RAM point of view => multithreading can help on 2 CCDs Zen2
+	*/
+	packaged_task<void()> memcpyTask([&, curBatch]
+		{
+			std::byte *uploadPtr;
+			CheckHR(curBatch->chunk->Map(0, &CD3DX12_RANGE(0, 0), reinterpret_cast<void **>(&uploadPtr)));
+			for (unsigned i = 0; i < src.size(); i++)
+			{
+				const auto &curLayout = layouts[i];
+				const D3D12_MEMCPY_DEST cpyDst = { uploadPtr + curLayout.Offset, curLayout.Footprint.RowPitch, curLayout.Footprint.RowPitch * numRows[i] };
+				MemcpySubresource(&cpyDst, &src[i], rowSizes[i], numRows[i], curLayout.Footprint.Depth);
+			}
+			curBatch->chunk->Unmap(0, &allocRange);
+		});
 
 	if (curBatchLen >= batchLenLimit || curBatchSuballocOffset >= curBatch->chunk->GetDesc().Width)
+	{
+		memcpyTask();
 		FinishCurBatch();
+	}
+	else
+	{
+		curBatch->deferredMemcpys.push_back(memcpyTask.get_future());
+		lck.unlock();
+		memcpyTask();
+	}
 }
 
 void DMA::Sync()
