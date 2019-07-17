@@ -27,7 +27,7 @@ using namespace std;
 using namespace Renderer;
 using WRL::ComPtr;
 
-vector<Impl::Texture::PendingLoad> Impl::Texture::pendingLoads;
+forward_list<shared_future<Texture>> Texture::pendingLoads;
 
 static inline pair<D3D12_RESOURCE_STATES, DirectX::DDS_LOADER_FLAGS> DecodeTextureUsage(TextureUsage usage)
 {
@@ -183,8 +183,8 @@ Impl::Texture::Texture(const filesystem::path &fileName, TextureUsage usage, boo
 shared_future<::Texture> __cdecl Impl::Texture::LoadAsync(filesystem::path fileName, TextureUsage usage, bool enablePacking, bool forceSysRAM)
 {
 	auto args = make_tuple(move(fileName), usage, enablePacking, forceSysRAM);
-	pendingLoads.emplace_back(async(make_from_tuple<::Texture, decltype(args)>, move(args)));
-	return pendingLoads.back();
+	pendingLoads.emplace_front(async(make_from_tuple<::Texture, decltype(args)>, move(args)));
+	return pendingLoads.front();
 }
 
 Impl::Texture::Texture(const Texture &) = default;
@@ -198,22 +198,15 @@ Impl::Texture::operator bool() const noexcept
 	return tex;
 }
 
-// static container, no temps (seemingly, maybe STL does make), thus no stack unwinding so no problems for exceptions in dtor (although it breaks STL`s exception safety guarantee)
-Impl::Texture::PendingLoad::~PendingLoad() noexcept(false)
-{
-	if (valid())
-		wait();
-}
-
 void Impl::Texture::WaitForPendingLoads()
 {
+	for_each(pendingLoads.begin(), pendingLoads.end(), mem_fn(&decltype(pendingLoads)::value_type::wait));
 	pendingLoads.clear();
 }
 
 bool Impl::Texture::PendingLoadsCompleted()
 {
-	const bool completed = all_of(pendingLoads.cbegin(), pendingLoads.cend(), [](const PendingLoad &load) { return load.wait_for(0s) == future_status::ready; });
-	if (completed)
-		pendingLoads.clear();
-	return completed;
+	// NOTE: consider self-deletion upon async finishing, it somewhat more complicated and require additional syncs
+	pendingLoads.remove_if([](decltype(pendingLoads)::const_reference load) { return load.wait_for(0s) == future_status::ready; });
+	return pendingLoads.empty();
 }

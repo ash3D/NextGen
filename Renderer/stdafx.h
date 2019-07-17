@@ -36,6 +36,7 @@
 #include <queue>
 #include <deque>
 #include <list>
+#include <forward_list>
 #include <algorithm>
 #include <numeric>
 #include <execution>

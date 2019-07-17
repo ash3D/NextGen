@@ -3,7 +3,7 @@
 #define NOMINMAX
 
 #include <utility>
-#include <vector>
+#include <forward_list>
 #include <filesystem>
 #include <future>
 #include <wrl/client.h>
@@ -68,12 +68,7 @@ namespace Renderer
 			static bool PendingLoadsCompleted();
 
 		private:
-			struct PendingLoad : std::shared_future<Renderer::Texture>
-			{
-				using shared_future::shared_future;
-				~PendingLoad() noexcept(false);
-			};
-			static std::vector<PendingLoad> pendingLoads;
+			static std::forward_list<std::shared_future<Renderer::Texture>> pendingLoads;
 		};
 	}
 
