@@ -23,7 +23,9 @@ void __fastcall System::WideIOPrologue(FILE *stream, const char accessMode[])
 	if (fwide(stream, 0) < 0)
 	{
 		[[maybe_unused]] const auto reopened = freopen(NULL, accessMode, stream);
+#ifndef _WIN32
 		assert(reopened);
+#endif
 	}
 }
 
@@ -31,7 +33,9 @@ void __fastcall System::WideIOEpilogue(FILE *stream, const char accessMode[])
 {
 	// reopen again to reset orientation
 	[[maybe_unused]] const auto reopened = freopen(NULL, accessMode, stream);
+#ifndef _WIN32
 	assert(reopened);
+#endif
 }
 
 void __fastcall System::ValidateHandle(HANDLE handle)
