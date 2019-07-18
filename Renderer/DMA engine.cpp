@@ -4,6 +4,8 @@
 #include "event handle.h"
 #include "align.h"
 
+#define DEFER_UPLOADS_SUBMISSION 1
+
 using namespace std;
 using namespace Renderer;
 using namespace DMA::Impl;
@@ -16,7 +18,11 @@ void NameObject(ID3D12Object *object, LPCWSTR name) noexcept, NameObjectF(ID3D12
 static constexpr auto defaultChunkSize = /*128ul*/32ul * 1024ul * 1024ul;
 static constexpr auto batchLenLimit = /*1024u*/256u;
 
-static UINT64 lastBatchID;
+// {B21BD34F-2B98-46C2-BA23-8ABD09392251}
+static const GUID uploadBatchMarkerGUID =
+{ 0xb21bd34f, 0x2b98, 0x46c2, { 0xba, 0x23, 0x8a, 0xbd, 0x9, 0x39, 0x22, 0x51 } };
+
+static UINT64 lastBatchID, consumedBatchID/*batch containing consumed resources (e.g. textures binded to materials) => have to be uploaded before frame starts*/;
 static UINT64 curBatchSuballocOffset;
 static UINT curBatchLen;
 
@@ -28,7 +34,7 @@ struct Batch
 	ComPtr<ID3D12Resource> chunk;
 	unsigned long chunkVersion;
 	vector<ComPtr<ID3D12Resource>> outstandingRefs;
-	vector<future<void>> deferredMemcpys;
+	vector<future<void>> deferredOps;
 };
 static Batch uploadQueue[size(cmdBuffers)];
 
@@ -93,9 +99,9 @@ static void FinishCurBatch()
 	auto &curBatch = uploadQueue[CurRingIdx()];
 	curBatch.outstandingRefs.push_back(curBatch.chunk);
 
-	// wait for differed memcpys completion
-	for_each(curBatch.deferredMemcpys.begin(), curBatch.deferredMemcpys.end(), mem_fn(&decltype(curBatch.deferredMemcpys)::value_type::get));
-	curBatch.deferredMemcpys.clear();
+	// wait for differed ops completion
+	for_each(curBatch.deferredOps.begin(), curBatch.deferredOps.end(), mem_fn(&decltype(curBatch.deferredOps)::value_type::get));
+	curBatch.deferredOps.clear();
 	
 	const auto &cmdList = GetCmdList<false>();
 	CheckHR(cmdList->Close());
@@ -241,7 +247,7 @@ void DMA::Upload2VRAM(const ComPtr<ID3D12Resource> &dst, const vector<D3D12_SUBR
 	// keep dst ref
 	curBatch->outstandingRefs.push_back(dst);
 
-	// copy data to upload chunk & record GPU commands for DMA engine
+	// record GPU commands for DMA engine
 	for (unsigned i = 0; i < src.size(); i++)
 	{
 		const CD3DX12_TEXTURE_COPY_LOCATION cpyDst(dst.Get(), i), cpySrc(curBatch->chunk.Get(), layouts[i]);
@@ -259,8 +265,9 @@ void DMA::Upload2VRAM(const ComPtr<ID3D12Resource> &dst, const vector<D3D12_SUBR
 			then texture data have to be written to GPU accessible writecombine (thus uncached, i.e. it write to RAM, not to cache) region
 			so copy cache -> RAM is essentially write from RAM point of view => multithreading can help on 2 CCDs Zen2
 	*/
-	packaged_task<void()> memcpyTask([&, curBatch]
+	packaged_task<void()> deferred([&, curBatch]
 		{
+			// copy data to upload chunk
 			std::byte *uploadPtr;
 			CheckHR(curBatch->chunk->Map(0, &CD3DX12_RANGE(0, 0), reinterpret_cast<void **>(&uploadPtr)));
 			for (unsigned i = 0; i < src.size(); i++)
@@ -270,19 +277,37 @@ void DMA::Upload2VRAM(const ComPtr<ID3D12Resource> &dst, const vector<D3D12_SUBR
 				MemcpySubresource(&cpyDst, &src[i], rowSizes[i], numRows[i], curLayout.Footprint.Depth);
 			}
 			curBatch->chunk->Unmap(0, &allocRange);
+
+			// set upload batch marker
+			const UINT64 uploadBatchMarker = lastBatchID + 1/*cur batch*/;
+			CheckHR(dst->SetPrivateData(uploadBatchMarkerGUID, sizeof uploadBatchMarker, &uploadBatchMarker));
 		});
 
 	if (curBatchLen >= batchLenLimit || curBatchSuballocOffset >= curBatch->chunk->GetDesc().Width)
 	{
-		memcpyTask();
+		deferred();
 		FinishCurBatch();
 	}
 	else
 	{
-		curBatch->deferredMemcpys.push_back(memcpyTask.get_future());
+		curBatch->deferredOps.push_back(deferred.get_future());
 		lck.unlock();
-		memcpyTask();
+		deferred();
 	}
+}
+
+// have to be called before 'Sync()'
+void DMA::TrackUsage(ID3D12Resource *res)
+{
+	UINT64 uploadBatchMarker;
+	UINT markerSize = sizeof uploadBatchMarker;
+	if (const HRESULT hr = res->GetPrivateData(uploadBatchMarkerGUID, &markerSize, &uploadBatchMarker); hr != DXGI_ERROR_NOT_FOUND)
+	{
+		CheckHR(hr);
+		assert(markerSize == sizeof uploadBatchMarker);
+		consumedBatchID = max(consumedBatchID, uploadBatchMarker);
+	}
+	// do nothing if DXGI_ERROR_NOT_FOUND - it means that resource placed in sys RAM and wasn't uploaded via DMA engine
 }
 
 void DMA::Sync()
@@ -290,8 +315,11 @@ void DMA::Sync()
 	if (dmaQueue)
 	{
 		lock_guard lck(mtx);
-		FlushPendingUploads(Texture::PendingLoadsCompleted());
-		if (fence->GetCompletedValue() < lastBatchID)
+#		if DEFER_UPLOADS_SUBMISSION
+		if (consumedBatchID > lastBatchID)
+#		endif
+			FlushPendingUploads(Texture::PendingLoadsCompleted());
+		if (fence->GetCompletedValue() < consumedBatchID)
 		{
 			/*
 			it's called on beginning of a frame (waiting inserted at GFX queue) while end of the frame gets signaled by frame versioning fence
@@ -301,7 +329,7 @@ void DMA::Sync()
 			for more robust handling one may always insert additional signal (e.g. ~0) in frame versioning dtor (and wait for it)
 			it would ensure proper waiting regardless of whether last GFX queue operation was frame finish
 			*/
-			CheckHR(gfxQueue->Wait(fence.Get(), lastBatchID));
+			CheckHR(gfxQueue->Wait(fence.Get(), consumedBatchID));
 		}
 		CleanupFinishedUploads();
 	}

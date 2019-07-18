@@ -128,8 +128,9 @@ static inline void ValidateTexture(const D3D12_RESOURCE_DESC &desc, TextureUsage
 }
 
 // out-of-line to break dependency on ComPtr`s copy ctor
-Impl::Texture::operator Impl::TrackedResource<ID3D12Resource>() const
+ auto Impl::Texture::Acquire() const -> TrackedResource<ID3D12Resource>
 {
+	DMA::TrackUsage(tex.Get());
 	return tex;
 }
 

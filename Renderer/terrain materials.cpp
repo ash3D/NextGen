@@ -315,7 +315,7 @@ inline Textured::Textured(tag tag, const float (&albedoFactor)[3], const Rendere
 #else
 inline Textured::Textured(const float (&albedoFactor)[3], const Texture &tex, float texScale, const char materialName[]) :
 #endif
-	TexStuff(texScale, 1, materialName, albedoFactor, rootSig, PSO), tex(tex)
+	TexStuff(texScale, 1, materialName, albedoFactor, rootSig, PSO), tex(tex.Acquire())
 {
 	if (tex.Usage() != TextureUsage::AlbedoMap)
 		throw invalid_argument("Terrain material: incompatible texture usage, albedo map expected.");
@@ -419,7 +419,7 @@ inline Standard::Standard(tag tag, const Renderer::Texture &albedoMap, const Ren
 inline Standard::Standard(const Texture &albedoMap, const Texture &roughnessMap, const Texture &normalMap, float texScale, float IOR, const char materialName[]) :
 #endif
 	TexStuff(texScale, TEXTURE_COUNT, materialName, PIX_COLOR_INDEX(PIXEvents::TerrainMainPass), rootSig, PSO),
-	textures{ albedoMap, roughnessMap, normalMap },
+	textures{ albedoMap.Acquire(), roughnessMap.Acquire(), normalMap.Acquire() },
 	F0(Fresnel::F0(IOR))
 {
 	// validate textures usage
@@ -539,7 +539,7 @@ inline Extended::Extended(tag tag, const Renderer::Texture &albedoMap, const Ren
 inline Extended::Extended(const Texture &albedoMap, const Texture &fresnelMap, const Texture &roughnessMap, const Texture &normalMap, float texScale, const char materialName[]) :
 #endif
 	TexStuff(texScale, TEXTURE_COUNT, materialName, PIX_COLOR_INDEX(PIXEvents::TerrainMainPass), rootSig, PSO),
-	textures{ albedoMap, fresnelMap, roughnessMap, normalMap }
+	textures{ albedoMap.Acquire(), fresnelMap.Acquire(), roughnessMap.Acquire(), normalMap.Acquire() }
 {
 	// validate textures usage
 	if (albedoMap.Usage() != TextureUsage::AlbedoMap)

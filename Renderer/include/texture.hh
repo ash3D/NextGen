@@ -45,7 +45,7 @@ namespace Renderer
 
 		protected:
 			// acquire GPU lifetime tracked resource
-			operator TrackedResource<ID3D12Resource>() const;
+			TrackedResource<ID3D12Resource> Acquire() const;
 
 		public:
 			Texture();
@@ -84,6 +84,6 @@ namespace Renderer
 
 		// hide from protected
 	private:
-		using Impl::Texture::operator Impl::TrackedResource<ID3D12Resource>;
+		using Impl::Texture::Acquire;
 	};
 }

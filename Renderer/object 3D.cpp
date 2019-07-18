@@ -484,7 +484,7 @@ Impl::Object3D::Object3D(unsigned short int subobjCount, const SubobjectDataCall
 
 				if (subobjTex.albedoMap.Usage() != TextureUsage::AlbedoMap)
 					throw invalid_argument("3D object material: incompatible texture usage, albedo map expected.");
-				texs.push_back(subobjTex.albedoMap);
+				texs.push_back(subobjTex.albedoMap.Acquire());
 				uvcount += subobjTex.vcount;
 
 				return make_from_tuple<Subobject>(tuple_cat(commonArgs, forward_as_tuple(PSO, descriptorTableOffset)));
@@ -497,7 +497,7 @@ Impl::Object3D::Object3D(unsigned short int subobjCount, const SubobjectDataCall
 
 				if (subobjTV.screen.Usage() != TextureUsage::TVScreen)
 					throw invalid_argument("3D object material: incompatible texture usage, TV screen expected.");
-				texs.push_back(subobjTV.screen);
+				texs.push_back(subobjTV.screen.Acquire());
 				uvcount += subobjTV.vcount;
 
 				return make_from_tuple<Subobject>(tuple_cat(commonArgs, forward_as_tuple(PSO, subobjTV.albedo, subobjTV.brighntess, descriptorTableOffset)));
@@ -514,20 +514,20 @@ Impl::Object3D::Object3D(unsigned short int subobjCount, const SubobjectDataCall
 				// !: order of texture insertions is essential - it must match shader signature
 				if (subobjAdvanced.albedoMap.Usage() != TextureUsage::AlbedoMap)
 					throw invalid_argument("3D object material: incompatible texture usage, albedo map expected.");
-				texs.push_back(subobjAdvanced.albedoMap);
+				texs.push_back(subobjAdvanced.albedoMap.Acquire());
 				uvcount += subobjAdvanced.vcount;
 				if (subobjAdvanced.normalMap)
 				{
 					if (subobjAdvanced.normalMap.Usage() != TextureUsage::NormalMap)
 						throw invalid_argument("3D object material: incompatible texture usage, normal map expected.");
-					texs.push_back(subobjAdvanced.normalMap);
+					texs.push_back(subobjAdvanced.normalMap.Acquire());
 					tgcount += subobjAdvanced.vcount;
 				}
 				if (subobjAdvanced.glassMask)
 				{
 					if (subobjAdvanced.glassMask.Usage() != TextureUsage::GlassMask)
 						throw invalid_argument("3D object material: incompatible texture usage, glass mask expected.");
-					texs.push_back(subobjAdvanced.glassMask);
+					texs.push_back(subobjAdvanced.glassMask.Acquire());
 				}
 
 				return make_from_tuple<Subobject>(tuple_cat(commonArgs, forward_as_tuple(PSO, descriptorTableOffset)));
