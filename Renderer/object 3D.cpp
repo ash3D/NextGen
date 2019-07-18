@@ -192,14 +192,21 @@ void Impl::Object3D::Subobject::SetupTV(ID3D12GraphicsCommandList2 *cmdList, Con
 #pragma region DescriptorTablePack
 class Impl::Object3D::DescriptorTablePack final : Descriptors::GPUDescriptorHeap::AllocationClient
 {
-	ComPtr<ID3D12DescriptorHeap> CPUStore;
 	vector<TrackedResource<ID3D12Resource>> textures;	// hold refs
+	const shared_future<ComPtr<ID3D12DescriptorHeap>> CPUStore;
 
 public:
 #ifdef _MSC_VER
 	DescriptorTablePack(vector<TrackedResource<ID3D12Resource>> &&textures, const wstring &objectName);
 #else
 	DescriptorTablePack(vector<TrackedResource<ID3D12Resource>> &&textures, const string &objectName);
+#endif
+
+private:
+#ifdef _MSC_VER
+	inline ComPtr<ID3D12DescriptorHeap> CreateBackingStore(const wstring &objectName);
+#else
+	inline ComPtr<ID3D12DescriptorHeap> CreateBackingStore(const string &objectName);
 #endif
 
 public:
@@ -215,14 +222,23 @@ Impl::Object3D::DescriptorTablePack::DescriptorTablePack(vector<TrackedResource<
 #else
 Impl::Object3D::DescriptorTablePack::DescriptorTablePack(vector<TrackedResource<ID3D12Resource>> &&textures, const string &objectName) :
 #endif
-	AllocationClient(textures.size()), textures(move(textures))
+	AllocationClient(textures.size()), textures(move(textures)), CPUStore(async(&DescriptorTablePack::CreateBackingStore, this, objectName))
 {
-	this->textures.shrink_to_fit();
+}
+
+#ifdef _MSC_VER
+ComPtr<ID3D12DescriptorHeap> Impl::Object3D::DescriptorTablePack::CreateBackingStore(const wstring &objectName)
+#else
+ComPtr<ID3D12DescriptorHeap> Impl::Object3D::DescriptorTablePack::CreateBackingStore(const string &objectName)
+#endif
+{
+	textures.shrink_to_fit();
+	ComPtr<ID3D12DescriptorHeap> CPUStore;
 	const D3D12_DESCRIPTOR_HEAP_DESC packDesc =
 	{
-		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,		// type
-		this->textures.size(),						// count
-		D3D12_DESCRIPTOR_HEAP_FLAG_NONE				// GPU invisible
+		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,	// type
+		textures.size(),						// count
+		D3D12_DESCRIPTOR_HEAP_FLAG_NONE			// GPU invisible
 	};
 	CheckHR(device->CreateDescriptorHeap(&packDesc, IID_PPV_ARGS(CPUStore.GetAddressOf())));
 #ifdef _MSC_VER
@@ -233,11 +249,12 @@ Impl::Object3D::DescriptorTablePack::DescriptorTablePack(vector<TrackedResource<
 	const auto descriptorSize = device->GetDescriptorHandleIncrementSize(packDesc.Type);
 	// TODO: use C++20 initializer in range-based for
 	CD3DX12_CPU_DESCRIPTOR_HANDLE dstDesc(CPUStore->GetCPUDescriptorHandleForHeapStart());
-	for (const auto &srcTex : this->textures)
+	for (const auto &srcTex : textures)
 	{
 		device->CreateShaderResourceView(srcTex.Get(), NULL, dstDesc);
 		dstDesc.Offset(descriptorSize);
 	}
+	return CPUStore;
 }
 
 inline void Impl::Object3D::DescriptorTablePack::Set(ID3D12GraphicsCommandList2 *cmdList) const
@@ -247,8 +264,9 @@ inline void Impl::Object3D::DescriptorTablePack::Set(ID3D12GraphicsCommandList2 
 
 void Impl::Object3D::DescriptorTablePack::Commit(D3D12_CPU_DESCRIPTOR_HANDLE dst) const
 {
-	const auto packDesc = CPUStore->GetDesc();
-	device->CopyDescriptorsSimple(packDesc.NumDescriptors, dst, CPUStore->GetCPUDescriptorHandleForHeapStart(), packDesc.Type);
+	const auto &backingStore = CPUStore.get();
+	const auto packDesc = backingStore->GetDesc();
+	device->CopyDescriptorsSimple(packDesc.NumDescriptors, dst, backingStore->GetCPUDescriptorHandleForHeapStart(), packDesc.Type);
 }
 #pragma endregion
 
