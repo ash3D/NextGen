@@ -40,7 +40,7 @@ namespace Renderer
 
 		class Texture
 		{
-			WRL::ComPtr<ID3D12Resource> tex;	// in system RAM
+			WRL::ComPtr<ID3D12Resource> tex;
 			TextureUsage usage;					// not const to enable 'operator ='
 
 		protected:
