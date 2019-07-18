@@ -833,7 +833,6 @@ auto Impl::Object3D::CreateBundle(const decltype(subobjects) &subobjects, unsign
 		}
 
 #if INTEL_WORKAROUND
-		// TODO: use C++20 initializer in range-based for
 		auto material_GPU_ptr = VIB->GetGPUVirtualAddress();
 #endif
 		for (unsigned i = 0; i < subobjCount; i++)

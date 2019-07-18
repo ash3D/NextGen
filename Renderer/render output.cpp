@@ -188,7 +188,7 @@ void RenderOutput::NextFrame(bool vsync)
 	CheckHR(swapChain->GetBuffer(idx, IID_PPV_ARGS(&output)));
 	GPUDescriptorHeap::OnFrameStart();
 	globalFrameVersioning->OnFrameStart();
-	const auto tonemapDescriptorTable = GPUDescriptorHeap::SetCurFrameTonemapReductionDescs(tonemapViewsCPUHeap, idx);
+	const auto tonemapDescriptorTable = GPUDescriptorHeap::SetCurFrameTonemapReductionDescs(tonemapViewsCPUHeap);
 	viewport->Render(output.Get(), rendertarget.Get(), ZBuffer.Get(), HDRSurface.Get(), LDRSurface.Get(), tonemapReductionBuffer.Get(),
 		rtvHeap->GetCPUDescriptorHandleForHeapStart(), dsvHeap->GetCPUDescriptorHandleForHeapStart(), tonemapDescriptorTable, width, height);
 	CheckHR(swapChain->Present(vsync, 0));

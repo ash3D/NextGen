@@ -21,7 +21,7 @@ namespace Renderer::Impl::Descriptors
 
 		inline const auto &GetHeap() noexcept { return Impl::heap; }
 		void OnFrameStart();
-		D3D12_GPU_DESCRIPTOR_HANDLE SetCurFrameTonemapReductionDescs(const TonemapResourceViewsStage &src, UINT backBufferIdx);
+		D3D12_GPU_DESCRIPTOR_HANDLE SetCurFrameTonemapReductionDescs(const TonemapResourceViewsStage &src);
 
 		class AllocationClient
 		{

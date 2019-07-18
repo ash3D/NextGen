@@ -83,7 +83,7 @@ void GPUDescriptorHeap::OnFrameStart()
 	}
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE GPUDescriptorHeap::SetCurFrameTonemapReductionDescs(const TonemapResourceViewsStage &stage, UINT backBufferIdx)
+D3D12_GPU_DESCRIPTOR_HANDLE GPUDescriptorHeap::SetCurFrameTonemapReductionDescs(const TonemapResourceViewsStage &stage)
 {
 	const auto descriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	const auto GPUHeapOffset = globalFrameVersioning->GetContinuousRingIdx() * TonemapResourceViewsStage::ViewCount * descriptorSize;
