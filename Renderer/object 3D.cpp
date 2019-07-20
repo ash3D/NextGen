@@ -2,7 +2,7 @@
 #include "object 3D.hh"
 #include "tracked resource.inl"
 #include "GPU descriptor heap.h"
-#include "GPU texture sampler table.h"
+#include "GPU texture sampler tables.h"
 #include "shader bytecode.h"
 #include "config.h"
 #ifdef _MSC_VER
@@ -46,7 +46,7 @@ namespace
 	struct alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) alignas(D3D12_COMMONSHADER_CONSTANT_BUFFER_PARTIAL_UPDATE_EXTENTS_BYTE_ALIGNMENT) MaterialData
 	{
 		float3		albedo;
-		uint32_t	descriptorTableOffset;
+		uint16_t	textureDescriptorTableOffset, samplerDescriptorTableOffset;
 		float		TVBrighntess;
 	};
 }
@@ -75,9 +75,13 @@ struct Impl::Object3D::Subobject
 	unsigned short int tricount;
 
 private:
-	unsigned short int descriptorTableOffset;
+	unsigned short int textureDescriptorTableOffset;
 	float3 albedo;
-	float TVBrighntess;
+	union
+	{
+		float TVBrighntess;
+		bool tiled;
+	};
 #if INTEL_WORKAROUND
 	void (Subobject:: *FillMaterialSelector)(volatile MaterialData *dst) const;
 #else
@@ -87,8 +91,8 @@ private:
 public:
 	inline Subobject() = default;
 	inline Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, const float3 &albedo);
-	inline Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, unsigned short int descriptorTableOffset);
-	inline Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, const float3 &albedo, float TVBrighntess, unsigned short int descriptorTableOffset);
+	inline Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, unsigned short int textureDescriptorTableOffset, bool tiled);
+	inline Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, const float3 &albedo, float TVBrighntess, unsigned short int textureDescriptorTableOffset);
 
 public:
 #if INTEL_WORKAROUND
@@ -97,6 +101,7 @@ public:
 	inline void Setup(ID3D12GraphicsCommandList2 *target, Context &ctx) const;
 
 private:
+	inline auto SamplerDescriptorTableOffset() const noexcept;
 #if INTEL_WORKAROUND
 	void FillAlbedoMaterial(volatile MaterialData *dst) const, FillTexMaterial(volatile MaterialData *dst) const, FillTVMaterial(volatile MaterialData *dst) const;
 #else
@@ -104,8 +109,10 @@ private:
 #endif
 };
 
-inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, const float3 &albedo) :
-	PSO(PSO), aabb(aabb), vcount(vcount), triOffset(triOffset), tricount(tricount), albedo(albedo),
+inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO,
+	const float3 &albedo) :
+	PSO(PSO), aabb(aabb), vcount(vcount), triOffset(triOffset), tricount(tricount),
+	albedo(albedo),
 #if INTEL_WORKAROUND
 	FillMaterialSelector(&Subobject::FillAlbedoMaterial)
 #else
@@ -114,8 +121,10 @@ inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long i
 {
 }
 
-inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, unsigned short int descriptorTableOffset) :
-	PSO(PSO), aabb(aabb), vcount(vcount), triOffset(triOffset), tricount(tricount), descriptorTableOffset(descriptorTableOffset),
+inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO,
+	unsigned short int textureDescriptorTableOffset, bool tiled) :
+	PSO(PSO), aabb(aabb), vcount(vcount), triOffset(triOffset), tricount(tricount),
+	textureDescriptorTableOffset(textureDescriptorTableOffset), tiled(tiled),
 #if INTEL_WORKAROUND
 	FillMaterialSelector(&Subobject::FillTexMaterial)
 #else
@@ -124,8 +133,10 @@ inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long i
 {
 }
 
-inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, const float3 &albedo, float TVBrighntess, unsigned short int descriptorTableOffset) :
-	PSO(PSO), aabb(aabb), vcount(vcount), triOffset(triOffset), tricount(tricount), descriptorTableOffset(descriptorTableOffset), albedo(albedo), TVBrighntess(TVBrighntess),
+inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO,
+	const float3 &albedo, float TVBrighntess, unsigned short int textureDescriptorTableOffset) :
+	PSO(PSO), aabb(aabb), vcount(vcount), triOffset(triOffset), tricount(tricount),
+	textureDescriptorTableOffset(textureDescriptorTableOffset), albedo(albedo), TVBrighntess(TVBrighntess),
 #if INTEL_WORKAROUND
 	FillMaterialSelector(&Subobject::FillTVMaterial)
 #else
@@ -150,6 +161,11 @@ inline void Impl::Object3D::Subobject::Setup(ID3D12GraphicsCommandList2 *target,
 #endif
 }
 
+inline auto Impl::Object3D::Subobject::SamplerDescriptorTableOffset() const noexcept
+{
+	return tiled * Descriptors::TextureSamplers::OBJ3D_COMMON_SAMPLERS_COUNT;
+}
+
 #if INTEL_WORKAROUND
 inline void Impl::Object3D::Subobject::FillAlbedoMaterial(volatile MaterialData *dst) const
 {
@@ -158,13 +174,14 @@ inline void Impl::Object3D::Subobject::FillAlbedoMaterial(volatile MaterialData 
 
 inline void Impl::Object3D::Subobject::FillTexMaterial(volatile MaterialData *dst) const
 {
-	dst->descriptorTableOffset = descriptorTableOffset;
+	dst->textureDescriptorTableOffset = textureDescriptorTableOffset;
+	dst->samplerDescriptorTableOffset = SamplerDescriptorTableOffset();
 }
 
 void Impl::Object3D::Subobject::FillTVMaterial(volatile MaterialData *dst) const
 {
 	FillAlbedoMaterial(dst);
-	FillTexMaterial(dst);
+	dst->textureDescriptorTableOffset = textureDescriptorTableOffset;
 	dst->TVBrighntess = TVBrighntess;
 }
 #else
@@ -176,13 +193,13 @@ inline void Impl::Object3D::Subobject::SetupAlbedo(ID3D12GraphicsCommandList2 *c
 
 inline void Impl::Object3D::Subobject::SetupTex(ID3D12GraphicsCommandList2 *cmdList, Context &) const
 {
-	cmdList->SetGraphicsRoot32BitConstant(ROOT_PARAM_MATERIAL, descriptorTableOffset, decltype(Context::curAlbedo)::dimension);
+	cmdList->SetGraphicsRoot32BitConstant(ROOT_PARAM_MATERIAL, textureDescriptorTableOffset, decltype(Context::curAlbedo)::dimension);
 }
 
 void Impl::Object3D::Subobject::SetupTV(ID3D12GraphicsCommandList2 *cmdList, Context &ctx) const
 {
 	SetupAlbedo(cmdList, ctx);
-	SetupTex(cmdList, ctx);
+	cmdList->SetGraphicsRoot32BitConstant(ROOT_PARAM_MATERIAL, textureDescriptorTableOffset | SamplerDescriptorTableOffset() << 16, decltype(Context::curAlbedo)::dimension);
 	if (ctx.curTVBrighntess != TVBrighntess)
 		cmdList->SetGraphicsRoot32BitConstant(ROOT_PARAM_MATERIAL, reinterpret_cast<const UINT &>(ctx.curTVBrighntess = TVBrighntess), decltype(Context::curAlbedo)::dimension + 1);	// strict aliasing rule violation, use C++20 bit_cast instead
 }
@@ -272,6 +289,7 @@ void Impl::Object3D::DescriptorTablePack::Commit(D3D12_CPU_DESCRIPTOR_HANDLE dst
 
 WRL::ComPtr<ID3D12RootSignature> Impl::Object3D::CreateRootSig()
 {
+	namespace TextureSamplers = Descriptors::TextureSamplers;
 	ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC &desc, LPCWSTR name);
 	CD3DX12_ROOT_PARAMETER1 rootParams[ROOT_PARAM_COUNT];
 	rootParams[ROOT_PARAM_PER_FRAME_DATA_CBV].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC);									// per-frame data
@@ -285,7 +303,7 @@ WRL::ComPtr<ID3D12RootSignature> Impl::Object3D::CreateRootSig()
 	// an unbounded range declared as STATIC means the rest of the heap is STATIC => specify VOLATILE
 	const CD3DX12_DESCRIPTOR_RANGE1 descTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, UINT_MAX/*unbounded*/, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
 	rootParams[ROOT_PARAM_TEXTURE_DESC_TABLE].InitAsDescriptorTable(1, &descTable, D3D12_SHADER_VISIBILITY_PIXEL);
-	rootParams[ROOT_PARAM_SAMPLER_DESC_TABLE] = Descriptors::TextureSampers::GetDescTable(D3D12_SHADER_VISIBILITY_PIXEL);
+	rootParams[ROOT_PARAM_SAMPLER_DESC_TABLE] = TextureSamplers::GetDescTable(TextureSamplers::OBJECT3D_DESC_TABLE_ID, D3D12_SHADER_VISIBILITY_PIXEL);
 	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(size(rootParams), rootParams, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	return CreateRootSignature(sigDesc, L"object 3D root signature");
 }
@@ -498,27 +516,27 @@ Impl::Object3D::Object3D(unsigned short int subobjCount, const SubobjectDataCall
 			Subobject operator ()(const SubobjectData<SubobjectType::Tex> &subobjTex) const
 			{
 				ID3D12PipelineState *const PSO = PSOs[subobjTex.doublesided].tex[subobjTex.alphatest].Get();
-				const unsigned int descriptorTableOffset = texs.size();
+				const unsigned int textureDescriptorTableOffset = texs.size();
 
 				if (subobjTex.albedoMap.Usage() != TextureUsage::AlbedoMap)
 					throw invalid_argument("3D object material: incompatible texture usage, albedo map expected.");
 				texs.push_back(subobjTex.albedoMap.Acquire());
 				uvcount += subobjTex.vcount;
 
-				return make_from_tuple<Subobject>(tuple_cat(commonArgs, forward_as_tuple(PSO, descriptorTableOffset)));
+				return make_from_tuple<Subobject>(tuple_cat(commonArgs, forward_as_tuple(PSO, textureDescriptorTableOffset, subobjTex.tiled)));
 			}
 
 			Subobject operator ()(const SubobjectData<SubobjectType::TV> &subobjTV) const
 			{
 				ID3D12PipelineState *const PSO = PSOs[subobjTV.doublesided].TV.Get();
-				const unsigned int descriptorTableOffset = texs.size();
+				const unsigned int textureDescriptorTableOffset = texs.size();
 
 				if (subobjTV.screen.Usage() != TextureUsage::TVScreen)
 					throw invalid_argument("3D object material: incompatible texture usage, TV screen expected.");
 				texs.push_back(subobjTV.screen.Acquire());
 				uvcount += subobjTV.vcount;
 
-				return make_from_tuple<Subobject>(tuple_cat(commonArgs, forward_as_tuple(PSO, subobjTV.albedo, subobjTV.brighntess, descriptorTableOffset)));
+				return make_from_tuple<Subobject>(tuple_cat(commonArgs, forward_as_tuple(PSO, subobjTV.albedo, subobjTV.brighntess, textureDescriptorTableOffset)));
 			}
 
 			Subobject operator ()(const SubobjectData<SubobjectType::Advanced> &subobjAdvanced) const
@@ -527,7 +545,7 @@ Impl::Object3D::Object3D(unsigned short int subobjCount, const SubobjectDataCall
 				if (!materialFlags)
 					throw logic_error("Advanced 3D object material provided without either normal map or glass mask");
 				ID3D12PipelineState *const PSO = PSOs[subobjAdvanced.doublesided].advanced[materialFlags - 1].Get();
-				const unsigned int descriptorTableOffset = texs.size();
+				const unsigned int textureDescriptorTableOffset = texs.size();
 
 				// !: order of texture insertions is essential - it must match shader signature
 				if (subobjAdvanced.albedoMap.Usage() != TextureUsage::AlbedoMap)
@@ -548,7 +566,7 @@ Impl::Object3D::Object3D(unsigned short int subobjCount, const SubobjectDataCall
 					texs.push_back(subobjAdvanced.glassMask.Acquire());
 				}
 
-				return make_from_tuple<Subobject>(tuple_cat(commonArgs, forward_as_tuple(PSO, descriptorTableOffset)));
+				return make_from_tuple<Subobject>(tuple_cat(commonArgs, forward_as_tuple(PSO, textureDescriptorTableOffset, subobjAdvanced.tiled)));
 			}
 		} subobjParser(commonArgs, texs, uvcount, tgcount);
 
@@ -742,9 +760,9 @@ void Impl::Object3D::Setup(ID3D12GraphicsCommandList2 *cmdList, UINT64 frameData
 	cmdList->SetGraphicsRootSignature(rootSig.Get());
 	cmdList->SetGraphicsRootConstantBufferView(ROOT_PARAM_PER_FRAME_DATA_CBV, frameDataGPUPtr);
 	cmdList->SetGraphicsRootConstantBufferView(ROOT_PARAM_TONEMAP_PARAMS_CBV, tonemapParamsGPUPtr);
-	ID3D12DescriptorHeap *const descHeaps[] = { GPUDescriptorHeap::GetHeap().Get(), TextureSampers::GetHeap().Get() };
+	ID3D12DescriptorHeap *const descHeaps[] = { GPUDescriptorHeap::GetHeap().Get(), TextureSamplers::GetHeap().Get() };
 	cmdList->SetDescriptorHeaps(size(descHeaps), descHeaps);
-	cmdList->SetGraphicsRootDescriptorTable(ROOT_PARAM_SAMPLER_DESC_TABLE, descHeaps[1]/*samplers heap*/->GetGPUDescriptorHandleForHeapStart());
+	cmdList->SetGraphicsRootDescriptorTable(ROOT_PARAM_SAMPLER_DESC_TABLE, TextureSamplers::GetGPUAddress(TextureSamplers::OBJECT3D_DESC_TABLE_ID));
 }
 
 ID3D12PipelineState *Impl::Object3D::GetStartPSO() const

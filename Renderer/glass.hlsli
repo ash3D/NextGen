@@ -2,14 +2,13 @@
 #define GLASS_INCLUDED
 
 #include "object3D material.hlsli"
-#include "samplers.hlsli"
 #include "fresnel.hlsli"
 
 void ApplyGlassMask(in float2 uv, inout float roughness, inout float f0)
 {
 	static const float threshold = .8f, glassRough = 1e-2f, glassIOR = 1.51714f;
 
-	const float glass = SelectTexture(GLASS_MASK).Sample(obj3DGlassMaskSampler, uv);
+	const float glass = SelectTexture(GLASS_MASK).Sample(SelectSampler(TextureSamplers::OBJ3D_GLASS_MASK_SAMPLER), uv);
 	if (glass >= threshold)
 	{
 		// just replace rough & IOR for now, consider multi-layered material instead

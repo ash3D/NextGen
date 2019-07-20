@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "terrain materials.hh"
 #include "texture.hh"
-#include "GPU texture sampler table.h"
+#include "GPU texture sampler tables.h"
 #include "fresnel.h"
 #include "shader bytecode.h"
 #include "config.h"
@@ -111,10 +111,10 @@ inline void Impl::TexStuff<Base>::FinishSetup(ID3D12GraphicsCommandList2 *cmdLis
 	using namespace Impl::Descriptors;
 	if constexpr (BaseHasFinishSetup::value)
 		Base::FinishSetup(cmdList);
-	ID3D12DescriptorHeap *const descHeaps[] = { GPUDescriptorHeap::GetHeap().Get(), TextureSampers::GetHeap().Get() };
+	ID3D12DescriptorHeap *const descHeaps[] = { GPUDescriptorHeap::GetHeap().Get(), TextureSamplers::GetHeap().Get() };
 	cmdList->SetDescriptorHeaps(size(descHeaps), descHeaps);
 	cmdList->SetGraphicsRootDescriptorTable(ROOT_PARAM_TEXTURE_DESC_TABLE, { GetGPUDescriptorsAllocation() });
-	cmdList->SetGraphicsRootDescriptorTable(ROOT_PARAM_SAMPLER_DESC_TABLE, descHeaps[1]/*samplers heap*/->GetGPUDescriptorHandleForHeapStart());
+	cmdList->SetGraphicsRootDescriptorTable(ROOT_PARAM_SAMPLER_DESC_TABLE, TextureSamplers::GetGPUAddress(TextureSamplers::TERRAIN_DESC_TABLE_ID));
 	cmdList->SetGraphicsRoot32BitConstant(ROOT_PARAM_TEXTURE_SCALE, reinterpret_cast<const UINT &>(texScale), 0);	// strict aliasing rule violation, use C++20 bit_cast instead
 }
 
@@ -238,12 +238,13 @@ inline void Flat::FinishSetup(ID3D12GraphicsCommandList2 *cmdList) const
 #pragma region Textured
 ComPtr<ID3D12RootSignature> Textured::CreateRootSig()
 {
+	namespace TextureSamplers = Impl::Descriptors::TextureSamplers;
 	// desc tables lifetime must last up to create call so if it gets filled in helper function (FillRootParams) it must be static
 	CD3DX12_ROOT_PARAMETER1 rootParams[ROOT_PARAM_COUNT];
 	Flat::FillRootParams(rootParams);
 	const CD3DX12_DESCRIPTOR_RANGE1 descTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
 	rootParams[ROOT_PARAM_TEXTURE_DESC_TABLE].InitAsDescriptorTable(1, &descTable, D3D12_SHADER_VISIBILITY_PIXEL);
-	rootParams[ROOT_PARAM_SAMPLER_DESC_TABLE] = Impl::Descriptors::TextureSampers::GetDescTable(D3D12_SHADER_VISIBILITY_PIXEL);
+	rootParams[ROOT_PARAM_SAMPLER_DESC_TABLE] = TextureSamplers::GetDescTable(TextureSamplers::TERRAIN_DESC_TABLE_ID, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParams[ROOT_PARAM_QUAD_TEXGEN_REDUCTION].InitAsConstants(2, 0, 2, D3D12_SHADER_VISIBILITY_VERTEX);
 	rootParams[ROOT_PARAM_TEXTURE_SCALE].InitAsConstants(1, 1, 2, D3D12_SHADER_VISIBILITY_VERTEX);
 	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(size(rootParams), rootParams, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
@@ -340,12 +341,13 @@ shared_ptr<Interface> Textured::Make(const float (&albedo)[3], const Texture &te
 #pragma region Standard
 ComPtr<ID3D12RootSignature> Standard::CreateRootSig()
 {
+	namespace TextureSamplers = Impl::Descriptors::TextureSamplers;
 	// desc tables lifetime must last up to create call so if it gets filled in helper function (FillRootParams) it must be static
 	CD3DX12_ROOT_PARAMETER1 rootParams[ROOT_PARAM_COUNT];
 	Interface::FillRootParams(rootParams);
 	const CD3DX12_DESCRIPTOR_RANGE1 descTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, TEXTURE_COUNT, 0);
 	rootParams[ROOT_PARAM_TEXTURE_DESC_TABLE].InitAsDescriptorTable(1, &descTable, D3D12_SHADER_VISIBILITY_PIXEL);
-	rootParams[ROOT_PARAM_SAMPLER_DESC_TABLE] = Impl::Descriptors::TextureSampers::GetDescTable(D3D12_SHADER_VISIBILITY_PIXEL);
+	rootParams[ROOT_PARAM_SAMPLER_DESC_TABLE] = TextureSamplers::GetDescTable(TextureSamplers::TERRAIN_DESC_TABLE_ID, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParams[ROOT_PARAM_QUAD_TEXGEN_REDUCTION].InitAsConstants(2, 0, 2, D3D12_SHADER_VISIBILITY_VERTEX);
 	rootParams[ROOT_PARAM_TEXTURE_SCALE].InitAsConstants(1, 1, 2, D3D12_SHADER_VISIBILITY_VERTEX);
 	rootParams[ROOT_PARAM_F0].InitAsConstants(1, 1, 1, D3D12_SHADER_VISIBILITY_PIXEL);
@@ -461,12 +463,13 @@ void Standard::FinishSetup(ID3D12GraphicsCommandList2 *cmdList) const
 #pragma region Extended
 ComPtr<ID3D12RootSignature> Extended::CreateRootSig()
 {
+	namespace TextureSamplers = Impl::Descriptors::TextureSamplers;
 	// desc tables lifetime must last up to create call so if it gets filled in helper function (FillRootParams) it must be static
 	CD3DX12_ROOT_PARAMETER1 rootParams[ROOT_PARAM_COUNT];
 	Interface::FillRootParams(rootParams);
 	const CD3DX12_DESCRIPTOR_RANGE1 descTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, TEXTURE_COUNT, 0);
 	rootParams[ROOT_PARAM_TEXTURE_DESC_TABLE].InitAsDescriptorTable(1, &descTable, D3D12_SHADER_VISIBILITY_PIXEL);
-	rootParams[ROOT_PARAM_SAMPLER_DESC_TABLE] = Impl::Descriptors::TextureSampers::GetDescTable(D3D12_SHADER_VISIBILITY_PIXEL);
+	rootParams[ROOT_PARAM_SAMPLER_DESC_TABLE] = TextureSamplers::GetDescTable(TextureSamplers::TERRAIN_DESC_TABLE_ID, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParams[ROOT_PARAM_QUAD_TEXGEN_REDUCTION].InitAsConstants(2, 0, 2, D3D12_SHADER_VISIBILITY_VERTEX);
 	rootParams[ROOT_PARAM_TEXTURE_SCALE].InitAsConstants(1, 1, 2, D3D12_SHADER_VISIBILITY_VERTEX);
 	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(size(rootParams), rootParams, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);

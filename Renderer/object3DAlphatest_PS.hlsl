@@ -9,7 +9,6 @@ enum TextureID
 #include "tonemap params.hlsli"
 #include "object3D material.hlsli"
 #include "object3D VS 2 PS.hlsli"
-#include "samplers.hlsli"
 #include "lighting.hlsli"
 #include "HDR codec.hlsli"
 
@@ -37,7 +36,7 @@ float4 main(in XformedVertex_UV input, in bool front : SV_IsFrontFace, inout uin
 	{
 		if (sampleMask & curSampleBit)
 		{
-			const float4 curSampleFetch = SelectTexture(ALBEDO_MAP).Sample(obj3DAlbedoAlphatestSampler, EvaluateAttributeAtSample(input.uv, i));
+			const float4 curSampleFetch = SelectTexture(ALBEDO_MAP).Sample(SelectSampler(TextureSamplers::OBJ3D_ALBEDO_ALPHATEST_SAMPLER), EvaluateAttributeAtSample(input.uv, i));
 			if (curSampleFetch.a >= alphaThreshold)
 				albedo += curSampleFetch;
 			else

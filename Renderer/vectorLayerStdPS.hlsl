@@ -2,7 +2,7 @@
 #include "tonemap params.hlsli"
 #include "lighting.hlsli"
 #include "HDR codec.hlsli"
-#include "samplers.hlsli"
+#include "terrain samplers.hlsli"
 
 ConstantBuffer<TonemapParams> tonemapParams : register(b0, space1);
 
@@ -23,7 +23,7 @@ float4 main(in float3 viewDir : ViewDir, in float2 uv : UV) : SV_TARGET
 		terrain 'up' inverted so -1 for N
 	*/
 	float3 n;
-	n.xy = normalMap.Sample(terrainBumpSampler, uv);
+	n.xy = normalMap.Sample(TerrainSamplers::bump, uv);
 	n.z = -sqrt(saturate(1.f - length(n.xy)));
 
 	/*
@@ -34,7 +34,7 @@ float4 main(in float3 viewDir : ViewDir, in float2 uv : UV) : SV_TARGET
 	*/
 	n = mul(mul(n, terrainWorldXform), viewXform);
 
-	const float3 color = Lit(albedoMap.Sample(terrainAlbedoSampler, uv), roughnessMap.Sample(terrainRoughnessSampler, uv), f0, viewXform[2], n, normalize(viewDir), sun.dir, sun.irradiance);
+	const float3 color = Lit(albedoMap.Sample(TerrainSamplers::albedo, uv), roughnessMap.Sample(TerrainSamplers::roughness, uv), f0, viewXform[2], n, normalize(viewDir), sun.dir, sun.irradiance);
 
 	return EncodeHDR(color, tonemapParams.exposure);
 }

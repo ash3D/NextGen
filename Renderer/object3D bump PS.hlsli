@@ -14,7 +14,6 @@ enum TextureID
 #include "tonemap params.hlsli"
 #include "object3D material.hlsli"
 #include "object3D VS 2 PS.hlsli"
-#include "samplers.hlsli"
 #include "glass.hlsli"
 #include "lighting.hlsli"
 #include "HDR codec.hlsli"
@@ -41,11 +40,11 @@ float4 PS(in XformedVertex_UV_TG input, in bool front, uniform bool enableGlassM
 #endif
 	FixTBN(TBN, input.viewDir);
 	float3 n;
-	n.xy = SelectTexture(NORMAL_MAP).Sample(obj3DBumpSampler, input.uv) * input.normalScale;
+	n.xy = SelectTexture(NORMAL_MAP).Sample(SelectSampler(TextureSamplers::OBJ3D_BUMP_SAMPLER), input.uv) * input.normalScale;
 	n.z = sqrt(saturate(1.f - length(n.xy)));
 	n = mul(n, TBN);
 
-	const float3 albedo = SelectTexture(ALBEDO_MAP).Sample(obj3DAlbedoSampler, input.uv);
+	const float3 albedo = SelectTexture(ALBEDO_MAP).Sample(SelectSampler(TextureSamplers::OBJ3D_ALBEDO_SAMPLER), input.uv);
 	float roughness = .5f, f0 = F0(1.55f);
 	if (enableGlassMask)
 		ApplyGlassMask(input.uv, roughness, f0);

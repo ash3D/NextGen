@@ -274,7 +274,7 @@ static inline Optional TryCreate(const char object[])
 	return nullopt;
 }
 
-namespace Renderer::Impl::Descriptors::TextureSampers::Impl
+namespace Renderer::Impl::Descriptors::TextureSamplers::Impl
 {
 	ComPtr<ID3D12DescriptorHeap> CreateHeap(), heap = Try(CreateHeap, "GPU texture sampler heap");
 }
@@ -388,14 +388,14 @@ extern void __cdecl InitRenderer()
 {
 	if (!factory || !device)
 	{
-		namespace TextureSampers = Renderer::Impl::Descriptors::TextureSampers;
+		namespace TextureSamplers = Renderer::Impl::Descriptors::TextureSamplers;
 		namespace GPUDescriptorHeap = Renderer::Impl::Descriptors::GPUDescriptorHeap;
 		namespace DMAEngine = Renderer::DMA::Impl;
 		factory									= CreateFactory();
 		device									= CreateDevice();
 		gfxQueue								= CreateGraphicsCommandQueue();
 		dmaQueue								= CreateDMACommandQueue();
-		TextureSampers::Impl::heap				= TextureSampers::Impl::CreateHeap();
+		TextureSamplers::Impl::heap				= TextureSamplers::Impl::CreateHeap();
 		RenderOutput::tonemapReductionBuffer	= RenderOutput::CreateTonemapReductionBuffer();
 		Viewport::tonemapRootSig				= Viewport::CreateTonemapRootSig();
 		Viewport::tonemapTextureReductionPSO	= Viewport::CreateTonemapTextureReductionPSO();

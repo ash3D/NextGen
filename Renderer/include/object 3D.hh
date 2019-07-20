@@ -98,7 +98,7 @@ namespace Renderer
 			struct SubobjectData<SubobjectType::Tex> : SubobjectDataUV
 			{
 				Renderer::Texture albedoMap;
-				bool alphatest;
+				bool tiled, alphatest;
 			};
 
 			template<>
@@ -113,6 +113,7 @@ namespace Renderer
 			{
 				const float (*tangents)[2][3];
 				Renderer::Texture albedoMap, normalMap, glassMask;
+				bool tiled;
 			};
 
 		protected:

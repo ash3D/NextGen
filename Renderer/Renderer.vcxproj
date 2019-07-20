@@ -227,7 +227,7 @@
     <ClInclude Include="global GPU buffer data.h" />
     <ClInclude Include="GPU descriptor heap.h" />
     <ClInclude Include="GPU stream buffer allocator.h" />
-    <ClInclude Include="GPU texture sampler table.h" />
+    <ClInclude Include="GPU texture sampler tables.h" />
     <ClInclude Include="GPU work submission.h" />
     <ClInclude Include="HRESULT.h" />
     <ClInclude Include="include\instance.hh" />
@@ -277,7 +277,7 @@
     <ClCompile Include="frustum culling.cpp" />
     <ClCompile Include="GPU descriptor heap.cpp" />
     <ClCompile Include="GPU stream buffer allocator.cpp" />
-    <ClCompile Include="GPU texture sampler table.cpp" />
+    <ClCompile Include="GPU texture sampler tables.cpp" />
     <ClCompile Include="GPU work submission.cpp" />
     <ClCompile Include="instance.cpp" />
     <ClCompile Include="main.cpp" />
@@ -482,12 +482,13 @@
     <None Include="lighting.hlsli" />
     <None Include="luminance.hlsli" />
     <None Include="object3D bump PS.hlsli" />
+    <None Include="object3D common samplers.hlsli" />
     <None Include="object3D material.hlsli" />
     <None Include="object3D tex PS.hlsli" />
     <None Include="object3D VS 2 PS.hlsli" />
     <None Include="packages.config" />
     <None Include="per-frame data.hlsli" />
-    <None Include="samplers.hlsli" />
+    <None Include="terrain samplers.hlsli" />
     <None Include="tonemap params.hlsli" />
     <None Include="tonemapBufferReduction config.hlsli" />
     <None Include="tonemapLocalReduction.hlsli" />
