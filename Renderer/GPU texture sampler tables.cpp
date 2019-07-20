@@ -56,16 +56,14 @@ ComPtr<ID3D12DescriptorHeap> TextureSamplers::Impl::CreateHeap()
 		{
 			const D3D12_SAMPLER_DESC desc =
 			{
-				D3D12_FILTER_ANISOTROPIC,
-				D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-				D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-				D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-				0,										// LOD bias
-				Aniso::Terrain::albedo,
-				D3D12_COMPARISON_FUNC_NEVER,
-				{},										// border color
-				-D3D12_FLOAT32_MAX,						// min LOD
-				+D3D12_FLOAT32_MAX						// max LOD
+				.Filter = D3D12_FILTER_ANISOTROPIC,
+				.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+				.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+				.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+				.MaxAnisotropy = Aniso::Terrain::albedo,
+				.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
+				.MinLOD = -D3D12_FLOAT32_MAX,
+				.MaxLOD = +D3D12_FLOAT32_MAX
 			};
 			device->CreateSampler(&desc, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, allocationTable[TERRAIN_DESC_TABLE_ID] + TERRAIN_ALBEDO_SAMPLER, descriptorSize));
 		}
@@ -74,16 +72,14 @@ ComPtr<ID3D12DescriptorHeap> TextureSamplers::Impl::CreateHeap()
 		{
 			const D3D12_SAMPLER_DESC desc =
 			{
-				D3D12_FILTER_ANISOTROPIC,
-				D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-				D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-				D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-				0,										// LOD bias
-				Aniso::Terrain::fresnel,
-				D3D12_COMPARISON_FUNC_NEVER,
-				{},										// border color
-				-D3D12_FLOAT32_MAX,						// min LOD
-				+D3D12_FLOAT32_MAX						// max LOD
+				.Filter = D3D12_FILTER_ANISOTROPIC,
+				.AddressU =D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+				.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+				.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+				.MaxAnisotropy = Aniso::Terrain::fresnel,
+				.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
+				.MinLOD = -D3D12_FLOAT32_MAX,
+				.MaxLOD = +D3D12_FLOAT32_MAX
 			};
 			device->CreateSampler(&desc, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, allocationTable[TERRAIN_DESC_TABLE_ID] + TERRAIN_FRESNEL_SAMPLER, descriptorSize));
 		}
@@ -92,16 +88,14 @@ ComPtr<ID3D12DescriptorHeap> TextureSamplers::Impl::CreateHeap()
 		{
 			const D3D12_SAMPLER_DESC desc =
 			{
-				D3D12_FILTER_ANISOTROPIC,
-				D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-				D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-				D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-				0,										// LOD bias
-				Aniso::Terrain::roughness,
-				D3D12_COMPARISON_FUNC_NEVER,
-				{},										// border color
-				-D3D12_FLOAT32_MAX,						// min LOD
-				+D3D12_FLOAT32_MAX						// max LOD
+				.Filter = D3D12_FILTER_ANISOTROPIC,
+				.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+				.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+				.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+				.MaxAnisotropy = Aniso::Terrain::roughness,
+				.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
+				.MinLOD = -D3D12_FLOAT32_MAX,
+				.MaxLOD = +D3D12_FLOAT32_MAX
 			};
 			device->CreateSampler(&desc, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, allocationTable[TERRAIN_DESC_TABLE_ID] + TERRAIN_ROUGHNESS_SAMPLER, descriptorSize));
 		}
@@ -110,16 +104,14 @@ ComPtr<ID3D12DescriptorHeap> TextureSamplers::Impl::CreateHeap()
 		{
 			const D3D12_SAMPLER_DESC desc =
 			{
-				D3D12_FILTER_ANISOTROPIC,
-				D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-				D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-				D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-				0,										// LOD bias
-				Aniso::Terrain::bump,
-				D3D12_COMPARISON_FUNC_NEVER,
-				{},										// border color
-				-D3D12_FLOAT32_MAX,						// min LOD
-				+D3D12_FLOAT32_MAX						// max LOD
+				.Filter = D3D12_FILTER_ANISOTROPIC,
+				.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+				.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+				.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+				.MaxAnisotropy = Aniso::Terrain::bump,
+				.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
+				.MinLOD = -D3D12_FLOAT32_MAX,
+				.MaxLOD = +D3D12_FLOAT32_MAX
 			};
 			device->CreateSampler(&desc, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, allocationTable[TERRAIN_DESC_TABLE_ID] + TERRAIN_BUMP_SAMPLER, descriptorSize));
 		}
@@ -130,16 +122,14 @@ ComPtr<ID3D12DescriptorHeap> TextureSamplers::Impl::CreateHeap()
 		{
 			const D3D12_SAMPLER_DESC desc =
 			{
-				D3D12_FILTER_ANISOTROPIC,
-				D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-				D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-				D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-				0,										// LOD bias
-				Aniso::Object3D::TV,
-				D3D12_COMPARISON_FUNC_NEVER,
-				{},										// border color
-				-D3D12_FLOAT32_MAX,						// min LOD
-				+D3D12_FLOAT32_MAX						// max LOD
+				.Filter = D3D12_FILTER_ANISOTROPIC,
+				.AddressU =D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+				.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+				.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+				.MaxAnisotropy = Aniso::Object3D::TV,
+				.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
+				.MinLOD = -D3D12_FLOAT32_MAX,
+				.MaxLOD = +D3D12_FLOAT32_MAX
 			};
 			device->CreateSampler(&desc, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, allocationTable[OBJECT3D_DESC_TABLE_ID] + obj3DSuballocationTable[OBJ3D_TV_RANGE_ID], descriptorSize));
 		}
@@ -150,16 +140,14 @@ ComPtr<ID3D12DescriptorHeap> TextureSamplers::Impl::CreateHeap()
 			{
 				const D3D12_SAMPLER_DESC desc =
 				{
-					D3D12_FILTER_ANISOTROPIC,
-					addressMode,
-					addressMode,
-					addressMode,
-					0,									// LOD bias
-					Aniso::Object3D::albedo,
-					D3D12_COMPARISON_FUNC_NEVER,
-				{},										// border color
-				-D3D12_FLOAT32_MAX,						// min LOD
-				+D3D12_FLOAT32_MAX						// max LOD
+					.Filter = D3D12_FILTER_ANISOTROPIC,
+					.AddressU =addressMode,
+					.AddressV = addressMode,
+					.AddressW = addressMode,
+					.MaxAnisotropy = Aniso::Object3D::albedo,
+					.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
+					.MinLOD = -D3D12_FLOAT32_MAX,
+					.MaxLOD = +D3D12_FLOAT32_MAX
 				};
 				device->CreateSampler(&desc, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, allocationOffset + OBJ3D_ALBEDO_SAMPLER, descriptorSize));
 			}
@@ -168,16 +156,15 @@ ComPtr<ID3D12DescriptorHeap> TextureSamplers::Impl::CreateHeap()
 			{
 				const D3D12_SAMPLER_DESC desc =
 				{
-					D3D12_FILTER_ANISOTROPIC,
-					addressMode,
-					addressMode,
-					addressMode,
-					-log2(sqrt(Config::MSAA().Count)),	// negative LOD bias to account for supersampled alphatest
-					Aniso::Object3D::albedo,
-					D3D12_COMPARISON_FUNC_NEVER,
-				{},										// border color
-				-D3D12_FLOAT32_MAX,						// min LOD
-				+D3D12_FLOAT32_MAX						// max LOD
+					.Filter = D3D12_FILTER_ANISOTROPIC,
+					.AddressU = addressMode,
+					.AddressV = addressMode,
+					.AddressW = addressMode,
+					.MipLODBias = -log2f(sqrtf(Config::MSAA().Count)),	// negative LOD bias to account for supersampled alphatest
+					.MaxAnisotropy = Aniso::Object3D::albedo,
+					.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
+					.MinLOD = -D3D12_FLOAT32_MAX,
+					.MaxLOD = +D3D12_FLOAT32_MAX
 				};
 				device->CreateSampler(&desc, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, allocationOffset + OBJ3D_ALBEDO_ALPHATEST_SAMPLER, descriptorSize));
 			}
@@ -186,16 +173,14 @@ ComPtr<ID3D12DescriptorHeap> TextureSamplers::Impl::CreateHeap()
 			{
 				const D3D12_SAMPLER_DESC desc =
 				{
-					D3D12_FILTER_ANISOTROPIC,
-					addressMode,
-					addressMode,
-					addressMode,
-					0,									// LOD bias
-					Aniso::Object3D::bump,
-					D3D12_COMPARISON_FUNC_NEVER,
-				{},										// border color
-				-D3D12_FLOAT32_MAX,						// min LOD
-				+D3D12_FLOAT32_MAX						// max LOD
+					.Filter = D3D12_FILTER_ANISOTROPIC,
+					.AddressU = addressMode,
+					.AddressV = addressMode,
+					.AddressW = addressMode,
+					.MaxAnisotropy = Aniso::Object3D::bump,
+					.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
+					.MinLOD = -D3D12_FLOAT32_MAX,
+					.MaxLOD = +D3D12_FLOAT32_MAX
 				};
 				device->CreateSampler(&desc, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, allocationOffset + OBJ3D_BUMP_SAMPLER, descriptorSize));
 			}
@@ -204,16 +189,14 @@ ComPtr<ID3D12DescriptorHeap> TextureSamplers::Impl::CreateHeap()
 			{
 				const D3D12_SAMPLER_DESC desc =
 				{
-					D3D12_FILTER_ANISOTROPIC,
-					addressMode,
-					addressMode,
-					addressMode,
-					0,									// LOD bias
-					Aniso::Object3D::glassMask,
-					D3D12_COMPARISON_FUNC_NEVER,
-				{},										// border color
-				-D3D12_FLOAT32_MAX,						// min LOD
-				+D3D12_FLOAT32_MAX						// max LOD
+					.Filter = D3D12_FILTER_ANISOTROPIC,
+					.AddressU = addressMode,
+					.AddressV = addressMode,
+					.AddressW = addressMode,
+					.MaxAnisotropy = Aniso::Object3D::glassMask,
+					.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
+					.MinLOD = -D3D12_FLOAT32_MAX,
+					.MaxLOD = +D3D12_FLOAT32_MAX
 				};
 				device->CreateSampler(&desc, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, allocationOffset + OBJ3D_GLASS_MASK_SAMPLER, descriptorSize));
 			}
