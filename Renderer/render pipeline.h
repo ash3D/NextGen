@@ -14,12 +14,12 @@
 // !: check using forward declaration only with other compilers
 #endif
 
-struct ID3D12GraphicsCommandList2;
+struct ID3D12GraphicsCommandList4;
 
 namespace Renderer::Impl::RenderPipeline
 {
 	typedef std::pair<const class RENDER_STAGE_INHERITANCE IRenderStage *, PipelineItem (IRenderStage::*)(unsigned int &length) const> RenderStage;
-	typedef std::variant<ID3D12GraphicsCommandList2 *, RenderStage> PipelineStage;
+	typedef std::variant<ID3D12GraphicsCommandList4 *, RenderStage> PipelineStage;
 
 	void AppendStage(std::future<PipelineStage> &&stage);
 	PipelineItem GetNext(unsigned int &length);

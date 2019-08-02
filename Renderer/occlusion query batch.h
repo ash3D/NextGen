@@ -6,7 +6,7 @@
 
 struct ID3D12QueryHeap;
 struct ID3D12Resource;
-struct ID3D12GraphicsCommandList2;
+struct ID3D12GraphicsCommandList4;
 
 namespace Renderer::CmdListPool
 {
@@ -47,10 +47,10 @@ namespace Renderer::Impl::OcclusionCulling
 		void Setup(unsigned long count);
 
 	protected:
-		void Set(ID3D12GraphicsCommandList2 *target, unsigned long queryIdx, ID3D12Resource *batchResults, bool visible, unsigned long offset = 0ul) const;
+		void Set(ID3D12GraphicsCommandList4 *target, unsigned long queryIdx, ID3D12Resource *batchResults, bool visible, unsigned long offset = 0ul) const;
 
 	public:
-		void Start(ID3D12GraphicsCommandList2 *target, unsigned long queryIdx) const, Stop(ID3D12GraphicsCommandList2 *target, unsigned long queryIdx) const;
+		void Start(ID3D12GraphicsCommandList4 *target, unsigned long queryIdx) const, Stop(ID3D12GraphicsCommandList4 *target, unsigned long queryIdx) const;
 	};
 
 	template<QueryBatchType>
@@ -70,7 +70,7 @@ namespace Renderer::Impl::OcclusionCulling
 
 	public:
 		void Sync() const;
-		void Set(ID3D12GraphicsCommandList2 *target, unsigned long queryIdx, bool visible = true) const { QueryBatchBase::Set(target, queryIdx, batchResults, visible); }
+		void Set(ID3D12GraphicsCommandList4 *target, unsigned long queryIdx, bool visible = true) const { QueryBatchBase::Set(target, queryIdx, batchResults, visible); }
 		void Resolve(CmdListPool::CmdList &target, bool reuse = false) const, Finish(CmdListPool::CmdList &target) const;
 	};
 
@@ -90,7 +90,7 @@ namespace Renderer::Impl::OcclusionCulling
 		void FinalSetup() override;
 
 	public:
-		void Set(ID3D12GraphicsCommandList2 *target, unsigned long queryIdx, bool visible = true) const { QueryBatchBase::Set(target, queryIdx, batchResults.Get(), visible); }
+		void Set(ID3D12GraphicsCommandList4 *target, unsigned long queryIdx, bool visible = true) const { QueryBatchBase::Set(target, queryIdx, batchResults.Get(), visible); }
 		void Resolve(CmdListPool::CmdList &target, long int/*instead of D3D12_RESOURCE_STATES to eliminate dependency in d3d12.h here*/ usage = 0) const;
 		UINT64 GetGPUPtr() const;	// valid after Resolve if 'usage' was specified accordingly
 	};
@@ -113,7 +113,7 @@ namespace Renderer::Impl::OcclusionCulling
 		void FinalSetup() override;
 
 	public:
-		void Set(ID3D12GraphicsCommandList2 *target, unsigned long queryIdx, bool second, bool visible = true) const { QueryBatchBase::Set(target, queryIdx, batchResults.Get(), visible, Offset(second)); }
+		void Set(ID3D12GraphicsCommandList4 *target, unsigned long queryIdx, bool second, bool visible = true) const { QueryBatchBase::Set(target, queryIdx, batchResults.Get(), visible, Offset(second)); }
 		void Resolve(CmdListPool::CmdList &target, bool second) const;
 		UINT64 GetGPUPtr(bool second) const;	// valid after Resolve if corresponding 'usage' was specified accordingly
 

@@ -18,6 +18,7 @@
 #include "../world hierarchy.h"
 #include "../render stage.h"
 #include "../render pipeline.h"
+#include "../render passes.h"
 #include "../GPU stream buffer allocator.h"
 #include "../SO buffer.h"
 #include "../occlusion query batch.h"
@@ -30,9 +31,8 @@
 struct ID3D12RootSignature;
 struct ID3D12PipelineState;
 struct ID3D12Resource;
-struct ID3D12GraphicsCommandList2;
+struct ID3D12GraphicsCommandList4;
 struct D3D12_RANGE;
-struct D3D12_CPU_DESCRIPTOR_HANDLE;
 
 #if !_DEBUG
 #define PERSISTENT_MAPS 1
@@ -62,6 +62,7 @@ namespace Renderer
 		class TerrainVectorLayer;
 		using WRL::ComPtr;
 		using Misc::AllocatorProxy;
+		namespace RenderPasses = RenderPipeline::RenderPasses;
 
 		class World : public std::enable_shared_from_this<Renderer::World>, RenderPipeline::IRenderStage
 		{
@@ -116,7 +117,7 @@ namespace Renderer
 
 			//class NodeData
 			//{
-			//	WRL::ComPtr<ID3D12GraphicsCommandList2> bundle;
+			//	WRL::ComPtr<ID3D12GraphicsCommandList4> bundle;
 			//};
 
 		private:
@@ -131,8 +132,9 @@ namespace Renderer
 		private:
 			mutable struct WorldViewContext *viewCtx;
 			mutable UINT64 tonemapParamsGPUAddress;
-			mutable ID3D12Resource *ZBuffer;
-			mutable SIZE_T dsv;
+			mutable std::optional<RenderPasses::StageRTBinding> RTBindinMain, RTBBindingDebug;
+			mutable std::optional<RenderPasses::StageZBinding> ZBindingPrecull, ZBindingMain, ZBindingDebug;
+			mutable std::optional<RenderPasses::StageOutput> outputMain, outputDebug;	// actually single enough
 
 #pragma region occlusion query passes
 		private:
@@ -142,7 +144,6 @@ namespace Renderer
 			static std::array<ComPtr<ID3D12PipelineState>, 2> cullPassPSOs, CreateCullPassPSOs();
 
 		private:
-			mutable std::function<void (ID3D12GraphicsCommandList2 *target)> cullPassSetupCallback;
 			struct OcclusionQueryGeometry
 			{
 				ID3D12Resource *VB;
@@ -153,16 +154,15 @@ namespace Renderer
 
 		private:
 			void XformAABBPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd) const;
-			void CullPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, bool final) const;
+			void CullPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass, bool final) const;
 
 		private:
-			void SetupCullPass(std::function<void (ID3D12GraphicsCommandList2 *target)> &&setupCallback) const;
+			void SetupCullPass() const;
 			void IssueOcclusion(decltype(bvhView)::Node::OcclusionQueryGeometry occlusionQueryGeometry, unsigned long int &counter) const;
 #pragma endregion
 
 #pragma region main passes
 		private:
-			mutable std::function<void (ID3D12GraphicsCommandList2 *target)> mainPassSetupCallback;
 			struct RenderData
 			{
 				const Renderer::Instance *instance;
@@ -172,10 +172,10 @@ namespace Renderer
 
 		private:
 			void MainPassPre(CmdListPool::CmdList &target) const, MainPassPost(CmdListPool::CmdList &target) const;
-			void MainPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, bool final) const;
+			void MainPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass, bool final) const;
 
 		private:
-			void SetupMainPass(std::function<void (ID3D12GraphicsCommandList2 *target)> &&setupCallback) const;
+			void SetupMainPass() const;
 			void IssueObjects(const decltype(bvh)::Node &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion) const;
 			bool IssueNodeObjects(const decltype(bvh)::Node &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion,  decltype(OcclusionCulling::QueryBatchBase::npos), decltype(bvhView)::Node::Visibility visibility) const;
 #pragma endregion
@@ -187,7 +187,7 @@ namespace Renderer
 
 		private:
 			void AABBPassPre(CmdListPool::CmdList &target) const, AABBPassPost(CmdListPool::CmdList &target) const;
-			void AABBPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, bool visible) const;
+			void AABBPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass, bool visible) const;
 #pragma endregion
 
 		private:
@@ -214,7 +214,7 @@ namespace Renderer
 				GetHiddenPassRange(unsigned int &length) const, GetVisiblePassRange(unsigned int &length) const;
 
 		private:
-			void Setup(struct WorldViewContext &viewCtx, UINT64 tonemapParamsGPUAddress, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, std::function<void (ID3D12GraphicsCommandList2 *target)> &&cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList2 *target)> &&mainPassSetupCallback) const, SetupOcclusionQueryBatch(decltype(OcclusionCulling::QueryBatchBase::npos) maxOcclusion) const;
+			void Setup(struct WorldViewContext &viewCtx, UINT64 tonemapParamsGPUAddress) const, SetupOcclusionQueryBatch(decltype(OcclusionCulling::QueryBatchBase::npos) maxOcclusion) const;
 
 		private:
 			static constexpr const WCHAR AABB_VB_name[] = L"3D objects occlusion query boxes", xformedAABB_SO_name[] = L"3D objects xformed occlusion query boxes";
@@ -243,7 +243,7 @@ namespace Renderer
 			void operator =(World &) = delete;
 
 		protected:
-			void Render(struct WorldViewContext &viewCtx, const float (&viewXform)[4][3], const float (&projXform)[4][4], UINT64 tonemapParamsGPUAddress, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, const std::function<void (ID3D12GraphicsCommandList2 *target, bool enableRT)> &setupRenderOutputCallback) const;
+			void Render(struct WorldViewContext &viewCtx, const float (&viewXform)[4][3], const float (&projXform)[4][4], UINT64 tonemapParamsGPUAddress, const RenderPasses::PipelineOutputTargets &outputTargets) const;
 			void OnFrameFinish() const;
 
 		public:
@@ -255,8 +255,12 @@ namespace Renderer
 			void FlushUpdates() const;	// const to be able to call from Render()
 
 		private:
-			RenderPipeline::RenderStage BuildRenderStage(struct WorldViewContext &viewCtx, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 &viewXform, UINT64 tonemapParamsGPUAddress, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, std::function<void (ID3D12GraphicsCommandList2 *target)> &cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList2 *target)> &mainPassSetupCallback) const;
+			RenderPipeline::RenderStage BuildRenderStage(struct WorldViewContext &viewCtx, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 &viewXform, UINT64 tonemapParamsGPUAddress) const;
 			RenderPipeline::PipelineStage GetDebugDrawRenderStage() const;
+
+		private:
+			void ScheduleRenderStage(WorldViewContext &viewCtx, const HLSL::float4x4 &frustumTransform, const HLSL::float4x3 &worldViewTransform, UINT64 tonemapParamsGPUAddress, const RenderPasses::PipelineOutputTargets &outputTargets) const;
+			void ScheduleDebugDrawRenderStage(const RenderPasses::PipelineOutputTargets &outputTargets) const;
 		};
 	}
 

@@ -8,7 +8,7 @@
 
 struct ID3D12RootSignature;
 struct ID3D12PipelineState;
-struct ID3D12GraphicsCommandList2;
+struct ID3D12GraphicsCommandList4;
 struct CD3DX12_ROOT_PARAMETER1;
 
 namespace Renderer::Impl
@@ -49,11 +49,11 @@ namespace Renderer::TerrainMaterials
 			void operator =(Interface &) = delete;
 
 		protected:
-			void Setup(ID3D12GraphicsCommandList2 *target, UINT64 globalGPUBufferPtr, UINT64 tonemapParamsBufferPtr) const;
-			virtual void SetupQuad(ID3D12GraphicsCommandList2 *target, HLSL::float2 quadCenter) const {/*nop*/}
+			void Setup(ID3D12GraphicsCommandList4 *target, UINT64 globalGPUBufferPtr, UINT64 tonemapParamsBufferPtr) const;
+			virtual void SetupQuad(ID3D12GraphicsCommandList4 *target, HLSL::float2 quadCenter) const {/*nop*/}
 
 		private:
-			virtual void FinishSetup(ID3D12GraphicsCommandList2 *target) const = 0;
+			virtual void FinishSetup(ID3D12GraphicsCommandList4 *target) const = 0;
 		};
 	}
 

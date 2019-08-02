@@ -306,16 +306,17 @@ void Impl::TerrainVectorLayer::CullPassPre(CmdListPool::CmdList &cmdList) const
 	It has advantage over shader based batched occlusion test in that it does not stresses UAV writes in PS for visible objects -
 		hardware occlusion query does not incur any overhead in addition to regular depth/stencil test.
 */
-void Impl::TerrainVectorLayer::CullPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd) const
+void Impl::TerrainVectorLayer::CullPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass) const
 {
 	assert(rangeBegin < rangeEnd);
 
 	cmdList.Setup(cullPassPSO.Get());
 
-	cullPassSetupCallback(cmdList);
 	cmdList->SetGraphicsRootSignature(cullPassRootSig.Get());
 	cmdList->SetGraphicsRootConstantBufferView(0, World::GetCurFrameGPUDataPtr());
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+	RenderPasses::RenderPassScope renderPassScope(cmdList, renderPass);
 
 	const OcclusionCulling::QueryBatchBase &queryBatch = visit([](const OcclusionCulling::QueryBatchBase &queryBatch) noexcept -> const auto & { return queryBatch; }, occlusionQueryBatch);
 	ID3D12Resource *curVB = NULL;
@@ -352,9 +353,8 @@ void Impl::TerrainVectorLayer::CullPassPost(CmdListPool::CmdList &cmdList) const
 }
 
 // 1 call site
-inline void Impl::TerrainVectorLayer::SetupCullPass(function<void (ID3D12GraphicsCommandList2 *target)> &&setupCallback) const
+inline void Impl::TerrainVectorLayer::SetupCullPass() const
 {
-	cullPassSetupCallback = move(setupCallback);
 	queryStream.clear();
 }
 
@@ -372,15 +372,16 @@ void Impl::TerrainVectorLayer::MainPassPre(CmdListPool::CmdList &cmdList) const
 	cmdList.FlushBarriers();
 }
 
-void Impl::TerrainVectorLayer::MainPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd) const
+void Impl::TerrainVectorLayer::MainPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass) const
 {
 	assert(rangeBegin < rangeEnd);
 
 	cmdList.Setup(layerMaterial->PSO.Get());
 
-	mainPassSetupCallback(cmdList);
 	layerMaterial->Setup(cmdList, World::GetCurFrameGPUDataPtr(), tonemapParamsGPUAddress);
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	RenderPasses::RenderPassScope renderPassScope(cmdList, renderPass);
 
 	auto curOcclusionQueryIdx = OcclusionCulling::QueryBatchBase::npos;
 	do
@@ -426,9 +427,8 @@ void Impl::TerrainVectorLayer::MainPassPost(CmdListPool::CmdList &cmdList) const
 }
 
 // 1 call site
-inline void Impl::TerrainVectorLayer::SetupMainPass(function<void (ID3D12GraphicsCommandList2 *target)> &&setupCallback) const
+inline void Impl::TerrainVectorLayer::SetupMainPass() const
 {
-	mainPassSetupCallback = move(setupCallback);
 	renderStream.clear();
 	quadStram.clear();
 }
@@ -571,18 +571,19 @@ void Impl::TerrainVectorLayer::AABBPassPre(CmdListPool::CmdList &cmdList) const
 	cmdList.FlushBarriers();
 }
 
-void Impl::TerrainVectorLayer::AABBPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd, const float (&color)[3], bool visible) const
+void Impl::TerrainVectorLayer::AABBPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass, const float (&color)[3], bool visible) const
 {
 	assert(rangeBegin < rangeEnd);
 
 	cmdList.Setup(AABB_PSO.Get());
 
-	mainPassSetupCallback(cmdList);
 	cmdList->SetGraphicsRootSignature(AABB_rootSig.Get());
 	cmdList->SetGraphicsRootConstantBufferView(AABB_PASS_ROOT_PARAM_PER_FRAME_DATA_CBV, World::GetCurFrameGPUDataPtr());
 	cmdList->SetGraphicsRootConstantBufferView(AABB_PASS_ROOT_PARAM_TONEMAP_PARAMS_CBV, tonemapParamsGPUAddress);
 	cmdList->SetGraphicsRoot32BitConstants(AABB_PASS_ROOT_PARAM_COLOR, size(color), color, 0);
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+	RenderPasses::RenderPassScope renderPassScope(cmdList, renderPass);
 
 	const auto &queryBatch = get<true>(occlusionQueryBatch);
 	ID3D12Resource *curVB = NULL;
@@ -643,64 +644,71 @@ auto Impl::TerrainVectorLayer::GetStagePre(unsigned int &) const -> RenderPipeli
 {
 	using namespace placeholders;
 	phaseSelector = static_cast<decltype(phaseSelector)>(&TerrainVectorLayer::GetCullPassRange);
-	return bind(&TerrainVectorLayer::StagePre, this, _1);
+	return RenderPipeline::RenderStageItem{ bind(&TerrainVectorLayer::StagePre, this, _1) };
 }
 
-auto  Impl::TerrainVectorLayer::GetCullPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
+auto Impl::TerrainVectorLayer::GetCullPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, queryStream.size(), [] { phaseSelector = static_cast<decltype(phaseSelector)>(&TerrainVectorLayer::GetCullPass2MainPass); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::CullPassRange, this, _1, rangeBegin, rangeEnd); });
+	return IterateRenderPass(length, queryStream.size(), nullptr, { *ROPBindingsMain.ZBuffer, true, false }, *ROPBindingsMain.output,
+		[] { phaseSelector = static_cast<decltype(phaseSelector)>(&TerrainVectorLayer::GetCullPass2MainPass); },
+		[this](unsigned long rangeBegin, unsigned long rangeEnd, RenderPasses::RenderPass &&renderPass) { return bind(&TerrainVectorLayer::CullPassRange, this, _1, rangeBegin, rangeEnd, move(renderPass)); });
 }
 
 auto Impl::TerrainVectorLayer::GetCullPass2MainPass(unsigned int &) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
 	phaseSelector = static_cast<decltype(phaseSelector)>(&TerrainVectorLayer::GetMainPassRange);
-	return bind(&TerrainVectorLayer::CullPass2MainPass, this, _1);
+	return RenderPipeline::RenderStageItem{ bind(&TerrainVectorLayer::CullPass2MainPass, this, _1) };
 }
 
 auto Impl::TerrainVectorLayer::GetMainPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, renderStream.size(), [] { phaseSelector = static_cast<decltype(phaseSelector)>(&TerrainVectorLayer::GetStagePost); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::MainPassRange, this, _1, rangeBegin, rangeEnd); });
+	RenderPasses::PassROPBinding<RenderPasses::StageRTBinding> RTBinding{ *ROPBindingsMain.RT, true, true };
+	return IterateRenderPass(length, renderStream.size(), &RTBinding, { *ROPBindingsMain.ZBuffer, false, true }, *ROPBindingsMain.output,
+		[] { phaseSelector = static_cast<decltype(phaseSelector)>(&TerrainVectorLayer::GetStagePost); },
+		[this](unsigned long rangeBegin, unsigned long rangeEnd, RenderPasses::RenderPass &&renderPass) { return bind(&TerrainVectorLayer::MainPassRange, this, _1, rangeBegin, rangeEnd, move(renderPass)); });
 }
 
 auto Impl::TerrainVectorLayer::GetStagePost(unsigned int &) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
 	RenderPipeline::TerminateStageTraverse();
-	return bind(&TerrainVectorLayer::StagePost, this, _1);
+	return RenderPipeline::RenderStageItem{ bind(&TerrainVectorLayer::StagePost, this, _1) };
 }
 
 auto Impl::TerrainVectorLayer::GetAABBPassPre(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
 	phaseSelector = static_cast<decltype(phaseSelector)>(&TerrainVectorLayer::GetVisiblePassRange);
-	return bind(&TerrainVectorLayer::AABBPassPre, this, _1);
+	return RenderPipeline::RenderStageItem{ bind(&TerrainVectorLayer::AABBPassPre, this, _1) };
 }
 
 auto Impl::TerrainVectorLayer::GetVisiblePassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, queryStream.size(), [] { phaseSelector = static_cast<decltype(phaseSelector)>(&TerrainVectorLayer::GetCulledPassRange); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::AABBPassRange, this, _1, rangeBegin, rangeEnd, cref(OcclusionCulling::DebugColors::Terrain::visible), true); });
+	RenderPasses::PassROPBinding<RenderPasses::StageRTBinding> RTBinding{ *ROPBidingsDebug.RT, true, false };
+	return IterateRenderPass(length, queryStream.size(), &RTBinding, { *ROPBidingsDebug.ZBuffer, true, false }, *ROPBidingsDebug.output,
+		[] { phaseSelector = static_cast<decltype(phaseSelector)>(&TerrainVectorLayer::GetCulledPassRange); },
+		[this](unsigned long rangeBegin, unsigned long rangeEnd, RenderPasses::RenderPass &&renderPass) { return bind(&TerrainVectorLayer::AABBPassRange, this, _1, rangeBegin, rangeEnd, move(renderPass), cref(OcclusionCulling::DebugColors::Terrain::visible), true); });
 }
 
 auto Impl::TerrainVectorLayer::GetCulledPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, queryStream.size(), [] { RenderPipeline::TerminateStageTraverse(); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&TerrainVectorLayer::AABBPassRange, this, _1, rangeBegin, rangeEnd, cref(OcclusionCulling::DebugColors::Terrain::culled), false); });
+	RenderPasses::PassROPBinding<RenderPasses::StageRTBinding> RTBinding{ *ROPBidingsDebug.RT, false, true };
+	return IterateRenderPass(length, queryStream.size(), &RTBinding, { *ROPBidingsDebug.ZBuffer, false, true }, *ROPBidingsDebug.output,
+		[] { RenderPipeline::TerminateStageTraverse(); },
+		[this](unsigned long rangeBegin, unsigned long rangeEnd, RenderPasses::RenderPass &&renderPass) { return bind(&TerrainVectorLayer::AABBPassRange, this, _1, rangeBegin, rangeEnd, move(renderPass), cref(OcclusionCulling::DebugColors::Terrain::culled), false); });
 }
 
 // 1 call site
-inline void Impl::TerrainVectorLayer::Setup(UINT64 tonemapParamsGPUAddress, function<void (ID3D12GraphicsCommandList2 *target)> &&cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> &&mainPassSetupCallback) const
+inline void Impl::TerrainVectorLayer::Setup(UINT64 tonemapParamsGPUAddress) const
 {
 	this->tonemapParamsGPUAddress = tonemapParamsGPUAddress;
-	SetupCullPass(move(cullPassSetupCallback));
-	SetupMainPass(move(mainPassSetupCallback));
+	SetupCullPass();
+	SetupMainPass();
 }
 
 inline void Impl::TerrainVectorLayer::SetupOcclusionQueryBatch(decltype(OcclusionCulling::QueryBatchBase::npos) maxOcclusion) const
@@ -736,12 +744,12 @@ auto Impl::TerrainVectorLayer::AddQuad(unsigned long int vcount, const function<
 	return { &quads.back(), QuadDeleter{ prev(quads.cend()) } };
 }
 
-auto Impl::TerrainVectorLayer::BuildRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, UINT64 tonemapParamsGPUAddress, function<void (ID3D12GraphicsCommandList2 *target)> &cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> &mainPassSetupCallback) const -> RenderPipeline::RenderStage
+auto Impl::TerrainVectorLayer::BuildRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, UINT64 tonemapParamsGPUAddress) const -> RenderPipeline::RenderStage
 {
 	using namespace placeholders;
 
 	PIXScopedEvent(PIX_COLOR_INDEX(PIXEvents::TerrainBuildRenderStage), "terrain layer [%u] build render stage", layerIdx);
-	Setup(tonemapParamsGPUAddress, move(cullPassSetupCallback), move(mainPassSetupCallback));
+	Setup(tonemapParamsGPUAddress);
 
 	// schedule
 	{
@@ -796,13 +804,19 @@ auto Impl::TerrainVectorLayer::GetDebugDrawRenderStage() const -> RenderPipeline
 	return RenderPipeline::PipelineStage(in_place_type<RenderPipeline::RenderStage>, static_cast<const RenderPipeline::IRenderStage *>(this), static_cast<decltype(phaseSelector)>(&TerrainVectorLayer::GetAABBPassPre));
 }
 
-void Impl::TerrainVectorLayer::ScheduleRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, UINT64 tonemapParamsGPUAddress, function<void (ID3D12GraphicsCommandList2 *target)> cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> mainPassSetupCallback) const
+void Impl::TerrainVectorLayer::ScheduleRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, UINT64 tonemapParamsGPUAddress, const RenderPasses::PipelineOutputTargets &outputTargets) const
 {
-	GPUWorkSubmission::AppendPipelineStage<true>(&TerrainVectorLayer::BuildRenderStage, this, /*cref*/(frustumCuller), /*cref*/(frustumXform), tonemapParamsGPUAddress, move(cullPassSetupCallback), move(mainPassSetupCallback));
+	ROPBindingsMain.RT.emplace(outputTargets);
+	ROPBindingsMain.ZBuffer.emplace(outputTargets, true, true);
+	ROPBindingsMain.output.emplace(outputTargets);
+	GPUWorkSubmission::AppendPipelineStage<true>(&TerrainVectorLayer::BuildRenderStage, this, /*cref*/(frustumCuller), /*cref*/(frustumXform), tonemapParamsGPUAddress);
 }
 
-void Impl::TerrainVectorLayer::ScheduleDebugDrawRenderStage() const
+void Impl::TerrainVectorLayer::ScheduleDebugDrawRenderStage(const RenderPasses::PipelineOutputTargets &outputTargets) const
 {
+	ROPBidingsDebug.RT.emplace(outputTargets);
+	ROPBidingsDebug.ZBuffer.emplace(outputTargets, true, false);
+	ROPBidingsDebug.output.emplace(outputTargets);
 	GPUWorkSubmission::AppendPipelineStage<false>(&TerrainVectorLayer::GetDebugDrawRenderStage, this);
 }
 #pragma endregion

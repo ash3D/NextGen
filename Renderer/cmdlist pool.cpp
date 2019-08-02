@@ -51,21 +51,32 @@ void CmdList::Init(ID3D12PipelineState *PSO)
 	extern ComPtr<ID3D12Device2> device;
 	void NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
 
-	if (cmdCtx->allocator && cmdCtx->list)
+	const unsigned short ringIdx = globalFrameVersioning->GetFrameLatency() - 1;
+
+	// allocator
+	if (cmdCtx->allocator)
 	{
 		// reset
 		CheckHR(cmdCtx->allocator->Reset());
+	}
+	else
+	{
+		// create
+		CheckHR(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(cmdCtx->allocator.GetAddressOf())));
+		NameObjectF(cmdCtx->allocator.Get(), L"pool command allocator [%hu][%zu]", ringIdx, poolIdx);
+	}
+
+	// cmd list
+	if (cmdCtx->list && !cmdCtx->suspended/*workaround - recreate cmd list if it was suspended on previous frame (D3D runtime bug?)*/)
+	{
+		// reset
 		CheckHR(cmdCtx->list->Reset(cmdCtx->allocator.Get(), PSO));
 	}
 	else
 	{
-		const unsigned short version = globalFrameVersioning->GetFrameLatency() - 1;
-
 		// create
-		CheckHR(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(cmdCtx->allocator.GetAddressOf())));
-		NameObjectF(cmdCtx->allocator.Get(), L"pool command allocator [%hu][%zu]", version, poolIdx);
-		CheckHR(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, cmdCtx->allocator.Get(), PSO, IID_PPV_ARGS(cmdCtx->list.GetAddressOf())));
-		NameObjectF(cmdCtx->list.Get(), L"pool command list [%hu][%zu]", version, poolIdx);
+		CheckHR(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, cmdCtx->allocator.Get(), PSO, IID_PPV_ARGS(cmdCtx->list.ReleaseAndGetAddressOf())));
+		NameObjectF(cmdCtx->list.Get(), L"pool command list [%hu][%zu][%lu]", ringIdx, poolIdx, cmdCtx->listVersion++);
 	}
 
 	setup = &CmdList::Update;
@@ -74,7 +85,7 @@ void CmdList::Init(ID3D12PipelineState *PSO)
 
 void CmdList::Update(ID3D12PipelineState *PSO)
 {
-	operator ID3D12GraphicsCommandList2 *()->ClearState(PSO);
+	operator ID3D12GraphicsCommandList4 *()->ClearState(PSO);
 }
 
 void CmdListPool::OnFrameFinish()

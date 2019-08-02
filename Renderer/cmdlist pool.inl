@@ -20,7 +20,7 @@ namespace Renderer::CmdListPool
 		return *this;
 	}
 
-	inline CmdList::operator ID3D12GraphicsCommandList2 *() const
+	inline CmdList::operator ID3D12GraphicsCommandList4 *() const
 	{
 		assert(cmdCtx);
 		assert(cmdCtx->list);
@@ -44,5 +44,11 @@ namespace Renderer::CmdListPool
 	{
 		assert(cmdCtx);
 		(this->*setupSimple)(NULL);
+	}
+
+	inline void CmdList::MarkSuspended(bool suspended)
+	{
+		assert(cmdCtx);
+		cmdCtx->suspended = suspended;
 	}
 }

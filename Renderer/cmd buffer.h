@@ -7,13 +7,13 @@
 
 struct ID3D12CommandAllocator;
 struct ID3D12CommandList;
-struct ID3D12GraphicsCommandList2;
+struct ID3D12GraphicsCommandList4;
 
 namespace Renderer::Impl
 {
 	namespace WRL = Microsoft::WRL;
 
-	template<class CmdList = ID3D12GraphicsCommandList2>
+	template<class CmdList = ID3D12GraphicsCommandList4>
 	struct CmdBuffer
 	{
 		//static_assert(std::is_base_of_v<ID3D12CommandList, CmdList>);

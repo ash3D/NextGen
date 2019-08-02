@@ -3,7 +3,7 @@
 #include <functional>
 #include <variant>
 
-struct ID3D12GraphicsCommandList2;
+struct ID3D12GraphicsCommandList4;
 
 namespace Renderer::CmdListPool
 {
@@ -12,6 +12,11 @@ namespace Renderer::CmdListPool
 
 namespace Renderer::Impl::RenderPipeline
 {
-	typedef std::function<void (CmdListPool::CmdList &)> RenderStageItem;
-	typedef std::variant<std::monostate, ID3D12GraphicsCommandList2 *, RenderStageItem> PipelineItem;
+	struct RenderStageItem
+	{
+		typedef std::function<void (CmdListPool::CmdList &)> Work;
+		Work work;
+		bool suspended = false;
+	};
+	typedef std::variant<std::monostate, ID3D12GraphicsCommandList4 *, RenderStageItem> PipelineItem;
 }

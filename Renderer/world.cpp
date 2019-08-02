@@ -312,13 +312,12 @@ void Impl::World::XformAABBPassRange(CmdListPool::CmdList &cmdList, unsigned lon
 	} while (++rangeBegin < rangeEnd);
 }
 
-void Impl::World::CullPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd, bool final) const
+void Impl::World::CullPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass, bool final) const
 {
 	assert(rangeBegin < rangeEnd);
 
 	cmdList.Setup(cullPassPSOs[final].Get());
 
-	cullPassSetupCallback(cmdList);
 	cmdList->SetGraphicsRootSignature(cullPassRootSig.Get());
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
@@ -339,6 +338,8 @@ void Impl::World::CullPassRange(CmdListPool::CmdList &cmdList, unsigned long ran
 		cmdList->IASetIndexBuffer(&IB_view);
 		cmdList->IASetVertexBuffers(0, 1, &VB_view);
 	}
+
+	RenderPasses::RenderPassScope renderPassScope(cmdList, renderPass);
 
 	const OcclusionCulling::QueryBatchBase &queryBatch = visit([](const OcclusionCulling::QueryBatchBase &queryBatch) noexcept -> const auto & { return queryBatch; }, occlusionQueryBatch);
 	do
@@ -361,9 +362,8 @@ void Impl::World::CullPassRange(CmdListPool::CmdList &cmdList, unsigned long ran
 }
 
 // 1 call site
-inline void Impl::World::SetupCullPass(function<void (ID3D12GraphicsCommandList2 *target)> &&setupCallback) const
+inline void Impl::World::SetupCullPass() const
 {
-	cullPassSetupCallback = move(setupCallback);
 	queryStream.clear();
 }
 
@@ -384,7 +384,7 @@ void Impl::World::IssueOcclusion(decltype(bvhView)::Node::OcclusionQueryGeometry
 //{
 //}
 
-void Impl::World::MainPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd, bool final) const
+void Impl::World::MainPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass, bool final) const
 {
 	assert(rangeBegin < rangeEnd);
 
@@ -392,8 +392,9 @@ void Impl::World::MainPassRange(CmdListPool::CmdList &cmdList, unsigned long ran
 
 	cmdList.Setup(renderStream[rangeBegin].instance->GetStartPSO());
 
-	mainPassSetupCallback(cmdList);
 	decltype(staticObjects)::value_type::Setup(cmdList, GetCurFrameGPUDataPtr(), tonemapParamsGPUAddress);
+
+	RenderPasses::RenderPassScope renderPassScope(cmdList, renderPass);
 
 	for_each(next(renderStream.cbegin(), rangeBegin), next(renderStream.cbegin(), rangeEnd), [&, curOcclusionQueryIdx = OcclusionCulling::QueryBatchBase::npos, final](remove_reference_t<decltype(renderStream)>::value_type renderData) mutable
 	{
@@ -410,9 +411,8 @@ void Impl::World::MainPassRange(CmdListPool::CmdList &cmdList, unsigned long ran
 }
 
 // 1 call site
-inline void Impl::World::SetupMainPass(function<void (ID3D12GraphicsCommandList2 *target)> &&setupCallback) const
+inline void Impl::World::SetupMainPass() const
 {
-	mainPassSetupCallback = move(setupCallback);
 	for (auto &stream : renderStreams) stream.clear();
 }
 
@@ -548,7 +548,7 @@ void Impl::World::AABBPassPre(CmdListPool::CmdList &cmdList) const
 	cmdList.FlushBarriers();
 }
 
-void Impl::World::AABBPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd, bool visible) const
+void Impl::World::AABBPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass, bool visible) const
 {
 	assert(rangeBegin < rangeEnd);
 
@@ -556,7 +556,6 @@ void Impl::World::AABBPassRange(CmdListPool::CmdList &cmdList, unsigned long ran
 
 	const auto &queryBatch = get<true>(occlusionQueryBatch);
 
-	mainPassSetupCallback(cmdList);
 	cmdList->SetGraphicsRootSignature(AABB_rootSig.Get());
 	cmdList->SetGraphicsRootConstantBufferView(AABB_PASS_ROOT_PARAM_COLOR_CBV, globalGPUBuffer->GetGPUVirtualAddress() + GlobalGPUBufferData::AABB_3D_VisColors::CB_offset(visible));
 	cmdList->SetGraphicsRootConstantBufferView(AABB_PASS_ROOT_PARAM_TONEMAP_PARAMS_CBV, tonemapParamsGPUAddress);
@@ -581,6 +580,8 @@ void Impl::World::AABBPassRange(CmdListPool::CmdList &cmdList, unsigned long ran
 		cmdList->IASetIndexBuffer(&IB_view);
 		cmdList->IASetVertexBuffers(0, 1, &VB_view);
 	}
+
+	RenderPasses::RenderPassScope renderPassScope(cmdList, renderPass);
 
 	do
 	{
@@ -608,23 +609,22 @@ void Impl::World::StagePre(CmdListPool::CmdList &cmdList) const
 	// just copy for now, do reprojection in future
 	if (viewCtx->ZBufferHistory)
 	{
-		if (const auto targetZDesc = ZBuffer->GetDesc(), historyZDesc = viewCtx->ZBufferHistory->GetDesc(); targetZDesc.Width == historyZDesc.Width && targetZDesc.Height == historyZDesc.Height)
+		if (const auto targetZDesc = ZBindingPrecull->GetZBuffer()->GetDesc(), historyZDesc = viewCtx->ZBufferHistory->GetDesc(); targetZDesc.Width == historyZDesc.Width && targetZDesc.Height == historyZDesc.Height)
 		{
-			cmdList->ClearDepthStencilView({ dsv }, D3D12_CLEAR_FLAG_STENCIL, 1.f, UINT8_MAX, 0, NULL);
 			{
 				initializer_list<D3D12_RESOURCE_BARRIER> barriers
 				{
-					CD3DX12_RESOURCE_BARRIER::Transition(ZBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_COPY_DEST, 0),
+					CD3DX12_RESOURCE_BARRIER::Transition(ZBindingPrecull->GetZBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_COPY_DEST, 0),
 					CD3DX12_RESOURCE_BARRIER::Transition(viewCtx->ZBufferHistory.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY)
 				};
 				cmdList.ResourceBarrier(barriers);
 				cmdList.FlushBarriers<true>();
 			}
-			cmdList->CopyTextureRegion(&CD3DX12_TEXTURE_COPY_LOCATION(ZBuffer, 0), 0, 0, 0, &CD3DX12_TEXTURE_COPY_LOCATION(viewCtx->ZBufferHistory.Get(), 0), NULL);
+			cmdList->CopyTextureRegion(&CD3DX12_TEXTURE_COPY_LOCATION(ZBindingPrecull->GetZBuffer(), 0), 0, 0, 0, &CD3DX12_TEXTURE_COPY_LOCATION(viewCtx->ZBufferHistory.Get(), 0), NULL);
 			{
 				initializer_list<D3D12_RESOURCE_BARRIER> barriers
 				{
-					CD3DX12_RESOURCE_BARRIER::Transition(ZBuffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_DEPTH_WRITE, 0),
+					CD3DX12_RESOURCE_BARRIER::Transition(ZBindingPrecull->GetZBuffer(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_DEPTH_WRITE, 0),
 					CD3DX12_RESOURCE_BARRIER::Transition(viewCtx->ZBufferHistory.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY)
 				};
 				cmdList.ResourceBarrier(barriers);
@@ -661,9 +661,6 @@ void Impl::World::CullPass2MainPass(CmdListPool::CmdList &cmdList, bool final) c
 		if (!enableDebugDraw)
 			xformedAABBs.Finish(cmdList);
 	}
-	else
-		// no need to flush barriers, there should not be any pending barriers (it is good idea to 'assert' it here)
-		cmdList->ClearDepthStencilView({ dsv }, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, UINT8_MAX, 0, NULL);
 
 	visit([&cmdList, final](const auto &queryBatch) { queryBatch.Resolve(cmdList, final); }, occlusionQueryBatch);
 
@@ -687,9 +684,9 @@ void Impl::World::StagePost(CmdListPool::CmdList &cmdList) const
 
 #if 1
 	// enables 'force' for FlushBarriers() below
-	cmdList.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(ZBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_COPY_SOURCE));
+	cmdList.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(ZBindingMain->GetZBuffer(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_COPY_SOURCE));
 
-	const auto targetZDesc = ZBuffer->GetDesc();
+	const auto targetZDesc = ZBindingMain->GetZBuffer()->GetDesc();
 	if (viewCtx->ZBufferHistory)
 		if (const auto historyZDesc = viewCtx->ZBufferHistory->GetDesc(); targetZDesc.Width != historyZDesc.Width || targetZDesc.Height != historyZDesc.Height)
 			viewCtx->ZBufferHistory.Reset();
@@ -709,11 +706,11 @@ void Impl::World::StagePost(CmdListPool::CmdList &cmdList) const
 	}
 
 	cmdList.FlushBarriers<true>();
-	cmdList->CopyResource(viewCtx->ZBufferHistory.Get(), ZBuffer);
+	cmdList->CopyResource(viewCtx->ZBufferHistory.Get(), ZBindingMain->GetZBuffer());
 	{
 		initializer_list<D3D12_RESOURCE_BARRIER> barriers
 		{
-			CD3DX12_RESOURCE_BARRIER::Transition(ZBuffer, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE),
+			CD3DX12_RESOURCE_BARRIER::Transition(ZBindingMain->GetZBuffer(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE),
 			CD3DX12_RESOURCE_BARRIER::Transition(viewCtx->ZBufferHistory.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY)
 		};
 		cmdList.ResourceBarrier(barriers);
@@ -732,7 +729,7 @@ auto Impl::World::GetStagePre(unsigned int &) const -> RenderPipeline::PipelineI
 {
 	using namespace placeholders;
 	phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetXformAABBPassRange);
-	return bind(&World::StagePre, this, _1);
+	return RenderPipeline::RenderStageItem{ bind(&World::StagePre, this, _1) };
 }
 
 auto Impl::World::GetXformAABBPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
@@ -746,28 +743,31 @@ auto Impl::World::GetXformAABBPass2FirstCullPass(unsigned int &) const -> Render
 {
 	using namespace placeholders;
 	phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetFirstCullPassRange);
-	return bind(&World::XformAABBPass2CullPass, this, _1);
+	return RenderPipeline::RenderStageItem{ bind(&World::XformAABBPass2CullPass, this, _1) };
 }
 
 auto Impl::World::GetFirstCullPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, queryStream.size(), [] { phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetFirstCullPass2FirstMainPass); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&World::CullPassRange, this, _1, rangeBegin, rangeEnd, false); });
+	return IterateRenderPass(length, queryStream.size(), nullptr, { *ZBindingPrecull, true, true }, *outputMain,
+		[] { phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetFirstCullPass2FirstMainPass); },
+		[this](unsigned long rangeBegin, unsigned long rangeEnd, RenderPasses::RenderPass &&renderPass) { return bind(&World::CullPassRange, this, _1, rangeBegin, rangeEnd, move(renderPass), false); });
 }
 
 auto Impl::World::GetFirstCullPass2FirstMainPass(unsigned int &) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
 	phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetFirstMainPassRange);
-	return bind(&World::CullPass2MainPass, this, _1, false);
+	return RenderPipeline::RenderStageItem{ bind(&World::CullPass2MainPass, this, _1, false) };
 }
 
 auto Impl::World::GetFirstMainPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, renderStreams[0].size(), [] { phaseSelector = static_cast<decltype(phaseSelector)>(&World::/*GetFirstMainPass2SecondCullPass*/GetSecondCullPassRange); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&World::MainPassRange, this, _1, rangeBegin, rangeEnd, false); });
+	RenderPasses::PassROPBinding<RenderPasses::StageRTBinding> RTBinding{ *RTBindinMain, true, false };
+	return IterateRenderPass(length, renderStreams[0].size(), &RTBinding, { *ZBindingMain, true, false }, *outputMain,
+		[] { phaseSelector = static_cast<decltype(phaseSelector)>(&World::/*GetFirstMainPass2SecondCullPass*/GetSecondCullPassRange); },
+		[this](unsigned long rangeBegin, unsigned long rangeEnd, RenderPasses::RenderPass &&renderPass) { return bind(&World::MainPassRange, this, _1, rangeBegin, rangeEnd, move(renderPass), false); });
 }
 
 //auto Impl::World::GetFirstMainPass2SecondCullPass(unsigned int &) const -> RenderPipeline::PipelineItem
@@ -780,29 +780,32 @@ auto Impl::World::GetFirstMainPassRange(unsigned int &length) const -> RenderPip
 auto Impl::World::GetSecondCullPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, queryStream.size(), [] { phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetSecondCullPass2SecondMainPass); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&World::CullPassRange, this, _1, rangeBegin, rangeEnd, true); });
+	return IterateRenderPass(length, queryStream.size(), nullptr, { *ZBindingMain, false, false }, *outputMain,
+		[] { phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetSecondCullPass2SecondMainPass); },
+		[this](unsigned long rangeBegin, unsigned long rangeEnd, RenderPasses::RenderPass &&renderPass) { return bind(&World::CullPassRange, this, _1, rangeBegin, rangeEnd, move(renderPass), true); });
 }
 
 auto Impl::World::GetSecondCullPass2SecondMainPass(unsigned int &) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
 	phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetSecondMainPassRange);
-	return bind(&World::CullPass2MainPass, this, _1, true);
+	return RenderPipeline::RenderStageItem{ bind(&World::CullPass2MainPass, this, _1, true) };
 }
 
 auto Impl::World::GetSecondMainPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, renderStreams[1].size(), [] { phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetStagePost); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&World::MainPassRange, this, _1, rangeBegin, rangeEnd, true); });
+	RenderPasses::PassROPBinding<RenderPasses::StageRTBinding> RTBinding{ *RTBindinMain, false, true };
+	return IterateRenderPass(length, renderStreams[1].size(), &RTBinding, { *ZBindingMain, false, true }, *outputMain,
+		[] { phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetStagePost); },
+		[this](unsigned long rangeBegin, unsigned long rangeEnd, RenderPasses::RenderPass &&renderPass) { return bind(&World::MainPassRange, this, _1, rangeBegin, rangeEnd, move(renderPass), true); });
 }
 
 auto Impl::World::GetStagePost(unsigned int &) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
 	RenderPipeline::TerminateStageTraverse();
-	return bind(&World::StagePost, this, _1);
+	return RenderPipeline::RenderStageItem{ bind(&World::StagePost, this, _1) };
 }
 
 //auto Impl::World::GetMainPassPre(unsigned int &) const -> RenderPipeline::PipelineItem
@@ -830,39 +833,41 @@ auto Impl::World::GetAABBPassPre(unsigned int & length) const -> RenderPipeline:
 {
 	using namespace placeholders;
 	phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetHiddenPassRange);
-	return bind(&World::AABBPassPre, this, _1);
+	return RenderPipeline::RenderStageItem{ bind(&World::AABBPassPre, this, _1) };
 }
 
 auto Impl::World::GetHiddenPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, queryStream.size(), [] { phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetVisiblePassRange); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&World::AABBPassRange, this, _1, rangeBegin, rangeEnd, false); });
+	RenderPasses::PassROPBinding<RenderPasses::StageRTBinding> RTBinding{ *RTBBindingDebug, true, false };
+	return IterateRenderPass(length, queryStream.size(), &RTBinding, { *ZBindingDebug, true, false }, *outputDebug,
+		[] { phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetVisiblePassRange); },
+		[this](unsigned long rangeBegin, unsigned long rangeEnd, RenderPasses::RenderPass &&renderPass) { return bind(&World::AABBPassRange, this, _1, rangeBegin, rangeEnd, move(renderPass), false); });
 }
 
 auto Impl::World::GetVisiblePassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, queryStream.size(), [] { phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetAABBPassPost); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd) { return bind(&World::AABBPassRange, this, _1, rangeBegin, rangeEnd, true); });
+	RenderPasses::PassROPBinding<RenderPasses::StageRTBinding> RTBinding{ *RTBBindingDebug, false, true };
+	return IterateRenderPass(length, queryStream.size(), &RTBinding, { *ZBindingDebug, false, true }, *outputDebug,
+		[] { phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetAABBPassPost); },
+		[this](unsigned long rangeBegin, unsigned long rangeEnd, RenderPasses::RenderPass &&renderPass) { return bind(&World::AABBPassRange, this, _1, rangeBegin, rangeEnd, move(renderPass), true); });
 }
 
 auto Impl::World::GetAABBPassPost(unsigned int &) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
 	RenderPipeline::TerminateStageTraverse();
-	return bind(&World::AABBPassPost, this, _1);
+	return RenderPipeline::RenderStageItem{ bind(&World::AABBPassPost, this, _1) };
 }
 
 // 1 call site
-inline void Impl::World::Setup(WorldViewContext &viewCtx, UINT64 tonemapParamsGPUAddress, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, function<void (ID3D12GraphicsCommandList2 *target)> &&cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> &&mainPassSetupCallback) const
+inline void Impl::World::Setup(WorldViewContext &viewCtx, UINT64 tonemapParamsGPUAddress) const
 {
 	this->viewCtx = &viewCtx;
 	this->tonemapParamsGPUAddress = tonemapParamsGPUAddress;
-	this->ZBuffer = ZBuffer;
-	this->dsv = dsv.ptr;
-	SetupCullPass(move(cullPassSetupCallback));
-	SetupMainPass(move(mainPassSetupCallback));
+	SetupCullPass();
+	SetupMainPass();
 }
 
 inline void Impl::World::SetupOcclusionQueryBatch(decltype(OcclusionCulling::QueryBatchBase::npos) maxOcclusion) const
@@ -892,7 +897,7 @@ static inline void CopyMatrix2CB(const float (&src)[rows][columns], volatile Imp
 	copy_n(src, rows, dst);
 }
 
-void Impl::World::Render(WorldViewContext &viewCtx, const float (&viewXform)[4][3], const float (&projXform)[4][4], UINT64 tonemapParamsGPUAddress, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, const function<void (ID3D12GraphicsCommandList2 *target, bool enableRT)> &setupRenderOutputCallback) const
+void Impl::World::Render(WorldViewContext &viewCtx, const float (&viewXform)[4][3], const float (&projXform)[4][4], UINT64 tonemapParamsGPUAddress, const RenderPasses::PipelineOutputTargets &outputTargets) const
 {
 	using namespace placeholders;
 
@@ -922,18 +927,16 @@ void Impl::World::Render(WorldViewContext &viewCtx, const float (&viewXform)[4][
 #endif
 	}
 
-	const function<void (ID3D12GraphicsCommandList2 *target)> cullPassSetupCallback = bind(setupRenderOutputCallback, _1, false), mainPassSetupCallback = bind(setupRenderOutputCallback, _1, true);
-
-	GPUWorkSubmission::AppendPipelineStage<true>(&World::BuildRenderStage, this, ref(viewCtx), frustumTransform, worldViewTransform, tonemapParamsGPUAddress, ZBuffer, dsv, cullPassSetupCallback, mainPassSetupCallback);
+	ScheduleRenderStage(viewCtx, frustumTransform, worldViewTransform, tonemapParamsGPUAddress, outputTargets);
 
 	for_each(terrainVectorLayers.cbegin(), terrainVectorLayers.cend(), bind(&decltype(terrainVectorLayers)::value_type::ScheduleRenderStage,
-		_1, FrustumCuller<2>(frustumTransform), cref(frustumTransform), tonemapParamsGPUAddress, cref(cullPassSetupCallback), cref(mainPassSetupCallback)));
+		_1, FrustumCuller<2>(frustumTransform), cref(frustumTransform), tonemapParamsGPUAddress, cref(outputTargets)));
 
 	extern bool enableDebugDraw;
 	if (enableDebugDraw)
 	{
-		for_each(terrainVectorLayers.crbegin(), terrainVectorLayers.crend(), mem_fn(&decltype(terrainVectorLayers)::value_type::ScheduleDebugDrawRenderStage));
-		GPUWorkSubmission::AppendPipelineStage<false>(&World::GetDebugDrawRenderStage, this);
+		for_each(terrainVectorLayers.crbegin(), terrainVectorLayers.crend(), bind(&decltype(terrainVectorLayers)::value_type::ScheduleDebugDrawRenderStage, _1, cref(outputTargets)));
+		ScheduleDebugDrawRenderStage(outputTargets);
 	}
 }
 
@@ -1024,9 +1027,9 @@ void Impl::World::FlushUpdates() const
 	}
 }
 
-auto Impl::World::BuildRenderStage(WorldViewContext &viewCtx, const float4x4 &frustumXform, const float4x3 &viewXform, UINT64 tonemapParamsGPUAddress, ID3D12Resource *ZBuffer, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, function<void (ID3D12GraphicsCommandList2 *target)> &cullPassSetupCallback, function<void (ID3D12GraphicsCommandList2 *target)> &mainPassSetupCallback) const -> RenderPipeline::RenderStage
+auto Impl::World::BuildRenderStage(WorldViewContext &viewCtx, const float4x4 &frustumXform, const float4x3 &viewXform, UINT64 tonemapParamsGPUAddress) const -> RenderPipeline::RenderStage
 {
-	Setup(viewCtx, tonemapParamsGPUAddress, ZBuffer, dsv, move(cullPassSetupCallback), move(mainPassSetupCallback));
+	Setup(viewCtx, tonemapParamsGPUAddress);
 
 	auto occlusionProvider = OcclusionCulling::QueryBatchBase::npos;
 	unsigned long int AABBCount = 0;
@@ -1053,6 +1056,32 @@ auto Impl::World::BuildRenderStage(WorldViewContext &viewCtx, const float4x4 &fr
 auto Impl::World::GetDebugDrawRenderStage() const -> RenderPipeline::PipelineStage
 {
 	return RenderPipeline::PipelineStage(in_place_type<RenderPipeline::RenderStage>, static_cast<const RenderPipeline::IRenderStage *>(this), static_cast<decltype(phaseSelector)>(&World::GetAABBPassPre));
+}
+
+void Impl::World::ScheduleRenderStage(WorldViewContext &viewCtx, const float4x4 &frustumTransform, const float4x3 &worldViewTransform, UINT64 tonemapParamsGPUAddress, const RenderPasses::PipelineOutputTargets &outputTargets) const
+{
+	RTBindinMain.emplace(outputTargets);
+	bool ZHistoryValid = false;
+	if (viewCtx.ZBufferHistory)
+	{
+		const auto targetZDesc = outputTargets.GetZBuffer()->GetDesc(), historyZDesc = viewCtx.ZBufferHistory->GetDesc();
+		ZHistoryValid = targetZDesc.Width == historyZDesc.Width && targetZDesc.Height == historyZDesc.Height;
+	}
+	if (ZHistoryValid)
+		ZBindingPrecull.emplace(outputTargets, D3D12_CLEAR_FLAG_STENCIL, 1.f, UINT8_MAX, false, false);
+	else
+		ZBindingPrecull.emplace(outputTargets, true, true);
+	ZBindingMain.emplace(outputTargets, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, UINT8_MAX, true/*preserve for copy to Z history*/, false);
+	outputMain.emplace(outputTargets);
+	GPUWorkSubmission::AppendPipelineStage<true>(&World::BuildRenderStage, this, ref(viewCtx), frustumTransform, worldViewTransform, tonemapParamsGPUAddress);
+}
+
+void Impl::World::ScheduleDebugDrawRenderStage(const RenderPasses::PipelineOutputTargets &outputTargets) const
+{
+	RTBBindingDebug.emplace(outputTargets);
+	ZBindingDebug.emplace(outputTargets, true, false);
+	outputDebug.emplace(outputTargets);
+	GPUWorkSubmission::AppendPipelineStage<false>(&World::GetDebugDrawRenderStage, this);
 }
 
 /*

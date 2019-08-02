@@ -20,7 +20,7 @@ PipelineItem RenderPipeline::GetNext(unsigned int &length)
 			pipeline.pop();
 
 			// if pipeline stage is cmd list
-			if (const auto cmdList = get_if<ID3D12GraphicsCommandList2 *>(&stage))
+			if (const auto cmdList = get_if<ID3D12GraphicsCommandList4 *>(&stage))
 				return *cmdList;
 
 			// else pipeline stage is render stage

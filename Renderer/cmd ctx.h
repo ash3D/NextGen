@@ -18,5 +18,7 @@ namespace Renderer::Impl
 
 	private:
 		std::vector<D3D12_RESOURCE_BARRIER> pendingBarriers;
+		unsigned long listVersion = 0;	// for name generation
+		bool suspended = false;
 	};
 }

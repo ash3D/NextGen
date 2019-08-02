@@ -5,7 +5,7 @@
 #include "../AABB.h"
 #include "allocator adaptors.h"
 
-struct ID3D12GraphicsCommandList2;
+struct ID3D12GraphicsCommandList4;
 
 namespace Renderer
 {
@@ -43,9 +43,9 @@ namespace Renderer
 			const auto &GetWorldAABB() const noexcept { return worldAABB; }
 
 		protected:
-			static void Setup(ID3D12GraphicsCommandList2 *target, UINT64 frameDataGPUPtr, UINT64 tonemapParamsGPUPtr) { Object3D::Setup(target, frameDataGPUPtr, tonemapParamsGPUPtr); }
+			static void Setup(ID3D12GraphicsCommandList4 *target, UINT64 frameDataGPUPtr, UINT64 tonemapParamsGPUPtr) { Object3D::Setup(target, frameDataGPUPtr, tonemapParamsGPUPtr); }
 			const auto GetStartPSO() const { return object.GetStartPSO(); }
-			void Render(ID3D12GraphicsCommandList2 *target) const;
+			void Render(ID3D12GraphicsCommandList4 *target) const;
 		};
 	}
 

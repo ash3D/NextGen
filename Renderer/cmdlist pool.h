@@ -18,7 +18,7 @@ namespace Renderer::CmdListPool
 		inline CmdList &operator =(CmdList &&src);
 
 	public:
-		inline operator ID3D12GraphicsCommandList2 *() const;
+		inline operator ID3D12GraphicsCommandList4 *() const;
 		inline const auto &operator ->() const;
 
 	public:
@@ -28,6 +28,9 @@ namespace Renderer::CmdListPool
 		void ResourceBarrier(const D3D12_RESOURCE_BARRIER &barrier), ResourceBarrier(std::initializer_list<D3D12_RESOURCE_BARRIER> barriers);
 		template<bool force = false>	// specify true if it is guaranteed there is pending barriers
 		void FlushBarriers();
+
+	public:
+		inline void MarkSuspended(bool suspended);
 
 	private:
 		void Init(ID3D12PipelineState *PSO), Update(ID3D12PipelineState *PSO);

@@ -3,6 +3,7 @@
 #include "world.hh"
 #include "GPU work submission.h"
 #include "GPU descriptor heap.h"
+#include "render passes.h"
 #include "shader bytecode.h"
 #include "CB register.h"
 #include "DMA engine.h"
@@ -43,7 +44,7 @@ static inline float CalculateTonemapParamsLerpFactor(float delta)
 }
 
 // result valid until call to 'OnFrameFinish()'
-auto Impl::Viewport::CmdListsManager::OnFrameStart() -> PrePostCmds<ID3D12GraphicsCommandList2 *>
+auto Impl::Viewport::CmdListsManager::OnFrameStart() -> PrePostCmds<ID3D12GraphicsCommandList4 *>
 {
 	FrameVersioning::OnFrameStart();
 	auto &cmdBuffers = GetCurFrameDataVersion();
@@ -160,7 +161,7 @@ ComPtr<ID3D12PipelineState> Impl::Viewport::CreateTonemapPSO()
 }
 #pragma endregion
 
-inline RenderPipeline::PipelineStage Impl::Viewport::Pre(ID3D12GraphicsCommandList2 *cmdList, ID3D12Resource *output, D3D12_CPU_DESCRIPTOR_HANDLE rtv, D3D12_CPU_DESCRIPTOR_HANDLE dsv, UINT width, UINT height) const
+inline RenderPipeline::PipelineStage Impl::Viewport::Pre(ID3D12GraphicsCommandList4 *cmdList, ID3D12Resource *output, D3D12_CPU_DESCRIPTOR_HANDLE rtv, D3D12_CPU_DESCRIPTOR_HANDLE dsv, UINT width, UINT height) const
 {
 	PIXScopedEvent(cmdList, PIX_COLOR_INDEX(PIXEvents::ViewportPre), "viewport pre");
 	if (fresh)
@@ -186,13 +187,11 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Pre(ID3D12GraphicsCommandLi
 		};
 		cmdList->ResourceBarrier(1 + fresh, barriers);
 	}
-	cmdList->ClearRenderTargetView(rtv, backgroundColor, 0, NULL);
-	cmdList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0xef, 0, NULL);
 	CheckHR(cmdList->Close());
 	return cmdList;
 }
 
-inline RenderPipeline::PipelineStage Impl::Viewport::Post(ID3D12GraphicsCommandList2 *cmdList, ID3D12Resource *output, ID3D12Resource *rendertarget, ID3D12Resource *HDRSurface, ID3D12Resource *LDRSurface, ID3D12Resource *tonemapReductionBuffer, D3D12_GPU_DESCRIPTOR_HANDLE tonemapDescriptorTable, float tonemapLerpFactor, UINT width, UINT height) const
+inline RenderPipeline::PipelineStage Impl::Viewport::Post(ID3D12GraphicsCommandList4 *cmdList, ID3D12Resource *output, ID3D12Resource *rendertarget, ID3D12Resource *HDRSurface, ID3D12Resource *LDRSurface, ID3D12Resource *tonemapReductionBuffer, D3D12_GPU_DESCRIPTOR_HANDLE tonemapDescriptorTable, float tonemapLerpFactor, UINT width, UINT height) const
 {
 	PIXScopedEvent(cmdList, PIX_COLOR_INDEX(PIXEvents::ViewportPost), "viewport post");
 
@@ -200,17 +199,6 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(ID3D12GraphicsCommandL
 		const D3D12_RESOURCE_BARRIER barriers[] =
 		{
 			CD3DX12_RESOURCE_BARRIER::Transition(tonemapParamsBuffer.Get(), D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
-			CD3DX12_RESOURCE_BARRIER::Transition(rendertarget, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_RESOLVE_SOURCE)
-		};
-		cmdList->ResourceBarrier(size(barriers), barriers);
-	}
-
-	cmdList->ResolveSubresource(HDRSurface, 0, rendertarget, 0, Config::HDRFormat);
-	
-	{
-		const D3D12_RESOURCE_BARRIER barriers[] =
-		{
-			CD3DX12_RESOURCE_BARRIER::Transition(rendertarget, D3D12_RESOURCE_STATE_RESOLVE_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET),	// !: use split barrier
 			CD3DX12_RESOURCE_BARRIER::Transition(HDRSurface, D3D12_RESOURCE_STATE_RESOLVE_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE)
 		};
 		cmdList->ResourceBarrier(size(barriers), barriers);
@@ -285,6 +273,8 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(ID3D12GraphicsCommandL
 
 Impl::Viewport::Viewport(shared_ptr<const Renderer::World> world) : world(move(world)), viewXform(), projXform()
 {
+	assert(this->world);
+
 	viewXform[0][0] = viewXform[1][1] = viewXform[2][2] = projXform[0][0] = projXform[1][1] = projXform[2][2] = projXform[3][3] = 1.f;
 
 	/*
@@ -342,36 +332,13 @@ void Impl::Viewport::Render(ID3D12Resource *output, ID3D12Resource *rendertarget
 
 	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Pre, this, cmdLists.pre, output, rtv, dsv, width, height);
 
-	if (world)
-	{
-		const function<void (ID3D12GraphicsCommandList2 *target, bool enableRT)> setupRenderOutputCallback =
-			[
-				rtv, dsv,
-				viewport = CD3DX12_VIEWPORT(0.f, 0.f, width, height),
-				scissorRect = CD3DX12_RECT(0, 0, width, height)
-			](ID3D12GraphicsCommandList2 *cmdList, bool enableRT)
-		{
-			cmdList->OMSetRenderTargets(enableRT, &rtv, TRUE, &dsv);
-			cmdList->RSSetViewports(1, &viewport);
-			cmdList->RSSetScissorRects(1, &scissorRect);
-		};
-		world->Render(ctx, viewXform, projXform, tonemapParamsBuffer->GetGPUVirtualAddress(), ZBuffer, dsv, setupRenderOutputCallback);
-
-		/*
-		defer as much as possible in order to reduce chances waiting to be inserted in GFX queue (DMA queue can progress enough by this point)
-		drop syncing if world is not attached (no rendering would done in this case thus no dependencies to DMA uploads)
-			caveat: it makes things slightly more complicated and less robust, need to take into account specific subsystems details and dependencies
-			further such optimization seems not worthwhile since empty world is pathological case
-			future plans is to reconsider empty world case handling and prohibit it (throw an exception)
-			current behavior for empty world is to just clear output (and perform tonemapping which is already somewhat strange)
-			later when full world rendering be implemented (sky, no holes in terrain) no background color will be needed
-				and discard can be used for color output (another optimization especially for tiled GPUs)
-			such behavior will imply that world is mandatory
-		*/
-		DMA::Sync();
-	}
+	const RenderPipeline::RenderPasses::PipelineOutputTargets outputTargets(rendertarget, rtv, backgroundColor, ZBuffer, dsv, 1.f, 0xef, HDRSurface, width, height);
+	world->Render(ctx, viewXform, projXform, tonemapParamsBuffer->GetGPUVirtualAddress(), outputTargets);
 
 	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Post, this, cmdLists.post, output, rendertarget, HDRSurface, LDRSurface, tonemapReductionBuffer, tonemapDescriptorTable, CalculateTonemapParamsLerpFactor(delta), width, height);
+
+	// defer as much as possible in order to reduce chances waiting to be inserted in GFX queue (DMA queue can progress enough by this point)
+	DMA::Sync();
 
 	GPUWorkSubmission::Run();
 	fresh = false;
@@ -380,6 +347,5 @@ void Impl::Viewport::Render(ID3D12Resource *output, ID3D12Resource *rendertarget
 
 void Impl::Viewport::OnFrameFinish() const
 {
-	if (world)
-		world->OnFrameFinish();
+	world->OnFrameFinish();
 }

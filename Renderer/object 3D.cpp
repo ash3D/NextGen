@@ -85,7 +85,7 @@ private:
 #if INTEL_WORKAROUND
 	void (Subobject:: *FillMaterialSelector)(volatile MaterialData *dst) const;
 #else
-	void (Subobject:: *SetupSelector)(ID3D12GraphicsCommandList2 *target, Context &ctx) const;
+	void (Subobject:: *SetupSelector)(ID3D12GraphicsCommandList4 *target, Context &ctx) const;
 #endif
 
 public:
@@ -98,14 +98,14 @@ public:
 #if INTEL_WORKAROUND
 	inline void FillMaterialCB(volatile MaterialData *dst) const;
 #endif
-	inline void Setup(ID3D12GraphicsCommandList2 *target, Context &ctx) const;
+	inline void Setup(ID3D12GraphicsCommandList4 *target, Context &ctx) const;
 
 private:
 	inline auto SamplerDescriptorTableOffset() const noexcept;
 #if INTEL_WORKAROUND
 	void FillAlbedoMaterial(volatile MaterialData *dst) const, FillTexMaterial(volatile MaterialData *dst) const, FillTVMaterial(volatile MaterialData *dst) const;
 #else
-	void SetupAlbedo(ID3D12GraphicsCommandList2 *target, Context &ctx) const, SetupTex(ID3D12GraphicsCommandList2 *target, Context &) const, SetupTV(ID3D12GraphicsCommandList2 *target, Context &ctx) const;
+	void SetupAlbedo(ID3D12GraphicsCommandList4 *target, Context &ctx) const, SetupTex(ID3D12GraphicsCommandList4 *target, Context &) const, SetupTV(ID3D12GraphicsCommandList4 *target, Context &ctx) const;
 #endif
 };
 
@@ -152,7 +152,7 @@ inline void Impl::Object3D::Subobject::FillMaterialCB(volatile MaterialData *dst
 }
 #endif
 
-inline void Impl::Object3D::Subobject::Setup(ID3D12GraphicsCommandList2 *target, Context &ctx) const
+inline void Impl::Object3D::Subobject::Setup(ID3D12GraphicsCommandList4 *target, Context &ctx) const
 {
 	if (ctx.curPSO != PSO)
 		target->SetPipelineState(ctx.curPSO = PSO);
@@ -185,18 +185,18 @@ void Impl::Object3D::Subobject::FillTVMaterial(volatile MaterialData *dst) const
 	dst->TVBrighntess = TVBrighntess;
 }
 #else
-inline void Impl::Object3D::Subobject::SetupAlbedo(ID3D12GraphicsCommandList2 *cmdList, Context &ctx) const
+inline void Impl::Object3D::Subobject::SetupAlbedo(ID3D12GraphicsCommandList4 *cmdList, Context &ctx) const
 {
 	if (any(ctx.curAlbedo != albedo))
 		cmdList->SetGraphicsRoot32BitConstants(ROOT_PARAM_MATERIAL, decltype(ctx.curAlbedo)::dimension, &(ctx.curAlbedo = albedo), 0);
 }
 
-inline void Impl::Object3D::Subobject::SetupTex(ID3D12GraphicsCommandList2 *cmdList, Context &) const
+inline void Impl::Object3D::Subobject::SetupTex(ID3D12GraphicsCommandList4 *cmdList, Context &) const
 {
 	cmdList->SetGraphicsRoot32BitConstant(ROOT_PARAM_MATERIAL, textureDescriptorTableOffset, decltype(Context::curAlbedo)::dimension);
 }
 
-void Impl::Object3D::Subobject::SetupTV(ID3D12GraphicsCommandList2 *cmdList, Context &ctx) const
+void Impl::Object3D::Subobject::SetupTV(ID3D12GraphicsCommandList4 *cmdList, Context &ctx) const
 {
 	SetupAlbedo(cmdList, ctx);
 	cmdList->SetGraphicsRoot32BitConstant(ROOT_PARAM_MATERIAL, textureDescriptorTableOffset | SamplerDescriptorTableOffset() << 16, decltype(Context::curAlbedo)::dimension);
@@ -227,7 +227,7 @@ private:
 #endif
 
 public:
-	inline void Set(ID3D12GraphicsCommandList2 *target) const;
+	inline void Set(ID3D12GraphicsCommandList4 *target) const;
 
 private:
 	// Inherited via AllocationClient
@@ -274,7 +274,7 @@ ComPtr<ID3D12DescriptorHeap> Impl::Object3D::DescriptorTablePack::CreateBackingS
 	return CPUStore;
 }
 
-inline void Impl::Object3D::DescriptorTablePack::Set(ID3D12GraphicsCommandList2 *cmdList) const
+inline void Impl::Object3D::DescriptorTablePack::Set(ID3D12GraphicsCommandList4 *cmdList) const
 {
 	cmdList->SetGraphicsRootDescriptorTable(ROOT_PARAM_TEXTURE_DESC_TABLE, { GetGPUDescriptorsAllocation() });
 }
@@ -754,7 +754,7 @@ AABB<3> Impl::Object3D::GetXformedAABB(const float4x3 &xform) const
 	return result;
 }
 
-void Impl::Object3D::Setup(ID3D12GraphicsCommandList2 *cmdList, UINT64 frameDataGPUPtr, UINT64 tonemapParamsGPUPtr)
+void Impl::Object3D::Setup(ID3D12GraphicsCommandList4 *cmdList, UINT64 frameDataGPUPtr, UINT64 tonemapParamsGPUPtr)
 {
 	using namespace Descriptors;
 	cmdList->SetGraphicsRootSignature(rootSig.Get());
@@ -770,7 +770,7 @@ ID3D12PipelineState *Impl::Object3D::GetStartPSO() const
 	return subobjects[0].PSO;
 }
 
-const void Impl::Object3D::Render(ID3D12GraphicsCommandList2 *cmdList) const
+const void Impl::Object3D::Render(ID3D12GraphicsCommandList4 *cmdList) const
 {
 	// bind descriptor table out of bundle so that descriptor heap changes would not cause bundle rebuild
 	if (descriptorTablePack)

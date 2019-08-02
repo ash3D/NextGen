@@ -10,7 +10,7 @@
 struct ID3D12RootSignature;
 struct ID3D12PipelineState;
 struct ID3D12DescriptorHeap;
-struct ID3D12GraphicsCommandList2;
+struct ID3D12GraphicsCommandList4;
 struct ID3D12Resource;
 struct D3D12_CPU_DESCRIPTOR_HANDLE;
 struct CD3DX12_ROOT_PARAMETER1;
@@ -70,11 +70,11 @@ namespace Renderer::TerrainMaterials
 			~TexStuff() = default;
 
 		private:
-			void SetupQuad(ID3D12GraphicsCommandList2 *target, HLSL::float2 quadCenter) const override;
+			void SetupQuad(ID3D12GraphicsCommandList4 *target, HLSL::float2 quadCenter) const override;
 
 		protected:
 			// Inherited via Interface
-			virtual void FinishSetup(ID3D12GraphicsCommandList2 *target) const override;
+			virtual void FinishSetup(ID3D12GraphicsCommandList4 *target) const override;
 		};
 	}
 
@@ -114,7 +114,7 @@ namespace Renderer::TerrainMaterials
 
 	protected:
 		// Inherited via Interface
-		virtual void FinishSetup(ID3D12GraphicsCommandList2 *target) const override;
+		virtual void FinishSetup(ID3D12GraphicsCommandList4 *target) const override;
 	};
 
 	class Textured final : public Impl::TexStuff<Flat>
@@ -187,7 +187,7 @@ namespace Renderer::TerrainMaterials
 
 	private:
 		// Inherited via Interface
-		virtual void FinishSetup(ID3D12GraphicsCommandList2 *target) const override;
+		virtual void FinishSetup(ID3D12GraphicsCommandList4 *target) const override;
 	};
 
 	class Extended final : public Impl::TexStuff<Interface>

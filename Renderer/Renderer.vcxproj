@@ -243,6 +243,7 @@
     <ClInclude Include="occlusion query batch.h" />
     <ClInclude Include="GPU work item.h" />
     <ClInclude Include="PIX events.h" />
+    <ClInclude Include="render passes.h" />
     <ClInclude Include="shader bytecode.h" />
     <ClInclude Include="terrain material interface.h" />
     <ClInclude Include="tonemapTextureReduction config.h" />
@@ -285,6 +286,7 @@
     <ClCompile Include="occlusion tree.cpp" />
     <ClCompile Include="occlusion query batch.cpp" />
     <ClCompile Include="render output.cpp" />
+    <ClCompile Include="render passes.cpp" />
     <ClCompile Include="render pipeline.cpp" />
     <ClCompile Include="render stage.cpp" />
     <ClCompile Include="SO buffer.cpp" />

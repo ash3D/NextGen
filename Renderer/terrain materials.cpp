@@ -46,7 +46,7 @@ Impl::Interface::Interface(UINT color, const ComPtr<ID3D12RootSignature> &rootSi
 
 Impl::Interface::~Interface() = default;
 
-void Impl::Interface::Setup(ID3D12GraphicsCommandList2 *cmdList, UINT64 globalGPUBufferPtr, UINT64 tonemapParamsBufferPtr) const
+void Impl::Interface::Setup(ID3D12GraphicsCommandList4 *cmdList, UINT64 globalGPUBufferPtr, UINT64 tonemapParamsBufferPtr) const
 {
 	cmdList->SetGraphicsRootSignature(rootSig.Get());
 	cmdList->SetGraphicsRootConstantBufferView(ROOT_PARAM_PER_FRAME_DATA_CBV, globalGPUBufferPtr);
@@ -99,14 +99,14 @@ public:
 };
 
 template<class Base>
-void Impl::TexStuff<Base>::SetupQuad(ID3D12GraphicsCommandList2 *cmdList, HLSL::float2 quadCenter) const
+void Impl::TexStuff<Base>::SetupQuad(ID3D12GraphicsCommandList4 *cmdList, HLSL::float2 quadCenter) const
 {
 	cmdList->SetGraphicsRoot32BitConstants(ROOT_PARAM_QUAD_TEXGEN_REDUCTION, 2, &(quadCenter * texScale).apply(roundf), 0);
 }
 
 // inline for devirtualized call from derived
 template<class Base>
-inline void Impl::TexStuff<Base>::FinishSetup(ID3D12GraphicsCommandList2 *cmdList) const
+inline void Impl::TexStuff<Base>::FinishSetup(ID3D12GraphicsCommandList4 *cmdList) const
 {
 	using namespace Impl::Descriptors;
 	if constexpr (BaseHasFinishSetup::value)
@@ -229,7 +229,7 @@ shared_ptr<Interface> Flat::Make(const float (&albedo)[3])
 }
 
 // 'inline' for (hopefully) devirtualized call from 'Textured', for common vtable dispatch path compiler still have to generate out-of-line body code
-inline void Flat::FinishSetup(ID3D12GraphicsCommandList2 *cmdList) const
+inline void Flat::FinishSetup(ID3D12GraphicsCommandList4 *cmdList) const
 {
 	cmdList->SetGraphicsRoot32BitConstants(ROOT_PARAM_ALBEDO, size(albedo), albedo, 0);
 }
@@ -453,7 +453,7 @@ shared_ptr<Interface> __cdecl Standard::Make(const Texture &albedoMap, const Tex
 }
 #endif
 
-void Standard::FinishSetup(ID3D12GraphicsCommandList2 *cmdList) const
+void Standard::FinishSetup(ID3D12GraphicsCommandList4 *cmdList) const
 {
 	TexStuff::FinishSetup(cmdList);
 	cmdList->SetGraphicsRoot32BitConstant(ROOT_PARAM_F0, reinterpret_cast<const UINT &>(F0), 0);	// strict aliasing rule violation, use C++20 bit_cast instead

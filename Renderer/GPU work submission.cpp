@@ -51,29 +51,30 @@ namespace
 		future<CmdListPool::CmdList> list;
 #endif
 		unsigned int size;
+		bool suspended;
 	};
-	struct GPUWorkItem : variant<ID3D12GraphicsCommandList2 *, PendingWork>
+	struct GPUWorkItem : variant<ID3D12GraphicsCommandList4 *, PendingWork>
 	{
 		// TODO: use C++17 base class aggregate init instead of inheriting ctor
 #if 1
 		using variant::variant;
 #endif
 		// 1 call site
-		inline operator ID3D12GraphicsCommandList2 *();
+		inline operator ID3D12GraphicsCommandList4 *();
 	};
 	deque<GPUWorkItem> ROB;
 
-	GPUWorkItem::operator ID3D12GraphicsCommandList2 *()
+	GPUWorkItem::operator ID3D12GraphicsCommandList4 *()
 	{
 		// convert to cmd list ptr
 		const struct Conveter
 		{
-			ID3D12GraphicsCommandList2 *operator ()(ID3D12GraphicsCommandList2 *src) const noexcept
+			ID3D12GraphicsCommandList4 *operator ()(ID3D12GraphicsCommandList4 *src) const noexcept
 			{
 				return src;
 			}
 
-			ID3D12GraphicsCommandList2 *operator ()(PendingWork &src) const
+			ID3D12GraphicsCommandList4 *operator ()(PendingWork &src) const
 			{
 #if WRAP_CMD_LIST
 				return *src.list.get();
@@ -88,7 +89,7 @@ namespace
 	inline CmdListPool::CmdList RecordCmdList(decltype(workBatch) &&work, CmdListPool::CmdList &&target)
 	{
 		for (const auto &item : work)
-			item(target);
+			item.work(target);
 
 #if KEPLER_WORKAROUND
 #if 0
@@ -113,6 +114,7 @@ namespace
 		target.FlushBarriers();
 
 		CheckHR(target->Close());
+		target.MarkSuspended(work.back().suspended);
 
 		return move(target);
 	}
@@ -144,9 +146,10 @@ namespace
 
 	void FlushWorkBatch(unique_lock<decltype(mtx)> &lck)
 	{
+		assert(!workBatch.empty());
 		RecordCmdListTask task(RecordCmdList);
 		const auto reserved = workBatch.capacity();
-		ROB.emplace_back(PendingWork{ task.get_future(), targetCmdListWorkSize - workBatchFreeSpace });
+		ROB.emplace_back(PendingWork{ task.get_future(), targetCmdListWorkSize - workBatchFreeSpace, workBatch.back().suspended });
 
 		auto asyncRef = async(launch::async, LaunchRecordCmdList, move(task), move(workBatch), CmdListPool::CmdList());
 		auto lckSentry(move(lck));
@@ -194,7 +197,7 @@ void GPUWorkSubmission::Run()
 			while (workBatch.empty() || runningTaskCount < targetTaskCount)
 			{
 				const auto item = RenderPipeline::GetNext(workBatchFreeSpace);
-				if (const auto cmdList = get_if<ID3D12GraphicsCommandList2 *>(&item))
+				if (const auto cmdList = get_if<ID3D12GraphicsCommandList4 *>(&item))
 				{
 					// flush work batch if needed
 					if (!workBatch.empty())
@@ -205,7 +208,7 @@ void GPUWorkSubmission::Run()
 				}
 				else if (const auto stageItem = get_if<RenderPipeline::RenderStageItem>(&item))
 				{
-					if (*stageItem)
+					if (stageItem->work)
 						workBatch.push_back(move(*stageItem));
 					else // batch overflow
 						FlushWorkBatch(lck);
@@ -219,17 +222,20 @@ void GPUWorkSubmission::Run()
 			}
 
 			// submit command list batch if ready
-			auto readyWorkEnd = ROB.begin();
-			unsigned int readyWorkSize = 0;
-			for (const auto workEnd = ROB.end(); readyWorkEnd != workEnd; ++readyWorkEnd)
+			auto doneWorkEnd = ROB.begin(), readyWorkEnd = doneWorkEnd;
+			unsigned int doneWorkSize = 0, readyWorkSize = 0;
+			for (const auto workEnd = ROB.end(); doneWorkEnd != workEnd; ++doneWorkEnd)
 			{
-				if (const PendingWork *const pendingWork = get_if<PendingWork>(&*readyWorkEnd))
+				if (const PendingWork *const pendingWork = get_if<PendingWork>(&*doneWorkEnd))
 				{
-					if (pendingWork->list.wait_for(0s) != future_status::timeout)
-						readyWorkSize += pendingWork->size;
-					else
+					if (pendingWork->list.wait_for(0s) == future_status::timeout)
 						break;
+					doneWorkSize += pendingWork->size;
+					if (pendingWork->suspended)
+						continue;
 				}
+				++(readyWorkEnd = doneWorkEnd);
+				readyWorkSize = doneWorkSize;
 			}
 			if (readyWorkSize >= GPUSubmitWorkSizeThreshold || RenderPipeline::Empty() && readyWorkEnd == ROB.end())
 			{

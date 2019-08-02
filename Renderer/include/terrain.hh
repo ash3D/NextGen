@@ -16,6 +16,7 @@
 #include "../world hierarchy.h"
 #include "../render stage.h"
 #include "../render pipeline.h"
+#include "../render passes.h"
 #include "../GPU stream buffer allocator.h"
 #include "../occlusion query batch.h"
 #include "allocator adaptors.h"
@@ -26,7 +27,7 @@
 
 struct ID3D12RootSignature;
 struct ID3D12PipelineState;
-struct ID3D12GraphicsCommandList2;
+struct ID3D12GraphicsCommandList4;
 struct ID3D12Resource;
 
 extern void __cdecl InitRenderer();
@@ -111,6 +112,8 @@ namespace Renderer
 
 	namespace Impl
 	{
+		namespace RenderPasses = RenderPipeline::RenderPasses;
+
 		class TerrainVectorLayer : public std::enable_shared_from_this<Renderer::TerrainVectorLayer>, RenderPipeline::IRenderStage
 		{
 			friend class TerrainVectorQuad;
@@ -131,6 +134,12 @@ namespace Renderer
 
 		private:
 			mutable UINT64 tonemapParamsGPUAddress;
+			mutable struct
+			{
+				std::optional<RenderPasses::StageRTBinding> RT;
+				std::optional<RenderPasses::StageZBinding> ZBuffer;
+				std::optional<RenderPasses::StageOutput> output;
+			} ROPBindingsMain, ROPBidingsDebug;
 
 #pragma region occlusion query pass
 		private:
@@ -138,7 +147,6 @@ namespace Renderer
 			static WRL::ComPtr<ID3D12PipelineState> cullPassPSO, CreateCullPassPSO();
 
 		private:
-			mutable std::function<void (ID3D12GraphicsCommandList2 *target)> cullPassSetupCallback;
 			struct OcclusionQueryGeometry
 			{
 				ID3D12Resource *VB;
@@ -149,16 +157,15 @@ namespace Renderer
 
 		private:
 			inline void CullPassPre(CmdListPool::CmdList &target) const, CullPassPost(CmdListPool::CmdList &target) const;
-			void CullPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd) const;
+			void CullPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass) const;
 
 		private:
-			void SetupCullPass(std::function<void (ID3D12GraphicsCommandList2 *target)> &&setupCallback) const;
+			void SetupCullPass() const;
 			void IssueOcclusion(ViewNode::OcclusionQueryGeometry occlusionQueryGeometry);
 #pragma endregion
 
 #pragma region main pass
 		private:
-			mutable std::function<void (ID3D12GraphicsCommandList2 *target)> mainPassSetupCallback;
 			struct RenderData
 			{
 				unsigned long int startIdx, triCount;
@@ -178,10 +185,10 @@ namespace Renderer
 
 		private:
 			inline void MainPassPre(CmdListPool::CmdList &target) const, MainPassPost(CmdListPool::CmdList &target) const;
-			void MainPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd) const;
+			void MainPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass) const;
 
 		private:
-			void SetupMainPass(std::function<void (ID3D12GraphicsCommandList2 *target)> &&setupCallback) const;
+			void SetupMainPass() const;
 			void IssueCluster(unsigned long int startIdx, unsigned long int triCount, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion);
 			void IssueExclusiveObjects(const TreeNode &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion);
 			void IssueChildren(const TreeNode &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion);
@@ -196,7 +203,7 @@ namespace Renderer
 			static WRL::ComPtr<ID3D12PipelineState> AABB_PSO, CreateAABB_PSO();
 
 		private:
-			void AABBPassPre(CmdListPool::CmdList &target) const, AABBPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, const float (&color)[3], bool visible) const;
+			void AABBPassPre(CmdListPool::CmdList &target) const, AABBPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass, const float (&color)[3], bool visible) const;
 #pragma endregion
 
 		private:
@@ -220,7 +227,7 @@ namespace Renderer
 				GetVisiblePassRange(unsigned int &length) const, GetCulledPassRange(unsigned int &length) const;
 
 		private:
-			void Setup(UINT64 tonemapParamsGPUAddress, std::function<void (ID3D12GraphicsCommandList2 *target)> &&cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList2 *target)> &&mainPassSetupCallback) const, SetupOcclusionQueryBatch(decltype(OcclusionCulling::QueryBatchBase::npos) maxOcclusion) const;
+			void Setup(UINT64 tonemapParamsGPUAddress) const, SetupOcclusionQueryBatch(decltype(OcclusionCulling::QueryBatchBase::npos) maxOcclusion) const;
 
 		private:
 			static std::optional<GPUStreamBuffer::Allocator<sizeof(AABB<2>), TerrainVectorQuad::AABB_VB_name>> GPU_AABB_allocator;
@@ -250,12 +257,12 @@ namespace Renderer
 			QuadPtr AddQuad(unsigned long int vcount, const std::function<void __cdecl(volatile float verts[][2])> &fillVB, unsigned int objCount, bool IB32bit, const std::function<ObjectData __cdecl(unsigned int objIdx)> &getObjectData);
 
 		private:
-			RenderPipeline::RenderStage BuildRenderStage(const FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, UINT64 tonemapParamsGPUAddress, std::function<void (ID3D12GraphicsCommandList2 *target)> &cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList2 *target)> &mainPassSetupCallback) const;
+			RenderPipeline::RenderStage BuildRenderStage(const FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, UINT64 tonemapParamsGPUAddress) const;
 			RenderPipeline::PipelineStage GetDebugDrawRenderStage() const;
 
 		protected:
-			void ScheduleRenderStage(const FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, UINT64 tonemapParamsGPUAddress, std::function<void (ID3D12GraphicsCommandList2 *target)> cullPassSetupCallback, std::function<void (ID3D12GraphicsCommandList2 *target)> mainPassSetupCallback) const;
-			void ScheduleDebugDrawRenderStage() const;	// must be after ScheduleRenderStage()
+			void ScheduleRenderStage(const FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, UINT64 tonemapParamsGPUAddress, const RenderPasses::PipelineOutputTargets &outputTargets) const;
+			void ScheduleDebugDrawRenderStage(const RenderPasses::PipelineOutputTargets &outputTargets) const;	// must be after ScheduleRenderStage()
 			static void OnFrameFinish() { GPU_AABB_allocator->OnFrameFinish(); }
 		};
 	}

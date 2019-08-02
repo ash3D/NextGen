@@ -24,7 +24,7 @@ struct ID3D12RootSignature;
 struct ID3D12PipelineState;
 struct ID3D12Resource;
 struct ID3D12CommandAllocator;
-struct ID3D12GraphicsCommandList2;
+struct ID3D12GraphicsCommandList4;
 
 extern void __cdecl InitRenderer();
 
@@ -131,7 +131,7 @@ namespace Renderer
 		private:
 			class DescriptorTablePack;
 			// is GPU lifetime tracking is necessary for cmd list (or is it enough for cmd allocator only)?
-			std::shared_future<std::pair<Impl::TrackedResource<ID3D12CommandAllocator>, Impl::TrackedResource<ID3D12GraphicsCommandList2>>> bundle;
+			std::shared_future<std::pair<Impl::TrackedResource<ID3D12CommandAllocator>, Impl::TrackedResource<ID3D12GraphicsCommandList4>>> bundle;
 			std::shared_ptr<Subobject []> subobjects;
 			std::shared_ptr<DescriptorTablePack> descriptorTablePack;	// serves all subobjects
 			Impl::TrackedResource<ID3D12Resource> VIB;	// Vertex/Index Buffer, also contain material for Intel workaround
@@ -160,9 +160,9 @@ namespace Renderer
 			unsigned long int GetTriCount() const noexcept { return tricount; }
 
 		protected:
-			static void Setup(ID3D12GraphicsCommandList2 *target, UINT64 frameDataGPUPtr, UINT64 tonemapParamsGPUPtr);
+			static void Setup(ID3D12GraphicsCommandList4 *target, UINT64 frameDataGPUPtr, UINT64 tonemapParamsGPUPtr);
 			ID3D12PipelineState *GetStartPSO() const;
-			const void Render(ID3D12GraphicsCommandList2 *target) const;
+			const void Render(ID3D12GraphicsCommandList4 *target) const;
 
 		private:
 #ifdef _MSC_VER

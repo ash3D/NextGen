@@ -85,19 +85,19 @@ void QueryBatchBase::Setup(unsigned long count)
 	}
 }
 
-void QueryBatchBase::Start(ID3D12GraphicsCommandList2 *cmdList, unsigned long queryIdx) const
+void QueryBatchBase::Start(ID3D12GraphicsCommandList4 *cmdList, unsigned long queryIdx) const
 {
 	assert(queryIdx < count);
 	cmdList->BeginQuery(batchHeap, D3D12_QUERY_TYPE_BINARY_OCCLUSION, queryIdx);
 }
 
-void QueryBatchBase::Stop(ID3D12GraphicsCommandList2 *cmdList, unsigned long queryIdx) const
+void QueryBatchBase::Stop(ID3D12GraphicsCommandList4 *cmdList, unsigned long queryIdx) const
 {
 	assert(queryIdx < count);
 	cmdList->EndQuery(batchHeap, D3D12_QUERY_TYPE_BINARY_OCCLUSION, queryIdx);
 }
 
-void QueryBatchBase::Set(ID3D12GraphicsCommandList2 *cmdList, unsigned long queryIdx, ID3D12Resource *batchResults, bool visible, unsigned long offset) const
+void QueryBatchBase::Set(ID3D12GraphicsCommandList4 *cmdList, unsigned long queryIdx, ID3D12Resource *batchResults, bool visible, unsigned long offset) const
 {
 	assert(queryIdx == npos || queryIdx < count);
 	cmdList->SetPredication(queryIdx == npos ? NULL : batchResults, queryIdx == npos ? 0 : queryIdx * sizeof(UINT64) + offset, visible ? D3D12_PREDICATION_OP_EQUAL_ZERO : D3D12_PREDICATION_OP_NOT_EQUAL_ZERO);

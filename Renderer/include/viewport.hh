@@ -9,7 +9,7 @@
 #include "../world view context.h"
 #include "../render pipeline.h"
 
-struct ID3D12GraphicsCommandList2;
+struct ID3D12GraphicsCommandList4;
 struct ID3D12RootSignature;
 struct ID3D12PipelineState;
 struct ID3D12Resource;
@@ -55,7 +55,7 @@ namespace Renderer
 			mutable class CmdListsManager : FrameVersioning<PrePostCmds<CmdBuffer<>>, viewportName>
 			{
 			public:
-				PrePostCmds<ID3D12GraphicsCommandList2 *> OnFrameStart();
+				PrePostCmds<ID3D12GraphicsCommandList4 *> OnFrameStart();
 				using FrameVersioning::OnFrameFinish;
 			} cmdListsManager;
 
@@ -77,8 +77,8 @@ namespace Renderer
 
 		private:
 			RenderPipeline::PipelineStage
-				Pre(ID3D12GraphicsCommandList2 *cmdList, ID3D12Resource *output, D3D12_CPU_DESCRIPTOR_HANDLE rtv, D3D12_CPU_DESCRIPTOR_HANDLE dsv, UINT width, UINT height) const,
-				Post(ID3D12GraphicsCommandList2 *cmdList, ID3D12Resource *output, ID3D12Resource *rendertarget, ID3D12Resource *HDRSurface, ID3D12Resource *LDRSurface, ID3D12Resource *tonemapReductionBuffer, D3D12_GPU_DESCRIPTOR_HANDLE tonemapDescriptorTable, float tonemapLerpFactor, UINT width, UINT height) const;
+				Pre(ID3D12GraphicsCommandList4 *cmdList, ID3D12Resource *output, D3D12_CPU_DESCRIPTOR_HANDLE rtv, D3D12_CPU_DESCRIPTOR_HANDLE dsv, UINT width, UINT height) const,
+				Post(ID3D12GraphicsCommandList4 *cmdList, ID3D12Resource *output, ID3D12Resource *rendertarget, ID3D12Resource *HDRSurface, ID3D12Resource *LDRSurface, ID3D12Resource *tonemapReductionBuffer, D3D12_GPU_DESCRIPTOR_HANDLE tonemapDescriptorTable, float tonemapLerpFactor, UINT width, UINT height) const;
 
 		protected:
 		public:
