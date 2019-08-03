@@ -4,8 +4,8 @@
 #include "cmdlist pool.inl"
 
 using namespace std;
-using namespace Renderer;
-using namespace Impl::RenderPipeline;
+using namespace Renderer::Impl;
+using namespace RenderPipeline;
 using namespace RenderPasses;
 
 // static definitions

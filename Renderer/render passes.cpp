@@ -5,9 +5,9 @@
 static constexpr bool forceCombineROPWrites = false;
 
 using namespace std;
-using namespace Renderer;
-using namespace Impl::RenderPipeline;
-using Microsoft::WRL::ComPtr;
+using namespace Renderer::Impl;
+using namespace RenderPipeline;
+using WRL::ComPtr;
 
 extern ComPtr<ID3D12Device2> device;
 

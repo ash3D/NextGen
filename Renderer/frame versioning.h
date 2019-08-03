@@ -7,7 +7,7 @@
 #include <optional>
 #include <wrl/client.h>
 #include "../event handle.h"
-#include "../cmd ctx.h"
+#include "../cmdlist pool.h"
 
 struct ID3D12Fence;
 
@@ -69,7 +69,7 @@ namespace Renderer::Impl
 
 	// Data here is a cmd ctx pool
 	constexpr const WCHAR globalFrameVersioningName[] = L"global frame versioning";
-	extern std::optional<FrameVersioning<std::deque<struct CmdCtx>, globalFrameVersioningName>> globalFrameVersioning;
+	extern std::optional<FrameVersioning<CmdListPool::PerFramePool, globalFrameVersioningName>> globalFrameVersioning;
 
 	// template impl
 	template<class Data, LPCWSTR objectName>

@@ -6,7 +6,7 @@
 struct ID3D12Resource;
 struct D3D12_STREAM_OUTPUT_BUFFER_VIEW;
 
-namespace Renderer::CmdListPool
+namespace Renderer::Impl::CmdListPool
 {
 	class CmdList;
 }

@@ -1,11 +1,10 @@
 #pragma once
 
 #include "cmdlist pool.h"
-#include "cmd ctx.h"
 
-namespace Renderer::CmdListPool
+namespace Renderer::Impl::CmdListPool
 {
-	inline CmdList::CmdList(CmdList &&src) : cmdCtx(src.cmdCtx), setup(src.setup), setupSimple(src.setupSimple), poolIdx(src.poolIdx)
+	inline CmdList::CmdList(CmdList &&src) : cmdCtx(src.cmdCtx), setup(src.setup), setupSimple(src.setupSimple), poolIdx(src.poolIdx), ringIdx(src.ringIdx)
 	{
 		src.cmdCtx = nullptr;
 	}
@@ -16,6 +15,7 @@ namespace Renderer::CmdListPool
 		setup = src.setup;
 		setupSimple = src.setupSimple;
 		poolIdx = src.poolIdx;
+		ringIdx = src.ringIdx;
 		src.cmdCtx = nullptr;
 		return *this;
 	}

@@ -7,6 +7,7 @@ using namespace std;
 using namespace Renderer;
 using namespace GPUWorkSubmission;
 using Microsoft::WRL::ComPtr;
+namespace CmdListPool = Impl::CmdListPool;
 
 extern ComPtr<ID3D12CommandQueue> gfxQueue;
 

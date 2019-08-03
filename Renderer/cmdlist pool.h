@@ -1,16 +1,51 @@
 #pragma once
 
-#include "stdafx.h"
-#include "frame versioning.h"
+#include <vector>
+#include <deque>
+#include <initializer_list>
+#include "../cmd buffer.h"
+
+struct ID3D12PipelineState;
+struct ID3D12GraphicsCommandList4;
+struct D3D12_RESOURCE_BARRIER;
 
 // not thread-safe
-namespace Renderer::CmdListPool
+namespace Renderer::Impl::CmdListPool
 {
+	struct CmdCtx : private CmdBuffer<>
+	{
+		friend class CmdList;
+
+	private:
+		std::vector<D3D12_RESOURCE_BARRIER> pendingBarriers;
+		unsigned long long listVersion = 0;	// for name generation
+		bool suspended = false;
+	};
+
+	class PerFramePool
+	{
+		friend class CmdList;
+		friend void OnFrameFinish();
+
+	private:
+		std::deque<struct CmdCtx> ctxPool;
+		unsigned short ringIdx = 0;
+
+	private:
+		static decltype(ctxPool)::size_type firstFreePoolIdx;
+
+	public:
+		PerFramePool() = default;
+		PerFramePool(PerFramePool &&src);
+		PerFramePool &operator =(PerFramePool &&src);
+	};
+
 	class CmdList
 	{
-		Impl::CmdCtx *cmdCtx;
+		struct CmdCtx *cmdCtx;
 		void (CmdList::*setup)(ID3D12PipelineState *PSO) = &CmdList::Init, (CmdList::*setupSimple)(ID3D12PipelineState *) = &CmdList::Init;
-		size_t poolIdx;	// for name generation
+		size_t poolIdx;			// for name generation
+		unsigned short ringIdx;	// for name generation
 
 	public:
 		explicit CmdList();

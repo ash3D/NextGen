@@ -8,7 +8,7 @@ struct ID3D12QueryHeap;
 struct ID3D12Resource;
 struct ID3D12GraphicsCommandList4;
 
-namespace Renderer::CmdListPool
+namespace Renderer::Impl::CmdListPool
 {
 	class CmdList;
 }

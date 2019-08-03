@@ -4,9 +4,9 @@
 #include "cmdlist pool.inl"
 
 using namespace std;
-using namespace Renderer;
-using namespace Impl::SOBuffer;
-using Microsoft::WRL::ComPtr;
+using namespace Renderer::Impl;
+using namespace SOBuffer;
+using WRL::ComPtr;
 
 // D3D12 debug layer emits out of bounds access error on SOSetTargets without this (bug in D3D12 runtime/debug layer?)
 #define SO_BUFFER_PADDING 4u

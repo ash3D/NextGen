@@ -9,9 +9,9 @@
 #endif
 
 using namespace std;
-using namespace Renderer;
-using namespace Impl::OcclusionCulling;
-using Microsoft::WRL::ComPtr;
+using namespace Renderer::Impl;
+using namespace OcclusionCulling;
+using WRL::ComPtr;
 
 extern ComPtr<ID3D12Device2> device;
 void NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;

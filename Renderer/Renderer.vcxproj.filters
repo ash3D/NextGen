@@ -126,9 +126,6 @@
     <ClInclude Include="cmd buffer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="cmd ctx.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="config.h">
       <Filter>Header Files</Filter>
     </ClInclude>

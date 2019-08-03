@@ -194,7 +194,7 @@ void RenderOutput::NextFrame(bool vsync)
 	CheckHR(swapChain->Present(vsync, 0));
 	globalFrameVersioning->OnFrameFinish();
 	viewport->OnFrameFinish();
-	CmdListPool::OnFrameFinish();
+	Impl::CmdListPool::OnFrameFinish();
 	OnFrameFinish();
 }
 

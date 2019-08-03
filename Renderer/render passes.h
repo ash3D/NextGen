@@ -9,7 +9,7 @@ struct D3D12_RENDER_PASS_RENDER_TARGET_DESC;
 struct D3D12_RENDER_PASS_DEPTH_STENCIL_DESC;
 struct D3D12_RENDER_PASS_ENDING_ACCESS_RESOLVE_SUBRESOURCE_PARAMETERS;
 
-namespace Renderer::CmdListPool
+namespace Renderer::Impl::CmdListPool
 {
 	class CmdList;
 }

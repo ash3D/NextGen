@@ -1,20 +1,34 @@
 #include "stdafx.h"
 #include "cmdlist pool.h"
-#include "cmd ctx.h"
+#include "frame versioning.h"
 
 using namespace std;
 using namespace Renderer;
-using namespace CmdListPool;
+using namespace Impl::CmdListPool;
 using Impl::globalFrameVersioning;
 using Microsoft::WRL::ComPtr;
 
-static remove_reference_t<decltype(globalFrameVersioning->GetCurFrameDataVersion())>::size_type firstFreePoolIdx;
+decltype(PerFramePool::ctxPool)::size_type PerFramePool::firstFreePoolIdx;
 
-CmdList::CmdList() : poolIdx(firstFreePoolIdx)
+PerFramePool::PerFramePool(PerFramePool &&src) : ctxPool(move(src.ctxPool)), ringIdx(src.ringIdx)
 {
-	auto &curFramePool = globalFrameVersioning->GetCurFrameDataVersion();
-	cmdCtx = curFramePool.size() <= firstFreePoolIdx ? &curFramePool.emplace_back() : &curFramePool[firstFreePoolIdx];
-	firstFreePoolIdx++;	// increment after insertion improves exception safety guarantee
+	src.ringIdx = globalFrameVersioning->GetFrameLatency() - 1;
+}
+
+PerFramePool &PerFramePool::operator =(PerFramePool &&src)
+{
+	ctxPool = move(src.ctxPool);
+	ringIdx = src.ringIdx;
+	src.ringIdx = globalFrameVersioning->GetFrameLatency() - 1;
+	return *this;
+}
+
+#pragma region CmdList
+CmdList::CmdList() : poolIdx(PerFramePool::firstFreePoolIdx), ringIdx(globalFrameVersioning->GetCurFrameDataVersion().ringIdx)
+{
+	auto &curFramePool = globalFrameVersioning->GetCurFrameDataVersion().ctxPool;
+	cmdCtx = curFramePool.size() <= PerFramePool::firstFreePoolIdx ? &curFramePool.emplace_back() : &curFramePool[PerFramePool::firstFreePoolIdx];
+	PerFramePool::firstFreePoolIdx++;	// increment after insertion improves exception safety guarantee
 	assert(cmdCtx->pendingBarriers.empty());
 }
 
@@ -49,9 +63,7 @@ void CmdList::FlushBarriers()
 void CmdList::Init(ID3D12PipelineState *PSO)
 {
 	extern ComPtr<ID3D12Device2> device;
-	void NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
-
-	const unsigned short ringIdx = globalFrameVersioning->GetFrameLatency() - 1;
+	void NameObjectF(ID3D12Object * object, LPCWSTR format, ...) noexcept;
 
 	// allocator
 	if (cmdCtx->allocator)
@@ -76,7 +88,7 @@ void CmdList::Init(ID3D12PipelineState *PSO)
 	{
 		// create
 		CheckHR(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, cmdCtx->allocator.Get(), PSO, IID_PPV_ARGS(cmdCtx->list.ReleaseAndGetAddressOf())));
-		NameObjectF(cmdCtx->list.Get(), L"pool command list [%hu][%zu][%lu]", ringIdx, poolIdx, cmdCtx->listVersion++);
+		NameObjectF(cmdCtx->list.Get(), L"pool command list [%hu][%zu][%llu]", ringIdx, poolIdx, cmdCtx->listVersion++);
 	}
 
 	setup = &CmdList::Update;
@@ -87,10 +99,11 @@ void CmdList::Update(ID3D12PipelineState *PSO)
 {
 	operator ID3D12GraphicsCommandList4 *()->ClearState(PSO);
 }
+#pragma endregion
 
-void CmdListPool::OnFrameFinish()
+void Impl::CmdListPool::OnFrameFinish()
 {
-	firstFreePoolIdx = 0;
+	PerFramePool::firstFreePoolIdx = 0;
 }
 
 template void CmdList::FlushBarriers<false>();
