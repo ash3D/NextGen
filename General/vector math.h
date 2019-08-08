@@ -256,8 +256,8 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 #	ifndef __VECTOR_MATH_H__
 #	define __VECTOR_MATH_H__
 
-#	if defined _MSC_VER && _MSC_VER < 1916 && !defined  __clang__
-#	error Old MSVC compiler version. Visual Studio 2017 15.9 or later required.
+#	if defined _MSC_VER && _MSC_VER < 1922 && !defined  __clang__
+#	error Old MSVC compiler version. Visual Studio 2019 16.2 or later required.
 #	elif defined __GNUC__ && (__GNUC__ < 4 || (__GNUC__ >= 4 && __GNUC_MINOR__ < 7)) && !defined __clang__
 #	error Old GCC compiler version. GCC 4.7 or later required.	// need to be clarified
 #	endif
@@ -272,10 +272,6 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 // ugly workaround for operations like 'vec4.xy += int4(4).xxx;'
 #ifdef MSVC_LIMITATIONS
 #	define MSVC_NAMESPACE_WORKAROUND
-#endif
-
-#if defined _MSC_VER && (_MSC_VER == 1912 || _MSC_VER == 1913 || _MSC_VER == 1914 || _MSC_VER == 1915 || _MSC_VER == 1916 || _MSC_VER == 1920 || _MSC_VER == 1921)
-#	define MSVC_PACKED_SWIZZLE_WORKAROUND
 #endif
 
 #if !defined _MSVC_TRADITIONAL || _MSVC_TRADITIONAL
@@ -647,25 +643,8 @@ further investigations needed, including other compilers
 				static constexpr bool isWriteMaskValid = true;
 			};
 #else
-#ifdef MSVC_PACKED_SWIZZLE_WORKAROUND
-			class CPackedSwizzleBase
-			{
-				using TPackedSwizzle = unsigned long long int;
-
-			protected:
-				template<unsigned int shift, TPackedSwizzle swizzleHead, TPackedSwizzle ...swizzleTail>
-				static constexpr TPackedSwizzle PackSwizzleSeq = swizzleHead << shift | PackSwizzleSeq<shift + 4u, swizzleTail...>;
-
-				template<unsigned int shift, TPackedSwizzle swizzleLast>
-				static constexpr TPackedSwizzle PackSwizzleSeq<shift, swizzleLast> = swizzleLast << shift;
-			};
-#endif
-
 			template<unsigned int ...swizzleSeq>
 			class CPackedSwizzle
-#ifdef MSVC_PACKED_SWIZZLE_WORKAROUND
-				: CPackedSwizzleBase
-#endif
 			{
 			public:
 				static constexpr unsigned int dimension = sizeof...(swizzleSeq);
@@ -679,19 +658,11 @@ further investigations needed, including other compilers
 
 			private:
 #ifdef MSVC_LIMITATIONS
-#ifndef MSVC_PACKED_SWIZZLE_WORKAROUND
-//				template<unsigned int shift, TPackedSwizzle swizzleHead, TPackedSwizzle ...swizzleTail>
-//				static constexpr TPackedSwizzle PackSwizzleSeq() { return swizzleHead << shift | PackSwizzleSeq<shift + 4u, swizzleTail...>(); }
-//
-//				template<unsigned int shift, TPackedSwizzle swizzleLast>
-//				static constexpr TPackedSwizzle PackSwizzleSeq<shift, swizzleLast>() { return swizzleLast << shift; }
-//#else
 				template<unsigned int shift, TPackedSwizzle swizzleHead, TPackedSwizzle ...swizzleTail>
 				static constexpr TPackedSwizzle PackSwizzleSeq = swizzleHead << shift | PackSwizzleSeq<shift + 4u, swizzleTail...>;
 
 				template<unsigned int shift, TPackedSwizzle swizzleLast>
 				static constexpr TPackedSwizzle PackSwizzleSeq<shift, swizzleLast> = swizzleLast << shift;
-#endif
 #else
 				template<typename IdxSeq>
 				static constexpr TPackedSwizzle PackSwizzleSeq = 0;
@@ -702,11 +673,7 @@ further investigations needed, including other compilers
 
 			private:
 #ifdef MSVC_LIMITATIONS
-//#ifdef MSVC_PACKED_SWIZZLE_WORKAROUND
-//				static constexpr TPackedSwizzle packedSwizzle = PackSwizzleSeq<0u, swizzleSeq...>();
-//#else
 				static constexpr TPackedSwizzle packedSwizzle = PackSwizzleSeq<0u, swizzleSeq...>;
-//#endif
 #else
 				static constexpr TPackedSwizzle packedSwizzle = PackSwizzleSeq<make_integer_sequence<unsigned int, dimension>>;
 #endif
@@ -4802,7 +4769,6 @@ further investigations needed, including other compilers
 	}
 
 #	undef MSVC_NAMESPACE_WORKAROUND
-#	undef MSVC_PACKED_SWIZZLE_WORKAROUND
 #	undef MSVC_PREPROCESSOR_WORKAROUND
 #	undef EBCO
 #	undef INIT_LIST_ITEM_OVERFLOW_MSG

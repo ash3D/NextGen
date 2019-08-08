@@ -2,16 +2,8 @@
 
 #define NOMINMAX
 
-// inheriting ctor/SFINAE problem, further research needed (e.g. try with other compilers)
-#if defined _MSC_VER && _MSC_VER <= 1921
-#define CTOR_WORKAROUND
-#endif
-
 #include <cstddef>
 #include <wrl/client.h>
-#ifdef CTOR_WORKAROUND
-#include <utility>	// for move()
-#endif
 
 namespace Renderer::Impl
 {
@@ -40,10 +32,6 @@ namespace Renderer::Impl
 		TrackedResource() = default;
 		TrackedResource(const TrackedResource &) = default;
 		TrackedResource(TrackedResource &&) = default;
-#ifdef CTOR_WORKAROUND
-		TrackedResource(const Resource &src) : Resource(src) {}
-		TrackedResource(Resource &&src) : Resource(std::move(src)) {}
-#endif
 		~TrackedResource();
 
 	public:
@@ -68,5 +56,3 @@ namespace Renderer::Impl
 		void Swap(TrackedResource &src), Swap(TrackedResource &&src);
 	};
 }
-
-#undef CTOR_WORKAROUND
