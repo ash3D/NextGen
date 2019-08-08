@@ -30,7 +30,7 @@ PipelineItem IRenderStage::IterateRenderPass(unsigned int &length, const signed 
 
 PipelineItem IRenderStage::IterateRenderPass(unsigned int &length, const signed long int passLength,
 	const PassROPBinding<StageRTBinding> *RTBinding, const PassROPBinding<StageZBinding> &ZBinding, const StageOutput &output,
-	const function<void ()> &PassFinish, const function<RenderStageItem::Work (unsigned long rangeBegin, unsigned long rangeEnd, RenderPass &&renderPass)> &GetRenderRange) const
+	const function<void ()> &PassFinish, const function<RenderStageItem::Work (unsigned long rangeBegin, unsigned long rangeEnd, const RenderPass &renderPass)> &GetRenderRange) const
 {
 	const auto PassExhausted = [&]
 	{
@@ -39,9 +39,8 @@ PipelineItem IRenderStage::IterateRenderPass(unsigned int &length, const signed 
 	};
 	const auto GetRenderRangeWrapper = [&](signed long curRangeEnd) -> RenderStageItem
 	{
-		RenderPass renderPass(RTBinding, ZBinding, output, curRangeBegin == 0, curRangeEnd == passLength);
-		const bool suspended = renderPass.Suspended();
-		return { GetRenderRange(curRangeBegin, curRangeEnd, move(renderPass)), suspended };
+		const RenderPass renderPass(RTBinding, ZBinding, output, curRangeBegin == 0, curRangeEnd == passLength);
+		return { GetRenderRange(curRangeBegin, curRangeEnd, renderPass), renderPass.Suspended() };
 	};
 	return IterateRenderPass(length, passLength, PassFinish, PassExhausted, GetRenderRangeWrapper);
 }

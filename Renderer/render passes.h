@@ -117,9 +117,6 @@ namespace Renderer::Impl::RenderPipeline::RenderPasses
 
 	public:
 		explicit RenderPass(const PassROPBinding<StageRTBinding> *RTBinding, const PassROPBinding<StageZBinding> &ZBinding, const StageOutput &output, bool rangeOpen, bool rangeClose);
-#if 0
-		RenderPass(RenderPass &&) = default;
-#endif
 
 	public:
 		bool Suspended() const noexcept;

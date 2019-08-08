@@ -684,7 +684,7 @@ auto Impl::TerrainVectorLayer::GetCullPassRange(unsigned int &length) const -> R
 	using namespace placeholders;
 	return IterateRenderPass(length, queryStream.size(), nullptr, { *ROPBindingsMain.ZBuffer, true, false }, *ROPBindingsMain.output,
 		[] { phaseSelector = static_cast<decltype(phaseSelector)>(&TerrainVectorLayer::GetCullPass2MainPass); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd, RenderPasses::RenderPass &&renderPass) { return bind(&TerrainVectorLayer::CullPassRange, this, _1, rangeBegin, rangeEnd, move(renderPass)); });
+		[this](unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass) { return bind(&TerrainVectorLayer::CullPassRange, this, _1, rangeBegin, rangeEnd, move(renderPass)); });
 }
 
 auto Impl::TerrainVectorLayer::GetCullPass2MainPass(unsigned int &) const -> RenderPipeline::PipelineItem
@@ -700,7 +700,7 @@ auto Impl::TerrainVectorLayer::GetMainPassRange(unsigned int &length) const -> R
 	RenderPasses::PassROPBinding<RenderPasses::StageRTBinding> RTBinding{ *ROPBindingsMain.RT, true, true };
 	return IterateRenderPass(length, renderStream.size(), &RTBinding, { *ROPBindingsMain.ZBuffer, false, true }, *ROPBindingsMain.output,
 		[] { phaseSelector = static_cast<decltype(phaseSelector)>(&TerrainVectorLayer::GetStagePost); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd, RenderPasses::RenderPass &&renderPass) { return bind(&TerrainVectorLayer::MainPassRange, this, _1, rangeBegin, rangeEnd, move(renderPass)); });
+		[this](unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass) { return bind(&TerrainVectorLayer::MainPassRange, this, _1, rangeBegin, rangeEnd, move(renderPass)); });
 }
 
 auto Impl::TerrainVectorLayer::GetStagePost(unsigned int &) const -> RenderPipeline::PipelineItem
@@ -723,7 +723,7 @@ auto Impl::TerrainVectorLayer::GetVisiblePassRange(unsigned int &length) const -
 	RenderPasses::PassROPBinding<RenderPasses::StageRTBinding> RTBinding{ *ROPBidingsDebug.RT, true, false };
 	return IterateRenderPass(length, queryStream.size(), &RTBinding, { *ROPBidingsDebug.ZBuffer, true, false }, *ROPBidingsDebug.output,
 		[] { phaseSelector = static_cast<decltype(phaseSelector)>(&TerrainVectorLayer::GetCulledPassRange); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd, RenderPasses::RenderPass &&renderPass) { return bind(&TerrainVectorLayer::AABBPassRange, this, _1, rangeBegin, rangeEnd, move(renderPass), cref(OcclusionCulling::DebugColors::Terrain::visible), true); });
+		[this](unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass) { return bind(&TerrainVectorLayer::AABBPassRange, this, _1, rangeBegin, rangeEnd, move(renderPass), cref(OcclusionCulling::DebugColors::Terrain::visible), true); });
 }
 
 auto Impl::TerrainVectorLayer::GetCulledPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
@@ -732,7 +732,7 @@ auto Impl::TerrainVectorLayer::GetCulledPassRange(unsigned int &length) const ->
 	RenderPasses::PassROPBinding<RenderPasses::StageRTBinding> RTBinding{ *ROPBidingsDebug.RT, false, true };
 	return IterateRenderPass(length, queryStream.size(), &RTBinding, { *ROPBidingsDebug.ZBuffer, false, true }, *ROPBidingsDebug.output,
 		[] { RenderPipeline::TerminateStageTraverse(); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd, RenderPasses::RenderPass &&renderPass) { return bind(&TerrainVectorLayer::AABBPassRange, this, _1, rangeBegin, rangeEnd, move(renderPass), cref(OcclusionCulling::DebugColors::Terrain::culled), false); });
+		[this](unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass) { return bind(&TerrainVectorLayer::AABBPassRange, this, _1, rangeBegin, rangeEnd, move(renderPass), cref(OcclusionCulling::DebugColors::Terrain::culled), false); });
 }
 
 // 1 call site

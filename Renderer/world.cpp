@@ -751,7 +751,7 @@ auto Impl::World::GetFirstCullPassRange(unsigned int &length) const -> RenderPip
 	using namespace placeholders;
 	return IterateRenderPass(length, queryStream.size(), nullptr, { *ZBindingPrecull, true, true }, *outputMain,
 		[] { phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetFirstCullPass2FirstMainPass); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd, RenderPasses::RenderPass &&renderPass) { return bind(&World::CullPassRange, this, _1, rangeBegin, rangeEnd, move(renderPass), false); });
+		[this](unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass) { return bind(&World::CullPassRange, this, _1, rangeBegin, rangeEnd, move(renderPass), false); });
 }
 
 auto Impl::World::GetFirstCullPass2FirstMainPass(unsigned int &) const -> RenderPipeline::PipelineItem
@@ -767,7 +767,7 @@ auto Impl::World::GetFirstMainPassRange(unsigned int &length) const -> RenderPip
 	RenderPasses::PassROPBinding<RenderPasses::StageRTBinding> RTBinding{ *RTBindinMain, true, false };
 	return IterateRenderPass(length, renderStreams[0].size(), &RTBinding, { *ZBindingMain, true, false }, *outputMain,
 		[] { phaseSelector = static_cast<decltype(phaseSelector)>(&World::/*GetFirstMainPass2SecondCullPass*/GetSecondCullPassRange); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd, RenderPasses::RenderPass &&renderPass) { return bind(&World::MainPassRange, this, _1, rangeBegin, rangeEnd, move(renderPass), false); });
+		[this](unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass) { return bind(&World::MainPassRange, this, _1, rangeBegin, rangeEnd, move(renderPass), false); });
 }
 
 //auto Impl::World::GetFirstMainPass2SecondCullPass(unsigned int &) const -> RenderPipeline::PipelineItem
@@ -782,7 +782,7 @@ auto Impl::World::GetSecondCullPassRange(unsigned int &length) const -> RenderPi
 	using namespace placeholders;
 	return IterateRenderPass(length, queryStream.size(), nullptr, { *ZBindingMain, false, false }, *outputMain,
 		[] { phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetSecondCullPass2SecondMainPass); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd, RenderPasses::RenderPass &&renderPass) { return bind(&World::CullPassRange, this, _1, rangeBegin, rangeEnd, move(renderPass), true); });
+		[this](unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass) { return bind(&World::CullPassRange, this, _1, rangeBegin, rangeEnd, move(renderPass), true); });
 }
 
 auto Impl::World::GetSecondCullPass2SecondMainPass(unsigned int &) const -> RenderPipeline::PipelineItem
@@ -798,7 +798,7 @@ auto Impl::World::GetSecondMainPassRange(unsigned int &length) const -> RenderPi
 	RenderPasses::PassROPBinding<RenderPasses::StageRTBinding> RTBinding{ *RTBindinMain, false, true };
 	return IterateRenderPass(length, renderStreams[1].size(), &RTBinding, { *ZBindingMain, false, true }, *outputMain,
 		[] { phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetStagePost); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd, RenderPasses::RenderPass &&renderPass) { return bind(&World::MainPassRange, this, _1, rangeBegin, rangeEnd, move(renderPass), true); });
+		[this](unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass) { return bind(&World::MainPassRange, this, _1, rangeBegin, rangeEnd, move(renderPass), true); });
 }
 
 auto Impl::World::GetStagePost(unsigned int &) const -> RenderPipeline::PipelineItem
@@ -842,7 +842,7 @@ auto Impl::World::GetHiddenPassRange(unsigned int &length) const -> RenderPipeli
 	RenderPasses::PassROPBinding<RenderPasses::StageRTBinding> RTBinding{ *RTBBindingDebug, true, false };
 	return IterateRenderPass(length, queryStream.size(), &RTBinding, { *ZBindingDebug, true, false }, *outputDebug,
 		[] { phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetVisiblePassRange); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd, RenderPasses::RenderPass &&renderPass) { return bind(&World::AABBPassRange, this, _1, rangeBegin, rangeEnd, move(renderPass), false); });
+		[this](unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass) { return bind(&World::AABBPassRange, this, _1, rangeBegin, rangeEnd, move(renderPass), false); });
 }
 
 auto Impl::World::GetVisiblePassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
@@ -851,7 +851,7 @@ auto Impl::World::GetVisiblePassRange(unsigned int &length) const -> RenderPipel
 	RenderPasses::PassROPBinding<RenderPasses::StageRTBinding> RTBinding{ *RTBBindingDebug, false, true };
 	return IterateRenderPass(length, queryStream.size(), &RTBinding, { *ZBindingDebug, false, true }, *outputDebug,
 		[] { phaseSelector = static_cast<decltype(phaseSelector)>(&World::GetAABBPassPost); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd, RenderPasses::RenderPass &&renderPass) { return bind(&World::AABBPassRange, this, _1, rangeBegin, rangeEnd, move(renderPass), true); });
+		[this](unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass) { return bind(&World::AABBPassRange, this, _1, rangeBegin, rangeEnd, move(renderPass), true); });
 }
 
 auto Impl::World::GetAABBPassPost(unsigned int &) const -> RenderPipeline::PipelineItem
