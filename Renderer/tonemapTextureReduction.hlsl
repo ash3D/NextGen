@@ -23,12 +23,12 @@ void main(in uint2 globalIdx : SV_DispatchThreadID, in uint flatLocalIdx : SV_Gr
 	// interleaved tile reduction
 	for (uint2 tileCoord = globalIdx * tileSize; tileCoord.y < srcSize.y; tileCoord.y += interleaveStride.y)
 		for (tileCoord.x = globalIdx.x * tileSize; tileCoord.x < srcSize.x; tileCoord.x += interleaveStride.x)
-			//[unroll]
-			for (uint2 tileOffset = 0; tileOffset.y < tileSize; tileOffset.y++)
-				//[unroll]
-				for (tileOffset.x = 0; tileOffset.x < tileSize; tileOffset.x++)
+			[unroll]
+			for (uint r = 0; r < tileSize; r++)
+				[unroll]
+				for (uint c = 0; c < tileSize; c++)
 				{
-					const float3 srcPixel = DecodeHDR(src.Load(uint3(tileCoord, 0), tileOffset));
+					const float3 srcPixel = DecodeHDR(src.Load(uint3(tileCoord, 0), uint2(c, r)));
 					/*
 						'max' used to convert NaN to 0
 						NaN comes from out-of-bounds pixels in edge tiles - they are which fetched as 0
