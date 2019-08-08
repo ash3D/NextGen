@@ -466,6 +466,10 @@ namespace
 	public:
 		value_type operator *() const noexcept { return idx; }
 		friend auto operator <=>(SeqIterator a, SeqIterator b) noexcept { return a.idx <=> b.idx; }
+#if defined _MSC_VER && _MSC_VER == 1922
+		friend bool operator ==(SeqIterator a, SeqIterator b) noexcept { return a.idx == b.idx; }
+		friend bool operator !=(SeqIterator a, SeqIterator b) noexcept { return a.idx != b.idx; }
+#endif
 	};
 }
 

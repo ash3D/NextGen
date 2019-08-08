@@ -89,7 +89,7 @@ UINT64 Impl::World::GetCurFrameGPUDataPtr()
 }
 
 // defined here, not in class in order to eliminate dependency on "instance.hh" in "world.hh"
-#if defined _MSC_VER && _MSC_VER <= 1921
+#if defined _MSC_VER && _MSC_VER <= 1922
 inline const AABB<3> &Impl::World::BVHObject::GetAABB() const noexcept
 #else
 inline const auto &Impl::World::BVHObject::GetAABB() const noexcept
@@ -421,7 +421,7 @@ inline void Impl::World::IssueObjects(const decltype(bvh)::Node &node, decltype(
 {
 	const auto issue2stream = [range = node.GetExclusiveObjectsRange(), occlusion](remove_extent_t<decltype(renderStreams)> &renderStream)
 	{
-		transform(range.first, range.second, back_inserter(renderStream), [occlusion](const Renderer::Instance *instance) noexcept -> typename/*MSVC 1921*/ remove_reference_t<decltype(renderStream)>::value_type { return { instance, occlusion }; });
+		transform(range.first, range.second, back_inserter(renderStream), [occlusion](const Renderer::Instance *instance) noexcept -> typename/*MSVC 1921/1922*/ remove_reference_t<decltype(renderStream)>::value_type { return { instance, occlusion }; });
 	};
 
 	issue2stream(renderStreams[0]);
@@ -1089,7 +1089,7 @@ void Impl::World::ScheduleDebugDrawRenderStage(const RenderPasses::PipelineOutpu
 	but constructs containing object directly via placement new which does not have access to private members.
 	GCC meanwhile compiles it fine.
 */
-#if defined _MSC_VER && _MSC_VER <= 1921
+#if defined _MSC_VER && _MSC_VER <= 1922
 shared_ptr<World> __cdecl Renderer::MakeWorld(const float (&terrainXform)[4][3], float zenith, float azimuth)
 {
 	return make_shared<World>(World::tag(), terrainXform, zenith, azimuth);

@@ -72,7 +72,7 @@ namespace Renderer::TerrainMaterials
 		using Impl::Interface::color;
 		using Impl::Interface::Setup;
 
-#if defined _MSC_VER && _MSC_VER <= 1921
+#if defined _MSC_VER && _MSC_VER <= 1922
 	protected:
 		struct tag {};
 #endif

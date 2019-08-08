@@ -68,7 +68,7 @@ namespace Renderer::Impl
 	};
 
 	// Data here is a cmd ctx pool
-	constexpr const WCHAR globalFrameVersioningName[] = L"global frame versioning";
+	extern inline constexpr const WCHAR globalFrameVersioningName[] = L"global frame versioning";
 	extern std::optional<FrameVersioning<CmdListPool::PerFramePool, globalFrameVersioningName>> globalFrameVersioning;
 
 	// template impl

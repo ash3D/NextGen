@@ -307,7 +307,7 @@ namespace Renderer::Impl::Hierarchy
 					execution::par,
 #endif
 					cbegin(children),
-#if defined _MSC_VER && _MSC_VER <= 1921 && MULTITHREADED_TREE_TRAVERSE == 2
+#if defined _MSC_VER && _MSC_VER <= 1922 && MULTITHREADED_TREE_TRAVERSE == 2
 					(unsigned int)
 #endif
 					childrenCount,
