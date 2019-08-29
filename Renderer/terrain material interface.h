@@ -11,11 +11,6 @@ struct ID3D12PipelineState;
 struct ID3D12GraphicsCommandList4;
 struct CD3DX12_ROOT_PARAMETER1;
 
-namespace Renderer::Impl
-{
-	class TerrainVectorLayer;
-}
-
 namespace Renderer::TerrainMaterials
 {
 	namespace WRL = Microsoft::WRL;
@@ -60,7 +55,7 @@ namespace Renderer::TerrainMaterials
 	class Interface : protected Impl::Interface
 	{
 		// exposes 'PSO', 'color' and 'Setup'
-		friend class Renderer::Impl::TerrainVectorLayer;
+		friend class TerrainVectorQuad;
 
 	protected:
 		using Impl::Interface::Interface;

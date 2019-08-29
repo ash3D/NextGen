@@ -16,7 +16,20 @@ namespace Renderer::GPUWorkSubmission
 		if constexpr (async)
 		{
 			extern void AppendRenderStage(packaged_task<RenderPipeline::PipelineStage()> &&buildRenderStage);
+#if 0
 			AppendRenderStage(packaged_task<RenderPipeline::PipelineStage()>(bind(forward<F>(f), forward<Args>(args)...)));
+#elif defined _MSC_VER && _MSC_VER <= 1922
+#if 1
+			AppendRenderStage(packaged_task<RenderPipeline::PipelineStage()>(_Fake_no_copy_callable_adapter([task = std::async(launch::deferred, forward<F>(f), forward<Args>(args)...)]() mutable -> RenderPipeline::PipelineStage { return task.get(); })));
+#else
+			AppendRenderStage(packaged_task<RenderPipeline::PipelineStage()>([task = std::async(launch::deferred, forward<F>(f), forward<Args>(args)...).share()]() -> RenderPipeline::PipelineStage
+			{
+				return move(const_cast<remove_cv_t<remove_reference_t<decltype(task.get())>> &>(task.get()));
+			}));
+#endif
+#else
+			AppendRenderStage(packaged_task<RenderPipeline::PipelineStage()>([task = std::async(launch::deferred, forward<F>(f), forward<Args>(args)...)]() mutable -> RenderPipeline::PipelineStage { return task.get(); }));
+#endif
 		}
 		else
 			RenderPipeline::AppendStage(std::async(launch::deferred, forward<F>(f), forward<Args>(args)...));

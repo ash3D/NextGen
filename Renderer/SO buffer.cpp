@@ -22,7 +22,7 @@ void Handle::Sync() const
 
 		UINT usageSize = sizeof prevUsage;
 		if (const HRESULT hr = buffer->GetPrivateData(usageGUID, &usageSize, &prevUsage); hr == DXGI_ERROR_NOT_FOUND)
-			prevUsage = -1;
+			prevUsage = D3D12_RESOURCE_STATES(~0);
 		else
 			CheckHR(hr);
 
@@ -35,8 +35,8 @@ void Handle::StartSO(CmdListPool::CmdList &cmdList) const
 	if (size)
 	{
 		// complete transition barrier if needed
-		if (prevUsage != -1)
-			cmdList.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(buffer, D3D12_RESOURCE_STATES(prevUsage), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY));
+		if (prevUsage != ~0)
+			cmdList.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(buffer, prevUsage, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY));
 
 		// clear SO counter (is current approach safe?)
 		cmdList.FlushBarriers();
@@ -50,14 +50,14 @@ void Handle::StartSO(CmdListPool::CmdList &cmdList) const
 void Handle::UseSOResults(CmdListPool::CmdList &cmdList) const
 {
 	if (size)
-		cmdList.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(buffer, D3D12_RESOURCE_STATE_STREAM_OUT, D3D12_RESOURCE_STATES(curUsage)));
+		cmdList.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(buffer, D3D12_RESOURCE_STATE_STREAM_OUT, curUsage));
 }
 
 void Handle::Finish(CmdListPool::CmdList &cmdList) const
 {
 	// !: optimization opportunity: do not perform transition barrier on last buffer usage (rely on implicit state transition for next frame), it would require providing this info in Sync() or at creation
 	if (size)
-		cmdList.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(buffer, D3D12_RESOURCE_STATES(curUsage), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY));
+		cmdList.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(buffer, curUsage, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY));
 }
 
 const D3D12_STREAM_OUTPUT_BUFFER_VIEW Handle::GetSOView() const
@@ -83,7 +83,7 @@ const UINT64 Handle::GetGPUPtr() const
 AllocatorBase::~AllocatorBase() = default;
 
 // !: currently allocates exact requested size without reserving so frequent reallocs on first several frames possible
-Handle AllocatorBase::Allocate(unsigned long payloadSize, long int usage, LPCWSTR resourceName)
+Handle AllocatorBase::Allocate(unsigned long payloadSize, D3D12_RESOURCE_STATES usage, LPCWSTR resourceName)
 {
 	extern ComPtr<ID3D12Device2> device;
 	void NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;

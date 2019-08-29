@@ -1,5 +1,6 @@
 #pragma once
 
+#include "stdafx.h"
 #include "cmdlist pool.h"
 
 namespace Renderer::Impl::CmdListPool

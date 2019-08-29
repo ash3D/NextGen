@@ -35,7 +35,11 @@ namespace
 
 	mutex mtx;
 	condition_variable workReadyEvent;
-	vector<RenderPipeline::RenderStageItem> workBatch;
+	struct WorkBatch
+	{
+		vector<RenderPipeline::RenderStageItem::Work> work;
+		bool suspended;
+	} workBatch;
 	vector<future<void>> pendingAsyncRefs;
 	const unsigned int targetTaskCount = []
 	{
@@ -87,10 +91,10 @@ namespace
 		return visit(converter, static_cast<variant &>(*this));
 	}
 
-	inline CmdListPool::CmdList RecordCmdList(decltype(workBatch) &&work, CmdListPool::CmdList &&target)
+	inline CmdListPool::CmdList RecordCmdList(WorkBatch &&batch, CmdListPool::CmdList &&target)
 	{
-		for (const auto &item : work)
-			item.work(target);
+		for (const auto &workItem : batch.work)
+			workItem(target);
 
 #if KEPLER_WORKAROUND
 #if 0
@@ -115,21 +119,21 @@ namespace
 		target.FlushBarriers();
 
 		CheckHR(target->Close());
-		target.MarkSuspended(work.back().suspended);
+		target.MarkSuspended(batch.suspended);
 
 		return move(target);
 	}
 
 #if WRAP_CMD_LIST
 	// MSVC perform default construction for return value in shared state
-	typedef packaged_task<optional<CmdListPool::CmdList> (decltype(workBatch) &&work, CmdListPool::CmdList &&target)> RecordCmdListTask;
+	typedef packaged_task<optional<CmdListPool::CmdList> (WorkBatch &&batch, CmdListPool::CmdList &&target)> RecordCmdListTask;
 #else
 	typedef packaged_task<decltype(RecordCmdList)> RecordCmdListTask;
 #endif
 
-	inline void LaunchRecordCmdList(RecordCmdListTask &&task, decltype(workBatch) &&work, CmdListPool::CmdList &&target)
+	inline void LaunchRecordCmdList(RecordCmdListTask &&task, WorkBatch &&batch, CmdListPool::CmdList &&target)
 	{
-		task(move(work), move(target));
+		task(move(batch), move(target));
 		{
 			lock_guard lck(mtx);
 			runningTaskCount--;
@@ -147,10 +151,10 @@ namespace
 
 	void FlushWorkBatch(unique_lock<decltype(mtx)> &lck)
 	{
-		assert(!workBatch.empty());
+		assert(!workBatch.work.empty());
 		RecordCmdListTask task(RecordCmdList);
-		const auto reserved = workBatch.capacity();
-		ROB.emplace_back(PendingWork{ task.get_future(), targetCmdListWorkSize - workBatchFreeSpace, workBatch.back().suspended });
+		const auto lastCapacity = workBatch.work.capacity();
+		ROB.emplace_back(PendingWork{ task.get_future(), targetCmdListWorkSize - workBatchFreeSpace, workBatch.suspended });
 
 		auto asyncRef = async(launch::async, LaunchRecordCmdList, move(task), move(workBatch), CmdListPool::CmdList());
 		auto lckSentry(move(lck));
@@ -159,7 +163,7 @@ namespace
 
 		workBatchFreeSpace = targetCmdListWorkSize;
 		runningTaskCount++;
-		workBatch.reserve(reserved);
+		workBatch.work.reserve(lastCapacity);
 	}
 }
 
@@ -195,13 +199,13 @@ void GPUWorkSubmission::Run()
 			workReadyEvent.wait(lck);
 
 			// launch command lists recording
-			while (workBatch.empty() || runningTaskCount < targetTaskCount)
+			while (workBatch.work.empty() || runningTaskCount < targetTaskCount)
 			{
 				const auto item = RenderPipeline::GetNext(workBatchFreeSpace);
 				if (const auto cmdList = get_if<ID3D12GraphicsCommandList4 *>(&item))
 				{
 					// flush work batch if needed
-					if (!workBatch.empty())
+					if (!workBatch.work.empty())
 						FlushWorkBatch(lck);
 
 					assert(*cmdList);
@@ -210,13 +214,17 @@ void GPUWorkSubmission::Run()
 				else if (const auto stageItem = get_if<RenderPipeline::RenderStageItem>(&item))
 				{
 					if (stageItem->work)
-						workBatch.push_back(move(*stageItem));
+					{
+						// this order provides exception safety ('bool = bool' doesn't throw so it keep exception guarantees from std::vector)
+						workBatch.work.push_back(move(stageItem->work));
+						workBatch.suspended = stageItem->suspended;
+					}
 					else // batch overflow
 						FlushWorkBatch(lck);
 				}
 				else // stage waiting/pipeline finish
 				{
-					if (!workBatch.empty() && RenderPipeline::Empty())
+					if (!workBatch.work.empty() && RenderPipeline::Empty())
 						FlushWorkBatch(lck);
 					break;
 				}

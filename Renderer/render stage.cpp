@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "render stage.h"
+#include "render passes.h"
 #include "render pipeline.h"
 #include "cmdlist pool.inl"
 
@@ -35,12 +36,12 @@ PipelineItem IRenderStage::IterateRenderPass(unsigned int &length, const signed 
 	const auto PassExhausted = [&]
 	{
 		using namespace placeholders;
-		return passLength ? GetNext(length) : RenderStageItem{ bind(FastForward, _1, RTBinding ? optional(*RTBinding) : nullopt, ZBinding) };
+		return passLength ? GetNext(length) : PipelineItem{ bind(FastForward, _1, RTBinding ? optional(*RTBinding) : nullopt, ZBinding) };
 	};
-	const auto GetRenderRangeWrapper = [&](signed long curRangeEnd) -> RenderStageItem
+	const auto GetRenderRangeWrapper = [&](signed long curRangeEnd)
 	{
 		const RenderPass renderPass(RTBinding, ZBinding, output, curRangeBegin == 0, curRangeEnd == passLength);
-		return { GetRenderRange(curRangeBegin, curRangeEnd, renderPass), renderPass.Suspended() };
+		return PipelineItem{ GetRenderRange(curRangeBegin, curRangeEnd, renderPass), renderPass.Suspended() };
 	};
 	return IterateRenderPass(length, passLength, PassFinish, PassExhausted, GetRenderRangeWrapper);
 }
@@ -72,10 +73,10 @@ inline PipelineItem IRenderStage::IterateRenderPass(unsigned int &length, const 
 			length = 0;
 
 		// not const to allow move on return
-		RenderStageItem result{ GetRenderRange(curRangeEnd) };
+		PipelineItem result{ GetRenderRange(curRangeEnd) };
 		curRangeBegin = curRangeEnd;
 		return move(result);
 	}
 
-	return PipelineItem{ in_place_type<RenderStageItem> };
+	return PipelineItem{ nullptr };
 }

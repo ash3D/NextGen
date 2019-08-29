@@ -1,13 +1,6 @@
 #pragma once
 
-#include <type_traits>
-#include <memory>	// temp for unique_ptr
-
-struct ID3D12Resource;
-struct D3D12_CPU_DESCRIPTOR_HANDLE;
-struct D3D12_RENDER_PASS_RENDER_TARGET_DESC;
-struct D3D12_RENDER_PASS_DEPTH_STENCIL_DESC;
-struct D3D12_RENDER_PASS_ENDING_ACCESS_RESOLVE_SUBRESOURCE_PARAMETERS;
+#include "stdafx.h"
 
 namespace Renderer::Impl::CmdListPool
 {
@@ -16,7 +9,7 @@ namespace Renderer::Impl::CmdListPool
 
 namespace Renderer::Impl::RenderPipeline::RenderPasses
 {
-	class PipelineOutputTargets
+	class PipelineROPTargets
 	{
 		friend class StageRTBinding;
 		friend class StageZBinding;
@@ -24,20 +17,20 @@ namespace Renderer::Impl::RenderPipeline::RenderPasses
 
 	private:
 		ID3D12Resource *renderTarget, *ZBuffer, *MSAAResolveTarget;	// !: no lifetime tracking
-		SIZE_T rtv, dsv;
+		D3D12_CPU_DESCRIPTOR_HANDLE rtv, dsv;
 		FLOAT colorClear[4], depthClear;
 		UINT8 stencilClear;
 		UINT width, height;
 
 	private:
-		mutable int *lastRTPostOp{}, *lastDeptPostOp{}, *lastStencilPostOp{};
+		mutable D3D12_RENDER_PASS_ENDING_ACCESS_TYPE *lastRTPostOp{}, *lastDeptPostOp{}, *lastStencilPostOp{};
 
 	public:
-		explicit PipelineOutputTargets(ID3D12Resource *renderTarget, D3D12_CPU_DESCRIPTOR_HANDLE rtv, const FLOAT (&colorClear)[4],
+		explicit PipelineROPTargets(ID3D12Resource *renderTarget, D3D12_CPU_DESCRIPTOR_HANDLE rtv, const FLOAT (&colorClear)[4],
 			ID3D12Resource *ZBuffer, D3D12_CPU_DESCRIPTOR_HANDLE dsv, FLOAT depthClear, UINT8 stencilClear,
 			ID3D12Resource *MSAAResolveTarget, UINT width, UINT height);
-		PipelineOutputTargets(PipelineOutputTargets &&) = default;
-		PipelineOutputTargets &operator =(PipelineOutputTargets &&) = default;
+		PipelineROPTargets(PipelineROPTargets &&) = default;
+		PipelineROPTargets &operator =(PipelineROPTargets &&) = default;
 
 	public:
 		ID3D12Resource *GetZBuffer() const noexcept { return ZBuffer; }
@@ -46,13 +39,14 @@ namespace Renderer::Impl::RenderPipeline::RenderPasses
 	class StageRTBinding
 	{
 		ID3D12Resource *const renderTarget, *const MSAAResolveTarget;
-		const SIZE_T rtv;
+		const D3D12_CPU_DESCRIPTOR_HANDLE rtv;
 		FLOAT clear[4];
-		const std::unique_ptr<D3D12_RENDER_PASS_ENDING_ACCESS_RESOLVE_SUBRESOURCE_PARAMETERS> resolveParams;
-		int preOp, postOp;
+		D3D12_RENDER_PASS_ENDING_ACCESS_RESOLVE_SUBRESOURCE_PARAMETERS resolveParams;
+		D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE preOp;
+		D3D12_RENDER_PASS_ENDING_ACCESS_TYPE postOp;
 
 	public:
-		explicit StageRTBinding(const PipelineOutputTargets &factory);
+		explicit StageRTBinding(const PipelineROPTargets &factory);
 		StageRTBinding(StageRTBinding &) = delete;
 		void operator =(StageRTBinding &) = delete;
 
@@ -68,17 +62,17 @@ namespace Renderer::Impl::RenderPipeline::RenderPasses
 	class StageZBinding
 	{
 		ID3D12Resource *const ZBuffer;
-		const SIZE_T dsv;
-		FLOAT depthClear;
-		UINT8 stencilClear;
+		const D3D12_CPU_DESCRIPTOR_HANDLE dsv;
+		D3D12_DEPTH_STENCIL_VALUE clear;
 		struct
 		{
-			int depth, stencil;
-		} preOp, postOp;
+			D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE pre;
+			D3D12_RENDER_PASS_ENDING_ACCESS_TYPE post;
+		} depthOps, stencilOps;
 
 	public:
-		explicit StageZBinding(const PipelineOutputTargets &factory, bool useDepth, bool useStencil);
-		explicit StageZBinding(const PipelineOutputTargets &factory, int clearFlags, FLOAT depthClear, UINT8 stencilClear, bool preserveDepth, bool preserveStencil);
+		explicit StageZBinding(const PipelineROPTargets &factory, bool useDepth, bool useStencil);
+		explicit StageZBinding(const PipelineROPTargets &factory, D3D12_CLEAR_FLAGS clearFlags, D3D12_DEPTH_STENCIL_VALUE clear, bool preserveDepth, bool preserveStencil);
 		StageZBinding(StageZBinding &) = delete;
 		void operator =(StageZBinding &) = delete;
 
@@ -95,7 +89,7 @@ namespace Renderer::Impl::RenderPipeline::RenderPasses
 		unsigned width, height;
 
 	public:
-		explicit StageOutput(const PipelineOutputTargets &factory) : width(factory.width), height(factory.height) {}
+		explicit StageOutput(const PipelineROPTargets &factory) : width(factory.width), height(factory.height) {}
 
 	public:
 		void Setup(CmdListPool::CmdList &target) const;
@@ -104,7 +98,7 @@ namespace Renderer::Impl::RenderPipeline::RenderPasses
 	template<class StageBinding, template<class> typename Modifier = std::add_lvalue_reference_t>
 	struct PassROPBinding
 	{
-		Modifier<StageBinding> stageBinding;
+		Modifier<const StageBinding> stageBinding;
 		bool open, close;
 	};
 
@@ -124,7 +118,7 @@ namespace Renderer::Impl::RenderPipeline::RenderPasses
 		void Finish(CmdListPool::CmdList &target) const;
 
 	private:
-		inline int Flags() const noexcept;
+		inline D3D12_RENDER_PASS_FLAGS Flags() const noexcept;
 	};
 
 	class RenderPassScope

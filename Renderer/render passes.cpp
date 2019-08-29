@@ -52,18 +52,18 @@ static inline D3D12_RENDER_PASS_ENDING_ACCESS_TYPE DecayMSSAAResolveOp(D3D12_REN
 	return postOp == D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_RESOLVE && MSAAResolveWorkaroundNeeded() ? D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE : postOp;
 }
 
-RenderPasses::PipelineOutputTargets::PipelineOutputTargets(ID3D12Resource *renderTarget, D3D12_CPU_DESCRIPTOR_HANDLE rtv, const FLOAT (&colorClear)[4],
+RenderPasses::PipelineROPTargets::PipelineROPTargets(ID3D12Resource *renderTarget, D3D12_CPU_DESCRIPTOR_HANDLE rtv, const FLOAT (&colorClear)[4],
 	ID3D12Resource *ZBuffer, D3D12_CPU_DESCRIPTOR_HANDLE dsv, FLOAT depthClear, UINT8 stencilClear,
 	ID3D12Resource *MSAAResolveTarget, UINT width, UINT height) :
-	renderTarget(renderTarget), ZBuffer(ZBuffer), MSAAResolveTarget(MSAAResolveTarget), rtv(rtv.ptr), dsv(dsv.ptr),
+	renderTarget(renderTarget), ZBuffer(ZBuffer), MSAAResolveTarget(MSAAResolveTarget), rtv(rtv), dsv(dsv),
 	colorClear{ colorClear[0], colorClear[1], colorClear[2], colorClear[3] }, depthClear(depthClear), stencilClear(stencilClear),
 	width(width), height(height)
 {
 }
 
-RenderPasses::StageRTBinding::StageRTBinding(const PipelineOutputTargets &factory) :
+RenderPasses::StageRTBinding::StageRTBinding(const PipelineROPTargets &factory) :
 	renderTarget(factory.renderTarget), MSAAResolveTarget(factory.MSAAResolveTarget), rtv(factory.rtv), clear{ factory.colorClear[0], factory.colorClear[1], factory.colorClear[2], factory.colorClear[3] },
-	resolveParams(make_unique<D3D12_RENDER_PASS_ENDING_ACCESS_RESOLVE_SUBRESOURCE_PARAMETERS>(D3D12_RENDER_PASS_ENDING_ACCESS_RESOLVE_SUBRESOURCE_PARAMETERS{ .SrcRect = CD3DX12_RECT(0, 0, factory.width, factory.height) })),
+	resolveParams{ .SrcRect = CD3DX12_RECT(0, 0, factory.width, factory.height) },
 	preOp(factory.lastRTPostOp ? D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE : D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR),
 	postOp(D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_RESOLVE)
 {
@@ -80,13 +80,13 @@ D3D12_RENDER_PASS_RENDER_TARGET_DESC RenderPasses::StageRTBinding::RenderPassBin
 		.cpuDescriptor = rtv,
 		.BeginningAccess =
 		{
-			.Type = FixOp(D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE(preOp), open),
+			.Type = FixOp(preOp, open),
 			.Clear{format, {.Color{clear[0], clear[1], clear[2], clear[3]}}}
 		},
 		.EndingAccess =
 		{
-			.Type = DecayMSSAAResolveOp(FixOp(D3D12_RENDER_PASS_ENDING_ACCESS_TYPE(postOp), close)),
-			.Resolve{renderTarget, MSAAResolveTarget, 1, resolveParams.get(), format, D3D12_RESOLVE_MODE_AVERAGE, FALSE}
+			.Type = DecayMSSAAResolveOp(FixOp(postOp, close)),
+			.Resolve{renderTarget, MSAAResolveTarget, 1, &resolveParams, format, D3D12_RESOLVE_MODE_AVERAGE, FALSE}
 		}
 	};
 }
@@ -95,7 +95,7 @@ void RenderPasses::StageRTBinding::FastForward(CmdListPool::CmdList &cmdList, bo
 {
 	const auto ApplyPreOp = [&, open]
 	{
-		switch (FixOp(D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE(preOp), open))
+		switch (FixOp(preOp, open))
 		{
 		case D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_DISCARD:
 			{
@@ -104,12 +104,12 @@ void RenderPasses::StageRTBinding::FastForward(CmdListPool::CmdList &cmdList, bo
 			}
 			break;
 		case D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR:
-			cmdList->ClearRenderTargetView({ rtv }, clear, 0, NULL);
+			cmdList->ClearRenderTargetView(rtv, clear, 0, NULL);
 			break;
 		}
 	};
 
-	switch (FixOp(D3D12_RENDER_PASS_ENDING_ACCESS_TYPE(postOp), close))
+	switch (FixOp(postOp, close))
 	{
 	case D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD:
 		{
@@ -144,88 +144,88 @@ void RenderPasses::StageRTBinding::MSAAResolve(CmdListPool::CmdList &cmdList) co
 	cmdList.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(renderTarget, D3D12_RESOURCE_STATE_RESOLVE_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));	// !: use split barrier
 }
 
-RenderPasses::StageZBinding::StageZBinding(const PipelineOutputTargets &factory, bool useDepth, bool useStencil) :
-	ZBuffer(factory.ZBuffer), dsv(factory.dsv), depthClear(factory.depthClear), stencilClear(factory.stencilClear),
-	preOp
+RenderPasses::StageZBinding::StageZBinding(const PipelineROPTargets &factory, bool useDepth, bool useStencil) :
+	ZBuffer(factory.ZBuffer), dsv(factory.dsv), clear{ factory.depthClear, factory.stencilClear },
+	depthOps
 	{
 		useDepth
 			? factory.lastDeptPostOp	? D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE : D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR
 			: D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS,
+		useDepth	? D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD : D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS
+	},
+	stencilOps
+	{
 		useStencil
 			? factory.lastStencilPostOp	? D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE : D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR
-			: D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS
-	},
-	postOp
-	{
-		useDepth	? D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD : D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS,
-		useStencil	? D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD : D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS
+			: D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS,
+		useStencil	? D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD : D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS
 	}
 {
 	if (useDepth)
 	{
 		if (factory.lastDeptPostOp)
 			*factory.lastDeptPostOp = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
-		factory.lastDeptPostOp = &postOp.depth;
+		factory.lastDeptPostOp = &depthOps.post;
 	}
 
 	if (useStencil)
 	{
 		if (factory.lastStencilPostOp)
 			*factory.lastStencilPostOp = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
-		factory.lastStencilPostOp = &postOp.stencil;
+		factory.lastStencilPostOp = &stencilOps.post;
 	}
 }
 
 // override clear, preserve if not clear, use both depth & stencil
-RenderPasses::StageZBinding::StageZBinding(const PipelineOutputTargets &factory, int clearFlags, FLOAT depthClear, UINT8 stencilClear, bool preserveDepth, bool preserveStencil) :
-	ZBuffer(factory.ZBuffer), dsv(factory.dsv), depthClear(depthClear), stencilClear(stencilClear),
-	preOp
+RenderPasses::StageZBinding::StageZBinding(const PipelineROPTargets &factory, D3D12_CLEAR_FLAGS clearFlags, D3D12_DEPTH_STENCIL_VALUE clear, bool preserveDepth, bool preserveStencil) :
+	ZBuffer(factory.ZBuffer), dsv(factory.dsv), clear(clear),
+	depthOps
 	{
 		clearFlags & D3D12_CLEAR_FLAG_DEPTH		? D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR : D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE,
-		clearFlags & D3D12_CLEAR_FLAG_STENCIL	? D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR : D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE
+		preserveDepth							? D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE : D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD
 	},
-	postOp
+	stencilOps
 	{
-		preserveDepth	? D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE : D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD,
-		preserveStencil	? D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE : D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD
+		clearFlags & D3D12_CLEAR_FLAG_STENCIL	? D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR : D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE,
+		preserveStencil							? D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE : D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD
 	}
 {
 	if (factory.lastDeptPostOp)
 		*factory.lastDeptPostOp		= clearFlags & D3D12_CLEAR_FLAG_DEPTH	? D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD : D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
-	factory.lastDeptPostOp			= preserveDepth		? nullptr : &postOp.depth;
+	factory.lastDeptPostOp			= preserveDepth		? nullptr : &depthOps.post;
 
 	if (factory.lastStencilPostOp)
 		*factory.lastStencilPostOp	= clearFlags & D3D12_CLEAR_FLAG_STENCIL	? D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD : D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
-	factory.lastStencilPostOp		= preserveStencil	? nullptr : &postOp.stencil;
+	factory.lastStencilPostOp		= preserveStencil	? nullptr : &stencilOps.post;
 }
 
 D3D12_RENDER_PASS_DEPTH_STENCIL_DESC RenderPasses::StageZBinding::RenderPassBinding(bool open, bool close) const
 {
-	assert(postOp.depth != D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_RESOLVE);
-	assert(postOp.stencil != D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_RESOLVE);
+	assert(depthOps.post != D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_RESOLVE);
+	assert(stencilOps.post != D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_RESOLVE);
 	const auto format = ZBuffer->GetDesc().Format;
 	return
 	{
 		.cpuDescriptor = dsv,
 		.DepthBeginningAccess =
 		{
-			.Type = FixOp(D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE(preOp.depth), open),
-			.Clear{format, {.DepthStencil = D3D12_DEPTH_STENCIL_VALUE{depthClear, stencilClear}}}
+			.Type = FixOp(depthOps.pre, open),
+			.Clear{format, {.DepthStencil = clear}}
 		},
 		.StencilBeginningAccess =
 		{
-			.Type = FixOp(D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE(preOp.stencil), open),
-			.Clear{format, {.DepthStencil = D3D12_DEPTH_STENCIL_VALUE{depthClear, stencilClear}}}
+			.Type = FixOp(stencilOps.pre, open),
+			.Clear{format, {.DepthStencil = clear}}
 		},
-		.DepthEndingAccess{FixOp(D3D12_RENDER_PASS_ENDING_ACCESS_TYPE(postOp.depth), close)},
-		.StencilEndingAccess{FixOp(D3D12_RENDER_PASS_ENDING_ACCESS_TYPE(postOp.stencil), close)}
+		.DepthEndingAccess{FixOp(depthOps.post, close)},
+		.StencilEndingAccess{FixOp(stencilOps.post, close)}
 	};
 }
 
 void RenderPasses::StageZBinding::FastForward(CmdListPool::CmdList &cmdList, bool open, bool close) const
 {
-	assert(postOp.depth != D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_RESOLVE);
-	assert(postOp.stencil != D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_RESOLVE);
+	assert(depthOps.post != D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_RESOLVE);
+	assert(stencilOps.post != D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_RESOLVE);
 
 	D3D12_DISCARD_REGION discardRegion{.FirstSubresource = UINT_MAX};
 	D3D12_CLEAR_FLAGS clearFlags{};
@@ -258,8 +258,8 @@ void RenderPasses::StageZBinding::FastForward(CmdListPool::CmdList &cmdList, boo
 		}
 	};
 
-	ApplyPrePostOps(0, D3D12_CLEAR_FLAG_DEPTH, D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE(preOp.depth), D3D12_RENDER_PASS_ENDING_ACCESS_TYPE(postOp.depth));
-	ApplyPrePostOps(1, D3D12_CLEAR_FLAG_STENCIL, D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE(preOp.stencil), D3D12_RENDER_PASS_ENDING_ACCESS_TYPE(postOp.stencil));
+	ApplyPrePostOps(0, D3D12_CLEAR_FLAG_DEPTH, depthOps.pre, depthOps.post);
+	ApplyPrePostOps(1, D3D12_CLEAR_FLAG_STENCIL, stencilOps.pre, stencilOps.post);
 
 	if (discardRegion.NumSubresources)
 	{
@@ -268,7 +268,7 @@ void RenderPasses::StageZBinding::FastForward(CmdListPool::CmdList &cmdList, boo
 	}
 
 	if (clearFlags)
-		cmdList->ClearDepthStencilView({ dsv }, clearFlags, depthClear, stencilClear, 0, NULL);
+		cmdList->ClearDepthStencilView(dsv, clearFlags, clear.Depth, clear.Stencil, 0, NULL);
 }
 
 void RenderPasses::StageOutput::Setup(CmdListPool::CmdList &cmdList) const
@@ -303,7 +303,7 @@ void RenderPasses::RenderPass::operator()(CmdListPool::CmdList &cmdList) const
 {
 	cmdList->BeginRenderPass(bool(RTBinding.stageBinding),
 		RTBinding.stageBinding ? &RTBinding.stageBinding->RenderPassBinding(RTBinding.open, RTBinding.close) : NULL,
-		&ZBinding.stageBinding.RenderPassBinding(ZBinding.open, ZBinding.close), D3D12_RENDER_PASS_FLAGS(Flags()));
+		&ZBinding.stageBinding.RenderPassBinding(ZBinding.open, ZBinding.close), Flags());
 	output.Setup(cmdList);
 }
 
@@ -313,7 +313,7 @@ void RenderPasses::RenderPass::Finish(CmdListPool::CmdList &cmdList) const
 		RTBinding.stageBinding->Finish(cmdList);
 }
 
-inline int RenderPasses::RenderPass::Flags() const noexcept
+inline D3D12_RENDER_PASS_FLAGS RenderPasses::RenderPass::Flags() const noexcept
 {
 	D3D12_RENDER_PASS_FLAGS flags = D3D12_RENDER_PASS_FLAG_NONE;
 	if (CombineROPWrites())

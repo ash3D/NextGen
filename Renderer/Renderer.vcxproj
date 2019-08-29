@@ -245,6 +245,7 @@
     <ClInclude Include="render passes.h" />
     <ClInclude Include="shader bytecode.h" />
     <ClInclude Include="terrain material interface.h" />
+    <ClInclude Include="terrain render stages.h" />
     <ClInclude Include="tonemapTextureReduction config.h" />
     <ClInclude Include="render pipeline.h" />
     <ClInclude Include="render stage.h" />
@@ -258,6 +259,7 @@
     <ClInclude Include="tracked resource.h" />
     <ClInclude Include="frame versioning.h" />
     <ClInclude Include="world hierarchy.h" />
+    <ClInclude Include="world render stages.h" />
     <ClInclude Include="world view context.h" />
   </ItemGroup>
   <ItemGroup>

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <functional>
+#include "stdafx.h"
 #include "GPU work item.h"
 #include "render passes.h"
 
@@ -8,7 +8,7 @@ namespace Renderer::Impl::RenderPipeline
 {
 	class IRenderStage
 	{
-		virtual void Sync() const = 0;
+		virtual PipelineItem (IRenderStage::*DoSync(void) const)(unsigned int &length) const = 0;
 
 	protected:
 		static PipelineItem (IRenderStage::*phaseSelector)(unsigned int &length) const;
@@ -38,7 +38,7 @@ namespace Renderer::Impl::RenderPipeline
 			const std::function<void ()> &PassFinish, const PassExhausted &PassExhausted, const GetRenderRange &GetRenderRange) const;
 
 	public:
-		void Sync(PipelineItem(IRenderStage::*startPhaseSelector)(unsigned int &length) const) const { phaseSelector = startPhaseSelector, Sync(); }
+		void Sync() const { phaseSelector = DoSync(); }
 		PipelineItem GetNextWorkItem(unsigned int &length) const { return (this->*phaseSelector)(length); }
 	};
 }

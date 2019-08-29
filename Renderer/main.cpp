@@ -7,7 +7,8 @@
 #include "render output.hh"	// for tonemap reduction buffer
 #include "viewport.hh"		// for tonemap root sig & PSOs
 #include "world.hh"
-#include "terrain.hh"
+#include "world render stages.h"
+#include "terrain render stages.h"
 #include "terrain materials.hh"
 #include "object 3D.hh"
 #include "tracked resource.inl"
@@ -22,7 +23,7 @@ using Renderer::RenderOutput;
 using Renderer::Impl::globalFrameVersioning;
 using Renderer::Impl::Viewport;
 using Renderer::Impl::World;
-using Renderer::Impl::TerrainVectorLayer;
+using Renderer::TerrainVectorQuad;
 using Renderer::Impl::Object3D;
 using Microsoft::WRL::ComPtr;
 namespace TerrainMaterials = Renderer::TerrainMaterials;
@@ -309,31 +310,31 @@ void OnFrameFinish()
 
 #pragma region root sigs & PSOs
 ComPtr<ID3D12RootSignature>
-	Viewport::tonemapRootSig						= Try(Viewport::CreateTonemapRootSig, "tonemapping root signature"),
-	TerrainVectorLayer::cullPassRootSig				= Try(TerrainVectorLayer::CreateCullPassRootSig, "terrain occlusion query root signature"),
-	TerrainVectorLayer::AABB_rootSig				= Try(TerrainVectorLayer::CreateAABB_RootSig, "terrain AABB visualization root signature"),
-	TerrainMaterials::Flat::rootSig					= Try(TerrainMaterials::Flat::CreateRootSig, "terrain flat material root signature"),
-	TerrainMaterials::Textured::rootSig				= Try(TerrainMaterials::Textured::CreateRootSig, "terrain textured material root signature"),
-	TerrainMaterials::Standard::rootSig				= Try(TerrainMaterials::Standard::CreateRootSig, "terrain standard material root signature"),
-	TerrainMaterials::Extended::rootSig				= Try(TerrainMaterials::Extended::CreateRootSig, "terrain extended material root signature"),
-	World::xformAABB_rootSig						= Try(World::CreateXformAABB_RootSig, "Xform 3D AABB root signature"),
-	World::cullPassRootSig							= Try(World::CreateCullPassRootSig, "world objects occlusion query root signature"),
-	World::AABB_rootSig								= Try(World::CreateAABB_RootSig, "world 3D objects AABB visualization root signature"),
-	Object3D::rootSig								= Try(Object3D::CreateRootSig, "object 3D root signature");
+	Viewport::tonemapRootSig														= Try(Viewport::CreateTonemapRootSig, "tonemapping root signature"),
+	TerrainVectorQuad::MainRenderStage::cullPassRootSig								= Try(TerrainVectorQuad::MainRenderStage::CreateCullPassRootSig, "terrain occlusion query root signature"),
+	TerrainVectorQuad::DebugRenderStage::AABB_rootSig								= Try(TerrainVectorQuad::DebugRenderStage::CreateAABB_RootSig, "terrain AABB visualization root signature"),
+	TerrainMaterials::Flat::rootSig													= Try(TerrainMaterials::Flat::CreateRootSig, "terrain flat material root signature"),
+	TerrainMaterials::Textured::rootSig												= Try(TerrainMaterials::Textured::CreateRootSig, "terrain textured material root signature"),
+	TerrainMaterials::Standard::rootSig												= Try(TerrainMaterials::Standard::CreateRootSig, "terrain standard material root signature"),
+	TerrainMaterials::Extended::rootSig												= Try(TerrainMaterials::Extended::CreateRootSig, "terrain extended material root signature"),
+	World::MainRenderStage::xformAABB_rootSig										= Try(World::MainRenderStage::CreateXformAABB_RootSig, "Xform 3D AABB root signature"),
+	World::MainRenderStage::cullPassRootSig											= Try(World::MainRenderStage::CreateCullPassRootSig, "world objects occlusion query root signature"),
+	World::DebugRenderStage::AABB_rootSig											= Try(World::DebugRenderStage::CreateAABB_RootSig, "world 3D objects AABB visualization root signature"),
+	Object3D::rootSig																= Try(Object3D::CreateRootSig, "object 3D root signature");
 ComPtr<ID3D12PipelineState>
-	Viewport::tonemapTextureReductionPSO			= Try(Viewport::CreateTonemapTextureReductionPSO, "tonemap texture reduction PSO"),
-	Viewport::tonemapBufferReductionPSO				= Try(Viewport::CreateTonemapBufferReductionPSO, "tonemap buffer reduction PSO"),
-	Viewport::tonemapPSO							= Try(Viewport::CreateTonemapPSO, "tonemapping PSO"),
-	TerrainVectorLayer::cullPassPSO					= Try(TerrainVectorLayer::CreateCullPassPSO, "terrain occlusion query PSO"),
-	TerrainVectorLayer::AABB_PSO					= Try(TerrainVectorLayer::CreateAABB_PSO, "terrain AABB visualization PSO"),
-	TerrainMaterials::Flat::PSO						= Try(TerrainMaterials::Flat::CreatePSO, "terrain flat material PSO"),
-	TerrainMaterials::Textured::PSO					= Try(TerrainMaterials::Textured::CreatePSO, "terrain textured material PSO"),
-	TerrainMaterials::Standard::PSO					= Try(TerrainMaterials::Standard::CreatePSO, "terrain standard material PSO"),
-	TerrainMaterials::Extended::PSO					= Try(TerrainMaterials::Extended::CreatePSO, "terrain extended material PSO"),
-	World::xformAABB_PSO							= Try(World::CreateXformAABB_PSO, "Xform 3D AABB PSO");
-decltype(World::cullPassPSOs) World::cullPassPSOs	= Try(World::CreateCullPassPSOs, "world objects occlusion query passes PSOs");
-decltype(World::AABB_PSOs) World::AABB_PSOs			= Try(World::CreateAABB_PSOs, "world 3D objects AABB visualization PSOs");
-decltype(Object3D::PSOs) Object3D::PSOs				= Try(Object3D::CreatePSOs, "object 3D PSOs");
+	Viewport::tonemapTextureReductionPSO											= Try(Viewport::CreateTonemapTextureReductionPSO, "tonemap texture reduction PSO"),
+	Viewport::tonemapBufferReductionPSO												= Try(Viewport::CreateTonemapBufferReductionPSO, "tonemap buffer reduction PSO"),
+	Viewport::tonemapPSO															= Try(Viewport::CreateTonemapPSO, "tonemapping PSO"),
+	TerrainVectorQuad::MainRenderStage::cullPassPSO									= Try(TerrainVectorQuad::MainRenderStage::CreateCullPassPSO, "terrain occlusion query PSO"),
+	TerrainVectorQuad::DebugRenderStage::AABB_PSO									= Try(TerrainVectorQuad::DebugRenderStage::CreateAABB_PSO, "terrain AABB visualization PSO"),
+	TerrainMaterials::Flat::PSO														= Try(TerrainMaterials::Flat::CreatePSO, "terrain flat material PSO"),
+	TerrainMaterials::Textured::PSO													= Try(TerrainMaterials::Textured::CreatePSO, "terrain textured material PSO"),
+	TerrainMaterials::Standard::PSO													= Try(TerrainMaterials::Standard::CreatePSO, "terrain standard material PSO"),
+	TerrainMaterials::Extended::PSO													= Try(TerrainMaterials::Extended::CreatePSO, "terrain extended material PSO"),
+	World::MainRenderStage::xformAABB_PSO											= Try(World::MainRenderStage::CreateXformAABB_PSO, "Xform 3D AABB PSO");
+decltype(World::MainRenderStage::cullPassPSOs) World::MainRenderStage::cullPassPSOs	= Try(World::MainRenderStage::CreateCullPassPSOs, "world objects occlusion query passes PSOs");
+decltype(World::DebugRenderStage::AABB_PSOs) World::DebugRenderStage::AABB_PSOs		= Try(World::DebugRenderStage::CreateAABB_PSOs, "world 3D objects AABB visualization PSOs");
+decltype(Object3D::PSOs) Object3D::PSOs												= Try(Object3D::CreatePSOs, "object 3D PSOs");
 
 // should be defined before globalFrameVersioning in order to be destroyed after waiting in globalFrameVersioning dtor completes
 using Renderer::Impl::World;
@@ -378,9 +379,9 @@ decltype(QueryBatchBase::heapPool) QueryBatchBase::heapPool;
 decltype(QueryBatch<OcclusionCulling::TRANSIENT>::resultsPool) QueryBatch<OcclusionCulling::TRANSIENT>::resultsPool;
 
 // allocators contains tracked resource (=> after globalFrameVersioning)
-decltype(TerrainVectorLayer::GPU_AABB_allocator) TerrainVectorLayer::GPU_AABB_allocator = TryCreate<decltype(TerrainVectorLayer::GPU_AABB_allocator)>("GPU AABB allocator for terrain vector layers");
-decltype(World::GPU_AABB_allocator) World::GPU_AABB_allocator = TryCreate<decltype(World::GPU_AABB_allocator)>("GPU AABB allocator for world 3D objects");
-decltype(World::xformedAABBsStorage) World::xformedAABBsStorage;
+decltype(TerrainVectorQuad::MainRenderStage::GPU_AABB_allocator) TerrainVectorQuad::MainRenderStage::GPU_AABB_allocator = TryCreate<decltype(TerrainVectorQuad::MainRenderStage::GPU_AABB_allocator)>("GPU AABB allocator for terrain vector layers");
+decltype(World::MainRenderStage::GPU_AABB_allocator) World::MainRenderStage::GPU_AABB_allocator = TryCreate<decltype(World::MainRenderStage::GPU_AABB_allocator)>("GPU AABB allocator for world 3D objects");
+decltype(World::MainRenderStage::xformedAABBsStorage) World::MainRenderStage::xformedAABBsStorage;
 
 bool enableDebugDraw;
 
@@ -391,45 +392,45 @@ extern void __cdecl InitRenderer()
 		namespace TextureSamplers = Renderer::Impl::Descriptors::TextureSamplers;
 		namespace GPUDescriptorHeap = Renderer::Impl::Descriptors::GPUDescriptorHeap;
 		namespace DMAEngine = Renderer::DMA::Impl;
-		factory									= CreateFactory();
-		device									= CreateDevice();
-		gfxQueue								= CreateGraphicsCommandQueue();
-		dmaQueue								= CreateDMACommandQueue();
-		TextureSamplers::Impl::heap				= TextureSamplers::Impl::CreateHeap();
-		RenderOutput::tonemapReductionBuffer	= RenderOutput::CreateTonemapReductionBuffer();
-		Viewport::tonemapRootSig				= Viewport::CreateTonemapRootSig();
-		Viewport::tonemapTextureReductionPSO	= Viewport::CreateTonemapTextureReductionPSO();
-		Viewport::tonemapBufferReductionPSO		= Viewport::CreateTonemapBufferReductionPSO();
-		Viewport::tonemapPSO					= Viewport::CreateTonemapPSO();
-		TerrainVectorLayer::cullPassRootSig		= TerrainVectorLayer::CreateCullPassRootSig();
-		TerrainVectorLayer::AABB_rootSig		= TerrainVectorLayer::CreateAABB_RootSig();
-		TerrainVectorLayer::cullPassPSO			= TerrainVectorLayer::CreateCullPassPSO();
-		TerrainVectorLayer::AABB_PSO			= TerrainVectorLayer::CreateAABB_PSO();
-		TerrainMaterials::Flat::rootSig			= TerrainMaterials::Flat::CreateRootSig();
-		TerrainMaterials::Textured::rootSig		= TerrainMaterials::Textured::CreateRootSig();
-		TerrainMaterials::Standard::rootSig		= TerrainMaterials::Standard::CreateRootSig();
-		TerrainMaterials::Extended::rootSig		= TerrainMaterials::Extended::CreateRootSig();
-		TerrainMaterials::Flat::PSO				= TerrainMaterials::Flat::CreatePSO();
-		TerrainMaterials::Textured::PSO			= TerrainMaterials::Textured::CreatePSO();
-		TerrainMaterials::Standard::PSO			= TerrainMaterials::Standard::CreatePSO();
-		TerrainMaterials::Extended::PSO			= TerrainMaterials::Extended::CreatePSO();
-		World::xformAABB_rootSig				= World::CreateXformAABB_RootSig();
-		World::cullPassRootSig					= World::CreateCullPassRootSig();
-		World::AABB_rootSig						= World::CreateAABB_RootSig();
-		World::xformAABB_PSO					= World::CreateXformAABB_PSO();
-		World::cullPassPSOs						= World::CreateCullPassPSOs();
-		World::AABB_PSOs						= World::CreateAABB_PSOs();
-		Object3D::rootSig						= Object3D::CreateRootSig();
-		Object3D::PSOs							= Object3D::CreatePSOs();
-		World::globalGPUBuffer					= World::CreateGlobalGPUBuffer();
+		factory												= CreateFactory();
+		device												= CreateDevice();
+		gfxQueue											= CreateGraphicsCommandQueue();
+		dmaQueue											= CreateDMACommandQueue();
+		TextureSamplers::Impl::heap							= TextureSamplers::Impl::CreateHeap();
+		RenderOutput::tonemapReductionBuffer				= RenderOutput::CreateTonemapReductionBuffer();
+		Viewport::tonemapRootSig							= Viewport::CreateTonemapRootSig();
+		Viewport::tonemapTextureReductionPSO				= Viewport::CreateTonemapTextureReductionPSO();
+		Viewport::tonemapBufferReductionPSO					= Viewport::CreateTonemapBufferReductionPSO();
+		Viewport::tonemapPSO								= Viewport::CreateTonemapPSO();
+		TerrainVectorQuad::MainRenderStage::cullPassRootSig	= TerrainVectorQuad::MainRenderStage::CreateCullPassRootSig();
+		TerrainVectorQuad::DebugRenderStage::AABB_rootSig	= TerrainVectorQuad::DebugRenderStage::CreateAABB_RootSig();
+		TerrainVectorQuad::MainRenderStage::cullPassPSO		= TerrainVectorQuad::MainRenderStage::CreateCullPassPSO();
+		TerrainVectorQuad::DebugRenderStage::AABB_PSO		= TerrainVectorQuad::DebugRenderStage::CreateAABB_PSO();
+		TerrainMaterials::Flat::rootSig						= TerrainMaterials::Flat::CreateRootSig();
+		TerrainMaterials::Textured::rootSig					= TerrainMaterials::Textured::CreateRootSig();
+		TerrainMaterials::Standard::rootSig					= TerrainMaterials::Standard::CreateRootSig();
+		TerrainMaterials::Extended::rootSig					= TerrainMaterials::Extended::CreateRootSig();
+		TerrainMaterials::Flat::PSO							= TerrainMaterials::Flat::CreatePSO();
+		TerrainMaterials::Textured::PSO						= TerrainMaterials::Textured::CreatePSO();
+		TerrainMaterials::Standard::PSO						= TerrainMaterials::Standard::CreatePSO();
+		TerrainMaterials::Extended::PSO						= TerrainMaterials::Extended::CreatePSO();
+		World::MainRenderStage::xformAABB_rootSig			= World::MainRenderStage::CreateXformAABB_RootSig();
+		World::MainRenderStage::cullPassRootSig				= World::MainRenderStage::CreateCullPassRootSig();
+		World::DebugRenderStage::AABB_rootSig				= World::DebugRenderStage::CreateAABB_RootSig();
+		World::MainRenderStage::xformAABB_PSO				= World::MainRenderStage::CreateXformAABB_PSO();
+		World::MainRenderStage::cullPassPSOs				= World::MainRenderStage::CreateCullPassPSOs();
+		World::DebugRenderStage::AABB_PSOs					= World::DebugRenderStage::CreateAABB_PSOs();
+		Object3D::rootSig									= Object3D::CreateRootSig();
+		Object3D::PSOs										= Object3D::CreatePSOs();
+		World::globalGPUBuffer								= World::CreateGlobalGPUBuffer();
 #if PERSISTENT_MAPS
-		World::globalGPUBuffer_CPU_ptr			= World::MapGlobalGPUBuffer();
+		World::globalGPUBuffer_CPU_ptr						= World::MapGlobalGPUBuffer();
 #endif
 		globalFrameVersioning.emplace();
-		GPUDescriptorHeap::Impl::heap			= GPUDescriptorHeap::Impl::PreallocateHeap();
-		TerrainVectorLayer::GPU_AABB_allocator.emplace();
-		World::GPU_AABB_allocator.emplace();
-		DMAEngine::cmdBuffers					= DMAEngine::CreateCmdBuffers();
-		DMAEngine::fence						= DMAEngine::CreateFence();
+		GPUDescriptorHeap::Impl::heap						= GPUDescriptorHeap::Impl::PreallocateHeap();
+		TerrainVectorQuad::MainRenderStage::GPU_AABB_allocator.emplace();
+		World::MainRenderStage::GPU_AABB_allocator.emplace();
+		DMAEngine::cmdBuffers								= DMAEngine::CreateCmdBuffers();
+		DMAEngine::fence									= DMAEngine::CreateFence();
 	}
 }

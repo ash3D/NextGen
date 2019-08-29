@@ -5,31 +5,19 @@
 #include <cstddef>
 #include <memory>
 #include <string>
-#include <array>
-#include <vector>
 #include <list>
-#include <utility>	// for std::forward
-#include <functional>
-#include <optional>
-#include <variant>
+#include <future>
 #include <wrl/client.h>
 #include "../tracked resource.h"
 #include "../AABB.h"
 #include "../world hierarchy.h"
-#include "../render stage.h"
 #include "../render pipeline.h"
-#include "../render passes.h"
-#include "../GPU stream buffer allocator.h"
-#include "../SO buffer.h"
-#include "../occlusion query batch.h"
 #include "allocator adaptors.h"
 #define DISABLE_MATRIX_SWIZZLES
 #if !__INTELLISENSE__ 
 #include "vector math.h"
 #endif
 
-struct ID3D12RootSignature;
-struct ID3D12PipelineState;
 struct ID3D12Resource;
 struct ID3D12GraphicsCommandList4;
 struct D3D12_RANGE;
@@ -42,9 +30,6 @@ extern void __cdecl InitRenderer();
 
 namespace Renderer
 {
-	namespace WRL = Microsoft::WRL;
-	namespace HLSL = Math::VectorMath::HLSL;
-
 	class Viewport;
 	class TerrainVectorLayer;
 	class Object3D;
@@ -58,20 +43,29 @@ namespace Renderer
 
 	namespace Impl
 	{
+		namespace WRL = Microsoft::WRL;
+		namespace HLSL = Math::VectorMath::HLSL;
+
 		class Viewport;
-		class TerrainVectorLayer;
-		using WRL::ComPtr;
 		using Misc::AllocatorProxy;
+		namespace RenderPipeline::RenderPasses
+		{
+			class PipelineROPTargets;
+		}
 		namespace RenderPasses = RenderPipeline::RenderPasses;
 
-		class World : public std::enable_shared_from_this<Renderer::World>, RenderPipeline::IRenderStage
+		class World : public std::enable_shared_from_this<Renderer::World>
 		{
 			friend extern void __cdecl ::InitRenderer();
 			friend struct WorldViewContext;
+			struct OcclusionQueryPasses;
+			class MainRenderStage;
+			class DebugRenderStage;
+			typedef std::future<std::shared_ptr<const OcclusionQueryPasses>> StageExchange;
 
 		private:
 			// hazard tracking is not needed here - all the waiting required performed in globalFrameVersioning dtor
-			static ComPtr<ID3D12Resource> globalGPUBuffer, CreateGlobalGPUBuffer();
+			static WRL::ComPtr<ID3D12Resource> globalGPUBuffer, CreateGlobalGPUBuffer();
 			struct GlobalGPUBufferData;	// defined in "global GPU buffer data.h" to eliminate dependencies on d3d12.h here
 			static volatile struct GlobalGPUBufferData
 #if PERSISTENT_MAPS
@@ -130,98 +124,7 @@ namespace Renderer
 			void InvalidateStaticObjects();
 
 		private:
-			mutable struct WorldViewContext *viewCtx;
-			mutable UINT64 tonemapParamsGPUAddress;
-			mutable std::optional<RenderPasses::StageRTBinding> RTBindinMain, RTBBindingDebug;
-			mutable std::optional<RenderPasses::StageZBinding> ZBindingPrecull, ZBindingMain, ZBindingDebug;
-			mutable std::optional<RenderPasses::StageOutput> outputMain, outputDebug;	// actually single enough
-
-#pragma region occlusion query passes
-		private:
-			static ComPtr<ID3D12RootSignature> xformAABB_rootSig, CreateXformAABB_RootSig();
-			static ComPtr<ID3D12PipelineState> xformAABB_PSO, CreateXformAABB_PSO();
-			static ComPtr<ID3D12RootSignature> cullPassRootSig, CreateCullPassRootSig();
-			static std::array<ComPtr<ID3D12PipelineState>, 2> cullPassPSOs, CreateCullPassPSOs();
-
-		private:
-			struct OcclusionQueryGeometry
-			{
-				ID3D12Resource *VB;
-				unsigned long int startIdx, xformedStartIdx;
-				unsigned int count;
-			};
-			mutable std::vector<OcclusionQueryGeometry> queryStream;
-
-		private:
-			void XformAABBPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd) const;
-			void CullPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass, bool final) const;
-
-		private:
-			void SetupCullPass() const;
-			void IssueOcclusion(decltype(bvhView)::Node::OcclusionQueryGeometry occlusionQueryGeometry, unsigned long int &counter) const;
-#pragma endregion
-
-#pragma region main passes
-		private:
-			struct RenderData
-			{
-				const Renderer::Instance *instance;
-				decltype(OcclusionCulling::QueryBatchBase::npos) occlusion;
-			};
-			mutable std::vector<RenderData> renderStreams[2];
-
-		private:
-			void MainPassPre(CmdListPool::CmdList &target) const, MainPassPost(CmdListPool::CmdList &target) const;
-			void MainPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass, bool final) const;
-
-		private:
-			void SetupMainPass() const;
-			void IssueObjects(const decltype(bvh)::Node &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion) const;
-			bool IssueNodeObjects(const decltype(bvh)::Node &node, decltype(OcclusionCulling::QueryBatchBase::npos) occlusion,  decltype(OcclusionCulling::QueryBatchBase::npos), decltype(bvhView)::Node::Visibility visibility) const;
-#pragma endregion
-
-#pragma region visualize occlusion pass
-		private:
-			static ComPtr<ID3D12RootSignature> AABB_rootSig, CreateAABB_RootSig();
-			static std::array<ComPtr<ID3D12PipelineState>, 2> AABB_PSOs, CreateAABB_PSOs();
-
-		private:
-			void AABBPassPre(CmdListPool::CmdList &target) const, AABBPassPost(CmdListPool::CmdList &target) const;
-			void AABBPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass, bool visible) const;
-#pragma endregion
-
-		private:
-			void StagePre(CmdListPool::CmdList &target) const, StagePost(CmdListPool::CmdList &target) const;
-			void XformAABBPass2CullPass(CmdListPool::CmdList &target) const, CullPass2MainPass(CmdListPool::CmdList &target, bool final) const, MainPass2CullPass(CmdListPool::CmdList &target) const;
-
-		private:
-			// order is essential (TRANSIENT, then DUAL), index based access used
-			mutable std::variant<OcclusionCulling::QueryBatch<OcclusionCulling::TRANSIENT>, OcclusionCulling::QueryBatch<OcclusionCulling::DUAL>> occlusionQueryBatch;
-
-		private:
-			// Inherited via IRenderStage
-			virtual void Sync() const override final;
-
-		private:
-			RenderPipeline::PipelineItem
-				GetStagePre(unsigned int &length) const, GetStagePost(unsigned int &length) const,
-				GetXformAABBPassRange(unsigned int &length) const,
-				GetFirstCullPassRange(unsigned int &length) const, GetSecondCullPassRange(unsigned int &length) const,
-				GetFirstMainPassRange(unsigned int &length) const, GetSecondMainPassRange(unsigned int &length) const,
-				GetXformAABBPass2FirstCullPass(unsigned int &length) const, GetFirstCullPass2FirstMainPass(unsigned int &length) const, GetFirstMainPass2SecondCullPass(unsigned int &length) const, GetSecondCullPass2SecondMainPass(unsigned int &length) const,
-				GetMainPassPre(unsigned int &length) const, GetMainPassRange(unsigned int &length) const, GetMainPassPost(unsigned int &length) const,
-				GetAABBPassPre(unsigned int &length) const, GetAABBPassPost(unsigned int &length) const,
-				GetHiddenPassRange(unsigned int &length) const, GetVisiblePassRange(unsigned int &length) const;
-
-		private:
-			void Setup(struct WorldViewContext &viewCtx, UINT64 tonemapParamsGPUAddress) const, SetupOcclusionQueryBatch(decltype(OcclusionCulling::QueryBatchBase::npos) maxOcclusion) const;
-
-		private:
-			static constexpr const WCHAR AABB_VB_name[] = L"3D objects occlusion query boxes", xformedAABB_SO_name[] = L"3D objects xformed occlusion query boxes";
-			static std::optional<GPUStreamBuffer::Allocator<sizeof(AABB<3>), AABB_VB_name>> GPU_AABB_allocator;
-			static SOBuffer::Allocator<xformedAABB_SO_name> xformedAABBsStorage;
-			mutable SOBuffer::Handle xformedAABBs;
-			static constexpr UINT xformedAABBSize = sizeof(float [4])/*corner*/ + sizeof(float [3][4])/*extents*/;
+			mutable size_t queryStreamLenCache{}, renderStreamsLenCache[2]{};
 
 		private:
 			class InstanceDeleter final
@@ -243,8 +146,8 @@ namespace Renderer
 			void operator =(World &) = delete;
 
 		protected:
-			void Render(struct WorldViewContext &viewCtx, const float (&viewXform)[4][3], const float (&projXform)[4][4], UINT64 tonemapParamsGPUAddress, const RenderPasses::PipelineOutputTargets &outputTargets) const;
-			void OnFrameFinish() const;
+			void Render(struct WorldViewContext &viewCtx, const float (&viewXform)[4][3], const float (&projXform)[4][4], UINT64 tonemapParamsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) const;
+			static void OnFrameFinish();
 
 		public:
 			typedef std::unique_ptr<const Renderer::Instance, InstanceDeleter> InstancePtr;
@@ -255,12 +158,8 @@ namespace Renderer
 			void FlushUpdates() const;	// const to be able to call from Render()
 
 		private:
-			RenderPipeline::RenderStage BuildRenderStage(struct WorldViewContext &viewCtx, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 &viewXform, UINT64 tonemapParamsGPUAddress) const;
-			RenderPipeline::PipelineStage GetDebugDrawRenderStage() const;
-
-		private:
-			void ScheduleRenderStage(WorldViewContext &viewCtx, const HLSL::float4x4 &frustumTransform, const HLSL::float4x3 &worldViewTransform, UINT64 tonemapParamsGPUAddress, const RenderPasses::PipelineOutputTargets &outputTargets) const;
-			void ScheduleDebugDrawRenderStage(const RenderPasses::PipelineOutputTargets &outputTargets) const;
+			StageExchange ScheduleRenderStage(WorldViewContext &viewCtx, const HLSL::float4x4 &frustumTransform, const HLSL::float4x3 &worldViewTransform, UINT64 tonemapParamsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) const;
+			static void ScheduleDebugDrawRenderStage(UINT64 tonemapParamsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets, StageExchange &&stageExchange);
 		};
 	}
 
@@ -270,7 +169,7 @@ namespace Renderer
 		friend class Misc::AllocatorProxyAdaptor;
 		friend std::shared_ptr<World> __cdecl MakeWorld(const float (&terrainXform)[4][3], float zenith = 0, float azimuth = 0);
 		friend class Impl::Viewport;
-		friend class Impl::TerrainVectorLayer;	// for GetCurFrameGPUDataPtr()
+		friend class TerrainVectorQuad;	// for GetCurFrameGPUDataPtr()
 
 #if defined _MSC_VER && _MSC_VER <= 1922
 	private:

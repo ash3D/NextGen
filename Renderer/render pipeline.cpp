@@ -7,7 +7,7 @@ using namespace Renderer::Impl;
 using namespace RenderPipeline;
 
 static queue<future<PipelineStage>> pipeline;
-static const IRenderStage *curRenderStage;
+static RenderStage curRenderStage;
 
 // returns std::monostate on stage waiting/pipeline finish, null RenderStageItem on batch overflow
 PipelineItem RenderPipeline::GetNext(unsigned int &length)
@@ -16,7 +16,8 @@ PipelineItem RenderPipeline::GetNext(unsigned int &length)
 	{
 		if (!pipeline.empty() && pipeline.front().wait_for(0s) != future_status::timeout)
 		{
-			const auto stage = pipeline.front().get();
+			// not const to enable move
+			auto stage = pipeline.front().get();
 			pipeline.pop();
 
 			// if pipeline stage is cmd list
@@ -24,10 +25,7 @@ PipelineItem RenderPipeline::GetNext(unsigned int &length)
 				return *cmdList;
 
 			// else pipeline stage is render stage
-			{
-				const auto &renderStage = get<RenderStage>(stage);
-				(curRenderStage = renderStage.first)->Sync(renderStage.second);
-			}
+			(curRenderStage = move(get<RenderStage>(stage)))->Sync();
 		}
 	}
 	return curRenderStage ? curRenderStage->GetNextWorkItem(length) : PipelineItem{};

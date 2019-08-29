@@ -1,10 +1,7 @@
 #pragma once
 
-#include <shared_mutex>
-#include "../tracked resource.h"
-
-struct ID3D12Resource;
-struct D3D12_STREAM_OUTPUT_BUFFER_VIEW;
+#include "stdafx.h"
+#include "tracked resource.h"
 
 namespace Renderer::Impl::CmdListPool
 {
@@ -20,8 +17,8 @@ namespace Renderer::Impl::SOBuffer
 	private:
 		ID3D12Resource *buffer;
 		unsigned long size = 0;
-		long int curUsage;	// consider moving it to template param (it would make usage static)
-		mutable long int prevUsage;
+		D3D12_RESOURCE_STATES curUsage;	// consider moving it to template param (it would make usage static)
+		mutable D3D12_RESOURCE_STATES prevUsage;
 
 	public:
 		Handle() = default;
@@ -29,7 +26,7 @@ namespace Renderer::Impl::SOBuffer
 		inline Handle &operator =(Handle &&srv) noexcept;
 
 	private:
-		Handle(ID3D12Resource *buffer, unsigned long size, long int usage) noexcept : buffer(buffer), size(size), curUsage(usage) {}
+		Handle(ID3D12Resource *buffer, unsigned long size, D3D12_RESOURCE_STATES usage) noexcept : buffer(buffer), size(size), curUsage(usage) {}
 
 	public:
 		void Sync() const;
@@ -56,14 +53,14 @@ namespace Renderer::Impl::SOBuffer
 		~AllocatorBase();
 
 	protected:
-		Handle Allocate(unsigned long size, long int usage, LPCWSTR resourceName);
+		Handle Allocate(unsigned long size, D3D12_RESOURCE_STATES usage, LPCWSTR resourceName);
 	};
 
 	template<LPCWSTR resourceName>
 	class Allocator : public AllocatorBase
 	{
 	public:
-		Handle Allocate(unsigned long size, long int usage) { return AllocatorBase::Allocate(size, usage, resourceName); }
+		Handle Allocate(unsigned long size, D3D12_RESOURCE_STATES usage) { return AllocatorBase::Allocate(size, usage, resourceName); }
 	};
 
 #pragma region inline impl

@@ -332,8 +332,8 @@ void Impl::Viewport::Render(ID3D12Resource *output, ID3D12Resource *rendertarget
 
 	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Pre, this, cmdLists.pre, output, rtv, dsv, width, height);
 
-	const RenderPipeline::RenderPasses::PipelineOutputTargets outputTargets(rendertarget, rtv, backgroundColor, ZBuffer, dsv, 1.f, 0xef, HDRSurface, width, height);
-	world->Render(ctx, viewXform, projXform, tonemapParamsBuffer->GetGPUVirtualAddress(), outputTargets);
+	const RenderPipeline::RenderPasses::PipelineROPTargets ROPTargets(rendertarget, rtv, backgroundColor, ZBuffer, dsv, 1.f, 0xef, HDRSurface, width, height);
+	world->Render(ctx, viewXform, projXform, tonemapParamsBuffer->GetGPUVirtualAddress(), ROPTargets);
 
 	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Post, this, cmdLists.post, output, rendertarget, HDRSurface, LDRSurface, tonemapReductionBuffer, tonemapDescriptorTable, CalculateTonemapParamsLerpFactor(delta), width, height);
 
