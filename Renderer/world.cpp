@@ -701,6 +701,11 @@ auto Impl::World::MainRenderStage::MainRenderStage::Schedule(shared_ptr<const Re
 	return stageExchange;
 }
 
+inline void Impl::World::MainRenderStage::OnFrameFinish()
+{
+	GPU_AABB_allocator->OnFrameFinish();
+}
+
 #pragma region visualize occlusion pass
 enum
 {
@@ -1055,6 +1060,7 @@ void Impl::World::Render(WorldViewContext &viewCtx, const float (&viewXform)[4][
 // "world.hh" currently does not #include "terrain.hh" (TerrainVectorLayer forward declared) => out-of-line
 void Impl::World::OnFrameFinish()
 {
+	MainRenderStage::OnFrameFinish();
 	TerrainVectorLayer::OnFrameFinish();
 }
 

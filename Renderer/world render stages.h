@@ -120,6 +120,7 @@ public:
 public:
 	inline static StageExchange Schedule(std::shared_ptr<const Renderer::World> parent, WorldViewContext &viewCtx, const HLSL::float4x4 &frustumXform, const HLSL::float4x3 &viewXform,
 		D3D12_GPU_VIRTUAL_ADDRESS tonemapParamsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets);
+	inline static void OnFrameFinish();
 };
 
 class Renderer::Impl::World::DebugRenderStage final : public RenderPipeline::IRenderStage, public std::enable_shared_from_this<DebugRenderStage>
