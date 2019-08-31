@@ -28,6 +28,7 @@
 #include <tuple>
 #include <limits>
 #include <memory>
+#include <memory_resource>
 #include <iterator>
 #include <initializer_list>
 #include <string>

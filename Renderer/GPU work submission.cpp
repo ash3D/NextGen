@@ -9,6 +9,7 @@ using namespace GPUWorkSubmission;
 using Microsoft::WRL::ComPtr;
 namespace CmdListPool = Impl::CmdListPool;
 
+extern pmr::synchronized_pool_resource globalTransientRAM;
 extern ComPtr<ID3D12CommandQueue> gfxQueue;
 
 /*
@@ -37,7 +38,7 @@ namespace
 	condition_variable workReadyEvent;
 	struct WorkBatch
 	{
-		vector<RenderPipeline::RenderStageItem::Work> work;
+		pmr::vector<RenderPipeline::RenderStageItem::Work> work{ &globalTransientRAM };
 		bool suspended;
 	} workBatch;
 	vector<future<void>> pendingAsyncRefs;
@@ -67,7 +68,7 @@ namespace
 		// 1 call site
 		inline operator ID3D12GraphicsCommandList4 *();
 	};
-	deque<GPUWorkItem> ROB;
+	pmr::deque<GPUWorkItem> ROB{ &globalTransientRAM };
 
 	GPUWorkItem::operator ID3D12GraphicsCommandList4 *()
 	{

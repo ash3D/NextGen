@@ -40,12 +40,14 @@ namespace Shaders
 using namespace std;
 using namespace Renderer;
 using namespace HLSL;
+using pmr::polymorphic_allocator;
 using WRL::ComPtr;
 namespace OcclusionCulling = Impl::OcclusionCulling;
 namespace CmdListPool = Impl::CmdListPool;
 namespace RenderPipeline = Impl::RenderPipeline;
 namespace RenderPasses = RenderPipeline::RenderPasses;
 
+extern pmr::synchronized_pool_resource globalTransientRAM;
 extern ComPtr<ID3D12Device2> device;
 void NameObject(ID3D12Object *object, LPCWSTR name) noexcept, NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
 ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC &desc, LPCWSTR name);
@@ -616,7 +618,7 @@ TerrainVectorQuad::MainRenderStage::MainRenderStage(shared_ptr<const Renderer::T
 	stageRTBinding(ROPTargets),
 	stageZBinding(ROPTargets, true, true),
 	stageOutput(ROPTargets),
-	queryPass(make_shared<OcclusionQueryPass>())	// or do this in 'Build()' ?
+	queryPass(allocate_shared<OcclusionQueryPass>(polymorphic_allocator<OcclusionQueryPass>(&globalTransientRAM)))	// or do this in 'Build()' ?
 {
 	stageExchangeResult = queryPassPromise.get_future();
 }
@@ -625,7 +627,7 @@ auto TerrainVectorQuad::MainRenderStage::Schedule(shared_ptr<const Renderer::Ter
 	D3D12_GPU_VIRTUAL_ADDRESS tonemapParamsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) -> StageExchange
 {
 	StageExchange stageExchange;
-	auto renderStage = make_shared<MainRenderStage>(move(parent), tonemapParamsGPUAddress, ROPTargets, stageExchange);
+	auto renderStage = allocate_shared<MainRenderStage>(polymorphic_allocator<MainRenderStage>(&globalTransientRAM), move(parent), tonemapParamsGPUAddress, ROPTargets, stageExchange);
 	GPUWorkSubmission::AppendPipelineStage<true>(&MainRenderStage::Build, move(renderStage), /*cref*/(frustumCuller), /*cref*/(frustumXform));
 	return stageExchange;
 }
@@ -806,7 +808,7 @@ RenderPipeline::PipelineStage TerrainVectorQuad::DebugRenderStage::Build(StageEx
 
 void TerrainVectorQuad::DebugRenderStage::Schedule(D3D12_GPU_VIRTUAL_ADDRESS tonemapParamsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets, StageExchange &&stageExchange)
 {
-	auto renderStage = make_shared<DebugRenderStage>(tonemapParamsGPUAddress, ROPTargets);
+	auto renderStage = allocate_shared<DebugRenderStage>(polymorphic_allocator<DebugRenderStage>(&globalTransientRAM), tonemapParamsGPUAddress, ROPTargets);
 	GPUWorkSubmission::AppendPipelineStage<false>(&DebugRenderStage::Build, move(renderStage), move(stageExchange));
 }
 #pragma endregion

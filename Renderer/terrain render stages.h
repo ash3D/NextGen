@@ -9,6 +9,8 @@
 #include "render pipeline.h"
 #include "occlusion query batch.h"
 
+extern std::pmr::synchronized_pool_resource globalTransientRAM;
+
 struct Renderer::TerrainVectorQuad::OcclusionQueryPass final
 {
 	friend class MainRenderStage;
@@ -21,7 +23,7 @@ private:
 		unsigned long int startIdx;
 		unsigned int count;
 	};
-	std::vector<OcclusionQueryGeometry> queryStream;
+	std::pmr::vector<OcclusionQueryGeometry> queryStream{ &globalTransientRAM };
 	// order is essential (TRANSIENT, then PERSISTENT), index based access used
 	std::variant<Impl::OcclusionCulling::QueryBatch<Impl::OcclusionCulling::TRANSIENT>, Impl::OcclusionCulling::QueryBatch<Impl::OcclusionCulling::PERSISTENT>> occlusionQueryBatch;
 };
@@ -37,7 +39,7 @@ private:
 	const Impl::RenderPipeline::RenderPasses::StageRTBinding stageRTBinding;
 	const Impl::RenderPipeline::RenderPasses::StageZBinding stageZBinding;
 	const Impl::RenderPipeline::RenderPasses::StageOutput stageOutput;
-	std::promise<std::shared_ptr<const OcclusionQueryPass>> queryPassPromise;
+	std::promise<std::shared_ptr<const OcclusionQueryPass>> queryPassPromise{ std::allocator_arg, std::pmr::polymorphic_allocator<decltype(queryPassPromise)>(&globalTransientRAM) };
 
 #pragma region occlusion query pass
 private:
@@ -73,8 +75,8 @@ private:
 		unsigned long int VB_size, IB_size;
 		bool IB32bit;
 	};
-	std::vector<RenderData> renderStream;
-	std::vector<Quad> quadStram;
+	std::pmr::vector<RenderData> renderStream{ &globalTransientRAM };
+	std::pmr::vector<Quad> quadStram{ &globalTransientRAM };
 
 private:
 	inline void MainPassPre(Impl::CmdListPool::CmdList &target) const, MainPassPost(Impl::CmdListPool::CmdList &target) const;

@@ -30,6 +30,9 @@ namespace TerrainMaterials = Renderer::TerrainMaterials;
 
 static constexpr size_t maxD3D12NameLength = 256;
 
+// set it as default?
+pmr::synchronized_pool_resource globalTransientRAM;
+
 void NameObject(ID3D12Object *object, LPCWSTR name) noexcept
 {
 	if (const HRESULT hr = object->SetName(name); FAILED(hr))

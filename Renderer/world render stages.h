@@ -10,6 +10,8 @@
 #include "SO buffer.h"
 #include "occlusion query batch.h"
 
+extern std::pmr::synchronized_pool_resource globalTransientRAM;
+
 struct Renderer::Impl::World::OcclusionQueryPasses final
 {
 	friend class MainRenderStage;
@@ -22,7 +24,7 @@ private:
 		unsigned long int startIdx, xformedStartIdx;
 		unsigned int count;
 	};
-	std::vector<OcclusionQueryGeometry> queryStream;
+	std::pmr::vector<OcclusionQueryGeometry> queryStream{ &globalTransientRAM };
 	// order is essential (TRANSIENT, then DUAL), index based access used
 	std::variant<OcclusionCulling::QueryBatch<OcclusionCulling::TRANSIENT>, OcclusionCulling::QueryBatch<OcclusionCulling::DUAL>> occlusionQueryBatch;
 	SOBuffer::Handle xformedAABBs;
@@ -40,7 +42,7 @@ private:
 	const RenderPasses::StageRTBinding stageRTBinding;
 	const RenderPasses::StageZBinding stageZPrecullBinding, stageZBinding;
 	const RenderPasses::StageOutput stageOutput;
-	std::promise<std::shared_ptr<const OcclusionQueryPasses>> queryPassesPromise;
+	std::promise<std::shared_ptr<const OcclusionQueryPasses>> queryPassesPromise{ std::allocator_arg, std::pmr::polymorphic_allocator<decltype(queryPassesPromise)>(&globalTransientRAM) };
 
 #pragma region occlusion query passes
 private:
@@ -69,7 +71,7 @@ private:
 		const Renderer::Instance *instance;
 		decltype(OcclusionCulling::QueryBatchBase::npos) occlusion;
 	};
-	std::vector<RenderData> renderStreams[2];
+	std::pmr::vector<RenderData> renderStreams[2]{ std::remove_extent_t<decltype(renderStreams)>{&globalTransientRAM}, std::remove_extent_t<decltype(renderStreams)>{&globalTransientRAM} };
 
 private:
 	void MainPassPre(CmdListPool::CmdList &target) const, MainPassPost(CmdListPool::CmdList &target) const;
