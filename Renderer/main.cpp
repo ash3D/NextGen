@@ -107,11 +107,53 @@ static auto CreateDevice()
 	ComPtr<ID3D12Device2> device;
 	CheckHR(D3D12CreateDevice(NULL, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(device.GetAddressOf())));
 
-	// validate HLSL SIMD feature support
-	D3D12_FEATURE_DATA_D3D12_OPTIONS1 caps;
-	CheckHR(device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS1, &caps, sizeof caps));
-	if (!caps.WaveOps)
-		throw runtime_error("Old GPU or driver: HLSL SIMD ops not supported.");
+#pragma region validate device features support
+	string unsupportedFeatures;
+
+	// resource binding tier
+	{
+		D3D12_FEATURE_DATA_D3D12_OPTIONS caps;
+		CheckHR(device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &caps, sizeof caps));
+		if (caps.ResourceBindingTier == D3D12_RESOURCE_BINDING_TIER_1)
+			unsupportedFeatures += "\n* limited shader accessible textures";
+	}
+
+	// shader model
+	{
+		D3D12_FEATURE_DATA_SHADER_MODEL SM = { D3D_SHADER_MODEL_6_0 };
+		CheckHR(device->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &SM, sizeof SM));
+		if (SM.HighestShaderModel != D3D_SHADER_MODEL_6_0)
+			unsupportedFeatures += "\n* SM 6.0 not supported";
+	}
+
+	// HLSL SIMD ops
+	{
+		D3D12_FEATURE_DATA_D3D12_OPTIONS1 caps;
+		CheckHR(device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS1, &caps, sizeof caps));
+		if (!caps.WaveOps)
+			unsupportedFeatures += "\n* HLSL SIMD ops not supported";
+	}
+
+	// root signature\
+	is it really needed, or D3D runtime will fall back to 1.0 ?
+	{
+		D3D12_FEATURE_DATA_ROOT_SIGNATURE rootSig = { D3D_ROOT_SIGNATURE_VERSION_1_1 };
+		CheckHR(device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &rootSig, sizeof rootSig));
+		if (rootSig.HighestVersion != D3D_ROOT_SIGNATURE_VERSION_1_1)
+			unsupportedFeatures += "\n* root signature v1.1 not supported";
+	}
+
+	// write buffer immediate
+	{
+		D3D12_FEATURE_DATA_D3D12_OPTIONS3 caps;
+		CheckHR(device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS3, &caps, sizeof caps));
+		if (!(caps.WriteBufferImmediateSupportFlags & D3D12_COMMAND_LIST_SUPPORT_FLAG_DIRECT))
+			unsupportedFeatures += "\n* immediate buffer writes not supported";
+	}
+
+	if (!unsupportedFeatures.empty())
+		throw runtime_error("Sorry, but your GPU or driver is too old. Try to update driver to the latest version. If it doesn't help, you have to upgrade your graphics card." + unsupportedFeatures);
+#pragma endregion
 
 	// GBV device settings
 #if _DEBUG && ENABLE_GBV
@@ -187,7 +229,7 @@ static auto CreateDMACommandQueue()
 	return cmdQueue;
 }
 
-static void PrintError(const exception_ptr &error, const char object[])
+static void PrintCreateError(const exception_ptr &error, const char object[])
 {
 	try
 	{
@@ -217,7 +259,7 @@ static inline ComPtr<IDXGIFactory5> TryCreateFactory()
 	}
 	catch (...)
 	{
-		PrintError(current_exception(), "DXGI factory");
+		PrintCreateError(current_exception(), "DXGI factory");
 	}
 #endif
 	return nullptr;
@@ -232,7 +274,7 @@ static inline ComPtr<ID3D12Device2> TryCreateDevice()
 	}
 	catch (...)
 	{
-		PrintError(current_exception(), "D3D12 device");
+		PrintCreateError(current_exception(), "D3D12 device");
 	}
 #endif
 	return nullptr;
@@ -250,7 +292,7 @@ static Result Try(Result Create(), const char object[])
 		}
 		catch (...)
 		{
-			PrintError(current_exception(), object);
+			PrintCreateError(current_exception(), object);
 		}
 	}
 	device.Reset();	// force recreation everything in 'InitRenderer()'
@@ -272,7 +314,7 @@ static inline Optional TryCreate(const char object[])
 		}
 		catch (...)
 		{
-			PrintError(current_exception(), object);
+			PrintCreateError(current_exception(), object);
 		}
 	}
 	return nullopt;
