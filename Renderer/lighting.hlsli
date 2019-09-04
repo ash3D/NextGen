@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "luminance.hlsli"
 #include "fresnel.hlsli"
@@ -30,7 +30,7 @@ namespace Lighting
 
 	namespace GGX
 	{
-		// evaluate Smith ^() function for GGX NDF
+		// evaluate Smith Λ() function for GGX NDF
 		float SmithIntegral(float a2, float NdotDir)
 		{
 			const float cos2 = NdotDir * NdotDir;
