@@ -7,7 +7,7 @@
 #include "cmdlist pool.h"
 #include "GPU descriptor heap.h"
 #include "config.h"
-#include "tonemapTextureReduction config.h"
+#include "tonemapping config.h"
 
 // workaround for Kepler driver issue causing sporadic device removal on first present in case of complex frame
 #define ENABLE_SWAPCHAIN_WARMUP 1
@@ -256,6 +256,6 @@ void RenderOutput::CreateOffscreenSurfaces(UINT width, UINT height)
 	));
 
 	// fill tonemap views CPU heap
-	const auto tonemapReductionTexDispatchSize = ReductionTextureConfig::DispatchSize({ width, height });
+	const auto tonemapReductionTexDispatchSize = Tonemapping::TextureReduction::DispatchSize({ width, height });
 	tonemapViewsCPUHeap.Fill(HDRSurface.Get(), LDRSurface.Get(), tonemapReductionBuffer.Get(), tonemapReductionTexDispatchSize.x * tonemapReductionTexDispatchSize.y);
 }

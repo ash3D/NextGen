@@ -1,10 +1,9 @@
-#ifndef HDR_CODEC_INCLUDED
-#define HDR_CODEC_INCLUDED
+#pragma once
 
 #include "luminance.hlsli"
 #include "tonemap params.hlsli"
 
-static const float fp16Range = 64e3f/*65504.f, leave some room for fp32 precision looses*/, HDRAlphaRescale = fp16Range / exposureLimits[1];
+static const float fp16Range = 64e3f/*65504.f, leave some room for fp32 precision looses*/, HDRAlphaRescale = fp16Range / Tonemapping::exposureLimits[1];
 
 /*
 	simple Reinhard tonemapping for proper hardware MSAA resolve
@@ -44,5 +43,3 @@ float3 DecodeHDRExp(float4 encodedPixel, float exposure)
 {
 	return DecodeHDRImpl(encodedPixel, exposure * HDRAlphaRescale);
 }
-
-#endif	// HDR_CODEC_INCLUDED

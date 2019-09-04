@@ -246,7 +246,7 @@
     <ClInclude Include="shader bytecode.h" />
     <ClInclude Include="terrain material interface.h" />
     <ClInclude Include="terrain render stages.h" />
-    <ClInclude Include="tonemapTextureReduction config.h" />
+    <ClInclude Include="tonemapping config.h" />
     <ClInclude Include="render pipeline.h" />
     <ClInclude Include="render stage.h" />
     <ClInclude Include="SO buffer.h" />
@@ -493,9 +493,7 @@
     <None Include="per-frame data.hlsli" />
     <None Include="terrain samplers.hlsli" />
     <None Include="tonemap params.hlsli" />
-    <None Include="tonemapBufferReduction config.hlsli" />
     <None Include="tonemapLocalReduction.hlsli" />
-    <None Include="tonemapTextureReduction config.hlsli" />
     <None Include="tonemapping config.hlsli" />
     <None Include="tracked ref.inl" />
     <None Include="tracked resource.inl" />

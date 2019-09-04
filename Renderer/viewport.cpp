@@ -9,11 +9,7 @@
 #include "DMA engine.h"
 #include "config.h"
 #include "PIX events.h"
-#include "tonemapTextureReduction config.h"
-namespace Renderer::TonemappingConfig
-{
-#	include "tonemapping config.hlsli"
-}
+#include "tonemapping config.h"
 
 namespace Shaders
 {
@@ -216,7 +212,7 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(ID3D12GraphicsCommandL
 	}
 
 	// initial texture reduction (PSO set during cmd list creation/reset)
-	const auto tonemapReductionTexDispatchSize = ReductionTextureConfig::DispatchSize({ width, height });
+	const auto tonemapReductionTexDispatchSize = Tonemapping::TextureReduction::DispatchSize({ width, height });
 	cmdList->Dispatch(tonemapReductionTexDispatchSize.x, tonemapReductionTexDispatchSize.y, 1);
 
 	{
@@ -243,7 +239,7 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(ID3D12GraphicsCommandL
 
 	// tonemapping main pass
 	cmdList->SetPipelineState(tonemapPSO.Get());
-	cmdList->Dispatch((width + TonemappingConfig::blockSize - 1) / TonemappingConfig::blockSize, (height + TonemappingConfig::blockSize - 1) / TonemappingConfig::blockSize, 1);
+	cmdList->Dispatch((width + Tonemapping::blockSize - 1) / Tonemapping::blockSize, (height + Tonemapping::blockSize - 1) / Tonemapping::blockSize, 1);
 
 	{
 		const D3D12_RESOURCE_BARRIER barriers[] =

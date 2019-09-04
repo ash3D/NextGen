@@ -4,7 +4,7 @@
 #include "HDR codec.hlsli"
 #include "terrain samplers.hlsli"
 
-ConstantBuffer<TonemapParams> tonemapParams : register(b0, space1);
+ConstantBuffer<Tonemapping::TonemapParams> tonemapParams : register(b0, space1);
 
 cbuffer Material : register(b1, space1)
 {
@@ -34,7 +34,7 @@ float4 main(in float3 viewDir : ViewDir, in float2 uv : UV) : SV_TARGET
 	*/
 	n = mul(mul(n, terrainWorldXform), viewXform);
 
-	const float3 color = Lit(albedoMap.Sample(TerrainSamplers::albedo, uv), roughnessMap.Sample(TerrainSamplers::roughness, uv), f0, viewXform[2], n, normalize(viewDir), sun.dir, sun.irradiance);
+	const float3 color = Lighting::Lit(albedoMap.Sample(TerrainSamplers::albedo, uv), roughnessMap.Sample(TerrainSamplers::roughness, uv), f0, viewXform[2], n, normalize(viewDir), sun.dir, sun.irradiance);
 
 	return EncodeHDR(color, tonemapParams.exposure);
 }

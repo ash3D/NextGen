@@ -3,5 +3,5 @@
 
 float4 main(in XformedVertex_UV_TG input, in bool front : SV_IsFrontFace) : SV_TARGET
 {
-	return PS(input, front, false);
+	return BumpPS(input, front, false);
 }

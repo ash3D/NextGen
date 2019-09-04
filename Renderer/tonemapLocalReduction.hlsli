@@ -1,40 +1,50 @@
-#ifndef TONEMAP_LOCAL_REDUCTION_INCLUDED
-#define TONEMAP_LOCAL_REDUCTION_INCLUDED
+#pragma once
 
-groupshared float2 localData[localDataSize];
+#define DXC_NAMESPACE_WORKAROUND 1
 
-inline void Reduce(inout float2 dst, in float2 src)
+#if DXC_NAMESPACE_WORKAROUND
+groupshared float2 localData[Tonemapping::localDataSize];
+#endif
+
+namespace Tonemapping
 {
-	dst[0] += src[0];
-	dst[1] = max(dst[1], src[1]);
-}
+#if !DXC_NAMESPACE_WORKAROUND
+	groupshared float2 localData[localDataSize];
+#endif
 
-inline float2 ReduceSIMD(float2 src)
-{
-	return float2(WaveActiveSum(src[0]), WaveActiveMax(src[1]));
-}
-
-float2 LocalReduce(float2 init, uint localIdx)
-{
-	localData[localIdx] = init;
-	GroupMemoryBarrierWithGroupSync();
-
-	// inter-warp recursive reduction in shared mem
-	uint stride = localDataSize;
-	while (stride > WaveGetLaneCount())
+	inline void Reduce(inout float2 dst, in float2 src)
 	{
-		if (localIdx < (stride /= 2u))
-		{
-			Reduce(localData[localIdx], localData[localIdx + stride]);
-			GroupMemoryBarrierWithGroupSync();
-		}
+		dst[0] += src[0];
+		dst[1] = max(dst[1], src[1]);
 	}
 
-	// final intra-warp reduction
-	float finalReduction;
-	if (localIdx < stride)
-		finalReduction = ReduceSIMD(localData[localIdx]);
-	return finalReduction;
+	inline float2 ReduceSIMD(float2 src)
+	{
+		return float2(WaveActiveSum(src[0]), WaveActiveMax(src[1]));
+	}
+
+	float2 LocalReduce(float2 init, uint localIdx)
+	{
+		localData[localIdx] = init;
+		GroupMemoryBarrierWithGroupSync();
+
+		// inter-warp recursive reduction in shared mem
+		uint stride = localDataSize;
+		while (stride > WaveGetLaneCount())
+		{
+			if (localIdx < (stride /= 2u))
+			{
+				Reduce(localData[localIdx], localData[localIdx + stride]);
+				GroupMemoryBarrierWithGroupSync();
+			}
+		}
+
+		// final intra-warp reduction
+		float finalReduction;
+		if (localIdx < stride)
+			finalReduction = ReduceSIMD(localData[localIdx]);
+		return finalReduction;
+	}
 }
 
-#endif	// TONEMAP_LOCAL_REDUCTION_INCLUDED
+#undef DXC_NAMESPACE_WORKAROUND

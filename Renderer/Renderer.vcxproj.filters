@@ -138,9 +138,6 @@
     <ClInclude Include="tonemap resource views stage.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="tonemapTextureReduction config.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="shader bytecode.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -178,6 +175,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="terrain render stages.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="tonemapping config.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -376,12 +376,6 @@
       <Filter>Shaders\Include</Filter>
     </None>
     <None Include="per-frame data.hlsli">
-      <Filter>Shaders\Include</Filter>
-    </None>
-    <None Include="tonemapBufferReduction config.hlsli">
-      <Filter>Shaders\Include</Filter>
-    </None>
-    <None Include="tonemapTextureReduction config.hlsli">
       <Filter>Shaders\Include</Filter>
     </None>
     <None Include="tonemapping config.hlsli">

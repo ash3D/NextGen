@@ -2,8 +2,12 @@
 
 #include "general math.h"	// for lerp
 
-namespace Renderer::Fresnel
+namespace Renderer
 {
-	using Math::lerp;
+	namespace Fresnel
+	{
+		using Math::lerp;
+	}
+
 #	include "fresnel.hlsli"
 }

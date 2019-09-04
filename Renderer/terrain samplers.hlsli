@@ -1,5 +1,4 @@
-#ifndef TERRAIN_SAMPLERS_INCLUDED
-#define TERRAIN_SAMPLERS_INCLUDED
+#pragma once
 
 namespace TerrainSamplers
 {
@@ -9,5 +8,3 @@ namespace TerrainSamplers
 		roughness	: register(s2),
 		bump		: register(s3);
 }
-
-#endif	// TERRAIN_SAMPLERS_INCLUDED

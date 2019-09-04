@@ -1,9 +1,12 @@
 #define ENABBLE_TEX
 
-enum TextureID
+namespace Materials
 {
-	TV_SCREEN,
-};
+	enum TextureID
+	{
+		TV_SCREEN,
+	};
+}
 
 #include "per-frame data.hlsli"
 #include "tonemap params.hlsli"
@@ -12,16 +15,19 @@ enum TextureID
 #include "lighting.hlsli"
 #include "HDR codec.hlsli"
 
-ConstantBuffer<TonemapParams> tonemapParams : register(b1, space1);
+ConstantBuffer<Tonemapping::TonemapParams> tonemapParams : register(b1, space1);
 
 float4 main(in XformedVertex_UV input, in bool front : SV_IsFrontFace) : SV_TARGET
 {
+	//using namespace Lighting;
+	//using namespace Materials;
+
 	input.N = normalize(front ? +input.N : -input.N);	// handles two-sided materials
 	input.viewDir = normalize(input.viewDir);
-	FixNormal(input.N, input.viewDir);
+	Lighting::FixNormal(input.N, input.viewDir);
 
-	const float3 screenEmission = SelectTexture(TV_SCREEN).Sample(TV_sampler, input.uv) * TVBrighntess;
-	const float3 color = screenEmission + Lit(albedo, .5f, F0(1.55f), input.N, input.viewDir, sun.dir, sun.irradiance);
+	const float3 screenEmission = SelectTexture(Materials::TV_SCREEN).Sample(Materials::TV_sampler, input.uv) * TVBrighntess;
+	const float3 color = screenEmission + Lighting::Lit(albedo, .5f, Fresnel::F0(1.55f), input.N, input.viewDir, sun.dir, sun.irradiance);
 
 	return EncodeHDR(color, tonemapParams.exposure);
 }

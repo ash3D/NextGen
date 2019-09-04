@@ -1,13 +1,15 @@
-#ifndef OBJECT3D_TEX_PS_INCLUDED
-#define OBJECT3D_TEX_PS_INCLUDED
+#pragma once
 
 #define ENABBLE_TEX
 
-enum TextureID
+namespace Materials
 {
-	ALBEDO_MAP,
-	GLASS_MASK,
-};
+	enum TextureID
+	{
+		ALBEDO_MAP,
+		GLASS_MASK,
+	};
+}
 
 #include "per-frame data.hlsli"
 #include "tonemap params.hlsli"
@@ -17,22 +19,23 @@ enum TextureID
 #include "lighting.hlsli"
 #include "HDR codec.hlsli"
 
-ConstantBuffer<TonemapParams> tonemapParams : register(b1, space1);
+ConstantBuffer<Tonemapping::TonemapParams> tonemapParams : register(b1, space1);
 
-float4 PS(in XformedVertex_UV input, in bool front, uniform bool enableGlassMask)
+float4 TexPS(in XformedVertex_UV input, in bool front, uniform bool enableGlassMask)
 {
+	//using namespace Lighting;
+	//using namespace Materials;
+
 	input.N = normalize(front ? +input.N : -input.N);	// handles two-sided materials
 	input.viewDir = normalize(input.viewDir);
-	FixNormal(input.N, input.viewDir);
+	Lighting::FixNormal(input.N, input.viewDir);
 
-	const float3 albedo = SelectTexture(ALBEDO_MAP).Sample(SelectSampler(TextureSamplers::OBJ3D_ALBEDO_SAMPLER), input.uv);
-	float roughness = .5f, f0 = F0(1.55f);
+	const float3 albedo = SelectTexture(Materials::ALBEDO_MAP).Sample(SelectSampler(TextureSamplers::OBJ3D_ALBEDO_SAMPLER), input.uv);
+	float roughness = .5f, f0 = Fresnel::F0(1.55f);
 	if (enableGlassMask)
-		ApplyGlassMask(input.uv, roughness, f0);
+		Materials::ApplyGlassMask(input.uv, roughness, f0);
 
-	const float3 color = Lit(albedo, roughness, f0, input.N, input.viewDir, sun.dir, sun.irradiance);
+	const float3 color = Lighting::Lit(albedo, roughness, f0, input.N, input.viewDir, sun.dir, sun.irradiance);
 
 	return EncodeHDR(color, tonemapParams.exposure);
 }
-
-#endif	// OBJECT3D_TEX_PS_INCLUDED

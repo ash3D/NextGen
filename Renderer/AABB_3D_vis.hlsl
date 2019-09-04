@@ -11,7 +11,7 @@ cbuffer Offset : register(b1)
 	uint visibilityOffset;	// in bytes
 }
 
-ConstantBuffer<TonemapParams> tonemapParams : register(b2);
+ConstantBuffer<Tonemapping::TonemapParams> tonemapParams : register(b2);
 
 #if 0
 ByteAddressBuffer visibility[2] : register(t0);

@@ -1,32 +1,47 @@
-#include "tonemapTextureReduction config.hlsli"
+#include "tonemapping config.hlsli"
 #include "HDR codec.hlsli"
 #include "luminance.hlsli"
 
-static const uint localDataSize = groupSize * groupSize;
+namespace Tonemapping
+{
+	static const uint localDataSize = TextureReduction::groupSize * TextureReduction::groupSize;
+}
 #include "tonemapLocalReduction.hlsli"
 
+#define DXC_NAMESPACE_WORKAROUND 1
+
+#if DXC_NAMESPACE_WORKAROUND
 Texture2D src : register(t0);
 RWByteAddressBuffer dst : register(u1);
+#endif
+
+namespace Tonemapping
+{
+	Texture2D src : register(t0);
+	RWByteAddressBuffer dst : register(u1);
+}
 
 // !: no low-level optimizations yet (e.g. GPR pressure)
-[numthreads(groupSize, groupSize, 1)]
+[numthreads(Tonemapping::TextureReduction::groupSize, Tonemapping::TextureReduction::groupSize, 1)]
 void main(in uint2 globalIdx : SV_DispatchThreadID, in uint flatLocalIdx : SV_GroupIndex, in uint2 groupIdx : SV_GroupID)
 {
+	//using namespace Tonemapping;
+
 	uint2 srcSize;
 	src.GetDimensions(srcSize.x, srcSize.y);
 
 	float2 partialReduction = 0;
 	const float weight = rcp(srcSize.x * srcSize.y);
 
-	const uint2 dispatchSize = DispatchSize(srcSize), interleaveStride = dispatchSize * blockSize;
+	const uint2 dispatchSize = Tonemapping::TextureReduction::DispatchSize(srcSize), interleaveStride = dispatchSize * Tonemapping::TextureReduction::blockSize;
 
 	// interleaved tile reduction
-	for (uint R = globalIdx.y * tileSize; R < srcSize.y; R += interleaveStride.y)
-		for (uint C = globalIdx.x * tileSize; C < srcSize.x; C += interleaveStride.x)
+	for (uint R = globalIdx.y * Tonemapping::TextureReduction::tileSize; R < srcSize.y; R += interleaveStride.y)
+		for (uint C = globalIdx.x * Tonemapping::TextureReduction::tileSize; C < srcSize.x; C += interleaveStride.x)
 			[unroll]
-			for (uint r = 0; r < tileSize; r++)
+			for (uint r = 0; r < Tonemapping::TextureReduction::tileSize; r++)
 				[unroll]
-				for (uint c = 0; c < tileSize; c++)
+				for (uint c = 0; c < Tonemapping::TextureReduction::tileSize; c++)
 				{
 					const float3 srcPixel = DecodeHDR(src.Load(uint3(C, R, 0), uint2(c, r)));
 					/*
@@ -44,7 +59,7 @@ void main(in uint2 globalIdx : SV_DispatchThreadID, in uint flatLocalIdx : SV_Gr
 				}
 
 	// bulk of reduction work
-	const float2 finalReduction = LocalReduce(partialReduction, flatLocalIdx);
+	const float2 finalReduction = Tonemapping::LocalReduce(partialReduction, flatLocalIdx);
 
 	// store result to global buffer
 	const uint flatGroupIdx = groupIdx.y * dispatchSize.x + groupIdx.x;
