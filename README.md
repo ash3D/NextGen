@@ -1,12 +1,12 @@
 # NextGen
 ## Introduction
 NextGen is a special-purpose 3D rendering engine written in modern C++. It uses DirectX 12 exclusively as rendering API.
-## Prerequisites
+## Requirements
 ### Build
-* Visual Studio 2019 16.1 (older versions are not supported) with C++ development workload and Windows 10 SDK version 10.0.17763.0.
-### Runtime
-* Windows 10
-* GPU with DX12 driver supporting `WriteBufferImmediate` and Shader Model 6.0.
+* Visual Studio 2019 16.2.X (older versions are not supported) with C++ development workload and Windows 10 SDK version 10.0.18362.0.
+### Run
+* Windows 10 v1809
+* DX12 GPU/driver supporting `WriteBufferImmediate` and Shader Model 6.0.
 * CPU instruction extensions:
 	* SSE
 	* AVX
@@ -22,10 +22,12 @@ NextGen is a special-purpose 3D rendering engine written in modern C++. It uses 
 * Rendering commands for objects consisting of several subobjects prerecorded into bundles. It results in 1 `ExecuteBundle` call per object during direct command list recording.
 * Batched GPU work submission.
 * Automated barrier batching system.
+* Render passes support - brings GPU perf boost (especially for tiled architectures).
 * Resource GPU lifetime tracking and frame versioning.
 * Resource allocation optimizations (e.g. place vertex and index data into single buffer).
 * Threadsafe VRAM allocators with hybrid sync approach: lock-free vast majority of time, blocking on new chunk allocation or ring buffer wrap.
 * PBR lighting using GGX NDF with height-direction-correlated Smith G term for specular and GGX diffuse approximation. Bidirectional Fresnel specular<->diffuse interface.
+* Adaptive specular SSAA.
 * Direct sun lighting with atmospheric Rayleigh scattering.
 * Adaptive autoexposure/tonemapping. Wave intrinsics from Shader Model 6.0 used to accelerate final reduction steps in log average and max luminance calculation process.
 * MSAA/CSAA/EQAA antialiasing with HDR-aware resolve.
