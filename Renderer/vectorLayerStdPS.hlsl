@@ -1,5 +1,6 @@
 #include "per-frame data.hlsli"
 #include "tonemap params.hlsli"
+#include "normals.hlsli"
 #include "lighting.hlsli"
 #include "HDR codec.hlsli"
 #include "terrain samplers.hlsli"
@@ -15,26 +16,19 @@ Texture2D albedoMap : register(t0), roughnessMap : register(t1), normalMap : reg
 
 float4 main(in float3 viewDir : ViewDir, in float2 uv : UV) : SV_TARGET
 {
-	/*
-		TBN space for terrain in terrain space is
-		{1, 0, 0}
-		{0, 1, 0}
-		{0, 0, -1}
-		terrain 'up' inverted so -1 for N
-	*/
-	float3 n;
-	n.xy = normalMap.Sample(TerrainSamplers::bump, uv);
-	n.z = -sqrt(saturate(1.f - length(n.xy)));
+	viewDir = normalize(viewDir);
+	const float3 n = Normals::DoTerrainNormalMapping(terrainWorldXform, viewXform, viewDir, normalMap, TerrainSamplers::bump, uv);
+	const float3 albedo = albedoMap.Sample(TerrainSamplers::albedo, uv);
+	const float roughness = roughnessMap.Sample(TerrainSamplers::roughness, uv);
 
-	/*
-		xform normal 'terrain space' -> 'view space'
-		similar note as for Flat shader applicable:
-			both terrainWorldXform and viewXform assumed to be orthonormal, need inverse transpose otherwise
-			mul with terrainWorldXform is suboptimal: get rid of terrain xform at all or merge in worldViewXform
-	*/
-	n = mul(mul(n, terrainWorldXform), viewXform);
+	const float2 shadeAALevel = Lighting::EvaluateAALevel(roughness, n);
+	float3 shadeResult;
+#	define SHADE_AA_ENABLE_LOD_BIAS
+#	define ShadeRegular						Lighting::Lit(albedo, roughness, f0, viewXform[2], n, viewDir, sun.dir, sun.irradiance)
+#	define ShadeAA(sampleOffset, lodBias)	Lighting::Lit(albedo, roughness, f0, viewXform[2],																			\
+		Normals::DoTerrainNormalMapping(terrainWorldXform, viewXform, viewDir, normalMap, TerrainSamplers::bump, EvaluateAttributeSnapped(uv, sampleOffset), lodBias),	\
+		viewDir, sun.dir, sun.irradiance)
+#	include "shade SSAA.hlsli"
 
-	const float3 color = Lighting::Lit(albedoMap.Sample(TerrainSamplers::albedo, uv), roughnessMap.Sample(TerrainSamplers::roughness, uv), f0, viewXform[2], n, normalize(viewDir), sun.dir, sun.irradiance);
-
-	return EncodeHDR(color, tonemapParams.exposure);
+	return EncodeHDR(shadeResult, tonemapParams.exposure);
 }

@@ -1,5 +1,5 @@
 #pragma once
-#include "object3D material.hlsli"
+#include "object3D materials common.hlsli"
 #include "fresnel.hlsli"
 
 namespace Materials

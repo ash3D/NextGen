@@ -1,5 +1,6 @@
 #include "per-frame data.hlsli"
 #include "tonemap params.hlsli"
+#include "normals.hlsli"
 #include "lighting.hlsli"
 #include "HDR codec.hlsli"
 #include "terrain samplers.hlsli"
@@ -10,15 +11,19 @@ Texture2D albedoMap : register(t0), fresnelMap : register(t1), roughnessMap : re
 
 float4 main(in float3 viewDir : ViewDir, in float2 uv : UV) : SV_TARGET
 {
-	// same notes on normal as for std material
-	float3 n;
-	n.xy = normalMap.Sample(TerrainSamplers::bump, uv);
-	n.z = -sqrt(saturate(1.f - length(n.xy)));
-	n = mul(mul(n, terrainWorldXform), viewXform);
-
+	viewDir = normalize(viewDir);
+	const float3 n = Normals::DoTerrainNormalMapping(terrainWorldXform, viewXform, viewDir, normalMap, TerrainSamplers::bump, uv);
 	const float3 albedo = albedoMap.Sample(TerrainSamplers::albedo, uv);
 	const float roughness = roughnessMap.Sample(TerrainSamplers::roughness, uv), fresnel = fresnelMap.Sample(TerrainSamplers::fresnel, uv);
-	const float3 color = Lighting::Lit(albedo, roughness, fresnel, viewXform[2], n, normalize(viewDir), sun.dir, sun.irradiance);
 
-	return EncodeHDR(color, tonemapParams.exposure);
+	const float2 shadeAALevel = Lighting::EvaluateAALevel(roughness, n);
+	float3 shadeResult;
+#	define SHADE_AA_ENABLE_LOD_BIAS
+#	define ShadeRegular						Lighting::Lit(albedo, roughness, fresnel, viewXform[2], n, viewDir, sun.dir, sun.irradiance)
+#	define ShadeAA(sampleOffset, lodBias)	Lighting::Lit(albedo, roughness, fresnel, viewXform[2],																		\
+		Normals::DoTerrainNormalMapping(terrainWorldXform, viewXform, viewDir, normalMap, TerrainSamplers::bump, EvaluateAttributeSnapped(uv, sampleOffset), lodBias),	\
+		viewDir, sun.dir, sun.irradiance)
+#	include "shade SSAA.hlsli"
+
+	return EncodeHDR(shadeResult, tonemapParams.exposure);
 }

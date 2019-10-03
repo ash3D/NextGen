@@ -387,19 +387,10 @@
     <None Include="tonemap params.hlsli">
       <Filter>Shaders\Include</Filter>
     </None>
-    <None Include="object3D material.hlsli">
-      <Filter>Shaders\Include</Filter>
-    </None>
     <None Include="object3D VS 2 PS.hlsli">
       <Filter>Shaders\Include</Filter>
     </None>
-    <None Include="object3D tex PS.hlsli">
-      <Filter>Shaders\Include</Filter>
-    </None>
     <None Include="glass.hlsli">
-      <Filter>Shaders\Include</Filter>
-    </None>
-    <None Include="object3D bump PS.hlsli">
       <Filter>Shaders\Include</Filter>
     </None>
     <None Include="HDR codec.hlsli">
@@ -410,6 +401,24 @@
       <Filter>Shaders\Include</Filter>
     </None>
     <None Include="terrain samplers.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
+    <None Include="shade SSAA.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
+    <None Include="normals.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
+    <None Include="object3D materials common.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
+    <None Include="object3D generic material.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
+    <None Include="object3D tex materials.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
+    <None Include="object3D bump materials.hlsli">
       <Filter>Shaders\Include</Filter>
     </None>
   </ItemGroup>
