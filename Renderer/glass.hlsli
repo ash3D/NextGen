@@ -1,4 +1,5 @@
 #pragma once
+
 #include "object3D materials common.hlsli"
 #include "fresnel.hlsli"
 

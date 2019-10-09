@@ -7,7 +7,7 @@
 	- ShadeRegular callback
 	- ShadeAA(sampleOffet[, lodBias]) callback
 	- SHADE_AA_ENABLE_LOD_BIAS if needed
-	- POW2_SAMPLE_ALLOCATION is experimental and not working properly yet
+	- SHADE_AA_POW2_SAMPLE_ALLOCATION is experimental and not working properly yet
 */
 
 // input validation
@@ -39,7 +39,7 @@
 	{
 		const float2 thinAALevel = clamp(fixedAALevel, skinWidth, maxAxisSampleCount);
 		const float rescale = sqrt(targetFlatAALevel / (thinAALevel.x * thinAALevel.y));
-#if POW2_SAMPLE_ALLOCATION
+#if SHADE_AA_POW2_SAMPLE_ALLOCATION
 		const float2 AAPow = log2(clamp(thinAALevel * rescale, 1, min(maxAxisSampleCount, targetFlatAALevel))), snappedAAPow = ceil(AAPow), oddWeights = snappedAAPow - AAPow;
 		const uint2 sampleGridPow = snappedAAPow, sampleGrid = 1 << sampleGridPow, stride = 1 << 4 - sampleGridPow;
 #else
@@ -65,7 +65,7 @@
 		// use flat loop (not nested 2D) in order to reduce branching divergence for differently shaped sampling grids having same overall sample count
 		for (uint i = 0; i < sampleCount; i++)
 		{
-#if POW2_SAMPLE_ALLOCATION
+#if SHADE_AA_POW2_SAMPLE_ALLOCATION
 			const uint2 idx2D = { i & sampleGridPow.x, i >> sampleGridPow.x };
 			const float2 weights = lerp(1, sampleGridPow != 1 ^ idx2D & 1 ? 2 : 0, oddWeights);
 			const float weight = weights.x * weights.y;
@@ -96,4 +96,4 @@
 #undef ShadeRegular
 #undef ShadeAA
 #undef SHADE_AA_ENABLE_LOD_BIAS
-#undef POW2_SAMPLE_ALLOCATION
+#undef SHADE_AA_POW2_SAMPLE_ALLOCATION

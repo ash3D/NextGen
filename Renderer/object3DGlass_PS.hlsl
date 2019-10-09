@@ -1,7 +1,17 @@
+namespace Materials
+{
+	enum TextureID
+	{
+		ALBEDO_MAP,
+		GLASS_MASK,
+	};
+}
+
 #include "per-frame data.hlsli"
 #include "tonemap params.hlsli"
 #include "object3D VS 2 PS.hlsli"
-#include "object3D tex materials.hlsli"
+#include "object3D generic material.hlsli"
+#include "glass.hlsli"
 #include "normals.hlsli"
 #include "lighting.hlsli"
 #include "HDR codec.hlsli"
@@ -15,7 +25,8 @@ float4 main(in XformedVertex_UV input, in bool front : SV_IsFrontFace) : SV_TARG
 
 	input.viewDir = normalize(input.viewDir);
 	const float3 N = Normals::EvaluateSurfaceNormal(input.N, input.viewDir, front);
-	const Materials::Attribs materialAttribs = Materials::EvaluateGenericMaterial(input.uv, true);
+	Materials::Attribs materialAttribs = Materials::EvaluateGenericMaterial(input.uv);
+	Materials::ApplyGlassMask(input.uv, materialAttribs.roughness, materialAttribs.f0);
 
 	const float2 shadeAALevel = Lighting::EvaluateAALevel(materialAttribs.roughness, N);
 	float3 shadeResult;

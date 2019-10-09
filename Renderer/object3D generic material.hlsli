@@ -1,7 +1,9 @@
 #pragma once
 
+#define ENABBLE_TEX
+
 #include "object3D materials common.hlsli"
-#include "glass.hlsli"
+#include "fresnel.hlsli"
 
 namespace Materials
 {
@@ -11,16 +13,13 @@ namespace Materials
 		float roughness, f0;
 	};
 
-	Attribs EvaluateGenericMaterial(in float2 uv, uniform bool enableGlassMask)
+	Attribs EvaluateGenericMaterial(float2 uv)
 	{
-		Attribs result =
+		const Attribs result =
 		{
 			SelectTexture(ALBEDO_MAP).Sample(SelectSampler(TextureSamplers::OBJ3D_ALBEDO_SAMPLER), uv).rgb,
 			.5f, Fresnel::F0(1.55f)
 		};
-
-		if (enableGlassMask)
-			ApplyGlassMask(uv, result.roughness, result.f0);
 
 		return result;
 	}
