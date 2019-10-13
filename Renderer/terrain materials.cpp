@@ -207,12 +207,6 @@ static inline BYTE float2BYTE(float val) noexcept
 	return val * numeric_limits<BYTE>::max();
 };
 
-#if defined _MSC_VER && _MSC_VER <= 1922
-inline Flat::Flat(tag, const float(&albedo)[3], const ComPtr<ID3D12RootSignature> &rootSig, const ComPtr<ID3D12PipelineState> &PSO) : Flat(albedo, rootSig, PSO)
-{
-}
-#endif
-
 Flat::Flat(const float (&albedo)[3], const ComPtr<ID3D12RootSignature> &rootSig, const ComPtr<ID3D12PipelineState> &PSO) :
 	Interface(PIX_COLOR(float2BYTE(albedo[0]), float2BYTE(albedo[1]), float2BYTE(albedo[2])), rootSig, PSO),
 	albedo{ albedo[0], albedo[1], albedo[2] }
@@ -221,11 +215,7 @@ Flat::Flat(const float (&albedo)[3], const ComPtr<ID3D12RootSignature> &rootSig,
 
 shared_ptr<Interface> Flat::Make(const float (&albedo)[3])
 {
-#if defined _MSC_VER && _MSC_VER <= 1922
-	return make_shared<Flat>(tag(), albedo);
-#else
 	return allocate_shared<Flat>(AllocatorProxy<Flat>(), albedo);
-#endif
 }
 
 // 'inline' for (hopefully) devirtualized call from 'Textured', for common vtable dispatch path compiler still have to generate out-of-line body code
@@ -312,7 +302,7 @@ ComPtr<ID3D12PipelineState> Textured::CreatePSO()
 
 // 1 call site
 #if defined _MSC_VER && _MSC_VER <= 1923
-inline Textured::Textured(tag tag, const float (&albedoFactor)[3], const Renderer::Texture &tex, float texScale, const char materialName[]) :
+inline Textured::Textured(const float (&albedoFactor)[3], const Renderer::Texture &tex, float texScale, const char materialName[]) :
 #else
 inline Textured::Textured(const float (&albedoFactor)[3], const Texture &tex, float texScale, const char materialName[]) :
 #endif
@@ -327,15 +317,12 @@ Textured::~Textured() = default;
 
 #if defined _MSC_VER && _MSC_VER <= 1923
 shared_ptr<Interface> Textured::Make(const float (&albedo)[3], const Renderer::Texture &tex, float texScale, const char materialName[])
-{
-	return make_shared<Textured>(tag(), albedo, tex, texScale, materialName);
-}
 #else
 shared_ptr<Interface> Textured::Make(const float (&albedo)[3], const Texture &tex, float texScale, const char materialName[])
+#endif
 {
 	return allocate_shared<Textured>(AllocatorProxy<Flat>(), albedo, tex, texScale, materialName);
 }
-#endif
 #pragma endregion
 
 #pragma region Standard
@@ -416,7 +403,7 @@ ComPtr<ID3D12PipelineState> Standard::CreatePSO()
 
 // 1 call site
 #if defined _MSC_VER && _MSC_VER <= 1923
-inline Standard::Standard(tag tag, const Renderer::Texture &albedoMap, const Renderer::Texture &roughnessMap, const Renderer::Texture &normalMap, float texScale, float IOR, const char materialName[]) :
+inline Standard::Standard(const Renderer::Texture &albedoMap, const Renderer::Texture &roughnessMap, const Renderer::Texture &normalMap, float texScale, float IOR, const char materialName[]) :
 #else
 inline Standard::Standard(const Texture &albedoMap, const Texture &roughnessMap, const Texture &normalMap, float texScale, float IOR, const char materialName[]) :
 #endif
@@ -443,15 +430,12 @@ Standard::~Standard() = default;
 
 #if defined _MSC_VER && _MSC_VER <= 1923
 shared_ptr<Interface> __cdecl Standard::Make(const Renderer::Texture &albedoMap, const Renderer::Texture &roughnessMap, const Renderer::Texture &normalMap, float texScale, float IOR, const char materialName[])
-{
-	return make_shared<Standard>(tag(), albedoMap, roughnessMap, normalMap, texScale, IOR, materialName);
-}
 #else
 shared_ptr<Interface> __cdecl Standard::Make(const Texture &albedoMap, const Texture &roughnessMap, const Texture &normalMap, float texScale, float IOR, const char materialName[])
+#endif
 {
 	return allocate_shared<Standard>(AllocatorProxy<Standard>(), albedoMap, roughnessMap, normalMap, texScale, IOR, materialName);
 }
-#endif
 
 void Standard::FinishSetup(ID3D12GraphicsCommandList4 *cmdList) const
 {
@@ -537,7 +521,7 @@ ComPtr<ID3D12PipelineState> Extended::CreatePSO()
 
 // 1 call site
 #if defined _MSC_VER && _MSC_VER <= 1923
-inline Extended::Extended(tag tag, const Renderer::Texture &albedoMap, const Renderer::Texture &fresnelMap, const Renderer::Texture &roughnessMap, const Renderer::Texture &normalMap, float texScale, const char materialName[]) :
+inline Extended::Extended(const Renderer::Texture &albedoMap, const Renderer::Texture &fresnelMap, const Renderer::Texture &roughnessMap, const Renderer::Texture &normalMap, float texScale, const char materialName[]) :
 #else
 inline Extended::Extended(const Texture &albedoMap, const Texture &fresnelMap, const Texture &roughnessMap, const Texture &normalMap, float texScale, const char materialName[]) :
 #endif
@@ -565,13 +549,10 @@ Extended::~Extended() = default;
 
 #if defined _MSC_VER && _MSC_VER <= 1923
 shared_ptr<Interface> __cdecl Extended::Make(const Renderer::Texture &albedoMap, const Renderer::Texture &fresnelMap, const Renderer::Texture &roughnessMap, const Renderer::Texture &normalMap, float texScale, const char materialName[])
-{
-	return make_shared<Extended>(tag(), albedoMap, fresnelMap, roughnessMap, normalMap, texScale, materialName);
-}
 #else
 shared_ptr<Interface> __cdecl Extended::Make(const Texture &albedoMap, const Texture &fresnelMap, const Texture &roughnessMap, const Texture &normalMap, float texScale, const char materialName[])
+#endif
 {
 	return allocate_shared<Extended>(AllocatorProxy<Extended>(), albedoMap, fresnelMap, roughnessMap, normalMap, texScale, materialName);
 }
-#endif
 #pragma endregion

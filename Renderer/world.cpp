@@ -1157,19 +1157,7 @@ void Impl::World::ScheduleDebugDrawRenderStage(UINT64 tonemapParamsGPUAddress, c
 	DebugRenderStage::Schedule(tonemapParamsGPUAddress, ROPTargets, move(stageExchange));
 }
 
-/*
-	VS 2017/2019 STL uses allocator's construct() to construct combined object (main object + shared ptr data)
-	but constructs containing object directly via placement new which does not have access to private members.
-	GCC meanwhile compiles it fine.
-*/
-#if defined _MSC_VER && _MSC_VER <= 1922
-shared_ptr<World> __cdecl Renderer::MakeWorld(const float (&terrainXform)[4][3], float zenith, float azimuth)
-{
-	return make_shared<World>(World::tag(), terrainXform, zenith, azimuth);
-}
-#else
 shared_ptr<World> __cdecl Renderer::MakeWorld(const float (&terrainXform)[4][3], float zenith, float azimuth)
 {
 	return allocate_shared<World>(Misc::AllocatorProxy<World>(), terrainXform, zenith, azimuth);
 }
-#endif

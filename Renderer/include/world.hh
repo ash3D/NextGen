@@ -171,16 +171,8 @@ namespace Renderer
 		friend class Impl::Viewport;
 		friend class TerrainVectorQuad;	// for GetCurFrameGPUDataPtr()
 
-#if defined _MSC_VER && _MSC_VER <= 1922
-	private:
-		struct tag {};
-
-	public:
-		World(tag, const float (&terrainXform)[4][3], float zenith, float azimuth) : Impl::World(terrainXform, zenith, azimuth) {}
-#else
 	private:
 		using Impl::World::World;
 		~World() = default;
-#endif
 	};
 }

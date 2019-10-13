@@ -101,13 +101,7 @@ namespace Renderer::TerrainMaterials
 
 	protected:
 		explicit Flat(const float (&albedo)[3], const WRL::ComPtr<ID3D12RootSignature> &rootSig = rootSig, const WRL::ComPtr<ID3D12PipelineState> &PSO = PSO);
-#if defined _MSC_VER && _MSC_VER <= 1922
-	public:
-		explicit Flat(tag, const float (&albedo)[3], const WRL::ComPtr<ID3D12RootSignature> &rootSig = rootSig, const WRL::ComPtr<ID3D12PipelineState> &PSO = PSO);
-#else
-	protected:
 		~Flat() = default;
-#endif
 
 	public:
 		static std::shared_ptr<Interface> __cdecl Make(const float (&albedo)[3]);
@@ -130,15 +124,9 @@ namespace Renderer::TerrainMaterials
 	private:
 		const Renderer::Impl::TrackedResource<ID3D12Resource> tex;
 
-#if defined _MSC_VER && _MSC_VER <= 1923
-	public:
-		explicit Textured(tag, const float (&albedoFactor)[3], const Texture &tex, float texScale, const char materialName[]);
-		~Textured();
-#else
 	private:
 		explicit Textured(const float (&albedoFactor)[3], const Texture &tex, float texScale, const char materialName[]);
 		~Textured();
-#endif
 
 	public:
 		static std::shared_ptr<Interface> __cdecl Make(const float (&albedo)[3], const Texture &tex, float texScale, const char materialName[]);
@@ -172,15 +160,9 @@ namespace Renderer::TerrainMaterials
 			ROOT_PARAM_COUNT
 		};
 
-#if defined _MSC_VER && _MSC_VER <= 1923
-	public:
-		explicit Standard(tag, const Texture &albedoMap, const Texture &roughnessMap, const Texture &normalMap, float texScale, float IOR, const char materialName[]);
-		~Standard();
-#else
 	private:
 		explicit Standard(const Texture &albedoMap, const Texture &roughnessMap, const Texture &normalMap, float texScale, float IOR, const char materialName[]);
 		~Standard();
-#endif
 
 	public:
 		static std::shared_ptr<Interface> __cdecl Make(const Texture &albedoMap, const Texture &roughnessMap, const Texture &normalMap, float texScale, float IOR, const char materialName[]);
@@ -211,15 +193,9 @@ namespace Renderer::TerrainMaterials
 		};
 		const Renderer::Impl::TrackedResource<ID3D12Resource> textures[TEXTURE_COUNT];
 
-#if defined _MSC_VER && _MSC_VER <= 1923
-	public:
-		explicit Extended(tag, const Texture &albedoMap, const Texture &fresnelMap, const Texture &roughnessMap, const Texture &normalMap, float texScale, const char materialName[]);
-		~Extended();
-#else
 	private:
 		explicit Extended(const Texture &albedoMap, const Texture &fresnelMap, const Texture &roughnessMap, const Texture &normalMap, float texScale, const char materialName[]);
 		~Extended();
-#endif
 
 	public:
 		static std::shared_ptr<Interface> __cdecl Make(const Texture &albedoMap, const Texture &fresnelMap, const Texture &roughnessMap, const Texture &normalMap, float texScale, const char materialName[]);
