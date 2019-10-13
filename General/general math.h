@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include "nv_algebra.h"	// for Slerp
 
 namespace Math
 {
@@ -26,23 +25,23 @@ namespace Math
 		constexpr uintmax_t C = P<n, k> / P<k>;
 	}
 
-	template<typename Left, typename Right, typename Param>
-	inline auto lerp(const Left &left, const Right &right, const Param &param)
+	// TODO: use C++20 auto instead of template
+	template<typename A, typename B, typename T>
+	inline auto lerp(const A &a, const B &b, const T &t)
 	{
-		return (1 - param) * left + param * right;
+		return (1 - t) * a + t * b;
 	}
 
-	template<class T>
+	template<class Vec>
 	class Slerp
 	{
+		Vec x, y;
+		typename Vec::ElementType angle, s;
+
 	public:
-		inline Slerp() {}
 		// x and y should be normalized
-		inline Slerp(const T &x, const T &y);
-		inline T operator ()(nv_scalar t) const;
-	private:
-		T x, y;
-		nv_scalar angle, s;
+		Slerp(const Vec &x, const Vec &y);
+		Vec operator ()(typename Vec::ElementType t) const;
 	};
 }
 
