@@ -68,7 +68,7 @@ static inline bool DetectSDD(const filesystem::path &root)
 	const System::Handle<driveHandleName> driveHandle(CreateFileW(driveName.c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL));
 	const auto StorageQuery = [&driveHandle]
 #else
-	const auto StorageQuery = [driveHandle = Handle<driveHandleName>(CreateFileW(driveName.c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL))]
+	const auto StorageQuery = [driveHandle = System::Handle<driveHandleName>(CreateFileW(driveName.c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL))]
 #endif
 	(DWORD controlCode, auto &in, auto &out)
 	{
