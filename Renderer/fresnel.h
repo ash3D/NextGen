@@ -1,12 +1,12 @@
 #pragma once
 
-#include "general math.h"	// for lerp
+#include "stdafx.h"
 
 namespace Renderer
 {
 	namespace Fresnel
 	{
-		using Math::lerp;
+		using std::lerp;
 	}
 
 #	include "fresnel.hlsli"
