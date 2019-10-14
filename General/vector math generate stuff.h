@@ -1,6 +1,6 @@
 #ifndef ROWS
-#		define TRIVIAL_CTOR_FORWARD CDataContainer() = default; NONTRIVIAL_CTOR_FORWARD
-#		define NONTRIVIAL_CTOR_FORWARD template<typename ...Args> CDataContainer(const Args &...args) : data(args...) {}
+#		define TRIVIAL_CTOR_FORWARD DataContainer() = default; NONTRIVIAL_CTOR_FORWARD
+#		define NONTRIVIAL_CTOR_FORWARD template<typename ...Args> DataContainer(const Args &...args) : data(args...) {}
 #
 #	define ROWS 0
 #	include "vector math generate stuff.h"
@@ -123,34 +123,34 @@
 namespace Impl
 {
 	template<typename ElementType>
-	class CDataContainer<ElementType, ROWS, COLUMNS, enable_if_t<is_trivially_default_constructible_v<ElementType> == TRIVIAL_CTOR>>
+	class DataContainer<ElementType, ROWS, COLUMNS, enable_if_t<is_trivially_default_constructible_v<ElementType> == TRIVIAL_CTOR>>
 	{
 	protected:
 		// forward ctors/dtor/= to data
 		CTOR_FORWARD
 
-		CDataContainer(const CDataContainer &src) : data(src.data) {}
+		DataContainer(const DataContainer &src) : data(src.data) {}
 
-		CDataContainer(CDataContainer &&src) : data(move(src.data)) {}
+		DataContainer(DataContainer &&src) : data(move(src.data)) {}
 
-		~CDataContainer()
+		~DataContainer()
 		{
-			data.~CData<ElementType, ROWS, COLUMNS>();
+			data.~Data<ElementType, ROWS, COLUMNS>();
 		}
 
 #ifdef __GNUC__
-		void operator =(const CDataContainer &src)
+		void operator =(const DataContainer &src)
 #else
-		void operator =(const CDataContainer &src) &
+		void operator =(const DataContainer &src) &
 #endif
 		{
 			data = src.data;
 		}
 
 #ifdef __GNUC__
-		void operator =(CDataContainer &&src)
+		void operator =(DataContainer &&src)
 #else
-		void operator =(CDataContainer &&src) &
+		void operator =(DataContainer &&src) &
 #endif
 		{
 			data = move(src.data);
@@ -159,7 +159,7 @@ namespace Impl
 	public:
 		union
 		{
-			CData<ElementType, ROWS, COLUMNS> data;
+			Data<ElementType, ROWS, COLUMNS> data;
 			// gcc does not allow class definition inside anonymous union
 			GENERATE_SWIZZLES(ROWS, COLUMNS)
 		};

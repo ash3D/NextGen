@@ -18,7 +18,7 @@ constexpr auto iters = 2'000'000'000;
 
 //extern template VectorMath::HLSL::int4;
 //extern template VectorMath::GLSL::vec3;
-//extern template class VectorMath::CInitListItem<short>;
+//extern template class VectorMath::InitListItem<short>;
 //extern template class VectorMath::vector<short, 5>;
 //extern template class VectorMath::matrix<long, 5, 4>;
 //extern template VectorMath::HLSL::int2;
