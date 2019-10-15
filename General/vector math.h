@@ -2060,7 +2060,7 @@ further investigations needed, including other compilers
 				SwizzleAssign(const SwizzleAssign &) = default;
 				~SwizzleAssign() = default;
 
-#ifdef MSVC_LIMITATIONS
+#ifndef MSVC_LIMITATIONS
 			public:
 				operator ElementType &() & noexcept
 				{
