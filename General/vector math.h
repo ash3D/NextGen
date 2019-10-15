@@ -258,8 +258,8 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 
 #	if defined _MSC_VER && _MSC_VER < 1922 && !defined  __clang__
 #	error Old MSVC compiler version. Visual Studio 2019 16.2 or later required.
-#	elif defined __GNUC__ && (__GNUC__ < 4 || (__GNUC__ >= 4 && __GNUC_MINOR__ < 7)) && !defined __clang__
-#	error Old GCC compiler version. GCC 4.7 or later required.	// need to be clarified
+#	elif defined __GNUC__ && (__GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 7)) && 0 && !defined __clang__
+#	error Old GCC compiler version. GCC ?.? or later required.	// need to be clarified
 #	endif
 
 #	pragma warning(push)
@@ -493,11 +493,7 @@ further investigations needed, including other compilers
 			protected:
 				Tag() = default;
 				Tag(const Tag &) = default;
-#ifdef __GNUC__
-				Tag &operator =(const Tag &) = default;
-#else
 				Tag &operator =(const Tag &) & = default;
-#endif
 				~Tag() = default;
 			};
 
@@ -1427,13 +1423,8 @@ further investigations needed, including other compilers
 				DataContainer(const DataContainer &) = default;
 				DataContainer(DataContainer &&) = default;
 				template<typename ...Args> DataContainer(const Args &...args) : data(args...) {}
-#ifdef __GNUC__
-				DataContainer &operator =(const DataContainer &) = default;
-				DataContainer &operator =(DataContainer &&) = default;
-#else
 				DataContainer &operator =(const DataContainer &) & = default;
 				DataContainer &operator =(DataContainer &&) & = default;
-#endif
 			};
 
 #			pragma region Initializer list
@@ -1885,11 +1876,7 @@ further investigations needed, including other compilers
 				typedef Swizzle OperationResult;
 
 			protected:
-#ifdef __GNUC__
-				operator Swizzle &() noexcept
-#else
 				operator Swizzle &() & noexcept
-#endif
 				{
 					return static_cast<Swizzle &>(*this);
 				}
@@ -1910,11 +1897,7 @@ further investigations needed, including other compilers
 				}
 
 			public:
-#ifdef __GNUC__
-				const ElementType &operator [](unsigned int idx) const noexcept
-#else
 				const ElementType &operator [](unsigned int idx) const & noexcept
-#endif
 				{
 					assert(idx < SwizzleDesc::dimension);
 					idx = SwizzleDesc::FetchIdx(idx);
@@ -1922,11 +1905,7 @@ further investigations needed, including other compilers
 					return AccessData()[row][column];
 				}
 
-#ifdef __GNUC__
-				ElementType &operator [](unsigned int idx) noexcept
-#else
 				ElementType &operator [](unsigned int idx) & noexcept
-#endif
 				{
 					return const_cast<ElementType &>(static_cast<const SwizzleDataAccess &>(*this)[idx]);
 				}
@@ -1961,11 +1940,7 @@ further investigations needed, including other compilers
 				typedef Swizzle OperationResult;
 
 			protected:
-#ifdef __GNUC__
-				operator Swizzle &() noexcept
-#else
 				operator Swizzle &() & noexcept
-#endif
 				{
 					return static_cast<Swizzle &>(*this);
 				}
@@ -1986,22 +1961,14 @@ further investigations needed, including other compilers
 				}
 
 			public:
-#ifdef __GNUC__
-				const ElementType &operator [](unsigned int idx) const noexcept
-#else
 				const ElementType &operator [](unsigned int idx) const & noexcept
-#endif
 				{
 					assert(idx < SwizzleDesc::dimension);
 					idx = SwizzleDesc::FetchIdx(idx);
 					return AccessData()[idx];
 				}
 
-#ifdef __GNUC__
-				ElementType &operator [](unsigned int idx) noexcept
-#else
 				ElementType &operator [](unsigned int idx) & noexcept
-#endif
 				{
 					return const_cast<ElementType &>(static_cast<const SwizzleDataAccess &>(*this)[idx]);
 				}
@@ -2026,21 +1993,13 @@ further investigations needed, including other compilers
 				SwizzleDataAccess() = default;
 				SwizzleDataAccess(const SwizzleDataAccess &) = default;
 				~SwizzleDataAccess() = default;
-#ifdef __GNUC__
-				SwizzleDataAccess &operator =(const SwizzleDataAccess &) = default;
-#else
 				SwizzleDataAccess &operator =(const SwizzleDataAccess &) & = default;
-#endif
 
 				// TODO: consider adding 'op=' operators to friends and making some stuff below protected/private (and OperationResult for other SwizzleDataAccess above)
 			public:
 				typedef vector OperationResult;
 
-#ifdef __GNUC__
-				operator vector &() noexcept
-#else
 				operator vector &() & noexcept
-#endif
 				{
 					return static_cast<vector &>(*this);
 				}
@@ -2059,21 +2018,13 @@ further investigations needed, including other compilers
 				}
 
 			public:
-#ifdef __GNUC__
-				const ElementType &operator [](unsigned int idx) const noexcept
-#else
 				const ElementType &operator [](unsigned int idx) const & noexcept
-#endif
 				{
 					assert(idx < vectorDimension);
 					return AccessData()[idx];
 				}
 
-#ifdef __GNUC__
-				ElementType &operator [](unsigned int idx) noexcept
-#else
 				ElementType &operator [](unsigned int idx) & noexcept
-#endif
 				{
 					assert(idx < vectorDimension);
 					return AccessData()[idx];
@@ -2111,29 +2062,17 @@ further investigations needed, including other compilers
 
 #ifdef MSVC_LIMITATIONS
 			public:
-#ifdef __GNUC__
-				operator ElementType &() noexcept
-#else
 				operator ElementType &() & noexcept
-#endif
 				{
 					return (*this)[0];
 				}
 #endif
 
 				template<size_t ...idx, typename SrcType>
-#ifdef __GNUC__
-				void AssignScalar(index_sequence<idx...>, const SrcType &scalar);
-#else
 				void AssignScalar(index_sequence<idx...>, const SrcType &scalar) &;
-#endif
 
 			public:
-#ifdef __GNUC__
-				inline OperationResult &operator =(const SwizzleAssign &src)
-#else
 				inline OperationResult &operator =(const SwizzleAssign &src) &
-#endif
 				{
 					return operator =(move(static_cast<const SwizzleAlias &>(src)));
 				}
@@ -2141,25 +2080,13 @@ further investigations needed, including other compilers
 				// currently public to allow user specify WAR hazard explicitly if needed
 
 				template<bool WARHazard, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-#ifdef __GNUC__
-				enable_if_t<(!WARHazard && SrcSwizzleDesc::dimension > 1), OperationResult &> operator =(const Swizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
-#else
 				enable_if_t<(!WARHazard && SrcSwizzleDesc::dimension > 1), OperationResult &> operator =(const Swizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &;
-#endif
 
 				template<bool WARHazard, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-#ifdef __GNUC__
-				enable_if_t<(WARHazard && SrcSwizzleDesc::dimension > 1), OperationResult &> operator =(const Swizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
-#else
 				enable_if_t<(WARHazard && SrcSwizzleDesc::dimension > 1), OperationResult &> operator =(const Swizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &;
-#endif
 
 				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-#ifdef __GNUC__
-				enable_if_t<(SrcSwizzleDesc::dimension > 1), OperationResult &> operator =(const Swizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src)
-#else
 				enable_if_t<(SrcSwizzleDesc::dimension > 1), OperationResult &> operator =(const Swizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &
-#endif
 				{
 					constexpr auto WARHazard = DetectSwizzleWARHazard
 					<
@@ -2171,54 +2098,30 @@ further investigations needed, including other compilers
 				}
 
 				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-#ifdef __GNUC__
-				enable_if_t<(SrcSwizzleDesc::dimension > 1), OperationResult &> operator =(const Swizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &&src)
-#else
 				enable_if_t<(SrcSwizzleDesc::dimension > 1), OperationResult &> operator =(const Swizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &&src) &
-#endif
 				{
 					return operator =<false>(src);
 				}
 
 				template<typename SrcType>
-#ifdef __GNUC__
-				inline enable_if_t<IsScalar<SrcType>, OperationResult &> operator =(const SrcType &scalar);
-#else
 				inline enable_if_t<IsScalar<SrcType>, OperationResult &> operator =(const SrcType &scalar) &;
-#endif
 
 				template<bool ...WARHazard, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
-#ifdef __GNUC__
-				enable_if_t<(srcRows > 1 || srcColumns > 1), OperationResult &> operator =(const matrix<SrcElementType, srcRows, srcColumns> &src);
-#else
 				enable_if_t<(srcRows > 1 || srcColumns > 1), OperationResult &> operator =(const matrix<SrcElementType, srcRows, srcColumns> &src) &;
-#endif
 
 				template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
-#ifdef __GNUC__
-				enable_if_t<(srcRows > 1 || srcColumns > 1), OperationResult &> operator =(const matrix<SrcElementType, srcRows, srcColumns> &&src)
-#else
 				enable_if_t<(srcRows > 1 || srcColumns > 1), OperationResult &> operator =(const matrix<SrcElementType, srcRows, srcColumns> &&src) &
-#endif
 				{
 					return operator =<false>(src);
 				}
 
 #if INIT_LIST_SUPPORT_TIER >= 1
-#ifdef __GNUC__
-				inline OperationResult &operator =(initializer_list<InitListItem<ElementType, SwizzleDesc::dimension>> initList);
-#else
 				inline OperationResult &operator =(initializer_list<InitListItem<ElementType, SwizzleDesc::dimension>> initList) &;
-#endif
 #endif
 
 			private:
 				template<size_t ...idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-#ifdef __GNUC__
-				void AssignSwizzle(index_sequence<idx...>, const Swizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
-#else
 				void AssignSwizzle(index_sequence<idx...>, const Swizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &;
-#endif
 
 			public:
 				using SwizzleDataAccess::operator [];
@@ -2226,11 +2129,7 @@ further investigations needed, including other compilers
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			template<bool WARHazard, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-#ifdef __GNUC__
-			inline auto SwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::operator =(const Swizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src)
-#else
 			inline auto SwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::operator =(const Swizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &
-#endif
 				-> enable_if_t<(!WARHazard && SrcSwizzleDesc::dimension > 1), OperationResult &>
 			{
 				static_assert(SwizzleDesc::dimension <= SrcSwizzleDesc::dimension, "'vector = vector': too small src dimension");
@@ -2241,11 +2140,7 @@ further investigations needed, including other compilers
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			template<bool WARHazard, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-#ifdef __GNUC__
-			inline auto SwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::operator =(const Swizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src)
-#else
 			inline auto SwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::operator =(const Swizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &
-#endif
 				-> enable_if_t<(WARHazard && SrcSwizzleDesc::dimension > 1), OperationResult &>
 			{
 				// make copy and call direct assignment
@@ -2254,11 +2149,7 @@ further investigations needed, including other compilers
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			template<typename SrcType>
-#ifdef __GNUC__
-			inline auto SwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::operator =(const SrcType &scalar) -> enable_if_t<IsScalar<SrcType>, OperationResult &>
-#else
 			inline auto SwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::operator =(const SrcType &scalar) & -> enable_if_t<IsScalar<SrcType>, OperationResult &>
-#endif
 			{
 				AssignScalar(make_index_sequence<SwizzleDesc::dimension>(), ExtractScalar(scalar));
 				return *this;
@@ -2266,11 +2157,7 @@ further investigations needed, including other compilers
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			template<bool ...WARHazard, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
-#ifdef __GNUC__
-			inline auto SwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::operator =(const matrix<SrcElementType, srcRows, srcColumns> &src)
-#else
 			inline auto SwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::operator =(const matrix<SrcElementType, srcRows, srcColumns> &src) &
-#endif
 				-> enable_if_t<(srcRows > 1 || srcColumns > 1), OperationResult &>
 			{
 				static_assert(sizeof...(WARHazard) <= 1);
@@ -2282,11 +2169,7 @@ further investigations needed, including other compilers
 
 #if INIT_LIST_SUPPORT_TIER >= 1
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-#ifdef __GNUC__
-			inline auto SwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::operator =(initializer_list<InitListItem<ElementType, SwizzleDesc::dimension>> initList) -> OperationResult &
-#else
 			inline auto SwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::operator =(initializer_list<InitListItem<ElementType, SwizzleDesc::dimension>> initList) & -> OperationResult &
-#endif
 			{
 				unsigned dstIdx = 0;
 				for (const auto &item : initList)
@@ -2299,22 +2182,14 @@ further investigations needed, including other compilers
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			template<size_t ...idx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-#ifdef __GNUC__
-			inline void SwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::AssignSwizzle(index_sequence<idx...>, const Swizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src)
-#else
 			inline void SwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::AssignSwizzle(index_sequence<idx...>, const Swizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &
-#endif
 			{
 				(((*this)[idx] = src[idx]), ...);
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			template<size_t ...idx, typename SrcType>
-#ifdef __GNUC__
-			inline void SwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::AssignScalar(index_sequence<idx...>, const SrcType &scalar)
-#else
 			inline void SwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::AssignScalar(index_sequence<idx...>, const SrcType &scalar) &
-#endif
 			{
 				(((*this)[idx] = scalar), ...);
 			}
@@ -2328,11 +2203,7 @@ further investigations needed, including other compilers
 				SwizzleCommon() = default;
 				SwizzleCommon(const SwizzleCommon &) = default;
 				~SwizzleCommon() = default;
-#ifdef __GNUC__
-				SwizzleCommon &operator =(const SwizzleCommon &) = default;
-#else
 				SwizzleCommon &operator =(const SwizzleCommon &) & = default;
-#endif
 
 			public:
 #ifdef MSVC_LIMITATIONS
@@ -2436,11 +2307,7 @@ further investigations needed, including other compilers
 				Swizzle() = default;
 				Swizzle(const Swizzle &) = default;
 				~Swizzle() = default;
-#ifdef __GNUC__
-				Swizzle &operator =(const Swizzle &) = default;
-#else
 				Swizzle &operator =(const Swizzle &) & = default;
-#endif
 			};
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, typename>
@@ -2449,11 +2316,7 @@ further investigations needed, including other compilers
 				friend class NAMESPACE_PREFIX DataContainer<ElementType, rows, columns>;
 
 			public:
-#ifdef __GNUC__
-				Swizzle &operator =(const Swizzle &) = default;
-#else
 				Swizzle &operator =(const Swizzle &) & = default;
-#endif
 				using NAMESPACE_PREFIX SwizzleAssign<ElementType, rows, columns, SwizzleDesc>::operator =;
 
 			private:
@@ -3883,11 +3746,7 @@ further investigations needed, including other compilers
 			template<typename SrcElementType, unsigned int srcDimension>
 			vector(const SrcElementType (&src)[srcDimension]);
 
-#ifdef __GNUC__
-			vector &operator =(const vector &) = default;
-#else
 			vector &operator =(const vector &) & = default;
-#endif
 			using Impl::SwizzleAssign<ElementType, 0, dimension>::operator =;
 
 		private:
@@ -3950,46 +3809,22 @@ further investigations needed, including other compilers
 			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
 			matrix(const SrcElementType (&src)[srcRows][srcColumns]);
 
-#ifdef __GNUC__
-			matrix &operator =(const matrix &) = default;
-#else
 			matrix &operator =(const matrix &) & = default;
-#endif
 
 			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
-#ifdef __GNUC__
-			std::enable_if_t<(srcRows > 1 || srcColumns > 1), matrix &> operator =(const matrix<SrcElementType, srcRows, srcColumns> &src);
-#else
 			std::enable_if_t<(srcRows > 1 || srcColumns > 1), matrix &> operator =(const matrix<SrcElementType, srcRows, srcColumns> &src) &;
-#endif
 
 			template<typename SrcType>
-#ifdef __GNUC__
-			std::enable_if_t<Impl::IsScalar<SrcType>, matrix &> operator =(const SrcType &scalar);
-#else
 			std::enable_if_t<Impl::IsScalar<SrcType>, matrix &> operator =(const SrcType &scalar) &;
-#endif
 
 			template<bool ...WARHazard, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-#ifdef __GNUC__
-			std::enable_if_t<(SrcSwizzleDesc::dimension > 1), matrix &> operator =(const Impl::Swizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
-#else
 			std::enable_if_t<(SrcSwizzleDesc::dimension > 1), matrix &> operator =(const Impl::Swizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &;
-#endif
 
 			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-#ifdef __GNUC__
-			std::enable_if_t<(SrcSwizzleDesc::dimension > 1), matrix &> operator =(const Impl::Swizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &&src);
-#else
 			std::enable_if_t<(SrcSwizzleDesc::dimension > 1), matrix &> operator =(const Impl::Swizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &&src) &;
-#endif
 
 #if INIT_LIST_SUPPORT_TIER >= 1
-#ifdef __GNUC__
-			matrix &operator =(std::initializer_list<Impl::InitListItem<ElementType, rows * columns>> initList);
-#else
 			matrix &operator =(std::initializer_list<Impl::InitListItem<ElementType, rows * columns>> initList) &;
-#endif
 #endif
 
 		private:
@@ -4003,46 +3838,23 @@ further investigations needed, including other compilers
 
 		private:
 			template<size_t ...rowIdx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-#ifdef __GNUC__
-			void AssignSwizzle(std::index_sequence<rowIdx...>, const Impl::Swizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
-#else
 			void AssignSwizzle(std::index_sequence<rowIdx...>, const Impl::Swizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &;
-#endif
 
 			template<size_t ...rowIdx, typename SrcType>
-#ifdef __GNUC__
-			void AssignScalar(std::index_sequence<rowIdx...>, const SrcType &scalar);
-#else
 			void AssignScalar(std::index_sequence<rowIdx...>, const SrcType &scalar) &;
-#endif
 
 			template<size_t ...rowIdx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
-#ifdef __GNUC__
-			void OpAssignMatrix(
-				std::index_sequence<rowIdx...>,
-				typename Impl::Swizzle<ElementType, 0, columns>::OperationResult &f(
-					Impl::Swizzle<ElementType, 0, columns> &, const Impl::Swizzle<SrcElementType, 0, srcColumns> &),
-				const matrix<SrcElementType, srcRows, srcColumns> &src);
-#else
 			void OpAssignMatrix(
 				std::index_sequence<rowIdx...>,
 				typename Impl::Swizzle<ElementType, 0, columns>::OperationResult &f(
 					Impl::Swizzle<ElementType, 0, columns> &, const Impl::Swizzle<SrcElementType, 0, srcColumns> &),
 				const matrix<SrcElementType, srcRows, srcColumns> &src) &;
-#endif
 
 			template<size_t ...rowIdx, typename SrcType>
-#ifdef __GNUC__
-			void OpAssignScalar(
-				std::index_sequence<rowIdx...>,
-				typename Impl::Swizzle<ElementType, 0, columns>::OperationResult &f(Impl::Swizzle<ElementType, 0, columns> &, const SrcType &),
-				const SrcType &scalar);
-#else
 			void OpAssignScalar(
 				std::index_sequence<rowIdx...>,
 				typename Impl::Swizzle<ElementType, 0, columns>::OperationResult &f(Impl::Swizzle<ElementType, 0, columns> &, const SrcType &),
 				const SrcType &scalar) &;
-#endif
 
 		private:
 #pragma region generate operators
@@ -4087,23 +3899,11 @@ further investigations needed, including other compilers
 #pragma endregion
 
 		public:
-#ifdef __GNUC__
-			const Row &operator [](unsigned int idx) const noexcept;
-#else
 			const Row &operator [](unsigned int idx) const & noexcept;
-#endif
-#ifdef __GNUC__
-			Row &operator [](unsigned int idx) noexcept;
-#else
 			Row &operator [](unsigned int idx) & noexcept;
-#endif
 
 			operator const ElementType &() const noexcept;
-#ifdef __GNUC__
-			operator ElementType &() noexcept;
-#else
 			operator ElementType &() & noexcept;
-#endif
 
 		private:
 #ifdef MSVC_LIMITATIONS
@@ -4164,11 +3964,7 @@ further investigations needed, including other compilers
 			// ICE on VS 2015, has no effect on clang
 			template<typename DstElementType, unsigned int dstRows, unsigned int dstColumns, class DstSwizzleDesc>
 			template<bool ...WARHazard, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
-#ifdef __GNUC__
-			friend inline auto Impl::SwizzleAssign<DstElementType, dstRows, dstColumns, DstSwizzleDesc, std::true_type>::operator =(const matrix<SrcElementType, srcRows, srcColumns> &src)
-#else
 			friend inline auto Impl::SwizzleAssign<DstElementType, dstRows, dstColumns, DstSwizzleDesc, std::true_type>::operator =(const matrix<SrcElementType, srcRows, srcColumns> &src) &
-#endif
 				-> std::enable_if_t<(srcRows > 1 || srcColumns > 1), typename Impl::SwizzleAssign<DstElementType, dstRows, dstColumns, DstSwizzleDesc, std::true_type>::OperationResult &>;
 #endif
 
@@ -4353,22 +4149,14 @@ further investigations needed, including other compilers
 
 #		pragma region matrix impl
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-#ifdef __GNUC__
-			inline auto matrix<ElementType, rows, columns>::operator [](unsigned int idx) const noexcept -> const typename matrix::Row &
-#else
 			inline auto matrix<ElementType, rows, columns>::operator [](unsigned int idx) const & noexcept -> const typename matrix::Row &
-#endif
 			{
 				assert(idx < rows);
 				return DataContainer::data.rowsData[idx];
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-#ifdef __GNUC__
-			inline auto matrix<ElementType, rows, columns>::operator [](unsigned int idx) noexcept -> typename matrix::Row &
-#else
 			inline auto matrix<ElementType, rows, columns>::operator [](unsigned int idx) & noexcept -> typename matrix::Row &
-#endif
 			{
 				assert(idx < rows);
 				return DataContainer::data.rowsData[idx];
@@ -4381,11 +4169,7 @@ further investigations needed, including other compilers
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-#ifdef __GNUC__
-			inline matrix<ElementType, rows, columns>::operator ElementType &() noexcept
-#else
 			inline matrix<ElementType, rows, columns>::operator ElementType &() & noexcept
-#endif
 			{
 				return operator [](0);
 			}
@@ -4459,11 +4243,7 @@ further investigations needed, including other compilers
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
-#ifdef __GNUC__
-			inline auto matrix<ElementType, rows, columns>::operator =(const matrix<SrcElementType, srcRows, srcColumns> &src) -> std::enable_if_t<(srcRows > 1 || srcColumns > 1), matrix &>
-#else
 			inline auto matrix<ElementType, rows, columns>::operator =(const matrix<SrcElementType, srcRows, srcColumns> &src) & -> std::enable_if_t<(srcRows > 1 || srcColumns > 1), matrix &>
-#endif
 			{
 				static_assert(rows <= srcRows, "'matrix = matrix': too few rows in src");
 				static_assert(columns <= srcColumns, "'matrix = matrix': too few columns in src");
@@ -4473,11 +4253,7 @@ further investigations needed, including other compilers
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<typename SrcType>
-#ifdef __GNUC__
-			inline auto matrix<ElementType, rows, columns>::operator =(const SrcType &scalar) -> std::enable_if_t<Impl::IsScalar<SrcType>, matrix &>
-#else
 			inline auto matrix<ElementType, rows, columns>::operator =(const SrcType &scalar) & -> std::enable_if_t<Impl::IsScalar<SrcType>, matrix &>
-#endif
 			{
 				AssignScalar(std::make_index_sequence<rows>(), scalar);
 				return *this;
@@ -4485,11 +4261,7 @@ further investigations needed, including other compilers
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<bool ...WARHazard, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-#ifdef __GNUC__
-			inline auto matrix<ElementType, rows, columns>::operator =(const Impl::Swizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src)
-#else
 			inline auto matrix<ElementType, rows, columns>::operator =(const Impl::Swizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &
-#endif
 				-> std::enable_if_t<(SrcSwizzleDesc::dimension > 1), matrix &>
 			{
 				static_assert(sizeof...(WARHazard) <= 1);
@@ -4503,11 +4275,7 @@ further investigations needed, including other compilers
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-#ifdef __GNUC__
-			inline auto matrix<ElementType, rows, columns>::operator =(const Impl::Swizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &&src)
-#else
 			inline auto matrix<ElementType, rows, columns>::operator =(const Impl::Swizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &&src) &
-#endif
 				-> std::enable_if_t<(SrcSwizzleDesc::dimension > 1), matrix &>
 			{
 				return operator =<false>(src);
@@ -4515,11 +4283,7 @@ further investigations needed, including other compilers
 
 #if INIT_LIST_SUPPORT_TIER >= 1
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-#ifdef __GNUC__
-			inline auto matrix<ElementType, rows, columns>::operator =(std::initializer_list<Impl::InitListItem<ElementType, rows * columns>> initList) -> matrix &
-#else
 			inline auto matrix<ElementType, rows, columns>::operator =(std::initializer_list<Impl::InitListItem<ElementType, rows * columns>> initList) & -> matrix &
-#endif
 			{
 				unsigned dstIdx = 0;
 				for (const auto &item : initList)
@@ -4557,58 +4321,35 @@ further investigations needed, including other compilers
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<size_t ...rowIdx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
-#ifdef __GNUC__
-			inline void matrix<ElementType, rows, columns>::AssignSwizzle(std::index_sequence<rowIdx...>, const Impl::Swizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src)
-#else
 			inline void matrix<ElementType, rows, columns>::AssignSwizzle(std::index_sequence<rowIdx...>, const Impl::Swizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &
-#endif
 			{
 				((operator [](rowIdx) = src[rowIdx]), ...);
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<size_t ...rowIdx, typename SrcType>
-#ifdef __GNUC__
-			inline void matrix<ElementType, rows, columns>::AssignScalar(std::index_sequence<rowIdx...>, const SrcType &scalar)
-#else
 			inline void matrix<ElementType, rows, columns>::AssignScalar(std::index_sequence<rowIdx...>, const SrcType &scalar) &
-#endif
 			{
 				((operator [](rowIdx) = scalar), ...);
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<size_t ...rowIdx, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
-#ifdef __GNUC__
-			inline void matrix<ElementType, rows, columns>::OpAssignMatrix(
-				std::index_sequence<rowIdx...>,
-				typename Impl::Swizzle<ElementType, 0, columns>::OperationResult &f(
-					Impl::Swizzle<ElementType, 0, columns> &, const Impl::Swizzle<SrcElementType, 0, srcColumns> &),
-				const matrix<SrcElementType, srcRows, srcColumns> &src)
-#else
 			inline void matrix<ElementType, rows, columns>::OpAssignMatrix(
 				std::index_sequence<rowIdx...>,
 				typename Impl::Swizzle<ElementType, 0, columns>::OperationResult &f(
 					Impl::Swizzle<ElementType, 0, columns> &, const Impl::Swizzle<SrcElementType, 0, srcColumns> &),
 				const matrix<SrcElementType, srcRows, srcColumns> &src) &
-#endif
 			{
 				(f(operator [](rowIdx), src[rowIdx]), ...);
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<size_t ...rowIdx, typename SrcType>
-#ifdef __GNUC__
-			inline void matrix<ElementType, rows, columns>::OpAssignScalar(
-				std::index_sequence<rowIdx...>,
-				typename Impl::Swizzle<ElementType, 0, columns>::OperationResult &f(Impl::Swizzle<ElementType, 0, columns> &, const SrcType &),
-				const SrcType &scalar)
-#else
 			inline void matrix<ElementType, rows, columns>::OpAssignScalar(
 				std::index_sequence<rowIdx...>,
 				typename Impl::Swizzle<ElementType, 0, columns>::OperationResult &f(Impl::Swizzle<ElementType, 0, columns> &, const SrcType &),
 				const SrcType &scalar) &
-#endif
 			{
 				assert(!TriggerScalarWARHazard(*this, &scalar));
 				(f(operator [](rowIdx), scalar), ...);
