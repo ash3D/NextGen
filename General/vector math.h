@@ -1864,7 +1864,7 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 			class SwizzleDataAccess
 			{
-				typedef Swizzle<ElementType, rows, columns, SwizzleDesc> Swizzle;
+				typedef Swizzle<ElementType, rows, columns, SwizzleDesc> SwizzleAlias;
 
 			protected:
 				SwizzleDataAccess() = default;
@@ -1873,12 +1873,12 @@ further investigations needed, including other compilers
 				SwizzleDataAccess &operator =(const SwizzleDataAccess &) = delete;
 
 			public:
-				typedef Swizzle OperationResult;
+				typedef SwizzleAlias OperationResult;
 
 			protected:
-				operator Swizzle &() & noexcept
+				operator SwizzleAlias &() & noexcept
 				{
-					return static_cast<Swizzle &>(*this);
+					return static_cast<SwizzleAlias &>(*this);
 				}
 
 			private:
@@ -1893,7 +1893,7 @@ further investigations needed, including other compilers
 					SwizzleDataAccess -> Swizzle -> Data
 					*/
 					typedef Data<ElementType, rows, columns> Data;
-					return reinterpret_cast<const Data *>(static_cast<const Swizzle *>(this))->rowsData;
+					return reinterpret_cast<const Data *>(static_cast<const SwizzleAlias *>(this))->rowsData;
 				}
 
 			public:
@@ -1928,7 +1928,7 @@ further investigations needed, including other compilers
 				works with both VS and gcc (differs from cases above in that it is in function scope, not in class one):
 				typedef SwizzleTraits<...> SwizzleTraits;
 				*/
-				typedef Swizzle<ElementType, 0, vectorDimension, SwizzleDesc> Swizzle;
+				typedef Swizzle<ElementType, 0, vectorDimension, SwizzleDesc> SwizzleAlias;
 
 			protected:
 				SwizzleDataAccess() = default;
@@ -1937,12 +1937,12 @@ further investigations needed, including other compilers
 				SwizzleDataAccess &operator =(const SwizzleDataAccess &) = delete;
 
 			public:
-				typedef Swizzle OperationResult;
+				typedef SwizzleAlias OperationResult;
 
 			protected:
-				operator Swizzle &() & noexcept
+				operator SwizzleAlias &() & noexcept
 				{
-					return static_cast<Swizzle &>(*this);
+					return static_cast<SwizzleAlias &>(*this);
 				}
 
 			private:
@@ -1957,7 +1957,7 @@ further investigations needed, including other compilers
 					SwizzleDataAccess -> Swizzle -> Data
 					*/
 					typedef Data<ElementType, 0, vectorDimension> Data;
-					return reinterpret_cast<const Data *>(static_cast<const Swizzle *>(this))->data;
+					return reinterpret_cast<const Data *>(static_cast<const SwizzleAlias *>(this))->data;
 				}
 
 			public:
@@ -1987,7 +1987,7 @@ further investigations needed, including other compilers
 								  |
 				SwizzleDataAccess -> vector
 				*/
-				typedef vector<ElementType, vectorDimension> vector;
+				typedef vector<ElementType, vectorDimension> Vector;
 
 			protected:
 				SwizzleDataAccess() = default;
@@ -1997,11 +1997,11 @@ further investigations needed, including other compilers
 
 				// TODO: consider adding 'op=' operators to friends and making some stuff below protected/private (and OperationResult for other SwizzleDataAccess above)
 			public:
-				typedef vector OperationResult;
+				typedef Vector OperationResult;
 
-				operator vector &() & noexcept
+				operator Vector &() & noexcept
 				{
-					return static_cast<vector &>(*this);
+					return static_cast<Vector &>(*this);
 				}
 
 			private:
@@ -2009,12 +2009,12 @@ further investigations needed, including other compilers
 
 				const auto &AccessData() const noexcept
 				{
-					return static_cast<const vector *>(this)->data.data;
+					return static_cast<const Vector *>(this)->data.data;
 				}
 
 				auto &AccessData() noexcept
 				{
-					return static_cast<vector *>(this)->data.data;
+					return static_cast<Vector *>(this)->data.data;
 				}
 
 			public:
