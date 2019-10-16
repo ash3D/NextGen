@@ -114,40 +114,40 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 #		define NONTRIVIAL_CTOR_FORWARD template<typename ...Args> DataContainer(const Args &...args) : data(args...) {}
 
 		// specialization for graphics vectors/matrices
-#		define DATA_CONTAINER_SPECIALIZATION(trivialCtor)																					\
-			template<typename ElementType>																									\
-			class DataContainer<ElementType, ROWS, COLUMNS, enable_if_t<is_trivially_default_constructible_v<ElementType> == trivialCtor>>	\
-			{																																\
-			protected:																														\
-				/*forward ctors/dtor/= to data*/																							\
-				BOOST_PP_REMOVE_PARENS(BOOST_PP_IIF(trivialCtor, (TRIVIAL_CTOR_FORWARD), (NONTRIVIAL_CTOR_FORWARD)))						\
-																																			\
-				DataContainer(const DataContainer &src) : data(src.data) {}																	\
-																																			\
-				DataContainer(DataContainer &&src) : data(move(src.data)) {}																\
-																																			\
-				~DataContainer()																											\
-				{																															\
-					data.~Data<ElementType, ROWS, COLUMNS>();																				\
-				}																															\
-																																			\
-				void operator =(const DataContainer &src)																					\
-				{																															\
-					data = src.data;																										\
-				}																															\
-																																			\
-				void operator =(DataContainer &&src)																						\
-				{																															\
-					data = move(src.data);																									\
-				}																															\
-																																			\
-			public:																															\
-				union																														\
-				{																															\
-					Data<ElementType, ROWS, COLUMNS> data;																					\
-					/*gcc does not allow class definition inside anonymous union*/															\
-					GENERATE_SWIZZLES((SWIZZLE_OBJECT))																						\
-				};																															\
+#		define DATA_CONTAINER_SPECIALIZATION(trivialCtor)																\
+			template<typename ElementType>																				\
+			requires (is_trivially_default_constructible_v<ElementType> == trivialCtor)									\
+			struct DataContainer<ElementType, ROWS, COLUMNS>															\
+			{																											\
+				union																									\
+				{																										\
+					Data<ElementType, ROWS, COLUMNS> data;																\
+					/*gcc does not allow class definition inside anonymous union*/										\
+					GENERATE_SWIZZLES((SWIZZLE_OBJECT))																	\
+				};																										\
+																														\
+			protected:																									\
+				/*forward ctors/dtor/= to data*/																		\
+				BOOST_PP_REMOVE_PARENS(BOOST_PP_IIF(trivialCtor, (TRIVIAL_CTOR_FORWARD), (NONTRIVIAL_CTOR_FORWARD)))	\
+																														\
+				DataContainer(const DataContainer &src) : data(src.data) {}												\
+																														\
+				DataContainer(DataContainer &&src) : data(move(src.data)) {}											\
+																														\
+				~DataContainer()																						\
+				{																										\
+					data.~Data<ElementType, ROWS, COLUMNS>();															\
+				}																										\
+																														\
+				void operator =(const DataContainer &src)																\
+				{																										\
+					data = src.data;																					\
+				}																										\
+																														\
+				void operator =(DataContainer &&src)																	\
+				{																										\
+					data = move(src.data);																				\
+				}																										\
 			};
 
 		DATA_CONTAINER_SPECIALIZATION(0)
@@ -256,8 +256,8 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 #	ifndef __VECTOR_MATH_H__
 #	define __VECTOR_MATH_H__
 
-#	if defined _MSC_VER && _MSC_VER < 1922 && !defined  __clang__
-#	error Old MSVC compiler version. Visual Studio 2019 16.2 or later required.
+#	if defined _MSC_VER && _MSC_VER < 1923 && !defined  __clang__
+#	error Old MSVC compiler version. Visual Studio 2019 16.3 or later required.
 #	elif defined __GNUC__ && (__GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 7)) && 0 && !defined __clang__
 #	error Old GCC compiler version. GCC ?.? or later required.	// need to be clarified
 #	endif
@@ -516,19 +516,19 @@ further investigations needed, including other compilers
 			static constexpr bool IsWrappedAsScalar = CheckTag::Check<Src, TagName::Wrapped, true>;
 
 			template<typename Src>
-			static constexpr bool Is1D = (CheckTag::Check<Src, TagName::Swizzle, true> || CheckTag::Check<Src, TagName::Vector, true>) && !IsWrappedAsScalar<Src>;
+			concept _1D = (CheckTag::Check<Src, TagName::Swizzle, true> || CheckTag::Check<Src, TagName::Vector, true>) && !IsWrappedAsScalar<Src>;
 
 			template<typename Src>
-			static constexpr bool Is1x1 = CheckTag::Check<Src, TagName::Matrix, true> && !IsWrappedAsScalar<Src>;
+			concept _1x1 = CheckTag::Check<Src, TagName::Matrix, true> && !IsWrappedAsScalar<Src>;
 
 			template<typename Src>
-			static constexpr bool IsPackedScalar = Is1D<Src> || Is1x1<Src>;
+			concept PackedScalar = _1D<Src> || _1x1<Src>;
 
 			template<typename Src>
-			static constexpr bool IsScalar = !CheckTag::Check<Src, TagName::Swizzle, false> && !CheckTag::Check<Src, TagName::Vector, false> && !CheckTag::Check<Src, TagName::Matrix, false> || IsWrappedAsScalar<Src>;
+			concept Scalar = !CheckTag::Check<Src, TagName::Swizzle, false> && !CheckTag::Check<Src, TagName::Vector, false> && !CheckTag::Check<Src, TagName::Matrix, false> || IsWrappedAsScalar<Src>;
 
 			template<typename Src>
-			static constexpr bool IsPureScalar = IsScalar<Src> && !IsPackedScalar<Src>;
+			concept PureScalar = Scalar<Src> && !PackedScalar<Src>;
 
 			template<typename ElementType>
 			static constexpr bool IsElementTypeValid = (is_union_v<ElementType> || is_class_v<ElementType> || is_arithmetic_v<ElementType>) && !is_const_v<ElementType> && !IsWrappedAsScalar<ElementType>;
@@ -830,8 +830,8 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int rows, unsigned int columns, unsigned c>
 			using ColumnSwizzle = Swizzle<ElementType, rows, columns, ColumnSwizzleDesc<rows, c>>;
 
-			template<typename ElementType, unsigned int rows, unsigned int columns, typename = void>
-			class DataContainer;
+			template<typename ElementType, unsigned int rows, unsigned int columns>
+			struct DataContainer;
 		}
 
 		template<class Wrapped/*vector or matrix*/>
@@ -870,8 +870,8 @@ further investigations needed, including other compilers
 
 		namespace Impl
 		{
-			template<typename SrcType>
-			inline enable_if_t<IsPureScalar<SrcType>, const SrcType &> ExtractScalar(const SrcType &src) noexcept
+			template<PureScalar SrcType>
+			inline const SrcType &ExtractScalar(const SrcType &src) noexcept
 			{
 				return src;
 			}
@@ -1053,7 +1053,7 @@ further investigations needed, including other compilers
 						template<typename DstType, typename SrcType, typename Void = void>
 						struct DetectScalarWARHazard : false_type
 						{
-							static_assert(!IsPureScalar<DstType> && Is1x1<SrcType> && is_same_v<Void, void>);
+							static_assert(!PureScalar<DstType> && _1x1<SrcType> && is_same_v<Void, void>);
 						};
 
 						// pure scalar
@@ -1063,11 +1063,11 @@ further investigations needed, including other compilers
 							is_same_v<remove_volatile_t<DstElementType>, remove_cv_t<remove_reference_t<decltype(ExtractScalar(declval<SrcType>()))>>>)>;
 
 						template<typename DstElementType, unsigned int dstRows, unsigned int dstColumns, class DstSwizzleDesc, typename SrcType>
-						struct DetectScalarWARHazard<Swizzle<DstElementType, dstRows, dstColumns, DstSwizzleDesc>, SrcType, enable_if_t<IsPureScalar<SrcType>>> :
+						struct DetectScalarWARHazard<Swizzle<DstElementType, dstRows, dstColumns, DstSwizzleDesc>, SrcType, enable_if_t<PureScalar<SrcType>>> :
 							PureScalarWARHazardDetectHelper<DstElementType, DstSwizzleDesc::dimension, SrcType> {};
 
 						template<typename DstElementType, unsigned int dstRows, unsigned int dstColumns, typename SrcType>
-						struct DetectScalarWARHazard<matrix<DstElementType, dstRows, dstColumns>, SrcType, enable_if_t<IsPureScalar<SrcType>>> :
+						struct DetectScalarWARHazard<matrix<DstElementType, dstRows, dstColumns>, SrcType, enable_if_t<PureScalar<SrcType>>> :
 							PureScalarWARHazardDetectHelper<DstElementType, dstRows * dstColumns, SrcType> {};
 
 						// 1D swizzle/vector
@@ -1082,7 +1082,7 @@ further investigations needed, including other compilers
 						static SwizzleDesc GetSwizzleDesc(const Swizzle<ElementType, rows, columns, SwizzleDesc> &);
 
 						template<typename DstElementType, unsigned int dstRows, unsigned int dstColumns, class DstSwizzleDesc, typename SrcType>
-						struct DetectScalarWARHazard<Swizzle<DstElementType, dstRows, dstColumns, DstSwizzleDesc>, SrcType, enable_if_t<Is1D<SrcType>>> :
+						struct DetectScalarWARHazard<Swizzle<DstElementType, dstRows, dstColumns, DstSwizzleDesc>, SrcType, enable_if_t<_1D<SrcType>>> :
 							DetectSwizzleWARHazard
 							<
 								DstElementType, dstRows, dstColumns, DstSwizzleDesc,
@@ -1121,7 +1121,7 @@ further investigations needed, including other compilers
 							MatrixVs1D_WARHazardDetectHelper(const Swizzle<ElementType, 0, columns, SrcSwizzleDesc> &);
 
 						template<typename DstElementType, unsigned int dstRows, unsigned int dstColumns, typename SrcType>
-						struct DetectScalarWARHazard<matrix<DstElementType, dstRows, dstColumns>, SrcType, enable_if_t<Is1D<SrcType>>> :
+						struct DetectScalarWARHazard<matrix<DstElementType, dstRows, dstColumns>, SrcType, enable_if_t<_1D<SrcType>>> :
 							decltype(MatrixVs1D_WARHazardDetectHelper<DstElementType, dstRows, dstColumns>(declval<SrcType>())) {};
 #					pragma endregion
 #				pragma endregion
@@ -1222,8 +1222,8 @@ further investigations needed, including other compilers
 			namespace ElementsCountHelpers
 			{
 				// scalar
-				template<typename Type>
-				static enable_if_t<IsPureScalar<Type>, integral_constant<unsigned int, 1u>> ElementsCountHelper(const Type &);
+				template<PureScalar Type>
+				static integral_constant<unsigned int, 1u> ElementsCountHelper(const Type &);
 
 				// swizzle
 				template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
@@ -1254,8 +1254,8 @@ further investigations needed, including other compilers
 #if defined _MSC_VER && !defined __clang__
 			private:
 				// scalar
-				template<typename Type>
-				static enable_if_t<IsPureScalar<Type>, integral_constant<unsigned int, 1u>> ElementsCountHelper(const Type &);
+				template<PureScalar Type>
+				static integral_constant<unsigned int, 1u> ElementsCountHelper(const Type &);
 
 				// swizzle
 				template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
@@ -1272,8 +1272,8 @@ further investigations needed, including other compilers
 
 			private:
 				// scalar
-				template<unsigned idx, typename SrcType>
-				static inline auto GetElementImpl(const SrcType &scalar) noexcept -> enable_if_t<IsPureScalar<SrcType>, decltype(scalar)>
+				template<unsigned idx, PureScalar SrcType>
+				static inline decltype(auto) GetElementImpl(const SrcType &scalar) noexcept
 				{
 					return scalar;
 				}
@@ -1294,21 +1294,16 @@ further investigations needed, including other compilers
 
 				// dispatch
 				template<unsigned idx, typename First, typename ...Rest>
-				static inline auto GetElementFind(const First &first, const Rest &...) noexcept
-					-> enable_if_t<idx < ElementsCount<const First &>, decltype(GetElementImpl<idx>(first))>
+				static inline decltype(auto) GetElementFind(const First &first, const Rest &...) noexcept
+					requires (idx < ElementsCount<const First &>)
 				{
 					return GetElementImpl<idx>(first);
 				}
 
 				// next
-#ifdef __clang__
-				template<unsigned idx, typename First, typename ...Rest, typename = enable_if_t<idx >= ElementsCount<const First &>>>
-				static inline decltype(auto) GetElementFind(const First &, const Rest &...rest) noexcept
-#else
 				template<unsigned idx, typename First, typename ...Rest>
-				static inline auto GetElementFind(const First &, const Rest &...rest) noexcept
-					-> enable_if_t<idx >= ElementsCount<const First &>, decltype(GetElementFind<idx - ElementsCount<const First &>>(rest...))>
-#endif
+				static inline decltype(auto) GetElementFind(const First &, const Rest &...rest) noexcept
+					requires (idx >= ElementsCount<const First &>)
 				{
 					return GetElementFind<idx - ElementsCount<const First &>>(rest...);
 				}
@@ -1410,12 +1405,9 @@ further investigations needed, including other compilers
 				data{ static_cast<const ElementType &>(GetElement<idx + offset>(args...))... } {}
 
 			// generic vector/matrix
-			template<typename ElementType, unsigned int rows, unsigned int columns, typename Void>
-			class DataContainer
+			template<typename ElementType, unsigned int rows, unsigned int columns>
+			struct DataContainer
 			{
-				static_assert(is_same_v<Void, void>);
-
-			public:
 				Data<ElementType, rows, columns> data;
 
 			protected:
@@ -1451,7 +1443,7 @@ further investigations needed, including other compilers
 					{}
 
 				public:
-					template<typename ItemElementType, typename = enable_if_t<IsPureScalar<ItemElementType>>>
+					template<PureScalar ItemElementType>
 					constexpr InitListItem(const ItemElementType &item) :
 						itemStore{ static_cast<const ElementType &>(item) },
 						itemSize(1)
@@ -1515,7 +1507,7 @@ further investigations needed, including other compilers
 					}
 
 				public:
-					template<typename ItemElementType, typename = enable_if_t<IsPureScalar<ItemElementType>>>
+					template<PureScalar ItemElementType>
 					constexpr InitListItem(const ItemElementType &item) :
 						getItemElement(GetItemElement<ItemElementType>),
 						item(&item),
@@ -2103,8 +2095,8 @@ further investigations needed, including other compilers
 					return operator =<false>(src);
 				}
 
-				template<typename SrcType>
-				inline enable_if_t<IsScalar<SrcType>, OperationResult &> operator =(const SrcType &scalar) &;
+				template<Scalar SrcType>
+				inline OperationResult &operator =(const SrcType &scalar) &;
 
 				template<bool ...WARHazard, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
 				enable_if_t<(srcRows > 1 || srcColumns > 1), OperationResult &> operator =(const matrix<SrcElementType, srcRows, srcColumns> &src) &;
@@ -2148,8 +2140,8 @@ further investigations needed, including other compilers
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
-			template<typename SrcType>
-			inline auto SwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::operator =(const SrcType &scalar) & -> enable_if_t<IsScalar<SrcType>, OperationResult &>
+			template<Scalar SrcType>
+			inline auto SwizzleAssign<ElementType, rows, columns, SwizzleDesc, true_type>::operator =(const SrcType &scalar) & -> OperationResult &
 			{
 				AssignScalar(make_index_sequence<SwizzleDesc::dimension>(), ExtractScalar(scalar));
 				return *this;
@@ -2313,7 +2305,7 @@ further investigations needed, including other compilers
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc, typename>
 			class Swizzle final : public NAMESPACE_PREFIX SwizzleCommon<ElementType, rows, columns, SwizzleDesc>
 			{
-				friend class NAMESPACE_PREFIX DataContainer<ElementType, rows, columns>;
+				friend struct NAMESPACE_PREFIX DataContainer<ElementType, rows, columns>;
 
 			public:
 				Swizzle &operator =(const Swizzle &) & = default;
@@ -2543,7 +2535,7 @@ further investigations needed, including other compilers
 							typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,							\
 							typename RightType																											\
 						>																																\
-						inline enable_if_t<!WARHazard && !extractScalar/* && IsScalar<RightType>*/,														\
+						inline enable_if_t<!WARHazard && !extractScalar/* && Scalar<RightType>*/,														\
 						typename Swizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::OperationResult &> operator op##=(					\
 							Swizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,														\
 							const RightType &right)																										\
@@ -2563,7 +2555,7 @@ further investigations needed, including other compilers
 							typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,							\
 							typename RightType																											\
 						>																																\
-						inline enable_if_t<WARHazard && !extractScalar/* && IsScalar<RightType>*/,														\
+						inline enable_if_t<WARHazard && !extractScalar/* && Scalar<RightType>*/,														\
 						typename Swizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::OperationResult &> operator op##=(					\
 							Swizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,														\
 							const RightType &right)																										\
@@ -2581,7 +2573,7 @@ further investigations needed, including other compilers
 							typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,							\
 							typename RightType																											\
 						>																																\
-						inline enable_if_t<extractScalar/* && IsScalar<RightType>*/,																	\
+						inline enable_if_t<extractScalar/* && Scalar<RightType>*/,																		\
 						typename Swizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::OperationResult &> operator op##=(					\
 							Swizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,														\
 							const RightType &right)																										\
@@ -2598,10 +2590,9 @@ further investigations needed, including other compilers
 					<																																	\
 						bool WARHazard,																													\
 						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,								\
-						typename RightType																												\
+						Impl::Scalar RightType																											\
 					>																																	\
-					inline std::enable_if_t<Impl::IsScalar<RightType>,																					\
-					typename Impl::Swizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::OperationResult &> operator op##=(					\
+					inline typename Impl::Swizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::OperationResult &operator op##=(			\
 						Impl::Swizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,													\
 						const RightType &right)																											\
 					{																																	\
@@ -2615,10 +2606,9 @@ further investigations needed, including other compilers
 					template																															\
 					<																																	\
 						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,								\
-						typename RightType																												\
+						Impl::Scalar RightType																											\
 					>																																	\
-					inline std::enable_if_t<Impl::IsScalar<RightType>,																					\
-					typename Impl::Swizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::OperationResult &> operator op##=(					\
+					inline typename Impl::Swizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::OperationResult &operator op##=(			\
 						Impl::Swizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,													\
 						const RightType &right)																											\
 					{																																	\
@@ -2634,10 +2624,9 @@ further investigations needed, including other compilers
 					template																															\
 					<																																	\
 						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,								\
-						typename RightType																												\
+						Impl::Scalar RightType																											\
 					>																																	\
-					inline std::enable_if_t<Impl::IsScalar<RightType>,																					\
-					typename Impl::Swizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::OperationResult &> operator op##=(					\
+					inline typename Impl::Swizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc>::OperationResult &operator op##=(			\
 						Impl::Swizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,													\
 						const RightType &&right)																										\
 					{																																	\
@@ -2674,9 +2663,7 @@ further investigations needed, including other compilers
 					inline auto operator op(																											\
 						const Impl::Swizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,												\
 						const Impl::Swizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)										\
-						-> std::enable_if_t<(LeftSwizzleDesc::dimension > 1 == RightSwizzleDesc::dimension > 1),										\
-						decltype(Impl::SwizzleOpSwizzle(std::make_index_sequence<std::min(LeftSwizzleDesc::dimension, RightSwizzleDesc::dimension)>(),	\
-							std::F(), left, right))>																									\
+						requires (LeftSwizzleDesc::dimension > 1 == RightSwizzleDesc::dimension > 1)													\
 					{																																	\
 						constexpr unsigned int dimension = std::min(LeftSwizzleDesc::dimension, RightSwizzleDesc::dimension);							\
 						return Impl::SwizzleOpSwizzle(std::make_index_sequence<dimension>(), std::F(), left, right);									\
@@ -2713,9 +2700,7 @@ further investigations needed, including other compilers
 					inline auto operator op(																											\
 						const Impl::Swizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,												\
 						const RightType &right)																											\
-						-> std::enable_if_t<(LeftSwizzleDesc::dimension > 1 ? Impl::IsScalar<RightType> : Impl::IsPureScalar<RightType>),				\
-						decltype(Impl::SwizzleOpScalar(std::make_index_sequence<LeftSwizzleDesc::dimension>(),											\
-							std::F(), left, Impl::ExtractScalar(right)))>																				\
+						requires (LeftSwizzleDesc::dimension > 1 ? Impl::Scalar<RightType> : Impl::PureScalar<RightType>)								\
 					{																																	\
 						using namespace Impl;																											\
 						return SwizzleOpScalar(make_index_sequence<LeftSwizzleDesc::dimension>(), F(), left, ExtractScalar(right));						\
@@ -2752,9 +2737,7 @@ further investigations needed, including other compilers
 					inline auto operator op(																											\
 						const LeftType &left,																											\
 						const Impl::Swizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)										\
-						-> std::enable_if_t<(RightSwizzleDesc::dimension > 1 ? Impl::IsScalar<LeftType> : Impl::IsPureScalar<LeftType>),				\
-						decltype(Impl::ScalarOpSwizzle(std::make_index_sequence<RightSwizzleDesc::dimension>(),											\
-							std::F(), Impl::ExtractScalar(left), right))>																				\
+						requires (RightSwizzleDesc::dimension > 1 ? Impl::Scalar<LeftType> : Impl::PureScalar<LeftType>)								\
 					{																																	\
 						using namespace Impl;																											\
 						return ScalarOpSwizzle(make_index_sequence<RightSwizzleDesc::dimension>(), F(), ExtractScalar(left), right);					\
@@ -2773,10 +2756,10 @@ further investigations needed, including other compilers
 						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,														\
 						typename RightElementType, unsigned int rightRows, unsigned int rightColumns													\
 					>																																	\
-					inline auto operator op##=(																											\
+					inline decltype(auto) operator op##=(																								\
 						matrix<LeftElementType, leftRows, leftColumns> &left,																			\
 						const matrix<RightElementType, rightRows, rightColumns> &right)																	\
-						-> std::enable_if_t<(rightRows > 1 || rightColumns > 1), decltype(left)>														\
+						requires (rightRows > 1 || rightColumns > 1)																					\
 					{																																	\
 						static_assert(leftRows <= rightRows, "'matrix "#op"= matrix': too few rows in src");											\
 						static_assert(leftColumns <= rightColumns, "'matrix "#op"= matrix': too few columns in src");									\
@@ -2796,10 +2779,10 @@ further investigations needed, including other compilers
 						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,														\
 						typename RightElementType, unsigned int rightRows, unsigned int rightColumns													\
 					>																																	\
-					inline auto operator op##=(																											\
+					inline decltype(auto) operator op##=(																								\
 						matrix<LeftElementType, leftRows, leftColumns> &left,																			\
 						const matrix<RightElementType, rightRows, rightColumns> &right)																	\
-						-> std::enable_if_t<(rightRows > 1 || rightColumns > 1), decltype(left)>														\
+						requires (rightRows > 1 || rightColumns > 1)																					\
 					{																																	\
 						static_assert(leftRows <= rightRows, "'matrix "#op"= matrix': too few rows in src");											\
 						static_assert(leftColumns <= rightColumns, "'matrix "#op"= matrix': too few columns in src");									\
@@ -2822,12 +2805,11 @@ further investigations needed, including other compilers
 					<																																	\
 						bool WARHazard,																													\
 						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,														\
-						typename RightType																												\
+						Impl::Scalar RightType																											\
 					>																																	\
-					inline auto operator op##=(																											\
+					inline decltype(auto) operator op##=(																								\
 						matrix<LeftElementType, leftRows, leftColumns> &left,																			\
 						const RightType &right)																											\
-						-> std::enable_if_t<Impl::IsScalar<RightType>, decltype(left)>																	\
 					{																																	\
 						return left.template operator op##=<WARHazard>(right);																			\
 					}
@@ -2839,12 +2821,11 @@ further investigations needed, including other compilers
 					template																															\
 					<																																	\
 						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,														\
-						typename RightType																												\
+						Impl::Scalar RightType																											\
 					>																																	\
-					inline auto operator op##=(																											\
+					inline decltype(auto) operator op##=(																								\
 						matrix<LeftElementType, leftRows, leftColumns> &left,																			\
 						const RightType &right)																											\
-						-> std::enable_if_t<Impl::IsScalar<RightType>, decltype(left)>																	\
 					{																																	\
 						constexpr bool WARHazard = Impl::DetectScalarWARHazard<matrix<LeftElementType, leftRows, leftColumns>, RightType>::value;		\
 						return operator op##=<WARHazard>(left, right);																					\
@@ -2857,12 +2838,11 @@ further investigations needed, including other compilers
 					template																															\
 					<																																	\
 						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,														\
-						typename RightType																												\
+						Impl::Scalar RightType																											\
 					>																																	\
-					inline auto operator op##=(																											\
+					inline decltype(auto) operator op##=(																								\
 						matrix<LeftElementType, leftRows, leftColumns> &left,																			\
 						const RightType &&right)																										\
-						-> std::enable_if_t<Impl::IsScalar<RightType>, decltype(left)>																	\
 					{																																	\
 						return operator op##=<false>(left, right);																						\
 					}
@@ -2949,8 +2929,7 @@ further investigations needed, including other compilers
 					inline auto operator op(																											\
 						const matrix<LeftElementType, leftRows, leftColumns> &left,																		\
 						const RightType &right)																											\
-						-> std::enable_if_t<(leftRows > 1 || leftColumns > 1 ? Impl::IsScalar<RightType> : Impl::IsPureScalar<RightType>),				\
-						decltype(Impl::MatrixOpScalar(std::make_index_sequence<leftRows>(), std::F(), left, Impl::ExtractScalar(right)))>				\
+						requires (leftRows > 1 || leftColumns > 1 ? Impl::Scalar<RightType> : Impl::PureScalar<RightType>)								\
 					{																																	\
 						return Impl::MatrixOpScalar(std::make_index_sequence<leftRows>(), std::F(), left, Impl::ExtractScalar(right));					\
 					}
@@ -2991,8 +2970,7 @@ further investigations needed, including other compilers
 					inline auto operator op(																											\
 						const LeftType &left,																											\
 						const matrix<RightElementType, rightRows, rightColumns> &right)																	\
-						-> std::enable_if_t<(rightRows > 1 || rightColumns > 1 ? Impl::IsScalar<LeftType> : Impl::IsPureScalar<LeftType>),				\
-						decltype(Impl::ScalarOpMatrix(std::make_index_sequence<rightRows>(), std::F(), Impl::ExtractScalar(left), right))>				\
+						requires (rightRows > 1 || rightColumns > 1 ? Impl::Scalar<LeftType> : Impl::PureScalar<LeftType>)								\
 					{																																	\
 						return Impl::ScalarOpMatrix(std::make_index_sequence<rightRows>(), std::F(), Impl::ExtractScalar(left), right);					\
 					}
@@ -3051,10 +3029,10 @@ further investigations needed, including other compilers
 						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,														\
 						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc							\
 					>																																	\
-					inline auto operator op##=(																											\
+					inline decltype(auto) operator op##=(																								\
 						matrix<LeftElementType, leftRows, leftColumns> &left,																			\
 						const Impl::Swizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)										\
-						-> std::enable_if_t<(RightSwizzleDesc::dimension > 1), decltype(left)>															\
+						requires (RightSwizzleDesc::dimension > 1)																						\
 					{																																	\
 						static_assert(sizeof...(WARHazard) <= 1);																						\
 						constexpr static const auto leftDimension = leftRows * leftColumns;																\
@@ -3076,10 +3054,10 @@ further investigations needed, including other compilers
 						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,														\
 						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc							\
 					>																																	\
-					inline auto operator op##=(																											\
+					inline decltype(auto) operator op##=(																								\
 						matrix<LeftElementType, leftRows, leftColumns> &left,																			\
 						const Impl::Swizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &&right)										\
-						-> std::enable_if_t<(RightSwizzleDesc::dimension > 1), decltype(left)>															\
+						requires (RightSwizzleDesc::dimension > 1)																						\
 					{																																	\
 						return operator op##=<false>(left, right);																						\
 					}
@@ -3087,7 +3065,7 @@ further investigations needed, including other compilers
 #				undef OPERATOR_DEFINITION
 
 				// swizzle op matrix / 1D swizzle op 1x1 matrix
-#			define OPERATOR_DEFINITION(op, F)																											\
+#				define OPERATOR_DEFINITION(op, F)																										\
 					template																															\
 					<																																	\
 						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,								\
@@ -3144,10 +3122,11 @@ further investigations needed, including other compilers
 			// std::min/max requires explicit template param if used for different types => provide scalar version\
 			this version also has option to return copy or reference
 #			define FUNCTION_DEFINITION(f)																							\
-				template<bool copy = false, typename LeftType, typename RightType>													\
-				inline auto f(const LeftType &left, const RightType &right)															\
-				-> std::enable_if_t<Impl::IsPureScalar<LeftType> && Impl::IsPureScalar<RightType>, std::conditional_t<copy,			\
-					std::common_type_t<LeftType, RightType>, const std::common_type_t<LeftType, RightType> &>>						\
+				template<bool copy = false, Impl::PureScalar LeftType, Impl::PureScalar RightType>									\
+				inline std::conditional_t<copy,																						\
+					std::common_type_t<LeftType, RightType>,																		\
+					const std::common_type_t<LeftType, RightType> &>																\
+				f(const LeftType &left, const RightType &right)																		\
 				{																													\
 					return std::f<std::common_type_t<LeftType, RightType>>(left, right);											\
 				};
@@ -3206,10 +3185,9 @@ further investigations needed, including other compilers
 					<																												\
 						size_t ...idx,																								\
 						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,			\
-						typename RightType																							\
+						PureScalar RightType																						\
 					>																												\
-					inline enable_if_t<IsPureScalar<RightType>,																		\
-					vector<decay_t<decltype(f(declval<LeftElementType>(), declval<RightType>()))>, sizeof...(idx)>>					\
+					inline vector<decay_t<decltype(f(declval<LeftElementType>(), declval<RightType>()))>, sizeof...(idx)>			\
 					f(index_sequence<idx...>,																						\
 						const Swizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,								\
 						const RightType &right)																						\
@@ -3225,13 +3203,11 @@ further investigations needed, including other compilers
 				template																											\
 				<																													\
 					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns, class LeftSwizzleDesc,				\
-					typename RightType																								\
+					Impl::PureScalar RightType																						\
 				>																													\
 				inline auto f(																										\
 					const Impl::Swizzle<LeftElementType, leftRows, leftColumns, LeftSwizzleDesc> &left,								\
 					const RightType &right)																							\
-				-> std::enable_if_t<Impl::IsPureScalar<RightType>,																	\
-				decltype(Impl::f(std::make_index_sequence<LeftSwizzleDesc::dimension>(), left, right))>								\
 				{																													\
 					return Impl::f(std::make_index_sequence<LeftSwizzleDesc::dimension>(), left, right);							\
 				};
@@ -3248,11 +3224,10 @@ further investigations needed, including other compilers
 					template																										\
 					<																												\
 						size_t ...idx,																								\
-						typename LeftType,																							\
+						PureScalar LeftType,																						\
 						typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc		\
 					>																												\
-					inline enable_if_t<IsPureScalar<LeftType>,																		\
-					vector<decay_t<decltype(f(declval<LeftType>(), declval<RightElementType>()))>, sizeof...(idx)>>					\
+					inline vector<decay_t<decltype(f(declval<LeftType>(), declval<RightElementType>()))>, sizeof...(idx)>			\
 					f(index_sequence<idx...>,																						\
 						const LeftType &left,																						\
 						const Swizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)							\
@@ -3260,21 +3235,19 @@ further investigations needed, including other compilers
 						return{ f(left, right[idx])... };																			\
 					}
 				FUNCTION_DEFINITION(min)
-					FUNCTION_DEFINITION(max)
+				FUNCTION_DEFINITION(max)
 #				undef FUNCTION_DEFINITION
 			}
 
 #			define FUNCTION_DEFINITION(f)																							\
 				template																											\
 				<																													\
-					typename LeftType,																								\
+					Impl::PureScalar LeftType,																						\
 					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc			\
 				>																													\
 				inline auto f(																										\
 					const LeftType &left,																							\
 					const Impl::Swizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)						\
-				-> std::enable_if_t<Impl::IsPureScalar<LeftType>,																	\
-				decltype(Impl::f(std::make_index_sequence<RightSwizzleDesc::dimension>(), left, right))>							\
 				{																													\
 					return Impl::f(std::make_index_sequence<RightSwizzleDesc::dimension>(), left, right);							\
 				};
@@ -3336,10 +3309,9 @@ further investigations needed, including other compilers
 					<																												\
 						size_t ...rowIdx,																							\
 						typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,									\
-						typename RightType																							\
+						PureScalar RightType																						\
 					>																												\
-					inline enable_if_t<IsPureScalar<RightType>,																		\
-					matrix<decay_t<decltype(f(declval<LeftElementType>(), declval<RightType>()))>, leftRows, leftColumns>>			\
+					inline matrix<decay_t<decltype(f(declval<LeftElementType>(), declval<RightType>()))>, leftRows, leftColumns>	\
 					f(index_sequence<rowIdx...>,																					\
 						const matrix<LeftElementType, leftRows, leftColumns> &left,													\
 						const RightType &right)																						\
@@ -3355,13 +3327,11 @@ further investigations needed, including other compilers
 				template																											\
 				<																													\
 					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,										\
-					typename RightType																								\
+					Impl::PureScalar RightType																						\
 				>																													\
 				auto f(																												\
 					const matrix<LeftElementType, leftRows, leftColumns> &left,														\
 					const RightType &right)																							\
-				-> std::enable_if_t<Impl::IsPureScalar<RightType>,																	\
-				decltype(Impl::f(std::make_index_sequence<leftRows>(), left, right))>												\
 				{																													\
 					return Impl::f(std::make_index_sequence<leftRows>(), left, right);												\
 				}
@@ -3378,11 +3348,10 @@ further investigations needed, including other compilers
 					template																										\
 					<																												\
 						size_t ...rowIdx,																							\
-						typename LeftType,																							\
+						PureScalar LeftType,																						\
 						typename RightElementType, unsigned int rightRows, unsigned int rightColumns								\
 					>																												\
-					inline enable_if_t<IsPureScalar<LeftType>,																		\
-					matrix<decay_t<decltype(f(declval<LeftType>(), declval<RightElementType>()))>, rightRows, rightColumns>>		\
+					inline matrix<decay_t<decltype(f(declval<LeftType>(), declval<RightElementType>()))>, rightRows, rightColumns>	\
 					f(index_sequence<rowIdx...>,																					\
 						const LeftType &left,																						\
 						const matrix<RightElementType, rightRows, rightColumns> &right)												\
@@ -3397,14 +3366,12 @@ further investigations needed, including other compilers
 #			define FUNCTION_DEFINITION(f)																							\
 				template																											\
 				<																													\
-					typename LeftType,																								\
+					Impl::PureScalar LeftType,																						\
 					typename RightElementType, unsigned int rightRows, unsigned int rightColumns									\
 				>																													\
 				auto f(																												\
 					const LeftType &left,																							\
 					const matrix<RightElementType, rightRows, rightColumns> &right)													\
-				-> std::enable_if_t<Impl::IsPureScalar<LeftType>,																	\
-				decltype(Impl::f(std::make_index_sequence<rightRows>(), left, right))>												\
 				{																													\
 					return Impl::f(std::make_index_sequence<rightRows>(), left, right);												\
 				}
@@ -3727,13 +3694,15 @@ further investigations needed, including other compilers
 			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
 			vector(const Impl::Swizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
 
-			template<typename SrcType, typename = std::enable_if_t<Impl::IsScalar<SrcType>>>
+			template<Impl::Scalar SrcType>
 			vector(const SrcType &scalar);
 
-			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, typename = std::enable_if_t<(srcRows > 1 || srcColumns > 1)>>
+			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
+			requires (srcRows > 1 || srcColumns > 1)
 			vector(const matrix<SrcElementType, srcRows, srcColumns> &src);
 
-			template<typename ...Args, typename = std::enable_if_t<(sizeof...(Args) > 1)>>
+			template<typename ...Args>
+			requires (sizeof...(Args) > 1)
 			vector(const Args &...args);
 
 #if INIT_LIST_SUPPORT_TIER >= 2
@@ -3790,13 +3759,15 @@ further investigations needed, including other compilers
 			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
 			matrix(const matrix<SrcElementType, srcRows, srcColumns> &src);
 
-			template<typename SrcType, typename = std::enable_if_t<Impl::IsScalar<SrcType>>>
+			template<Impl::Scalar SrcType>
 			matrix(const SrcType &scalar);
 
-			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, typename = std::enable_if_t<(SrcSwizzleDesc::dimension > 1)>>
+			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
+			requires (SrcSwizzleDesc::dimension > 1)
 			matrix(const Impl::Swizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src);
 
-			template<typename ...Args, typename = std::enable_if_t<(sizeof...(Args) > 1)>>
+			template<typename ...Args>
+			requires (sizeof...(Args) > 1)
 			matrix(const Args &...args);
 
 #if INIT_LIST_SUPPORT_TIER >= 2
@@ -3814,8 +3785,8 @@ further investigations needed, including other compilers
 			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
 			std::enable_if_t<(srcRows > 1 || srcColumns > 1), matrix &> operator =(const matrix<SrcElementType, srcRows, srcColumns> &src) &;
 
-			template<typename SrcType>
-			std::enable_if_t<Impl::IsScalar<SrcType>, matrix &> operator =(const SrcType &scalar) &;
+			template<Impl::Scalar SrcType>
+			matrix &operator =(const SrcType &scalar) &;
 
 			template<bool ...WARHazard, typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
 			std::enable_if_t<(SrcSwizzleDesc::dimension > 1), matrix &> operator =(const Impl::Swizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) &;
@@ -3861,7 +3832,7 @@ further investigations needed, including other compilers
 			// matrix / 1x1 matrix op=<!WARHazard, !extractScalar> scalar
 #			define OPERATOR_DECLARATION(op)																\
 				template<bool WARHazard, bool extractScalar, typename SrcType>							\
-				std::enable_if_t<!WARHazard && !extractScalar/* && Impl::IsScalar<SrcType>*/, matrix &>	\
+				std::enable_if_t<!WARHazard && !extractScalar/* && Impl::Scalar<SrcType>*/, matrix &>	\
 				operator op##=(const SrcType &scalar);
 			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION, F_2_OP)
 #			undef OPERATOR_DECLARATION
@@ -3869,7 +3840,7 @@ further investigations needed, including other compilers
 			// matrix / 1x1 matrix op=<WARHazard, !extractScalar> scalar
 #			define OPERATOR_DECLARATION(op)																\
 				template<bool WARHazard, bool extractScalar, typename SrcType>							\
-				std::enable_if_t<WARHazard && !extractScalar/* && Impl::IsScalar<SrcType>*/, matrix &>	\
+				std::enable_if_t<WARHazard && !extractScalar/* && Impl::Scalar<SrcType>*/, matrix &>	\
 				operator op##=(const SrcType &scalar);
 			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION, F_2_OP)
 #			undef OPERATOR_DECLARATION
@@ -3877,7 +3848,7 @@ further investigations needed, including other compilers
 			// matrix / 1x1 matrix op=<?WARHazard, extractScalar> scalar
 #			define OPERATOR_DECLARATION(op)																\
 				template<bool WARHazard, bool extractScalar = true, typename SrcType>					\
-				std::enable_if_t<extractScalar/* && Impl::IsScalar<SrcType>*/, matrix &>				\
+				std::enable_if_t<extractScalar/* && Impl::Scalar<SrcType>*/, matrix &>					\
 				operator op##=(const SrcType &scalar);
 			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION, F_2_OP)
 #			undef OPERATOR_DECLARATION
@@ -3888,12 +3859,11 @@ further investigations needed, including other compilers
 				<																						\
 					bool WARHazard,																		\
 					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,			\
-					typename RightType																	\
+					Impl::Scalar RightType																\
 				>																						\
-				friend inline auto operator op##=(														\
+				friend inline decltype(auto) operator op##=(											\
 					matrix<LeftElementType, leftRows, leftColumns> &left,								\
-					const RightType &right)																\
-					-> std::enable_if_t<Impl::IsScalar<RightType>, decltype(left)>;
+					const RightType &right);
 			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION, F_2_OP)
 #			undef OPERATOR_DECLARATION
 #pragma endregion
@@ -3991,10 +3961,10 @@ further investigations needed, including other compilers
 					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,												\
 					typename RightElementType, unsigned int rightRows, unsigned int rightColumns											\
 				>																															\
-				friend inline auto operator op##=(																							\
+				friend inline decltype(auto) operator op##=(																				\
 					matrix<LeftElementType, leftRows, leftColumns> &left,																	\
 					const matrix<RightElementType, rightRows, rightColumns> &right)															\
-					-> std::enable_if_t<(rightRows > 1 || rightColumns > 1), decltype(left)>;
+					requires (rightRows > 1 || rightColumns > 1);
 			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION, F_2_OP)
 #			undef OPERATOR_DECLARATION
 
@@ -4006,10 +3976,10 @@ further investigations needed, including other compilers
 					typename LeftElementType, unsigned int leftRows, unsigned int leftColumns,												\
 					typename RightElementType, unsigned int rightRows, unsigned int rightColumns, class RightSwizzleDesc					\
 				>																															\
-				friend inline auto operator op##=(																							\
+				friend inline decltype(auto) operator op##=(																				\
 					matrix<LeftElementType, leftRows, leftColumns> &left,																	\
 					const Impl::Swizzle<RightElementType, rightRows, rightColumns, RightSwizzleDesc> &right)								\
-					-> std::enable_if_t<(RightSwizzleDesc::dimension > 1), decltype(left)>;
+					requires (RightSwizzleDesc::dimension > 1);
 			GENERATE_ARITHMETIC_OPERATORS(OPERATOR_DECLARATION, F_2_OP)
 #			undef OPERATOR_DECLARATION
 
@@ -4092,12 +4062,13 @@ further investigations needed, including other compilers
 			}
 
 			template<typename ElementType, unsigned int dimension>
-			template<typename SrcType, typename>
+			template<Impl::Scalar SrcType>
 			inline vector<ElementType, dimension>::vector(const SrcType &scalar) :
 				DataContainer(typename Data::template InitTag<Data::InitType::Scalar, IdxSeq>(), Impl::ExtractScalar(scalar)) {}
 
 			template<typename ElementType, unsigned int dimension>
-			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, typename>
+			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns>
+			requires (srcRows > 1 || srcColumns > 1)
 			inline vector<ElementType, dimension>::vector(const matrix<SrcElementType, srcRows, srcColumns> &src) :
 				DataContainer(typename Data::template InitTag<Data::InitType::Sequencing, IdxSeq>(), src)
 			{
@@ -4107,7 +4078,8 @@ further investigations needed, including other compilers
 			}
 
 			template<typename ElementType, unsigned int dimension>
-			template<typename ...Args, typename>
+			template<typename ...Args>
+			requires (sizeof...(Args) > 1)
 			inline vector<ElementType, dimension>::vector(const Args &...args) :
 				DataContainer(typename Data::template InitTag<Data::InitType::Sequencing, IdxSeq>(), args...)
 			{
@@ -4191,12 +4163,13 @@ further investigations needed, including other compilers
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			template<typename SrcType, typename>
+			template<Impl::Scalar SrcType>
 			inline matrix<ElementType, rows, columns>::matrix(const SrcType &scalar) :
 				DataContainer(typename Data::template InitTag<Data::InitType::Scalar, IdxSeq>(), scalar) {}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc, typename>
+			template<typename SrcElementType, unsigned int srcRows, unsigned int srcColumns, class SrcSwizzleDesc>
+			requires (SrcSwizzleDesc::dimension > 1)
 			inline matrix<ElementType, rows, columns>::matrix(const Impl::Swizzle<SrcElementType, srcRows, srcColumns, SrcSwizzleDesc> &src) :
 				DataContainer(typename Data::template InitTag<Data::InitType::Sequencing, IdxSeq>(), src)
 			{
@@ -4207,7 +4180,8 @@ further investigations needed, including other compilers
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			template<typename ...Args, typename>
+			template<typename ...Args>
+			requires (sizeof...(Args) > 1)
 			inline matrix<ElementType, rows, columns>::matrix(const Args &...args) :
 				DataContainer(typename Data::template InitTag<Data::InitType::Sequencing, IdxSeq>(), args...)
 			{
@@ -4252,8 +4226,8 @@ further investigations needed, including other compilers
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
-			template<typename SrcType>
-			inline auto matrix<ElementType, rows, columns>::operator =(const SrcType &scalar) & -> std::enable_if_t<Impl::IsScalar<SrcType>, matrix &>
+			template<Impl::Scalar SrcType>
+			inline auto matrix<ElementType, rows, columns>::operator =(const SrcType &scalar) & -> matrix &
 			{
 				AssignScalar(std::make_index_sequence<rows>(), scalar);
 				return *this;
@@ -4361,7 +4335,7 @@ further investigations needed, including other compilers
 				template<typename ElementType, unsigned int rows, unsigned int columns>												\
 				template<bool WARHazard, bool extractScalar, typename SrcType>														\
 				inline auto matrix<ElementType, rows, columns>::operator op##=(const SrcType &scalar)								\
-				-> std::enable_if_t<!WARHazard && !extractScalar/* && Impl::IsScalar<SrcType>*/, matrix &>							\
+				-> std::enable_if_t<!WARHazard && !extractScalar/* && Impl::Scalar<SrcType>*/, matrix &>							\
 				{																													\
 					OpAssignScalar(std::make_index_sequence<rows>(), Impl::ScalarOps::operator op##=								\
 						<false, false, ElementType, 0, columns, Impl::VectorSwizzleDesc<columns>, SrcType>, scalar);				\
@@ -4372,7 +4346,7 @@ further investigations needed, including other compilers
 				template<typename ElementType, unsigned int rows, unsigned int columns>												\
 				template<bool WARHazard, bool extractScalar, typename SrcType>														\
 				inline auto matrix<ElementType, rows, columns>::operator op##=(const SrcType &scalar)								\
-				-> std::enable_if_t<!WARHazard && !extractScalar/* && Impl::IsScalar<SrcType>*/, matrix &>							\
+				-> std::enable_if_t<!WARHazard && !extractScalar/* && Impl::Scalar<SrcType>*/, matrix &>							\
 				{																													\
 					using namespace Impl;																							\
 					OpAssignScalar(make_index_sequence<rows>(), ScalarOps::operator op##=<false, false>, scalar);					\
@@ -4387,7 +4361,7 @@ further investigations needed, including other compilers
 				template<typename ElementType, unsigned int rows, unsigned int columns>												\
 				template<bool WARHazard, bool extractScalar, typename SrcType>														\
 				inline auto matrix<ElementType, rows, columns>::operator op##=(const SrcType &scalar)								\
-				-> std::enable_if_t<WARHazard && !extractScalar/* && Impl::IsScalar<SrcType>*/, matrix &>							\
+				-> std::enable_if_t<WARHazard && !extractScalar/* && Impl::Scalar<SrcType>*/, matrix &>								\
 				{																													\
 					return operator op##=<false, false>(SrcType(scalar));															\
 				}
@@ -4399,7 +4373,7 @@ further investigations needed, including other compilers
 				template<typename ElementType, unsigned int rows, unsigned int columns>												\
 				template<bool WARHazard, bool extractScalar, typename SrcType>														\
 				inline auto matrix<ElementType, rows, columns>::operator op##=(const SrcType &scalar)								\
-				-> std::enable_if_t<extractScalar/* && Impl::IsScalar<SrcType>*/, matrix &>											\
+				-> std::enable_if_t<extractScalar/* && Impl::Scalar<SrcType>*/, matrix &>											\
 				{																													\
 					return operator op##=<WARHazard, false>(Impl::ExtractScalar(scalar));											\
 				}

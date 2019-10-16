@@ -123,8 +123,16 @@
 namespace Impl
 {
 	template<typename ElementType>
-	class DataContainer<ElementType, ROWS, COLUMNS, enable_if_t<is_trivially_default_constructible_v<ElementType> == TRIVIAL_CTOR>>
+	requires (is_trivially_default_constructible_v<ElementType> == TRIVIAL_CTOR)
+	struct DataContainer<ElementType, ROWS, COLUMNS>
 	{
+		union
+		{
+			Data<ElementType, ROWS, COLUMNS> data;
+			// gcc does not allow class definition inside anonymous union
+			GENERATE_SWIZZLES(ROWS, COLUMNS)
+		};
+
 	protected:
 		// forward ctors/dtor/= to data
 		CTOR_FORWARD
@@ -155,14 +163,6 @@ namespace Impl
 		{
 			data = move(src.data);
 		}
-
-	public:
-		union
-		{
-			Data<ElementType, ROWS, COLUMNS> data;
-			// gcc does not allow class definition inside anonymous union
-			GENERATE_SWIZZLES(ROWS, COLUMNS)
-		};
 	};
 }
 #endif
