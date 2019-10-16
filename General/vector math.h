@@ -746,7 +746,7 @@ further investigations needed, including other compilers
 			using VectorSwizzleDesc = SequencingSwizzleDesc<1, vectorDimension>;
 
 			template<unsigned int rows, unsigned c>
-			struct olumnSwizzleDesc
+			struct ColumnSwizzleDesc
 			{
 				static constexpr unsigned int dimension = rows;
 				static constexpr bool isWriteMaskValid = true;
@@ -828,7 +828,7 @@ further investigations needed, including other compilers
 			using SequencingSwizzle = Swizzle<ElementType, rows, columns, SequencingSwizzleDesc<rows, columns>>;
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, unsigned c>
-			using ColumnSwizzle = Swizzle<ElementType, rows, columns, olumnSwizzleDesc<rows, c>>;
+			using ColumnSwizzle = Swizzle<ElementType, rows, columns, ColumnSwizzleDesc<rows, c>>;
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, typename = void>
 			class DataContainer;
