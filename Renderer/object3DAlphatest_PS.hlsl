@@ -33,13 +33,20 @@ float4 main(in XformedVertex_UV input, in bool front : SV_IsFrontFace, inout uin
 	//using namespace Materials;
 
 	float3 albedo = 0;
-	// unrolled loop with known sample count could be faster\
-	it's also unclear how compiler handles divergent tex lookup without loop unrolling
-	for (uint i = 0, curSampleBit = 1; curSampleBit <= sampleMask; i++, curSampleBit <<= 1u)
+	// unrolled loop with known sample count could be faster (maybe, depends on GPU arch), but PSO compiler and GPU driver shader recompiler should have all the data to do this
+	for (uint i = 0; i < GetRenderTargetSampleCount(); i++)
 	{
+		/*
+		lift texture fetch out of 'if' to eliminate intra-quad divergent lookups and associated texcoord gradients issues
+		it's actually only texcoords needed to be calculated out-of-if, fetches itself (its results) not required for inactive pixels
+		so it's subject to HLSL specs if tex lookups must be quad-uniform
+		need to investigate it and move tex fetch inside 'if' to enable possible speedups
+		though this optimization may have no effect due to highly divergent branching on polygon edges, for the same reason flatten can be beneficial (need to experiment with this too)
+		*/
+		const float4 curSampleFetch = SelectTexture(Materials::ALBEDO_MAP).Sample(SelectSampler(TextureSamplers::OBJ3D_ALBEDO_ALPHATEST_SAMPLER), EvaluateAttributeAtSample(input.uv, i));
+		const uint curSampleBit = 1u << i;
 		if (sampleMask & curSampleBit)
 		{
-			const float4 curSampleFetch = SelectTexture(Materials::ALBEDO_MAP).Sample(SelectSampler(TextureSamplers::OBJ3D_ALBEDO_ALPHATEST_SAMPLER), EvaluateAttributeAtSample(input.uv, i));
 			if (curSampleFetch.a >= alphaThreshold)
 				albedo += curSampleFetch;
 			else
