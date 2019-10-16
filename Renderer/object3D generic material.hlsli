@@ -1,6 +1,6 @@
 #pragma once
 
-#define ENABBLE_TEX
+#define ENABLE_TEX
 
 #include "object3D materials common.hlsli"
 #include "fresnel.hlsli"

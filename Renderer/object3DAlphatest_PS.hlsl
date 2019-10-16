@@ -1,4 +1,4 @@
-#define ENABBLE_TEX
+#define ENABLE_TEX
 
 namespace Materials
 {

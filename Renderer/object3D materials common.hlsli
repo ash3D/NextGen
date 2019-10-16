@@ -4,13 +4,13 @@
 
 #define DXC_NAMESPACE_WORKAROUND 1
 
-#if DXC_NAMESPACE_WORKAROUND && defined ENABBLE_TEX
+#if DXC_NAMESPACE_WORKAROUND && defined ENABLE_TEX
 Texture2D textures[] : register(t0);
 #endif
 
 namespace Materials
 {
-#ifdef ENABBLE_TEX
+#ifdef ENABLE_TEX
 	SamplerState TV_sampler : register(s0), samplers[TextureSamplers::OBJ3D_COMMON_SAMPLERS_COUNT * 2] : register(s1);
 	Texture2D textures[] : register(t0);
 #endif
@@ -21,7 +21,7 @@ namespace Materials
 		uint	descriptorTablesOffsets;	// packed [31..16] - sampler, [15..0] - tex
 		float	TVBrighntess;
 
-#ifdef ENABBLE_TEX
+#ifdef ENABLE_TEX
 		// TextureID is an enum to be defined before this file #inclusion
 		Texture2D SelectTexture(TextureID id)
 		{
