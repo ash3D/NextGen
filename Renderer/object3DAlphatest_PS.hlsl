@@ -1,5 +1,3 @@
-#define ENABLE_TEX
-
 namespace Materials
 {
 	enum TextureID
@@ -11,12 +9,13 @@ namespace Materials
 #include "per-frame data.hlsli"
 #include "tonemap params.hlsli"
 #include "object3D materials common.hlsli"
+#include "object3D tex stuff.hlsli"
 #include "object3D VS 2 PS.hlsli"
 #include "normals.hlsli"
 #include "lighting.hlsli"
 #include "HDR codec.hlsli"
 
-ConstantBuffer<Tonemapping::TonemapParams> tonemapParams : register(b1, space1);
+ConstantBuffer<Tonemapping::TonemapParams> tonemapParams : register(b0, space1);
 
 static const float alphaThreshold = .5f;
 

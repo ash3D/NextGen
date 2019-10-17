@@ -58,10 +58,6 @@ namespace Renderer
 			static WRL::ComPtr<ID3D12RootSignature> rootSig, CreateRootSig();
 			static std::array<PSOs, 2> PSOs, CreatePSOs();
 
-		private:
-			struct Context;
-			struct Subobject;
-
 		public:
 			struct SubobjectDataBase
 			{
@@ -122,19 +118,22 @@ namespace Renderer
 				ROOT_PARAM_PER_FRAME_DATA_CBV,
 				ROOT_PARAM_TONEMAP_PARAMS_CBV,
 				ROOT_PARAM_INSTANCE_DATA_CBV,
-				ROOT_PARAM_MATERIAL,
+				ROOT_PARAM_MATERIAL_CBV,
+				ROOT_PARAM_DESC_TABLE_OFFSETS,
 				ROOT_PARAM_TEXTURE_DESC_TABLE,
 				ROOT_PARAM_SAMPLER_DESC_TABLE,
 				ROOT_PARAM_COUNT
 			};
 
 		private:
+			struct Context;
+			struct Subobject;
 			class DescriptorTablePack;
 			// is GPU lifetime tracking is necessary for cmd list (or is it enough for cmd allocator only)?
 			std::shared_future<std::pair<Impl::TrackedResource<ID3D12CommandAllocator>, Impl::TrackedResource<ID3D12GraphicsCommandList4>>> bundle;
 			std::shared_ptr<Subobject []> subobjects;
 			std::shared_ptr<DescriptorTablePack> descriptorTablePack;	// serves all subobjects
-			Impl::TrackedResource<ID3D12Resource> VIB;	// Vertex/Index Buffer, also contain material for Intel workaround
+			Impl::TrackedResource<ID3D12Resource> GPUBuffer;	// Vertex/Index Buffer, also contain material for Intel workaround
 			unsigned long int tricount;
 			unsigned short int subobjCount;
 
@@ -155,7 +154,7 @@ namespace Renderer
 			~Object3D();
 
 		public:
-			explicit operator bool() const noexcept { return VIB; }
+			explicit operator bool() const noexcept { return GPUBuffer; }
 			AABB<3> GetXformedAABB(const HLSL::float4x3 &xform) const;
 			unsigned long int GetTriCount() const noexcept { return tricount; }
 
@@ -166,11 +165,11 @@ namespace Renderer
 
 		private:
 #ifdef _MSC_VER
-			static std::decay_t<decltype(bundle.get())> CreateBundle(const decltype(subobjects) &subobjects, unsigned short int subobjCount, WRL::ComPtr<ID3D12Resource> VIB,
-				unsigned long int VB_size, unsigned long int UVB_size, unsigned long int TGB_size, unsigned long int IB_size, std::wstring &&objectName);
+			static std::decay_t<decltype(bundle.get())> CreateBundle(const decltype(subobjects) &subobjects, unsigned short int subobjCount, WRL::ComPtr<ID3D12Resource> GPUBuffer,
+				unsigned long int CB_size, unsigned long int VB_size, unsigned long int UVB_size, unsigned long int TGB_size, unsigned long int IB_size, std::wstring &&objectName);
 #else
-			static std::decay_t<decltype(bundle.get())> CreateBundle(const decltype(subobjects) &subobjects, unsigned short int subobjCount, WRL::ComPtr<ID3D12Resource> VIB,
-				unsigned long int VB_size, unsigned long int UVB_size, unsigned long int TGB_size, unsigned long int IB_size, std::string &&objectName);
+			static std::decay_t<decltype(bundle.get())> CreateBundle(const decltype(subobjects) &subobjects, unsigned short int subobjCount, WRL::ComPtr<ID3D12Resource> GPUBuffer,
+				unsigned long int CB_size, unsigned long int VB_size, unsigned long int UVB_size, unsigned long int TGB_size, unsigned long int IB_size, std::string &&objectName);
 #endif
 		};
 	}

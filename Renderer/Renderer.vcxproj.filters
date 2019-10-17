@@ -415,5 +415,8 @@
     <None Include="object3D generic material.hlsli">
       <Filter>Shaders\Include</Filter>
     </None>
+    <None Include="object3D tex stuff.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
   </ItemGroup>
 </Project>

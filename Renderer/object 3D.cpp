@@ -32,34 +32,19 @@ using WRL::ComPtr;
 extern ComPtr<ID3D12Device2> device;
 void NameObject(ID3D12Object *object, LPCWSTR name) noexcept, NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
 
-/*
-	it seems that INTEL fails to set root constants inside bundle so use cbuffer instead
-	consider GPU/driver detection in runtime instead of current fixed compiletime approach
-	btw, using static data flag in root signature v1.1 allows driver to place cbuffer content directly in root signature, thus this workaround can have no impact on shader performance
-		(although buffer storage still need to be allocated)
-*/
-#define INTEL_WORKAROUND 1
-
-#if INTEL_WORKAROUND
 namespace
 {
 	struct alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) alignas(D3D12_COMMONSHADER_CONSTANT_BUFFER_PARTIAL_UPDATE_EXTENTS_BYTE_ALIGNMENT) MaterialData
 	{
-		float3		albedo;
-		uint16_t	textureDescriptorTableOffset, samplerDescriptorTableOffset;
-		float		TVBrighntess;
+		float3	albedo;
+		float	TVBrighntess;
 	};
 }
-#endif
 
 struct Impl::Object3D::Context
 {
 	ID3D12PipelineState *curPSO;
-#if !INTEL_WORKAROUND
-	// NAN ensures first compare to trigger
-	float3 curAlbedo = NAN;
-	float curTVBrighntess = NAN;
-#endif
+	D3D12_GPU_VIRTUAL_ADDRESS material_CB_ptr;
 };
 
 #pragma region Subobject
@@ -82,11 +67,8 @@ private:
 		float TVBrighntess;
 		bool tiled;
 	};
-#if INTEL_WORKAROUND
-	void (Subobject:: *FillMaterialSelector)(volatile MaterialData *dst) const;
-#else
-	void (Subobject:: *SetupSelector)(ID3D12GraphicsCommandList4 *target, Context &ctx) const;
-#endif
+	void (Subobject::*FillMaterialSelector)(volatile MaterialData *dst) const;
+	void (Subobject::*SetupMaterialSelector)(ID3D12GraphicsCommandList4 *target, Context &ctx) const;
 
 public:
 	inline Subobject() = default;
@@ -95,29 +77,23 @@ public:
 	inline Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, const float3 &albedo, float TVBrighntess, unsigned short int textureDescriptorTableOffset);
 
 public:
-#if INTEL_WORKAROUND
-	inline void FillMaterialCB(volatile MaterialData *dst) const;
-#endif
+	inline unsigned int MaterialCBSize() const noexcept { return FillMaterialSelector ? sizeof MaterialData : 0; }
+	inline void FillMaterialCB(volatile MaterialData *&dst) const;
 	inline void Setup(ID3D12GraphicsCommandList4 *target, Context &ctx) const;
 
 private:
 	inline auto SamplerDescriptorTableOffset() const noexcept;
-#if INTEL_WORKAROUND
-	void FillAlbedoMaterial(volatile MaterialData *dst) const, FillTexMaterial(volatile MaterialData *dst) const, FillTVMaterial(volatile MaterialData *dst) const;
-#else
-	void SetupAlbedo(ID3D12GraphicsCommandList4 *target, Context &ctx) const, SetupTex(ID3D12GraphicsCommandList4 *target, Context &) const, SetupTV(ID3D12GraphicsCommandList4 *target, Context &ctx) const;
-#endif
+	void FillAlbedoMaterial(volatile MaterialData *dst) const, FillTVMaterial(volatile MaterialData *dst) const;
+	template<bool enableCB, bool enableTex, bool enableSampler>
+	void SetupMaterial(ID3D12GraphicsCommandList4 *target, Context &ctx) const;
 };
 
 inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO,
 	const float3 &albedo) :
 	PSO(PSO), aabb(aabb), vcount(vcount), triOffset(triOffset), tricount(tricount),
 	albedo(albedo),
-#if INTEL_WORKAROUND
-	FillMaterialSelector(&Subobject::FillAlbedoMaterial)
-#else
-	SetupSelector(&Subobject::SetupAlbedo)
-#endif
+	FillMaterialSelector(&Subobject::FillAlbedoMaterial),
+	SetupMaterialSelector(&Subobject::SetupMaterial<true, false, false>)
 {
 }
 
@@ -125,11 +101,8 @@ inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long i
 	unsigned short int textureDescriptorTableOffset, bool tiled) :
 	PSO(PSO), aabb(aabb), vcount(vcount), triOffset(triOffset), tricount(tricount),
 	textureDescriptorTableOffset(textureDescriptorTableOffset), tiled(tiled),
-#if INTEL_WORKAROUND
-	FillMaterialSelector(&Subobject::FillTexMaterial)
-#else
-	SetupSelector(&Subobject::SetupTex)
-#endif
+	FillMaterialSelector(nullptr),
+	SetupMaterialSelector(&Subobject::SetupMaterial<false, true, true>)
 {
 }
 
@@ -137,28 +110,22 @@ inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long i
 	const float3 &albedo, float TVBrighntess, unsigned short int textureDescriptorTableOffset) :
 	PSO(PSO), aabb(aabb), vcount(vcount), triOffset(triOffset), tricount(tricount),
 	textureDescriptorTableOffset(textureDescriptorTableOffset), albedo(albedo), TVBrighntess(TVBrighntess),
-#if INTEL_WORKAROUND
-	FillMaterialSelector(&Subobject::FillTVMaterial)
-#else
-	SetupSelector(&Subobject::SetupTV)
-#endif
+	FillMaterialSelector(&Subobject::FillTVMaterial),
+	SetupMaterialSelector(&Subobject::SetupMaterial<true, true, false>)
 {
 }
 
-#if INTEL_WORKAROUND
-inline void Impl::Object3D::Subobject::FillMaterialCB(volatile MaterialData *dst) const
+inline void Impl::Object3D::Subobject::FillMaterialCB(volatile MaterialData *&dst) const
 {
-	(this->*FillMaterialSelector)(dst);
+	if (FillMaterialSelector)
+		(this->*FillMaterialSelector)(dst++);
 }
-#endif
 
 inline void Impl::Object3D::Subobject::Setup(ID3D12GraphicsCommandList4 *target, Context &ctx) const
 {
 	if (ctx.curPSO != PSO)
 		target->SetPipelineState(ctx.curPSO = PSO);
-#if !INTEL_WORKAROUND
-	(this->*SetupSelector)(target, ctx);
-#endif
+	(this->*SetupMaterialSelector)(target, ctx);
 }
 
 inline auto Impl::Object3D::Subobject::SamplerDescriptorTableOffset() const noexcept
@@ -166,44 +133,41 @@ inline auto Impl::Object3D::Subobject::SamplerDescriptorTableOffset() const noex
 	return tiled * Descriptors::TextureSamplers::OBJ3D_COMMON_SAMPLERS_COUNT;
 }
 
-#if INTEL_WORKAROUND
 inline void Impl::Object3D::Subobject::FillAlbedoMaterial(volatile MaterialData *dst) const
 {
 	const_cast<float3 &>(dst->albedo) = albedo;
 }
 
-inline void Impl::Object3D::Subobject::FillTexMaterial(volatile MaterialData *dst) const
-{
-	dst->textureDescriptorTableOffset = textureDescriptorTableOffset;
-	dst->samplerDescriptorTableOffset = SamplerDescriptorTableOffset();
-}
-
 void Impl::Object3D::Subobject::FillTVMaterial(volatile MaterialData *dst) const
 {
 	FillAlbedoMaterial(dst);
-	dst->textureDescriptorTableOffset = textureDescriptorTableOffset;
 	dst->TVBrighntess = TVBrighntess;
 }
-#else
-inline void Impl::Object3D::Subobject::SetupAlbedo(ID3D12GraphicsCommandList4 *cmdList, Context &ctx) const
-{
-	if (any(ctx.curAlbedo != albedo))
-		cmdList->SetGraphicsRoot32BitConstants(ROOT_PARAM_MATERIAL, decltype(ctx.curAlbedo)::dimension, &(ctx.curAlbedo = albedo), 0);
-}
 
-inline void Impl::Object3D::Subobject::SetupTex(ID3D12GraphicsCommandList4 *cmdList, Context &) const
+template<bool enableCB, bool enableTex, bool enableSampler>
+inline void Impl::Object3D::Subobject::SetupMaterial(ID3D12GraphicsCommandList4 *cmdList, Context &ctx) const
 {
-	cmdList->SetGraphicsRoot32BitConstant(ROOT_PARAM_MATERIAL, textureDescriptorTableOffset, decltype(Context::curAlbedo)::dimension);
-}
+	// validation
+	static_assert(enableTex || !enableSampler, "enableSampler => enableTex violation");
 
-void Impl::Object3D::Subobject::SetupTV(ID3D12GraphicsCommandList4 *cmdList, Context &ctx) const
-{
-	SetupAlbedo(cmdList, ctx);
-	cmdList->SetGraphicsRoot32BitConstant(ROOT_PARAM_MATERIAL, textureDescriptorTableOffset | SamplerDescriptorTableOffset() << 16, decltype(Context::curAlbedo)::dimension);
-	if (ctx.curTVBrighntess != TVBrighntess)
-		cmdList->SetGraphicsRoot32BitConstant(ROOT_PARAM_MATERIAL, reinterpret_cast<const UINT &>(ctx.curTVBrighntess = TVBrighntess), decltype(Context::curAlbedo)::dimension + 1);	// strict aliasing rule violation, use C++20 bit_cast instead
+	// material CB
+	if constexpr (enableCB)
+		cmdList->SetGraphicsRootConstantBufferView(ROOT_PARAM_MATERIAL_CBV, ctx.material_CB_ptr), ctx.material_CB_ptr += sizeof(MaterialData);
+
+	/*
+		descriptor table offsets
+		frequent GPU access => extract it from CB to root param
+		different GPUs favors different CB/root param balancing (e.g. NVIDIA prefer more root params usage)
+		stop here at 1 hot param, rest others for driver (static data flag in root signature v1.1 allows driver to place cbuffer content directly in root signature)
+	*/
+	if constexpr (enableTex)
+	{
+		UINT param = textureDescriptorTableOffset;
+		if constexpr (enableSampler)
+			param |= SamplerDescriptorTableOffset() << 16;
+		cmdList->SetGraphicsRoot32BitConstant(ROOT_PARAM_DESC_TABLE_OFFSETS, param, 0);
+	}
 }
-#endif
 #pragma endregion
 
 #pragma region DescriptorTablePack
@@ -293,13 +257,10 @@ WRL::ComPtr<ID3D12RootSignature> Impl::Object3D::CreateRootSig()
 	ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC &desc, LPCWSTR name);
 	CD3DX12_ROOT_PARAMETER1 rootParams[ROOT_PARAM_COUNT];
 	rootParams[ROOT_PARAM_PER_FRAME_DATA_CBV].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC);									// per-frame data
-	rootParams[ROOT_PARAM_TONEMAP_PARAMS_CBV].InitAsConstantBufferView(1, 1, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);			// tonemap params
+	rootParams[ROOT_PARAM_TONEMAP_PARAMS_CBV].InitAsConstantBufferView(0, 1, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);			// tonemap params
 	rootParams[ROOT_PARAM_INSTANCE_DATA_CBV].InitAsConstantBufferView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_VERTEX);	// instance data
-#if INTEL_WORKAROUND
-	rootParams[ROOT_PARAM_MATERIAL].InitAsConstantBufferView(0, 1, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_PIXEL);
-#else
-	rootParams[ROOT_PARAM_MATERIAL].InitAsConstants(decltype(Context::curAlbedo)::dimension + 1, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
-#endif
+	rootParams[ROOT_PARAM_MATERIAL_CBV].InitAsConstantBufferView(1, 1, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_PIXEL);			// material
+	rootParams[ROOT_PARAM_DESC_TABLE_OFFSETS].InitAsConstants(1, 2, 1, D3D12_SHADER_VISIBILITY_PIXEL);
 	// an unbounded range declared as STATIC means the rest of the heap is STATIC => specify VOLATILE
 	const CD3DX12_DESCRIPTOR_RANGE1 descTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, UINT_MAX/*unbounded*/, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
 	rootParams[ROOT_PARAM_TEXTURE_DESC_TABLE].InitAsDescriptorTable(1, &descTable, D3D12_SHADER_VISIBILITY_PIXEL);
@@ -480,7 +441,7 @@ Impl::Object3D::Object3D(unsigned short int subobjCount, const SubobjectDataCall
 	if (!subobjCount)
 		throw logic_error("Attempt to create empty 3D object");
 
-	unsigned long int vcount = 0, uvcount = 0, tgcount = 0;
+	unsigned long int CB_size = 0, vcount = 0, uvcount = 0, tgcount = 0;
 
 	enum
 	{
@@ -576,7 +537,7 @@ Impl::Object3D::Object3D(unsigned short int subobjCount, const SubobjectDataCall
 
 		vcount += curSubobjDataBase.vcount;
 		tricount += curSubobjDataBase.tricount;
-		subobjects[i] = visit(subobjParser, curSubobjData);
+		CB_size += (subobjects[i] = visit(subobjParser, curSubobjData)).MaterialCBSize();
 	}
 
 #ifdef _MSC_VER
@@ -655,34 +616,26 @@ Impl::Object3D::Object3D(unsigned short int subobjCount, const SubobjectDataCall
 		TGB_size = tgcount * sizeof *SubobjectData<SubobjectType::Advanced>::tangents,
 		IB_size = tricount * sizeof *SubobjectDataBase::tris;
 
-	// create VIB
+	// create GPUBuffer
 	CheckHR(device->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 		D3D12_HEAP_FLAG_NONE,
 		&CD3DX12_RESOURCE_DESC::Buffer(
-#if INTEL_WORKAROUND
-			sizeof(MaterialData) * subobjCount +
-#endif
-			VB_size * 2/*coord + N*/ + UVB_size + TGB_size + IB_size),
+			CB_size + VB_size * 2/*coord + N*/ + UVB_size + TGB_size + IB_size),
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		NULL,	// clear value
-		IID_PPV_ARGS(VIB.GetAddressOf())));
+		IID_PPV_ARGS(GPUBuffer.GetAddressOf())));
 #ifdef _MSC_VER
-	NameObjectF(VIB.Get(), L"\"%ls\" geometry (contains %hu subobjects)", convertedName.c_str(), subobjCount);
+	NameObjectF(GPUBuffer.Get(), L"\"%ls\" geometry (contains %hu subobjects)", convertedName.c_str(), subobjCount);
 #else
-	NameObjectF(VIB.Get(), L"\"%s\" geometry (contains %hu subobjects)", name.c_str(), subobjCount);
+	NameObjectF(GPUBuffer.Get(), L"\"%s\" geometry (contains %hu subobjects)", name.c_str(), subobjCount);
 #endif
 
-	// fill VIB (second pass)
+	// fill GPUBuffer (second pass)
 	{
-#if INTEL_WORKAROUND
-		volatile MaterialData *matPtr;
-		CheckHR(VIB->Map(0, &CD3DX12_RANGE(0, 0), const_cast<void **>(reinterpret_cast<volatile void **>(&matPtr))));
-		float (*const VB_ptr)[3] = reinterpret_cast<float (*)[3]>(const_cast<MaterialData *>(matPtr + subobjCount));
-#else
-		float (*VB_ptr)[3];
-		CheckHR(VIB->Map(0, &CD3DX12_RANGE(0, 0), reinterpret_cast<void **>(&VB_ptr)));
-#endif
+		volatile MaterialData *CB_ptr;
+		CheckHR(GPUBuffer->Map(0, &CD3DX12_RANGE(0, 0), const_cast<void **>(reinterpret_cast<volatile void **>(&CB_ptr))));
+		float (*const VB_ptr)[3] = reinterpret_cast<float (*)[3]>(reinterpret_cast<std::byte *>(const_cast<MaterialData *>(CB_ptr)) + CB_size);
 		float (*const NB_ptr)[3] = VB_ptr + vcount, (*const UVB_ptr)[2] = reinterpret_cast<float (*)[2]>(NB_ptr + vcount), (*const TGB_ptr)[2][3] = reinterpret_cast<float (*)[2][3]>(UVB_ptr + uvcount);
 		uint16_t (*IB_ptr)[3] = reinterpret_cast<uint16_t (*)[3]>(TGB_ptr + tgcount);
 
@@ -699,9 +652,7 @@ Impl::Object3D::Object3D(unsigned short int subobjCount, const SubobjectDataCall
 					subobjects[i].aabb.Refit(curSubobjData.verts[idx]);
 #endif
 
-#if INTEL_WORKAROUND
-			curSubobj.FillMaterialCB(matPtr++);
-#endif
+			curSubobj.FillMaterialCB(CB_ptr);
 			memcpy(VB_ptr + curSubobj.vOffset, curSubobjDataBase.verts, curSubobjDataBase.vcount * sizeof *curSubobjDataBase.verts);
 			memcpy(NB_ptr + curSubobj.vOffset, curSubobjDataBase.normals, curSubobjDataBase.vcount * sizeof *curSubobjDataBase.normals);
 			// use C++20 templated lambda
@@ -722,14 +673,14 @@ Impl::Object3D::Object3D(unsigned short int subobjCount, const SubobjectDataCall
 			IB_ptr += curSubobjDataBase.tricount;
 		}
 
-		VIB->Unmap(0, NULL);
+		GPUBuffer->Unmap(0, NULL);
 	}
 
 	// start bundle creation
 #ifdef _MSC_VER
-	bundle = async(CreateBundle, subobjects, subobjCount, ComPtr<ID3D12Resource>(VIB), VB_size, UVB_size, TGB_size, IB_size, move(convertedName));
+	bundle = async(CreateBundle, subobjects, subobjCount, ComPtr<ID3D12Resource>(GPUBuffer), CB_size, VB_size, UVB_size, TGB_size, IB_size, move(convertedName));
 #else
-	bundle = async(CreateBundle, subobjects, subobjCount, ComPtr<ID3D12Resource>(VIB), VB_size, UVB_size, TGB_size, IB_size, move(name));
+	bundle = async(CreateBundle, subobjects, subobjCount, ComPtr<ID3D12Resource>(GPUBuffer), CB_size, VB_size, UVB_size, TGB_size, IB_size, move(name));
 #endif
 }
 
@@ -784,17 +735,17 @@ const void Impl::Object3D::Render(ID3D12GraphicsCommandList4 *cmdList) const
 
 // need to copy subobjects to avoid dangling reference as the function can be executed in another thread
 #ifdef _MSC_VER
-auto Impl::Object3D::CreateBundle(const decltype(subobjects) &subobjects, unsigned short int subobjCount, ComPtr<ID3D12Resource> VIB,
-	unsigned long int VB_size, unsigned long int UVB_size, unsigned long int TGB_size, unsigned long int IB_size, wstring &&objectName) -> decay_t<decltype(bundle.get())>
+auto Impl::Object3D::CreateBundle(const decltype(subobjects) &subobjects, unsigned short int subobjCount, ComPtr<ID3D12Resource> GPUBuffer,
+	unsigned long int CB_size, unsigned long int VB_size, unsigned long int UVB_size, unsigned long int TGB_size, unsigned long int IB_size, wstring &&objectName) -> decay_t<decltype(bundle.get())>
 #else
-auto Impl::Object3D::CreateBundle(const decltype(subobjects) &subobjects, unsigned short int subobjCount, ComPtr<ID3D12Resource> VIB,
-	unsigned long int VB_size, unsigned long int UVB_size, unsigned long int TGB_size, unsigned long int IB_size, string &&objectName) -> decay_t<decltype(bundle.get())>
+auto Impl::Object3D::CreateBundle(const decltype(subobjects) &subobjects, unsigned short int subobjCount, ComPtr<ID3D12Resource> GPUBuffer,
+	unsigned long int CB_size, unsigned long int VB_size, unsigned long int UVB_size, unsigned long int TGB_size, unsigned long int IB_size, string &&objectName) -> decay_t<decltype(bundle.get())>
 #endif
 {
 	decay_t<decltype(bundle.get())> bundle;	// to be returned
 
 	// context
-	Context ctx = { subobjects[0].PSO };
+	Context ctx = { subobjects[0].PSO, GPUBuffer->GetGPUVirtualAddress() };
 
 	// create command allocator
 	CheckHR(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_BUNDLE, IID_PPV_ARGS(bundle.first.GetAddressOf())));
@@ -823,10 +774,7 @@ auto Impl::Object3D::CreateBundle(const decltype(subobjects) &subobjects, unsign
 			{
 				{
 					{
-#if INTEL_WORKAROUND
-						subobjCount * sizeof(MaterialData) +
-#endif
-						VIB->GetGPUVirtualAddress(),
+						ctx.material_CB_ptr + CB_size,
 						VB_size, sizeof *SubobjectDataBase::verts
 					},
 					{
@@ -854,17 +802,11 @@ auto Impl::Object3D::CreateBundle(const decltype(subobjects) &subobjects, unsign
 			bundle.second->IASetIndexBuffer(&IB_view);
 		}
 
-#if INTEL_WORKAROUND
-		auto material_GPU_ptr = VIB->GetGPUVirtualAddress();
-#endif
 		for (unsigned i = 0; i < subobjCount; i++)
 		{
 			const auto &curSubobj = subobjects[i];
 
 			curSubobj.Setup(bundle.second.Get(), ctx);
-#if INTEL_WORKAROUND
-			bundle.second->SetGraphicsRootConstantBufferView(ROOT_PARAM_MATERIAL, material_GPU_ptr), material_GPU_ptr += sizeof(MaterialData);
-#endif
 			bundle.second->DrawIndexedInstanced(curSubobj.tricount * 3, 1, curSubobj.triOffset * 3, curSubobj.vOffset, 0);
 		}
 

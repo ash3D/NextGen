@@ -488,6 +488,7 @@
     <None Include="object3D common samplers.hlsli" />
     <None Include="object3D materials common.hlsli" />
     <None Include="object3D generic material.hlsli" />
+    <None Include="object3D tex stuff.hlsli" />
     <None Include="object3D VS 2 PS.hlsli" />
     <None Include="packages.config" />
     <None Include="per-frame data.hlsli" />

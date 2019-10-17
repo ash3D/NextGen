@@ -17,7 +17,7 @@ namespace Materials
 #include "lighting.hlsli"
 #include "HDR codec.hlsli"
 
-ConstantBuffer<Tonemapping::TonemapParams> tonemapParams : register(b1, space1);
+ConstantBuffer<Tonemapping::TonemapParams> tonemapParams : register(b0, space1);
 
 inline float3 Lit(float3 albedo, float roughness, float F0, Normals::Nn Nn, float3 viewDir, float3 lightDir, float3 lightIrradiance)
 {

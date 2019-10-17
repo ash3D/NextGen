@@ -14,7 +14,7 @@ namespace Materials
 #include "lighting.hlsli"
 #include "HDR codec.hlsli"
 
-ConstantBuffer<Tonemapping::TonemapParams> tonemapParams : register(b1, space1);
+ConstantBuffer<Tonemapping::TonemapParams> tonemapParams : register(b0, space1);
 
 float4 main(in XformedVertex_UV input, in bool front : SV_IsFrontFace) : SV_TARGET
 {
