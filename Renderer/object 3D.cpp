@@ -67,8 +67,21 @@ private:
 		float TVBrighntess;
 		bool tiled;
 	};
-	void (Subobject::*FillMaterialSelector)(volatile MaterialData *dst) const;
-	void (Subobject::*SetupMaterialSelector)(ID3D12GraphicsCommandList4 *target, Context &ctx) const;
+	enum MaterialClass
+	{
+		MATERIAL_FLAT,
+		MATERIAL_TEX,
+		MATERIAL_TV,
+	} materialClass;
+
+private:
+	static const struct JmpTableEntry
+	{
+		void (Subobject::*FillMaterialSelector)(volatile MaterialData *dst) const;
+		void (Subobject::*SetupMaterialSelector)(ID3D12GraphicsCommandList4 *target, Context &ctx) const;
+	} jmpTable[];
+	template<MaterialClass>
+	static constexpr JmpTableEntry StaticDispatch{};
 
 public:
 	inline Subobject() = default;
@@ -77,7 +90,7 @@ public:
 	inline Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, const float3 &albedo, float TVBrighntess, unsigned short int textureDescriptorTableOffset);
 
 public:
-	inline unsigned int MaterialCBSize() const noexcept { return FillMaterialSelector ? sizeof MaterialData : 0; }
+	inline unsigned int MaterialCBSize() const noexcept { return jmpTable[materialClass].FillMaterialSelector ? sizeof MaterialData : 0; }
 	inline void FillMaterialCB(volatile MaterialData *&dst) const;
 	inline void Setup(ID3D12GraphicsCommandList4 *target, Context &ctx) const;
 
@@ -88,12 +101,34 @@ private:
 	void SetupMaterial(ID3D12GraphicsCommandList4 *target, Context &ctx) const;
 };
 
+template<>
+Impl::Object3D::Subobject::JmpTableEntry Impl::Object3D::Subobject::StaticDispatch<Impl::Object3D::Subobject::MATERIAL_FLAT> =
+{
+	&Subobject::FillAlbedoMaterial,
+	&Subobject::SetupMaterial<true, false, false>
+};
+
+template<>
+Impl::Object3D::Subobject::JmpTableEntry Impl::Object3D::Subobject::StaticDispatch<Impl::Object3D::Subobject::MATERIAL_TEX> =
+{
+	nullptr,
+	&Subobject::SetupMaterial<false, true, true>
+};
+
+template<>
+Impl::Object3D::Subobject::JmpTableEntry Impl::Object3D::Subobject::StaticDispatch<Impl::Object3D::Subobject::MATERIAL_TV> =
+{
+	&Subobject::FillTVMaterial,
+	&Subobject::SetupMaterial<true, true, false>
+};
+
+const Impl::Object3D::Subobject::JmpTableEntry Impl::Object3D::Subobject::jmpTable[] = { StaticDispatch<MATERIAL_FLAT>, StaticDispatch<MATERIAL_TEX>, StaticDispatch<MATERIAL_TV> };
+
 inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO,
 	const float3 &albedo) :
 	PSO(PSO), aabb(aabb), vcount(vcount), triOffset(triOffset), tricount(tricount),
 	albedo(albedo),
-	FillMaterialSelector(&Subobject::FillAlbedoMaterial),
-	SetupMaterialSelector(&Subobject::SetupMaterial<true, false, false>)
+	materialClass(MATERIAL_FLAT)
 {
 }
 
@@ -101,8 +136,7 @@ inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long i
 	unsigned short int textureDescriptorTableOffset, bool tiled) :
 	PSO(PSO), aabb(aabb), vcount(vcount), triOffset(triOffset), tricount(tricount),
 	textureDescriptorTableOffset(textureDescriptorTableOffset), tiled(tiled),
-	FillMaterialSelector(nullptr),
-	SetupMaterialSelector(&Subobject::SetupMaterial<false, true, true>)
+	materialClass(MATERIAL_TEX)
 {
 }
 
@@ -110,14 +144,13 @@ inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long i
 	const float3 &albedo, float TVBrighntess, unsigned short int textureDescriptorTableOffset) :
 	PSO(PSO), aabb(aabb), vcount(vcount), triOffset(triOffset), tricount(tricount),
 	textureDescriptorTableOffset(textureDescriptorTableOffset), albedo(albedo), TVBrighntess(TVBrighntess),
-	FillMaterialSelector(&Subobject::FillTVMaterial),
-	SetupMaterialSelector(&Subobject::SetupMaterial<true, true, false>)
+	materialClass(MATERIAL_TV)
 {
 }
 
 inline void Impl::Object3D::Subobject::FillMaterialCB(volatile MaterialData *&dst) const
 {
-	if (FillMaterialSelector)
+	if (const auto FillMaterialSelector = jmpTable[materialClass].FillMaterialSelector)
 		(this->*FillMaterialSelector)(dst++);
 }
 
@@ -125,7 +158,7 @@ inline void Impl::Object3D::Subobject::Setup(ID3D12GraphicsCommandList4 *target,
 {
 	if (ctx.curPSO != PSO)
 		target->SetPipelineState(ctx.curPSO = PSO);
-	(this->*SetupMaterialSelector)(target, ctx);
+	(this->*jmpTable[materialClass].SetupMaterialSelector)(target, ctx);
 }
 
 inline auto Impl::Object3D::Subobject::SamplerDescriptorTableOffset() const noexcept
