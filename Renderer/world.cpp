@@ -1132,6 +1132,7 @@ void Impl::World::FlushUpdates() const
 			NameObjectF(staticObjectsCB.Get(), L"static objects CB for world %p (%zu instances)", static_cast<const ::World *>(this), staticObjects.size());
 
 			// fill
+			static_assert(is_standard_layout_v<StaticObjectData>);
 			volatile StaticObjectData *mapped;
 			CheckHR(staticObjectsCB->Map(0, &CD3DX12_RANGE(0, 0), const_cast<void **>(reinterpret_cast<volatile void **>(&mapped))));
 			// TODO: use C++20 initializer in range-based for

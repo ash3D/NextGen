@@ -59,6 +59,9 @@ namespace
 			float	TVBrighntess;
 		};
 
+		static_assert(is_standard_layout_v<CBLayout<MaterialCategory::Flat>>);
+		static_assert(is_standard_layout_v<CBLayout<MaterialCategory::TV>>);
+
 		// material backed by CB
 		template<MaterialCategory cat>
 		concept CBMaterialCategory = requires { sizeof CBLayout<cat>; };

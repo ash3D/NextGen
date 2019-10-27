@@ -28,6 +28,9 @@ struct Renderer::Impl::World::GlobalGPUBufferData
 		static inline auto CB_offset(bool visible) noexcept { return offsetof(GlobalGPUBufferData, aabbVisColorsCB) + visible * sizeof(AABB_3D_VisColors); }
 	} aabbVisColorsCB[2]/*hidden - visible*/;
 
+	static_assert(std::is_standard_layout_v<PerFrameData>);
+	static_assert(std::is_standard_layout_v<AABB_3D_VisColors>);
+
 	/*
 	LH-CW or RH-CCW
 	!: handedness is currently hardcoded
