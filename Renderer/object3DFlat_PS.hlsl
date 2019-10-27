@@ -1,12 +1,13 @@
 #include "per-frame data.hlsli"
 #include "tonemap params.hlsli"
-#include "object3D materials common.hlsli"
+#include "object3D material params.hlsli"
 #include "object3D VS 2 PS.hlsli"
 #include "normals.hlsli"
 #include "lighting.hlsli"
 #include "HDR codec.hlsli"
 
 ConstantBuffer<Tonemapping::TonemapParams> tonemapParams : register(b0, space1);
+ConstantBuffer<Materials::Flat> materialParams : register(b1, space1);
 
 float4 main(in XformedVertex input, in bool front : SV_IsFrontFace) : SV_TARGET
 {
@@ -19,8 +20,8 @@ float4 main(in XformedVertex input, in bool front : SV_IsFrontFace) : SV_TARGET
 
 	const float2 shadeAALevel = Lighting::EvaluateAALevel(roughness, N);
 	float3 shadeResult;
-#	define ShadeRegular				Lighting::Lit(albedo, roughness, f0, N,																										input.viewDir, sun.dir, sun.irradiance)
-#	define ShadeAA(sampleOffset)	Lighting::Lit(albedo, roughness, f0, Normals::EvaluateSurfaceNormal(EvaluateAttributeSnapped(input.N, sampleOffset), input.viewDir, front),	input.viewDir, sun.dir, sun.irradiance)
+#	define ShadeRegular				Lighting::Lit(materialParams.albedo, roughness, f0, N,																										input.viewDir, sun.dir, sun.irradiance)
+#	define ShadeAA(sampleOffset)	Lighting::Lit(materialParams.albedo, roughness, f0, Normals::EvaluateSurfaceNormal(EvaluateAttributeSnapped(input.N, sampleOffset), input.viewDir, front),	input.viewDir, sun.dir, sun.irradiance)
 #	include "shade SSAA.hlsli"
 
 	return EncodeHDR(shadeResult, tonemapParams.exposure);

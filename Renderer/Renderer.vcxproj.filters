@@ -409,13 +409,13 @@
     <None Include="normals.hlsli">
       <Filter>Shaders\Include</Filter>
     </None>
-    <None Include="object3D materials common.hlsli">
-      <Filter>Shaders\Include</Filter>
-    </None>
     <None Include="object3D generic material.hlsli">
       <Filter>Shaders\Include</Filter>
     </None>
     <None Include="object3D tex stuff.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
+    <None Include="object3D material params.hlsli">
       <Filter>Shaders\Include</Filter>
     </None>
   </ItemGroup>

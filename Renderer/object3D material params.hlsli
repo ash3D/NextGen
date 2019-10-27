@@ -2,9 +2,14 @@
 
 namespace Materials
 {
-	cbuffer MaterialConstants : register(b1, space1)
+	struct Flat
+	{
+		float3	albedo;
+	};
+
+	struct TV
 	{
 		float3	albedo;
 		float	TVBrighntess;
-	}
+	};
 }

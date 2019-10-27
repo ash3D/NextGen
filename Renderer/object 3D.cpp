@@ -34,11 +34,61 @@ void NameObject(ID3D12Object *object, LPCWSTR name) noexcept, NameObjectF(ID3D12
 
 namespace
 {
-	struct alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) alignas(D3D12_COMMONSHADER_CONSTANT_BUFFER_PARTIAL_UPDATE_EXTENTS_BYTE_ALIGNMENT) MaterialData
+	namespace MaterialsReflection
 	{
-		float3	albedo;
-		float	TVBrighntess;
-	};
+		enum class MaterialCategory
+		{
+			Flat,
+			Tex,
+			TV,
+		};
+
+		template<MaterialCategory>
+		struct CBLayout;
+
+		template<>
+		struct alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) alignas(D3D12_COMMONSHADER_CONSTANT_BUFFER_PARTIAL_UPDATE_EXTENTS_BYTE_ALIGNMENT) CBLayout<MaterialCategory::Flat>
+		{
+			float3	albedo;
+		};
+
+		template<>
+		struct alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) alignas(D3D12_COMMONSHADER_CONSTANT_BUFFER_PARTIAL_UPDATE_EXTENTS_BYTE_ALIGNMENT) CBLayout<MaterialCategory::TV>
+		{
+			float3	albedo;
+			float	TVBrighntess;
+		};
+
+		// material backed by CB
+		template<MaterialCategory cat>
+		concept CBMaterialCategory = requires { sizeof CBLayout<cat>; };
+
+#if 0
+		template<MaterialCategory>
+		constexpr unsigned int CBSize = 0;
+#	if 0
+		template<CBMaterialCategory cat>
+		constexpr unsigned int CBSize = sizeof CBLayout<cat>;
+#	else
+		template<MaterialCategory cat>
+		requires CBMaterialCategory<cat>
+		constexpr unsigned int CBSize = sizeof CBLayout<cat>;
+#	endif
+#else
+		namespace Help
+		{
+			template<MaterialCategory>
+			constexpr unsigned int CBSize() { return  0; }
+
+			template<MaterialCategory cat>
+			requires CBMaterialCategory<cat>
+			constexpr unsigned int CBSize() { return sizeof CBLayout<cat>; }
+		}
+
+		template<MaterialCategory cat>
+		constexpr auto CBSize = Help::CBSize<cat>();
+#endif
+	}
 }
 
 struct Impl::Object3D::Context
@@ -60,28 +110,76 @@ struct Impl::Object3D::Subobject
 	unsigned short int tricount;
 
 private:
-	unsigned short int textureDescriptorTableOffset;
-	float3 albedo;
-	union
+	struct TextureSetupStuff
 	{
-		float TVBrighntess;
-		bool tiled;
+		unsigned short int textureDescriptorTableOffset;
 	};
-	enum MaterialClass
-	{
-		MATERIAL_FLAT,
-		MATERIAL_TEX,
-		MATERIAL_TV,
-	} materialClass;
 
-private:
-	static const struct JmpTableEntry
+	class SamplerSetupStuff
 	{
-		void (Subobject::*FillMaterialSelector)(volatile MaterialData *dst) const;
-		void (Subobject::*SetupMaterialSelector)(ID3D12GraphicsCommandList4 *target, Context &ctx) const;
-	} jmpTable[];
-	template<MaterialClass>
-	static constexpr JmpTableEntry StaticDispatch{};
+		bool tiled;
+
+	public:
+		SamplerSetupStuff(bool tiled) noexcept : tiled(tiled) {}
+
+	public:
+		inline auto SamplerDescriptorTableOffset() const noexcept;
+	};
+
+	template<MaterialsReflection::MaterialCategory>
+	class MaterialStuffDispatch;
+
+	template<>
+	class MaterialStuffDispatch<MaterialsReflection::MaterialCategory::Flat>
+	{
+		float3 albedo;
+
+	public:
+		MaterialStuffDispatch() = default;	// enables variant's default ctor
+		explicit MaterialStuffDispatch(const float3 &albedo) noexcept :
+			albedo(albedo) {}
+
+	public:
+		inline void FillCB(volatile MaterialsReflection::CBLayout<MaterialsReflection::MaterialCategory::Flat> *CB) const noexcept;
+	};
+
+	template<>
+	class MaterialStuffDispatch<MaterialsReflection::MaterialCategory::Tex> : public TextureSetupStuff, public SamplerSetupStuff
+	{
+	public:
+		explicit MaterialStuffDispatch(unsigned short int textureDescriptorTableOffset, bool tiled) noexcept :
+			TextureSetupStuff{ textureDescriptorTableOffset }, SamplerSetupStuff{ tiled } {}
+	};
+
+	template<>
+	class MaterialStuffDispatch<MaterialsReflection::MaterialCategory::TV> : public TextureSetupStuff
+	{
+		float3	albedo;
+		float	TVBrighntess;
+
+	public:
+		explicit MaterialStuffDispatch(const float3 &albedo, float TVBrighntess, unsigned short int textureDescriptorTableOffset) noexcept :
+			TextureSetupStuff{ textureDescriptorTableOffset }, albedo(albedo), TVBrighntess(TVBrighntess) {}
+
+	public:
+		inline void FillCB(volatile MaterialsReflection::CBLayout<MaterialsReflection::MaterialCategory::TV> *CB) const noexcept;
+	};
+
+	template<MaterialsReflection::MaterialCategory cat>
+	class MaterialStuff final : public MaterialStuffDispatch<cat>
+	{
+		typedef MaterialStuffDispatch<cat> Distatched;
+		using Distatched::Distatched;
+
+	public:
+		static constexpr auto CBSize = MaterialsReflection::CBSize<cat>;
+
+	public:
+		inline void FillCB(volatile void *&CB) const noexcept;
+		inline void Setup(ID3D12GraphicsCommandList4 *target, Context &ctx) const;
+	};
+
+	variant<MaterialStuff<MaterialsReflection::MaterialCategory::Flat>, MaterialStuff<MaterialsReflection::MaterialCategory::Tex>, MaterialStuff<MaterialsReflection::MaterialCategory::TV>> materialStuff;
 
 public:
 	inline Subobject() = default;
@@ -90,102 +188,48 @@ public:
 	inline Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, const float3 &albedo, float TVBrighntess, unsigned short int textureDescriptorTableOffset);
 
 public:
-	inline unsigned int MaterialCBSize() const noexcept { return jmpTable[materialClass].FillMaterialSelector ? sizeof MaterialData : 0; }
-	inline void FillMaterialCB(volatile MaterialData *&dst) const;
+	inline unsigned int MaterialCBSize() const noexcept;
+	inline void FillMaterialCB(volatile void *&dst) const noexcept;
 	inline void Setup(ID3D12GraphicsCommandList4 *target, Context &ctx) const;
-
-private:
-	inline auto SamplerDescriptorTableOffset() const noexcept;
-	void FillAlbedoMaterial(volatile MaterialData *dst) const, FillTVMaterial(volatile MaterialData *dst) const;
-	template<bool enableCB, bool enableTex, bool enableSampler>
-	void SetupMaterial(ID3D12GraphicsCommandList4 *target, Context &ctx) const;
 };
 
-template<>
-Impl::Object3D::Subobject::JmpTableEntry Impl::Object3D::Subobject::StaticDispatch<Impl::Object3D::Subobject::MATERIAL_FLAT> =
-{
-	&Subobject::FillAlbedoMaterial,
-	&Subobject::SetupMaterial<true, false, false>
-};
-
-template<>
-Impl::Object3D::Subobject::JmpTableEntry Impl::Object3D::Subobject::StaticDispatch<Impl::Object3D::Subobject::MATERIAL_TEX> =
-{
-	nullptr,
-	&Subobject::SetupMaterial<false, true, true>
-};
-
-template<>
-Impl::Object3D::Subobject::JmpTableEntry Impl::Object3D::Subobject::StaticDispatch<Impl::Object3D::Subobject::MATERIAL_TV> =
-{
-	&Subobject::FillTVMaterial,
-	&Subobject::SetupMaterial<true, true, false>
-};
-
-const Impl::Object3D::Subobject::JmpTableEntry Impl::Object3D::Subobject::jmpTable[] = { StaticDispatch<MATERIAL_FLAT>, StaticDispatch<MATERIAL_TEX>, StaticDispatch<MATERIAL_TV> };
-
-inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO,
-	const float3 &albedo) :
-	PSO(PSO), aabb(aabb), vcount(vcount), triOffset(triOffset), tricount(tricount),
-	albedo(albedo),
-	materialClass(MATERIAL_FLAT)
-{
-}
-
-inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO,
-	unsigned short int textureDescriptorTableOffset, bool tiled) :
-	PSO(PSO), aabb(aabb), vcount(vcount), triOffset(triOffset), tricount(tricount),
-	textureDescriptorTableOffset(textureDescriptorTableOffset), tiled(tiled),
-	materialClass(MATERIAL_TEX)
-{
-}
-
-inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO,
-	const float3 &albedo, float TVBrighntess, unsigned short int textureDescriptorTableOffset) :
-	PSO(PSO), aabb(aabb), vcount(vcount), triOffset(triOffset), tricount(tricount),
-	textureDescriptorTableOffset(textureDescriptorTableOffset), albedo(albedo), TVBrighntess(TVBrighntess),
-	materialClass(MATERIAL_TV)
-{
-}
-
-inline void Impl::Object3D::Subobject::FillMaterialCB(volatile MaterialData *&dst) const
-{
-	if (const auto FillMaterialSelector = jmpTable[materialClass].FillMaterialSelector)
-		(this->*FillMaterialSelector)(dst++);
-}
-
-inline void Impl::Object3D::Subobject::Setup(ID3D12GraphicsCommandList4 *target, Context &ctx) const
-{
-	if (ctx.curPSO != PSO)
-		target->SetPipelineState(ctx.curPSO = PSO);
-	(this->*jmpTable[materialClass].SetupMaterialSelector)(target, ctx);
-}
-
-inline auto Impl::Object3D::Subobject::SamplerDescriptorTableOffset() const noexcept
+inline auto Impl::Object3D::Subobject::SamplerSetupStuff::SamplerDescriptorTableOffset() const noexcept
 {
 	return tiled * Descriptors::TextureSamplers::OBJ3D_COMMON_SAMPLERS_COUNT;
 }
 
-inline void Impl::Object3D::Subobject::FillAlbedoMaterial(volatile MaterialData *dst) const
+#pragma region MaterialStuff
+#pragma region Dispatch
+inline void Impl::Object3D::Subobject::MaterialStuffDispatch<MaterialsReflection::MaterialCategory::Flat>::FillCB(volatile MaterialsReflection::CBLayout<MaterialsReflection::MaterialCategory::Flat> *CB) const noexcept
 {
-	const_cast<float3 &>(dst->albedo) = albedo;
+	const_cast<float3 &>(CB->albedo) = albedo;
 }
 
-void Impl::Object3D::Subobject::FillTVMaterial(volatile MaterialData *dst) const
+inline void Impl::Object3D::Subobject::MaterialStuffDispatch<MaterialsReflection::MaterialCategory::TV>::FillCB(volatile MaterialsReflection::CBLayout<MaterialsReflection::MaterialCategory::TV> *CB) const noexcept
 {
-	FillAlbedoMaterial(dst);
-	dst->TVBrighntess = TVBrighntess;
+	const_cast<float3 &>(CB->albedo) = albedo;
+	CB->TVBrighntess = TVBrighntess;
+}
+#pragma endregion
+
+template<MaterialsReflection::MaterialCategory cat>
+inline void Impl::Object3D::Subobject::MaterialStuff<cat>::FillCB(volatile void *&CB) const noexcept
+{
+	if constexpr (MaterialsReflection::CBMaterialCategory<cat>)
+		Distatched::FillCB(reinterpret_cast<volatile MaterialsReflection::CBLayout<cat> *&>(CB)++);
 }
 
-template<bool enableCB, bool enableTex, bool enableSampler>
-inline void Impl::Object3D::Subobject::SetupMaterial(ID3D12GraphicsCommandList4 *cmdList, Context &ctx) const
+template<MaterialsReflection::MaterialCategory cat>
+inline void Impl::Object3D::Subobject::MaterialStuff<cat>::Setup(ID3D12GraphicsCommandList4 *cmdList, Context &ctx) const
 {
+	constexpr bool enableTex = is_base_of_v<TextureSetupStuff, MaterialStuff>, enableSampler = is_base_of_v<SamplerSetupStuff, MaterialStuff>;
+
 	// validation
 	static_assert(enableTex || !enableSampler, "enableSampler => enableTex violation");
 
 	// material CB
-	if constexpr (enableCB)
-		cmdList->SetGraphicsRootConstantBufferView(ROOT_PARAM_MATERIAL_CBV, ctx.material_CB_ptr), ctx.material_CB_ptr += sizeof(MaterialData);
+	if constexpr (MaterialsReflection::CBMaterialCategory<cat>)
+		cmdList->SetGraphicsRootConstantBufferView(ROOT_PARAM_MATERIAL_CBV, ctx.material_CB_ptr), ctx.material_CB_ptr += MaterialsReflection::CBSize<cat>;
 
 	/*
 		descriptor table offsets
@@ -195,11 +239,50 @@ inline void Impl::Object3D::Subobject::SetupMaterial(ID3D12GraphicsCommandList4 
 	*/
 	if constexpr (enableTex)
 	{
-		UINT param = textureDescriptorTableOffset;
+		UINT param = TextureSetupStuff::textureDescriptorTableOffset;
 		if constexpr (enableSampler)
-			param |= SamplerDescriptorTableOffset() << 16;
+			param |= SamplerSetupStuff::SamplerDescriptorTableOffset() << 16;
 		cmdList->SetGraphicsRoot32BitConstant(ROOT_PARAM_DESC_TABLE_OFFSETS, param, 0);
 	}
+}
+#pragma endregion
+
+inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO,
+	const float3 &albedo) :
+	PSO(PSO), aabb(aabb), vcount(vcount), triOffset(triOffset), tricount(tricount),
+	materialStuff(in_place_type<MaterialStuff<MaterialsReflection::MaterialCategory::Flat>>, albedo)
+{
+}
+
+inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO,
+	unsigned short int textureDescriptorTableOffset, bool tiled) :
+	PSO(PSO), aabb(aabb), vcount(vcount), triOffset(triOffset), tricount(tricount),
+	materialStuff(in_place_type<MaterialStuff<MaterialsReflection::MaterialCategory::Tex>>, textureDescriptorTableOffset, tiled)
+{
+}
+
+inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO,
+	const float3 &albedo, float TVBrighntess, unsigned short int textureDescriptorTableOffset) :
+	PSO(PSO), aabb(aabb), vcount(vcount), triOffset(triOffset), tricount(tricount),
+	materialStuff(in_place_type<MaterialStuff<MaterialsReflection::MaterialCategory::TV>>, albedo, TVBrighntess, textureDescriptorTableOffset)
+{
+}
+
+inline unsigned int Impl::Object3D::Subobject::MaterialCBSize() const noexcept
+{
+	return visit([](const auto &dispatched) constexpr noexcept { return dispatched.CBSize; }, materialStuff);
+}
+
+inline void Impl::Object3D::Subobject::FillMaterialCB(volatile void *&dst) const noexcept
+{
+	visit([&dst](const auto &dispatched) noexcept { dispatched.FillCB(dst); }, materialStuff);
+}
+
+inline void Impl::Object3D::Subobject::Setup(ID3D12GraphicsCommandList4 *cmdList, Context &ctx) const
+{
+	if (ctx.curPSO != PSO)
+		cmdList->SetPipelineState(ctx.curPSO = PSO);
+	visit([cmdList, &ctx](const auto &dispatched) { dispatched.Setup(cmdList, ctx); }, materialStuff);
 }
 #pragma endregion
 
@@ -666,9 +749,9 @@ Impl::Object3D::Object3D(unsigned short int subobjCount, const SubobjectDataCall
 
 	// fill GPUBuffer (second pass)
 	{
-		volatile MaterialData *CB_ptr;
-		CheckHR(GPUBuffer->Map(0, &CD3DX12_RANGE(0, 0), const_cast<void **>(reinterpret_cast<volatile void **>(&CB_ptr))));
-		float (*const VB_ptr)[3] = reinterpret_cast<float (*)[3]>(reinterpret_cast<std::byte *>(const_cast<MaterialData *>(CB_ptr)) + CB_size);
+		volatile void *CB_ptr;
+		CheckHR(GPUBuffer->Map(0, &CD3DX12_RANGE(0, 0), const_cast<void **>(&CB_ptr)));
+		float (*const VB_ptr)[3] = reinterpret_cast<float (*)[3]>(reinterpret_cast<std::byte *>(const_cast<void *>(CB_ptr)) + CB_size);
 		float (*const NB_ptr)[3] = VB_ptr + vcount, (*const UVB_ptr)[2] = reinterpret_cast<float (*)[2]>(NB_ptr + vcount), (*const TGB_ptr)[2][3] = reinterpret_cast<float (*)[2][3]>(UVB_ptr + uvcount);
 		uint16_t (*IB_ptr)[3] = reinterpret_cast<uint16_t (*)[3]>(TGB_ptr + tgcount);
 

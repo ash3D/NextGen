@@ -8,7 +8,6 @@ namespace Materials
 
 #include "per-frame data.hlsli"
 #include "tonemap params.hlsli"
-#include "object3D materials common.hlsli"
 #include "object3D tex stuff.hlsli"
 #include "object3D VS 2 PS.hlsli"
 #include "normals.hlsli"
