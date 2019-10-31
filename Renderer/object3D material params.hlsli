@@ -2,14 +2,19 @@
 
 namespace Materials
 {
-	struct Flat
+	struct Common
+	{
+		float	roughness, f0;
+	};
+
+	struct Flat : Common
 	{
 		float3	albedo;
 	};
 
-	struct TV
+	struct TV : Common
 	{
-		float3	albedo;
 		float	TVBrighntess;
+		float3	albedo;
 	};
 }

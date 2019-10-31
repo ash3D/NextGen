@@ -64,6 +64,7 @@ namespace Renderer
 				AABB<3> aabb;
 				unsigned short int vcount, tricount;
 				bool doublesided;
+				float roughness, IOR;
 				const uint16_t (*tris)[3];
 				const float (*verts)[3], (*normals)[3];
 			};

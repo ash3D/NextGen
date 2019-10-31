@@ -9,14 +9,16 @@ namespace Materials
 
 #include "per-frame data.hlsli"
 #include "tonemap params.hlsli"
+#include "object3D material params.hlsli"
+#include "object3D tex stuff.hlsli"
 #include "object3D VS 2 PS.hlsli"
-#include "object3D generic material.hlsli"
 #include "glass.hlsli"
 #include "normals.hlsli"
 #include "lighting.hlsli"
 #include "HDR codec.hlsli"
 
-ConstantBuffer<Tonemapping::TonemapParams> tonemapParams : register(b0, space1);
+ConstantBuffer<Tonemapping::TonemapParams>	tonemapParams	: register(b0, space1);
+ConstantBuffer<Materials::Common>			materialParams	: register(b1, space1);
 
 float4 main(in XformedVertex_UV input, in bool front : SV_IsFrontFace) : SV_TARGET
 {
@@ -25,13 +27,14 @@ float4 main(in XformedVertex_UV input, in bool front : SV_IsFrontFace) : SV_TARG
 
 	input.viewDir = normalize(input.viewDir);
 	const float3 N = Normals::EvaluateSurfaceNormal(input.N, input.viewDir, front);
-	Materials::Attribs materialAttribs = Materials::EvaluateGenericMaterial(input.uv);
-	Materials::ApplyGlassMask(input.uv, materialAttribs.roughness, materialAttribs.f0);
+	const float3 albedo = SelectTexture(Materials::ALBEDO_MAP).Sample(SelectSampler(TextureSamplers::OBJ3D_ALBEDO_SAMPLER), input.uv);
+	float roughness = materialParams.roughness, f0 = materialParams.f0;
+	Materials::ApplyGlassMask(input.uv, roughness, f0);
 
-	const float2 shadeAALevel = Lighting::EvaluateAALevel(materialAttribs.roughness, N);
+	const float2 shadeAALevel = Lighting::EvaluateAALevel(roughness, N);
 	float3 shadeResult;
-#	define ShadeRegular				Lighting::Lit(materialAttribs.albedo, materialAttribs.roughness, materialAttribs.f0, N,																										input.viewDir, sun.dir, sun.irradiance)
-#	define ShadeAA(sampleOffset)	Lighting::Lit(materialAttribs.albedo, materialAttribs.roughness, materialAttribs.f0, Normals::EvaluateSurfaceNormal(EvaluateAttributeSnapped(input.N, sampleOffset), input.viewDir, front),	input.viewDir, sun.dir, sun.irradiance)
+#	define ShadeRegular				Lighting::Lit(albedo, roughness, f0, N,																										input.viewDir, sun.dir, sun.irradiance)
+#	define ShadeAA(sampleOffset)	Lighting::Lit(albedo, roughness, f0, Normals::EvaluateSurfaceNormal(EvaluateAttributeSnapped(input.N, sampleOffset), input.viewDir, front),	input.viewDir, sun.dir, sun.irradiance)
 #	include "shade SSAA.hlsli"
 
 	return EncodeHDR(shadeResult, tonemapParams.exposure);

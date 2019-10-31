@@ -3,6 +3,8 @@
 #include "tracked resource.inl"
 #include "GPU descriptor heap.h"
 #include "GPU texture sampler tables.h"
+#include "CB register.h"
+#include "fresnel.h"
 #include "shader bytecode.h"
 #include "config.h"
 #ifdef _MSC_VER
@@ -43,23 +45,34 @@ namespace
 			TV,
 		};
 
+		namespace CBRegister = Impl::CBRegister;
+
 		template<MaterialCategory>
 		struct CBLayout;
 
 		template<>
 		struct alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) alignas(D3D12_COMMONSHADER_CONSTANT_BUFFER_PARTIAL_UPDATE_EXTENTS_BYTE_ALIGNMENT) CBLayout<MaterialCategory::Flat>
 		{
-			float3	albedo;
+			float						roughness, f0;
+			CBRegister::AlignedRow<3>	albedo;
+		};
+
+		template<>
+		struct alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) alignas(D3D12_COMMONSHADER_CONSTANT_BUFFER_PARTIAL_UPDATE_EXTENTS_BYTE_ALIGNMENT) CBLayout<MaterialCategory::Tex>
+		{
+			float						roughness, f0;
 		};
 
 		template<>
 		struct alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) alignas(D3D12_COMMONSHADER_CONSTANT_BUFFER_PARTIAL_UPDATE_EXTENTS_BYTE_ALIGNMENT) CBLayout<MaterialCategory::TV>
 		{
-			float3	albedo;
-			float	TVBrighntess;
+			float						roughness, f0;
+			float						TVBrighntess;
+			CBRegister::AlignedRow<3>	albedo;
 		};
 
 		static_assert(is_standard_layout_v<CBLayout<MaterialCategory::Flat>>);
+		static_assert(is_standard_layout_v<CBLayout<MaterialCategory::Tex>>);
 		static_assert(is_standard_layout_v<CBLayout<MaterialCategory::TV>>);
 
 		// material backed by CB
@@ -129,40 +142,54 @@ private:
 		inline auto SamplerDescriptorTableOffset() const noexcept;
 	};
 
+	class MaterialStuffCommon
+	{
+		float roughness, f0;
+
+	public:
+		MaterialStuffCommon() = default;	// enables variant's default ctor
+		explicit MaterialStuffCommon(float roughness, float IOR);
+
+	public:
+		// TODO: use C++20 auto
+		template<class CBLayout>
+		inline void FillCB(volatile CBLayout *CB) const noexcept;
+	};
+
 	template<MaterialsReflection::MaterialCategory>
 	class MaterialStuffDispatch;
 
 	template<>
-	class MaterialStuffDispatch<MaterialsReflection::MaterialCategory::Flat>
+	class MaterialStuffDispatch<MaterialsReflection::MaterialCategory::Flat> : MaterialStuffCommon
 	{
 		float3 albedo;
 
 	public:
 		MaterialStuffDispatch() = default;	// enables variant's default ctor
-		explicit MaterialStuffDispatch(const float3 &albedo) noexcept :
-			albedo(albedo) {}
+		explicit MaterialStuffDispatch(float roughness, float IOR, const float3 &albedo) :
+			MaterialStuffCommon(roughness, IOR), albedo(albedo) {}
 
 	public:
 		inline void FillCB(volatile MaterialsReflection::CBLayout<MaterialsReflection::MaterialCategory::Flat> *CB) const noexcept;
 	};
 
 	template<>
-	class MaterialStuffDispatch<MaterialsReflection::MaterialCategory::Tex> : public TextureSetupStuff, public SamplerSetupStuff
+	class MaterialStuffDispatch<MaterialsReflection::MaterialCategory::Tex> : protected MaterialStuffCommon, protected TextureSetupStuff, protected SamplerSetupStuff
 	{
 	public:
-		explicit MaterialStuffDispatch(unsigned short int textureDescriptorTableOffset, bool tiled) noexcept :
-			TextureSetupStuff{ textureDescriptorTableOffset }, SamplerSetupStuff{ tiled } {}
+		explicit MaterialStuffDispatch(float roughness, float IOR, unsigned short int textureDescriptorTableOffset, bool tiled) :
+			MaterialStuffCommon(roughness, IOR), TextureSetupStuff{ textureDescriptorTableOffset }, SamplerSetupStuff{ tiled } {}
 	};
 
 	template<>
-	class MaterialStuffDispatch<MaterialsReflection::MaterialCategory::TV> : public TextureSetupStuff
+	class MaterialStuffDispatch<MaterialsReflection::MaterialCategory::TV> : MaterialStuffCommon, protected TextureSetupStuff
 	{
 		float3	albedo;
 		float	TVBrighntess;
 
 	public:
-		explicit MaterialStuffDispatch(const float3 &albedo, float TVBrighntess, unsigned short int textureDescriptorTableOffset) noexcept :
-			TextureSetupStuff{ textureDescriptorTableOffset }, albedo(albedo), TVBrighntess(TVBrighntess) {}
+		explicit MaterialStuffDispatch(float roughness, float IOR, const float3 &albedo, float TVBrighntess, unsigned short int textureDescriptorTableOffset) :
+			MaterialStuffCommon(roughness, IOR), TextureSetupStuff{ textureDescriptorTableOffset }, albedo(albedo), TVBrighntess(TVBrighntess) {}
 
 	public:
 		inline void FillCB(volatile MaterialsReflection::CBLayout<MaterialsReflection::MaterialCategory::TV> *CB) const noexcept;
@@ -186,9 +213,9 @@ private:
 
 public:
 	inline Subobject() = default;
-	inline Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, const float3 &albedo);
-	inline Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, unsigned short int textureDescriptorTableOffset, bool tiled);
-	inline Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO, const float3 &albedo, float TVBrighntess, unsigned short int textureDescriptorTableOffset);
+	inline Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, float roughness, float IOR, ID3D12PipelineState *PSO, const float3 &albedo);
+	inline Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, float roughness, float IOR, ID3D12PipelineState *PSO, unsigned short int textureDescriptorTableOffset, bool tiled);
+	inline Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, float roughness, float IOR, ID3D12PipelineState *PSO, const float3 &albedo, float TVBrighntess, unsigned short int textureDescriptorTableOffset);
 
 public:
 	inline unsigned int MaterialCBSize() const noexcept;
@@ -202,15 +229,28 @@ inline auto Impl::Object3D::Subobject::SamplerSetupStuff::SamplerDescriptorTable
 }
 
 #pragma region MaterialStuff
+Impl::Object3D::Subobject::MaterialStuffCommon::MaterialStuffCommon(float roughness, float IOR) : roughness(roughness), f0(Fresnel::F0(IOR))
+{
+}
+
+template<class CBLayout>
+inline void Impl::Object3D::Subobject::MaterialStuffCommon::FillCB(volatile CBLayout *CB) const noexcept
+{
+	CB->roughness = roughness;
+	CB->f0 = f0;
+}
+
 #pragma region Dispatch
 inline void Impl::Object3D::Subobject::MaterialStuffDispatch<MaterialsReflection::MaterialCategory::Flat>::FillCB(volatile MaterialsReflection::CBLayout<MaterialsReflection::MaterialCategory::Flat> *CB) const noexcept
 {
-	const_cast<float3 &>(CB->albedo) = albedo;
+	MaterialStuffCommon::FillCB(CB);
+	CB->albedo = albedo;
 }
 
 inline void Impl::Object3D::Subobject::MaterialStuffDispatch<MaterialsReflection::MaterialCategory::TV>::FillCB(volatile MaterialsReflection::CBLayout<MaterialsReflection::MaterialCategory::TV> *CB) const noexcept
 {
-	const_cast<float3 &>(CB->albedo) = albedo;
+	MaterialStuffCommon::FillCB(CB);
+	CB->albedo = albedo;
 	CB->TVBrighntess = TVBrighntess;
 }
 #pragma endregion
@@ -250,24 +290,24 @@ inline void Impl::Object3D::Subobject::MaterialStuff<cat>::Setup(ID3D12GraphicsC
 }
 #pragma endregion
 
-inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO,
+inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, float roughness, float IOR, ID3D12PipelineState *PSO,
 	const float3 &albedo) :
 	PSO(PSO), aabb(aabb), vcount(vcount), triOffset(triOffset), tricount(tricount),
-	materialStuff(in_place_type<MaterialStuff<MaterialsReflection::MaterialCategory::Flat>>, albedo)
+	materialStuff(in_place_type<MaterialStuff<MaterialsReflection::MaterialCategory::Flat>>, roughness, IOR, albedo)
 {
 }
 
-inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO,
+inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, float roughness, float IOR, ID3D12PipelineState *PSO,
 	unsigned short int textureDescriptorTableOffset, bool tiled) :
 	PSO(PSO), aabb(aabb), vcount(vcount), triOffset(triOffset), tricount(tricount),
-	materialStuff(in_place_type<MaterialStuff<MaterialsReflection::MaterialCategory::Tex>>, textureDescriptorTableOffset, tiled)
+	materialStuff(in_place_type<MaterialStuff<MaterialsReflection::MaterialCategory::Tex>>, roughness, IOR, textureDescriptorTableOffset, tiled)
 {
 }
 
-inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, ID3D12PipelineState *PSO,
+inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, float roughness, float IOR, ID3D12PipelineState *PSO,
 	const float3 &albedo, float TVBrighntess, unsigned short int textureDescriptorTableOffset) :
 	PSO(PSO), aabb(aabb), vcount(vcount), triOffset(triOffset), tricount(tricount),
-	materialStuff(in_place_type<MaterialStuff<MaterialsReflection::MaterialCategory::TV>>, albedo, TVBrighntess, textureDescriptorTableOffset)
+	materialStuff(in_place_type<MaterialStuff<MaterialsReflection::MaterialCategory::TV>>, roughness, IOR, albedo, TVBrighntess, textureDescriptorTableOffset)
 {
 }
 
@@ -577,7 +617,7 @@ Impl::Object3D::Object3D(unsigned short int subobjCount, const SubobjectDataCall
 	{
 		const auto curSubobjData = getSubobjectData(i);
 		const auto &curSubobjDataBase = ExtractBase(curSubobjData);
-		const auto commonArgs = make_tuple(cref(curSubobjDataBase.aabb), curSubobjDataBase.vcount, tricount, curSubobjDataBase.tricount);
+		const auto commonArgs = make_tuple(cref(curSubobjDataBase.aabb), curSubobjDataBase.vcount, tricount, curSubobjDataBase.tricount, curSubobjDataBase.roughness, curSubobjDataBase.IOR);
 
 		const class SubobjParser final
 		{
