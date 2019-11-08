@@ -460,6 +460,7 @@ further investigations needed, including other compilers
 			using std::decay_t;
 			using std::enable_if;
 			using std::enable_if_t;
+			using std::type_identity;
 			using std::conditional_t;
 			using std::result_of_t;
 			using std::plus;
@@ -991,8 +992,8 @@ further investigations needed, including other compilers
 
 					template<class DstSwizzleDesc, bool dstIsMatrix, class SrcSwizzleDesc, bool srcIsMatrix, unsigned int rowIdx, bool assign>
 					using DetectRowVsMatrixWARHazard = SwizzleWARHazardDetectHelper<
-						typename conditional_t<dstIsMatrix, enable_if<true, DstSwizzleDesc>, RowSwizzleDesc_2_MatrixSwizzleTable<DstSwizzleDesc, rowIdx>>::type,
-						typename conditional_t<srcIsMatrix, enable_if<true, SrcSwizzleDesc>, RowSwizzleDesc_2_MatrixSwizzleTable<SrcSwizzleDesc, rowIdx>>::type,
+						typename conditional_t<dstIsMatrix, type_identity<DstSwizzleDesc>, RowSwizzleDesc_2_MatrixSwizzleTable<DstSwizzleDesc, rowIdx>>::type,
+						typename conditional_t<srcIsMatrix, type_identity<SrcSwizzleDesc>, RowSwizzleDesc_2_MatrixSwizzleTable<SrcSwizzleDesc, rowIdx>>::type,
 						assign>;
 #endif
 
