@@ -24,7 +24,7 @@ namespace Renderer::GPUWorkSubmission
 #else
 			AppendRenderStage(packaged_task<RenderPipeline::PipelineStage()>([task = std::async(launch::deferred, forward<F>(f), forward<Args>(args)...).share()]() -> RenderPipeline::PipelineStage
 			{
-				return move(const_cast<remove_cv_t<remove_reference_t<decltype(task.get())>> &>(task.get()));
+				return move(const_cast<remove_cvref_t<decltype(task.get())> &>(task.get()));
 			}));
 #endif
 #else
