@@ -2882,10 +2882,8 @@ public:
 
 public:
 	friend constexpr auto operator <=>(const SegmentIterator left, const SegmentIterator right) noexcept { return left.segIdx <=> right.segIdx; }
-#if defined _MSC_VER && _MSC_VER >= 1922 && _MSC_VER <= 1923
 	friend constexpr bool operator ==(const SegmentIterator left, const SegmentIterator right) noexcept { return left.segIdx == right.segIdx; }
 	friend constexpr bool operator !=(const SegmentIterator left, const SegmentIterator right) noexcept { return left.segIdx != right.segIdx; }
-#endif
 
 public:
 	value_type operator *() const;
