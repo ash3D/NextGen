@@ -30,7 +30,7 @@ namespace Renderer
 	public:
 		void Refit(const Math::VectorMath::vector<float, dimension> &vert), Refit(const AABB &src);
 		void Transform(const Math::VectorMath::matrix<float, dimension + 1, dimension> &xform);
-		inline auto Center() const { return (min + max) * .5f; }
+		inline Math::VectorMath::vector<float, dimension> Center() const;
 		inline auto Size() const { return max - min; }
 		inline float Measure() const;	// square for 2D, volume for 3D
 	};

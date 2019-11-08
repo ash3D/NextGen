@@ -2,6 +2,7 @@
 
 #include "AABB.h"
 #include <algorithm>
+#include <numeric>
 
 template<unsigned dimension>
 inline void Renderer::AABB<dimension>::Refit(const Math::VectorMath::vector<float, dimension> &min, const Math::VectorMath::vector<float, dimension> &max)
@@ -42,6 +43,27 @@ void Renderer::AABB<dimension>::Transform(const Math::VectorMath::matrix<float, 
 			target += xformedAxis[coordIdx];
 		}
 	}
+}
+
+template<>
+inline auto Renderer::AABB<2>::Center() const -> HLSL::float2
+{
+	return
+	{
+		std::midpoint<float>(min.x, max.x),
+		std::midpoint<float>(min.y, max.y)
+	};
+}
+
+template<>
+inline auto Renderer::AABB<3>::Center() const -> HLSL::float3
+{
+	return
+	{
+		std::midpoint<float>(min.x, max.x),
+		std::midpoint<float>(min.y, max.y),
+		std::midpoint<float>(min.z, max.z)
+	};
 }
 
 template<>
