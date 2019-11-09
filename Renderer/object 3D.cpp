@@ -728,10 +728,8 @@ Impl::Object3D::Object3D(unsigned short int subobjCount, const SubobjectDataCall
 		{
 			const auto VBComplexity = [&getSubobjectData](unsigned short int i)
 			{
-				// use C++20 templated lambda
-				return visit([](const auto &subobjectData)
+				return visit([]<class SrcData>(const SrcData &subobjectData)
 					{
-						typedef remove_cvref_t<decltype(subobjectData)> SrcData;
 						unsigned complexity = 0;
 						if constexpr (is_base_of_v<SubobjectDataUV, SrcData>)
 							complexity++;
@@ -812,10 +810,8 @@ Impl::Object3D::Object3D(unsigned short int subobjCount, const SubobjectDataCall
 			curSubobj.FillMaterialCB(CB_ptr);
 			memcpy(VB_ptr + curSubobj.vOffset, curSubobjDataBase.verts, curSubobjDataBase.vcount * sizeof *curSubobjDataBase.verts);
 			memcpy(NB_ptr + curSubobj.vOffset, curSubobjDataBase.normals, curSubobjDataBase.vcount * sizeof *curSubobjDataBase.normals);
-			// use C++20 templated lambda
-			visit([UVB_ptr, TGB_ptr, &curSubobj](const auto &decodedSubobjData)
+			visit([UVB_ptr, TGB_ptr, &curSubobj]<class DecodedSubobjData>(const DecodedSubobjData &decodedSubobjData)
 				{
-					typedef remove_cvref_t<decltype(decodedSubobjData)> DecodedSubobjData;
 					if constexpr (is_base_of_v<SubobjectDataUV, DecodedSubobjData>)
 						memcpy(UVB_ptr + curSubobj.vOffset, decodedSubobjData.uv, decodedSubobjData.vcount * sizeof *decodedSubobjData.uv);
 					if constexpr (is_same_v<DecodedSubobjData, SubobjectData<SubobjectType::Advanced>>)
