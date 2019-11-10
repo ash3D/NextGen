@@ -34,7 +34,7 @@ static TrackedResource<ID3D12DescriptorHeap> CreateHeap(UINT size)
 	};
 	CheckHR(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(heap.GetAddressOf())));
 	NameObjectF(heap.Get(), L"GPU descriptor heap [%lu] (heap start CPU address: %p)", version++, heap->GetCPUDescriptorHandleForHeapStart());
-	return move(heap);
+	return heap;
 }
 
 TrackedResource<ID3D12DescriptorHeap> GPUDescriptorHeap::Impl::PreallocateHeap()

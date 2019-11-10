@@ -236,7 +236,7 @@ ComPtr<ID3D12PipelineState> TerrainVectorQuad::MainRenderStage::CreateCullPassPS
 	ComPtr<ID3D12PipelineState> result;
 	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result.GetAddressOf())));
 	NameObject(result.Get(), L"terrain occlusion query PSO");
-	return move(result);
+	return result;
 }
 
 void TerrainVectorQuad::MainRenderStage::CullPassPre(CmdListPool::CmdList &cmdList) const
@@ -691,7 +691,7 @@ ComPtr<ID3D12PipelineState> TerrainVectorQuad::DebugRenderStage::CreateAABB_PSO(
 	ComPtr<ID3D12PipelineState> result;
 	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result.GetAddressOf())));
 	NameObject(result.Get(), L"terrain AABB visualization PSO");
-	return move(result);
+	return result;
 }
 
 void TerrainVectorQuad::DebugRenderStage::AABBPassPre(CmdListPool::CmdList &cmdList) const

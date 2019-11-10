@@ -193,7 +193,7 @@ ComPtr<ID3D12PipelineState> Flat::CreatePSO()
 	ComPtr<ID3D12PipelineState> result;
 	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result.GetAddressOf())));
 	NameObject(result.Get(), L"terrain flat material PSO");
-	return move(result);
+	return result;
 }
 
 inline void Flat::FillRootParams(CD3DX12_ROOT_PARAMETER1 rootParams[])
@@ -297,7 +297,7 @@ ComPtr<ID3D12PipelineState> Textured::CreatePSO()
 	ComPtr<ID3D12PipelineState> result;
 	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result.GetAddressOf())));
 	NameObject(result.Get(), L"terrain textured material PSO");
-	return move(result);
+	return result;
 }
 
 // 1 call site
@@ -398,7 +398,7 @@ ComPtr<ID3D12PipelineState> Standard::CreatePSO()
 	ComPtr<ID3D12PipelineState> result;
 	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result.GetAddressOf())));
 	NameObject(result.Get(), L"terrain standard material PSO");
-	return move(result);
+	return result;
 }
 
 // 1 call site
@@ -516,7 +516,7 @@ ComPtr<ID3D12PipelineState> Extended::CreatePSO()
 	ComPtr<ID3D12PipelineState> result;
 	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result.GetAddressOf())));
 	NameObject(result.Get(), L"terrain extended material PSO");
-	return move(result);
+	return result;
 }
 
 // 1 call site

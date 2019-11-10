@@ -74,7 +74,7 @@ ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNA
 	CheckHR(hr);
 	CheckHR(device->CreateRootSignature(0, sig->GetBufferPointer(), sig->GetBufferSize(), IID_PPV_ARGS(result.GetAddressOf())));
 	NameObject(result.Get(), name);
-	return move(result);
+	return result;
 }
 
 static auto CreateFactory()

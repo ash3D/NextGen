@@ -75,7 +75,7 @@ inline PipelineItem IRenderStage::IterateRenderPass(unsigned int &length, const 
 		// not const to allow move on return
 		PipelineItem result{ GetRenderRange(curRangeEnd) };
 		curRangeBegin = curRangeEnd;
-		return move(result);
+		return result;
 	}
 
 	return PipelineItem{ nullptr };

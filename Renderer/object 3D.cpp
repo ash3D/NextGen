@@ -560,7 +560,7 @@ auto Impl::Object3D::CreatePSOs() -> decltype(PSOs)
 	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result[true].advanced[(NORMAL_MAP_FLAG | GLASS_MASK_FLAG) - 1].GetAddressOf())));
 	NameObject(result[true].advanced[(NORMAL_MAP_FLAG | GLASS_MASK_FLAG) - 1].Get(), L"object 3D [doublesided][normal map][glass mask] PSO");
 
-	return move(result);
+	return result;
 }
 
 namespace
@@ -966,5 +966,5 @@ auto Impl::Object3D::CreateBundle(const decltype(subobjects) &subobjects, unsign
 		CheckHR(bundle.second->Close());
 	}
 
-	return move(bundle);
+	return bundle;
 }

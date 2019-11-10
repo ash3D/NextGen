@@ -101,7 +101,7 @@ ComPtr<ID3D12PipelineState> Impl::World::MainRenderStage::CreateXformAABB_PSO()
 	ComPtr<ID3D12PipelineState> result;
 	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result.GetAddressOf())));
 	NameObject(result.Get(), L"Xform 3D AABB PSO");
-	return move(result);
+	return result;
 }
 
 ComPtr<ID3D12RootSignature> Impl::World::MainRenderStage::CreateCullPassRootSig()
@@ -209,7 +209,7 @@ auto Impl::World::MainRenderStage::CreateCullPassPSOs() -> decltype(cullPassPSOs
 	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result[1].GetAddressOf())));
 	NameObject(result[1].Get(), L"world objects second occlusion query pass PSO");
 
-	return move(result);
+	return result;
 }
 
 void Impl::World::MainRenderStage::XformAABBPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd) const
@@ -803,7 +803,7 @@ auto Impl::World::DebugRenderStage::CreateAABB_PSOs() -> decltype(AABB_PSOs)
 	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result[1].GetAddressOf())));
 	NameObject(result[1].Get(), L"world 3D objects visible AABB visualization PSO");
 
-	return move(result);
+	return result;
 }
 
 void Impl::World::DebugRenderStage::AABBPassPre(CmdListPool::CmdList &cmdList) const
@@ -957,7 +957,7 @@ ComPtr<ID3D12Resource> Impl::World::CreateGlobalGPUBuffer()
 		buffer->Unmap(0, &range);
 	}
 
-	return move(buffer);
+	return buffer;
 }
 
 auto Impl::World::MapGlobalGPUBuffer(const D3D12_RANGE *readRange) -> volatile GlobalGPUBufferData *

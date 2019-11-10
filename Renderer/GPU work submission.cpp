@@ -122,6 +122,7 @@ namespace
 		CheckHR(target->Close());
 		target.MarkSuspended(batch.suspended);
 
+		// C++20 implicit move?
 		return move(target);
 	}
 
