@@ -26,7 +26,7 @@ inline float3 Lit(float3 albedo, float roughness, float F0, Normals::Nn Nn, floa
 	return Lighting::Lit(albedo, roughness, F0, Nn.N, Nn.n, viewDir, lightDir, lightIrradiance);
 }
 
-float4 main(in XformedVertex_UV_TG input, in bool front : SV_IsFrontFace) : SV_TARGET
+float4 main(in XformedVertexBump input, in bool front : SV_IsFrontFace) : SV_TARGET
 {
 	//using namespace Lighting;
 	//using namespace Materials;

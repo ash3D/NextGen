@@ -14,9 +14,9 @@
 
 namespace Shaders
 {
-#	include "object3D_VS.csh"
-#	include "object3D_VS_UV.csh"
-#	include "object3D_VS_UV_TG.csh"
+#	include "object3DFlat_VS.csh"
+#	include "object3DTex_VS.csh"
+#	include "object3DBump_VS.csh"
 #	include "object3DFlat_PS.csh"
 #	include "object3DTex_PS.csh"
 #	include "object3DAlphatest_PS.csh"
@@ -479,7 +479,7 @@ auto Impl::Object3D::CreatePSOs() -> decltype(PSOs)
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
 	{
 		.pRootSignature			= rootSig.Get(),
-		.VS						= ShaderBytecode(Shaders::object3D_VS),
+		.VS						= ShaderBytecode(Shaders::object3DFlat_VS),
 		.PS						= ShaderBytecode(Shaders::object3DFlat_PS),
 		.BlendState				= CD3DX12_BLEND_DESC(D3D12_DEFAULT),
 		.SampleMask				= UINT_MAX,
@@ -503,7 +503,7 @@ auto Impl::Object3D::CreatePSOs() -> decltype(PSOs)
 	NameObject(result[true].flat.Get(), L"object 3D [doublesided][flat] PSO");
 
 	PSO_desc.InputLayout.NumElements = VBDECLSIZE_TEX;
-	PSO_desc.VS = ShaderBytecode(Shaders::object3D_VS_UV);
+	PSO_desc.VS = ShaderBytecode(Shaders::object3DTex_VS);
 	PSO_desc.PS = ShaderBytecode(Shaders::object3DTex_PS);
 	PSO_desc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
 	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result[false].tex[false].GetAddressOf())));
@@ -541,7 +541,7 @@ auto Impl::Object3D::CreatePSOs() -> decltype(PSOs)
 	NameObject(result[true].advanced[GLASS_MASK_FLAG - 1].Get(), L"object 3D [doublesided][glass mask] PSO");
 
 	PSO_desc.InputLayout.NumElements = VBDECLSIZE_FULL;
-	PSO_desc.VS = ShaderBytecode(Shaders::object3D_VS_UV_TG);
+	PSO_desc.VS = ShaderBytecode(Shaders::object3DBump_VS);
 	PSO_desc.PS = ShaderBytecode(Shaders::object3DBump_PS);
 	PSO_desc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
 	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result[false].advanced[NORMAL_MAP_FLAG - 1].GetAddressOf())));

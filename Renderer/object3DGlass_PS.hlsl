@@ -20,7 +20,7 @@ namespace Materials
 ConstantBuffer<Tonemapping::TonemapParams>	tonemapParams	: register(b0, space1);
 ConstantBuffer<Materials::Common>			materialParams	: register(b1, space1);
 
-float4 main(in XformedVertex_UV input, in bool front : SV_IsFrontFace) : SV_TARGET
+float4 main(in XformedVertexTex input, in bool front : SV_IsFrontFace) : SV_TARGET
 {
 	//using namespace Lighting;
 	//using namespace Materials;

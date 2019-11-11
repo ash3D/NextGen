@@ -22,11 +22,11 @@ static const float alphaThreshold = .5f;
 
 #if 1
 // workaround for SM 6.0
-float4 main(in XformedVertex_UV input, in bool front : SV_IsFrontFace, out uint sampleMask : SV_Coverage, in uint coverageMask : SV_Coverage) : SV_TARGET
+float4 main(in XformedVertexTex input, in bool front : SV_IsFrontFace, out uint sampleMask : SV_Coverage, in uint coverageMask : SV_Coverage) : SV_TARGET
 {
 	sampleMask = coverageMask;
 #else
-float4 main(in XformedVertex_UV input, in bool front : SV_IsFrontFace, inout uint sampleMask : SV_Coverage) : SV_TARGET
+float4 main(in XformedVertexTex input, in bool front : SV_IsFrontFace, inout uint sampleMask : SV_Coverage) : SV_TARGET
 {
 #endif
 	//using namespace Lighting;

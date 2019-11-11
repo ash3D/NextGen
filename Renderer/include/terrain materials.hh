@@ -111,7 +111,7 @@ namespace Renderer::TerrainMaterials
 		virtual void FinishSetup(ID3D12GraphicsCommandList4 *target) const override;
 	};
 
-	class Textured final : public Impl::TexStuff<Flat>
+	class Masked final : public Impl::TexStuff<Flat>
 	{
 		template<class>
 		friend class Misc::AllocatorProxyAdaptor;
@@ -125,8 +125,8 @@ namespace Renderer::TerrainMaterials
 		const Renderer::Impl::TrackedResource<ID3D12Resource> tex;
 
 	private:
-		explicit Textured(const float (&albedoFactor)[3], const Texture &tex, float texScale, const char materialName[]);
-		~Textured();
+		explicit Masked(const float (&albedoFactor)[3], const Texture &tex, float texScale, const char materialName[]);
+		~Masked();
 
 	public:
 		static std::shared_ptr<Interface> __cdecl Make(const float (&albedo)[3], const Texture &tex, float texScale, const char materialName[]);

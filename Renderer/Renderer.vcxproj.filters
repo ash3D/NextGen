@@ -271,13 +271,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="vectorLayerVS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
     <FxCompile Include="AABB_2D.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="object3D_VS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="AABB_3D_xform.hlsl">
@@ -301,13 +295,7 @@
     <FxCompile Include="tonemapTextureReduction.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="vectorLayerVS_UV.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
     <FxCompile Include="vectorLayerFlatPS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="vectorLayerTexPS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="vectorLayerStdPS.hlsl">
@@ -337,10 +325,22 @@
     <FxCompile Include="object3DTV_PS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="object3D_VS_UV.hlsl">
+    <FxCompile Include="vectorLayerFlatVS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="object3D_VS_UV_TG.hlsl">
+    <FxCompile Include="vectorLayerTexVS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="vectorLayerMaskPS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="object3DFlat_VS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="object3DTex_VS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="object3DBump_VS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>

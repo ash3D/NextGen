@@ -13,10 +13,10 @@
 
 namespace Shaders
 {
-#	include "vectorLayerVS.csh"
-#	include "vectorLayerVS_UV.csh"
+#	include "vectorLayerFlatVS.csh"
+#	include "vectorLayerTexVS.csh"
 #	include "vectorLayerFlatPS.csh"
-#	include "vectorLayerTexPS.csh"
+#	include "vectorLayerMaskPS.csh"
 #	include "vectorLayerStdPS.csh"
 #	include "vectorLayerExtPS.csh"
 }
@@ -174,7 +174,7 @@ ComPtr<ID3D12PipelineState> Flat::CreatePSO()
 	const D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
 	{
 		.pRootSignature			= rootSig.Get(),
-		.VS						= ShaderBytecode(Shaders::vectorLayerVS),
+		.VS						= ShaderBytecode(Shaders::vectorLayerFlatVS),
 		.PS						= ShaderBytecode(Shaders::vectorLayerFlatPS),
 		.BlendState				= CD3DX12_BLEND_DESC(D3D12_DEFAULT),
 		.SampleMask				= UINT_MAX,
@@ -218,15 +218,15 @@ shared_ptr<Interface> Flat::Make(const float (&albedo)[3])
 	return allocate_shared<Flat>(AllocatorProxy<Flat>(), albedo);
 }
 
-// 'inline' for (hopefully) devirtualized call from 'Textured', for common vtable dispatch path compiler still have to generate out-of-line body code
+// 'inline' for (hopefully) devirtualized call from 'TexStuff', for common vtable dispatch path compiler still have to generate out-of-line body code
 inline void Flat::FinishSetup(ID3D12GraphicsCommandList4 *cmdList) const
 {
 	cmdList->SetGraphicsRoot32BitConstants(ROOT_PARAM_ALBEDO, size(albedo), albedo, 0);
 }
 #pragma endregion
 
-#pragma region Textured
-ComPtr<ID3D12RootSignature> Textured::CreateRootSig()
+#pragma region Masked
+ComPtr<ID3D12RootSignature> Masked::CreateRootSig()
 {
 	namespace TextureSamplers = Impl::Descriptors::TextureSamplers;
 	// desc tables lifetime must last up to create call so if it gets filled in helper function (FillRootParams) it must be static
@@ -238,10 +238,10 @@ ComPtr<ID3D12RootSignature> Textured::CreateRootSig()
 	rootParams[ROOT_PARAM_QUAD_TEXGEN_REDUCTION].InitAsConstants(2, 0, 2, D3D12_SHADER_VISIBILITY_VERTEX);
 	rootParams[ROOT_PARAM_TEXTURE_SCALE].InitAsConstants(1, 1, 2, D3D12_SHADER_VISIBILITY_VERTEX);
 	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(size(rootParams), rootParams, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-	return CreateRootSignature(sigDesc, L"terrain textured material root signature");
+	return CreateRootSignature(sigDesc, L"terrain masked material root signature");
 }
 
-ComPtr<ID3D12PipelineState> Textured::CreatePSO()
+ComPtr<ID3D12PipelineState> Masked::CreatePSO()
 {
 	const CD3DX12_RASTERIZER_DESC rasterDesc
 	(
@@ -278,8 +278,8 @@ ComPtr<ID3D12PipelineState> Textured::CreatePSO()
 	const D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
 	{
 		.pRootSignature			= rootSig.Get(),
-		.VS						= ShaderBytecode(Shaders::vectorLayerVS_UV),
-		.PS						= ShaderBytecode(Shaders::vectorLayerTexPS),
+		.VS						= ShaderBytecode(Shaders::vectorLayerTexVS),
+		.PS						= ShaderBytecode(Shaders::vectorLayerMaskPS),
 		.BlendState				= CD3DX12_BLEND_DESC(D3D12_DEFAULT),
 		.SampleMask				= UINT_MAX,
 		.RasterizerState		= rasterDesc,
@@ -296,15 +296,15 @@ ComPtr<ID3D12PipelineState> Textured::CreatePSO()
 
 	ComPtr<ID3D12PipelineState> result;
 	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result.GetAddressOf())));
-	NameObject(result.Get(), L"terrain textured material PSO");
+	NameObject(result.Get(), L"terrain masked material PSO");
 	return result;
 }
 
 // 1 call site
 #if defined _MSC_VER && _MSC_VER <= 1923
-inline Textured::Textured(const float (&albedoFactor)[3], const Renderer::Texture &tex, float texScale, const char materialName[]) :
+inline Masked::Masked(const float (&albedoFactor)[3], const Renderer::Texture &tex, float texScale, const char materialName[]) :
 #else
-inline Textured::Textured(const float (&albedoFactor)[3], const Texture &tex, float texScale, const char materialName[]) :
+inline Masked::Masked(const float (&albedoFactor)[3], const Texture &tex, float texScale, const char materialName[]) :
 #endif
 	TexStuff(texScale, 1, materialName, albedoFactor, rootSig, PSO), tex(tex.Acquire())
 {
@@ -313,15 +313,15 @@ inline Textured::Textured(const float (&albedoFactor)[3], const Texture &tex, fl
 	device->CreateShaderResourceView(this->tex.Get(), NULL, GetCPUStage()->GetCPUDescriptorHandleForHeapStart());
 }
 
-Textured::~Textured() = default;
+Masked::~Masked() = default;
 
 #if defined _MSC_VER && _MSC_VER <= 1923
-shared_ptr<Interface> Textured::Make(const float (&albedo)[3], const Renderer::Texture &tex, float texScale, const char materialName[])
+shared_ptr<Interface> Masked::Make(const float (&albedo)[3], const Renderer::Texture &tex, float texScale, const char materialName[])
 #else
-shared_ptr<Interface> Textured::Make(const float (&albedo)[3], const Texture &tex, float texScale, const char materialName[])
+shared_ptr<Interface> Masked::Make(const float (&albedo)[3], const Texture &tex, float texScale, const char materialName[])
 #endif
 {
-	return allocate_shared<Textured>(AllocatorProxy<Flat>(), albedo, tex, texScale, materialName);
+	return allocate_shared<Masked>(AllocatorProxy<Flat>(), albedo, tex, texScale, materialName);
 }
 #pragma endregion
 
@@ -379,7 +379,7 @@ ComPtr<ID3D12PipelineState> Standard::CreatePSO()
 	const D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
 	{
 		.pRootSignature			= rootSig.Get(),
-		.VS						= ShaderBytecode(Shaders::vectorLayerVS_UV),
+		.VS						= ShaderBytecode(Shaders::vectorLayerTexVS),
 		.PS						= ShaderBytecode(Shaders::vectorLayerStdPS),
 		.BlendState				= CD3DX12_BLEND_DESC(D3D12_DEFAULT),
 		.SampleMask				= UINT_MAX,
@@ -497,7 +497,7 @@ ComPtr<ID3D12PipelineState> Extended::CreatePSO()
 	const D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
 	{
 		.pRootSignature			= rootSig.Get(),
-		.VS						= ShaderBytecode(Shaders::vectorLayerVS_UV),
+		.VS						= ShaderBytecode(Shaders::vectorLayerTexVS),
 		.PS						= ShaderBytecode(Shaders::vectorLayerExtPS),
 		.BlendState				= CD3DX12_BLEND_DESC(D3D12_DEFAULT),
 		.SampleMask				= UINT_MAX,

@@ -18,7 +18,7 @@ float3 XformOrthoUniform(float3 vec)
 	return mul(mul(mul(vec, worldXform), terrainWorldXform), viewXform);
 }
 
-XformedVertex VS(in SrcVertex input, out float4 xformedPos : SV_POSITION, out float height : SV_ClipDistance)
+XformedVertex Flat_VS(in SrcVertex input, out float4 xformedPos : SV_POSITION, out float height : SV_ClipDistance)
 {
 	const float3 worldPos = mul(float4(mul(input.pos, worldXform), 1.f), terrainWorldXform);
 	height = worldPos.z;	// do not render anything under terrain

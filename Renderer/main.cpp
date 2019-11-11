@@ -359,7 +359,7 @@ ComPtr<ID3D12RootSignature>
 	TerrainVectorQuad::MainRenderStage::cullPassRootSig								= Try(TerrainVectorQuad::MainRenderStage::CreateCullPassRootSig, "terrain occlusion query root signature"),
 	TerrainVectorQuad::DebugRenderStage::AABB_rootSig								= Try(TerrainVectorQuad::DebugRenderStage::CreateAABB_RootSig, "terrain AABB visualization root signature"),
 	TerrainMaterials::Flat::rootSig													= Try(TerrainMaterials::Flat::CreateRootSig, "terrain flat material root signature"),
-	TerrainMaterials::Textured::rootSig												= Try(TerrainMaterials::Textured::CreateRootSig, "terrain textured material root signature"),
+	TerrainMaterials::Masked::rootSig												= Try(TerrainMaterials::Masked::CreateRootSig, "terrain masked material root signature"),
 	TerrainMaterials::Standard::rootSig												= Try(TerrainMaterials::Standard::CreateRootSig, "terrain standard material root signature"),
 	TerrainMaterials::Extended::rootSig												= Try(TerrainMaterials::Extended::CreateRootSig, "terrain extended material root signature"),
 	World::MainRenderStage::xformAABB_rootSig										= Try(World::MainRenderStage::CreateXformAABB_RootSig, "Xform 3D AABB root signature"),
@@ -373,7 +373,7 @@ ComPtr<ID3D12PipelineState>
 	TerrainVectorQuad::MainRenderStage::cullPassPSO									= Try(TerrainVectorQuad::MainRenderStage::CreateCullPassPSO, "terrain occlusion query PSO"),
 	TerrainVectorQuad::DebugRenderStage::AABB_PSO									= Try(TerrainVectorQuad::DebugRenderStage::CreateAABB_PSO, "terrain AABB visualization PSO"),
 	TerrainMaterials::Flat::PSO														= Try(TerrainMaterials::Flat::CreatePSO, "terrain flat material PSO"),
-	TerrainMaterials::Textured::PSO													= Try(TerrainMaterials::Textured::CreatePSO, "terrain textured material PSO"),
+	TerrainMaterials::Masked::PSO													= Try(TerrainMaterials::Masked::CreatePSO, "terrain masked material PSO"),
 	TerrainMaterials::Standard::PSO													= Try(TerrainMaterials::Standard::CreatePSO, "terrain standard material PSO"),
 	TerrainMaterials::Extended::PSO													= Try(TerrainMaterials::Extended::CreatePSO, "terrain extended material PSO"),
 	World::MainRenderStage::xformAABB_PSO											= Try(World::MainRenderStage::CreateXformAABB_PSO, "Xform 3D AABB PSO");
@@ -452,11 +452,11 @@ extern void __cdecl InitRenderer()
 		TerrainVectorQuad::MainRenderStage::cullPassPSO		= TerrainVectorQuad::MainRenderStage::CreateCullPassPSO();
 		TerrainVectorQuad::DebugRenderStage::AABB_PSO		= TerrainVectorQuad::DebugRenderStage::CreateAABB_PSO();
 		TerrainMaterials::Flat::rootSig						= TerrainMaterials::Flat::CreateRootSig();
-		TerrainMaterials::Textured::rootSig					= TerrainMaterials::Textured::CreateRootSig();
+		TerrainMaterials::Masked::rootSig					= TerrainMaterials::Masked::CreateRootSig();
 		TerrainMaterials::Standard::rootSig					= TerrainMaterials::Standard::CreateRootSig();
 		TerrainMaterials::Extended::rootSig					= TerrainMaterials::Extended::CreateRootSig();
 		TerrainMaterials::Flat::PSO							= TerrainMaterials::Flat::CreatePSO();
-		TerrainMaterials::Textured::PSO						= TerrainMaterials::Textured::CreatePSO();
+		TerrainMaterials::Masked::PSO						= TerrainMaterials::Masked::CreatePSO();
 		TerrainMaterials::Standard::PSO						= TerrainMaterials::Standard::CreatePSO();
 		TerrainMaterials::Extended::PSO						= TerrainMaterials::Extended::CreatePSO();
 		World::MainRenderStage::xformAABB_rootSig			= World::MainRenderStage::CreateXformAABB_RootSig();

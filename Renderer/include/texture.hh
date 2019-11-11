@@ -17,7 +17,7 @@ namespace Renderer
 
 	namespace TerrainMaterials
 	{
-		class Textured;
+		class Masked;
 		class Standard;
 		class Extended;
 	}
@@ -74,7 +74,7 @@ namespace Renderer
 
 	class Texture : public Impl::Texture
 	{
-		friend class TerrainMaterials::Textured;
+		friend class TerrainMaterials::Masked;
 		friend class TerrainMaterials::Standard;
 		friend class TerrainMaterials::Extended;
 		friend class Impl::Object3D;
