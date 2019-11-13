@@ -12,7 +12,7 @@ namespace Materials
 	SamplerState TV_sampler : register(s0), samplers[TextureSamplers::OBJ3D_COMMON_SAMPLERS_COUNT * 2] : register(s1);
 	Texture2D textures[] : register(t0);
 
-	cbuffer Tex : register(b2, space1)
+	cbuffer Tex : register(b1, space1)
 	{
 		uint descriptorTablesOffsets;	// packed [31..16] - sampler, [15..0] - tex
 

@@ -14,7 +14,7 @@ namespace Materials
 
 	struct TV : Common
 	{
-		float	TVBrighntess;
+		float	aspectRatio, TVBrighntess;
 		float3	albedo;
 	};
 }

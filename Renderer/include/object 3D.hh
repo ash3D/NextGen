@@ -101,7 +101,7 @@ namespace Renderer
 			template<>
 			struct SubobjectData<SubobjectType::TV> : SubobjectDataUV
 			{
-				float albedo[3], brighntess;
+				float albedo[3], brighntess, aspectRatio;
 				Renderer::Texture screen;
 			};
 

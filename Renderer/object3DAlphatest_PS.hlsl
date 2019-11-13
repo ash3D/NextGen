@@ -7,16 +7,16 @@ namespace Materials
 }
 
 #include "per-frame data.hlsli"
-#include "tonemap params.hlsli"
-#include "object3D material params.hlsli"
-#include "object3D tex stuff.hlsli"
 #include "object3D VS 2 PS.hlsli"
+#include "object3D tex stuff.hlsli"
+#include "object3D material params.hlsli"
+#include "tonemap params.hlsli"
 #include "normals.hlsli"
 #include "lighting.hlsli"
 #include "HDR codec.hlsli"
 
-ConstantBuffer<Tonemapping::TonemapParams>	tonemapParams	: register(b0, space1);
-ConstantBuffer<Materials::Common>			materialParams	: register(b1, space1);
+ConstantBuffer<Materials::Common>			materialParams	: register(b0, space1);
+ConstantBuffer<Tonemapping::TonemapParams>	tonemapParams	: register(b0, space2);
 
 static const float alphaThreshold = .5f;
 

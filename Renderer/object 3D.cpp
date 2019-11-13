@@ -16,6 +16,7 @@ namespace Shaders
 {
 #	include "object3DFlat_VS.csh"
 #	include "object3DTex_VS.csh"
+#	include "object3DTV_VS.csh"
 #	include "object3DBump_VS.csh"
 #	include "object3DFlat_PS.csh"
 #	include "object3DTex_PS.csh"
@@ -67,7 +68,7 @@ namespace
 		struct alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) alignas(D3D12_COMMONSHADER_CONSTANT_BUFFER_PARTIAL_UPDATE_EXTENTS_BYTE_ALIGNMENT) CBLayout<MaterialCategory::TV>
 		{
 			float						roughness, f0;
-			float						TVBrighntess;
+			float						aspectRatio, TVBrighntess;
 			CBRegister::AlignedRow<3>	albedo;
 		};
 
@@ -185,11 +186,11 @@ private:
 	class MaterialStuffDispatch<MaterialsReflection::MaterialCategory::TV> : MaterialStuffCommon, protected TextureSetupStuff
 	{
 		float3	albedo;
-		float	TVBrighntess;
+		float	TVBrighntess, aspectRatio;
 
 	public:
-		explicit MaterialStuffDispatch(float roughness, float IOR, const float3 &albedo, float TVBrighntess, unsigned short int textureDescriptorTableOffset) :
-			MaterialStuffCommon(roughness, IOR), TextureSetupStuff{ textureDescriptorTableOffset }, albedo(albedo), TVBrighntess(TVBrighntess) {}
+		explicit MaterialStuffDispatch(float roughness, float IOR, const float3 &albedo, float TVBrighntess, float aspectRatio, unsigned short int textureDescriptorTableOffset) :
+			MaterialStuffCommon(roughness, IOR), TextureSetupStuff{ textureDescriptorTableOffset }, albedo(albedo), TVBrighntess(TVBrighntess), aspectRatio(aspectRatio) {}
 
 	public:
 		inline void FillCB(volatile MaterialsReflection::CBLayout<MaterialsReflection::MaterialCategory::TV> *CB) const noexcept;
@@ -215,7 +216,7 @@ public:
 	inline Subobject() = default;
 	inline Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, float roughness, float IOR, ID3D12PipelineState *PSO, const float3 &albedo);
 	inline Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, float roughness, float IOR, ID3D12PipelineState *PSO, unsigned short int textureDescriptorTableOffset, bool tiled);
-	inline Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, float roughness, float IOR, ID3D12PipelineState *PSO, const float3 &albedo, float TVBrighntess, unsigned short int textureDescriptorTableOffset);
+	inline Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, float roughness, float IOR, ID3D12PipelineState *PSO, const float3 &albedo, float TVBrighntess, float aspectRatio, unsigned short int textureDescriptorTableOffset);
 
 public:
 	inline unsigned int MaterialCBSize() const noexcept;
@@ -250,8 +251,9 @@ inline void Impl::Object3D::Subobject::MaterialStuffDispatch<MaterialsReflection
 inline void Impl::Object3D::Subobject::MaterialStuffDispatch<MaterialsReflection::MaterialCategory::TV>::FillCB(volatile MaterialsReflection::CBLayout<MaterialsReflection::MaterialCategory::TV> *CB) const noexcept
 {
 	MaterialStuffCommon::FillCB(CB);
-	CB->albedo = albedo;
+	CB->aspectRatio = aspectRatio;
 	CB->TVBrighntess = TVBrighntess;
+	CB->albedo = albedo;
 }
 #pragma endregion
 
@@ -305,9 +307,9 @@ inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long i
 }
 
 inline Impl::Object3D::Subobject::Subobject(const AABB<3> &aabb, unsigned long int vcount, unsigned long int triOffset, unsigned short int tricount, float roughness, float IOR, ID3D12PipelineState *PSO,
-	const float3 &albedo, float TVBrighntess, unsigned short int textureDescriptorTableOffset) :
+	const float3 &albedo, float TVBrighntess, float aspectRatio, unsigned short int textureDescriptorTableOffset) :
 	PSO(PSO), aabb(aabb), vcount(vcount), triOffset(triOffset), tricount(tricount),
-	materialStuff(in_place_type<MaterialStuff<MaterialsReflection::MaterialCategory::TV>>, roughness, IOR, albedo, TVBrighntess, textureDescriptorTableOffset)
+	materialStuff(in_place_type<MaterialStuff<MaterialsReflection::MaterialCategory::TV>>, roughness, IOR, albedo, TVBrighntess, aspectRatio, textureDescriptorTableOffset)
 {
 }
 
@@ -416,13 +418,13 @@ WRL::ComPtr<ID3D12RootSignature> Impl::Object3D::CreateRootSig()
 	ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC &desc, LPCWSTR name);
 	CD3DX12_ROOT_PARAMETER1 rootParams[ROOT_PARAM_COUNT];
 	rootParams[ROOT_PARAM_PER_FRAME_DATA_CBV].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC);									// per-frame data
-	rootParams[ROOT_PARAM_TONEMAP_PARAMS_CBV].InitAsConstantBufferView(0, 1, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);			// tonemap params
+	rootParams[ROOT_PARAM_TONEMAP_PARAMS_CBV].InitAsConstantBufferView(0, 2, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);			// tonemap params
 	rootParams[ROOT_PARAM_INSTANCE_DATA_CBV].InitAsConstantBufferView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_VERTEX);	// instance data
-	rootParams[ROOT_PARAM_MATERIAL_CBV].InitAsConstantBufferView(1, 1, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_PIXEL);			// material
-	rootParams[ROOT_PARAM_DESC_TABLE_OFFSETS].InitAsConstants(1, 2, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+	rootParams[ROOT_PARAM_MATERIAL_CBV].InitAsConstantBufferView(0, 1, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC);											// material
+	rootParams[ROOT_PARAM_DESC_TABLE_OFFSETS].InitAsConstants(1, 1, 1);
 	// an unbounded range declared as STATIC means the rest of the heap is STATIC => specify VOLATILE
 	const CD3DX12_DESCRIPTOR_RANGE1 descTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, UINT_MAX/*unbounded*/, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
-	rootParams[ROOT_PARAM_TEXTURE_DESC_TABLE].InitAsDescriptorTable(1, &descTable, D3D12_SHADER_VISIBILITY_PIXEL);
+	rootParams[ROOT_PARAM_TEXTURE_DESC_TABLE].InitAsDescriptorTable(1, &descTable);
 	rootParams[ROOT_PARAM_SAMPLER_DESC_TABLE] = TextureSamplers::GetDescTable(TextureSamplers::OBJECT3D_DESC_TABLE_ID, D3D12_SHADER_VISIBILITY_PIXEL);
 	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(size(rootParams), rootParams, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	return CreateRootSignature(sigDesc, L"object 3D root signature");
@@ -522,15 +524,6 @@ auto Impl::Object3D::CreatePSOs() -> decltype(PSOs)
 	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result[true].tex[true].GetAddressOf())));
 	NameObject(result[true].tex[true].Get(), L"object 3D [doublesided][alphatest] PSO");
 
-	PSO_desc.PS = ShaderBytecode(Shaders::object3DTV_PS);
-	PSO_desc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
-	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result[false].TV.GetAddressOf())));
-	NameObject(result[false].TV.Get(), L"object 3D [TV] PSO");
-
-	PSO_desc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
-	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result[true].TV.GetAddressOf())));
-	NameObject(result[true].TV.Get(), L"object 3D [doublesided][TV] PSO");
-
 	PSO_desc.PS = ShaderBytecode(Shaders::object3DGlass_PS);
 	PSO_desc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
 	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result[false].advanced[GLASS_MASK_FLAG - 1].GetAddressOf())));
@@ -539,6 +532,16 @@ auto Impl::Object3D::CreatePSOs() -> decltype(PSOs)
 	PSO_desc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result[true].advanced[GLASS_MASK_FLAG - 1].GetAddressOf())));
 	NameObject(result[true].advanced[GLASS_MASK_FLAG - 1].Get(), L"object 3D [doublesided][glass mask] PSO");
+
+	PSO_desc.PS = ShaderBytecode(Shaders::object3DTV_VS);
+	PSO_desc.PS = ShaderBytecode(Shaders::object3DTV_PS);
+	PSO_desc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result[false].TV.GetAddressOf())));
+	NameObject(result[false].TV.Get(), L"object 3D [TV] PSO");
+
+	PSO_desc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	CheckHR(device->CreateGraphicsPipelineState(&PSO_desc, IID_PPV_ARGS(result[true].TV.GetAddressOf())));
+	NameObject(result[true].TV.Get(), L"object 3D [doublesided][TV] PSO");
 
 	PSO_desc.InputLayout.NumElements = VBDECLSIZE_FULL;
 	PSO_desc.VS = ShaderBytecode(Shaders::object3DBump_VS);
@@ -658,7 +661,7 @@ Impl::Object3D::Object3D(unsigned short int subobjCount, const SubobjectDataCall
 				texs.push_back(subobjTV.screen.Acquire());
 				uvcount += subobjTV.vcount;
 
-				return make_from_tuple<Subobject>(tuple_cat(commonArgs, forward_as_tuple(PSO, subobjTV.albedo, subobjTV.brighntess, textureDescriptorTableOffset)));
+				return make_from_tuple<Subobject>(tuple_cat(commonArgs, forward_as_tuple(PSO, subobjTV.albedo, subobjTV.brighntess, subobjTV.aspectRatio, textureDescriptorTableOffset)));
 			}
 
 			Subobject operator ()(const SubobjectData<SubobjectType::Advanced> &subobjAdvanced) const

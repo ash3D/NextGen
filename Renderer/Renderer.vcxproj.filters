@@ -343,6 +343,9 @@
     <FxCompile Include="object3DBump_VS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="object3DTV_VS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="world hierarchy.inl">

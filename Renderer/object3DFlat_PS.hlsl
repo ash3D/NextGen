@@ -1,13 +1,13 @@
 #include "per-frame data.hlsli"
-#include "tonemap params.hlsli"
-#include "object3D material params.hlsli"
 #include "object3D VS 2 PS.hlsli"
+#include "object3D material params.hlsli"
+#include "tonemap params.hlsli"
 #include "normals.hlsli"
 #include "lighting.hlsli"
 #include "HDR codec.hlsli"
 
-ConstantBuffer<Tonemapping::TonemapParams>	tonemapParams	: register(b0, space1);
-ConstantBuffer<Materials::Flat>				materialParams	: register(b1, space1);
+ConstantBuffer<Materials::Flat>				materialParams	: register(b0, space1);
+ConstantBuffer<Tonemapping::TonemapParams>	tonemapParams	: register(b0, space2);
 
 float4 main(in XformedVertex input, in bool front : SV_IsFrontFace) : SV_TARGET
 {
