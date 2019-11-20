@@ -123,11 +123,12 @@ ComPtr<ID3D12DescriptorHeap> TextureSamplers::Impl::CreateHeap()
 			const D3D12_SAMPLER_DESC desc =
 			{
 				.Filter = D3D12_FILTER_ANISOTROPIC,
-				.AddressU =D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+				.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
 				.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
 				.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
 				.MaxAnisotropy = Aniso::Object3D::TV,
 				.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
+				.BorderColor = {TVBacklightBleed, TVBacklightBleed, TVBacklightBleed},
 				.MinLOD = -D3D12_FLOAT32_MAX,
 				.MaxLOD = +D3D12_FLOAT32_MAX
 			};
@@ -141,7 +142,7 @@ ComPtr<ID3D12DescriptorHeap> TextureSamplers::Impl::CreateHeap()
 				const D3D12_SAMPLER_DESC desc =
 				{
 					.Filter = D3D12_FILTER_ANISOTROPIC,
-					.AddressU =addressMode,
+					.AddressU = addressMode,
 					.AddressV = addressMode,
 					.AddressW = addressMode,
 					.MaxAnisotropy = Aniso::Object3D::albedo,
