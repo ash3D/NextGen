@@ -18,7 +18,7 @@ namespace Renderer::GPUWorkSubmission
 			extern void AppendRenderStage(packaged_task<RenderPipeline::PipelineStage()> &&buildRenderStage);
 #if 0
 			AppendRenderStage(packaged_task<RenderPipeline::PipelineStage()>(bind(forward<F>(f), forward<Args>(args)...)));
-#elif defined _MSC_VER && _MSC_VER <= 1923
+#elif defined _MSC_VER && _MSC_VER <= 1924
 #if 1
 			AppendRenderStage(packaged_task<RenderPipeline::PipelineStage()>(_Fake_no_copy_callable_adapter([task = std::async(launch::deferred, forward<F>(f), forward<Args>(args)...)]() mutable -> RenderPipeline::PipelineStage { return task.get(); })));
 #else

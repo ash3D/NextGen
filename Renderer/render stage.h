@@ -33,9 +33,9 @@ namespace Renderer::Impl::RenderPipeline
 
 	private:
 		// TODO: use C++20 abbreviated function template
-		template<typename PassExhausted, typename GetRenderRange>
+		template<typename PassExhaustedCallback, typename GetRenderRangeCallback>
 		inline PipelineItem IterateRenderPass(unsigned int &length, const signed long int passLength,
-			const std::function<void ()> &PassFinish, const PassExhausted &PassExhausted, const GetRenderRange &GetRenderRange) const;
+			const std::function<void ()> &PassFinish, const PassExhaustedCallback &PassExhausted, const GetRenderRangeCallback &GetRenderRange) const;
 
 	public:
 		void Sync() const { phaseSelector = DoSync(); }

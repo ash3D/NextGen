@@ -265,7 +265,7 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 #	pragma warning(push)
 #	pragma warning(disable: 4003)
 
-#if defined _MSC_VER && _MSC_VER <= 1923 && !defined __clang__
+#if defined _MSC_VER && _MSC_VER <= 1924 && !defined __clang__
 #	define MSVC_LIMITATIONS
 #endif
 

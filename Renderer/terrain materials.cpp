@@ -301,7 +301,7 @@ ComPtr<ID3D12PipelineState> Masked::CreatePSO()
 }
 
 // 1 call site
-#if defined _MSC_VER && _MSC_VER <= 1923
+#if defined _MSC_VER && _MSC_VER <= 1924
 inline Masked::Masked(const float (&albedoFactor)[3], const Renderer::Texture &tex, float texScale, const char materialName[]) :
 #else
 inline Masked::Masked(const float (&albedoFactor)[3], const Texture &tex, float texScale, const char materialName[]) :
@@ -315,7 +315,7 @@ inline Masked::Masked(const float (&albedoFactor)[3], const Texture &tex, float 
 
 Masked::~Masked() = default;
 
-#if defined _MSC_VER && _MSC_VER <= 1923
+#if defined _MSC_VER && _MSC_VER <= 1924
 shared_ptr<Interface> Masked::Make(const float (&albedo)[3], const Renderer::Texture &tex, float texScale, const char materialName[])
 #else
 shared_ptr<Interface> Masked::Make(const float (&albedo)[3], const Texture &tex, float texScale, const char materialName[])
@@ -402,7 +402,7 @@ ComPtr<ID3D12PipelineState> Standard::CreatePSO()
 }
 
 // 1 call site
-#if defined _MSC_VER && _MSC_VER <= 1923
+#if defined _MSC_VER && _MSC_VER <= 1924
 inline Standard::Standard(const Renderer::Texture &albedoMap, const Renderer::Texture &roughnessMap, const Renderer::Texture &normalMap, float texScale, float IOR, const char materialName[]) :
 #else
 inline Standard::Standard(const Texture &albedoMap, const Texture &roughnessMap, const Texture &normalMap, float texScale, float IOR, const char materialName[]) :
@@ -428,7 +428,7 @@ inline Standard::Standard(const Texture &albedoMap, const Texture &roughnessMap,
 
 Standard::~Standard() = default;
 
-#if defined _MSC_VER && _MSC_VER <= 1923
+#if defined _MSC_VER && _MSC_VER <= 1924
 shared_ptr<Interface> __cdecl Standard::Make(const Renderer::Texture &albedoMap, const Renderer::Texture &roughnessMap, const Renderer::Texture &normalMap, float texScale, float IOR, const char materialName[])
 #else
 shared_ptr<Interface> __cdecl Standard::Make(const Texture &albedoMap, const Texture &roughnessMap, const Texture &normalMap, float texScale, float IOR, const char materialName[])
@@ -520,7 +520,7 @@ ComPtr<ID3D12PipelineState> Extended::CreatePSO()
 }
 
 // 1 call site
-#if defined _MSC_VER && _MSC_VER <= 1923
+#if defined _MSC_VER && _MSC_VER <= 1924
 inline Extended::Extended(const Renderer::Texture &albedoMap, const Renderer::Texture &fresnelMap, const Renderer::Texture &roughnessMap, const Renderer::Texture &normalMap, float texScale, const char materialName[]) :
 #else
 inline Extended::Extended(const Texture &albedoMap, const Texture &fresnelMap, const Texture &roughnessMap, const Texture &normalMap, float texScale, const char materialName[]) :
@@ -547,7 +547,7 @@ inline Extended::Extended(const Texture &albedoMap, const Texture &fresnelMap, c
 
 Extended::~Extended() = default;
 
-#if defined _MSC_VER && _MSC_VER <= 1923
+#if defined _MSC_VER && _MSC_VER <= 1924
 shared_ptr<Interface> __cdecl Extended::Make(const Renderer::Texture &albedoMap, const Renderer::Texture &fresnelMap, const Renderer::Texture &roughnessMap, const Renderer::Texture &normalMap, float texScale, const char materialName[])
 #else
 shared_ptr<Interface> __cdecl Extended::Make(const Texture &albedoMap, const Texture &fresnelMap, const Texture &roughnessMap, const Texture &normalMap, float texScale, const char materialName[])
