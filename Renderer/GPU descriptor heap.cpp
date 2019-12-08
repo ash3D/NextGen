@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "GPU descriptor heap.h"
-#include "tonemap resource views stage.h"
+#include "postprocess descriptor table store.h"
 #include "frame versioning.h"
 #include "tracked resource.inl"
 
@@ -12,7 +12,7 @@ using namespace Renderer::Impl;
 using namespace Descriptors;
 
 extern Microsoft::WRL::ComPtr<ID3D12Device2> device;
-static constexpr auto heapStaticBlockSize = TonemapResourceViewsStage::ViewCount * maxFrameLatency;
+static constexpr auto heapStaticBlockSize = PostprocessDescriptorTableStore::TableSize * maxFrameLatency;
 static UINT heapSize = heapStaticBlockSize;
 decltype(GPUDescriptorHeap::AllocationClient::registeredClients) GPUDescriptorHeap::AllocationClient::registeredClients;
 #if ENABLE_PREALLOCATION
@@ -83,12 +83,12 @@ void GPUDescriptorHeap::OnFrameStart()
 	}
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE GPUDescriptorHeap::SetCurFrameTonemapReductionDescs(const TonemapResourceViewsStage &stage)
+D3D12_GPU_DESCRIPTOR_HANDLE GPUDescriptorHeap::FillPostprocessGPUDescriptorTableStore(const PostprocessDescriptorTableStore &stage)
 {
 	const auto descriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	const auto GPUHeapOffset = globalFrameVersioning->GetContinuousRingIdx() * TonemapResourceViewsStage::ViewCount * descriptorSize;
+	const auto GPUHeapOffset = globalFrameVersioning->GetContinuousRingIdx() * PostprocessDescriptorTableStore::TableSize * descriptorSize;
 	const CD3DX12_CPU_DESCRIPTOR_HANDLE dst(GetHeap()->GetCPUDescriptorHandleForHeapStart(), GPUHeapOffset), src(stage.allocation->GetCPUDescriptorHandleForHeapStart());
-	device->CopyDescriptorsSimple(TonemapResourceViewsStage::ViewCount, dst, src, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	device->CopyDescriptorsSimple(PostprocessDescriptorTableStore::TableSize, dst, src, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	return CD3DX12_GPU_DESCRIPTOR_HANDLE(GetHeap()->GetGPUDescriptorHandleForHeapStart(), GPUHeapOffset);
 }
 

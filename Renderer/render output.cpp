@@ -7,7 +7,7 @@
 #include "cmdlist pool.h"
 #include "GPU descriptor heap.h"
 #include "config.h"
-#include "tonemapping config.h"
+#include "CS config.h"
 
 // workaround for Kepler driver issue causing sporadic device removal on first present in case of complex frame
 #define ENABLE_SWAPCHAIN_WARMUP 1
@@ -25,7 +25,7 @@ void NameObject(ID3D12Object *object, LPCWSTR name) noexcept;
 
 constexpr unsigned long int resizeThresholdPixels = 100'000ul;
 
-ComPtr<ID3D12Resource> RenderOutput::CreateTonemapReductionBuffer()
+ComPtr<ID3D12Resource> RenderOutput::CreateLuminanceReductionBuffer()
 {
 	ComPtr<ID3D12Resource> result;
 	CheckHR(device->CreateCommittedResource(
@@ -36,7 +36,7 @@ ComPtr<ID3D12Resource> RenderOutput::CreateTonemapReductionBuffer()
 		NULL,
 		IID_PPV_ARGS(result.GetAddressOf())
 	));
-	NameObject(result.Get(), L"tonemap reduction buffer");
+	NameObject(result.Get(), L"luminance reduction buffer");
 
 	return result;
 }
@@ -188,9 +188,9 @@ void RenderOutput::NextFrame(bool vsync)
 	CheckHR(swapChain->GetBuffer(idx, IID_PPV_ARGS(&output)));
 	GPUDescriptorHeap::OnFrameStart();
 	globalFrameVersioning->OnFrameStart();
-	const auto tonemapDescriptorTable = GPUDescriptorHeap::SetCurFrameTonemapReductionDescs(tonemapViewsCPUHeap);
-	viewport->Render(output.Get(), rendertarget.Get(), ZBuffer.Get(), HDRSurface.Get(), LDRSurface.Get(), tonemapReductionBuffer.Get(),
-		rtvHeap->GetCPUDescriptorHandleForHeapStart(), dsvHeap->GetCPUDescriptorHandleForHeapStart(), tonemapDescriptorTable, width, height);
+	const auto postprocessDescriptorTable = GPUDescriptorHeap::FillPostprocessGPUDescriptorTableStore(postprocessCPUDescriptorHeap);
+	viewport->Render(output.Get(), rendertarget.Get(), ZBuffer.Get(), HDRSurface.Get(), LDRSurface.Get(), bloomUpChain.Get(), bloomDownChain.Get(), luminanceReductionBuffer.Get(),
+		rtvHeap->GetCPUDescriptorHandleForHeapStart(), dsvHeap->GetCPUDescriptorHandleForHeapStart(), postprocessDescriptorTable, width, height);
 	CheckHR(swapChain->Present(vsync, 0));
 	globalFrameVersioning->OnFrameFinish();
 	viewport->OnFrameFinish();
@@ -205,6 +205,8 @@ void RenderOutput::CreateOffscreenSurfaces(UINT width, UINT height)
 	ZBuffer.Reset();
 	HDRSurface.Reset();
 	LDRSurface.Reset();
+	bloomUpChain.Reset();
+	bloomDownChain.Reset();
 
 	const DXGI_SAMPLE_DESC MSAA_mode = Config::MSAA();
 
@@ -255,7 +257,36 @@ void RenderOutput::CreateOffscreenSurfaces(UINT width, UINT height)
 		IID_PPV_ARGS(LDRSurface.GetAddressOf())
 	));
 
-	// fill tonemap views CPU heap
-	const auto tonemapReductionTexDispatchSize = Tonemapping::TextureReduction::DispatchSize({ width, height });
-	tonemapViewsCPUHeap.Fill(HDRSurface.Get(), LDRSurface.Get(), tonemapReductionBuffer.Get(), tonemapReductionTexDispatchSize.x * tonemapReductionTexDispatchSize.y);
+	// create bloom chains
+	{
+		unsigned long bloomUpChainLen;
+		// TODO: replace with C++20 std::log2p1 with halfres
+		_BitScanReverse(&bloomUpChainLen, max(width, height));
+		bloomUpChainLen = min(bloomUpChainLen, 6ul);
+		const auto bloomDownChainLen = bloomUpChainLen - 1;
+
+		// up
+		CheckHR(device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Tex2D(Config::HDRFormat, width / 2, height / 2, 1, bloomUpChainLen, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS),
+			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+			NULL,
+			IID_PPV_ARGS(bloomUpChain.GetAddressOf())
+		));
+
+		// down
+		CheckHR(device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Tex2D(Config::HDRFormat, width / 2, height / 2, 1, bloomDownChainLen, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS),
+			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+			NULL,
+			IID_PPV_ARGS(bloomDownChain.GetAddressOf())
+		));
+	}
+
+	// fill postprocess descriptors CPU backing store
+	const auto luminanceReductionTexDispatchSize = CSConfig::LuminanceReduction::TexturePass::DispatchSize({ width, height });
+	postprocessCPUDescriptorHeap.Fill(HDRSurface.Get(), LDRSurface.Get(), bloomUpChain.Get(), bloomDownChain.Get(), luminanceReductionBuffer.Get(), luminanceReductionTexDispatchSize.x * luminanceReductionTexDispatchSize.y);
 }

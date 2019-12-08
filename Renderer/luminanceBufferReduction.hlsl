@@ -1,9 +1,9 @@
-#include "tonemapping config.hlsli"
+#include "CS config.hlsli"
 #include "tonemap params.hlsli"
 
 namespace Tonemapping
 {
-	static const uint localDataSize = BufferReduction::blockSize;
+	static const uint localDataSize = CSConfig::LuminanceReduction::BufferPass::blockSize;
 }
 #include "tonemapLocalReduction.hlsli"
 
@@ -52,7 +52,7 @@ namespace Tonemapping
 	}
 }
 
-[numthreads(Tonemapping::BufferReduction::blockSize, 1, 1)]
+[numthreads(CSConfig::LuminanceReduction::BufferPass::blockSize, 1, 1)]
 void main(in uint globalIdx : SV_DispatchThreadID, in uint localIdx : SV_GroupIndex)
 {
 	//using namespace Tonemapping;

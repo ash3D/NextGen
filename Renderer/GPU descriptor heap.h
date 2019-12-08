@@ -10,7 +10,7 @@ struct D3D12_GPU_DESCRIPTOR_HANDLE;
 
 namespace Renderer::Impl::Descriptors
 {
-	class TonemapResourceViewsStage;
+	class PostprocessDescriptorTableStore;
 
 	namespace GPUDescriptorHeap
 	{
@@ -21,7 +21,7 @@ namespace Renderer::Impl::Descriptors
 
 		inline const auto &GetHeap() noexcept { return Impl::heap; }
 		void OnFrameStart();
-		D3D12_GPU_DESCRIPTOR_HANDLE SetCurFrameTonemapReductionDescs(const TonemapResourceViewsStage &src);
+		D3D12_GPU_DESCRIPTOR_HANDLE FillPostprocessGPUDescriptorTableStore(const PostprocessDescriptorTableStore &src);
 
 		class AllocationClient
 		{

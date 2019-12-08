@@ -1,10 +1,10 @@
-#include "tonemapping config.hlsli"
+#include "CS config.hlsli"
 #include "HDR codec.hlsli"
 #include "luminance.hlsli"
 
 namespace Tonemapping
 {
-	static const uint localDataSize = TextureReduction::groupSize * TextureReduction::groupSize;
+	static const uint localDataSize = CSConfig::LuminanceReduction::TexturePass::groupSize * CSConfig::LuminanceReduction::TexturePass::groupSize;
 }
 #include "tonemapLocalReduction.hlsli"
 
@@ -22,7 +22,7 @@ namespace Tonemapping
 }
 
 // !: no low-level optimizations yet (e.g. GPR pressure)
-[numthreads(Tonemapping::TextureReduction::groupSize, Tonemapping::TextureReduction::groupSize, 1)]
+[numthreads(CSConfig::LuminanceReduction::TexturePass::groupSize, CSConfig::LuminanceReduction::TexturePass::groupSize, 1)]
 void main(in uint2 globalIdx : SV_DispatchThreadID, in uint flatLocalIdx : SV_GroupIndex, in uint2 groupIdx : SV_GroupID)
 {
 	//using namespace Tonemapping;
@@ -33,15 +33,15 @@ void main(in uint2 globalIdx : SV_DispatchThreadID, in uint flatLocalIdx : SV_Gr
 	float2 partialReduction = 0;
 	const float weight = rcp(srcSize.x * srcSize.y);
 
-	const uint2 dispatchSize = Tonemapping::TextureReduction::DispatchSize(srcSize), interleaveStride = dispatchSize * Tonemapping::TextureReduction::blockSize;
+	const uint2 dispatchSize = CSConfig::LuminanceReduction::TexturePass::DispatchSize(srcSize), interleaveStride = dispatchSize * CSConfig::LuminanceReduction::TexturePass::blockSize;
 
 	// interleaved tile reduction
-	for (uint R = globalIdx.y * Tonemapping::TextureReduction::tileSize; R < srcSize.y; R += interleaveStride.y)
-		for (uint C = globalIdx.x * Tonemapping::TextureReduction::tileSize; C < srcSize.x; C += interleaveStride.x)
+	for (uint R = globalIdx.y * CSConfig::LuminanceReduction::TexturePass::tileSize; R < srcSize.y; R += interleaveStride.y)
+		for (uint C = globalIdx.x * CSConfig::LuminanceReduction::TexturePass::tileSize; C < srcSize.x; C += interleaveStride.x)
 			[unroll]
-			for (uint r = 0; r < Tonemapping::TextureReduction::tileSize; r++)
+			for (uint r = 0; r < CSConfig::LuminanceReduction::TexturePass::tileSize; r++)
 				[unroll]
-				for (uint c = 0; c < Tonemapping::TextureReduction::tileSize; c++)
+				for (uint c = 0; c < CSConfig::LuminanceReduction::TexturePass::tileSize; c++)
 				{
 					const float3 srcPixel = DecodeHDR(src.Load(uint3(C, R, 0), uint2(c, r)));
 					/*

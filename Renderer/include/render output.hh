@@ -3,7 +3,7 @@
 #include <memory>
 #include "../tracked resource.h"
 #include "../tracked ref.h"
-#include "../tonemap resource views stage.h"
+#include "../postprocess descriptor table store.h"
 
 struct IDXGISwapChain4;
 struct ID3D12Resource;
@@ -18,14 +18,14 @@ namespace Renderer
 	class RenderOutput
 	{
 		Impl::TrackedResource<IDXGISwapChain4> swapChain;
-		Impl::TrackedResource<ID3D12Resource> rendertarget, ZBuffer, HDRSurface, LDRSurface;
+		Impl::TrackedResource<ID3D12Resource> rendertarget, ZBuffer, HDRSurface, LDRSurface, bloomUpChain, bloomDownChain;
 		Impl::TrackedResource<ID3D12DescriptorHeap> rtvHeap, dsvHeap;	// is tracking really needed?
-		Impl::Descriptors::TonemapResourceViewsStage tonemapViewsCPUHeap;
+		Impl::Descriptors::PostprocessDescriptorTableStore postprocessCPUDescriptorHeap;
 		Impl::TrackedRef::Ref<class Viewport> viewport;
 
 	private:
 		friend extern void __cdecl ::InitRenderer();
-		static WRL::ComPtr<ID3D12Resource> tonemapReductionBuffer, CreateTonemapReductionBuffer();
+		static WRL::ComPtr<ID3D12Resource> luminanceReductionBuffer, CreateLuminanceReductionBuffer();
 
 	public:
 		RenderOutput(HWND wnd, bool allowModeSwitch, unsigned int bufferCount = 2);

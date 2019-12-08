@@ -9,13 +9,17 @@
 #include "DMA engine.h"
 #include "config.h"
 #include "PIX events.h"
-#include "tonemapping config.h"
+#include "CS config.h"
 
 namespace Shaders
 {
-#	include "tonemapTextureReduction.csh"
-#	include "tonemapBufferReduction.csh"
-#	include "tonemapping.csh"
+#	include "luminanceTextureReduction.csh"
+#	include "luminanceBufferReduction.csh"
+#	include "decode2halfres.csh"
+#	include "brightPass.csh"
+#	include "downsample.csh"
+#	include "upsampleBlur.csh"
+#	include "postprocessFinalComposite.csh"
 }
 
 // offsetof is conditionally supported for non-standard layout types since C++17
@@ -53,7 +57,7 @@ auto Impl::Viewport::CmdListsManager::OnFrameStart() -> PrePostCmds<ID3D12Graphi
 
 		// reset lists
 		CheckHR(cmdBuffers.pre.list->Reset(cmdBuffers.pre.allocator.Get(), NULL));
-		CheckHR(cmdBuffers.post.list->Reset(cmdBuffers.post.allocator.Get(), tonemapTextureReductionPSO.Get()));
+		CheckHR(cmdBuffers.post.list->Reset(cmdBuffers.post.allocator.Get(), luminanceTextureReductionPSO.Get()));
 	}
 	else
 	{
@@ -73,17 +77,17 @@ auto Impl::Viewport::CmdListsManager::OnFrameStart() -> PrePostCmds<ID3D12Graphi
 		// create lists
 		CheckHR(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, cmdBuffers.pre.allocator.Get(), NULL, IID_PPV_ARGS(&cmdBuffers.pre.list)));
 		NameObjectF(cmdBuffers.pre.list.Get(), L"viewport %p pre command list [%hu]", ptr, version);
-		CheckHR(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, cmdBuffers.post.allocator.Get(), tonemapTextureReductionPSO.Get(), IID_PPV_ARGS(&cmdBuffers.post.list)));
+		CheckHR(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, cmdBuffers.post.allocator.Get(), luminanceTextureReductionPSO.Get(), IID_PPV_ARGS(&cmdBuffers.post.list)));
 		NameObjectF(cmdBuffers.post.list.Get(), L"viewport %p post command list [%hu]", ptr, version);
 	}
 
 	return { cmdBuffers.pre.list.Get(), cmdBuffers.post.list.Get() };
 }
 
-#pragma region tonemapping root sig & PSOs
-ComPtr<ID3D12RootSignature> Impl::Viewport::CreateTonemapRootSig()
+#pragma region postprocess root sig & PSOs
+ComPtr<ID3D12RootSignature> Impl::Viewport::CreatePostprocessRootSig()
 {
-	// consider encapsulating desc table in TonemapResourceViewsStage
+	// consider encapsulating desc table in PostprocessDescriptorTableStore
 	CD3DX12_ROOT_PARAMETER1 rootParams[ROOT_PARAM_COUNT];
 	const D3D12_DESCRIPTOR_RANGE1 descTable[] =
 	{
@@ -95,22 +99,25 @@ ComPtr<ID3D12RootSignature> Impl::Viewport::CreateTonemapRootSig()
 		*/
 		CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0),
 		CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 2, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE),
-		CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE | D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE)
+		CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE | D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE),
+		CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 2, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE),
+		CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 11, 0, 1)
 	};
 	rootParams[ROOT_PARAM_DESC_TABLE].InitAsDescriptorTable(size(descTable), descTable);
 	rootParams[ROOT_PARAM_CBV].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE);	// alternatively can place into desc table with desc static flag
 	rootParams[ROOT_PARAM_UAV].InitAsUnorderedAccessView(2);
-	rootParams[ROOT_PARAM_LERP_FACTOR].InitAsConstants(1, 1);
-	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(size(rootParams), rootParams);
-	return CreateRootSignature(sigDesc, L"tonemapping root signature");
+	rootParams[ROOT_PARAM_PUSH_CONST].InitAsConstants(1, 1);
+	const CD3DX12_STATIC_SAMPLER_DESC resampleTapFilter(0, D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT, D3D12_TEXTURE_ADDRESS_MODE_MIRROR, D3D12_TEXTURE_ADDRESS_MODE_MIRROR, D3D12_TEXTURE_ADDRESS_MODE_MIRROR);
+	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(size(rootParams), rootParams, 1, &resampleTapFilter);
+	return CreateRootSignature(sigDesc, L"postprocess root signature");
 }
 
-ComPtr<ID3D12PipelineState> Impl::Viewport::CreateTonemapTextureReductionPSO()
+ComPtr<ID3D12PipelineState> Impl::Viewport::CreateLuminanceTextureReductionPSO()
 {
 	const D3D12_COMPUTE_PIPELINE_STATE_DESC PSO_desc =
 	{
-		tonemapRootSig.Get(),								// root signature
-		ShaderBytecode(Shaders::tonemapTextureReduction),	// CS
+		postprocessRootSig.Get(),							// root signature
+		ShaderBytecode(Shaders::luminanceTextureReduction),	// CS
 		0,													// node mask
 		{},													// cached PSO
 		D3D12_PIPELINE_STATE_FLAG_NONE						// flags
@@ -118,16 +125,16 @@ ComPtr<ID3D12PipelineState> Impl::Viewport::CreateTonemapTextureReductionPSO()
 
 	ComPtr<ID3D12PipelineState> PSO;
 	CheckHR(device->CreateComputePipelineState(&PSO_desc, IID_PPV_ARGS(PSO.GetAddressOf())));
-	NameObject(PSO.Get(), L"tonemap texture reduction PSO");
+	NameObject(PSO.Get(), L"luminance texture reduction PSO");
 	return PSO;
 }
 
-ComPtr<ID3D12PipelineState> Impl::Viewport::CreateTonemapBufferReductionPSO()
+ComPtr<ID3D12PipelineState> Impl::Viewport::CreateLuminanceBufferReductionPSO()
 {
 	const D3D12_COMPUTE_PIPELINE_STATE_DESC PSO_desc =
 	{
-		tonemapRootSig.Get(),								// root signature
-		ShaderBytecode(Shaders::tonemapBufferReduction),	// CS
+		postprocessRootSig.Get(),							// root signature
+		ShaderBytecode(Shaders::luminanceBufferReduction),	// CS
 		0,													// node mask
 		{},													// cached PSO
 		D3D12_PIPELINE_STATE_FLAG_NONE						// flags
@@ -135,16 +142,16 @@ ComPtr<ID3D12PipelineState> Impl::Viewport::CreateTonemapBufferReductionPSO()
 
 	ComPtr<ID3D12PipelineState> PSO;
 	CheckHR(device->CreateComputePipelineState(&PSO_desc, IID_PPV_ARGS(PSO.GetAddressOf())));
-	NameObject(PSO.Get(), L"tonemap buffer reduction PSO");
+	NameObject(PSO.Get(), L"luminance buffer reduction PSO");
 	return PSO;
 }
 
-ComPtr<ID3D12PipelineState> Impl::Viewport::CreateTonemapPSO()
+ComPtr<ID3D12PipelineState> Impl::Viewport::CreateDecode2HalfresPSO()
 {
 	const D3D12_COMPUTE_PIPELINE_STATE_DESC PSO_desc =
 	{
-		tonemapRootSig.Get(),								// root signature
-		ShaderBytecode(Shaders::tonemapping),				// CS
+		postprocessRootSig.Get(),							// root signature
+		ShaderBytecode(Shaders::decode2halfres),			// CS
 		0,													// node mask
 		{},													// cached PSO
 		D3D12_PIPELINE_STATE_FLAG_NONE						// flags
@@ -152,7 +159,75 @@ ComPtr<ID3D12PipelineState> Impl::Viewport::CreateTonemapPSO()
 
 	ComPtr<ID3D12PipelineState> PSO;
 	CheckHR(device->CreateComputePipelineState(&PSO_desc, IID_PPV_ARGS(PSO.GetAddressOf())));
-	NameObject(PSO.Get(), L"tonemapping PSO");
+	NameObject(PSO.Get(), L"postprocess decode 2 halfres PSO");
+	return PSO;
+}
+
+ComPtr<ID3D12PipelineState> Impl::Viewport::CreateBrightPassPSO()
+{
+	const D3D12_COMPUTE_PIPELINE_STATE_DESC PSO_desc =
+	{
+		postprocessRootSig.Get(),							// root signature
+		ShaderBytecode(Shaders::brightPass),				// CS
+		0,													// node mask
+		{},													// cached PSO
+		D3D12_PIPELINE_STATE_FLAG_NONE						// flags
+	};
+
+	ComPtr<ID3D12PipelineState> PSO;
+	CheckHR(device->CreateComputePipelineState(&PSO_desc, IID_PPV_ARGS(PSO.GetAddressOf())));
+	NameObject(PSO.Get(), L"bloom bright pass PSO");
+	return PSO;
+}
+
+ComPtr<ID3D12PipelineState> Impl::Viewport::CreateBloomDownsmplePSO()
+{
+	const D3D12_COMPUTE_PIPELINE_STATE_DESC PSO_desc =
+	{
+		postprocessRootSig.Get(),							// root signature
+		ShaderBytecode(Shaders::downsample),				// CS
+		0,													// node mask
+		{},													// cached PSO
+		D3D12_PIPELINE_STATE_FLAG_NONE						// flags
+	};
+
+	ComPtr<ID3D12PipelineState> PSO;
+	CheckHR(device->CreateComputePipelineState(&PSO_desc, IID_PPV_ARGS(PSO.GetAddressOf())));
+	NameObject(PSO.Get(), L"bloom downsample PSO");
+	return PSO;
+}
+
+ComPtr<ID3D12PipelineState> Impl::Viewport::CreateBloomUpsmpleBlurPSO()
+{
+	const D3D12_COMPUTE_PIPELINE_STATE_DESC PSO_desc =
+	{
+		postprocessRootSig.Get(),							// root signature
+		ShaderBytecode(Shaders::upsampleBlur),				// CS
+		0,													// node mask
+		{},													// cached PSO
+		D3D12_PIPELINE_STATE_FLAG_NONE						// flags
+	};
+
+	ComPtr<ID3D12PipelineState> PSO;
+	CheckHR(device->CreateComputePipelineState(&PSO_desc, IID_PPV_ARGS(PSO.GetAddressOf())));
+	NameObject(PSO.Get(), L"bloom upsample blur PSO");
+	return PSO;
+}
+
+ComPtr<ID3D12PipelineState> Impl::Viewport::CreatePostprocessFinalCompositePSO()
+{
+	const D3D12_COMPUTE_PIPELINE_STATE_DESC PSO_desc =
+	{
+		postprocessRootSig.Get(),							// root signature
+		ShaderBytecode(Shaders::postprocessFinalComposite),	// CS
+		0,													// node mask
+		{},													// cached PSO
+		D3D12_PIPELINE_STATE_FLAG_NONE						// flags
+	};
+
+	ComPtr<ID3D12PipelineState> PSO;
+	CheckHR(device->CreateComputePipelineState(&PSO_desc, IID_PPV_ARGS(PSO.GetAddressOf())));
+	NameObject(PSO.Get(), L"postprocess final composite PSO");
 	return PSO;
 }
 #pragma endregion
@@ -187,7 +262,9 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Pre(ID3D12GraphicsCommandLi
 	return cmdList;
 }
 
-inline RenderPipeline::PipelineStage Impl::Viewport::Post(ID3D12GraphicsCommandList4 *cmdList, ID3D12Resource *output, ID3D12Resource *rendertarget, ID3D12Resource *HDRSurface, ID3D12Resource *LDRSurface, ID3D12Resource *tonemapReductionBuffer, D3D12_GPU_DESCRIPTOR_HANDLE tonemapDescriptorTable, float tonemapLerpFactor, UINT width, UINT height) const
+inline RenderPipeline::PipelineStage Impl::Viewport::Post(ID3D12GraphicsCommandList4 *cmdList, ID3D12Resource *output, ID3D12Resource *rendertarget, ID3D12Resource *HDRSurface, ID3D12Resource *LDRSurface,
+	ID3D12Resource *bloomUpChain, ID3D12Resource *bloomDownChain, ID3D12Resource *luminanceReductionBuffer,
+	D3D12_GPU_DESCRIPTOR_HANDLE postprocessDescriptorTable, float tonemapLerpFactor, UINT width, UINT height) const
 {
 	PIXScopedEvent(cmdList, PIX_COLOR_INDEX(PIXEvents::ViewportPost), "viewport post");
 
@@ -200,53 +277,119 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(ID3D12GraphicsCommandL
 		cmdList->ResourceBarrier(size(barriers), barriers);
 	}
 
-	// bind tonemapping resources
+	// bind postprocess resources
 	{
 		const auto tonemapParamsBufferGPUAddress = tonemapParamsBuffer->GetGPUVirtualAddress();
 		cmdList->SetDescriptorHeaps(1, Descriptors::GPUDescriptorHeap::GetHeap().GetAddressOf());
-		cmdList->SetComputeRootSignature(tonemapRootSig.Get());
-		cmdList->SetComputeRootDescriptorTable(ROOT_PARAM_DESC_TABLE, tonemapDescriptorTable);
+		cmdList->SetComputeRootSignature(postprocessRootSig.Get());
+		cmdList->SetComputeRootDescriptorTable(ROOT_PARAM_DESC_TABLE, postprocessDescriptorTable);
 		cmdList->SetComputeRootConstantBufferView(ROOT_PARAM_CBV, tonemapParamsBufferGPUAddress);
 		cmdList->SetComputeRootUnorderedAccessView(ROOT_PARAM_UAV, tonemapParamsBufferGPUAddress);
-		cmdList->SetComputeRoot32BitConstant(ROOT_PARAM_LERP_FACTOR, reinterpret_cast<const UINT &>(tonemapLerpFactor)/*use C++20 bit_cast instead*/, 0);
+		cmdList->SetComputeRoot32BitConstant(ROOT_PARAM_PUSH_CONST, reinterpret_cast<const UINT &>(tonemapLerpFactor)/*use C++20 bit_cast instead*/, 0);
 	}
 
 	// initial texture reduction (PSO set during cmd list creation/reset)
-	const auto tonemapReductionTexDispatchSize = Tonemapping::TextureReduction::DispatchSize({ width, height });
-	cmdList->Dispatch(tonemapReductionTexDispatchSize.x, tonemapReductionTexDispatchSize.y, 1);
+	const auto luminanceReductionTexDispatchSize = CSConfig::LuminanceReduction::TexturePass::DispatchSize({ width, height });
+	cmdList->Dispatch(luminanceReductionTexDispatchSize.x, luminanceReductionTexDispatchSize.y, 1);
 
 	{
 		const D3D12_RESOURCE_BARRIER barriers[] =
 		{
-			CD3DX12_RESOURCE_BARRIER::Transition(tonemapReductionBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),
+			CD3DX12_RESOURCE_BARRIER::Transition(luminanceReductionBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),
 			CD3DX12_RESOURCE_BARRIER::Transition(tonemapParamsBuffer.Get(), D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY)
 		};
 		cmdList->ResourceBarrier(size(barriers), barriers);
 	}
 
 	// final buffer reduction
-	cmdList->SetPipelineState(tonemapBufferReductionPSO.Get());
+	cmdList->SetPipelineState(luminanceBufferReductionPSO.Get());
 	cmdList->Dispatch(1, 1, 1);
 
 	{
 		const D3D12_RESOURCE_BARRIER barriers[] =
 		{
-			CD3DX12_RESOURCE_BARRIER::Transition(tonemapReductionBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS),	// !: use split barrier
+			CD3DX12_RESOURCE_BARRIER::Transition(luminanceReductionBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS),	// !: use split barrier
 			CD3DX12_RESOURCE_BARRIER::Transition(tonemapParamsBuffer.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER)
 		};
 		cmdList->ResourceBarrier(size(barriers), barriers);
 	}
 
-	// tonemapping main pass
-	cmdList->SetPipelineState(tonemapPSO.Get());
-	cmdList->Dispatch((width + Tonemapping::blockSize - 1) / Tonemapping::blockSize, (height + Tonemapping::blockSize - 1) / Tonemapping::blockSize, 1);
+	const auto ImageDispatchSize = [width, height](UINT lod) noexcept
+	{
+		return (Math::VectorMath::HLSL::uint2(width >> lod, height >> lod) + CSConfig::ImageProcessing::blockSize - 1) / CSConfig::ImageProcessing::blockSize;
+	};
+
+	const auto halfResDispatchSize = ImageDispatchSize(1);
+
+	// decode 2 halfres
+	cmdList->SetPipelineState(decode2halfresPSO.Get());
+	cmdList->Dispatch(halfResDispatchSize.x, halfResDispatchSize.y, 1);
+
+	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(bloomUpChain, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, 0));
+
+	// bloom bright pass
+	cmdList->SetPipelineState(brightPassPSO.Get());
+	cmdList->Dispatch(halfResDispatchSize.x, halfResDispatchSize.y, 1);
+
+	{
+		const D3D12_RESOURCE_BARRIER barriers[] =
+		{
+			CD3DX12_RESOURCE_BARRIER::Transition(bloomUpChain, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, 0, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
+			CD3DX12_RESOURCE_BARRIER::Transition(bloomDownChain, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, 0)
+		};
+		cmdList->ResourceBarrier(size(barriers), barriers);
+	}
+
+	const UINT bloomUpChainLen = bloomUpChain->GetDesc().MipLevels, bloomDownChainLen = bloomDownChain->GetDesc().MipLevels;
+	UINT lod = 0;
+
+	// bloom downsample chain
+	for (cmdList->SetPipelineState(bloomDownsamplePSO.Get()); lod < bloomDownChainLen; lod++)
+	{
+		cmdList->SetComputeRoot32BitConstant(ROOT_PARAM_PUSH_CONST, lod, 0);
+		const auto dispatchSize = ImageDispatchSize(lod + 2/*halfres + dest offset*/);
+		cmdList->Dispatch(dispatchSize.x, dispatchSize.y, 1);
+
+		{
+			const D3D12_RESOURCE_BARRIER barriers[] =
+			{
+				CD3DX12_RESOURCE_BARRIER::Transition(bloomDownChain, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, lod, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
+				CD3DX12_RESOURCE_BARRIER::Transition(lod + 1 < bloomDownChainLen ? bloomDownChain : bloomUpChain, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, lod + 1)
+			};
+			cmdList->ResourceBarrier(size(barriers), barriers);
+		}
+	}
+
+	// bloom blur + upsample chain
+	for (cmdList->SetPipelineState(bloomUpsampleBlurPSO.Get()); lod > 0; lod--)
+	{
+		cmdList->SetComputeRoot32BitConstant(ROOT_PARAM_PUSH_CONST, lod - 1, 0);
+		const auto dispatchSize = ImageDispatchSize(lod/*halfres - dest offset*/);
+		cmdList->Dispatch(dispatchSize.x, dispatchSize.y, 1);
+
+		{
+			const D3D12_RESOURCE_BARRIER barriers[] =
+			{
+				CD3DX12_RESOURCE_BARRIER::Transition(bloomUpChain, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, lod, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
+				CD3DX12_RESOURCE_BARRIER::Transition(bloomUpChain, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, lod - 1),
+				CD3DX12_RESOURCE_BARRIER::Transition(bloomUpChain, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, 0, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY)
+			};
+			cmdList->ResourceBarrier(2 + (lod == 2), barriers);
+		}
+	}
+
+	// postprocess main final composite pass
+	cmdList->SetPipelineState(postrpocessFinalCompositePSO.Get());
+	const auto fullResDispatchSize = ImageDispatchSize(0);
+	cmdList->Dispatch(fullResDispatchSize.x, fullResDispatchSize.y, 1);
 
 	{
 		const D3D12_RESOURCE_BARRIER barriers[] =
 		{
 			CD3DX12_RESOURCE_BARRIER::Transition(HDRSurface, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RESOLVE_DEST),					// !: use split barrier
 			CD3DX12_RESOURCE_BARRIER::Transition(LDRSurface, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE),
-			CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY)
+			CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY),
+			CD3DX12_RESOURCE_BARRIER::Transition(bloomUpChain, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, 0, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY)
 		};
 		cmdList->ResourceBarrier(size(barriers), barriers);
 	}
@@ -258,7 +401,9 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(ID3D12GraphicsCommandL
 		const D3D12_RESOURCE_BARRIER barriers[] =
 		{
 			CD3DX12_RESOURCE_BARRIER::Transition(LDRSurface, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS),	// !: use split barrier
-			CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT)
+			CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT),
+			CD3DX12_RESOURCE_BARRIER::Transition(bloomUpChain, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY),
+			CD3DX12_RESOURCE_BARRIER::Transition(bloomDownChain, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY)
 		};
 		cmdList->ResourceBarrier(size(barriers), barriers);
 	}
@@ -314,8 +459,9 @@ void Impl::Viewport::UpdateAspect(double invAspect)
 	projXform[0][0] = projXform[1][1] * invAspect;
 }
 
-void Impl::Viewport::Render(ID3D12Resource *output, ID3D12Resource *rendertarget, ID3D12Resource *ZBuffer, ID3D12Resource *HDRSurface, ID3D12Resource *LDRSurface, ID3D12Resource *tonemapReductionBuffer,
-	const D3D12_CPU_DESCRIPTOR_HANDLE rtv, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, const D3D12_GPU_DESCRIPTOR_HANDLE tonemapDescriptorTable, UINT width, UINT height) const
+void Impl::Viewport::Render(ID3D12Resource *output, ID3D12Resource *rendertarget, ID3D12Resource *ZBuffer, ID3D12Resource *HDRSurface, ID3D12Resource *LDRSurface,
+	ID3D12Resource *bloomUpChain, ID3D12Resource *bloomDownChain, ID3D12Resource *luminanceReductionBuffer,
+	const D3D12_CPU_DESCRIPTOR_HANDLE rtv, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, const D3D12_GPU_DESCRIPTOR_HANDLE postprocessDescriptorTable, UINT width, UINT height) const
 {
 	// time
 	using namespace chrono;
@@ -331,7 +477,8 @@ void Impl::Viewport::Render(ID3D12Resource *output, ID3D12Resource *rendertarget
 	const RenderPipeline::RenderPasses::PipelineROPTargets ROPTargets(rendertarget, rtv, backgroundColor, ZBuffer, dsv, 1.f, 0xef, HDRSurface, width, height);
 	world->Render(ctx, viewXform, projXform, tonemapParamsBuffer->GetGPUVirtualAddress(), ROPTargets);
 
-	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Post, this, cmdLists.post, output, rendertarget, HDRSurface, LDRSurface, tonemapReductionBuffer, tonemapDescriptorTable, CalculateTonemapParamsLerpFactor(delta), width, height);
+	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Post, this, cmdLists.post, output, rendertarget, HDRSurface, LDRSurface, bloomUpChain, bloomDownChain, luminanceReductionBuffer,
+		postprocessDescriptorTable, CalculateTonemapParamsLerpFactor(delta), width, height);
 
 	// defer as much as possible in order to reduce chances waiting to be inserted in GFX queue (DMA queue can progress enough by this point)
 	DMA::Sync();

@@ -135,9 +135,6 @@
     <ClInclude Include="GPU descriptor heap.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="tonemap resource views stage.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="shader bytecode.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -177,7 +174,10 @@
     <ClInclude Include="terrain render stages.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="tonemapping config.h">
+    <ClInclude Include="CS config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="postprocess descriptor table store.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -242,9 +242,6 @@
     <ClCompile Include="sun.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="tonemap resource views stage.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="GPU descriptor heap.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -269,6 +266,9 @@
     <ClCompile Include="render passes.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="postprocess descriptor table store.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="AABB_2D.hlsl">
@@ -284,15 +284,6 @@
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="AABB_2D_vis.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="tonemapping.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="tonemapBufferReduction.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="tonemapTextureReduction.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="vectorLayerFlatPS.hlsl">
@@ -346,6 +337,27 @@
     <FxCompile Include="object3DTV_VS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="downsample.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="decode2halfres.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="upsampleBlur.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="brightPass.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="luminanceTextureReduction.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="luminanceBufferReduction.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="postprocessFinalComposite.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="world hierarchy.inl">
@@ -381,9 +393,6 @@
     <None Include="per-frame data.hlsli">
       <Filter>Shaders\Include</Filter>
     </None>
-    <None Include="tonemapping config.hlsli">
-      <Filter>Shaders\Include</Filter>
-    </None>
     <None Include="tonemapLocalReduction.hlsli">
       <Filter>Shaders\Include</Filter>
     </None>
@@ -416,6 +425,12 @@
       <Filter>Shaders\Include</Filter>
     </None>
     <None Include="object3D material params.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
+    <None Include="CS config.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
+    <None Include="upsampleBlur.hlsli">
       <Filter>Shaders\Include</Filter>
     </None>
   </ItemGroup>

@@ -4,8 +4,8 @@
 #include "frame versioning.h"
 #include "occlusion query batch.h"
 #include "DMA engine.h"
-#include "render output.hh"	// for tonemap reduction buffer
-#include "viewport.hh"		// for tonemap root sig & PSOs
+#include "render output.hh"	// for luminance reduction buffer
+#include "viewport.hh"		// for postprocess root sig & PSOs
 #include "world.hh"
 #include "world render stages.h"
 #include "terrain render stages.h"
@@ -325,7 +325,7 @@ namespace Renderer::Impl::Descriptors::TextureSamplers::Impl
 	ComPtr<ID3D12DescriptorHeap> CreateHeap(), heap = Try(CreateHeap, "GPU texture sampler heap");
 }
 
-ComPtr<ID3D12Resource> RenderOutput::tonemapReductionBuffer = device ? RenderOutput::CreateTonemapReductionBuffer() : nullptr;
+ComPtr<ID3D12Resource> RenderOutput::luminanceReductionBuffer = device ? RenderOutput::CreateLuminanceReductionBuffer() : nullptr;
 
 struct RetiredResource
 {
@@ -355,7 +355,7 @@ void OnFrameFinish()
 
 #pragma region root sigs & PSOs
 ComPtr<ID3D12RootSignature>
-	Viewport::tonemapRootSig														= Try(Viewport::CreateTonemapRootSig, "tonemapping root signature"),
+	Viewport::postprocessRootSig													= Try(Viewport::CreatePostprocessRootSig, "postprocess root signature"),
 	TerrainVectorQuad::MainRenderStage::cullPassRootSig								= Try(TerrainVectorQuad::MainRenderStage::CreateCullPassRootSig, "terrain occlusion query root signature"),
 	TerrainVectorQuad::DebugRenderStage::AABB_rootSig								= Try(TerrainVectorQuad::DebugRenderStage::CreateAABB_RootSig, "terrain AABB visualization root signature"),
 	TerrainMaterials::Flat::rootSig													= Try(TerrainMaterials::Flat::CreateRootSig, "terrain flat material root signature"),
@@ -367,9 +367,13 @@ ComPtr<ID3D12RootSignature>
 	World::DebugRenderStage::AABB_rootSig											= Try(World::DebugRenderStage::CreateAABB_RootSig, "world 3D objects AABB visualization root signature"),
 	Object3D::rootSig																= Try(Object3D::CreateRootSig, "object 3D root signature");
 ComPtr<ID3D12PipelineState>
-	Viewport::tonemapTextureReductionPSO											= Try(Viewport::CreateTonemapTextureReductionPSO, "tonemap texture reduction PSO"),
-	Viewport::tonemapBufferReductionPSO												= Try(Viewport::CreateTonemapBufferReductionPSO, "tonemap buffer reduction PSO"),
-	Viewport::tonemapPSO															= Try(Viewport::CreateTonemapPSO, "tonemapping PSO"),
+	Viewport::luminanceTextureReductionPSO											= Try(Viewport::CreateLuminanceTextureReductionPSO, "luminance texture reduction PSO"),
+	Viewport::luminanceBufferReductionPSO											= Try(Viewport::CreateLuminanceBufferReductionPSO, "luminance buffer reduction PSO"),
+	Viewport::decode2halfresPSO														= Try(Viewport::CreateDecode2HalfresPSO, "postprocess decode 2 halfres PSO"),
+	Viewport::brightPassPSO															= Try(Viewport::CreateBrightPassPSO, "bloom bright pass PSO"),
+	Viewport::bloomDownsamplePSO													= Try(Viewport::CreateBloomDownsmplePSO, "bloom downsample PSO"),
+	Viewport::bloomUpsampleBlurPSO													= Try(Viewport::CreateBloomUpsmpleBlurPSO, "bloom upsample blur PSO"),
+	Viewport::postrpocessFinalCompositePSO											= Try(Viewport::CreatePostprocessFinalCompositePSO, "postprocess final composite PSO"),
 	TerrainVectorQuad::MainRenderStage::cullPassPSO									= Try(TerrainVectorQuad::MainRenderStage::CreateCullPassPSO, "terrain occlusion query PSO"),
 	TerrainVectorQuad::DebugRenderStage::AABB_PSO									= Try(TerrainVectorQuad::DebugRenderStage::CreateAABB_PSO, "terrain AABB visualization PSO"),
 	TerrainMaterials::Flat::PSO														= Try(TerrainMaterials::Flat::CreatePSO, "terrain flat material PSO"),
@@ -442,11 +446,15 @@ extern void __cdecl InitRenderer()
 		gfxQueue											= CreateGraphicsCommandQueue();
 		dmaQueue											= CreateDMACommandQueue();
 		TextureSamplers::Impl::heap							= TextureSamplers::Impl::CreateHeap();
-		RenderOutput::tonemapReductionBuffer				= RenderOutput::CreateTonemapReductionBuffer();
-		Viewport::tonemapRootSig							= Viewport::CreateTonemapRootSig();
-		Viewport::tonemapTextureReductionPSO				= Viewport::CreateTonemapTextureReductionPSO();
-		Viewport::tonemapBufferReductionPSO					= Viewport::CreateTonemapBufferReductionPSO();
-		Viewport::tonemapPSO								= Viewport::CreateTonemapPSO();
+		RenderOutput::luminanceReductionBuffer				= RenderOutput::CreateLuminanceReductionBuffer();
+		Viewport::postprocessRootSig						= Viewport::CreatePostprocessRootSig();
+		Viewport::luminanceTextureReductionPSO				= Viewport::CreateLuminanceTextureReductionPSO();
+		Viewport::luminanceBufferReductionPSO				= Viewport::CreateLuminanceBufferReductionPSO();
+		Viewport::decode2halfresPSO							= Viewport::CreateDecode2HalfresPSO();
+		Viewport::brightPassPSO								= Viewport::CreateBrightPassPSO();
+		Viewport::bloomDownsamplePSO						= Viewport::CreateBloomDownsmplePSO();
+		Viewport::bloomUpsampleBlurPSO						= Viewport::CreateBloomUpsmpleBlurPSO();
+		Viewport::postrpocessFinalCompositePSO				= Viewport::CreatePostprocessFinalCompositePSO();
 		TerrainVectorQuad::MainRenderStage::cullPassRootSig	= TerrainVectorQuad::MainRenderStage::CreateCullPassRootSig();
 		TerrainVectorQuad::DebugRenderStage::AABB_rootSig	= TerrainVectorQuad::DebugRenderStage::CreateAABB_RootSig();
 		TerrainVectorQuad::MainRenderStage::cullPassPSO		= TerrainVectorQuad::MainRenderStage::CreateCullPassPSO();

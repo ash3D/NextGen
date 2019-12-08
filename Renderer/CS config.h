@@ -4,10 +4,10 @@
 
 namespace Renderer
 {
-	namespace Tonemapping
+	namespace CSConfig
 	{
 		using Math::VectorMath::HLSL::uint2;
 	}
 
-#	include "tonemapping config.hlsli"
+#	include "CS config.hlsli"
 }
