@@ -43,46 +43,64 @@ static inline float CalculateLumAdaptationLerpFactor(float delta)
 	return exp(-adaptationSpeed * delta);
 }
 
+#pragma region cmd buffers
+ID3D12GraphicsCommandList4 *Impl::Viewport::DeferredCmdBuffsProvider::Acquire(ComPtr<ID3D12GraphicsCommandList4> &list, const WCHAR listName[], ID3D12PipelineState *PSO)
+{
+	if (list)
+	{
+		// reset list
+		CheckHR(list->Reset(cmdBuffers.allocator.Get(), PSO));
+	}
+	else
+	{
+		// create list
+		CheckHR(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, cmdBuffers.allocator.Get(), PSO, IID_PPV_ARGS(&list)));
+		NameObjectF(list.Get(), L"viewport %p %ls command list [%hu]", viewportPtr, listName, createVersion);
+	}
+
+	return list.Get();
+}
+
+inline ID3D12GraphicsCommandList4 *Impl::Viewport::DeferredCmdBuffsProvider::AcquirePre()
+{
+	return Acquire(cmdBuffers.pre, L"pre", NULL);
+}
+
+inline ID3D12GraphicsCommandList4 *Impl::Viewport::DeferredCmdBuffsProvider::AcquirePost()
+{
+	return Acquire(cmdBuffers.post, L"post", luminanceTextureReductionPSO.Get());
+}
+
 // result valid until call to 'OnFrameFinish()'
-auto Impl::Viewport::CmdListsManager::OnFrameStart() -> PrePostCmds<ID3D12GraphicsCommandList4 *>
+auto Impl::Viewport::CmdBuffsManager::OnFrameStart() -> DeferredCmdBuffsProvider
 {
 	FrameVersioning::OnFrameStart();
-	auto &cmdBuffers = GetCurFrameDataVersion();
+	PrePostCmdBuffs &cmdBuffers = GetCurFrameDataVersion();
 
-	if (cmdBuffers.pre.allocator && cmdBuffers.post.allocator && cmdBuffers.pre.list && cmdBuffers.post.list)
+	if (cmdBuffers.allocator)
 	{
-		// reset allocators
-		CheckHR(cmdBuffers.pre.allocator->Reset());
-		CheckHR(cmdBuffers.post.allocator->Reset());
+		// reset allocator
+		CheckHR(cmdBuffers.allocator->Reset());
 
-		// reset lists
-		CheckHR(cmdBuffers.pre.list->Reset(cmdBuffers.pre.allocator.Get(), NULL));
-		CheckHR(cmdBuffers.post.list->Reset(cmdBuffers.post.allocator.Get(), luminanceTextureReductionPSO.Get()));
+		return DeferredCmdBuffsProvider{ cmdBuffers };
 	}
 	else
 	{
 #if ENABLE_NONSTDLAYOUT_OFFSETOF
-		const void *const ptr = reinterpret_cast<const std::byte *>(this) - offsetof(Viewport, cmdListsManager);
+		const void *const viewportPtr = reinterpret_cast<const std::byte *>(this) - offsetof(Viewport, cmdBuffsManager);
 #else
-		const void *const ptr = this;
+		const void *const viewportPtr = this;
 #endif
-		const unsigned short version = GetFrameLatency() - 1;
+		const unsigned short createVersion = GetFrameLatency() - 1;
 
-		// create allocators
-		CheckHR(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&cmdBuffers.pre.allocator)));
-		NameObjectF(cmdBuffers.pre.allocator.Get(), L"viewport %p pre command allocator [%hu]", ptr, version);
-		CheckHR(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&cmdBuffers.post.allocator)));
-		NameObjectF(cmdBuffers.post.allocator.Get(), L"viewport %p post command allocator [%hu]", ptr, version);
+		// create allocator
+		CheckHR(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&cmdBuffers.allocator)));
+		NameObjectF(cmdBuffers.allocator.Get(), L"viewport %p command allocator [%hu]", viewportPtr, createVersion);
 
-		// create lists
-		CheckHR(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, cmdBuffers.pre.allocator.Get(), NULL, IID_PPV_ARGS(&cmdBuffers.pre.list)));
-		NameObjectF(cmdBuffers.pre.list.Get(), L"viewport %p pre command list [%hu]", ptr, version);
-		CheckHR(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, cmdBuffers.post.allocator.Get(), luminanceTextureReductionPSO.Get(), IID_PPV_ARGS(&cmdBuffers.post.list)));
-		NameObjectF(cmdBuffers.post.list.Get(), L"viewport %p post command list [%hu]", ptr, version);
+		return DeferredCmdBuffsProvider{ cmdBuffers, viewportPtr, createVersion };
 	}
-
-	return { cmdBuffers.pre.list.Get(), cmdBuffers.post.list.Get() };
 }
+#pragma endregion
 
 #pragma region postprocess root sig & PSOs
 ComPtr<ID3D12RootSignature> Impl::Viewport::CreatePostprocessRootSig()
@@ -232,8 +250,10 @@ ComPtr<ID3D12PipelineState> Impl::Viewport::CreatePostprocessFinalCompositePSO()
 }
 #pragma endregion
 
-inline RenderPipeline::PipelineStage Impl::Viewport::Pre(ID3D12GraphicsCommandList4 *cmdList, ID3D12Resource *output, D3D12_CPU_DESCRIPTOR_HANDLE rtv, D3D12_CPU_DESCRIPTOR_HANDLE dsv) const
+inline RenderPipeline::PipelineStage Impl::Viewport::Pre(DeferredCmdBuffsProvider cmdListProvider, ID3D12Resource *output, D3D12_CPU_DESCRIPTOR_HANDLE rtv, D3D12_CPU_DESCRIPTOR_HANDLE dsv) const
 {
+	const auto cmdList = cmdListProvider.AcquirePre();
+
 	PIXScopedEvent(cmdList, PIX_COLOR_INDEX(PIXEvents::ViewportPre), "viewport pre");
 	if (fresh)
 	{
@@ -262,10 +282,12 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Pre(ID3D12GraphicsCommandLi
 	return cmdList;
 }
 
-inline RenderPipeline::PipelineStage Impl::Viewport::Post(ID3D12GraphicsCommandList4 *cmdList, ID3D12Resource *output, ID3D12Resource *rendertarget, ID3D12Resource *HDRSurface, ID3D12Resource *LDRSurface,
+inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvider cmdListProvider, ID3D12Resource *output, ID3D12Resource *rendertarget, ID3D12Resource *HDRSurface, ID3D12Resource *LDRSurface,
 	ID3D12Resource *bloomUpChain, ID3D12Resource *bloomDownChain, ID3D12Resource *luminanceReductionBuffer,
 	D3D12_GPU_DESCRIPTOR_HANDLE postprocessDescriptorTable, float lumAdaptationLerpFactor, UINT width, UINT height) const
 {
+	const auto cmdList = cmdListProvider.AcquirePost();
+
 	PIXScopedEvent(cmdList, PIX_COLOR_INDEX(PIXEvents::ViewportPost), "viewport post");
 
 	{
@@ -476,15 +498,15 @@ void Impl::Viewport::Render(ID3D12Resource *output, ID3D12Resource *rendertarget
 	const float delta = duration_cast<duration<float>>(curTime - time).count();
 	time = curTime;
 
-	auto cmdLists = cmdListsManager.OnFrameStart();
+	DeferredCmdBuffsProvider cmdBuffsProvider = cmdBuffsManager.OnFrameStart();
 	GPUWorkSubmission::Prepare();
 
-	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Pre, this, cmdLists.pre, output, rtv, dsv);
+	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Pre, this, cmdBuffsProvider, output, rtv, dsv);
 
 	const RenderPipeline::RenderPasses::PipelineROPTargets ROPTargets(rendertarget, rtv, backgroundColor, ZBuffer, dsv, 1.f, 0xef, HDRSurface, width, height);
 	world->Render(ctx, viewXform, projXform, cameraSettingsBuffer->GetGPUVirtualAddress(), ROPTargets);
 
-	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Post, this, cmdLists.post, output, rendertarget, HDRSurface, LDRSurface, bloomUpChain, bloomDownChain, luminanceReductionBuffer,
+	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Post, this, cmdBuffsProvider, output, rendertarget, HDRSurface, LDRSurface, bloomUpChain, bloomDownChain, luminanceReductionBuffer,
 		postprocessDescriptorTable, CalculateLumAdaptationLerpFactor(delta), width, height);
 
 	// defer as much as possible in order to reduce chances waiting to be inserted in GFX queue (DMA queue can progress enough by this point)
@@ -492,7 +514,7 @@ void Impl::Viewport::Render(ID3D12Resource *output, ID3D12Resource *rendertarget
 
 	GPUWorkSubmission::Run();
 	fresh = false;
-	cmdListsManager.OnFrameFinish();
+	cmdBuffsManager.OnFrameFinish();
 }
 
 void Impl::Viewport::OnFrameFinish() const

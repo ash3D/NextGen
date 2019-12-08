@@ -5,10 +5,10 @@
 #include "../tracked resource.h"
 #include "../tracked ref.h"
 #include "../frame versioning.h"
-#include "../cmd buffer.h"
 #include "../world view context.h"
 #include "../render pipeline.h"
 
+struct ID3D12CommandAllocator;
 struct ID3D12GraphicsCommandList4;
 struct ID3D12RootSignature;
 struct ID3D12PipelineState;
@@ -46,18 +46,42 @@ namespace Renderer
 			};
 
 		private:
-			template<class Cmd>
-			struct PrePostCmds
+			class CmdBuffsManager;
+
+			struct PrePostCmdBuffs final
 			{
-				Cmd pre, post;
+				WRL::ComPtr<ID3D12CommandAllocator> allocator;
+				WRL::ComPtr<ID3D12GraphicsCommandList4> pre, post;
 			};
+
+			class DeferredCmdBuffsProvider final
+			{
+				friend class CmdBuffsManager;
+
+			private:
+				PrePostCmdBuffs &cmdBuffers;
+				const void *const viewportPtr;
+				const unsigned short createVersion;
+
+			private:
+				explicit DeferredCmdBuffsProvider(PrePostCmdBuffs &cmdBuffers, const void *viewportPtr = NULL, unsigned short createVersion = ~0) :
+					cmdBuffers(cmdBuffers), viewportPtr(viewportPtr), createVersion(createVersion)
+				{}
+
+			private:
+				ID3D12GraphicsCommandList4 *Acquire(WRL::ComPtr<ID3D12GraphicsCommandList4> &list, const WCHAR listName[], ID3D12PipelineState *PSO);
+
+			public:
+				inline ID3D12GraphicsCommandList4 *AcquirePre(), *AcquirePost();
+			};
+
 			static constexpr const WCHAR viewportName[] = L"viewport";
-			mutable class CmdListsManager : FrameVersioning<PrePostCmds<CmdBuffer<>>, viewportName>
+			mutable class CmdBuffsManager final : FrameVersioning<PrePostCmdBuffs, viewportName>
 			{
 			public:
-				PrePostCmds<ID3D12GraphicsCommandList4 *> OnFrameStart();
+				DeferredCmdBuffsProvider OnFrameStart();
 				using FrameVersioning::OnFrameFinish;
-			} cmdListsManager;
+			} cmdBuffsManager;
 
 		private:
 			const shared_ptr<const class Renderer::World> world;
@@ -81,8 +105,8 @@ namespace Renderer
 
 		private:
 			RenderPipeline::PipelineStage
-				Pre(ID3D12GraphicsCommandList4 *cmdList, ID3D12Resource *output, D3D12_CPU_DESCRIPTOR_HANDLE rtv, D3D12_CPU_DESCRIPTOR_HANDLE dsv) const,
-				Post(ID3D12GraphicsCommandList4 *cmdList, ID3D12Resource *output, ID3D12Resource *rendertarget, ID3D12Resource *HDRSurface, ID3D12Resource *LDRSurface,
+				Pre(DeferredCmdBuffsProvider cmdListProvider, ID3D12Resource *output, D3D12_CPU_DESCRIPTOR_HANDLE rtv, D3D12_CPU_DESCRIPTOR_HANDLE dsv) const,
+				Post(DeferredCmdBuffsProvider cmdListProvider, ID3D12Resource *output, ID3D12Resource *rendertarget, ID3D12Resource *HDRSurface, ID3D12Resource *LDRSurface,
 					ID3D12Resource *bloomUpChain, ID3D12Resource *bloomDownChain, ID3D12Resource *luminanceReductionBuffer,
 					D3D12_GPU_DESCRIPTOR_HANDLE postprocessDescriptorTable, float lumAdaptationLerpFactor, UINT width, UINT height) const;
 
