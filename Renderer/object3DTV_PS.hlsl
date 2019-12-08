@@ -10,13 +10,13 @@ namespace Materials
 #include "object3D VS 2 PS.hlsli"
 #include "object3D tex stuff.hlsli"
 #include "object3D material params.hlsli"
-#include "tonemap params.hlsli"
+#include "camera params.hlsli"
 #include "normals.hlsli"
 #include "lighting.hlsli"
 #include "HDR codec.hlsli"
 
 ConstantBuffer<Materials::TV>				materialParams	: register(b0, space1);
-ConstantBuffer<Tonemapping::TonemapParams>	tonemapParams	: register(b0, space2);
+ConstantBuffer<CameraParams::Settings>	cameraSettings	: register(b0, space2);
 
 float4 main(in XformedVertexTex input, in bool front : SV_IsFrontFace) : SV_TARGET
 {
@@ -35,5 +35,5 @@ float4 main(in XformedVertexTex input, in bool front : SV_IsFrontFace) : SV_TARG
 	const float3 screenEmission = SelectTexture(Materials::TV_SCREEN).Sample(Materials::TV_sampler, input.uv) * materialParams.TVBrighntess;
 	shadeResult += screenEmission;
 
-	return EncodeHDR(shadeResult, tonemapParams.exposure);
+	return EncodeHDR(shadeResult, cameraSettings.exposure);
 }

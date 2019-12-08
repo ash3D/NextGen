@@ -418,7 +418,7 @@ WRL::ComPtr<ID3D12RootSignature> Impl::Object3D::CreateRootSig()
 	ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC &desc, LPCWSTR name);
 	CD3DX12_ROOT_PARAMETER1 rootParams[ROOT_PARAM_COUNT];
 	rootParams[ROOT_PARAM_PER_FRAME_DATA_CBV].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC);									// per-frame data
-	rootParams[ROOT_PARAM_TONEMAP_PARAMS_CBV].InitAsConstantBufferView(0, 2, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);			// tonemap params
+	rootParams[ROOT_PARAM_CAMERA_SETTINGS_CBV].InitAsConstantBufferView(0, 2, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);			// camera settings buffer
 	rootParams[ROOT_PARAM_INSTANCE_DATA_CBV].InitAsConstantBufferView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_VERTEX);	// instance data
 	rootParams[ROOT_PARAM_MATERIAL_CBV].InitAsConstantBufferView(0, 1, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC);											// material
 	rootParams[ROOT_PARAM_DESC_TABLE_OFFSETS].InitAsConstants(1, 1, 1);
@@ -865,12 +865,12 @@ AABB<3> Impl::Object3D::GetXformedAABB(const float4x3 &xform) const
 	return result;
 }
 
-void Impl::Object3D::Setup(ID3D12GraphicsCommandList4 *cmdList, UINT64 frameDataGPUPtr, UINT64 tonemapParamsGPUPtr)
+void Impl::Object3D::Setup(ID3D12GraphicsCommandList4 *cmdList, UINT64 frameDataGPUPtr, UINT64 cameraSettingsGPUPtr)
 {
 	using namespace Descriptors;
 	cmdList->SetGraphicsRootSignature(rootSig.Get());
 	cmdList->SetGraphicsRootConstantBufferView(ROOT_PARAM_PER_FRAME_DATA_CBV, frameDataGPUPtr);
-	cmdList->SetGraphicsRootConstantBufferView(ROOT_PARAM_TONEMAP_PARAMS_CBV, tonemapParamsGPUPtr);
+	cmdList->SetGraphicsRootConstantBufferView(ROOT_PARAM_CAMERA_SETTINGS_CBV, cameraSettingsGPUPtr);
 	ID3D12DescriptorHeap *const descHeaps[] = { GPUDescriptorHeap::GetHeap().Get(), TextureSamplers::GetHeap().Get() };
 	cmdList->SetDescriptorHeaps(size(descHeaps), descHeaps);
 	cmdList->SetGraphicsRootDescriptorTable(ROOT_PARAM_SAMPLER_DESC_TABLE, TextureSamplers::GetGPUAddress(TextureSamplers::OBJECT3D_DESC_TABLE_ID));

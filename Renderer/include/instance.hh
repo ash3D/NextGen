@@ -43,7 +43,7 @@ namespace Renderer
 			const auto &GetWorldAABB() const noexcept { return worldAABB; }
 
 		protected:
-			static void Setup(ID3D12GraphicsCommandList4 *target, UINT64 frameDataGPUPtr, UINT64 tonemapParamsGPUPtr) { Object3D::Setup(target, frameDataGPUPtr, tonemapParamsGPUPtr); }
+			static void Setup(ID3D12GraphicsCommandList4 *target, UINT64 frameDataGPUPtr, UINT64 cameraSettingsGPUPtr) { Object3D::Setup(target, frameDataGPUPtr, cameraSettingsGPUPtr); }
 			const auto GetStartPSO() const { return object.GetStartPSO(); }
 			void Render(ID3D12GraphicsCommandList4 *target) const;
 		};

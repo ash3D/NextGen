@@ -326,7 +326,7 @@ void TerrainVectorQuad::MainRenderStage::MainPassRange(CmdListPool::CmdList &cmd
 
 	cmdList.Setup(parent->layerMaterial->PSO.Get());
 
-	parent->layerMaterial->Setup(cmdList, World::GetCurFrameGPUDataPtr(), tonemapParamsGPUAddress);
+	parent->layerMaterial->Setup(cmdList, World::GetCurFrameGPUDataPtr(), cameraSettingsGPUAddress);
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	RenderPasses::RenderPassScope renderPassScope(cmdList, renderPass);
@@ -590,9 +590,9 @@ RenderPipeline::PipelineStage TerrainVectorQuad::MainRenderStage::Build(const Im
 }
 
 TerrainVectorQuad::MainRenderStage::MainRenderStage(shared_ptr<const Renderer::TerrainVectorLayer> &&parent,
-	D3D12_GPU_VIRTUAL_ADDRESS tonemapParamsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets, StageExchange &stageExchangeResult) :
+	D3D12_GPU_VIRTUAL_ADDRESS cameraSettingsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets, StageExchange &stageExchangeResult) :
 	parent(move(parent)),
-	tonemapParamsGPUAddress(tonemapParamsGPUAddress),
+	cameraSettingsGPUAddress(cameraSettingsGPUAddress),
 	stageRTBinding(ROPTargets),
 	stageZBinding(ROPTargets, true, true),
 	stageOutput(ROPTargets),
@@ -602,10 +602,10 @@ TerrainVectorQuad::MainRenderStage::MainRenderStage(shared_ptr<const Renderer::T
 }
 
 auto TerrainVectorQuad::MainRenderStage::Schedule(shared_ptr<const Renderer::TerrainVectorLayer> parent, const Impl::FrustumCuller<2> &frustumCuller, const float4x4 &frustumXform,
-	D3D12_GPU_VIRTUAL_ADDRESS tonemapParamsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) -> StageExchange
+	D3D12_GPU_VIRTUAL_ADDRESS cameraSettingsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) -> StageExchange
 {
 	StageExchange stageExchange;
-	auto renderStage = allocate_shared<MainRenderStage>(polymorphic_allocator<MainRenderStage>(&globalTransientRAM), move(parent), tonemapParamsGPUAddress, ROPTargets, stageExchange);
+	auto renderStage = allocate_shared<MainRenderStage>(polymorphic_allocator<MainRenderStage>(&globalTransientRAM), move(parent), cameraSettingsGPUAddress, ROPTargets, stageExchange);
 	GPUWorkSubmission::AppendPipelineStage<true>(&MainRenderStage::Build, move(renderStage), /*cref*/(frustumCuller), /*cref*/(frustumXform));
 	return stageExchange;
 }
@@ -619,7 +619,7 @@ inline void TerrainVectorQuad::MainRenderStage::OnFrameFinish()
 enum
 {
 	AABB_PASS_ROOT_PARAM_PER_FRAME_DATA_CBV,
-	AABB_PASS_ROOT_PARAM_TONEMAP_PARAMS_CBV,
+	AABB_PASS_ROOT_PARAM_CAMERA_SETTINGS_CBV,
 	AABB_PASS_ROOT_PARAM_COLOR,
 	AABB_PASS_ROOT_PARAM_COUNT
 };
@@ -628,7 +628,7 @@ ComPtr<ID3D12RootSignature> TerrainVectorQuad::DebugRenderStage::CreateAABB_Root
 {
 	CD3DX12_ROOT_PARAMETER1 rootParams[AABB_PASS_ROOT_PARAM_COUNT];
 	rootParams[AABB_PASS_ROOT_PARAM_PER_FRAME_DATA_CBV].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_VERTEX);
-	rootParams[AABB_PASS_ROOT_PARAM_TONEMAP_PARAMS_CBV].InitAsConstantBufferView(1, 1, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
+	rootParams[AABB_PASS_ROOT_PARAM_CAMERA_SETTINGS_CBV].InitAsConstantBufferView(1, 1, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParams[AABB_PASS_ROOT_PARAM_COLOR].InitAsConstants(3, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
 	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sigDesc(size(rootParams), rootParams, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	return CreateRootSignature(sigDesc, L"terrain AABB visualization root signature");
@@ -709,7 +709,7 @@ void TerrainVectorQuad::DebugRenderStage::AABBPassRange(CmdListPool::CmdList &cm
 
 	cmdList->SetGraphicsRootSignature(AABB_rootSig.Get());
 	cmdList->SetGraphicsRootConstantBufferView(AABB_PASS_ROOT_PARAM_PER_FRAME_DATA_CBV, World::GetCurFrameGPUDataPtr());
-	cmdList->SetGraphicsRootConstantBufferView(AABB_PASS_ROOT_PARAM_TONEMAP_PARAMS_CBV, tonemapParamsGPUAddress);
+	cmdList->SetGraphicsRootConstantBufferView(AABB_PASS_ROOT_PARAM_CAMERA_SETTINGS_CBV, cameraSettingsGPUAddress);
 	cmdList->SetGraphicsRoot32BitConstants(AABB_PASS_ROOT_PARAM_COLOR, size(color), color, 0);
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
@@ -770,8 +770,8 @@ auto TerrainVectorQuad::DebugRenderStage::GetCulledPassRange(unsigned int &lengt
 		[this](unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass) { return bind(&DebugRenderStage::AABBPassRange, shared_from_this(), _1, rangeBegin, rangeEnd, move(renderPass), cref(OcclusionCulling::DebugColors::Terrain::culled), false); });
 }
 
-TerrainVectorQuad::DebugRenderStage::DebugRenderStage(D3D12_GPU_VIRTUAL_ADDRESS tonemapParamsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) :
-	tonemapParamsGPUAddress(tonemapParamsGPUAddress),
+TerrainVectorQuad::DebugRenderStage::DebugRenderStage(D3D12_GPU_VIRTUAL_ADDRESS cameraSettingsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) :
+	cameraSettingsGPUAddress(cameraSettingsGPUAddress),
 	stageRTBinding(ROPTargets),
 	stageZBinding(ROPTargets, true, false),
 	stageOutput(ROPTargets)
@@ -784,9 +784,9 @@ RenderPipeline::PipelineStage TerrainVectorQuad::DebugRenderStage::Build(StageEx
 	return shared_from_this();
 }
 
-void TerrainVectorQuad::DebugRenderStage::Schedule(D3D12_GPU_VIRTUAL_ADDRESS tonemapParamsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets, StageExchange &&stageExchange)
+void TerrainVectorQuad::DebugRenderStage::Schedule(D3D12_GPU_VIRTUAL_ADDRESS cameraSettingsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets, StageExchange &&stageExchange)
 {
-	auto renderStage = allocate_shared<DebugRenderStage>(polymorphic_allocator<DebugRenderStage>(&globalTransientRAM), tonemapParamsGPUAddress, ROPTargets);
+	auto renderStage = allocate_shared<DebugRenderStage>(polymorphic_allocator<DebugRenderStage>(&globalTransientRAM), cameraSettingsGPUAddress, ROPTargets);
 	GPUWorkSubmission::AppendPipelineStage<false>(&DebugRenderStage::Build, move(renderStage), move(stageExchange));
 }
 #pragma endregion
@@ -888,14 +888,14 @@ auto Impl::TerrainVectorLayer::AddQuad(unsigned long int vcount, const function<
 	return { &quads.back(), QuadDeleter{ prev(quads.cend()) } };
 }
 
-auto Impl::TerrainVectorLayer::ScheduleRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const float4x4 &frustumXform, UINT64 tonemapParamsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) const -> StageExchange
+auto Impl::TerrainVectorLayer::ScheduleRenderStage(const Impl::FrustumCuller<2> &frustumCuller, const float4x4 &frustumXform, UINT64 cameraSettingsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) const -> StageExchange
 {
-	return MainRenderStage::Schedule(shared_from_this(), frustumCuller, frustumXform, tonemapParamsGPUAddress, ROPTargets);
+	return MainRenderStage::Schedule(shared_from_this(), frustumCuller, frustumXform, cameraSettingsGPUAddress, ROPTargets);
 }
 
-void Impl::TerrainVectorLayer::ScheduleDebugDrawRenderStage(UINT64 tonemapParamsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets, StageExchange &&stageExchange)
+void Impl::TerrainVectorLayer::ScheduleDebugDrawRenderStage(UINT64 cameraSettingsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets, StageExchange &&stageExchange)
 {
-	DebugRenderStage::Schedule(tonemapParamsGPUAddress, ROPTargets, move(stageExchange));
+	DebugRenderStage::Schedule(cameraSettingsGPUAddress, ROPTargets, move(stageExchange));
 }
 
 void Renderer::Impl::TerrainVectorLayer::OnFrameFinish()

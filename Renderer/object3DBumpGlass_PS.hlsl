@@ -12,14 +12,14 @@ namespace Materials
 #include "object3D VS 2 PS.hlsli"
 #include "object3D tex stuff.hlsli"
 #include "object3D material params.hlsli"
-#include "tonemap params.hlsli"
+#include "camera params.hlsli"
 #include "glass.hlsli"
 #include "normals.hlsli"
 #include "lighting.hlsli"
 #include "HDR codec.hlsli"
 
 ConstantBuffer<Materials::Common>			materialParams	: register(b0, space1);
-ConstantBuffer<Tonemapping::TonemapParams>	tonemapParams	: register(b0, space2);
+ConstantBuffer<CameraParams::Settings>	cameraSettings	: register(b0, space2);
 
 inline float3 Lit(float3 albedo, float roughness, float F0, Normals::Nn Nn, float3 viewDir, float3 lightDir, float3 lightIrradiance)
 {
@@ -48,5 +48,5 @@ float4 main(in XformedVertexBump input, in bool front : SV_IsFrontFace) : SV_TAR
 		input.viewDir, sun.dir, sun.irradiance)
 #	include "shade SSAA.hlsli"
 
-	return EncodeHDR(shadeResult, tonemapParams.exposure);
+	return EncodeHDR(shadeResult, cameraSettings.exposure);
 }

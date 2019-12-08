@@ -36,7 +36,7 @@ ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNA
 	
 extern const float backgroundColor[4] = { .0f, .2f, .4f, 1.f };
 
-static inline float CalculateTonemapParamsLerpFactor(float delta)
+static inline float CalculateLumAdaptationLerpFactor(float delta)
 {
 	static constexpr float adaptationSpeed = 1;
 
@@ -232,7 +232,7 @@ ComPtr<ID3D12PipelineState> Impl::Viewport::CreatePostprocessFinalCompositePSO()
 }
 #pragma endregion
 
-inline RenderPipeline::PipelineStage Impl::Viewport::Pre(ID3D12GraphicsCommandList4 *cmdList, ID3D12Resource *output, D3D12_CPU_DESCRIPTOR_HANDLE rtv, D3D12_CPU_DESCRIPTOR_HANDLE dsv, UINT width, UINT height) const
+inline RenderPipeline::PipelineStage Impl::Viewport::Pre(ID3D12GraphicsCommandList4 *cmdList, ID3D12Resource *output, D3D12_CPU_DESCRIPTOR_HANDLE rtv, D3D12_CPU_DESCRIPTOR_HANDLE dsv) const
 {
 	PIXScopedEvent(cmdList, PIX_COLOR_INDEX(PIXEvents::ViewportPre), "viewport pre");
 	if (fresh)
@@ -241,20 +241,20 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Pre(ID3D12GraphicsCommandLi
 		constexpr float initVal = 1;
 		const D3D12_WRITEBUFFERIMMEDIATE_PARAMETER initParams[] =
 		{
-			{tonemapParamsBuffer->GetGPUVirtualAddress(), reinterpret_cast<const UINT &>(initVal)/*strict aliasing rule violation, use C++20 bit_cast instead*/},
+			{cameraSettingsBuffer->GetGPUVirtualAddress(), reinterpret_cast<const UINT &>(initVal)/*strict aliasing rule violation, use C++20 bit_cast instead*/},
 			{initParams[0].Dest + sizeof(float), initParams[0].Value}
 		};
 		cmdList->WriteBufferImmediate(size(initParams), initParams, NULL);
 	}
 	{
 		/*
-			could potentially use split barrier for tonemapParamsBuffer to overlap with occlusion culling but it would require conditional finish barrier in world render
+			could potentially use split barrier for cameraSettingsBuffer to overlap with occlusion culling but it would require conditional finish barrier in world render
 			anyway barrier happens only once at viewport creation
 		*/
 		const D3D12_RESOURCE_BARRIER barriers[] =
 		{
 			CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
-			CD3DX12_RESOURCE_BARRIER::Transition(tonemapParamsBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER)
+			CD3DX12_RESOURCE_BARRIER::Transition(cameraSettingsBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER)
 		};
 		cmdList->ResourceBarrier(1 + fresh, barriers);
 	}
@@ -264,14 +264,14 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Pre(ID3D12GraphicsCommandLi
 
 inline RenderPipeline::PipelineStage Impl::Viewport::Post(ID3D12GraphicsCommandList4 *cmdList, ID3D12Resource *output, ID3D12Resource *rendertarget, ID3D12Resource *HDRSurface, ID3D12Resource *LDRSurface,
 	ID3D12Resource *bloomUpChain, ID3D12Resource *bloomDownChain, ID3D12Resource *luminanceReductionBuffer,
-	D3D12_GPU_DESCRIPTOR_HANDLE postprocessDescriptorTable, float tonemapLerpFactor, UINT width, UINT height) const
+	D3D12_GPU_DESCRIPTOR_HANDLE postprocessDescriptorTable, float lumAdaptationLerpFactor, UINT width, UINT height) const
 {
 	PIXScopedEvent(cmdList, PIX_COLOR_INDEX(PIXEvents::ViewportPost), "viewport post");
 
 	{
 		const D3D12_RESOURCE_BARRIER barriers[] =
 		{
-			CD3DX12_RESOURCE_BARRIER::Transition(tonemapParamsBuffer.Get(), D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
+			CD3DX12_RESOURCE_BARRIER::Transition(cameraSettingsBuffer.Get(), D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
 			CD3DX12_RESOURCE_BARRIER::Transition(HDRSurface, D3D12_RESOURCE_STATE_RESOLVE_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE)
 		};
 		cmdList->ResourceBarrier(size(barriers), barriers);
@@ -279,13 +279,13 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(ID3D12GraphicsCommandL
 
 	// bind postprocess resources
 	{
-		const auto tonemapParamsBufferGPUAddress = tonemapParamsBuffer->GetGPUVirtualAddress();
+		const auto cameraSettingsBufferGPUAddress = cameraSettingsBuffer->GetGPUVirtualAddress();
 		cmdList->SetDescriptorHeaps(1, Descriptors::GPUDescriptorHeap::GetHeap().GetAddressOf());
 		cmdList->SetComputeRootSignature(postprocessRootSig.Get());
 		cmdList->SetComputeRootDescriptorTable(ROOT_PARAM_DESC_TABLE, postprocessDescriptorTable);
-		cmdList->SetComputeRootConstantBufferView(ROOT_PARAM_CBV, tonemapParamsBufferGPUAddress);
-		cmdList->SetComputeRootUnorderedAccessView(ROOT_PARAM_UAV, tonemapParamsBufferGPUAddress);
-		cmdList->SetComputeRoot32BitConstant(ROOT_PARAM_PUSH_CONST, reinterpret_cast<const UINT &>(tonemapLerpFactor)/*use C++20 bit_cast instead*/, 0);
+		cmdList->SetComputeRootConstantBufferView(ROOT_PARAM_CBV, cameraSettingsBufferGPUAddress);
+		cmdList->SetComputeRootUnorderedAccessView(ROOT_PARAM_UAV, cameraSettingsBufferGPUAddress);
+		cmdList->SetComputeRoot32BitConstant(ROOT_PARAM_PUSH_CONST, reinterpret_cast<const UINT &>(lumAdaptationLerpFactor)/*use C++20 bit_cast instead*/, 0);
 	}
 
 	// initial texture reduction (PSO set during cmd list creation/reset)
@@ -296,7 +296,7 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(ID3D12GraphicsCommandL
 		const D3D12_RESOURCE_BARRIER barriers[] =
 		{
 			CD3DX12_RESOURCE_BARRIER::Transition(luminanceReductionBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),
-			CD3DX12_RESOURCE_BARRIER::Transition(tonemapParamsBuffer.Get(), D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY)
+			CD3DX12_RESOURCE_BARRIER::Transition(cameraSettingsBuffer.Get(), D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY)
 		};
 		cmdList->ResourceBarrier(size(barriers), barriers);
 	}
@@ -309,7 +309,7 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(ID3D12GraphicsCommandL
 		const D3D12_RESOURCE_BARRIER barriers[] =
 		{
 			CD3DX12_RESOURCE_BARRIER::Transition(luminanceReductionBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS),	// !: use split barrier
-			CD3DX12_RESOURCE_BARRIER::Transition(tonemapParamsBuffer.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER)
+			CD3DX12_RESOURCE_BARRIER::Transition(cameraSettingsBuffer.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER)
 		};
 		cmdList->ResourceBarrier(size(barriers), barriers);
 	}
@@ -419,7 +419,7 @@ Impl::Viewport::Viewport(shared_ptr<const Renderer::World> world) : world(move(w
 	viewXform[0][0] = viewXform[1][1] = viewXform[2][2] = projXform[0][0] = projXform[1][1] = projXform[2][2] = projXform[3][3] = 1.f;
 
 	/*
-		create tonemap params buffer
+		create camera settings buffer
 		very small size - consider sharing it with other viewport persistent data
 	*/
 	CheckHR(device->CreateCommittedResource(
@@ -428,9 +428,9 @@ Impl::Viewport::Viewport(shared_ptr<const Renderer::World> world) : world(move(w
 		&CD3DX12_RESOURCE_DESC::Buffer(sizeof(Impl::CBRegister::AlignedRow<3>/*or just 'float [3]'?*/), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS),
 		D3D12_RESOURCE_STATE_COPY_DEST,
 		NULL,
-		IID_PPV_ARGS(tonemapParamsBuffer.GetAddressOf())
+		IID_PPV_ARGS(cameraSettingsBuffer.GetAddressOf())
 	));
-	NameObjectF(tonemapParamsBuffer.Get(), L"tonemap params buffer for viewport %p", static_cast<Renderer::Viewport *>(this));
+	NameObjectF(cameraSettingsBuffer.Get(), L"camera settings buffer for viewport %p", static_cast<Renderer::Viewport *>(this));
 }
 
 void Impl::Viewport::SetViewTransform(const float (&matrix)[4][3])
@@ -472,13 +472,13 @@ void Impl::Viewport::Render(ID3D12Resource *output, ID3D12Resource *rendertarget
 	auto cmdLists = cmdListsManager.OnFrameStart();
 	GPUWorkSubmission::Prepare();
 
-	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Pre, this, cmdLists.pre, output, rtv, dsv, width, height);
+	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Pre, this, cmdLists.pre, output, rtv, dsv);
 
 	const RenderPipeline::RenderPasses::PipelineROPTargets ROPTargets(rendertarget, rtv, backgroundColor, ZBuffer, dsv, 1.f, 0xef, HDRSurface, width, height);
-	world->Render(ctx, viewXform, projXform, tonemapParamsBuffer->GetGPUVirtualAddress(), ROPTargets);
+	world->Render(ctx, viewXform, projXform, cameraSettingsBuffer->GetGPUVirtualAddress(), ROPTargets);
 
 	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Post, this, cmdLists.post, output, rendertarget, HDRSurface, LDRSurface, bloomUpChain, bloomDownChain, luminanceReductionBuffer,
-		postprocessDescriptorTable, CalculateTonemapParamsLerpFactor(delta), width, height);
+		postprocessDescriptorTable, CalculateLumAdaptationLerpFactor(delta), width, height);
 
 	// defer as much as possible in order to reduce chances waiting to be inserted in GFX queue (DMA queue can progress enough by this point)
 	DMA::Sync();

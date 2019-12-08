@@ -1,11 +1,11 @@
 #include "per-frame data.hlsli"
-#include "tonemap params.hlsli"
+#include "camera params.hlsli"
 #include "normals.hlsli"
 #include "lighting.hlsli"
 #include "HDR codec.hlsli"
 #include "terrain samplers.hlsli"
 
-ConstantBuffer<Tonemapping::TonemapParams> tonemapParams : register(b0, space1);
+ConstantBuffer<CameraParams::Settings> cameraSettings : register(b0, space1);
 
 cbuffer Material : register(b1, space1)
 {
@@ -30,5 +30,5 @@ float4 main(in float3 viewDir : ViewDir, in float2 uv : UV) : SV_TARGET
 		viewDir, sun.dir, sun.irradiance)
 #	include "shade SSAA.hlsli"
 
-	return EncodeHDR(shadeResult, tonemapParams.exposure);
+	return EncodeHDR(shadeResult, cameraSettings.exposure);
 }

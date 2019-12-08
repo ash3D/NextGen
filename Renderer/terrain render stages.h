@@ -35,7 +35,7 @@ class Renderer::TerrainVectorQuad::MainRenderStage final : public Impl::RenderPi
 
 private:
 	const std::shared_ptr<const Renderer::TerrainVectorLayer> parent;
-	const D3D12_GPU_VIRTUAL_ADDRESS tonemapParamsGPUAddress;
+	const D3D12_GPU_VIRTUAL_ADDRESS cameraSettingsGPUAddress;
 	const Impl::RenderPipeline::RenderPasses::StageRTBinding stageRTBinding;
 	const Impl::RenderPipeline::RenderPasses::StageZBinding stageZBinding;
 	const Impl::RenderPipeline::RenderPasses::StageOutput stageOutput;
@@ -118,11 +118,11 @@ private:
 private:
 public:
 	inline explicit MainRenderStage(std::shared_ptr<const Renderer::TerrainVectorLayer> &&parent,
-		D3D12_GPU_VIRTUAL_ADDRESS tonemapParamsGPUAddress, const Impl::RenderPipeline::RenderPasses::PipelineROPTargets &ROPTargets, StageExchange &stageExchangeResult);
+		D3D12_GPU_VIRTUAL_ADDRESS cameraSettingsGPUAddress, const Impl::RenderPipeline::RenderPasses::PipelineROPTargets &ROPTargets, StageExchange &stageExchangeResult);
 
 public:
 	inline static StageExchange Schedule(std::shared_ptr<const Renderer::TerrainVectorLayer> parent, const Impl::FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform,
-		D3D12_GPU_VIRTUAL_ADDRESS tonemapParamsGPUAddress, const Impl::RenderPipeline::RenderPasses::PipelineROPTargets &ROPTargets);
+		D3D12_GPU_VIRTUAL_ADDRESS cameraSettingsGPUAddress, const Impl::RenderPipeline::RenderPasses::PipelineROPTargets &ROPTargets);
 	inline static void OnFrameFinish();
 };
 
@@ -131,7 +131,7 @@ class Renderer::TerrainVectorQuad::DebugRenderStage final : public Impl::RenderP
 	friend extern void __cdecl ::InitRenderer();
 
 private:
-	const D3D12_GPU_VIRTUAL_ADDRESS tonemapParamsGPUAddress;
+	const D3D12_GPU_VIRTUAL_ADDRESS cameraSettingsGPUAddress;
 	const Impl::RenderPipeline::RenderPasses::StageRTBinding stageRTBinding;
 	const Impl::RenderPipeline::RenderPasses::StageZBinding stageZBinding;
 	const Impl::RenderPipeline::RenderPasses::StageOutput stageOutput;
@@ -162,8 +162,8 @@ private:
 
 private:
 public:
-	inline explicit DebugRenderStage(D3D12_GPU_VIRTUAL_ADDRESS tonemapParamsGPUAddress, const Impl::RenderPipeline::RenderPasses::PipelineROPTargets &ROPTargets);
+	inline explicit DebugRenderStage(D3D12_GPU_VIRTUAL_ADDRESS cameraSettingsGPUAddress, const Impl::RenderPipeline::RenderPasses::PipelineROPTargets &ROPTargets);
 
 public:
-	inline static void Schedule(D3D12_GPU_VIRTUAL_ADDRESS tonemapParamsGPUAddress, const Impl::RenderPipeline::RenderPasses::PipelineROPTargets &ROPTargets, StageExchange &&stageExchange);
+	inline static void Schedule(D3D12_GPU_VIRTUAL_ADDRESS cameraSettingsGPUAddress, const Impl::RenderPipeline::RenderPasses::PipelineROPTargets &ROPTargets, StageExchange &&stageExchange);
 };

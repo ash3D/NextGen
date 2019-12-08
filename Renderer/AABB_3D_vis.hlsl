@@ -1,4 +1,4 @@
-#include "tonemap params.hlsli"
+#include "camera params.hlsli"
 #include "HDR codec.hlsli"
 
 cbuffer Colors : register(b0)
@@ -11,7 +11,7 @@ cbuffer Offset : register(b1)
 	uint visibilityOffset;	// in bytes
 }
 
-ConstantBuffer<Tonemapping::TonemapParams> tonemapParams : register(b2);
+ConstantBuffer<CameraParams::Settings> cameraSettings : register(b2);
 
 #if 0
 ByteAddressBuffer visibility[2] : register(t0);
@@ -23,5 +23,5 @@ ByteAddressBuffer visibilityPhase1 : register(t0), visibilityPhase2 : register(t
 float4 main() : SV_TARGET
 {
 	const uint colorIdx = visibilityPhase1.Load(visibilityOffset) | visibilityPhase2.Load(visibilityOffset) << 1u;
-	return EncodeLDR(colors[colorIdx], tonemapParams.exposure);
+	return EncodeLDR(colors[colorIdx], cameraSettings.exposure);
 }

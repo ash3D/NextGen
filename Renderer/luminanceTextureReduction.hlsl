@@ -2,11 +2,11 @@
 #include "HDR codec.hlsli"
 #include "luminance.hlsli"
 
-namespace Tonemapping
+namespace LumAdaptaion
 {
 	static const uint localDataSize = CSConfig::LuminanceReduction::TexturePass::groupSize * CSConfig::LuminanceReduction::TexturePass::groupSize;
 }
-#include "tonemapLocalReduction.hlsli"
+#include "luminanceLocalReduction.hlsli"
 
 #define DXC_NAMESPACE_WORKAROUND 1
 
@@ -15,7 +15,7 @@ Texture2D src : register(t0);
 RWByteAddressBuffer dst : register(u1);
 #endif
 
-namespace Tonemapping
+namespace LumAdaptaion
 {
 	Texture2D src : register(t0);
 	RWByteAddressBuffer dst : register(u1);
@@ -25,8 +25,6 @@ namespace Tonemapping
 [numthreads(CSConfig::LuminanceReduction::TexturePass::groupSize, CSConfig::LuminanceReduction::TexturePass::groupSize, 1)]
 void main(in uint2 globalIdx : SV_DispatchThreadID, in uint flatLocalIdx : SV_GroupIndex, in uint2 groupIdx : SV_GroupID)
 {
-	//using namespace Tonemapping;
-
 	uint2 srcSize;
 	src.GetDimensions(srcSize.x, srcSize.y);
 
@@ -51,7 +49,7 @@ void main(in uint2 globalIdx : SV_DispatchThreadID, in uint flatLocalIdx : SV_Gr
 						'min' clamps fp16 overflow (inf)
 						can't use clamp here as it doesn't handle NaN
 					*/
-					const float lum = min(max(RGB_2_luminance(srcPixel), 0), 64e3f);
+					const float lum = min(max(RGB_2_luminance(srcPixel), 0), 64E3f);
 					// do weighting per-pixel rather than once in final reduction since mul is free here (merged into mad)\
 					NOTE: first iteration for unrolled loop can optimize add out thus making mul non-free
 					partialReduction.x += log2(lum + 1) * weight;
@@ -59,7 +57,7 @@ void main(in uint2 globalIdx : SV_DispatchThreadID, in uint flatLocalIdx : SV_Gr
 				}
 
 	// bulk of reduction work
-	const float2 finalReduction = Tonemapping::LocalReduce(partialReduction, flatLocalIdx);
+	const float2 finalReduction = LumAdaptaion::LocalReduce(partialReduction, flatLocalIdx);
 
 	// store result to global buffer
 	const uint flatGroupIdx = groupIdx.y * dispatchSize.x + groupIdx.x;

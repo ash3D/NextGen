@@ -146,7 +146,7 @@ namespace Renderer
 			void operator =(World &) = delete;
 
 		protected:
-			void Render(struct WorldViewContext &viewCtx, const float (&viewXform)[4][3], const float (&projXform)[4][4], UINT64 tonemapParamsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) const;
+			void Render(struct WorldViewContext &viewCtx, const float (&viewXform)[4][3], const float (&projXform)[4][4], UINT64 cameraSettingsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) const;
 			static void OnFrameFinish();
 
 		public:
@@ -158,8 +158,8 @@ namespace Renderer
 			void FlushUpdates() const;	// const to be able to call from Render()
 
 		private:
-			StageExchange ScheduleRenderStage(WorldViewContext &viewCtx, const HLSL::float4x4 &frustumTransform, const HLSL::float4x3 &worldViewTransform, UINT64 tonemapParamsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) const;
-			static void ScheduleDebugDrawRenderStage(UINT64 tonemapParamsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets, StageExchange &&stageExchange);
+			StageExchange ScheduleRenderStage(WorldViewContext &viewCtx, const HLSL::float4x4 &frustumTransform, const HLSL::float4x3 &worldViewTransform, UINT64 cameraSettingsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) const;
+			static void ScheduleDebugDrawRenderStage(UINT64 cameraSettingsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets, StageExchange &&stageExchange);
 		};
 	}
 

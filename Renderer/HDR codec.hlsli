@@ -1,9 +1,12 @@
 #pragma once
 
 #include "luminance.hlsli"
-#include "tonemap params.hlsli"
+#include "camera params.hlsli"
 
-static const float fp16Range = 64e3f/*65504.f, leave some room for fp32 precision looses*/, HDRAlphaRescale = fp16Range / Tonemapping::exposureLimits[1];
+namespace HDRImpl
+{
+	static const float fp16Range = 64E3f/*65504.f, leave some room for fp32 precision looses*/, HDRAlphaRescale = fp16Range / CameraParams::exposureLimits[1];
+}
 
 /*
 	simple Reinhard tonemapping for proper hardware MSAA resolve
@@ -20,26 +23,29 @@ float4 EncodeHDR(float3 color, float exposure)
 {
 	color *= exposure;
 	const float reinhardFactor = rcp(1 + RGB_2_luminance(color));
-	return float4(color * reinhardFactor, reinhardFactor/*[0..1]*/ * exposure/*[exposureLimits[0]..exposureLimits[1]]*/ * HDRAlphaRescale);
+	return float4(color * reinhardFactor, reinhardFactor/*[0..1]*/ * exposure/*[exposureLimits[0]..exposureLimits[1]]*/ * HDRImpl::HDRAlphaRescale);
 }
 
 float4 EncodeLDR(float3 color, float exposure)
 {
-	return float4(color, exposure * HDRAlphaRescale);
+	return float4(color, exposure * HDRImpl::HDRAlphaRescale);
 }
 
-inline float3 DecodeHDRImpl(float4 encodedPixel, float factor)
+namespace HDRImpl
 {
-	return encodedPixel.rgb * (factor / encodedPixel.a);
+	inline float3 DecodeHDR(float4 encodedPixel, float factor)
+	{
+		return encodedPixel.rgb * (factor / encodedPixel.a);
+	}
 }
 
 float3 DecodeHDR(float4 encodedPixel)
 {
-	return DecodeHDRImpl(encodedPixel, HDRAlphaRescale);
+	return HDRImpl::DecodeHDR(encodedPixel, HDRImpl::HDRAlphaRescale);
 }
 
-// decode + apply exposure
-float3 DecodeHDRExp(float4 encodedPixel, float exposure)
+// decode + apply scale (e.g. exposure)
+float3 DecodeHDR(float4 encodedPixel, float scale)
 {
-	return DecodeHDRImpl(encodedPixel, exposure * HDRAlphaRescale);
+	return HDRImpl::DecodeHDR(encodedPixel, scale * HDRImpl::HDRAlphaRescale);
 }

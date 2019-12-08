@@ -1,9 +1,9 @@
 #include "per-frame data.hlsli"
-#include "tonemap params.hlsli"
+#include "camera params.hlsli"
 #include "lighting.hlsli"
 #include "HDR codec.hlsli"
 
-ConstantBuffer<Tonemapping::TonemapParams> tonemapParams : register(b0, space1);
+ConstantBuffer<CameraParams::Settings> cameraSettings : register(b0, space1);
 
 cbuffer Constants : register(b1, space1)
 {
@@ -19,5 +19,5 @@ float4 main(in float3 viewDir : ViewDir) : SV_TARGET
 	*/
 	const float3 color = Lighting::Lit(albedo, .5f, Fresnel::F0(1.55f), mul(-terrainWorldXform[2], viewXform), normalize(viewDir), sun.dir, sun.irradiance);
 
-	return EncodeHDR(color, tonemapParams.exposure);
+	return EncodeHDR(color, cameraSettings.exposure);
 }

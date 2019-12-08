@@ -1,11 +1,11 @@
 #include "CS config.hlsli"
-#include "tonemap params.hlsli"
+#include "camera params.hlsli"
 #include "HDR codec.hlsli"
 
 SamplerState tapFilter : register(s0);
 Texture2D src : register(t0);
 RWTexture2D<float4> dst : register(u0, space1);
-ConstantBuffer<Tonemapping::TonemapParams> tonemapParams : register(b0);
+ConstantBuffer<CameraParams::Settings> cameraSettings : register(b0);
 
 // 13-tap partial Karis filter
 [numthreads(CSConfig::ImageProcessing::blockSize, CSConfig::ImageProcessing::blockSize, 1)]
@@ -21,7 +21,7 @@ void main(in uint2 coord : SV_DispatchThreadID)
 		src.SampleLevel(tapFilter, center, 0, int2(-1, +1)) * .25f +
 		src.SampleLevel(tapFilter, center, 0, int2(+1, +1)) * .25f;
 
-	float3 acc = DecodeHDRExp(block, .5f/*block weight*/ * tonemapParams.exposure);
+	float3 acc = DecodeHDR(block, .5f/*block weight*/ * cameraSettings.exposure);
 
 	// shared taps
 	const float4
@@ -32,16 +32,16 @@ void main(in uint2 coord : SV_DispatchThreadID)
 		S = src.SampleLevel(tapFilter, center, 0, int2(0, +2));
 
 	block = src.SampleLevel(tapFilter, center, 0, int2(-2, -2)) * .25f + C + W * .25f + N * .25f;
-	acc += DecodeHDRExp(block, .125f/*block weight*/ * tonemapParams.exposure);
+	acc += DecodeHDR(block, .125f/*block weight*/ * cameraSettings.exposure);
 
 	block = src.SampleLevel(tapFilter, center, 0, int2(+2, -2)) * .25f + C + E * .25f + N * .25f;
-	acc += DecodeHDRExp(block, .125f/*block weight*/ * tonemapParams.exposure);
+	acc += DecodeHDR(block, .125f/*block weight*/ * cameraSettings.exposure);
 
 	block = src.SampleLevel(tapFilter, center, 0, int2(-2, +2)) * .25f + C + W * .25f + S * .25f;
-	acc += DecodeHDRExp(block, .125f/*block weight*/ * tonemapParams.exposure);
+	acc += DecodeHDR(block, .125f/*block weight*/ * cameraSettings.exposure);
 
 	block = src.SampleLevel(tapFilter, center, 0, int2(+2, +2)) * .25f + C + E * .25f + S * .25f;
-	acc += DecodeHDRExp(block, .125f/*block weight*/ * tonemapParams.exposure);
+	acc += DecodeHDR(block, .125f/*block weight*/ * cameraSettings.exposure);
 
 	dst[coord] = float4(acc, 1);
 }

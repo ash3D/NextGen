@@ -393,12 +393,6 @@
     <None Include="per-frame data.hlsli">
       <Filter>Shaders\Include</Filter>
     </None>
-    <None Include="tonemapLocalReduction.hlsli">
-      <Filter>Shaders\Include</Filter>
-    </None>
-    <None Include="tonemap params.hlsli">
-      <Filter>Shaders\Include</Filter>
-    </None>
     <None Include="object3D VS 2 PS.hlsli">
       <Filter>Shaders\Include</Filter>
     </None>
@@ -431,6 +425,12 @@
       <Filter>Shaders\Include</Filter>
     </None>
     <None Include="upsampleBlur.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
+    <None Include="camera params.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
+    <None Include="luminanceLocalReduction.hlsli">
       <Filter>Shaders\Include</Filter>
     </None>
   </ItemGroup>

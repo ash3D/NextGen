@@ -1,5 +1,5 @@
 #include "CS config.hlsli"
-#include "tonemap params.hlsli"
+#include "camera params.hlsli"
 #include "luminance.hlsli"
 #include "HDR codec.hlsli"
 #include "upsampleBlur.hlsli"
@@ -19,7 +19,7 @@ namespace Tonemapping
 	Texture2D src : register(t0);
 	RWTexture2D<float4> dst : register(u0);
 	Texture2D bloom : register(t2);
-	ConstantBuffer<TonemapParams> tonemapParams : register(b0);
+	ConstantBuffer<CameraParams::Settings> cameraSettings : register(b0);
 
 	float3 Reinhard(float3 color, float whitePointFactor)
 	{
@@ -37,8 +37,8 @@ void main(in uint2 coord : SV_DispatchThreadID)
 	dst.GetDimensions(dstSize.x, dstSize.y);
 	const float2 center = (coord + .5f) / dstSize;
 
-	float3 exposedPixel = DecodeHDRExp(src[coord], Tonemapping::tonemapParams.exposure);
+	float3 exposedPixel = DecodeHDR(src[coord], Tonemapping::cameraSettings.exposure);
 	exposedPixel += UpsampleBlur(bloom, tapFilter, center, 0) / 6;
 	// Reinhard maps inf to NaN (inf/inf), 'min' converts it to large value
-	dst[coord] = float4(min(Tonemapping::Reinhard(exposedPixel, Tonemapping::tonemapParams.whitePointFactor), 64e3f), 1);
+	dst[coord] = float4(min(Tonemapping::Reinhard(exposedPixel, Tonemapping::cameraSettings.whitePointFactor), 64E3f), 1);
 }

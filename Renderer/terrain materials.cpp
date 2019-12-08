@@ -36,7 +36,7 @@ ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNA
 inline void Impl::Interface::FillRootParams(CD3DX12_ROOT_PARAMETER1 rootParams[])
 {
 	rootParams[ROOT_PARAM_PER_FRAME_DATA_CBV].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC);
-	rootParams[ROOT_PARAM_TONEMAP_PARAMS_CBV].InitAsConstantBufferView(0, 1, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
+	rootParams[ROOT_PARAM_CAMERA_SETTINGS_CBV].InitAsConstantBufferView(0, 1, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
 }
 
 Impl::Interface::Interface(UINT color, const ComPtr<ID3D12RootSignature> &rootSig, const ComPtr<ID3D12PipelineState> &PSO) :
@@ -46,11 +46,11 @@ Impl::Interface::Interface(UINT color, const ComPtr<ID3D12RootSignature> &rootSi
 
 Impl::Interface::~Interface() = default;
 
-void Impl::Interface::Setup(ID3D12GraphicsCommandList4 *cmdList, UINT64 globalGPUBufferPtr, UINT64 tonemapParamsBufferPtr) const
+void Impl::Interface::Setup(ID3D12GraphicsCommandList4 *cmdList, UINT64 globalGPUBufferPtr, UINT64 cameraSettingsBufferPtr) const
 {
 	cmdList->SetGraphicsRootSignature(rootSig.Get());
 	cmdList->SetGraphicsRootConstantBufferView(ROOT_PARAM_PER_FRAME_DATA_CBV, globalGPUBufferPtr);
-	cmdList->SetGraphicsRootConstantBufferView(ROOT_PARAM_TONEMAP_PARAMS_CBV, tonemapParamsBufferPtr);
+	cmdList->SetGraphicsRootConstantBufferView(ROOT_PARAM_CAMERA_SETTINGS_CBV, cameraSettingsBufferPtr);
 	FinishSetup(cmdList);
 }
 #pragma endregion

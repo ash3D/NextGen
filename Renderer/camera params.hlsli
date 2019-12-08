@@ -1,6 +1,6 @@
 #pragma once
 
-namespace Tonemapping
+namespace CameraParams
 {
 	static const float
 		referenceKeyValue = .1f /*radiometric (W) which is ~ 68.3 Nit*/,
@@ -17,7 +17,7 @@ namespace Tonemapping
 	static const float exposureLimits[2] = { ldexp(normFactor, float2(-maxExposureOffset, +maxExposureOffset)) };
 #endif
 
-	struct TonemapParams
+	struct Settings
 	{
 		float exposure, whitePoint, whitePointFactor /*1/whitePoint^2*/;
 	};

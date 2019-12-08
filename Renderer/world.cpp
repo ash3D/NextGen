@@ -329,7 +329,7 @@ void Impl::World::MainRenderStage::MainPassRange(CmdListPool::CmdList &cmdList, 
 
 	cmdList.Setup(renderStream[rangeBegin].instance->GetStartPSO());
 
-	decltype(parent->staticObjects)::value_type::Setup(cmdList, GetCurFrameGPUDataPtr(), tonemapParamsGPUAddress);
+	decltype(parent->staticObjects)::value_type::Setup(cmdList, GetCurFrameGPUDataPtr(), cameraSettingsGPUAddress);
 
 	RenderPasses::RenderPassScope renderPassScope(cmdList, renderPass);
 
@@ -681,9 +681,9 @@ auto Impl::World::MainRenderStage::MakeZPrecullBinding(WorldViewContext &viewCtx
 }
 
 Impl::World::MainRenderStage::MainRenderStage(shared_ptr<const Renderer::World> parent, WorldViewContext &viewCtx,
-	D3D12_GPU_VIRTUAL_ADDRESS tonemapParamsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets, StageExchange &stageExchangeResult) :
+	D3D12_GPU_VIRTUAL_ADDRESS cameraSettingsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets, StageExchange &stageExchangeResult) :
 	parent(move(parent)),
-	tonemapParamsGPUAddress(tonemapParamsGPUAddress),
+	cameraSettingsGPUAddress(cameraSettingsGPUAddress),
 	viewCtx(viewCtx),
 	stageRTBinding(ROPTargets),
 	stageZPrecullBinding(MakeZPrecullBinding(viewCtx, ROPTargets)),
@@ -695,10 +695,10 @@ Impl::World::MainRenderStage::MainRenderStage(shared_ptr<const Renderer::World> 
 }
 
 auto Impl::World::MainRenderStage::MainRenderStage::Schedule(shared_ptr<const Renderer::World> parent, WorldViewContext &viewCtx, const float4x4 &frustumXform, const float4x3 &viewXform,
-	D3D12_GPU_VIRTUAL_ADDRESS tonemapParamsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) -> StageExchange
+	D3D12_GPU_VIRTUAL_ADDRESS cameraSettingsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) -> StageExchange
 {
 	StageExchange stageExchange;
-	auto renderStage = allocate_shared<MainRenderStage>(polymorphic_allocator<MainRenderStage>(&globalTransientRAM), move(parent), viewCtx, tonemapParamsGPUAddress, ROPTargets, stageExchange);
+	auto renderStage = allocate_shared<MainRenderStage>(polymorphic_allocator<MainRenderStage>(&globalTransientRAM), move(parent), viewCtx, cameraSettingsGPUAddress, ROPTargets, stageExchange);
 	GPUWorkSubmission::AppendPipelineStage<true>(&MainRenderStage::Build, move(renderStage), /*cref*/(frustumXform), /*cref*/(viewXform));
 	return stageExchange;
 }
@@ -712,7 +712,7 @@ inline void Impl::World::MainRenderStage::OnFrameFinish()
 enum
 {
 	AABB_PASS_ROOT_PARAM_COLOR_CBV,
-	AABB_PASS_ROOT_PARAM_TONEMAP_PARAMS_CBV,
+	AABB_PASS_ROOT_PARAM_CAMERA_SETTINGS_CBV,
 	AABB_PASS_ROOT_PARAM_VISIBILITY1_SRV,
 	AABB_PASS_ROOT_PARAM_VISIBILITY2_SRV,
 	AABB_PASS_ROOT_PARAM_VISIBLILITY_OFFSET,
@@ -723,7 +723,7 @@ ComPtr<ID3D12RootSignature> Impl::World::DebugRenderStage::CreateAABB_RootSig()
 {
 	CD3DX12_ROOT_PARAMETER1 rootParams[5];
 	rootParams[AABB_PASS_ROOT_PARAM_COLOR_CBV].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_PIXEL);
-	rootParams[AABB_PASS_ROOT_PARAM_TONEMAP_PARAMS_CBV].InitAsConstantBufferView(2, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
+	rootParams[AABB_PASS_ROOT_PARAM_CAMERA_SETTINGS_CBV].InitAsConstantBufferView(2, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParams[AABB_PASS_ROOT_PARAM_VISIBILITY1_SRV].InitAsShaderResourceView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParams[AABB_PASS_ROOT_PARAM_VISIBILITY2_SRV].InitAsShaderResourceView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParams[4].InitAsConstants(1, 1, 0, D3D12_SHADER_VISIBILITY_PIXEL);
@@ -824,7 +824,7 @@ void Impl::World::DebugRenderStage::AABBPassRange(CmdListPool::CmdList &cmdList,
 
 	cmdList->SetGraphicsRootSignature(AABB_rootSig.Get());
 	cmdList->SetGraphicsRootConstantBufferView(AABB_PASS_ROOT_PARAM_COLOR_CBV, globalGPUBuffer->GetGPUVirtualAddress() + GlobalGPUBufferData::AABB_3D_VisColors::CB_offset(visible));
-	cmdList->SetGraphicsRootConstantBufferView(AABB_PASS_ROOT_PARAM_TONEMAP_PARAMS_CBV, tonemapParamsGPUAddress);
+	cmdList->SetGraphicsRootConstantBufferView(AABB_PASS_ROOT_PARAM_CAMERA_SETTINGS_CBV, cameraSettingsGPUAddress);
 	cmdList->SetGraphicsRootShaderResourceView(AABB_PASS_ROOT_PARAM_VISIBILITY1_SRV, queryBatch.GetGPUPtr(false));
 	cmdList->SetGraphicsRootShaderResourceView(AABB_PASS_ROOT_PARAM_VISIBILITY2_SRV, queryBatch.GetGPUPtr(true));
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
@@ -904,8 +904,8 @@ auto Impl::World::DebugRenderStage::GetAABBPassPost(unsigned int &) const -> Ren
 	return RenderPipeline::PipelineItem{ bind(&DebugRenderStage::AABBPassPost, shared_from_this(), _1) };
 }
 
-Impl::World::DebugRenderStage::DebugRenderStage(D3D12_GPU_VIRTUAL_ADDRESS tonemapParamsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) :
-	tonemapParamsGPUAddress(tonemapParamsGPUAddress),
+Impl::World::DebugRenderStage::DebugRenderStage(D3D12_GPU_VIRTUAL_ADDRESS cameraSettingsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) :
+	cameraSettingsGPUAddress(cameraSettingsGPUAddress),
 	stageRTBinding(ROPTargets),
 	stageZBinding(ROPTargets, true, false),
 	stageOutput(ROPTargets)
@@ -918,9 +918,9 @@ auto Impl::World::DebugRenderStage::Build(StageExchange &&stageExchange) -> Rend
 	return shared_from_this();
 }
 
-void Impl::World::DebugRenderStage::Schedule(D3D12_GPU_VIRTUAL_ADDRESS tonemapParamsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets, StageExchange &&stageExchange)
+void Impl::World::DebugRenderStage::Schedule(D3D12_GPU_VIRTUAL_ADDRESS cameraSettingsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets, StageExchange &&stageExchange)
 {
-	auto renderStage = allocate_shared<DebugRenderStage>(polymorphic_allocator<DebugRenderStage>(&globalTransientRAM), tonemapParamsGPUAddress, ROPTargets);
+	auto renderStage = allocate_shared<DebugRenderStage>(polymorphic_allocator<DebugRenderStage>(&globalTransientRAM), cameraSettingsGPUAddress, ROPTargets);
 	GPUWorkSubmission::AppendPipelineStage<false>(&DebugRenderStage::Build, move(renderStage), move(stageExchange));
 }
 #pragma endregion
@@ -1014,7 +1014,7 @@ static inline void CopyMatrix2CB(const float (&src)[rows][columns], volatile Imp
 	copy_n(src, rows, dst);
 }
 
-void Impl::World::Render(WorldViewContext &viewCtx, const float (&viewXform)[4][3], const float (&projXform)[4][4], UINT64 tonemapParamsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) const
+void Impl::World::Render(WorldViewContext &viewCtx, const float (&viewXform)[4][3], const float (&projXform)[4][4], UINT64 cameraSettingsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) const
 {
 	using namespace placeholders;
 
@@ -1044,18 +1044,18 @@ void Impl::World::Render(WorldViewContext &viewCtx, const float (&viewXform)[4][
 #endif
 	}
 
-	StageExchange stageExchange = ScheduleRenderStage(viewCtx, frustumTransform, worldViewTransform, tonemapParamsGPUAddress, ROPTargets);
+	StageExchange stageExchange = ScheduleRenderStage(viewCtx, frustumTransform, worldViewTransform, cameraSettingsGPUAddress, ROPTargets);
 
 	pmr::vector<decltype(terrainVectorLayers)::value_type::StageExchange> terrainStagesExchange(&globalTransientRAM);
 	terrainStagesExchange.reserve(terrainVectorLayers.size());
 	transform(terrainVectorLayers.cbegin(), terrainVectorLayers.cend(), back_inserter(terrainStagesExchange), bind(&decltype(terrainVectorLayers)::value_type::ScheduleRenderStage,
-		_1, FrustumCuller<2>(frustumTransform), cref(frustumTransform), tonemapParamsGPUAddress, cref(ROPTargets)));
+		_1, FrustumCuller<2>(frustumTransform), cref(frustumTransform), cameraSettingsGPUAddress, cref(ROPTargets)));
 
 	extern bool enableDebugDraw;
 	if (enableDebugDraw)
 	{
-		for_each(terrainStagesExchange.rbegin(), terrainStagesExchange.rend(), bind(&decltype(terrainVectorLayers)::value_type::ScheduleDebugDrawRenderStage, tonemapParamsGPUAddress, cref(ROPTargets), bind(move<decltype(terrainStagesExchange)::reference>, _1)));
-		ScheduleDebugDrawRenderStage(tonemapParamsGPUAddress, ROPTargets, move(stageExchange));
+		for_each(terrainStagesExchange.rbegin(), terrainStagesExchange.rend(), bind(&decltype(terrainVectorLayers)::value_type::ScheduleDebugDrawRenderStage, cameraSettingsGPUAddress, cref(ROPTargets), bind(move<decltype(terrainStagesExchange)::reference>, _1)));
+		ScheduleDebugDrawRenderStage(cameraSettingsGPUAddress, ROPTargets, move(stageExchange));
 	}
 }
 
@@ -1148,14 +1148,14 @@ void Impl::World::FlushUpdates() const
 	}
 }
 
-auto Impl::World::ScheduleRenderStage(WorldViewContext &viewCtx, const float4x4 &frustumTransform, const float4x3 &worldViewTransform, UINT64 tonemapParamsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) const -> StageExchange
+auto Impl::World::ScheduleRenderStage(WorldViewContext &viewCtx, const float4x4 &frustumTransform, const float4x3 &worldViewTransform, UINT64 cameraSettingsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) const -> StageExchange
 {
-	return MainRenderStage::Schedule(shared_from_this(), viewCtx, frustumTransform, worldViewTransform, tonemapParamsGPUAddress, ROPTargets);
+	return MainRenderStage::Schedule(shared_from_this(), viewCtx, frustumTransform, worldViewTransform, cameraSettingsGPUAddress, ROPTargets);
 }
 
-void Impl::World::ScheduleDebugDrawRenderStage(UINT64 tonemapParamsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets, StageExchange &&stageExchange)
+void Impl::World::ScheduleDebugDrawRenderStage(UINT64 cameraSettingsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets, StageExchange &&stageExchange)
 {
-	DebugRenderStage::Schedule(tonemapParamsGPUAddress, ROPTargets, move(stageExchange));
+	DebugRenderStage::Schedule(cameraSettingsGPUAddress, ROPTargets, move(stageExchange));
 }
 
 shared_ptr<World> __cdecl Renderer::MakeWorld(const float (&terrainXform)[4][3], float zenith, float azimuth)

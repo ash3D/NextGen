@@ -3,10 +3,10 @@
 #define DXC_NAMESPACE_WORKAROUND 1
 
 #if DXC_NAMESPACE_WORKAROUND
-groupshared float2 localData[Tonemapping::localDataSize];
+groupshared float2 localData[LumAdaptaion::localDataSize];
 #endif
 
-namespace Tonemapping
+namespace LumAdaptaion
 {
 #if !DXC_NAMESPACE_WORKAROUND
 	groupshared float2 localData[localDataSize];

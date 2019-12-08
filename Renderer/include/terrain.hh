@@ -170,8 +170,8 @@ namespace Renderer
 			QuadPtr AddQuad(unsigned long int vcount, const std::function<void __cdecl (volatile float verts[][2])> &fillVB, unsigned int objCount, bool IB32bit, const std::function<ObjectData __cdecl(unsigned int objIdx)> &getObjectData);
 
 		protected:
-			StageExchange ScheduleRenderStage(const FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, UINT64 tonemapParamsGPUAddress, const RenderPipeline::RenderPasses::PipelineROPTargets &ROPTargets) const;
-			static void ScheduleDebugDrawRenderStage(UINT64 tonemapParamsGPUAddress, const RenderPipeline::RenderPasses::PipelineROPTargets &ROPTargets, StageExchange &&stageExchange);
+			StageExchange ScheduleRenderStage(const FrustumCuller<2> &frustumCuller, const HLSL::float4x4 &frustumXform, UINT64 cameraSettingsGPUAddress, const RenderPipeline::RenderPasses::PipelineROPTargets &ROPTargets) const;
+			static void ScheduleDebugDrawRenderStage(UINT64 cameraSettingsGPUAddress, const RenderPipeline::RenderPasses::PipelineROPTargets &ROPTargets, StageExchange &&stageExchange);
 			static void OnFrameFinish();
 		};
 	}

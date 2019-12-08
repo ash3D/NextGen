@@ -117,7 +117,7 @@ namespace Renderer
 			enum
 			{
 				ROOT_PARAM_PER_FRAME_DATA_CBV,
-				ROOT_PARAM_TONEMAP_PARAMS_CBV,
+				ROOT_PARAM_CAMERA_SETTINGS_CBV,
 				ROOT_PARAM_INSTANCE_DATA_CBV,
 				ROOT_PARAM_MATERIAL_CBV,
 				ROOT_PARAM_DESC_TABLE_OFFSETS,
@@ -160,7 +160,7 @@ namespace Renderer
 			unsigned long int GetTriCount() const noexcept { return tricount; }
 
 		protected:
-			static void Setup(ID3D12GraphicsCommandList4 *target, UINT64 frameDataGPUPtr, UINT64 tonemapParamsGPUPtr);
+			static void Setup(ID3D12GraphicsCommandList4 *target, UINT64 frameDataGPUPtr, UINT64 cameraSettingsGPUPtr);
 			ID3D12PipelineState *GetStartPSO() const;
 			const void Render(ID3D12GraphicsCommandList4 *target) const;
 

@@ -527,8 +527,8 @@
     <None Include="per-frame data.hlsli" />
     <None Include="shade SSAA.hlsli" />
     <None Include="terrain samplers.hlsli" />
-    <None Include="tonemap params.hlsli" />
-    <None Include="tonemapLocalReduction.hlsli" />
+    <None Include="camera params.hlsli" />
+    <None Include="luminanceLocalReduction.hlsli" />
     <None Include="CS config.hlsli" />
     <None Include="tracked ref.inl" />
     <None Include="tracked resource.inl" />

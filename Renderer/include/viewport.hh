@@ -65,7 +65,7 @@ namespace Renderer
 			float viewXform[4][3], projXform[4][4];
 			typedef std::chrono::steady_clock Clock;
 			mutable Clock::time_point time = Clock::now();
-			TrackedResource<ID3D12Resource> tonemapParamsBuffer;
+			TrackedResource<ID3D12Resource> cameraSettingsBuffer;
 			mutable bool fresh = true;
 
 		private:
@@ -81,10 +81,10 @@ namespace Renderer
 
 		private:
 			RenderPipeline::PipelineStage
-				Pre(ID3D12GraphicsCommandList4 *cmdList, ID3D12Resource *output, D3D12_CPU_DESCRIPTOR_HANDLE rtv, D3D12_CPU_DESCRIPTOR_HANDLE dsv, UINT width, UINT height) const,
+				Pre(ID3D12GraphicsCommandList4 *cmdList, ID3D12Resource *output, D3D12_CPU_DESCRIPTOR_HANDLE rtv, D3D12_CPU_DESCRIPTOR_HANDLE dsv) const,
 				Post(ID3D12GraphicsCommandList4 *cmdList, ID3D12Resource *output, ID3D12Resource *rendertarget, ID3D12Resource *HDRSurface, ID3D12Resource *LDRSurface,
 					ID3D12Resource *bloomUpChain, ID3D12Resource *bloomDownChain, ID3D12Resource *luminanceReductionBuffer,
-					D3D12_GPU_DESCRIPTOR_HANDLE postprocessDescriptorTable, float tonemapLerpFactor, UINT width, UINT height) const;
+					D3D12_GPU_DESCRIPTOR_HANDLE postprocessDescriptorTable, float lumAdaptationLerpFactor, UINT width, UINT height) const;
 
 		protected:
 		public:

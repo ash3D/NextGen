@@ -30,7 +30,7 @@ namespace Renderer::TerrainMaterials
 			enum
 			{
 				ROOT_PARAM_PER_FRAME_DATA_CBV,
-				ROOT_PARAM_TONEMAP_PARAMS_CBV,
+				ROOT_PARAM_CAMERA_SETTINGS_CBV,
 				ROOT_PARAM_COUNT
 			};
 			static void FillRootParams(CD3DX12_ROOT_PARAMETER1 dst[]);
@@ -44,7 +44,7 @@ namespace Renderer::TerrainMaterials
 			void operator =(Interface &) = delete;
 
 		protected:
-			void Setup(ID3D12GraphicsCommandList4 *target, UINT64 globalGPUBufferPtr, UINT64 tonemapParamsBufferPtr) const;
+			void Setup(ID3D12GraphicsCommandList4 *target, UINT64 globalGPUBufferPtr, UINT64 cameraSettingsBufferPtr) const;
 			virtual void SetupQuad(ID3D12GraphicsCommandList4 *target, HLSL::float2 quadCenter) const {/*nop*/}
 
 		private:

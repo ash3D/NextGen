@@ -1,4 +1,4 @@
-#include "tonemap params.hlsli"
+#include "camera params.hlsli"
 #include "HDR codec.hlsli"
 
 cbuffer Constants : register(b0, space1)
@@ -6,9 +6,9 @@ cbuffer Constants : register(b0, space1)
 	float3 color;
 }
 
-ConstantBuffer<Tonemapping::TonemapParams> tonemapParams : register(b1, space1);
+ConstantBuffer<CameraParams::Settings> cameraSettings : register(b1, space1);
 
 float4 main() : SV_TARGET
 {
-	return EncodeLDR(color, tonemapParams.exposure);
+	return EncodeLDR(color, cameraSettings.exposure);
 }
