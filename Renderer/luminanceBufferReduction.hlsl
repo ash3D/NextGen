@@ -29,13 +29,14 @@ namespace LumAdaptaion
 	}
 
 	/*
-		similar to Reinhard, maps [0, inf] -> [0, scale]
-		!: can produce NaN in corner cases (0, inf, both x and scale)
-		alternative formulation can be used: x / (1 + abs(x) / scale), which could be faster (mad + div) and behaves differently in corner cases
+		similar to Reinhard, maps [0, inf] -> [0, range]
+		strength boosts compression near 0 - it is reciprocal of derivative
+		!: can produce NaN in corner cases (0, inf, both x and range)
+		alternative formulation can be used: x / (strength + abs(x) / range), which could be faster (mad + div) and behaves differently in corner cases
 	*/
-	inline float Compress(float x, uniform float scale)
+	inline float Compress(float x, uniform float range, uniform float strength)
 	{
-		return x * scale / (scale + abs(x));
+		return x * range / (range * strength + abs(x));
 	}
 
 	inline float Autoexposure(float avgLogLum, float lastSetting)
@@ -44,7 +45,7 @@ namespace LumAdaptaion
 
 		const float
 			sceneKeyValue = LinearizeLum(avgLogLum),
-			targetKeyValue = ldexp(CameraParams::referenceKeyValue, Compress(log2(sceneKeyValue / CameraParams::referenceKeyValue), CameraParams::maxExposureCompensation)),
+			targetKeyValue = ldexp(CameraParams::referenceKeyValue, Compress(log2(sceneKeyValue / CameraParams::referenceKeyValue), CameraParams::maxExposureCompensation, CameraParams::exposureCompensationDamping)),
 			targetWorldExposure = targetKeyValue / sceneKeyValue,
 			targetNormExposure = targetWorldExposure * CameraParams::normFactor,
 			normExposure = clamp(lerp(targetNormExposure, lastSetting, lerpFactor), CameraParams::exposureLimits[0], CameraParams::exposureLimits[1]);
