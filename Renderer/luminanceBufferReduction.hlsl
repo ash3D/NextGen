@@ -56,7 +56,7 @@ namespace LumAdaptaion
 	inline float WhitePoint(float maxSceneLum, float exposure, float lastSetting)
 	{
 		const float
-			targetWhitePoint = maxSceneLum * exposure,
+			targetWhitePoint = ldexp(maxSceneLum * exposure, CameraParams::whitePointShift),
 			whitePoint = clamp(lerp(targetWhitePoint, lastSetting, lerpFactor), 1, CameraParams::sensorSaturation);
 
 		return whitePoint;

@@ -8,6 +8,7 @@ namespace CameraParams
 		exposureCompensationDamping = 5 /*flattens out compensation growth speed throughout entire range*/,
 		normalizedMiddleGray = .18f /*for linear 10/16-bit color space*/,
 		normFactor = normalizedMiddleGray / referenceKeyValue /*maps referenceKeyValue to display normalizedMiddleGray*/,
+		whitePointShift = +1 /*stops relative to max scene luminance*/,
 		sensorSaturation = ldexp(normalizedMiddleGray, +5 /*stops*/) /*normalized*/,
 		maxExposureOffset = /*+/-*/12 /*stops*/;
 
