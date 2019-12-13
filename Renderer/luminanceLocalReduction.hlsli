@@ -40,7 +40,7 @@ namespace LumAdaptaion
 		}
 
 		// final intra-warp reduction
-		float finalReduction;
+		float2 finalReduction;
 		if (localIdx < stride)
 			finalReduction = ReduceSIMD(localData[localIdx]);
 		return finalReduction;
