@@ -46,11 +46,10 @@ namespace LumAdaptaion
 		const float
 			sceneKeyValue = LinearizeLum(avgLogLum),
 			targetKeyValue = ldexp(CameraParams::referenceKeyValue, Compress(log2(sceneKeyValue / CameraParams::referenceKeyValue), CameraParams::maxExposureCompensation, CameraParams::exposureCompensationDamping)),
-			targetWorldExposure = targetKeyValue / sceneKeyValue,
-			targetNormExposure = targetWorldExposure * CameraParams::normFactor,
-			normExposure = clamp(lerp(targetNormExposure, lastSetting, lerpFactor), CameraParams::exposureLimits[0], CameraParams::exposureLimits[1]);
+			targetRelativeExposure = targetKeyValue / sceneKeyValue,
+			relativeExposure = clamp(lerp(targetRelativeExposure, lastSetting, lerpFactor), CameraParams::exposureLimits[0], CameraParams::exposureLimits[1]);
 
-		return normExposure;
+		return relativeExposure;
 	}
 
 	inline float WhitePoint(float maxSceneLum, float exposure, float lastSetting)
@@ -62,13 +61,14 @@ namespace LumAdaptaion
 		return whitePoint;
 	}
 
-	inline float3 UpdateCameraSettings(float2 sceneLumParams, float2 lastSettings)
+	inline float4 UpdateCameraSettings(float2 sceneLumParams, float2 lastSettings)
 	{
 		const float
-			exposure = Autoexposure(sceneLumParams[0], lastSettings[0]),
+			relativeExposure = Autoexposure(sceneLumParams[0], lastSettings[0]),
+			exposure = relativeExposure * CameraParams::normFactor,
 			whitePoint = WhitePoint(sceneLumParams[1], exposure, lastSettings[1]);
 
-		return float3(exposure, whitePoint, rcp(whitePoint * whitePoint));
+		return float4(relativeExposure, whitePoint, exposure, rcp(whitePoint * whitePoint));
 	}
 }
 
@@ -84,5 +84,5 @@ void main(in uint globalIdx : SV_DispatchThreadID, in uint localIdx : SV_GroupIn
 
 	// update camera settings buffer
 	if (localIdx == 0)
-		cameraSettings.Store3(0, asuint(LumAdaptaion::UpdateCameraSettings(finalReduction, asfloat(cameraSettings.Load2(0)))));
+		cameraSettings.Store4(0, asuint(LumAdaptaion::UpdateCameraSettings(finalReduction, asfloat(cameraSettings.Load2(0)))));
 }

@@ -12,15 +12,17 @@ namespace CameraParams
 		sensorSaturation = ldexp(normalizedMiddleGray, +5 /*stops*/) /*normalized*/,
 		maxExposureOffset = /*+/-*/12 /*stops*/;
 
+#ifndef __cplusplus
 #if 0
 	// DXC crash
 	static const float2 exposureLimits = ldexp(normFactor, float2(-maxExposureOffset, +maxExposureOffset));
 #else
 	static const float exposureLimits[2] = { ldexp(normFactor, float2(-maxExposureOffset, +maxExposureOffset)) };
 #endif
+#endif
 
 	struct Settings
 	{
-		float exposure, whitePoint, whitePointFactor /*1/whitePoint^2*/;
+		float relativeExposure, whitePoint, exposure, whitePointFactor /*1/whitePoint^2*/;
 	};
 }

@@ -10,6 +10,7 @@
 #include "config.h"
 #include "PIX events.h"
 #include "CS config.h"
+#include "camera params.hlsli"
 
 namespace Shaders
 {
@@ -262,7 +263,8 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Pre(DeferredCmdBuffsProvide
 		const D3D12_WRITEBUFFERIMMEDIATE_PARAMETER initParams[] =
 		{
 			{cameraSettingsBuffer->GetGPUVirtualAddress(), reinterpret_cast<const UINT &>(initVal)/*strict aliasing rule violation, use C++20 bit_cast instead*/},
-			{initParams[0].Dest + sizeof(float), initParams[0].Value}
+			{initParams[0].Dest + sizeof(float), initParams[0].Value},
+			{initParams[1].Dest + sizeof(float), reinterpret_cast<const UINT &>(/*1 * */CameraParams::normFactor)/*strict aliasing rule violation, use C++20 bit_cast instead*/}
 		};
 		cmdList->WriteBufferImmediate(size(initParams), initParams, NULL);
 	}
@@ -454,7 +456,7 @@ Impl::Viewport::Viewport(shared_ptr<const Renderer::World> world) : world(move(w
 	CheckHR(device->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(sizeof(Impl::CBRegister::AlignedRow<3>/*or just 'float [3]'?*/), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS),
+		&CD3DX12_RESOURCE_DESC::Buffer(sizeof(Impl::CBRegister::AlignedRow<4>/*or just 'float [4]'?*/), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS),
 		D3D12_RESOURCE_STATE_COPY_DEST,
 		NULL,
 		IID_PPV_ARGS(cameraSettingsBuffer.GetAddressOf())
