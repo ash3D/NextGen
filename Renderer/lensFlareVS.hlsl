@@ -1,19 +1,25 @@
-#include "CS config.hlsli"
+#include "lensFlare.hlsli"
 #include "camera params.hlsli"
 #include "HDR codec.hlsli"
+#include "luminance.hlsli"
 
 SamplerState tapFilter : register(s0);
 Texture2D src : register(t0);
 RWTexture2D<float4> dst : register(u0, space1);
 ConstantBuffer<CameraParams::Settings> cameraSettings : register(b0);
 
-// 13-tap partial Karis filter
-[numthreads(CSConfig::ImageProcessing::blockSize, CSConfig::ImageProcessing::blockSize, 1)]
-void main(in uint2 coord : SV_DispatchThreadID)
+/*
+	scanline layout - probably not cache efficient
+	tiled swizzling pattern can be faster - experiments on different GPUs wanted
+*/
+LensFlareSource main(in uint flatPixxelIdx : SV_VertexID)
 {
-	float2 dstSize;
+	uint2 dstSize;
 	dst.GetDimensions(dstSize.x, dstSize.y);
-	const float2 center = (coord + .5f) / dstSize;
+	const uint2 coord = { flatPixxelIdx % dstSize.x, flatPixxelIdx / dstSize.x };
+	float2 center = (coord + .5f) / dstSize;
+
+	// downsample to halfres with 13-tap partial Karis filter
 
 	float4 block =
 		src.SampleLevel(tapFilter, center, 0, int2(-1, -1)) * .25f +
@@ -43,5 +49,29 @@ void main(in uint2 coord : SV_DispatchThreadID)
 	block = src.SampleLevel(tapFilter, center, 0, int2(+2, +2)) * .25f + C + E * .25f + S * .25f;
 	acc += DecodeHDR(block, .125f/*block weight*/ * cameraSettings.exposure);
 
+	// store to halfres buffer for subsequent bloom passes
 	dst[coord] = float4(acc, 1);
+
+	// transform 'center' UV -> NDC
+	center *= 2;
+	center -= 1;
+	center.y = -center.y;
+
+	LensFlareSource flareSource =
+	{
+		center,
+		cameraSettings.aperture / dstSize,
+		center * cameraSettings.aperture, length(center),
+		acc, 0
+	};
+
+	// cull faint flares (leave 0 for dull pixels)
+	if (RGB_2_luminance(acc) >= lensFlareThreshold)
+	{
+		// vignette
+		flareSource.col.a = saturate(1.8f - dot(flareSource.pos, flareSource.pos));
+		flareSource.col.a *= flareSource.col.a;
+	}
+
+	return flareSource;
 }

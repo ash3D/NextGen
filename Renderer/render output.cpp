@@ -76,7 +76,7 @@ RenderOutput::RenderOutput(HWND wnd, bool allowModeSwitch, unsigned int bufferCo
 		const D3D12_DESCRIPTOR_HEAP_DESC desc =
 		{
 			D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
-			1,
+			RTV_COUNT,
 			D3D12_DESCRIPTOR_HEAP_FLAG_NONE
 		};
 
@@ -188,9 +188,13 @@ void RenderOutput::NextFrame(bool vsync)
 	CheckHR(swapChain->GetBuffer(idx, IID_PPV_ARGS(&output)));
 	GPUDescriptorHeap::OnFrameStart();
 	globalFrameVersioning->OnFrameStart();
+	const auto rtvSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	const auto rtvHeapStart = rtvHeap->GetCPUDescriptorHandleForHeapStart();
 	const auto postprocessDescriptorTable = GPUDescriptorHeap::FillPostprocessGPUDescriptorTableStore(postprocessCPUDescriptorHeap);
-	viewport->Render(output.Get(), rendertarget.Get(), ZBuffer.Get(), HDRSurface.Get(), LDRSurface.Get(), bloomUpChain.Get(), bloomDownChain.Get(), luminanceReductionBuffer.Get(),
-		rtvHeap->GetCPUDescriptorHandleForHeapStart(), dsvHeap->GetCPUDescriptorHandleForHeapStart(), postprocessDescriptorTable, width, height);
+	viewport->Render(output.Get(), rendertarget.Get(), ZBuffer.Get(), HDRSurface.Get(), LDRSurface.Get(),
+		lensFlareSurface.Get(), bloomUpChain.Get(), bloomDownChain.Get(), luminanceReductionBuffer.Get(),
+		CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvHeapStart, SCENE_RTV, rtvSize), dsvHeap->GetCPUDescriptorHandleForHeapStart(), CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvHeapStart, LENS_FLARE_RTV, rtvSize),
+		postprocessDescriptorTable, width, height);
 	CheckHR(swapChain->Present(vsync, 0));
 	globalFrameVersioning->OnFrameFinish();
 	viewport->OnFrameFinish();
@@ -208,6 +212,8 @@ void RenderOutput::CreateOffscreenSurfaces(UINT width, UINT height)
 	bloomUpChain.Reset();
 	bloomDownChain.Reset();
 
+	const auto rtvSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	const auto rtvHeapStart = rtvHeap->GetCPUDescriptorHandleForHeapStart();
 	const DXGI_SAMPLE_DESC MSAA_mode = Config::MSAA();
 
 	// create MSAA rendertarget
@@ -222,7 +228,7 @@ void RenderOutput::CreateOffscreenSurfaces(UINT width, UINT height)
 	));
 
 	// fill RTV heap
-	device->CreateRenderTargetView(rendertarget.Get(), NULL, rtvHeap->GetCPUDescriptorHandleForHeapStart());
+	device->CreateRenderTargetView(rendertarget.Get(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvHeapStart, SCENE_RTV, rtvSize));
 
 	// create z/stencil buffer
 	CheckHR(device->CreateCommittedResource(
@@ -257,6 +263,19 @@ void RenderOutput::CreateOffscreenSurfaces(UINT width, UINT height)
 		IID_PPV_ARGS(LDRSurface.GetAddressOf())
 	));
 
+	// create lens flare surface
+	CheckHR(device->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Tex2D(Config::HDRFormat, width / 2, height / 2, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET),
+		D3D12_RESOURCE_STATE_RENDER_TARGET,
+		NULL,
+		IID_PPV_ARGS(lensFlareSurface.GetAddressOf())
+	));
+
+	// fill RTV heap
+	device->CreateRenderTargetView(lensFlareSurface.Get(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvHeapStart, LENS_FLARE_RTV, rtvSize));
+
 	// create bloom chains
 	{
 		unsigned long bloomUpChainLen;
@@ -288,5 +307,5 @@ void RenderOutput::CreateOffscreenSurfaces(UINT width, UINT height)
 
 	// fill postprocess descriptors CPU backing store
 	const auto luminanceReductionTexDispatchSize = CSConfig::LuminanceReduction::TexturePass::DispatchSize({ width, height });
-	postprocessCPUDescriptorHeap.Fill(HDRSurface.Get(), LDRSurface.Get(), bloomUpChain.Get(), bloomDownChain.Get(), luminanceReductionBuffer.Get(), luminanceReductionTexDispatchSize.x * luminanceReductionTexDispatchSize.y);
+	postprocessCPUDescriptorHeap.Fill(HDRSurface.Get(), LDRSurface.Get(), lensFlareSurface.Get(), bloomUpChain.Get(), bloomDownChain.Get(), luminanceReductionBuffer.Get(), luminanceReductionTexDispatchSize.x * luminanceReductionTexDispatchSize.y);
 }

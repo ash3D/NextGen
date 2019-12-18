@@ -2,7 +2,7 @@
 #include "upsampleBlur.hlsli"
 
 SamplerState tapFilter : register(s0);
-Texture2D blurSrc : register(t2), addSrc : register(t3);
+Texture2D blurSrc : register(t3), addSrc : register(t4);
 RWTexture2D<float4> dst[5] : register(u0, space1);
 cbuffer LOD : register(b1)
 {

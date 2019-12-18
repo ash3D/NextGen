@@ -20,7 +20,7 @@ PostprocessDescriptorTableStore::PostprocessDescriptorTableStore()
 	NameObjectF(allocation.Get(), L"CPU descriptor stage for postprocess resources (D3D object: %p, heap start CPU address: %p)", allocation.Get(), allocation->GetCPUDescriptorHandleForHeapStart());
 }
 
-void PostprocessDescriptorTableStore::Fill(ID3D12Resource *src, ID3D12Resource *dst, ID3D12Resource *bloomUpChain, ID3D12Resource *bloomDownChain, ID3D12Resource *reductionBuffer, UINT reductionBufferLength)
+void PostprocessDescriptorTableStore::Fill(ID3D12Resource *src, ID3D12Resource *dst, ID3D12Resource *lensFlareSurface, ID3D12Resource *bloomUpChain, ID3D12Resource *bloomDownChain, ID3D12Resource *reductionBuffer, UINT reductionBufferLength)
 {
 	reductionBufferLength *= 2;	// to account for {avg, max} layout, RAW buffer view specify num of 32bit elements
 
@@ -72,6 +72,9 @@ void PostprocessDescriptorTableStore::Fill(ID3D12Resource *src, ID3D12Resource *
 
 		device->CreateShaderResourceView(reductionBuffer, &SRVdesc, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, ReductionBufferSRV, descriptorSize));
 	}
+
+	// LensFlareSRV
+	device->CreateShaderResourceView(lensFlareSurface, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, LensFlareSRV, descriptorSize));
 
 	// BloomUpChainSRV
 	device->CreateShaderResourceView(bloomUpChain, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, BloomUpChainSRV, descriptorSize));

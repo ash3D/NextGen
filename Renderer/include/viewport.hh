@@ -38,11 +38,18 @@ namespace Renderer
 		{
 			enum
 			{
-				ROOT_PARAM_DESC_TABLE,
-				ROOT_PARAM_CBV,
-				ROOT_PARAM_UAV,
-				ROOT_PARAM_PUSH_CONST,
-				ROOT_PARAM_COUNT
+				COMPUTE_ROOT_PARAM_DESC_TABLE,
+				COMPUTE_ROOT_PARAM_CBV,
+				COMPUTE_ROOT_PARAM_UAV,
+				COMPUTE_ROOT_PARAM_PUSH_CONST,
+				COMPUTE_ROOT_PARAM_COUNT
+			};
+
+			enum
+			{
+				GFX_ROOT_PARAM_DESC_TABLE,
+				GFX_ROOT_PARAM_CBV,
+				GFX_ROOT_PARAM_COUNT
 			};
 
 		private:
@@ -94,10 +101,14 @@ namespace Renderer
 
 		private:
 			friend extern void __cdecl ::InitRenderer();
-			static WRL::ComPtr<ID3D12RootSignature> postprocessRootSig, CreatePostprocessRootSig();
+			struct PostprocessRootSigs
+			{
+				WRL::ComPtr<ID3D12RootSignature> compute, gfx;
+			};
+			static PostprocessRootSigs postprocessRootSigs, CreatePostprocessRootSigs();
 			static WRL::ComPtr<ID3D12PipelineState> luminanceTextureReductionPSO, CreateLuminanceTextureReductionPSO();
 			static WRL::ComPtr<ID3D12PipelineState> luminanceBufferReductionPSO, CreateLuminanceBufferReductionPSO();
-			static WRL::ComPtr<ID3D12PipelineState> decode2halfresPSO, CreateDecode2HalfresPSO();
+			static WRL::ComPtr<ID3D12PipelineState> lensFlarePSO, CreateLensFlarePSO();
 			static WRL::ComPtr<ID3D12PipelineState> brightPassPSO, CreateBrightPassPSO();
 			static WRL::ComPtr<ID3D12PipelineState> bloomDownsamplePSO, CreateBloomDownsmplePSO();
 			static WRL::ComPtr<ID3D12PipelineState> bloomUpsampleBlurPSO, CreateBloomUpsmpleBlurPSO();
@@ -107,8 +118,8 @@ namespace Renderer
 			RenderPipeline::PipelineStage
 				Pre(DeferredCmdBuffsProvider cmdListProvider, ID3D12Resource *output, D3D12_CPU_DESCRIPTOR_HANDLE rtv, D3D12_CPU_DESCRIPTOR_HANDLE dsv) const,
 				Post(DeferredCmdBuffsProvider cmdListProvider, ID3D12Resource *output, ID3D12Resource *rendertarget, ID3D12Resource *HDRSurface, ID3D12Resource *LDRSurface,
-					ID3D12Resource *bloomUpChain, ID3D12Resource *bloomDownChain, ID3D12Resource *luminanceReductionBuffer,
-					D3D12_GPU_DESCRIPTOR_HANDLE postprocessDescriptorTable, float lumAdaptationLerpFactor, UINT width, UINT height) const;
+					ID3D12Resource *lensFlareSurface, ID3D12Resource *bloomUpChain, ID3D12Resource *bloomDownChain, ID3D12Resource *luminanceReductionBuffer,
+					D3D12_CPU_DESCRIPTOR_HANDLE rtvLensFlare, D3D12_GPU_DESCRIPTOR_HANDLE postprocessDescriptorTable, float lumAdaptationLerpFactor, UINT width, UINT height) const;
 
 		protected:
 		public:
@@ -124,8 +135,9 @@ namespace Renderer
 		protected:
 			void UpdateAspect(double invAspect);
 			void Render(ID3D12Resource *output, ID3D12Resource *rendertarget, ID3D12Resource *ZBuffer, ID3D12Resource *HDRSurface, ID3D12Resource *LDRSurface,
-				ID3D12Resource *bloomUpChain, ID3D12Resource *bloomDownChain, ID3D12Resource *luminanceReductionBuffer,
-				const D3D12_CPU_DESCRIPTOR_HANDLE rtv, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, const D3D12_GPU_DESCRIPTOR_HANDLE postprocessDescriptorTable, UINT width, UINT height) const;
+				ID3D12Resource *lensFlareSurface, ID3D12Resource *bloomUpChain, ID3D12Resource *bloomDownChain, ID3D12Resource *luminanceReductionBuffer,
+				const D3D12_CPU_DESCRIPTOR_HANDLE rtv, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, const D3D12_CPU_DESCRIPTOR_HANDLE rtvLensFlare,
+				const D3D12_GPU_DESCRIPTOR_HANDLE postprocessDescriptorTable, UINT width, UINT height) const;
 			void OnFrameFinish() const;
 		};
 	}

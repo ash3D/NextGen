@@ -340,9 +340,6 @@
     <FxCompile Include="downsample.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="decode2halfres.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
     <FxCompile Include="upsampleBlur.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
@@ -356,6 +353,15 @@
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="postprocessFinalComposite.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="lensFlareVS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="lensFlareGS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="lensFlarePS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>
@@ -431,6 +437,9 @@
       <Filter>Shaders\Include</Filter>
     </None>
     <None Include="luminanceLocalReduction.hlsli">
+      <Filter>Shaders\Include</Filter>
+    </None>
+    <None Include="lensFlare.hlsli">
       <Filter>Shaders\Include</Filter>
     </None>
   </ItemGroup>

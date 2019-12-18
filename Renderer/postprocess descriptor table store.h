@@ -29,6 +29,7 @@ namespace Renderer::Impl::Descriptors
 			DstUAV,
 			ReductionBufferUAV,
 			ReductionBufferSRV,
+			LensFlareSRV,
 			BloomUpChainSRV,
 			BloomDownChainSRV,
 			BloomUpChainUAVFirst,
@@ -43,6 +44,6 @@ namespace Renderer::Impl::Descriptors
 
 	public:
 		PostprocessDescriptorTableStore();
-		void Fill(ID3D12Resource *src, ID3D12Resource *dst, ID3D12Resource *bloomUpChain, ID3D12Resource *bloomDownChain, ID3D12Resource *reductionBuffer, UINT reductionBufferLength);
+		void Fill(ID3D12Resource *src, ID3D12Resource *dst, ID3D12Resource *lensFlareSurface, ID3D12Resource *bloomUpChain, ID3D12Resource *bloomDownChain, ID3D12Resource *reductionBuffer, UINT reductionBufferLength);
 	};
 }

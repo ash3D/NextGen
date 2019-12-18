@@ -354,8 +354,8 @@ void OnFrameFinish()
 }
 
 #pragma region root sigs & PSOs
+Viewport::PostprocessRootSigs Viewport::postprocessRootSigs							= Try(Viewport::CreatePostprocessRootSigs, "postprocess root signatures");
 ComPtr<ID3D12RootSignature>
-	Viewport::postprocessRootSig													= Try(Viewport::CreatePostprocessRootSig, "postprocess root signature"),
 	TerrainVectorQuad::MainRenderStage::cullPassRootSig								= Try(TerrainVectorQuad::MainRenderStage::CreateCullPassRootSig, "terrain occlusion query root signature"),
 	TerrainVectorQuad::DebugRenderStage::AABB_rootSig								= Try(TerrainVectorQuad::DebugRenderStage::CreateAABB_RootSig, "terrain AABB visualization root signature"),
 	TerrainMaterials::Flat::rootSig													= Try(TerrainMaterials::Flat::CreateRootSig, "terrain flat material root signature"),
@@ -369,7 +369,7 @@ ComPtr<ID3D12RootSignature>
 ComPtr<ID3D12PipelineState>
 	Viewport::luminanceTextureReductionPSO											= Try(Viewport::CreateLuminanceTextureReductionPSO, "luminance texture reduction PSO"),
 	Viewport::luminanceBufferReductionPSO											= Try(Viewport::CreateLuminanceBufferReductionPSO, "luminance buffer reduction PSO"),
-	Viewport::decode2halfresPSO														= Try(Viewport::CreateDecode2HalfresPSO, "postprocess decode 2 halfres PSO"),
+	Viewport::lensFlarePSO															= Try(Viewport::CreateLensFlarePSO, "lens flare PSO"),
 	Viewport::brightPassPSO															= Try(Viewport::CreateBrightPassPSO, "bloom bright pass PSO"),
 	Viewport::bloomDownsamplePSO													= Try(Viewport::CreateBloomDownsmplePSO, "bloom downsample PSO"),
 	Viewport::bloomUpsampleBlurPSO													= Try(Viewport::CreateBloomUpsmpleBlurPSO, "bloom upsample blur PSO"),
@@ -447,10 +447,10 @@ extern void __cdecl InitRenderer()
 		dmaQueue											= CreateDMACommandQueue();
 		TextureSamplers::Impl::heap							= TextureSamplers::Impl::CreateHeap();
 		RenderOutput::luminanceReductionBuffer				= RenderOutput::CreateLuminanceReductionBuffer();
-		Viewport::postprocessRootSig						= Viewport::CreatePostprocessRootSig();
+		Viewport::postprocessRootSigs						= Viewport::CreatePostprocessRootSigs();
 		Viewport::luminanceTextureReductionPSO				= Viewport::CreateLuminanceTextureReductionPSO();
 		Viewport::luminanceBufferReductionPSO				= Viewport::CreateLuminanceBufferReductionPSO();
-		Viewport::decode2halfresPSO							= Viewport::CreateDecode2HalfresPSO();
+		Viewport::lensFlarePSO								= Viewport::CreateLensFlarePSO();
 		Viewport::brightPassPSO								= Viewport::CreateBrightPassPSO();
 		Viewport::bloomDownsamplePSO						= Viewport::CreateBloomDownsmplePSO();
 		Viewport::bloomUpsampleBlurPSO						= Viewport::CreateBloomUpsmpleBlurPSO();
