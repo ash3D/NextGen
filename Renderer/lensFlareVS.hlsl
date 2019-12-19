@@ -12,7 +12,7 @@ ConstantBuffer<CameraParams::Settings> cameraSettings : register(b0);
 	scanline layout - probably not cache efficient
 	tiled swizzling pattern can be faster - experiments on different GPUs wanted
 */
-LensFlareSource main(in uint flatPixxelIdx : SV_VertexID)
+LensFlare::Source main(in uint flatPixxelIdx : SV_VertexID)
 {
 	uint2 dstSize;
 	dst.GetDimensions(dstSize.x, dstSize.y);
@@ -57,7 +57,7 @@ LensFlareSource main(in uint flatPixxelIdx : SV_VertexID)
 	center -= 1;
 	center.y = -center.y;
 
-	LensFlareSource flareSource =
+	LensFlare::Source flareSource =
 	{
 		center,
 		cameraSettings.aperture.xx,
@@ -67,11 +67,14 @@ LensFlareSource main(in uint flatPixxelIdx : SV_VertexID)
 	flareSource.ext.x *= float(dstSize.y) / float(dstSize.x);
 
 	// cull faint flares (leave 0 for dull pixels)
-	if (RGB_2_luminance(acc) >= lensFlareThreshold)
+	if (RGB_2_luminance(acc) >= LensFlare::threshold)
 	{
 		// vignette
 		flareSource.col.a = saturate(1.8f - dot(flareSource.pos, flareSource.pos));
 		flareSource.col.a *= flareSource.col.a;
+
+		// normalize
+		flareSource.col.a *= LensFlare::normRebalance / (dstSize.x * dstSize.y);
 	}
 
 	return flareSource;

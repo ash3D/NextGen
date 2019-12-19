@@ -6,7 +6,7 @@ struct Flare
 	float3	tint;
 };
 
-inline Flare NormalizedFlare(float pos, float clipDist, float clipSpeed, float size, float3 tint)
+inline Flare NormalizedFlare(uniform float pos, uniform float clipDist, uniform float clipSpeed, uniform float size, uniform float3 tint)
 {
 	const Flare flare =
 	{
@@ -14,7 +14,7 @@ inline Flare NormalizedFlare(float pos, float clipDist, float clipSpeed, float s
 		clipDist,
 		clipSpeed,
 		size,
-		tint * (lensFlareStrength / (size * size))
+		tint * (LensFlare::strength / LensFlare::normRebalance / (size * size))
 	};
 	return flare;
 }
@@ -116,7 +116,7 @@ class Sprite
 
 [maxvertexcount(4)]
 [instance(spriteCount)]
-void main(point LensFlareSource flareSource[1], in uint lenseID : SV_GSInstanceID, inout TriangleStream<SpriteVertex> flareSpriteCorners)
+void main(point LensFlare::Source flareSource[1], in uint lenseID : SV_GSInstanceID, inout TriangleStream<SpriteVertex> flareSpriteCorners)
 {
 	// cull
 	[branch]
