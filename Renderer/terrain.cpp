@@ -683,7 +683,7 @@ ComPtr<ID3D12PipelineState> TerrainVectorQuad::DebugRenderStage::CreateAABB_PSO(
 		.PrimitiveTopologyType	= D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
 		.NumRenderTargets		= 1,
 		.RTVFormats				= { Config::HDRFormat },
-		.DSVFormat				= Config::ZFormat,
+		.DSVFormat				= DXGI_FORMAT_UNKNOWN,
 		.SampleDesc				= Config::MSAA(),
 		.Flags					= D3D12_PIPELINE_STATE_FLAG_NONE
 	};
