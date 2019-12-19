@@ -1,8 +1,8 @@
 #pragma once
 
 static const float
-	lensFlareStrength = 1e-2f,
-	lensFlareThreshold = 1e-1f / lensFlareStrength;
+	lensFlareStrength = 4e-8f,
+	lensFlareThreshold = 4e-7f / lensFlareStrength;
 
 struct LensFlareSource
 {

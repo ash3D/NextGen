@@ -60,10 +60,11 @@ LensFlareSource main(in uint flatPixxelIdx : SV_VertexID)
 	LensFlareSource flareSource =
 	{
 		center,
-		cameraSettings.aperture / dstSize,
+		cameraSettings.aperture.xx,
 		center * cameraSettings.aperture, length(center),
 		acc, 0
 	};
+	flareSource.ext.x *= float(dstSize.y) / float(dstSize.x);
 
 	// cull faint flares (leave 0 for dull pixels)
 	if (RGB_2_luminance(acc) >= lensFlareThreshold)
