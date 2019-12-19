@@ -143,11 +143,9 @@ ComPtr<ID3D12PipelineState> Impl::Viewport::CreateLuminanceTextureReductionPSO()
 {
 	const D3D12_COMPUTE_PIPELINE_STATE_DESC PSO_desc =
 	{
-		postprocessRootSigs.compute.Get(),					// root signature
-		ShaderBytecode(Shaders::luminanceTextureReduction),	// CS
-		0,													// node mask
-		{},													// cached PSO
-		D3D12_PIPELINE_STATE_FLAG_NONE						// flags
+		.pRootSignature = postprocessRootSigs.compute.Get(),
+		.CS = ShaderBytecode(Shaders::luminanceTextureReduction),
+		.Flags = D3D12_PIPELINE_STATE_FLAG_NONE
 	};
 
 	ComPtr<ID3D12PipelineState> PSO;
@@ -160,11 +158,9 @@ ComPtr<ID3D12PipelineState> Impl::Viewport::CreateLuminanceBufferReductionPSO()
 {
 	const D3D12_COMPUTE_PIPELINE_STATE_DESC PSO_desc =
 	{
-		postprocessRootSigs.compute.Get(),					// root signature
-		ShaderBytecode(Shaders::luminanceBufferReduction),	// CS
-		0,													// node mask
-		{},													// cached PSO
-		D3D12_PIPELINE_STATE_FLAG_NONE						// flags
+		.pRootSignature = postprocessRootSigs.compute.Get(),
+		.CS = ShaderBytecode(Shaders::luminanceBufferReduction),
+		.Flags = D3D12_PIPELINE_STATE_FLAG_NONE
 	};
 
 	ComPtr<ID3D12PipelineState> PSO;
@@ -238,11 +234,9 @@ ComPtr<ID3D12PipelineState> Impl::Viewport::CreateBrightPassPSO()
 {
 	const D3D12_COMPUTE_PIPELINE_STATE_DESC PSO_desc =
 	{
-		postprocessRootSigs.compute.Get(),					// root signature
-		ShaderBytecode(Shaders::brightPass),				// CS
-		0,													// node mask
-		{},													// cached PSO
-		D3D12_PIPELINE_STATE_FLAG_NONE						// flags
+		.pRootSignature = postprocessRootSigs.compute.Get(),
+		.CS = ShaderBytecode(Shaders::brightPass),
+		.Flags = D3D12_PIPELINE_STATE_FLAG_NONE
 	};
 
 	ComPtr<ID3D12PipelineState> PSO;
@@ -255,11 +249,9 @@ ComPtr<ID3D12PipelineState> Impl::Viewport::CreateBloomDownsmplePSO()
 {
 	const D3D12_COMPUTE_PIPELINE_STATE_DESC PSO_desc =
 	{
-		postprocessRootSigs.compute.Get(),					// root signature
-		ShaderBytecode(Shaders::downsample),				// CS
-		0,													// node mask
-		{},													// cached PSO
-		D3D12_PIPELINE_STATE_FLAG_NONE						// flags
+		. pRootSignature = postprocessRootSigs.compute.Get(),
+		.CS = ShaderBytecode(Shaders::downsample),
+		.Flags = D3D12_PIPELINE_STATE_FLAG_NONE
 	};
 
 	ComPtr<ID3D12PipelineState> PSO;
@@ -272,11 +264,9 @@ ComPtr<ID3D12PipelineState> Impl::Viewport::CreateBloomUpsmpleBlurPSO()
 {
 	const D3D12_COMPUTE_PIPELINE_STATE_DESC PSO_desc =
 	{
-		postprocessRootSigs.compute.Get(),					// root signature
-		ShaderBytecode(Shaders::upsampleBlur),				// CS
-		0,													// node mask
-		{},													// cached PSO
-		D3D12_PIPELINE_STATE_FLAG_NONE						// flags
+		.pRootSignature = postprocessRootSigs.compute.Get(),
+		.CS = ShaderBytecode(Shaders::upsampleBlur),
+		.Flags = D3D12_PIPELINE_STATE_FLAG_NONE
 	};
 
 	ComPtr<ID3D12PipelineState> PSO;
@@ -289,11 +279,9 @@ ComPtr<ID3D12PipelineState> Impl::Viewport::CreatePostprocessFinalCompositePSO()
 {
 	const D3D12_COMPUTE_PIPELINE_STATE_DESC PSO_desc =
 	{
-		postprocessRootSigs.compute.Get(),					// root signature
-		ShaderBytecode(Shaders::postprocessFinalComposite),	// CS
-		0,													// node mask
-		{},													// cached PSO
-		D3D12_PIPELINE_STATE_FLAG_NONE						// flags
+		.pRootSignature = postprocessRootSigs.compute.Get(),
+		.CS = ShaderBytecode(Shaders::postprocessFinalComposite),
+		.Flags = D3D12_PIPELINE_STATE_FLAG_NONE
 	};
 
 	ComPtr<ID3D12PipelineState> PSO;
