@@ -12,17 +12,17 @@ namespace CameraParams
 		sensorSaturation = ldexp(normalizedMiddleGray, +5 /*stops*/) /*normalized*/,
 		maxExposureOffset = /*+/-*/12 /*stops*/,
 		maxApertureOffset = /*+/-*/4 /*stops*/,
-		apertureSaturation = /*+/-*/8 /*stops of exposure offset reaching maxApertureOffset*/,
+		apertureNormFactor = exp2(-maxApertureOffset) /*maps max aperture to 1*/,
+		apertureLimit = apertureNormFactor * apertureNormFactor /*min aperture == exp2(2 * -maxApertureOffset)*/,
+		apertureSaturation = /*+/-*/10 /*stops of exposure offset reaching maxApertureOffset*/,
 		aperturePriority = maxApertureOffset / apertureSaturation /*aperture contribution to exposure offset*/;
 
 #ifndef __cplusplus
 #if 0
 	// DXC crash
 	static const float2 exposureLimits = ldexp(normFactor, float2(-maxExposureOffset, +maxExposureOffset));
-	static const float2 apertureLimits = exp2(float2(-maxApertureOffset, +maxApertureOffset));
 #else
 	static const float exposureLimits[2] = { ldexp(normFactor, float2(-maxExposureOffset, +maxExposureOffset)) };
-	static const float apertureLimits[2] = { exp2(float2(-maxApertureOffset, +maxApertureOffset)) };
 #endif
 #endif
 

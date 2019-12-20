@@ -51,7 +51,10 @@ namespace LumAdaptaion
 		lastSetting = clamp(lerp(targetRelativeExposure, lastSetting, lerpFactor), CameraParams::exposureLimits[0], CameraParams::exposureLimits[1]);
 
 		// exp2(log2(lastSetting) * CameraParams::aperturePriority) == pow(lastSetting, CameraParams::aperturePriority)
-		aperture = sqrt(clamp(pow(lastSetting, CameraParams::aperturePriority), CameraParams::apertureLimits[0], CameraParams::apertureLimits[1]));
+		aperture = pow(lastSetting, CameraParams::aperturePriority);	// aperture contribution to exposure offset
+		aperture *= CameraParams::apertureNormFactor;					// normalized 'max -> 1'
+		aperture = clamp(aperture, CameraParams::apertureLimit, 1);
+		aperture = sqrt(aperture);										// exposure offset -> aperture radius
 	}
 
 	inline void UpdateWhitePoint(in float maxSceneLum, in float exposure, inout float lastSetting)
