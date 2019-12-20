@@ -43,6 +43,7 @@ static const Flare flares[spriteCount] =
 struct SpriteVertex
 {
 	nointerpolation	half4	col					: COLOR;
+	noperspective	float2	dir					: CLIP_CIRCLE_DIR;	// scaled dir to entrance lens edge
 	noperspective	float4	pos					: SV_Position;
 	noperspective	float	apertureCropDist0	: SV_ClipDistance0;
 	noperspective	float	apertureCropDist1	: SV_ClipDistance1;
@@ -52,6 +53,7 @@ struct SpriteVertex
 	noperspective	float	edgeClipDist		: SV_ClipDistance5;
 };
 
+// inner radius
 static const float R = cos(radians(36));
 
 inline float2 N(uniform float a)
@@ -99,6 +101,7 @@ class Sprite
 	float2	center;
 	half4	color;
 	float2	extents;
+	float	circleScale;
 	float2	rot;
 	float3	edgeClip;
 
@@ -109,6 +112,7 @@ class Sprite
 		const SpriteVertex vert =
 		{
 			color,
+			cornersLUT[idx].offset * circleScale,
 			float4(center + extents * cornerOffset, 0, 1),
 			cornersLUT[idx].apertureCropDist,
 			dot(edgeClip.xy, cornerOffset) + edgeClip.z
@@ -129,13 +133,14 @@ void main(point LensFlare::Source flareSource[1], in uint lenseID : SV_GSInstanc
 		{
 			flareSource[0].pos,
 			flareSource[0].col,
-			flareSource[0].ext,
+			flareSource[0].ext.xyy/*ext.y holds unmodified aperture*/,
 			flareSource[0].rot,
 			flareSource[0].edg
 		};
 		sprite.center *= flares[lenseID].pos;
 		sprite.color.rgb *= flares[lenseID].tint;
 		sprite.extents *= flares[lenseID].size;
+		sprite.circleScale /= R;
 		sprite.edgeClip.xy *= sign(flares[lenseID].clipSpeed);
 		sprite.edgeClip.z *= flares[lenseID].clipDist - sprite.edgeClip.z;
 		sprite.edgeClip.z *= abs(flares[lenseID].clipSpeed);
