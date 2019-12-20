@@ -11,7 +11,9 @@ namespace CameraParams
 		whitePointShift = +1 /*stops relative to max scene luminance*/,
 		sensorSaturation = ldexp(normalizedMiddleGray, +5 /*stops*/) /*normalized*/,
 		maxExposureOffset = /*+/-*/12 /*stops*/,
-		maxApertureOffset = /*+/-*/4 /*stops*/;
+		maxApertureOffset = /*+/-*/4 /*stops*/,
+		apertureSaturation = /*+/-*/8 /*stops of exposure offset reaching maxApertureOffset*/,
+		aperturePriority = maxApertureOffset / apertureSaturation /*aperture contribution to exposure offset*/;
 
 #ifndef __cplusplus
 #if 0
