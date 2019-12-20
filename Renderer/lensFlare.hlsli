@@ -3,8 +3,8 @@
 namespace LensFlare
 {
 	static const float
-		strength = 1e-2f,
-		threshold = 1e-1f / strength,
+		strength = 1e-4f,
+		threshold = 1e-3f / strength,
 		normRebalance = 1E4f/*to avoid fp16 blending underflow*/;
 
 	struct Source
