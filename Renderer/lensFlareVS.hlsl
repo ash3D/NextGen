@@ -75,7 +75,7 @@ LensFlare::Source main(in uint flatPixxelIdx : SV_VertexID)
 		flareSource.col.a *= flareSource.col.a;
 
 		// normalize
-		flareSource.col.a *= LensFlare::normRebalance / (dstSize.x * dstSize.y);
+		flareSource.col.a *= LensFlare::normRebalance / (dstSize.y * dstSize.y);
 	}
 
 	return flareSource;
