@@ -61,6 +61,7 @@ LensFlare::Source main(in uint flatPixxelIdx : SV_VertexID)
 	{
 		center,
 		cameraSettings.aperture.xx,
+		cameraSettings.apertureRot,
 		center * cameraSettings.aperture, length(center),
 		acc, 0
 	};

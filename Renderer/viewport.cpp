@@ -9,7 +9,6 @@
 #include "config.h"
 #include "PIX events.h"
 #include "CS config.h"
-#include "camera params.hlsli"
 
 namespace Shaders
 {
@@ -29,8 +28,11 @@ namespace Shaders
 
 using namespace std;
 using namespace Renderer;
+using namespace Math::VectorMath::HLSL;
 using WRL::ComPtr;
 namespace RenderPipeline = Impl::RenderPipeline;
+
+#include "camera params.hlsli"
 
 extern ComPtr<ID3D12Device2> device;
 void NameObject(ID3D12Object *object, LPCWSTR name) noexcept, NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
@@ -391,7 +393,7 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvid
 
 	const auto ImageDispatchSize = [width, height](UINT lod) noexcept
 	{
-		return (Math::VectorMath::HLSL::uint2(width >> lod, height >> lod) + CSConfig::ImageProcessing::blockSize - 1) / CSConfig::ImageProcessing::blockSize;
+		return (uint2(width >> lod, height >> lod) + CSConfig::ImageProcessing::blockSize - 1) / CSConfig::ImageProcessing::blockSize;
 	};
 
 	const auto halfResDispatchSize = ImageDispatchSize(1);

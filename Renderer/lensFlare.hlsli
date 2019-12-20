@@ -11,6 +11,7 @@ namespace LensFlare
 	{
 		float2 pos : POSITION;
 		float2 ext : EXTENTS;
+		float2 rot : ROTATION;
 		float3 edg : EDGE_CLIP_SETUP;
 		float4 col : COLOR;
 	};

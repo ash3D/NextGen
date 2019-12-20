@@ -39,7 +39,7 @@ namespace LumAdaptaion
 		return x * range / (range * strength + abs(x));
 	}
 
-	inline void Autoexposure(in float avgLogLum, inout float lastSetting, out float aperture)
+	inline void Autoexposure(in float avgLogLum, inout float lastSetting, out float aperture, out float2 apertureRot)
 	{
 		//using namespace CameraParams;
 
@@ -52,9 +52,12 @@ namespace LumAdaptaion
 
 		// exp2(log2(lastSetting) * CameraParams::aperturePriority) == pow(lastSetting, CameraParams::aperturePriority)
 		aperture = pow(lastSetting, CameraParams::aperturePriority);	// aperture contribution to exposure offset
-		aperture *= CameraParams::apertureNormFactor;					// normalized 'max -> 1'
-		aperture = clamp(aperture, CameraParams::apertureLimit, 1);
+		aperture *= CameraParams::apertureLimit;						// normalized 'max -> 1'
 		aperture = sqrt(aperture);										// exposure offset -> aperture radius
+		aperture = clamp(aperture, CameraParams::apertureLimit, 1);
+
+		const float apertureAngle = (1 - aperture) * CameraParams::apertureAngleScale;
+		sincos(apertureAngle, apertureRot.y, apertureRot.x);
 	}
 
 	inline void UpdateWhitePoint(in float maxSceneLum, in float exposure, inout float lastSetting)
@@ -63,9 +66,9 @@ namespace LumAdaptaion
 		lastSetting = clamp(lerp(targetWhitePoint, lastSetting, lerpFactor), 1, CameraParams::sensorSaturation);
 	}
 
-	inline void UpdateCameraSettings(in float avgLogLum, in float maxSceneLum, inout float relativeExposure, inout float whitePoint, out float exposure, out float aperture, out float whitePointFactor)
+	inline void UpdateCameraSettings(in float avgLogLum, in float maxSceneLum, inout float relativeExposure, inout float whitePoint, out float exposure, out float aperture, out float whitePointFactor, out float2 apertureRot)
 	{
-		Autoexposure(avgLogLum, relativeExposure, aperture);
+		Autoexposure(avgLogLum, relativeExposure, aperture, apertureRot);
 		exposure = relativeExposure * CameraParams::normFactor;
 		UpdateWhitePoint(maxSceneLum, exposure, whitePoint);
 		whitePointFactor = rcp(whitePoint * whitePoint);
@@ -87,8 +90,10 @@ void main(in uint globalIdx : SV_DispatchThreadID, in uint localIdx : SV_GroupIn
 	{
 		float2 lastSettings = asfloat(cameraSettings.Load2(0));
 		float exposure, aperture, whitePointFactor;
-		LumAdaptaion::UpdateCameraSettings(finalReduction[0], finalReduction[1], lastSettings[0], lastSettings[1], exposure, aperture, whitePointFactor);
+		float2 apertureRot;
+		LumAdaptaion::UpdateCameraSettings(finalReduction[0], finalReduction[1], lastSettings[0], lastSettings[1], exposure, aperture, whitePointFactor, apertureRot);
 		cameraSettings.Store2(0, asuint(lastSettings));
 		cameraSettings.Store3(8, asuint(float3(exposure, aperture, whitePointFactor)));
+		cameraSettings.Store2(20, asuint(apertureRot));
 	}
 }

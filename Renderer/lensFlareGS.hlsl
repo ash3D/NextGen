@@ -99,16 +99,19 @@ class Sprite
 	float2	center;
 	half4	color;
 	float2	extents;
+	float2	rot;
 	float3	edgeClip;
 
 	SpriteVertex Corner(uniform uint idx)
 	{
+		const float2x2 rotMatrix = float2x2(rot.xy, -rot.y, rot.x);
+		const float2 cornerOffset = mul(cornersLUT[idx].offset, rotMatrix);
 		const SpriteVertex vert =
 		{
 			color,
-			float4(center + extents * cornersLUT[idx].offset, 0, 1),
+			float4(center + extents * cornerOffset, 0, 1),
 			cornersLUT[idx].apertureCropDist,
-			dot(edgeClip.xy, cornersLUT[idx].offset) + edgeClip.z
+			dot(edgeClip.xy, cornerOffset) + edgeClip.z
 		};
 		return vert;
 	}
@@ -127,6 +130,7 @@ void main(point LensFlare::Source flareSource[1], in uint lenseID : SV_GSInstanc
 			flareSource[0].pos,
 			flareSource[0].col,
 			flareSource[0].ext,
+			flareSource[0].rot,
 			flareSource[0].edg
 		};
 		sprite.center *= flares[lenseID].pos;
