@@ -1,12 +1,17 @@
 #include "lensFlare.hlsli"
 #include "camera params.hlsli"
 #include "HDR codec.hlsli"
-#include "luminance.hlsli"
 
 SamplerState tapFilter : register(s0);
 Texture2D src : register(t0);
 RWTexture2D<float4> dst : register(u0, space1);
 ConstantBuffer<CameraParams::Settings> cameraSettings : register(b0);
+
+inline float Vignette(float2 ndc)
+{
+	const float fade = saturate(1.8f - dot(ndc, ndc));
+	return fade * fade;
+}
 
 /*
 	scanline layout - probably not cache efficient
@@ -63,21 +68,14 @@ LensFlare::Source main(in uint flatPixxelIdx : SV_VertexID)
 		cameraSettings.aperture.xx,
 		cameraSettings.apertureRot,
 		center * cameraSettings.aperture, length(center),
-		acc, 0
+		acc, Vignette(center)
 	};
+
 	flareSource.ext.x *= float(dstSize.y) / float(dstSize.x);
 
-	// cull faint flares (leave 0 for dull pixels)
-	if (RGB_2_luminance(acc) >= LensFlare::threshold)
-	{
-		// vignette
-		flareSource.col.a = saturate(1.8f - dot(flareSource.pos, flareSource.pos));
-		flareSource.col.a *= flareSource.col.a;
-
-		// normalize
-		const float dim = flareSource.ext.y * dstSize.y;
-		flareSource.col.a *= LensFlare::normRebalance / (dim * dim);
-	}
+	// normalize
+	const float dim = flareSource.ext.y * dstSize.y;
+	flareSource.col.a *= LensFlare::normRebalance / (dim * dim);
 
 	return flareSource;
 }

@@ -1,4 +1,5 @@
 #include "lensFlare.hlsli"
+#include "luminance.hlsli"
 
 struct Flare
 {
@@ -125,20 +126,23 @@ class Sprite
 [instance(spriteCount)]
 void main(point LensFlare::Source flareSource[1], in uint lenseID : SV_GSInstanceID, inout TriangleStream<SpriteVertex> flareSpriteCorners)
 {
-	// cull
+	float4 color = flareSource[0].col;
+	color.rgb *= flares[lenseID].tint;
+	const float apertureExposure = flareSource[0].ext.y * flareSource[0].ext.y;
+
+	// cull faint flares
 	[branch]
-	if (flareSource[0].col.a)
+	if (RGB_2_luminance(color) >= LensFlare::threshold * apertureExposure/*cancel out aperture contribution to exposure as it affects flare area but not intensity*/)
 	{
 		Sprite sprite =
 		{
 			flareSource[0].pos,
-			flareSource[0].col,
+			color,
 			flareSource[0].ext.xyy/*ext.y holds unmodified aperture*/,
 			flareSource[0].rot,
 			flareSource[0].edg
 		};
 		sprite.center *= flares[lenseID].pos;
-		sprite.color.rgb *= flares[lenseID].tint;
 		sprite.extents *= flares[lenseID].size;
 		sprite.circleScale /= R;
 		sprite.edgeClip.xy *= sign(flares[lenseID].clipSpeed);
