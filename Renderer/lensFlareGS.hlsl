@@ -129,11 +129,15 @@ void main(point LensFlare::Source flareSource[1], in uint lenseID : SV_GSInstanc
 	float4 color = flareSource[0].col;
 	color.rgb *= flares[lenseID].tint;
 	const float apertureExposure = flareSource[0].ext.y * flareSource[0].ext.y;
+	const float lum = RGB_2_luminance(color), lumThreshold = LensFlare::threshold * apertureExposure/*cancel out aperture contribution to exposure as it affects flare area but not intensity*/;
 
 	// cull faint flares
 	[branch]
-	if (RGB_2_luminance(color) >= LensFlare::threshold * apertureExposure/*cancel out aperture contribution to exposure as it affects flare area but not intensity*/)
+	if (lum >= lumThreshold)
 	{
+		// smooth fadeout for culled sprites
+		color.a *= smoothstep(lumThreshold, lumThreshold * LensFlare::fadeoutRange, lum);
+
 		Sprite sprite =
 		{
 			flareSource[0].pos,

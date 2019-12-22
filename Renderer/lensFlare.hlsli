@@ -5,7 +5,8 @@ namespace LensFlare
 	static const float
 		normRebalance = 1E4f/*to avoid fp16 blending underflow*/,
 		strength = 1e-4f,
-		threshold = 1e+1f / normRebalance;
+		threshold = 1e+1f / normRebalance,
+		fadeoutRange = 2;
 
 	struct Source
 	{
