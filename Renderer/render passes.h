@@ -23,7 +23,7 @@ namespace Renderer::Impl::RenderPipeline::RenderPasses
 		UINT width, height;
 
 	private:
-		mutable D3D12_RENDER_PASS_ENDING_ACCESS_TYPE *lastRTPostOp{}, *lastDeptPostOp{}, *lastStencilPostOp{};
+		mutable D3D12_RENDER_PASS_ENDING_ACCESS_TYPE *lastRTPostOp{}, *lastDepthPostOp{}, *lastStencilPostOp{};
 
 	public:
 		explicit PipelineROPTargets(ID3D12Resource *renderTarget, D3D12_CPU_DESCRIPTOR_HANDLE rtv, const FLOAT (&colorClear)[4],

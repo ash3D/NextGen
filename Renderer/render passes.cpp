@@ -149,7 +149,7 @@ RenderPasses::StageZBinding::StageZBinding(const PipelineROPTargets &factory, bo
 	depthOps
 	{
 		useDepth
-			? factory.lastDeptPostOp	? D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE : D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR
+			? factory.lastDepthPostOp	? D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE : D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR
 			: D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS,
 		useDepth	? D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD : D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS
 	},
@@ -163,9 +163,9 @@ RenderPasses::StageZBinding::StageZBinding(const PipelineROPTargets &factory, bo
 {
 	if (useDepth)
 	{
-		if (factory.lastDeptPostOp)
-			*factory.lastDeptPostOp = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
-		factory.lastDeptPostOp = &depthOps.post;
+		if (factory.lastDepthPostOp)
+			*factory.lastDepthPostOp = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
+		factory.lastDepthPostOp = &depthOps.post;
 	}
 
 	if (useStencil)
@@ -190,9 +190,9 @@ RenderPasses::StageZBinding::StageZBinding(const PipelineROPTargets &factory, D3
 		preserveStencil							? D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE : D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD
 	}
 {
-	if (factory.lastDeptPostOp)
-		*factory.lastDeptPostOp		= clearFlags & D3D12_CLEAR_FLAG_DEPTH	? D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD : D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
-	factory.lastDeptPostOp			= preserveDepth		? nullptr : &depthOps.post;
+	if (factory.lastDepthPostOp)
+		*factory.lastDepthPostOp	= clearFlags & D3D12_CLEAR_FLAG_DEPTH	? D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD : D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
+	factory.lastDepthPostOp			= preserveDepth		? nullptr : &depthOps.post;
 
 	if (factory.lastStencilPostOp)
 		*factory.lastStencilPostOp	= clearFlags & D3D12_CLEAR_FLAG_STENCIL	? D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD : D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;

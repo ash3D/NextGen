@@ -17,11 +17,11 @@ inline float Vignette(float2 ndc)
 	scanline layout - probably not cache efficient
 	tiled swizzling pattern can be faster - experiments on different GPUs wanted
 */
-LensFlare::Source main(in uint flatPixxelIdx : SV_VertexID)
+LensFlare::Source main(in uint flatPixelIdx : SV_VertexID)
 {
 	uint2 dstSize;
 	dst.GetDimensions(dstSize.x, dstSize.y);
-	const uint2 coord = { flatPixxelIdx % dstSize.x, flatPixxelIdx / dstSize.x };
+	const uint2 coord = { flatPixelIdx % dstSize.x, flatPixelIdx / dstSize.x };
 	float2 center = (coord + .5f) / dstSize;
 
 	// downsample to halfres with 13-tap partial Karis filter
