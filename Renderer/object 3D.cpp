@@ -492,7 +492,7 @@ auto Impl::Object3D::CreatePSOs() -> decltype(PSOs)
 		.PrimitiveTopologyType	= D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
 		.NumRenderTargets		= 1,
 		.RTVFormats				= { Config::HDRFormat },
-		.DSVFormat				= Config::ZFormat,
+		.DSVFormat				= Config::ZFormat::ROP,
 		.SampleDesc				= Config::MSAA(),
 		.Flags					= D3D12_PIPELINE_STATE_FLAG_NONE
 	};

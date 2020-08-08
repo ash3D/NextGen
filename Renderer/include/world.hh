@@ -146,7 +146,7 @@ namespace Renderer
 			void operator =(World &) = delete;
 
 		protected:
-			void Render(struct WorldViewContext &viewCtx, const float (&viewXform)[4][3], const float (&projXform)[4][4], UINT64 cameraSettingsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) const;
+			void Render(struct WorldViewContext &viewCtx, const float (&viewXform)[4][3], const float (&projXform)[4][4], const float (&projParams)[3], UINT64 cameraSettingsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) const;
 			static void OnFrameFinish();
 
 		public:

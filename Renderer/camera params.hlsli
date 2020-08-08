@@ -31,7 +31,16 @@ namespace CameraParams
 
 	struct Settings
 	{
-		float relativeExposure, whitePoint, exposure, aperture, whitePointFactor /*1/whitePoint^2*/;
+		float relativeExposure, whitePoint, sensorPlane/*focus*/, exposure, aperture, whitePointFactor /*1/whitePoint^2*/;
 		float2 apertureRot;
+		float2 COCParams;
+
+#ifndef __cplusplus
+		// in halfres pixels
+		inline float COC(float Z)
+		{
+			return mad(Z, COCParams[0], COCParams[1]);
+		}
+#endif
 	};
 }

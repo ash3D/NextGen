@@ -9,6 +9,7 @@ cbuffer PerFrameData : register(b0)
 	{
 		float3 dir, irradiance;
 	} sun;
+	float3 projParams/*F, 1 / zn, 1 / zn - 1 / zf*/;
 };
 
 #endif	// PER_FRAME_DATA_INCLUDED

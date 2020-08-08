@@ -228,7 +228,7 @@ ComPtr<ID3D12PipelineState> TerrainVectorQuad::MainRenderStage::CreateCullPassPS
 		.InputLayout			= { VB_decl, size(VB_decl) },
 		.IBStripCutValue		= D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,
 		.PrimitiveTopologyType	= D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
-		.DSVFormat				= Config::ZFormat,
+		.DSVFormat				= Config::ZFormat::ROP,
 		.SampleDesc				= Config::MSAA(),
 		.Flags					= D3D12_PIPELINE_STATE_FLAG_NONE
 	};

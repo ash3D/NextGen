@@ -10,5 +10,5 @@ ConstantBuffer<CameraParams::Settings> cameraSettings : register(b1, space1);
 
 float4 main() : SV_TARGET
 {
-	return EncodeLDR(color, cameraSettings.exposure);
+	return EncodeLDRExp(color, cameraSettings.exposure);
 }

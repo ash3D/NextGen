@@ -4,25 +4,14 @@
 #include "HDR codec.hlsli"
 #include "upsampleBlur.hlsli"
 
-#define DXC_NAMESPACE_WORKAROUND 1
-
-#if DXC_NAMESPACE_WORKAROUND
 SamplerState tapFilter : register(s0);
-Texture2D src : register(t0);
-RWTexture2D<float4> dst : register(u0);
-Texture2D lensFlare : register(t2);
-Texture2D bloom : register(t3);
-#endif
+Texture2D src : register(t2);
+RWTexture2D<float4> dst : register(u1);
+Texture2D bloom : register(t8);
+ConstantBuffer<CameraParams::Settings> cameraSettings : register(b1);
 
 namespace Tonemapping
 {
-	SamplerState tapFilter : register(s0);
-	Texture2D src : register(t0);
-	RWTexture2D<float4> dst : register(u0);
-	Texture2D lensFlare : register(t2);
-	Texture2D bloom : register(t3);
-	ConstantBuffer<CameraParams::Settings> cameraSettings : register(b0);
-
 	float3 Reinhard(float3 color, float whitePointFactor)
 	{
 		const float L = RGB_2_luminance(color);
@@ -39,9 +28,22 @@ void main(in uint2 coord : SV_DispatchThreadID)
 	dst.GetDimensions(dstSize.x, dstSize.y);
 	const float2 center = (coord + .5f) / dstSize;
 
-	float3 exposedPixel = DecodeHDR(src[coord], Tonemapping::cameraSettings.exposure);
-	exposedPixel += lensFlare.SampleLevel(tapFilter, center, 0);
-	exposedPixel += UpsampleBlur(bloom, tapFilter, center, 0) / 6;
+	float3 exposedPixel = DecodeHDR(src[coord]);
+	//exposedPixel = DecodeHDRExp(src[coord], cameraSettings.exposure);
+	exposedPixel += UpsampleBlur3(bloom, tapFilter, center, 0) / 6;
 	// Reinhard maps inf to NaN (inf/inf), 'min' converts it to large value
-	dst[coord] = float4(min(Tonemapping::Reinhard(exposedPixel, Tonemapping::cameraSettings.whitePointFactor), 64E3f), 1);
+	dst[coord] = float4(min(Tonemapping::Reinhard(exposedPixel, cameraSettings.whitePointFactor), 64E3f), 1);
+	//dst[coord] = src[coord];
+	//dst[coord] = float4(src[coord].rg, 0, 1);
+	//float4 col = src[coord];
+	//col.gb -= 2*saturate(col.a - 1);
+	//col.rg -= 2*saturate(1 - col.a);
+	//dst[coord] = col;
+	////if (src[coord].a > 1) dst[coord] = float4(1, 0, 0, 1);
+	////if (src[coord].a < 1) dst[coord] = float4(0, 0, 1, 1);
+	//if (src[coord].a < .5f) dst[coord] = float4(0, 1, 0, 1);
+	//dst[coord] = float4(src[coord].r, 0, -src[coord].r, 1)*.3f;
+	//dst[coord] = src[coord].r > .1f && src[coord].r < 1;
+	//if (src[coord].r > -.95f && src[coord].r < -.85f)
+	//	dst[coord] = 1;
 }

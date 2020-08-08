@@ -2,9 +2,9 @@
 #include "upsampleBlur.hlsli"
 
 SamplerState tapFilter : register(s0);
-Texture2D blurSrc : register(t3), addSrc : register(t4);
+Texture2D blurSrc : register(t8), addSrc : register(t9);
 RWTexture2D<float4> dst[5] : register(u0, space1);
-cbuffer LOD : register(b1)
+cbuffer LOD : register(b2)
 {
 	uint lod;
 }
@@ -17,7 +17,7 @@ void main(in uint2 coord : SV_DispatchThreadID)
 	const float2 center = (coord + .5f) / dstSize;
 
 	const uint blurLod = lod + 1;
-	float3 color = UpsampleBlur(blurSrc, tapFilter, center, blurLod);
+	float3 color = UpsampleBlur3(blurSrc, tapFilter, center, blurLod);
 	color += addSrc.mips[lod][coord];
 
 	dst[lod][coord] = float4(color, 1);

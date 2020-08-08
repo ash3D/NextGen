@@ -37,5 +37,5 @@ float4 main(in XformedVertexTex input, in bool front : SV_IsFrontFace) : SV_TARG
 #	define ShadeAA(sampleOffset)	Lighting::Lit(albedo, roughness, f0, Normals::EvaluateSurfaceNormal(EvaluateAttributeSnapped(input.N, sampleOffset), input.viewDir, front),	input.viewDir, sun.dir, sun.irradiance)
 #	include "shade SSAA.hlsli"
 
-	return EncodeHDR(shadeResult, cameraSettings.exposure);
+	return EncodeHDRExp(shadeResult, cameraSettings.exposure);
 }

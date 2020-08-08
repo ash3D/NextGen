@@ -35,5 +35,5 @@ float4 main(in XformedVertexTex input, in bool front : SV_IsFrontFace) : SV_TARG
 	const float3 screenEmission = SelectTexture(Materials::TV_SCREEN).Sample(Materials::TV_sampler, input.uv) * materialParams.TVBrighntess;
 	shadeResult += screenEmission;
 
-	return EncodeHDR(shadeResult, cameraSettings.exposure);
+	return EncodeHDRExp(shadeResult, cameraSettings.exposure);
 }

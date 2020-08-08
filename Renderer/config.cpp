@@ -13,7 +13,7 @@ DXGI_SAMPLE_DESC Renderer::Config::MSAA()
 	DXGI_SAMPLE_DESC result = { MSAA_info.SampleCount, MSAA_info.NumQualityLevels };
 
 	// query for Z, select min
-	MSAA_info.Format = ZFormat;
+	MSAA_info.Format = ZFormat::ROP;
 	CheckHR(device->CheckFeatureSupport(D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS, &MSAA_info, sizeof MSAA_info));
 	result.Quality = std::min(result.Quality, MSAA_info.NumQualityLevels) - 1u;
 

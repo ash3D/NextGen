@@ -25,5 +25,5 @@ float4 main(in float3 viewDir : ViewDir, in float2 uv : UV) : SV_TARGET
 		viewDir, sun.dir, sun.irradiance)
 #	include "shade SSAA.hlsli"
 
-	return EncodeHDR(shadeResult, cameraSettings.exposure);
+	return EncodeHDRExp(shadeResult, cameraSettings.exposure);
 }

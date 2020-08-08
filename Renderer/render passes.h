@@ -9,6 +9,13 @@ namespace Renderer::Impl::CmdListPool
 
 namespace Renderer::Impl::RenderPipeline::RenderPasses
 {
+	enum class BindingOutput
+	{
+		ForcePreserve,	// e.g. copy from
+		ForceDiscard,	// e.g. copy to
+		Propagate,		// preserve depth for postprocess, discard stencil
+	};
+
 	class PipelineROPTargets
 	{
 		friend class StageRTBinding;
@@ -18,8 +25,7 @@ namespace Renderer::Impl::RenderPipeline::RenderPasses
 	private:
 		ID3D12Resource *renderTarget, *ZBuffer, *MSAAResolveTarget;	// !: no lifetime tracking
 		D3D12_CPU_DESCRIPTOR_HANDLE rtv, dsv;
-		FLOAT colorClear[4], depthClear;
-		UINT8 stencilClear;
+		FLOAT colorClear[4];
 		UINT width, height;
 
 	private:
@@ -27,8 +33,7 @@ namespace Renderer::Impl::RenderPipeline::RenderPasses
 
 	public:
 		explicit PipelineROPTargets(ID3D12Resource *renderTarget, D3D12_CPU_DESCRIPTOR_HANDLE rtv, const FLOAT (&colorClear)[4],
-			ID3D12Resource *ZBuffer, D3D12_CPU_DESCRIPTOR_HANDLE dsv, FLOAT depthClear, UINT8 stencilClear,
-			ID3D12Resource *MSAAResolveTarget, UINT width, UINT height);
+			ID3D12Resource *ZBuffer, D3D12_CPU_DESCRIPTOR_HANDLE dsv, ID3D12Resource *MSAAResolveTarget, UINT width, UINT height);
 		PipelineROPTargets(PipelineROPTargets &&) = default;
 		PipelineROPTargets &operator =(PipelineROPTargets &&) = default;
 
@@ -72,7 +77,7 @@ namespace Renderer::Impl::RenderPipeline::RenderPasses
 
 	public:
 		explicit StageZBinding(const PipelineROPTargets &factory, bool useDepth, bool useStencil);
-		explicit StageZBinding(const PipelineROPTargets &factory, D3D12_CLEAR_FLAGS clearFlags, D3D12_DEPTH_STENCIL_VALUE clear, bool preserveDepth, bool preserveStencil);
+		explicit StageZBinding(const PipelineROPTargets &factory, D3D12_CLEAR_FLAGS clearFlags, D3D12_DEPTH_STENCIL_VALUE clear, BindingOutput depthOutput, BindingOutput stencilOutput);
 		StageZBinding(StageZBinding &) = delete;
 		void operator =(StageZBinding &) = delete;
 

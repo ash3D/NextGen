@@ -1,4 +1,5 @@
 #include "lensFlare.hlsli"
+#include "Bokeh.hlsli"
 #include "luminance.hlsli"
 
 struct Flare
@@ -41,81 +42,24 @@ static const Flare flares[spriteCount] =
 	NormalizedFlare(-1.2f, .96f, +5, 08e-2f, float3(.71546555620858302825678206624135f, .16364069912887604055713628938231f, .29765266858042379221938470586868f)/*Pale Violet Red*/)
 };
 
-struct SpriteVertex
+namespace LensFlare
 {
-	nointerpolation	half4	col					: COLOR;
-	noperspective	float2	dir					: CLIP_CIRCLE_DIR;	// scaled dir to entrance lens edge
-	noperspective	float4	pos					: SV_Position;
-	noperspective	float	apertureCropDist0	: SV_ClipDistance0;
-	noperspective	float	apertureCropDist1	: SV_ClipDistance1;
-	noperspective	float	apertureCropDist2	: SV_ClipDistance2;
-	noperspective	float	apertureCropDist3	: SV_ClipDistance3;
-	noperspective	float	apertureCropDist4	: SV_ClipDistance4;
-	noperspective	float	edgeClipDist		: SV_ClipDistance5;
-};
-
-// inner radius
-static const float R = cos(radians(36));
-
-inline float2 N(uniform float a)
-{
-	float2 n;
-	sincos(radians(a), n.x, n.y);
-	return n;
-}
-
-inline float BladeDist(uniform float2 cornerOffset, uniform float bladeAngle)
-{
-	return dot(cornerOffset, N(bladeAngle)) + R;
-}
-
-struct SpriteCornerDesc
-{
-	float2	offset;
-	float	apertureCropDist[5];
-};
-
-inline SpriteCornerDesc GenerateSpriteCornerDesc(uniform float2 offset)
-{
-	const SpriteCornerDesc corner =
+	struct SpriteVertex : Bokeh::SpriteVertex
 	{
-		offset,
-		BladeDist(offset, 0),
-		BladeDist(offset, +72),
-		BladeDist(offset, -72),
-		BladeDist(offset, +144),
-		BladeDist(offset, -144)
+		noperspective float edgeClipDist : SV_ClipDistance5;
 	};
-	return corner;
 }
 
-static const SpriteCornerDesc cornersLUT[4] =
+class Sprite : BokehSprite
 {
-	GenerateSpriteCornerDesc(float2(-1, +1)),
-	GenerateSpriteCornerDesc(float2(+1, +1)),
-	GenerateSpriteCornerDesc(float2(-1, -1)),
-	GenerateSpriteCornerDesc(float2(+1, -1))
-};
+	float3 edgeClip;
 
-class Sprite
-{
-	float2	center;
-	half4	color;
-	float2	extents;
-	float	circleScale;
-	float2	rot;
-	float3	edgeClip;
-
-	SpriteVertex Corner(uniform uint idx)
+	LensFlare::SpriteVertex Corner(uniform uint idx)
 	{
-		const float2x2 rotMatrix = float2x2(rot.xy, -rot.y, rot.x);
-		const float2 cornerOffset = mul(cornersLUT[idx].offset, rotMatrix);
-		const SpriteVertex vert =
+		float2 cornerOffset;
+		const LensFlare::SpriteVertex vert =
 		{
-			color,
-			cornersLUT[idx].offset * circleScale,
-			float4(center + extents * cornerOffset, 0, 1),
-			cornersLUT[idx].apertureCropDist,
+			BokehSprite::Corner(idx, cornerOffset),
 			dot(edgeClip.xy, cornerOffset) + edgeClip.z
 		};
 		return vert;
@@ -124,7 +68,7 @@ class Sprite
 
 [maxvertexcount(4)]
 [instance(spriteCount)]
-void main(point LensFlare::Source flareSource[1], in uint lenseID : SV_GSInstanceID, inout TriangleStream<SpriteVertex> flareSpriteCorners)
+void main(point LensFlare::Source flareSource[1], in uint lenseID : SV_GSInstanceID, inout TriangleStream<LensFlare::SpriteVertex> flareSpriteCorners)
 {
 	float4 color = flareSource[0].col;
 	color.rgb *= flares[lenseID].tint;
@@ -140,7 +84,7 @@ void main(point LensFlare::Source flareSource[1], in uint lenseID : SV_GSInstanc
 
 		Sprite sprite =
 		{
-			flareSource[0].pos,
+			flareSource[0].pos, 0,
 			color,
 			flareSource[0].ext.xyy/*ext.y holds unmodified aperture*/,
 			flareSource[0].rot,
@@ -148,7 +92,7 @@ void main(point LensFlare::Source flareSource[1], in uint lenseID : SV_GSInstanc
 		};
 		sprite.center *= flares[lenseID].pos;
 		sprite.extents *= flares[lenseID].size;
-		sprite.circleScale /= R;
+		sprite.circleScale /= Bokeh::R;
 		sprite.edgeClip.xy *= sign(flares[lenseID].clipSpeed);
 		sprite.edgeClip.z *= flares[lenseID].clipDist - sprite.edgeClip.z;
 		sprite.edgeClip.z *= abs(flares[lenseID].clipSpeed);

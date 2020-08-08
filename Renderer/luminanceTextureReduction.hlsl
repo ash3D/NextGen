@@ -11,14 +11,14 @@ namespace LumAdaptaion
 #define DXC_NAMESPACE_WORKAROUND 1
 
 #if DXC_NAMESPACE_WORKAROUND
-Texture2D src : register(t0);
-RWByteAddressBuffer dst : register(u1);
+Texture2D src : register(t1);
+RWByteAddressBuffer dst : register(u2);
 #endif
 
 namespace LumAdaptaion
 {
-	Texture2D src : register(t0);
-	RWByteAddressBuffer dst : register(u1);
+	Texture2D src : register(t1);
+	RWByteAddressBuffer dst : register(u2);
 }
 
 // !: no low-level optimizations yet (e.g. GPR pressure)
@@ -41,7 +41,7 @@ void main(in uint2 globalIdx : SV_DispatchThreadID, in uint flatLocalIdx : SV_Gr
 				[unroll]
 				for (uint c = 0; c < CSConfig::LuminanceReduction::TexturePass::tileSize; c++)
 				{
-					const float3 srcPixel = DecodeHDR(src.Load(uint3(C, R, 0), uint2(c, r)));
+					const float3 srcPixel = DecodeHDRExp(src.Load(uint3(C, R, 0), uint2(c, r)));
 					/*
 						'max' used to convert NaN to 0
 						NaN comes from out-of-bounds pixels in edge tiles - they are which fetched as 0

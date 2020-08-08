@@ -19,5 +19,5 @@ float4 main(in float3 viewDir : ViewDir) : SV_TARGET
 	*/
 	const float3 color = Lighting::Lit(albedo, .5f, Fresnel::F0(1.55f), mul(-terrainWorldXform[2], viewXform), normalize(viewDir), sun.dir, sun.irradiance);
 
-	return EncodeHDR(color, cameraSettings.exposure);
+	return EncodeHDRExp(color, cameraSettings.exposure);
 }

@@ -370,6 +370,9 @@ ComPtr<ID3D12PipelineState>
 	Viewport::luminanceTextureReductionPSO											= Try(Viewport::CreateLuminanceTextureReductionPSO, "luminance texture reduction PSO"),
 	Viewport::luminanceBufferReductionPSO											= Try(Viewport::CreateLuminanceBufferReductionPSO, "luminance buffer reduction PSO"),
 	Viewport::lensFlarePSO															= Try(Viewport::CreateLensFlarePSO, "lens flare PSO"),
+	Viewport::COC_pass_PSO															= Try(Viewport::Create_COC_pass_PSO, "COC pass PSO"),
+	Viewport::DOF_splatting_PSO														= Try(Viewport::Create_DOF_splatting_PSO, "DOF splatting PSO"),
+	Viewport::DOF_LF_composite_PSO													= Try(Viewport::Create_DOF_LF_composite_PSO, "DOF & lens flare composite PSO"),
 	Viewport::brightPassPSO															= Try(Viewport::CreateBrightPassPSO, "bloom bright pass PSO"),
 	Viewport::bloomDownsamplePSO													= Try(Viewport::CreateBloomDownsmplePSO, "bloom downsample PSO"),
 	Viewport::bloomUpsampleBlurPSO													= Try(Viewport::CreateBloomUpsmpleBlurPSO, "bloom upsample blur PSO"),
@@ -451,6 +454,9 @@ extern void __cdecl InitRenderer()
 		Viewport::luminanceTextureReductionPSO				= Viewport::CreateLuminanceTextureReductionPSO();
 		Viewport::luminanceBufferReductionPSO				= Viewport::CreateLuminanceBufferReductionPSO();
 		Viewport::lensFlarePSO								= Viewport::CreateLensFlarePSO();
+		Viewport::COC_pass_PSO								= Viewport::Create_COC_pass_PSO();
+		Viewport::DOF_splatting_PSO							= Viewport::Create_DOF_splatting_PSO();
+		Viewport::DOF_LF_composite_PSO						= Viewport::Create_DOF_LF_composite_PSO();
 		Viewport::brightPassPSO								= Viewport::CreateBrightPassPSO();
 		Viewport::bloomDownsamplePSO						= Viewport::CreateBloomDownsmplePSO();
 		Viewport::bloomUpsampleBlurPSO						= Viewport::CreateBloomUpsmpleBlurPSO();

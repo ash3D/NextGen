@@ -1,9 +1,9 @@
 #include "CS config.hlsli"
 
 SamplerState tapFilter : register(s0);
-Texture2D src : register(t4);
+Texture2D src : register(t9);
 RWTexture2D<float4> dst[5] : register(u6, space1);
-cbuffer LOD : register(b1)
+cbuffer LOD : register(b2)
 {
 	uint lod;
 }

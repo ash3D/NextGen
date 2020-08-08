@@ -156,8 +156,8 @@ ComPtr<ID3D12PipelineState> Flat::CreatePSO()
 
 	const CD3DX12_DEPTH_STENCIL_DESC dsDesc
 	(
-		FALSE,																									// depth
-		D3D12_DEPTH_WRITE_MASK_ZERO,
+		TRUE,																									// depth
+		D3D12_DEPTH_WRITE_MASK_ALL,
 		D3D12_COMPARISON_FUNC_ALWAYS,
 		TRUE,																									// stencil
 		D3D12_DEFAULT_STENCIL_READ_MASK,																		// stencil read mask
@@ -185,7 +185,7 @@ ComPtr<ID3D12PipelineState> Flat::CreatePSO()
 		.PrimitiveTopologyType	= D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
 		.NumRenderTargets		= 1,
 		.RTVFormats				= { Config::HDRFormat },
-		.DSVFormat				= Config::ZFormat,
+		.DSVFormat				= Config::ZFormat::ROP,
 		.SampleDesc				= Config::MSAA(),
 		.Flags					= D3D12_PIPELINE_STATE_FLAG_NONE
 	};
@@ -260,8 +260,8 @@ ComPtr<ID3D12PipelineState> Masked::CreatePSO()
 
 	const CD3DX12_DEPTH_STENCIL_DESC dsDesc
 	(
-		FALSE,																									// depth
-		D3D12_DEPTH_WRITE_MASK_ZERO,
+		TRUE,																									// depth
+		D3D12_DEPTH_WRITE_MASK_ALL,
 		D3D12_COMPARISON_FUNC_ALWAYS,
 		TRUE,																									// stencil
 		D3D12_DEFAULT_STENCIL_READ_MASK,																		// stencil read mask
@@ -289,7 +289,7 @@ ComPtr<ID3D12PipelineState> Masked::CreatePSO()
 		.PrimitiveTopologyType	= D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
 		.NumRenderTargets		= 1,
 		.RTVFormats				= { Config::HDRFormat },
-		.DSVFormat				= Config::ZFormat,
+		.DSVFormat				= Config::ZFormat::ROP,
 		.SampleDesc				= Config::MSAA(),
 		.Flags					= D3D12_PIPELINE_STATE_FLAG_NONE
 	};
@@ -361,8 +361,8 @@ ComPtr<ID3D12PipelineState> Standard::CreatePSO()
 
 	const CD3DX12_DEPTH_STENCIL_DESC dsDesc
 	(
-		FALSE,																									// depth
-		D3D12_DEPTH_WRITE_MASK_ZERO,
+		TRUE,																									// depth
+		D3D12_DEPTH_WRITE_MASK_ALL,
 		D3D12_COMPARISON_FUNC_ALWAYS,
 		TRUE,																									// stencil
 		D3D12_DEFAULT_STENCIL_READ_MASK,																		// stencil read mask
@@ -390,7 +390,7 @@ ComPtr<ID3D12PipelineState> Standard::CreatePSO()
 		.PrimitiveTopologyType	= D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
 		.NumRenderTargets		= 1,
 		.RTVFormats				= { Config::HDRFormat },
-		.DSVFormat				= Config::ZFormat,
+		.DSVFormat				= Config::ZFormat::ROP,
 		.SampleDesc				= Config::MSAA(),
 		.Flags					= D3D12_PIPELINE_STATE_FLAG_NONE
 	};
@@ -479,8 +479,8 @@ ComPtr<ID3D12PipelineState> Extended::CreatePSO()
 
 	const CD3DX12_DEPTH_STENCIL_DESC dsDesc
 	(
-		FALSE,																									// depth
-		D3D12_DEPTH_WRITE_MASK_ZERO,
+		TRUE,																									// depth
+		D3D12_DEPTH_WRITE_MASK_ALL,
 		D3D12_COMPARISON_FUNC_ALWAYS,
 		TRUE,																									// stencil
 		D3D12_DEFAULT_STENCIL_READ_MASK,																		// stencil read mask
@@ -508,7 +508,7 @@ ComPtr<ID3D12PipelineState> Extended::CreatePSO()
 		.PrimitiveTopologyType	= D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
 		.NumRenderTargets		= 1,
 		.RTVFormats				= { Config::HDRFormat },
-		.DSVFormat				= Config::ZFormat,
+		.DSVFormat				= Config::ZFormat::ROP,
 		.SampleDesc				= Config::MSAA(),
 		.Flags					= D3D12_PIPELINE_STATE_FLAG_NONE
 	};

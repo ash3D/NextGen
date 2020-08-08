@@ -194,7 +194,7 @@ auto Impl::World::MainRenderStage::CreateCullPassPSOs() -> decltype(cullPassPSOs
 		.InputLayout			= { VB_decl, size(VB_decl) },
 		.IBStripCutValue		= D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,
 		.PrimitiveTopologyType	= D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
-		.DSVFormat				= Config::ZFormat,
+		.DSVFormat				= Config::ZFormat::ROP,
 		.SampleDesc				= Config::MSAA(),
 		.Flags					= D3D12_PIPELINE_STATE_FLAG_NONE
 	};
@@ -675,9 +675,9 @@ auto Impl::World::MainRenderStage::MakeZPrecullBinding(WorldViewContext &viewCtx
 	{
 		const auto targetZDesc = ROPTargets.GetZBuffer()->GetDesc(), historyZDesc = viewCtx.ZBufferHistory->GetDesc();
 		if (targetZDesc.Width == historyZDesc.Width && targetZDesc.Height == historyZDesc.Height)
-			return RenderPasses::StageZBinding{ ROPTargets, D3D12_CLEAR_FLAG_STENCIL, { 1.f, UINT8_MAX }, false, false };
+			return RenderPasses::StageZBinding{ ROPTargets, D3D12_CLEAR_FLAG_STENCIL, { 1.f, UINT8_MAX }, RenderPasses::BindingOutput::Propagate, RenderPasses::BindingOutput::Propagate };
 	}
-	return RenderPasses::StageZBinding{ROPTargets, true, true};
+	return RenderPasses::StageZBinding{ ROPTargets, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, { 1.f, 0xef }, RenderPasses::BindingOutput::Propagate, RenderPasses::BindingOutput::Propagate };
 }
 
 Impl::World::MainRenderStage::MainRenderStage(shared_ptr<const Renderer::World> parent, WorldViewContext &viewCtx,
@@ -687,7 +687,7 @@ Impl::World::MainRenderStage::MainRenderStage(shared_ptr<const Renderer::World> 
 	viewCtx(viewCtx),
 	stageRTBinding(ROPTargets),
 	stageZPrecullBinding(MakeZPrecullBinding(viewCtx, ROPTargets)),
-	stageZBinding(ROPTargets, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, { 1.f, UINT8_MAX }, true/*preserve for copy to Z history*/, false),
+	stageZBinding(ROPTargets, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, { 1.f, UINT8_MAX }, RenderPasses::BindingOutput::ForcePreserve/*for copy to Z history*/, RenderPasses::BindingOutput::Propagate),
 	stageOutput(ROPTargets),
 	queryPasses(allocate_shared<OcclusionQueryPasses>(polymorphic_allocator<OcclusionQueryPasses>(&globalTransientRAM)))	// or do this in 'Build()' ?
 {
@@ -787,7 +787,7 @@ auto Impl::World::DebugRenderStage::CreateAABB_PSOs() -> decltype(AABB_PSOs)
 		.PrimitiveTopologyType	= D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
 		.NumRenderTargets		= 1,
 		.RTVFormats				= { Config::HDRFormat },
-		.DSVFormat				= Config::ZFormat,
+		.DSVFormat				= Config::ZFormat::ROP,
 		.SampleDesc				= Config::MSAA(),
 		.Flags					= D3D12_PIPELINE_STATE_FLAG_NONE
 	};
@@ -1014,7 +1014,7 @@ static inline void CopyMatrix2CB(const float (&src)[rows][columns], volatile Imp
 	copy_n(src, rows, dst);
 }
 
-void Impl::World::Render(WorldViewContext &viewCtx, const float (&viewXform)[4][3], const float (&projXform)[4][4], UINT64 cameraSettingsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) const
+void Impl::World::Render(WorldViewContext &viewCtx, const float (&viewXform)[4][3], const float (&projXform)[4][4], const float (&projParams)[3], UINT64 cameraSettingsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) const
 {
 	using namespace placeholders;
 
@@ -1038,6 +1038,7 @@ void Impl::World::Render(WorldViewContext &viewCtx, const float (&viewXform)[4][
 		const float3 sunDir = Sun::Dir(this->sunDir.zenith, this->sunDir.azimuth);
 		curFrameCB_region.sun.dir = reinterpret_cast<const float (&)[3]>(mul(sunDir, viewTransform));
 		curFrameCB_region.sun.irradiance = reinterpret_cast<const float (&)[3]>(Sun::Irradiance(this->sunDir.zenith, sunDir.z));
+		curFrameCB_region.projParams = projParams;
 #if !PERSISTENT_MAPS
 		range.End += sizeof(GlobalGPUBufferData::PerFrameData);
 		globalGPUBuffer->Unmap(0, &range);

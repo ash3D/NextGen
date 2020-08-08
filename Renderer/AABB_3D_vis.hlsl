@@ -23,5 +23,5 @@ ByteAddressBuffer visibilityPhase1 : register(t0), visibilityPhase2 : register(t
 float4 main() : SV_TARGET
 {
 	const uint colorIdx = visibilityPhase1.Load(visibilityOffset) | visibilityPhase2.Load(visibilityOffset) << 1u;
-	return EncodeLDR(colors[colorIdx], cameraSettings.exposure);
+	return EncodeLDRExp(colors[colorIdx], cameraSettings.exposure);
 }

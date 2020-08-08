@@ -1,4 +1,5 @@
 #include "CS config.hlsli"
+#include "per-frame data.hlsli"
 #include "camera params.hlsli"
 
 namespace LumAdaptaion
@@ -7,22 +8,16 @@ namespace LumAdaptaion
 }
 #include "luminanceLocalReduction.hlsli"
 
-#define DXC_NAMESPACE_WORKAROUND 1
-
-#if DXC_NAMESPACE_WORKAROUND
-ByteAddressBuffer buffer : register(t1);
-RWByteAddressBuffer cameraSettings : register(u2);
-#endif
+Texture2DMS<float> ZBuffer : register(t0);
+ByteAddressBuffer lumBuffer : register(t3);
+RWByteAddressBuffer cameraSettings : register(u3);
+cbuffer CamAdaptation : register(b2)
+{
+	float lerpFactor;
+}
 
 namespace LumAdaptaion
 {
-	ByteAddressBuffer buffer : register(t1);
-	RWByteAddressBuffer cameraSettings : register(u2);
-	cbuffer LumAdaptation : register(b1)
-	{
-		float lerpFactor;
-	}
-
 	inline float LinearizeLum(float src)
 	{
 		return exp2(src) - 1;
@@ -68,18 +63,33 @@ namespace LumAdaptaion
 
 	inline void UpdateCameraSettings(in float avgLogLum, in float maxSceneLum, inout float relativeExposure, inout float whitePoint, out float exposure, out float aperture, out float whitePointFactor, out float2 apertureRot)
 	{
-		Autoexposure(avgLogLum, relativeExposure, aperture, apertureRot);
+		LumAdaptaion::Autoexposure(avgLogLum, relativeExposure, aperture, apertureRot);
 		exposure = relativeExposure * CameraParams::normFactor;
-		UpdateWhitePoint(maxSceneLum, exposure, whitePoint);
+		LumAdaptaion::UpdateWhitePoint(maxSceneLum, exposure, whitePoint);
 		whitePointFactor = rcp(whitePoint * whitePoint);
 	}
+}
+
+inline float InvLinearZ(float Z/*from hw Z buffer*/)
+{
+	return projParams[1] - Z * projParams[2];
+}
+
+inline void UpdateFocusSettings(in float aperture, in float scale, in float focusTarget/*hw Z*/, inout float lastSetting, out float2 COCParams)
+{
+	const float targetSensorPlane = projParams[0]/*F*/ / (1 - projParams[0] * InvLinearZ(focusTarget));
+	lastSetting = lerp(targetSensorPlane, lastSetting, lerpFactor);
+	COCParams[0] = lastSetting * projParams[2];
+	COCParams[1] = lastSetting * (rcp(projParams[0]) - projParams[1]) - 1;
+	scale *= aperture * (.5f/*derive sensor size from F*/ * .5f/*CoC diam -> rad*/ / 1.4f/*f-stop for fully opened aperture*/) * projXform[1][1]/*1 / tan(fovy / 2)*/;
+	COCParams *= scale;
 }
 
 [numthreads(CSConfig::LuminanceReduction::BufferPass::blockSize, 1, 1)]
 void main(in uint globalIdx : SV_DispatchThreadID, in uint localIdx : SV_GroupIndex)
 {
 	// global buffer loading combined with first level reduction
-	const float4 batch = asfloat(buffer.Load4(globalIdx * 16));
+	const float4 batch = asfloat(lumBuffer.Load4(globalIdx * 16));
 	const float2 partialReduction = { batch[0] + batch[2], max(batch[1], batch[3]) };
 
 	// bulk of reduction work
@@ -88,12 +98,20 @@ void main(in uint globalIdx : SV_DispatchThreadID, in uint localIdx : SV_GroupIn
 	// update camera settings buffer
 	if (localIdx == 0)
 	{
-		float2 lastSettings = asfloat(cameraSettings.Load2(0));
+		float3 lastSettings = asfloat(cameraSettings.Load3(0));
 		float exposure, aperture, whitePointFactor;
-		float2 apertureRot;
+		float2 apertureRot, COCParams;
+
 		LumAdaptaion::UpdateCameraSettings(finalReduction[0], finalReduction[1], lastSettings[0], lastSettings[1], exposure, aperture, whitePointFactor, apertureRot);
-		cameraSettings.Store2(0, asuint(lastSettings));
-		cameraSettings.Store3(8, asuint(float3(exposure, aperture, whitePointFactor)));
-		cameraSettings.Store2(20, asuint(apertureRot));
+
+		uint2 halfres;
+		uint MSAA;
+		ZBuffer.GetDimensions(halfres.x, halfres.y, MSAA);
+		halfres /= 2;
+		UpdateFocusSettings(aperture, halfres.y/*want CoC in halfres pixels*/, ZBuffer[halfres/*focus on center point*/], lastSettings[2], COCParams);
+
+		cameraSettings.Store3(0, asuint(lastSettings));
+		cameraSettings.Store3(12, asuint(float3(exposure, aperture, whitePointFactor)));
+		cameraSettings.Store4(24, asuint(float4(apertureRot, COCParams)));
 	}
 }
