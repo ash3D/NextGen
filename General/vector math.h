@@ -265,7 +265,7 @@ matrix2x3 op matrix3x2 forbidden if ENABLE_UNMATCHED_MATRICES is not specified t
 #	pragma warning(push)
 #	pragma warning(disable: 4003)
 
-#if defined _MSC_VER && _MSC_VER <= 1924 && !defined __clang__
+#if defined _MSC_VER && _MSC_VER <= 1927 && !defined __clang__
 #	define MSVC_LIMITATIONS
 #endif
 
@@ -462,7 +462,7 @@ further investigations needed, including other compilers
 			using std::enable_if_t;
 			using std::type_identity;
 			using std::conditional_t;
-			using std::result_of_t;
+			using std::invoke_result_t;
 			using std::plus;
 			using std::minus;
 			using std::multiplies;
@@ -2235,7 +2235,7 @@ further investigations needed, including other compilers
 
 			public:
 				template<typename F>
-				vector<result_of_t<F &(ElementType)>, SwizzleDesc::dimension> apply(F f) const;
+				vector<invoke_result_t<F, ElementType>, SwizzleDesc::dimension> apply(F f) const;
 
 				template<typename Result>
 				vector<Result, SwizzleDesc::dimension> apply(Result __cdecl f(ElementType)) const
@@ -2261,7 +2261,7 @@ further investigations needed, including other compilers
 
 			private:
 				template<typename F, size_t ...idx>
-				inline vector<result_of_t<F &(ElementType)>, SwizzleDesc::dimension> apply(F f, index_sequence<idx...>) const;
+				inline vector<invoke_result_t<F, ElementType>, SwizzleDesc::dimension> apply(F f, index_sequence<idx...>) const;
 			};
 
 			template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
@@ -3898,7 +3898,7 @@ further investigations needed, including other compilers
 
 		public:
 			template<typename F>
-			matrix<std::result_of_t<F &(ElementType)>, rows, columns> apply(F f) const;
+			matrix<std::invoke_result_t<F, ElementType>, rows, columns> apply(F f) const;
 
 			template<typename Result>
 			matrix<Result, rows, columns> apply(Result __cdecl f(ElementType)) const
@@ -3924,7 +3924,7 @@ further investigations needed, including other compilers
 
 		private:
 			template<typename F, size_t ...rowIdx>
-			inline matrix<std::result_of_t<F &(ElementType)>, rows, columns> apply(F f, std::index_sequence<rowIdx...>) const;
+			inline matrix<std::invoke_result_t<F, ElementType>, rows, columns> apply(F f, std::index_sequence<rowIdx...>) const;
 
 			// hide data in private and expose it from dependent base to allow for unqualified lookup
 		private:
@@ -4030,7 +4030,7 @@ further investigations needed, including other compilers
 
 		template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 		template<typename F>
-		inline vector<std::result_of_t<F &(ElementType)>, SwizzleDesc::dimension>
+		inline vector<std::invoke_result_t<F, ElementType>, SwizzleDesc::dimension>
 		Impl::SwizzleCommon<ElementType, rows, columns, SwizzleDesc>::apply(F f) const
 		{
 			return apply(f, make_index_sequence<SwizzleDesc::dimension>());
@@ -4038,7 +4038,7 @@ further investigations needed, including other compilers
 
 		template<typename ElementType, unsigned int rows, unsigned int columns, class SwizzleDesc>
 		template<typename F, size_t ...idx>
-		inline vector<std::result_of_t<F &(ElementType)>, SwizzleDesc::dimension>
+		inline vector<std::invoke_result_t<F, ElementType>, SwizzleDesc::dimension>
 		Impl::SwizzleCommon<ElementType, rows, columns, SwizzleDesc>::apply(F f, index_sequence<idx...>) const
 		{
 			return{ f((*this)[idx])... };
@@ -4383,14 +4383,14 @@ further investigations needed, including other compilers
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<typename F>
-			inline auto matrix<ElementType, rows, columns>::apply(F f) const -> matrix<std::result_of_t<F &(ElementType)>, rows, columns>
+			inline auto matrix<ElementType, rows, columns>::apply(F f) const -> matrix<std::invoke_result_t<F, ElementType>, rows, columns>
 			{
 				return apply(f, std::make_index_sequence<rows>());
 			}
 
 			template<typename ElementType, unsigned int rows, unsigned int columns>
 			template<typename F, size_t ...rowIdx>
-			inline auto matrix<ElementType, rows, columns>::apply(F f, std::index_sequence<rowIdx...>) const -> matrix<std::result_of_t<F &(ElementType)>, rows, columns>
+			inline auto matrix<ElementType, rows, columns>::apply(F f, std::index_sequence<rowIdx...>) const -> matrix<std::invoke_result_t<F, ElementType>, rows, columns>
 			{
 				return{ (*this)[rowIdx].apply(f)... };
 			}

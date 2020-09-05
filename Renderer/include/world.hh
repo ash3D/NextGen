@@ -100,7 +100,7 @@ namespace Renderer
 				operator const Renderer::Instance *() const noexcept { return instance; }
 
 			public:
-#if defined _MSC_VER && _MSC_VER <= 1924
+#if defined _MSC_VER && _MSC_VER <= 1927
 				inline const AABB<3> &GetAABB() const noexcept;
 #else
 				inline const auto &GetAABB() const noexcept;
@@ -167,7 +167,11 @@ namespace Renderer
 	{
 		template<class>
 		friend class Misc::AllocatorProxyAdaptor;
+#if defined _MSC_VER && _MSC_VER > 1924 && _MSC_VER <= 1927
+		friend std::shared_ptr<World> __cdecl MakeWorld(const float (&terrainXform)[4][3], float zenith, float azimuth);
+#else
 		friend std::shared_ptr<World> __cdecl MakeWorld(const float (&terrainXform)[4][3], float zenith = 0, float azimuth = 0);
+#endif
 		friend class Impl::Viewport;
 		friend class TerrainVectorQuad;	// for GetCurFrameGPUDataPtr()
 
@@ -175,4 +179,8 @@ namespace Renderer
 		using Impl::World::World;
 		~World() = default;
 	};
+
+#if defined _MSC_VER && _MSC_VER > 1924 && _MSC_VER <= 1927
+	std::shared_ptr<World> __cdecl MakeWorld(const float (&terrainXform)[4][3], float zenith = 0, float azimuth = 0);
+#endif
 }

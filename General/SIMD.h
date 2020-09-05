@@ -29,6 +29,12 @@ namespace Math::SIMD
 		friend inline XMM &__vectorcall operator +=(XMM &left, XMM right) noexcept, &__vectorcall operator -=(XMM &left, XMM right) noexcept, &__vectorcall operator *=(XMM &left, XMM right) noexcept, &__vectorcall operator /=(XMM &left, XMM right) noexcept;
 	};
 
+#if defined _MSC_VER && _MSC_VER > 1924 && _MSC_VER <= 1927
+	inline XMM __vectorcall operator +(XMM src) noexcept, __vectorcall operator -(XMM src) noexcept;
+	inline XMM __vectorcall operator +(XMM left, XMM right) noexcept, __vectorcall operator -(XMM left, XMM right) noexcept, __vectorcall operator *(XMM left, XMM right) noexcept, __vectorcall operator /(XMM left, XMM right) noexcept;
+	inline XMM &__vectorcall operator +=(XMM &left, XMM right) noexcept, &__vectorcall operator -=(XMM &left, XMM right) noexcept, &__vectorcall operator *=(XMM &left, XMM right) noexcept, &__vectorcall operator /=(XMM &left, XMM right) noexcept;
+#endif
+
 	class YMM
 	{
 		__m256 ymm;
@@ -51,6 +57,12 @@ namespace Math::SIMD
 		friend inline YMM __vectorcall operator +(YMM left, YMM right) noexcept, __vectorcall operator -(YMM left, YMM right) noexcept, __vectorcall operator *(YMM left, YMM right) noexcept, __vectorcall operator /(YMM left, YMM right) noexcept;
 		friend inline YMM &__vectorcall operator +=(YMM &left, YMM right) noexcept, &__vectorcall operator -=(YMM &left, YMM right) noexcept, &__vectorcall operator *=(YMM &left, YMM right) noexcept, &__vectorcall operator /=(YMM &left, YMM right) noexcept;
 	};
+
+#if defined _MSC_VER && _MSC_VER > 1924 && _MSC_VER <= 1927
+	inline YMM __vectorcall operator +(YMM src) noexcept, __vectorcall operator -(YMM src) noexcept;
+	inline YMM __vectorcall operator +(YMM left, YMM right) noexcept, __vectorcall operator -(YMM left, YMM right) noexcept, __vectorcall operator *(YMM left, YMM right) noexcept, __vectorcall operator /(YMM left, YMM right) noexcept;
+	inline YMM &__vectorcall operator +=(YMM &left, YMM right) noexcept, &__vectorcall operator -=(YMM &left, YMM right) noexcept, &__vectorcall operator *=(YMM &left, YMM right) noexcept, &__vectorcall operator /=(YMM &left, YMM right) noexcept;
+#endif
 }
 
 #include "SIMD.inl"

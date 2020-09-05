@@ -973,7 +973,7 @@ UINT64 Impl::World::GetCurFrameGPUDataPtr()
 }
 
 // defined here, not in class in order to eliminate dependency on "instance.hh" in "world.hh"
-#if defined _MSC_VER && _MSC_VER <= 1924
+#if defined _MSC_VER && _MSC_VER <= 1927
 inline const AABB<3> &Impl::World::BVHObject::GetAABB() const noexcept
 #else
 inline const auto &Impl::World::BVHObject::GetAABB() const noexcept
