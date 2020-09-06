@@ -13,8 +13,7 @@ namespace Renderer::DMA
 		extern WRL::ComPtr<ID3D12Fence> fence, CreateFence();
 	}
 
-	// replace vector with C++20 span
-	void Upload2VRAM(const WRL::ComPtr<ID3D12Resource> &dst, const std::vector<D3D12_SUBRESOURCE_DATA> &src, LPCWSTR name);
+	void Upload2VRAM(const WRL::ComPtr<ID3D12Resource> &dst, std::span<const D3D12_SUBRESOURCE_DATA> src, LPCWSTR name);
 	void TrackUsage(ID3D12Resource *res);
 	void Sync();
 }

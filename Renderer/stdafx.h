@@ -32,6 +32,7 @@
 #include <iterator>
 #include <initializer_list>
 #include <string>
+#include <span>
 #include <array>
 #include <vector>
 #include <queue>

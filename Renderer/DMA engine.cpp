@@ -179,7 +179,7 @@ ComPtr<ID3D12Fence> DMA::Impl::CreateFence()
 	return fence;
 }
 
-void DMA::Upload2VRAM(const ComPtr<ID3D12Resource> &dst, const vector<D3D12_SUBRESOURCE_DATA> &src, LPCWSTR name)
+void DMA::Upload2VRAM(const ComPtr<ID3D12Resource> &dst, span<const D3D12_SUBRESOURCE_DATA> src, LPCWSTR name)
 {
 	assert(dmaQueue);
 
