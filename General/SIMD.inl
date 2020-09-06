@@ -79,7 +79,7 @@ inline void Math::SIMD::YMM::Extract(float dst[8]) const noexcept
 
 inline std::array<float, 8> Math::SIMD::YMM::Extract() const noexcept
 {
-	alignas(16) std::array<float, 8> result;
+	alignas(32) std::array<float, 8> result;
 	_mm256_store_ps(result.data(), ymm);
 	return result;
 }
