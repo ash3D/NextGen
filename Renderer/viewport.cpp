@@ -32,6 +32,7 @@ namespace Shaders
 #define ENABLE_NONSTDLAYOUT_OFFSETOF 1
 
 using namespace std;
+using namespace numbers;
 using namespace Renderer;
 using namespace Math::VectorMath::HLSL;
 using WRL::ComPtr;
@@ -705,7 +706,7 @@ Impl::Viewport::Viewport(shared_ptr<const Renderer::World> world) : world(move(w
 	assert(this->world);
 
 	viewXform[0][0] = viewXform[1][1] = viewXform[2][2] = projXform[0][0] = projXform[1][1] = projXform[2][3] = 1.f;
-	SetProjectionTransform(M_PI_2, 1.);
+	SetProjectionTransform(pi / 2, 1.);
 
 	/*
 		create camera settings buffer

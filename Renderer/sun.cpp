@@ -3,6 +3,7 @@
 #include "general math.h"	// for lerp
 
 using namespace std;
+using namespace numbers;
 using namespace Renderer;
 using namespace Math;
 using namespace Sun::HLSL;
@@ -2955,7 +2956,7 @@ float3 Sun::Dir(float zenith, float azimuth)
 float3 Sun::Irradiance(float zenith, float cosZenith)
 {
 	// calculate rcp of relative optical mass
-	const double m_rcp = cosZenith + .15 * pow(93.885 - 180 * M_1_PI * fabs(zenith), -1.253);
+	const double m_rcp = cosZenith + .15 * pow(93.885 - 180 * inv_pi * fabs(zenith), -1.253);
 
 	// from http://www.babelcolor.com/index_htm_files/A%20review%20of%20RGB%20color%20spaces.pdf
 	static const double3 RGB_primaries(.610, .530, .450);	// in μm

@@ -2,8 +2,8 @@
 
 #include "CompilerCheck.h"
 #include <iterator>
-#define _USE_MATH_DEFINES
 #include <cmath>
+#include <numbers>
 
 namespace Math::Gauss
 {
@@ -11,8 +11,9 @@ namespace Math::Gauss
 	template<typename T>
 	extern inline T Gauss(T x, T sigma, T a = 0)
 	{
+		using namespace std::numbers;
 		const auto dx = x - a;
-		return exp(dx * dx / (-2 * sigma * sigma)) * M_2_SQRTPI / (2 * M_SQRT2 * sigma);
+		return exp(dx * dx / (-2 * sigma * sigma)) * inv_sqrtpi_v<T> / (sqrt2_v<T> * sigma);
 	}
 
 	// left half gaussian range

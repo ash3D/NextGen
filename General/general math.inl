@@ -1,8 +1,8 @@
 #pragma once
 
-#define _USE_MATH_DEFINES
 #include "general math.h"
 #include <cmath>
+#include <numbers>
 
 namespace Math
 {
@@ -11,7 +11,7 @@ namespace Math
 	{
 		// rely on ADL
 		const auto c = dot(x, y);
-		angle = c > -1 && c < +1 ? acos(c) : c >= +1 ? 0 : M_PI;
+		angle = c > -1 && c < +1 ? acos(c) : c >= +1 ? 0 : std::numbers::pi_v<Vec::ElementType>;
 		if (angle >= 1e-4f)
 			s = 1 / sin(angle);
 	}

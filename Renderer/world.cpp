@@ -33,6 +33,7 @@ namespace Shaders
 }
 
 using namespace std;
+using namespace numbers;
 using namespace Renderer;
 using namespace HLSL;
 using pmr::polymorphic_allocator;
@@ -45,7 +46,7 @@ ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNA
 
 static void CheckSunZenithArg(float zenith)
 {
-	if (fabs(zenith) > M_PI_2)
+	if (fabs(zenith) > pi / 2)
 		throw domain_error("Invalid sun zenith angle");
 }
 
