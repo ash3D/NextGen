@@ -301,11 +301,7 @@ ComPtr<ID3D12PipelineState> Masked::CreatePSO()
 }
 
 // 1 call site
-#if defined _MSC_VER && _MSC_VER <= 1924
-inline Masked::Masked(const float (&albedoFactor)[3], const Renderer::Texture &tex, float texScale, const char materialName[]) :
-#else
 inline Masked::Masked(const float (&albedoFactor)[3], const Texture &tex, float texScale, const char materialName[]) :
-#endif
 	TexStuff(texScale, 1, materialName, albedoFactor, rootSig, PSO), tex(tex.Acquire())
 {
 	if (tex.Usage() != TextureUsage::AlbedoMap)
@@ -315,11 +311,7 @@ inline Masked::Masked(const float (&albedoFactor)[3], const Texture &tex, float 
 
 Masked::~Masked() = default;
 
-#if defined _MSC_VER && _MSC_VER <= 1924
-shared_ptr<Interface> Masked::Make(const float (&albedo)[3], const Renderer::Texture &tex, float texScale, const char materialName[])
-#else
 shared_ptr<Interface> Masked::Make(const float (&albedo)[3], const Texture &tex, float texScale, const char materialName[])
-#endif
 {
 	return allocate_shared<Masked>(AllocatorProxy<Flat>(), albedo, tex, texScale, materialName);
 }
@@ -402,11 +394,7 @@ ComPtr<ID3D12PipelineState> Standard::CreatePSO()
 }
 
 // 1 call site
-#if defined _MSC_VER && _MSC_VER <= 1924
-inline Standard::Standard(const Renderer::Texture &albedoMap, const Renderer::Texture &roughnessMap, const Renderer::Texture &normalMap, float texScale, float IOR, const char materialName[]) :
-#else
 inline Standard::Standard(const Texture &albedoMap, const Texture &roughnessMap, const Texture &normalMap, float texScale, float IOR, const char materialName[]) :
-#endif
 	TexStuff(texScale, TEXTURE_COUNT, materialName, PIX_COLOR_INDEX(PIXEvents::TerrainMainPass), rootSig, PSO),
 	textures{ albedoMap.Acquire(), roughnessMap.Acquire(), normalMap.Acquire() },
 	F0(Fresnel::F0(IOR))
@@ -428,11 +416,7 @@ inline Standard::Standard(const Texture &albedoMap, const Texture &roughnessMap,
 
 Standard::~Standard() = default;
 
-#if defined _MSC_VER && _MSC_VER <= 1924
-shared_ptr<Interface> __cdecl Standard::Make(const Renderer::Texture &albedoMap, const Renderer::Texture &roughnessMap, const Renderer::Texture &normalMap, float texScale, float IOR, const char materialName[])
-#else
 shared_ptr<Interface> __cdecl Standard::Make(const Texture &albedoMap, const Texture &roughnessMap, const Texture &normalMap, float texScale, float IOR, const char materialName[])
-#endif
 {
 	return allocate_shared<Standard>(AllocatorProxy<Standard>(), albedoMap, roughnessMap, normalMap, texScale, IOR, materialName);
 }
@@ -520,11 +504,7 @@ ComPtr<ID3D12PipelineState> Extended::CreatePSO()
 }
 
 // 1 call site
-#if defined _MSC_VER && _MSC_VER <= 1924
-inline Extended::Extended(const Renderer::Texture &albedoMap, const Renderer::Texture &fresnelMap, const Renderer::Texture &roughnessMap, const Renderer::Texture &normalMap, float texScale, const char materialName[]) :
-#else
 inline Extended::Extended(const Texture &albedoMap, const Texture &fresnelMap, const Texture &roughnessMap, const Texture &normalMap, float texScale, const char materialName[]) :
-#endif
 	TexStuff(texScale, TEXTURE_COUNT, materialName, PIX_COLOR_INDEX(PIXEvents::TerrainMainPass), rootSig, PSO),
 	textures{ albedoMap.Acquire(), fresnelMap.Acquire(), roughnessMap.Acquire(), normalMap.Acquire() }
 {
@@ -547,11 +527,7 @@ inline Extended::Extended(const Texture &albedoMap, const Texture &fresnelMap, c
 
 Extended::~Extended() = default;
 
-#if defined _MSC_VER && _MSC_VER <= 1924
-shared_ptr<Interface> __cdecl Extended::Make(const Renderer::Texture &albedoMap, const Renderer::Texture &fresnelMap, const Renderer::Texture &roughnessMap, const Renderer::Texture &normalMap, float texScale, const char materialName[])
-#else
 shared_ptr<Interface> __cdecl Extended::Make(const Texture &albedoMap, const Texture &fresnelMap, const Texture &roughnessMap, const Texture &normalMap, float texScale, const char materialName[])
-#endif
 {
 	return allocate_shared<Extended>(AllocatorProxy<Extended>(), albedoMap, fresnelMap, roughnessMap, normalMap, texScale, materialName);
 }

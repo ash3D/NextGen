@@ -2923,11 +2923,19 @@ typedef SegmentIterator<true> WeightsSegmentIterator;
 
 const double3 sunExtraterrestrialIrradianceRGB = []
 {
-	// TODO: replace with static_assert when C++20 constexpr is_sorted turns up
-	assert(is_sorted(begin(spectralIrradianceTable), end(spectralIrradianceTable), [](const remove_extent_t<decltype(spectralIrradianceTable)> &left, const remove_extent_t<decltype(spectralIrradianceTable)> &right) constexpr noexcept
+	// TODO: use C++20 ranges with projection instead of cmp
+#if defined _MSC_VER && _MSC_VER <= 1927
+	static constexpr auto wavelengthOrder = [](const remove_extent_t<decltype(spectralIrradianceTable)> &left, const remove_extent_t<decltype(spectralIrradianceTable)> &right) constexpr noexcept
+	{
+		return left[0] < right[0];
+	};
+	static_assert(is_sorted(begin(spectralIrradianceTable), end(spectralIrradianceTable), wavelengthOrder));
+#else
+	static_assert(is_sorted(begin(spectralIrradianceTable), end(spectralIrradianceTable), [](const remove_extent_t<decltype(spectralIrradianceTable)> &left, const remove_extent_t<decltype(spectralIrradianceTable)> &right) constexpr noexcept
 	{
 		return left[0] < right[0];
 	}));
+#endif
 
 	const auto EvalSeg = [](const DataSegmentIterator::value_type &data, const WeightsSegmentIterator::value_type &weights)
 	{

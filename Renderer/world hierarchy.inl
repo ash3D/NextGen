@@ -307,9 +307,6 @@ namespace Renderer::Impl::Hierarchy
 					execution::par,
 #endif
 					cbegin(children),
-#if defined _MSC_VER && _MSC_VER <= 1924 && MULTITHREADED_TREE_TRAVERSE == 2
-					(unsigned int)
-#endif
 					childrenCount,
 					[&, depthSortXform, parentInsideFrustum, parentOcclusionCulledProjLength, parentOcclusion](const remove_extent_t<decltype(children)> &child)
 				{

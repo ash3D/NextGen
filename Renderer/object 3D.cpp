@@ -389,9 +389,7 @@ ComPtr<ID3D12DescriptorHeap> Impl::Object3D::DescriptorTablePack::CreateBackingS
 	NameObjectF(CPUStore.Get(), L"\"%s\" descriptor table CPU backing store", objectName.c_str());
 #endif
 	const auto descriptorSize = device->GetDescriptorHandleIncrementSize(packDesc.Type);
-	// TODO: use C++20 initializer in range-based for
-	CD3DX12_CPU_DESCRIPTOR_HANDLE dstDesc(CPUStore->GetCPUDescriptorHandleForHeapStart());
-	for (const auto &srcTex : textures)
+	for (CD3DX12_CPU_DESCRIPTOR_HANDLE dstDesc(CPUStore->GetCPUDescriptorHandleForHeapStart()); const auto &srcTex : textures)
 	{
 		device->CreateShaderResourceView(srcTex.Get(), NULL, dstDesc);
 		dstDesc.Offset(descriptorSize);
@@ -595,8 +593,9 @@ namespace
 }
 
 Impl::Object3D::Object3D(unsigned short int subobjCount, const SubobjectDataCallback &getSubobjectData, string name) :
-	// use C++20 make_shared for arrays
-	subobjects(new Subobject[subobjCount]), tricount(), subobjCount(subobjCount)
+	// C++20 make_shared_for_overwrite?\
+	have to check is it legal
+	subobjects(make_shared<Subobject []>(subobjCount)), tricount(), subobjCount(subobjCount)
 {
 	if (!subobjCount)
 		throw logic_error("Attempt to create empty 3D object");

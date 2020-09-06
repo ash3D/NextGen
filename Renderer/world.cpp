@@ -1136,9 +1136,7 @@ void Impl::World::FlushUpdates() const
 			static_assert(is_standard_layout_v<StaticObjectData>);
 			volatile StaticObjectData *mapped;
 			CheckHR(staticObjectsCB->Map(0, &CD3DX12_RANGE(0, 0), const_cast<void **>(reinterpret_cast<volatile void **>(&mapped))));
-			// TODO: use C++20 initializer in range-based for
-			auto CB_GPU_ptr = staticObjectsCB->GetGPUVirtualAddress();
-			for (auto &instance : staticObjects)
+			for (auto CB_GPU_ptr = staticObjectsCB->GetGPUVirtualAddress(); auto &instance : staticObjects)
 			{
 				CopyMatrix2CB(instance.GetWorldXform(), mapped++->worldXform);
 				instance.CB_GPU_ptr = CB_GPU_ptr;
