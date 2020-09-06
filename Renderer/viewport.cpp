@@ -436,10 +436,10 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Pre(DeferredCmdBuffsProvide
 		const auto cameraSettingsGPUAddress = cameraSettingsBuffer->GetGPUVirtualAddress();
 		const D3D12_WRITEBUFFERIMMEDIATE_PARAMETER initParams[] =
 		{
-			{cameraSettingsGPUAddress + offsetof(CameraParams::Settings, relativeExposure), reinterpret_cast<const UINT &>(initVal)/*strict aliasing rule violation, use C++20 bit_cast instead*/},
-			{cameraSettingsGPUAddress + offsetof(CameraParams::Settings, whitePoint), reinterpret_cast<const UINT &>(initVal)/*strict aliasing rule violation, use C++20 bit_cast instead*/},
-			{cameraSettingsGPUAddress + offsetof(CameraParams::Settings, sensorPlane), reinterpret_cast<const UINT &>(projParams[0]/*F - focus on infinity*/)/*strict aliasing rule violation, use C++20 bit_cast instead*/},
-			{cameraSettingsGPUAddress + offsetof(CameraParams::Settings, exposure), reinterpret_cast<const UINT &>(/*1 * */CameraParams::normFactor)/*strict aliasing rule violation, use C++20 bit_cast instead*/}
+			{cameraSettingsGPUAddress + offsetof(CameraParams::Settings, relativeExposure), bit_cast<UINT>(initVal)},
+			{cameraSettingsGPUAddress + offsetof(CameraParams::Settings, whitePoint), bit_cast<UINT>(initVal)},
+			{cameraSettingsGPUAddress + offsetof(CameraParams::Settings, sensorPlane), bit_cast<UINT>(projParams[0]/*F - focus on infinity*/)},
+			{cameraSettingsGPUAddress + offsetof(CameraParams::Settings, exposure), bit_cast<UINT>(/*1 * */CameraParams::normFactor)}
 		};
 		cmdList->WriteBufferImmediate(size(initParams), initParams, NULL);
 	}
@@ -489,7 +489,7 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvid
 		cmdList->SetComputeRootConstantBufferView(COMPUTE_ROOT_PARAM_CAM_SETTINGS_CBV, cameraSettingsBufferGPUAddress);
 		cmdList->SetComputeRootUnorderedAccessView(COMPUTE_ROOT_PARAM_CAM_SETTINGS_UAV, cameraSettingsBufferGPUAddress);
 		cmdList->SetComputeRootConstantBufferView(COMPUTE_ROOT_PARAM_PERFRAME_DATA_CBV, world->GetCurFrameGPUDataPtr());
-		cmdList->SetComputeRoot32BitConstant(COMPUTE_ROOT_PARAM_PUSH_CONST, reinterpret_cast<const UINT &>(camAdaptationLerpFactor)/*use C++20 bit_cast instead*/, 0);
+		cmdList->SetComputeRoot32BitConstant(COMPUTE_ROOT_PARAM_PUSH_CONST, bit_cast<UINT>(camAdaptationLerpFactor), 0);
 
 		// gfx
 		cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);

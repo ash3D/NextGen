@@ -115,7 +115,7 @@ inline void Impl::TexStuff<Base>::FinishSetup(ID3D12GraphicsCommandList4 *cmdLis
 	cmdList->SetDescriptorHeaps(size(descHeaps), descHeaps);
 	cmdList->SetGraphicsRootDescriptorTable(ROOT_PARAM_TEXTURE_DESC_TABLE, { GetGPUDescriptorsAllocation() });
 	cmdList->SetGraphicsRootDescriptorTable(ROOT_PARAM_SAMPLER_DESC_TABLE, TextureSamplers::GetGPUAddress(TextureSamplers::TERRAIN_DESC_TABLE_ID));
-	cmdList->SetGraphicsRoot32BitConstant(ROOT_PARAM_TEXTURE_SCALE, reinterpret_cast<const UINT &>(texScale), 0);	// strict aliasing rule violation, use C++20 bit_cast instead
+	cmdList->SetGraphicsRoot32BitConstant(ROOT_PARAM_TEXTURE_SCALE, bit_cast<UINT>(texScale), 0);
 }
 
 template<class Base>
@@ -424,7 +424,7 @@ shared_ptr<Interface> __cdecl Standard::Make(const Texture &albedoMap, const Tex
 void Standard::FinishSetup(ID3D12GraphicsCommandList4 *cmdList) const
 {
 	TexStuff::FinishSetup(cmdList);
-	cmdList->SetGraphicsRoot32BitConstant(ROOT_PARAM_F0, reinterpret_cast<const UINT &>(F0), 0);	// strict aliasing rule violation, use C++20 bit_cast instead
+	cmdList->SetGraphicsRoot32BitConstant(ROOT_PARAM_F0, bit_cast<UINT>(F0), 0);
 }
 #pragma endregion
 

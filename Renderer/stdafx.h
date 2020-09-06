@@ -40,6 +40,7 @@
 #include <forward_list>
 #include <algorithm>
 #include <numeric>
+#include <bit>
 #include <execution>
 #include <functional>
 #include <optional>
