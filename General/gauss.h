@@ -11,8 +11,8 @@ namespace Math::Gauss
 	template<typename T>
 	extern inline T Gauss(T x, T sigma, T a = 0)
 	{
-		auto dx = x - a;
-		return exp(-(dx * dx) / (sigma * sigma)) / (sigma * 2 * M_2_SQRTPI);
+		const auto dx = x - a;
+		return exp(dx * dx / (-2 * sigma * sigma)) * M_2_SQRTPI / (2 * M_SQRT2 * sigma);
 	}
 
 	// left half gaussian range
