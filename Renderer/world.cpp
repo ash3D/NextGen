@@ -514,9 +514,8 @@ Impl::RenderPipeline::PipelineItem (Impl::RenderPipeline::IRenderStage::*Impl::W
 
 auto Impl::World::MainRenderStage::GetStagePre(unsigned int &) const -> RenderPipeline::PipelineItem
 {
-	using namespace placeholders;
 	phaseSelector = static_cast<decltype(phaseSelector)>(&MainRenderStage::GetXformAABBPassRange);
-	return RenderPipeline::PipelineItem{ bind(&MainRenderStage::StagePre, shared_from_this(), _1) };
+	return RenderPipeline::PipelineItem{ bind_front(&MainRenderStage::StagePre, shared_from_this()) };
 }
 
 auto Impl::World::MainRenderStage::GetXformAABBPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
@@ -528,9 +527,8 @@ auto Impl::World::MainRenderStage::GetXformAABBPassRange(unsigned int &length) c
 
 auto Impl::World::MainRenderStage::GetXformAABBPass2FirstCullPass(unsigned int &) const -> RenderPipeline::PipelineItem
 {
-	using namespace placeholders;
 	phaseSelector = static_cast<decltype(phaseSelector)>(&MainRenderStage::GetFirstCullPassRange);
-	return RenderPipeline::PipelineItem{ bind(&MainRenderStage::XformAABBPass2CullPass, shared_from_this(), _1) };
+	return RenderPipeline::PipelineItem{ bind_front(&MainRenderStage::XformAABBPass2CullPass, shared_from_this()) };
 }
 
 auto Impl::World::MainRenderStage::GetFirstCullPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
@@ -559,9 +557,8 @@ auto Impl::World::MainRenderStage::GetFirstMainPassRange(unsigned int &length) c
 
 //auto Impl::World::MainRenderStage::GetFirstMainPass2SecondCullPass(unsigned int &) const -> RenderPipeline::PipelineItem
 //{
-//	using namespace placeholders;
 //	phaseSelector = static_cast<decltype(phaseSelector)>(&MainRenderStage::GetSecondCullPassRange);
-//	return bind(&MainRenderStage::MainPass2CullPass, shared_from_this(), _1);
+//	return bind_front(&MainRenderStage::MainPass2CullPass, shared_from_this());
 //}
 
 auto Impl::World::MainRenderStage::GetSecondCullPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
@@ -590,16 +587,14 @@ auto Impl::World::MainRenderStage::GetSecondMainPassRange(unsigned int &length) 
 
 auto Impl::World::MainRenderStage::GetStagePost(unsigned int &) const -> RenderPipeline::PipelineItem
 {
-	using namespace placeholders;
 	RenderPipeline::TerminateStageTraverse();
-	return RenderPipeline::PipelineItem{ bind(&MainRenderStage::StagePost, shared_from_this(), _1) };
+	return RenderPipeline::PipelineItem{ bind_front(&MainRenderStage::StagePost, shared_from_this()) };
 }
 
 //auto Impl::World::MainRenderStage::GetMainPassPre(unsigned int &) const -> RenderPipeline::PipelineItem
 //{
-//	using namespace placeholders;
 //	phaseSelector = &MainRenderStage::GetMainPassRange;
-//	return bind(&MainRenderStage::MainPassPre, shared_from_this(), _1);
+//	return bind_front(&MainRenderStage::MainPassPre, shared_from_this());
 //}
 
 //auto Impl::World::MainRenderStage::GetMainPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
@@ -611,9 +606,8 @@ auto Impl::World::MainRenderStage::GetStagePost(unsigned int &) const -> RenderP
 
 //auto Impl::World::MainRenderStage::GetMainPassPost(unsigned int &) const -> RenderPipeline::PipelineItem
 //{
-//	using namespace placeholders;
 //	RenderPipeline::TerminateStageTraverse();
-//	return bind(&MainRenderStage::MainPassPost, shared_from_this(), _1);
+//	return bind_front(&MainRenderStage::MainPassPost, shared_from_this());
 //}
 
 void Impl::World::MainRenderStage::Setup()
@@ -657,7 +651,7 @@ auto Impl::World::MainRenderStage::Build(const float4x4 &frustumXform, const flo
 		{
 			using namespace placeholders;
 
-			parent->bvhView.Issue(bind(&MainRenderStage::IssueOcclusion, this, _1, ref(AABBCount)), bind(&MainRenderStage::IssueNodeObjects, this, _1, _2, _3, _4), occlusionProvider);
+			parent->bvhView.Issue(bind(&MainRenderStage::IssueOcclusion, this, _1, ref(AABBCount)), bind_front(&MainRenderStage::IssueNodeObjects, this), occlusionProvider);
 		}
 	}
 
@@ -875,9 +869,8 @@ Impl::RenderPipeline::PipelineItem (Impl::RenderPipeline::IRenderStage::*Impl::W
 
 auto Impl::World::DebugRenderStage::GetAABBPassPre(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
-	using namespace placeholders;
 	phaseSelector = static_cast<decltype(phaseSelector)>(&DebugRenderStage::GetHiddenPassRange);
-	return RenderPipeline::PipelineItem{ bind(&DebugRenderStage::AABBPassPre, shared_from_this(), _1) };
+	return RenderPipeline::PipelineItem{ bind_front(&DebugRenderStage::AABBPassPre, shared_from_this()) };
 }
 
 auto Impl::World::DebugRenderStage::GetHiddenPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
@@ -900,9 +893,8 @@ auto Impl::World::DebugRenderStage::GetVisiblePassRange(unsigned int &length) co
 
 auto Impl::World::DebugRenderStage::GetAABBPassPost(unsigned int &) const -> RenderPipeline::PipelineItem
 {
-	using namespace placeholders;
 	RenderPipeline::TerminateStageTraverse();
-	return RenderPipeline::PipelineItem{ bind(&DebugRenderStage::AABBPassPost, shared_from_this(), _1) };
+	return RenderPipeline::PipelineItem{ bind_front(&DebugRenderStage::AABBPassPost, shared_from_this()) };
 }
 
 Impl::World::DebugRenderStage::DebugRenderStage(D3D12_GPU_VIRTUAL_ADDRESS cameraSettingsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) :

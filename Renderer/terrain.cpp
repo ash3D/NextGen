@@ -471,9 +471,8 @@ RenderPipeline::PipelineItem (RenderPipeline::IRenderStage::*TerrainVectorQuad::
 
 auto TerrainVectorQuad::MainRenderStage::GetStagePre(unsigned int &) const -> RenderPipeline::PipelineItem
 {
-	using namespace placeholders;
 	phaseSelector = static_cast<decltype(phaseSelector)>(&MainRenderStage::GetCullPassRange);
-	return RenderPipeline::PipelineItem{ bind(&MainRenderStage::StagePre, shared_from_this(), _1) };
+	return RenderPipeline::PipelineItem{ bind_front(&MainRenderStage::StagePre, shared_from_this()) };
 }
 
 auto TerrainVectorQuad::MainRenderStage::GetCullPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
@@ -486,9 +485,8 @@ auto TerrainVectorQuad::MainRenderStage::GetCullPassRange(unsigned int &length) 
 
 auto TerrainVectorQuad::MainRenderStage::GetCullPass2MainPass(unsigned int &) const -> RenderPipeline::PipelineItem
 {
-	using namespace placeholders;
 	phaseSelector = static_cast<decltype(phaseSelector)>(&MainRenderStage::GetMainPassRange);
-	return RenderPipeline::PipelineItem{ bind(&MainRenderStage::CullPass2MainPass, shared_from_this(), _1) };
+	return RenderPipeline::PipelineItem{ bind_front(&MainRenderStage::CullPass2MainPass, shared_from_this()) };
 }
 
 auto TerrainVectorQuad::MainRenderStage::GetMainPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
@@ -502,9 +500,8 @@ auto TerrainVectorQuad::MainRenderStage::GetMainPassRange(unsigned int &length) 
 
 auto TerrainVectorQuad::MainRenderStage::GetStagePost(unsigned int &) const -> RenderPipeline::PipelineItem
 {
-	using namespace placeholders;
 	RenderPipeline::TerminateStageTraverse();
-	return RenderPipeline::PipelineItem{ bind(&MainRenderStage::StagePost, shared_from_this(), _1) };
+	return RenderPipeline::PipelineItem{ bind_front(&MainRenderStage::StagePost, shared_from_this()) };
 }
 
 void TerrainVectorQuad::MainRenderStage::Setup()
@@ -747,9 +744,8 @@ Impl::RenderPipeline::PipelineItem (Impl::RenderPipeline::IRenderStage::*Terrain
 
 auto TerrainVectorQuad::DebugRenderStage::GetAABBPassPre(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
-	using namespace placeholders;
 	phaseSelector = static_cast<decltype(phaseSelector)>(&DebugRenderStage::GetVisiblePassRange);
-	return RenderPipeline::PipelineItem{ bind(&DebugRenderStage::AABBPassPre, shared_from_this(), _1) };
+	return RenderPipeline::PipelineItem{ bind_front(&DebugRenderStage::AABBPassPre, shared_from_this()) };
 }
 
 auto TerrainVectorQuad::DebugRenderStage::GetVisiblePassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
@@ -854,15 +850,13 @@ inline void TerrainVectorQuad::Schedule(Impl::GPUStreamBuffer::Allocator<sizeof 
 // 1 call site
 inline void TerrainVectorQuad::Issue(MainRenderStage &renderStage, remove_const_t<decltype(OcclusionCulling::QueryBatchBase::npos)> &occlusionProvider) const
 {
-	using namespace placeholders;
-
 	/*
 		note on why copy quad`s data to layer`s quad stream rather than just put quad ptr there:
 		'subtreeView' touched here so neighbor quad data is probably in cache line now anyway so accessing it now is cheap
 		later during cmd list recording trying to access quad data via ptr would cause ptr chasing and cache pollution
 		storing copy of quad data instead of ptr eliminate this performance pitfall
 	*/
-	subtreeView.Issue(bind(&MainRenderStage::IssueOcclusion, ref(renderStage), _1), bind(&MainRenderStage::IssueNodeObjects, ref(renderStage), _1, _2, _3, _4), occlusionProvider);
+	subtreeView.Issue(bind_front(&MainRenderStage::IssueOcclusion, ref(renderStage)), bind_front(&MainRenderStage::IssueNodeObjects, ref(renderStage)), occlusionProvider);
 	renderStage.IssueQuad(subtree.GetAABB().Center(), VIB.Get(), VB_size, IB_size, IB32bit);
 }
 #pragma endregion

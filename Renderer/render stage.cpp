@@ -25,8 +25,7 @@ static void FastForward(CmdListPool::CmdList &cmdList, const optional<PassROPBin
 PipelineItem IRenderStage::IterateRenderPass(unsigned int &length, const signed long int passLength,
 	const function<void ()> &PassFinish, const function<RenderStageItem::Work (unsigned long rangeBegin, unsigned long rangeEnd)> &GetRenderRange) const
 {
-	using namespace placeholders;
-	return IterateRenderPass(length, passLength, PassFinish, bind(GetNext, ref(length)), bind(GetRenderRange, curRangeBegin, _1));
+	return IterateRenderPass(length, passLength, PassFinish, bind_front(GetNext, ref(length)), bind_front(GetRenderRange, curRangeBegin));
 }
 
 PipelineItem IRenderStage::IterateRenderPass(unsigned int &length, const signed long int passLength,

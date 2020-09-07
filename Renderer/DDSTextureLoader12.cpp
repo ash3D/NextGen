@@ -1137,7 +1137,7 @@ namespace
 			? CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT)
 			: CD3DX12_HEAP_PROPERTIES(CPUAccessFlags & DDS_CPU_ACCESS_ALLOW_READS ? D3D12_CPU_PAGE_PROPERTY_WRITE_BACK : D3D12_CPU_PAGE_PROPERTY_WRITE_COMBINE, D3D12_MEMORY_POOL_L0);
 
-        const auto CreateTexture = std::bind(&ID3D12Device::CreateCommittedResource,
+        const auto CreateTexture = std::bind_front(&ID3D12Device::CreateCommittedResource,
 			d3dDevice,
             &heapProperties,
             D3D12_HEAP_FLAG_NONE,
