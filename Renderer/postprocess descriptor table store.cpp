@@ -32,7 +32,7 @@ void PostprocessDescriptorTableStore::Fill(ID3D12Resource *ZBuffer, ID3D12Resour
 
 	// ZBufferSRV
 	{
-		D3D12_SHADER_RESOURCE_VIEW_DESC SRVdesc =
+		const D3D12_SHADER_RESOURCE_VIEW_DESC SRVdesc =
 		{
 			.Format = Config::ZFormat::shader,
 			.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DMS,
@@ -57,19 +57,15 @@ void PostprocessDescriptorTableStore::Fill(ID3D12Resource *ZBuffer, ID3D12Resour
 
 	// ReductionBufferUAV
 	{
-		D3D12_UNORDERED_ACCESS_VIEW_DESC UAVdesc =
+		const D3D12_UNORDERED_ACCESS_VIEW_DESC UAVdesc =
 		{
-			DXGI_FORMAT_R32_TYPELESS,	// RAW buffer
-			D3D12_UAV_DIMENSION_BUFFER
-		};
-
-		UAVdesc.Buffer =
-		{
-			0,							// FirstElement
-			reductionBufferLength,		// NumElements
-			0,							// StructureByteStride
-			0,							// CounterOffsetInBytes
-			D3D12_BUFFER_UAV_FLAG_RAW
+			.Format = DXGI_FORMAT_R32_TYPELESS,	// RAW buffer
+			.ViewDimension = D3D12_UAV_DIMENSION_BUFFER,
+			.Buffer
+			{
+				.NumElements = reductionBufferLength,
+				.Flags = D3D12_BUFFER_UAV_FLAG_RAW
+			}
 		};
 		
 		device->CreateUnorderedAccessView(reductionBuffer, NULL, &UAVdesc, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, ReductionBufferUAV, descriptorSize));
@@ -77,19 +73,16 @@ void PostprocessDescriptorTableStore::Fill(ID3D12Resource *ZBuffer, ID3D12Resour
 
 	// ReductionBufferSRV
 	{
-		D3D12_SHADER_RESOURCE_VIEW_DESC SRVdesc =
+		const D3D12_SHADER_RESOURCE_VIEW_DESC SRVdesc =
 		{
-			DXGI_FORMAT_R32_TYPELESS,	// RAW buffer
-			D3D12_SRV_DIMENSION_BUFFER,
-			D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING
-		};
-
-		SRVdesc.Buffer =
-		{
-			0,							// FirstElement
-			reductionBufferLength,		// NumElements
-			0,							// StructureByteStride
-			D3D12_BUFFER_SRV_FLAG_RAW
+			.Format = DXGI_FORMAT_R32_TYPELESS,	// RAW buffer
+			.ViewDimension = D3D12_SRV_DIMENSION_BUFFER,
+			.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+			.Buffer
+			{
+				.NumElements = reductionBufferLength,
+				.Flags = D3D12_BUFFER_SRV_FLAG_RAW
+			}
 		};
 
 		device->CreateShaderResourceView(reductionBuffer, &SRVdesc, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, ReductionBufferSRV, descriptorSize));
@@ -131,13 +124,12 @@ void PostprocessDescriptorTableStore::Fill(ID3D12Resource *ZBuffer, ID3D12Resour
 		// BloomUpChainUAVs
 		for (UINT lod = 0, tableOffset = BloomUpChainUAVFirst; tableOffset <= BloomUpChainUAVLast; tableOffset++)
 		{
-			D3D12_UNORDERED_ACCESS_VIEW_DESC UAVdesc =
+			const D3D12_UNORDERED_ACCESS_VIEW_DESC UAVdesc =
 			{
-				DXGI_FORMAT_UNKNOWN,	// keep from resource
-				D3D12_UAV_DIMENSION_TEXTURE2D
+				.Format = DXGI_FORMAT_UNKNOWN,	// keep from resource
+				.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D,
+				.Texture2D = { lod }
 			};
-
-			UAVdesc.Texture2D = { lod };
 
 			device->CreateUnorderedAccessView(++/*1 mip goes in down chain*/lod < bloomUpChainLen ? bloomUpChain : NULL, NULL, &UAVdesc, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, tableOffset, descriptorSize));
 		}
@@ -145,13 +137,12 @@ void PostprocessDescriptorTableStore::Fill(ID3D12Resource *ZBuffer, ID3D12Resour
 		// BloomDownChainUAVs
 		for (UINT lod = 0, tableOffset = BloomDownChainUAVFirst; tableOffset <= BloomDownChainUAVLast; lod++, tableOffset++)
 		{
-			D3D12_UNORDERED_ACCESS_VIEW_DESC UAVdesc =
+			const D3D12_UNORDERED_ACCESS_VIEW_DESC UAVdesc =
 			{
-				DXGI_FORMAT_UNKNOWN,	// keep from resource
-				D3D12_UAV_DIMENSION_TEXTURE2D
+				.Format = DXGI_FORMAT_UNKNOWN,	// keep from resource
+				.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D,
+				.Texture2D = { lod }
 			};
-
-			UAVdesc.Texture2D = { lod };
 
 			ID3D12Resource *const bloomChainSelector = lod < bloomDownChainLen ? bloomDownChain : lod < bloomUpChainLen ? bloomUpChain : NULL;
 			device->CreateUnorderedAccessView(bloomChainSelector, NULL, &UAVdesc, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, tableOffset, descriptorSize));
