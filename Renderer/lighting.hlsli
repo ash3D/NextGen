@@ -30,10 +30,10 @@ namespace Lighting
 		}
 
 		// denominator of height-direction-correlated GGX Smith masking & shadowing (from http://jcgt.org/published/0003/02/03/paper.pdf)
-		const float G_rcp(float a2, float VdotN, float LdotN, float VdotL)
+		const float inv_G(float a2, float VdotN, float LdotN, float VdotL)
 		{
 			const float phi = acos(VdotL);
-			float lambda = 4.41 * phi;
+			float lambda = 4.41f * phi;
 			lambda /= lambda + 1;
 			const float LambdaV = SmithIntegral(a2, VdotN), LambdaL = SmithIntegral(a2, LdotN);
 			return isfinite(LambdaV) ? 1 + max(LambdaV, LambdaL) + lambda * min(LambdaV, LambdaL) : LambdaV * 0/*generate NaN*/;
@@ -45,7 +45,7 @@ namespace Lighting
 	float3 Lit(float3 albedo, float roughness, float F0, float3 N, float3 viewDir, float3 lightDir, float3 lightIrradiance)
 	{
 		// TODO: move outside
-		static const float PI_rcp = .318309886183790671538f;
+		static const float inv_pi = rcp(radians(180));
 
 		const float LdotN = dot(lightDir, N);
 
@@ -67,15 +67,15 @@ namespace Lighting
 		GGX_denom *= GGX_denom;
 
 		// optimization opportunity: merge NDF and G denoms
-		float spec = Fresnel::Shlick(F0, dot(lightDir, H)) * (.25f * PI_rcp) * a2, specDenom = GGX::G_rcp(a2, VdotN, LdotN, VdotL) * abs(VdotN);
+		float spec = Fresnel::Shlick(F0, dot(lightDir, H)) * (.25f * inv_pi) * a2, specDenom = GGX::inv_G(a2, VdotN, LdotN, VdotL) * abs(VdotN);
 
 		/*
-			handle 'VdotN == 0' case: 'G_rcp(_, 0, _, _) == inf' giving 'specDenom = inf * 0 == NaN'
-			analyzing 'G_rcp() * abs(VdotN)' gives '.5 * a' in limit 'VdotN -> 0' (a2 = a * a, a = roughness)
+			handle 'VdotN == 0' case: 'inv_G(_, 0, _, _) == inf' giving 'specDenom = inf * 0 == NaN'
+			analyzing 'inv_G() * abs(VdotN)' gives '.5 * a' in limit 'VdotN -> 0' (a2 = a * a, a = roughness)
 
-			fp precision issues can get 'G_rcp == inf' when 'VdotN ~ 0' (but not exactly 0): VdotN squared inside G_rcp thus near-to-zero can became zero (which causes inf ultimately)
+			fp precision issues can get 'inv_G == inf' when 'VdotN ~ 0' (but not exactly 0): VdotN squared inside inv_G thus near-to-zero can became zero (which causes inf ultimately)
 			this case would give 'inf * ~0 == inf' for specDenom while NaN is desired
-			to handle it G_rcp() have special mend which translates inf induced by VdotN param into NaN which propagates in specDenom which in turn triggers special 'VdotN == 0' case handling
+			to handle it inv_G() have special mend which translates inf induced by VdotN param into NaN which propagates in specDenom which in turn triggers special 'VdotN == 0' case handling
 		*/
 		[flatten]
 		if (isnan(specDenom))
@@ -89,7 +89,7 @@ namespace Lighting
 			facing = .5f * VdotL + .5f,
 			rough = facing * (.9f - .4f * facing) * (.5f / NdotH + 1),
 			smooth = (1 - Fresnel::Shlick(F0, LdotN)) * 1.05f * (1 - Fresnel::Pow5(1 - abs(VdotN))),
-			single = PI_rcp * lerp(smooth, rough, roughness),
+			single = inv_pi * lerp(smooth, rough, roughness),
 			multi = .1159f * roughness;
 
 		/*
