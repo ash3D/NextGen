@@ -425,7 +425,7 @@ ComPtr<ID3D12PipelineState> Impl::Viewport::CreatePostprocessFinalCompositePSO()
 }
 #pragma endregion
 
-inline RenderPipeline::PipelineStage Impl::Viewport::Pre(DeferredCmdBuffsProvider cmdListProvider, ID3D12Resource *output, D3D12_CPU_DESCRIPTOR_HANDLE rtv, D3D12_CPU_DESCRIPTOR_HANDLE dsv) const
+inline RenderPipeline::PipelineStage Impl::Viewport::Pre(DeferredCmdBuffsProvider cmdListProvider, ID3D12Resource *output) const
 {
 	const auto cmdList = cmdListProvider.AcquirePre();
 
@@ -460,7 +460,7 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Pre(DeferredCmdBuffsProvide
 	return cmdList;
 }
 
-inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvider cmdListProvider, ID3D12Resource *output, ID3D12Resource *rendertarget, ID3D12Resource *ZBuffert, const TrackedResource<ID3D12Resource> (&HDRSurfaces)[2], ID3D12Resource *LDRSurface,
+inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvider cmdListProvider, ID3D12Resource *output, ID3D12Resource *ZBuffert, const TrackedResource<ID3D12Resource> (&HDRSurfaces)[2], ID3D12Resource *LDRSurface,
 	ID3D12Resource *COCBuffer, ID3D12Resource *halfresDOFSurface, ID3D12Resource *DOFLayers, ID3D12Resource *lensFlareSurface,
 	ID3D12Resource *bloomUpChain, ID3D12Resource *bloomDownChain, ID3D12Resource *luminanceReductionBuffer, D3D12_CPU_DESCRIPTOR_HANDLE rtvDOFLayers, D3D12_CPU_DESCRIPTOR_HANDLE rtvLensFlare,
 	D3D12_GPU_DESCRIPTOR_HANDLE postprocessDescriptorTable, const Descriptors::PostprocessDescriptorTableStore &postprocessDescriptorTableStore, float camAdaptationLerpFactor, UINT width, UINT height) const
@@ -766,12 +766,12 @@ void Impl::Viewport::Render(ID3D12Resource *output, ID3D12Resource *rendertarget
 	DeferredCmdBuffsProvider cmdBuffsProvider = cmdBuffsManager.OnFrameStart();
 	GPUWorkSubmission::Prepare();
 
-	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Pre, this, cmdBuffsProvider, output, rtv, dsv);
+	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Pre, this, cmdBuffsProvider, output);
 
 	const RenderPipeline::RenderPasses::PipelineROPTargets ROPTargets(rendertarget, rtv, backgroundColor, ZBuffer, dsv, HDRSurfaces[0].Get(), width, height);
 	world->Render(ctx, viewXform, projXform, projParams, cameraSettingsBuffer->GetGPUVirtualAddress(), ROPTargets);
 
-	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Post, this, cmdBuffsProvider, output, rendertarget, ZBuffer, cref(HDRSurfaces), LDRSurface,
+	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Post, this, cmdBuffsProvider, output, ZBuffer, cref(HDRSurfaces), LDRSurface,
 		COCBuffer, halfresDOFSurface, DOFLayers, lensFlareSurface, bloomUpChain, bloomDownChain, luminanceReductionBuffer,
 		rtvDOFLayers, rtvLensFlare, postprocessDescriptorTable, postprocessDescriptorTableStore, CalculateCamAdaptationLerpFactor(delta), width, height);
 

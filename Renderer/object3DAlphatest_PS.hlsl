@@ -15,7 +15,7 @@ namespace Materials
 #include "lighting.hlsli"
 #include "HDR codec.hlsli"
 
-ConstantBuffer<Materials::Common>			materialParams	: register(b0, space1);
+ConstantBuffer<Materials::Common>		materialParams	: register(b0, space1);
 ConstantBuffer<CameraParams::Settings>	cameraSettings	: register(b0, space2);
 
 static const float alphaThreshold = .5f;
