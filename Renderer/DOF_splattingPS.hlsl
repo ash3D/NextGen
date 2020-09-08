@@ -1,5 +1,4 @@
 #include "DOF.hlsli"
-#include "Bokeh.hlsli"	// temp for R
 
 SamplerState COCdownsampleFilter : register(s0);
 Texture2D<float2> COCbuffer : register(t4);
@@ -16,7 +15,7 @@ Layers main(nointerpolation half4 spriteColor : COLOR, noperspective float2 circ
 	noperspective float apertureCropDist2 : SV_ClipDistance2,
 	noperspective float apertureCropDist3 : SV_ClipDistance3,
 	noperspective float apertureCropDist4 : SV_ClipDistance4,
-	nointerpolation float R : CLIP_CIRCLE_R/*, nointerpolation float edgeFadeScale : FADE_SCALE*/
+	nointerpolation float R : CLIP_CIRCLE_R
 #if !HW_CLIP_DIST_IN_PS
 	, noperspective float apertureEdgeFade0 : EDGE_FADE0
 	, noperspective float apertureEdgeFade1 : EDGE_FADE1
@@ -26,14 +25,9 @@ Layers main(nointerpolation half4 spriteColor : COLOR, noperspective float2 circ
 #endif
 )
 {
-	//const float R2 = dot(circleDir, circleDir);
-	//clip(1 - R2);
 	const float circleDist = R - length(circleDir);
 	clip(circleDist);
-	//const float2 edgeFade = saturate((1 - abs(circleDir)) * max(abs(pos.z)/* * 2*/, 1));
-	//const float2 edgeFade = saturate((1 - abs(circleDir)) * edgeFadeScale);
-	//spriteColor.a *= edgeFade.x;
-	//spriteColor.a *= edgeFade.y;
+
 	float edgeFade = 1;
 #if HW_CLIP_DIST_IN_PS
 	edgeFade *= saturate(apertureCropDist0);
@@ -48,26 +42,11 @@ Layers main(nointerpolation half4 spriteColor : COLOR, noperspective float2 circ
 	edgeFade *= saturate(apertureEdgeFade3);
 	edgeFade *= saturate(apertureEdgeFade4);
 #endif
+
 	const float circleFade = saturate(circleDist);
 	spriteColor.a *= min(edgeFade, circleFade);
 
-#if 0
-	const float pixelCoC = src[pos.xy].a;
-#else
-	float2 srcSize, fullres;
-	src.GetDimensions(srcSize.x, srcSize.y);
-	COCbuffer.GetDimensions(fullres.x, fullres.y);
-	const float2 center = pos.xy / srcSize;
-	const float2 centerPoint = floor(center * fullres + .5f) / fullres;
-	const float pixelCoC = DOF::SelectCoC(COCbuffer.Gather(COCdownsampleFilter, centerPoint));
-#endif
-#if 0
-	const float layerSeparationCoC = max(abs(pixelCoC), DOF::minLayerSeparationCoC);
-#else
-	const float layerSeparationCoC = DOF::minLayerSeparationCoC;
-#endif
-	const float blendRange = layerSeparationCoC * DOF::layerBlendRangeScale;
-	const float blendFar = /*0;*/ smoothstep(-blendRange, +blendRange, pos.z - layerSeparationCoC * sign(pos.z));
+	const float blendFar = smoothstep(-DOF::layerBlendRange, +DOF::layerBlendRange, pos.z - DOF::layerSeparationCoC * sign(pos.z));
 
 	Layers layers = { spriteColor, spriteColor };
 	layers.near.a *= 1 - blendFar;

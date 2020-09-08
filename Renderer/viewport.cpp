@@ -116,7 +116,7 @@ auto Impl::Viewport::CmdBuffsManager::OnFrameStart() -> DeferredCmdBuffsProvider
 auto Impl::Viewport::CreatePostprocessRootSigs() -> PostprocessRootSigs
 {
 	// consider encapsulating desc table in PostprocessDescriptorTableStore
-	CD3DX12_ROOT_PARAMETER1 computeRootParams[COMPUTE_ROOT_PARAM_COUNT], lensFlareRootParams[GFX_ROOT_PARAM_COUNT], DOFRootParams[GFX_ROOT_PARAM_COUNT];
+	CD3DX12_ROOT_PARAMETER1 computeRootParams[COMPUTE_ROOT_PARAM_COUNT], gfxRootParams[GFX_ROOT_PARAM_COUNT];
 	const D3D12_DESCRIPTOR_RANGE1 computeDescTable[] =
 	{
 		/*
@@ -132,23 +132,25 @@ auto Impl::Viewport::CreatePostprocessRootSigs() -> PostprocessRootSigs
 		CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 3, 4),
 		CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 6, 4, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE),
 		CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 11, 0, 1)
-	}, lensFlareDescTable[] =
+	}, gfxDescTable[] =
 	{
-		CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1/*2*/, 1/*0*/, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, Descriptors::PostprocessDescriptorTableStore::SrcSRV/*ZBufferSRV*/),
-		CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 4, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, Descriptors::PostprocessDescriptorTableStore::COCBufferSRV),
-		CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 2, 5, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, Descriptors::PostprocessDescriptorTableStore::HalfresDOFInputUAV)
-	}, DOFDescTable[] =
-	{
-		CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, /*1*/2, /*5*/4, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE, Descriptors::PostprocessDescriptorTableStore::/*HalfresDOFInputSRV*/COCBufferSRV),
+		/*
+							quite pessimistic but makes DX debug validation happy (alternative option is to try to eliminate split barriers for input HDR surface)
+																								^
+																								|
+																			 _______________________________________
+																			|										|*/
+		CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE, Descriptors::PostprocessDescriptorTableStore::SrcSRV),
+		CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 2, 5, 0, D3D12_DESCRIPTOR_RANGE_FLAG_NONE, Descriptors::PostprocessDescriptorTableStore::HalfresDOFInputUAV),
+		CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 4, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE, Descriptors::PostprocessDescriptorTableStore::COCBufferSRV)
 	};
 	computeRootParams[COMPUTE_ROOT_PARAM_DESC_TABLE].InitAsDescriptorTable(size(computeDescTable), computeDescTable);
 	computeRootParams[COMPUTE_ROOT_PARAM_CAM_SETTINGS_CBV].InitAsConstantBufferView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE);	// alternatively can place into desc table with desc static flag
 	computeRootParams[COMPUTE_ROOT_PARAM_CAM_SETTINGS_UAV].InitAsUnorderedAccessView(3);
 	computeRootParams[COMPUTE_ROOT_PARAM_PERFRAME_DATA_CBV].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC);
 	computeRootParams[COMPUTE_ROOT_PARAM_PUSH_CONST].InitAsConstants(1, 2);
-	lensFlareRootParams[GFX_ROOT_PARAM_DESC_TABLE].InitAsDescriptorTable(size(lensFlareDescTable), lensFlareDescTable, D3D12_SHADER_VISIBILITY_VERTEX);
-	DOFRootParams[GFX_ROOT_PARAM_DESC_TABLE].InitAsDescriptorTable(size(DOFDescTable), DOFDescTable);
-	lensFlareRootParams[GFX_ROOT_PARAM_CAM_SETTINGS_CBV] = DOFRootParams[GFX_ROOT_PARAM_CAM_SETTINGS_CBV] = computeRootParams[COMPUTE_ROOT_PARAM_CAM_SETTINGS_CBV];
+	gfxRootParams[GFX_ROOT_PARAM_DESC_TABLE].InitAsDescriptorTable(size(gfxDescTable), gfxDescTable, D3D12_SHADER_VISIBILITY_VERTEX);
+	gfxRootParams[GFX_ROOT_PARAM_CAM_SETTINGS_CBV] = computeRootParams[COMPUTE_ROOT_PARAM_CAM_SETTINGS_CBV];
 	const D3D12_STATIC_SAMPLER_DESC computeSamplers[]
 	{
 		CD3DX12_STATIC_SAMPLER_DESC(0, D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT,			D3D12_TEXTURE_ADDRESS_MODE_MIRROR, D3D12_TEXTURE_ADDRESS_MODE_MIRROR, D3D12_TEXTURE_ADDRESS_MODE_MIRROR),
@@ -162,24 +164,18 @@ auto Impl::Viewport::CreatePostprocessRootSigs() -> PostprocessRootSigs
 		CD3DX12_STATIC_SAMPLER_DESC(0, D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT,			D3D12_TEXTURE_ADDRESS_MODE_MIRROR, D3D12_TEXTURE_ADDRESS_MODE_MIRROR, D3D12_TEXTURE_ADDRESS_MODE_MIRROR),
 		CD3DX12_STATIC_SAMPLER_DESC(1, D3D12_FILTER_MIN_MAG_MIP_POINT,					D3D12_TEXTURE_ADDRESS_MODE_MIRROR, D3D12_TEXTURE_ADDRESS_MODE_MIRROR, D3D12_TEXTURE_ADDRESS_MODE_MIRROR)
 	};
-	const D3D12_ROOT_SIGNATURE_FLAGS lensFlareFlags =
-		D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS		|
-		D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS	|
-		D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS	|
+	const D3D12_ROOT_SIGNATURE_FLAGS gfxFlags =
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
 		D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
-	const D3D12_ROOT_SIGNATURE_FLAGS DOFFlags =
-		D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS		|
-		D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS	|
-		D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC
 		computeSigDesc(size(computeRootParams), computeRootParams, size(computeSamplers), computeSamplers),
-		lensFlareSigDesc(size(lensFlareRootParams), lensFlareRootParams, size(gfxSamplers), gfxSamplers, lensFlareFlags),
-		DOFSigDesc(size(DOFRootParams), DOFRootParams, /*0, NULL*/1, gfxSamplers, DOFFlags);
+		gfxSigDesc(size(gfxRootParams), gfxRootParams, size(gfxSamplers), gfxSamplers, gfxFlags);
 	return
 	{
 		CreateRootSignature(computeSigDesc, L"postprocess compute root signature"),
-		CreateRootSignature(lensFlareSigDesc, L"postprocess lens flare root signature"),
-		CreateRootSignature(DOFSigDesc, L"postprocess DOF root signature")
+		CreateRootSignature(gfxSigDesc, L"postprocess gfx root signature")
 	};
 }
 
@@ -251,7 +247,7 @@ ComPtr<ID3D12PipelineState> Impl::Viewport::CreateLensFlarePSO()
 
 	const D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
 	{
-		.pRootSignature = postprocessRootSigs.lensFlare.Get(),
+		.pRootSignature = postprocessRootSigs.gfx.Get(),
 		.VS = ShaderBytecode(Shaders::lensFlareVS),
 		.PS = ShaderBytecode(Shaders::lensFlarePS),
 		.GS = ShaderBytecode(Shaders::lensFlareGS),
@@ -326,7 +322,7 @@ WRL::ComPtr<ID3D12PipelineState> Renderer::Impl::Viewport::Create_DOF_splatting_
 
 	const D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO_desc =
 	{
-		.pRootSignature = postprocessRootSigs.DOF.Get(),
+		.pRootSignature = postprocessRootSigs.gfx.Get(),
 		.VS = ShaderBytecode(Shaders::DOF_splattingVS),
 		.PS = ShaderBytecode(Shaders::DOF_splattingPS),
 		.GS = ShaderBytecode(Shaders::DOF_splattingGS),
@@ -479,8 +475,9 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvid
 		cmdList->ResourceBarrier(size(barriers), barriers);
 	}
 
-	// bind postprocess resources
+	// bind postprocess resources & setup gfx state
 	const auto cameraSettingsBufferGPUAddress = cameraSettingsBuffer->GetGPUVirtualAddress();
+
 	{
 		cmdList->SetDescriptorHeaps(1, Descriptors::GPUDescriptorHeap::GetHeap().GetAddressOf());
 
@@ -497,6 +494,9 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvid
 		const CD3DX12_RECT halfresRTRect(0, 0, width / 2, height / 2);
 		cmdList->RSSetViewports(1, &CD3DX12_VIEWPORT(halfresRTRect.left, halfresRTRect.top, halfresRTRect.right, halfresRTRect.bottom));
 		cmdList->RSSetScissorRects(1, &halfresRTRect);
+		cmdList->SetGraphicsRootSignature(postprocessRootSigs.gfx.Get());
+		cmdList->SetGraphicsRootDescriptorTable(GFX_ROOT_PARAM_DESC_TABLE, postprocessDescriptorTable);
+		cmdList->SetGraphicsRootConstantBufferView(GFX_ROOT_PARAM_CAM_SETTINGS_CBV, cameraSettingsBufferGPUAddress);
 	}
 
 	// initial texture reduction (PSO set during cmd list creation/reset)
@@ -542,9 +542,6 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvid
 	// lens flare combined with DOF downsample & pixel-sized splats
 	{
 		const auto descriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		cmdList->SetGraphicsRootSignature(postprocessRootSigs.lensFlare.Get());
-		cmdList->SetGraphicsRootDescriptorTable(GFX_ROOT_PARAM_DESC_TABLE, postprocessDescriptorTable);
-		cmdList->SetGraphicsRootConstantBufferView(GFX_ROOT_PARAM_CAM_SETTINGS_CBV, cameraSettingsBufferGPUAddress);
 		cmdList->SetPipelineState(lensFlarePSO.Get());
 		const D3D12_RENDER_PASS_RENDER_TARGET_DESC rtDesc
 		{
@@ -568,7 +565,7 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvid
 		const D3D12_RESOURCE_BARRIER barriers[] =
 		{
 			CD3DX12_RESOURCE_BARRIER::Transition(lensFlareSurface, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
-			CD3DX12_RESOURCE_BARRIER::Transition(halfresDOFSurface, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE/* | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE*/),
+			CD3DX12_RESOURCE_BARRIER::Transition(halfresDOFSurface, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),
 			CD3DX12_RESOURCE_BARRIER::Transition(DOFLayers, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RENDER_TARGET)
 		};
 		cmdList->ResourceBarrier(size(barriers), barriers);
@@ -577,9 +574,6 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvid
 	// DOF splatting pass
 	{
 		// no clears/discards for RT, preserve pre/post => don't use render pass here
-		cmdList->SetGraphicsRootSignature(postprocessRootSigs.DOF.Get());
-		cmdList->SetGraphicsRootDescriptorTable(GFX_ROOT_PARAM_DESC_TABLE, postprocessDescriptorTable);
-		cmdList->SetGraphicsRootConstantBufferView(GFX_ROOT_PARAM_CAM_SETTINGS_CBV, cameraSettingsBufferGPUAddress);
 		cmdList->SetPipelineState(DOF_splatting_PSO.Get());
 		cmdList->OMSetRenderTargets(2, &rtvDOFLayers, TRUE, NULL);
 		cmdList->DrawInstanced((width / 2) * (height / 2), 1, 0, 0);
@@ -589,6 +583,7 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvid
 		const D3D12_RESOURCE_BARRIER barriers[] =
 		{
 			CD3DX12_RESOURCE_BARRIER::Transition(lensFlareSurface, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY),
+			CD3DX12_RESOURCE_BARRIER::Transition(COCBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
 			CD3DX12_RESOURCE_BARRIER::Transition(DOFLayers, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE)
 		};
 		cmdList->ResourceBarrier(size(barriers), barriers);
@@ -605,8 +600,7 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvid
 			CD3DX12_RESOURCE_BARRIER::Transition(HDRSurfaces[0].Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RESOLVE_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
 			CD3DX12_RESOURCE_BARRIER::Transition(HDRSurfaces[1].Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),
 			CD3DX12_RESOURCE_BARRIER::Transition(lensFlareSurface, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
-			CD3DX12_RESOURCE_BARRIER::Transition(COCBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
-			CD3DX12_RESOURCE_BARRIER::Transition(halfresDOFSurface, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE/* | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE*/, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
+			CD3DX12_RESOURCE_BARRIER::Transition(halfresDOFSurface, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
 			CD3DX12_RESOURCE_BARRIER::Transition(DOFLayers, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY)
 		};
 		cmdList->ResourceBarrier(size(barriers), barriers);
@@ -691,7 +685,7 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvid
 			CD3DX12_RESOURCE_BARRIER::Transition(bloomDownChain, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY),
 			CD3DX12_RESOURCE_BARRIER::Transition(lensFlareSurface, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY),
 			CD3DX12_RESOURCE_BARRIER::Transition(COCBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY),
-			CD3DX12_RESOURCE_BARRIER::Transition(halfresDOFSurface, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE/* | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE*/, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY),
+			CD3DX12_RESOURCE_BARRIER::Transition(halfresDOFSurface, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY),
 			CD3DX12_RESOURCE_BARRIER::Transition(DOFLayers, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY)
 		};
 		cmdList->ResourceBarrier(size(barriers), barriers);

@@ -32,7 +32,6 @@ DOF::SplatPoint main(in uint flatPixelIdx : SV_VertexID)
 	{
 		center,
 		(abs(fetch.a) + .5f) * (2/*[0..1] -> NDC [-1..+1]*/ / Bokeh::R/*treat inner R as CoC, blow quad to fit*/) / srcSize,
-		//(abs(fetch.a)/* / Bokeh::R*//*treat inner R as CoC, blow quad to fit*/ + .5f) * 2/*[0..1] -> NDC [-1..+1]*/ / srcSize,
 		cameraSettings.apertureRot,
 		CoC, fetch.a,
 		cameraSettings.aperture,

@@ -6,7 +6,6 @@ namespace DOF
 	struct SpriteVertex : Bokeh::SpriteVertex
 	{
 		nointerpolation	float	R : CLIP_CIRCLE_R;
-		//nointerpolation	float	edgeFadeScale	: FADE_SCALE;
 #if !HW_CLIP_DIST_IN_PS
 		noperspective	float	apertureEdgeFade0 : EDGE_FADE0;
 		noperspective	float	apertureEdgeFade1 : EDGE_FADE1;
@@ -27,7 +26,7 @@ class Sprite : BokehSprite
 	{
 		float2 cornerOffset;
 #if HW_CLIP_DIST_IN_PS
-		/*const*/ DOF::SpriteVertex vert = { BokehSprite::Corner(idx, cornerOffset), R/*, edgeFadeScale*/, field };
+		DOF::SpriteVertex vert = { BokehSprite::Corner(idx, cornerOffset), R, field };
 		vert.apertureCropDist0 *= edgeFadeScale;
 		vert.apertureCropDist1 *= edgeFadeScale;
 		vert.apertureCropDist2 *= edgeFadeScale;
@@ -37,7 +36,7 @@ class Sprite : BokehSprite
 		const Bokeh::SpriteVertex baseVert = BokehSprite::Corner(idx, cornerOffset);
 		const DOF::SpriteVertex vert =
 		{
-			baseVert, R/*, edgeFadeScale*/,
+			baseVert, R,
 			baseVert.apertureCropDist0 * edgeFadeScale,
 			baseVert.apertureCropDist1 * edgeFadeScale,
 			baseVert.apertureCropDist2 * edgeFadeScale,
@@ -53,8 +52,6 @@ class Sprite : BokehSprite
 [maxvertexcount(4)]
 void main(point DOF::SplatPoint splatPoint[1], inout TriangleStream<DOF::SpriteVertex> spriteCorners)
 {
-	//[branch]
-	//if (abs(splatPoint[0].coc) >= Bokeh::R)
 	[branch]
 	if (abs(splatPoint[0].coc[1]) + .5f > Bokeh::R)
 	{
@@ -63,14 +60,12 @@ void main(point DOF::SplatPoint splatPoint[1], inout TriangleStream<DOF::SpriteV
 			splatPoint[0].pos,
 			splatPoint[0].coc[0],
 			splatPoint[0].col,
-			DOF::OpacityHalfres(splatPoint[0].coc[1], splatPoint[0].apt)/* * 2*/,
+			DOF::OpacityHalfres(splatPoint[0].coc[1], splatPoint[0].apt),
 			splatPoint[0].ext,
-			//splatPoint[0].apt / Bokeh::R,
 			(abs(splatPoint[0].coc[1]) + .5f) / Bokeh::R/*treat inner R as CoC, blow quad to fit*/,
 			splatPoint[0].rot,
 			max(abs(splatPoint[0].coc[1]) / splatPoint[0].apt + .5f, 1),
 			max(abs(splatPoint[0].coc[1]) + .5f, 1) / Bokeh::R/*treat inner R as CoC, blow quad to fit*/,
-			//max((abs(splatPoint[0].coc[1])/* / Bokeh::R*//*treat inner R as CoC, blow quad to fit*/ + .5f), 1),
 			splatPoint[0].coc[0] > 0
 		};
 

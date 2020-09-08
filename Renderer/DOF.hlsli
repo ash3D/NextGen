@@ -7,8 +7,10 @@
 
 namespace DOF
 {
-	static const float layerBlendRangeScale = .4f;
-	static const float minLayerSeparationCoC = 4;
+	static const float
+		layerSeparationCoC = 4,
+		layerBlendRangeScale = .4f,
+		layerBlendRange = layerSeparationCoC * layerBlendRangeScale;
 
 	enum LayerID
 	{
@@ -21,7 +23,7 @@ namespace DOF
 	// FXC validation errors if place inside 'Opacity()', try with newer version
 	static const float
 		squareCorrection = .9f,	// for opacity boost
-		circleFactor = /*squareCorrection * */radians(180),
+		circleFactor = radians(180),
 		polyFactor = squareCorrection * tan(radians(36)) * 5;
 
 	inline float Opacity(float CoC, float aperture)
@@ -34,7 +36,7 @@ namespace DOF
 		const float blend = saturate(aperture / (1 - Bokeh::R) - Bokeh::R / (1 - Bokeh::R));
 #endif
 		const float factor = lerp(polyFactor, circleFactor, blend);
-		return rcp(/*.5f * */factor/*4*/ * CoC * CoC);
+		return rcp(factor * CoC * CoC);
 	}
 
 	inline float OpacityHalfres(float CoC, float aperture)
@@ -49,31 +51,17 @@ namespace DOF
 #define GENERATE_COC_SELECTOR(dim)													\
 	inline void SelectCoC(inout vector<float, dim> dst, in vector<float, dim> src)	\
 	{																				\
-		dst = abs(dst) <= abs(src) ? dst : src;										\
+		dst = min(dst, src);														\
 	}
 
 	GENERATE_COC_SELECTOR(1)
 	GENERATE_COC_SELECTOR(4)
 #else
-#if 1
 #define GENERATE_COC_SELECTOR(T)													\
 	inline void SelectCoC(inout T dst, in T src)									\
 	{																				\
 		dst = min(dst, src);														\
 	}
-#elif 1
-#define GENERATE_COC_SELECTOR(T)													\
-	inline void SelectCoC(inout T dst, in T src)									\
-	{																				\
-		dst = min(abs(dst), abs(src)) * max(sign(dst), sign(src));					\
-	}
-#else
-#define GENERATE_COC_SELECTOR(T)													\
-	inline void SelectCoC(inout T dst, in T src)									\
-	{																				\
-		dst = abs(dst) <= abs(src) ? dst : src;										\
-	}
-#endif
 
 	GENERATE_COC_SELECTOR(float)
 	GENERATE_COC_SELECTOR(float4)

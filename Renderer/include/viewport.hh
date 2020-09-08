@@ -105,7 +105,7 @@ namespace Renderer
 			friend extern void __cdecl ::InitRenderer();
 			struct PostprocessRootSigs
 			{
-				WRL::ComPtr<ID3D12RootSignature> compute, lensFlare, DOF;
+				WRL::ComPtr<ID3D12RootSignature> compute, gfx;
 			};
 			static PostprocessRootSigs postprocessRootSigs, CreatePostprocessRootSigs();
 			static WRL::ComPtr<ID3D12PipelineState> luminanceTextureReductionPSO, CreateLuminanceTextureReductionPSO();

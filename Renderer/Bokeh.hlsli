@@ -28,7 +28,6 @@ namespace Bokeh
 
 	inline float BladeDist(uniform float2 cornerOffset, uniform float bladeAngle)
 	{
-		//return 1;
 		return dot(cornerOffset, N(bladeAngle)) + R;
 	}
 
