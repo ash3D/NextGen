@@ -39,6 +39,11 @@ namespace DOF
 		return rcp(factor * CoC * CoC);
 	}
 
+	inline float OpacityFullres(float CoC, float aperture)
+	{
+		return saturate(Opacity(CoC * 2/*to fullres pixels*/, aperture));
+	}
+
 	inline float OpacityHalfres(float CoC, float aperture)
 	{
 		const float halfresOpacity = Opacity(CoC, aperture);

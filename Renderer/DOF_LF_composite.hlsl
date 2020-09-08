@@ -39,11 +39,6 @@ void CompensateOcclusion(inout float4 target, in float4 layer/*normalized*/)
 	target += layer;
 }
 
-inline float SampleCOC(uint sampleIdx, uint2 coord)
-{
-	return cameraSettings.COC(ZBuffer.sample[sampleIdx][coord]) * 2/*to fullres pixels*/;
-}
-
 inline float FullresOpacity(uint2 coord, float2 center)
 {
 	uint2 resolution;
@@ -53,11 +48,11 @@ inline float FullresOpacity(uint2 coord, float2 center)
 	float opacity_MSAA = 0;
 
 	for (uint sampleIdx = 0; sampleIdx < MSAA; sampleIdx++)
-		opacity_MSAA += saturate(DOF::Opacity(SampleCOC(sampleIdx, coord), cameraSettings.aperture));
+		opacity_MSAA += DOF::OpacityFullres(cameraSettings.COC(ZBuffer.sample[sampleIdx][coord]), cameraSettings.aperture);
 
 	opacity_MSAA /= MSAA;
 
-	return min(saturate(DOF::Opacity(halfresScene.SampleLevel(COCsampler, center, 0).a * 2/*to fullres pixels*/, cameraSettings.aperture)), opacity_MSAA);
+	return min(DOF::OpacityFullres(halfresScene.SampleLevel(COCsampler, center, 0).a, cameraSettings.aperture), opacity_MSAA);
 }
 
 [numthreads(CSConfig::ImageProcessing::blockSize, CSConfig::ImageProcessing::blockSize, 1)]
