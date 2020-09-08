@@ -53,19 +53,19 @@ class Sprite : BokehSprite
 void main(point DOF::SplatPoint splatPoint[1], inout TriangleStream<DOF::SpriteVertex> spriteCorners)
 {
 	[branch]
-	if (abs(splatPoint[0].coc[1]) + .5f > Bokeh::R)
+	if (splatPoint[0].coc[1] + .5f > Bokeh::R)
 	{
 		const Sprite sprite =
 		{
 			splatPoint[0].pos,
-			splatPoint[0].coc[0],
+			smoothstep(-DOF::layerBlendRange, +DOF::layerBlendRange, splatPoint[0].coc[0] - DOF::layerSeparationCoC * sign(splatPoint[0].coc[0])),	// blend far
 			splatPoint[0].col,
 			DOF::OpacityHalfres(splatPoint[0].coc[1], splatPoint[0].apt),
 			splatPoint[0].ext,
-			(abs(splatPoint[0].coc[1]) + .5f) / Bokeh::R/*treat inner R as CoC, blow quad to fit*/,
+			(splatPoint[0].coc[1] + .5f) / Bokeh::R/*treat inner R as CoC, blow quad to fit*/,
 			splatPoint[0].rot,
-			max(abs(splatPoint[0].coc[1]) / splatPoint[0].apt + .5f, 1),
-			max(abs(splatPoint[0].coc[1]) + .5f, 1) / Bokeh::R/*treat inner R as CoC, blow quad to fit*/,
+			max(splatPoint[0].coc[1] / splatPoint[0].apt + .5f, 1),
+			max(splatPoint[0].coc[1] + .5f, 1) / Bokeh::R/*treat inner R as CoC, blow quad to fit*/,
 			splatPoint[0].coc[0] > 0
 		};
 

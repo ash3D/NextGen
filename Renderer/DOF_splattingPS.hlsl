@@ -9,7 +9,7 @@ struct Layers
 	half4 near : SV_Target0, far : SV_Target1;
 };
 
-Layers main(nointerpolation half4 spriteColor : COLOR, noperspective float2 circleDir : CLIP_CIRCLE_DIR, noperspective float4 pos : SV_Position,
+Layers main(nointerpolation half4 spriteColor : COLOR, noperspective float2 circleDir : CLIP_CIRCLE_DIR, noperspective float4 pos/*.z is blend far*/ : SV_Position,
 	noperspective float apertureCropDist0 : SV_ClipDistance0,
 	noperspective float apertureCropDist1 : SV_ClipDistance1,
 	noperspective float apertureCropDist2 : SV_ClipDistance2,
@@ -46,10 +46,8 @@ Layers main(nointerpolation half4 spriteColor : COLOR, noperspective float2 circ
 	const float circleFade = saturate(circleDist);
 	spriteColor.a *= min(edgeFade, circleFade);
 
-	const float blendFar = smoothstep(-DOF::layerBlendRange, +DOF::layerBlendRange, pos.z - DOF::layerSeparationCoC * sign(pos.z));
-
 	Layers layers = { spriteColor, spriteColor };
-	layers.near.a *= 1 - blendFar;
-	layers.far.a *= blendFar;
+	layers.near.a *= 1 - pos.z;
+	layers.far.a *= pos.z;
 	return layers;
 }

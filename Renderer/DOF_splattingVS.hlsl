@@ -31,7 +31,7 @@ DOF::SplatPoint main(in uint flatPixelIdx : SV_VertexID)
 	const DOF::SplatPoint splatPoint =
 	{
 		center,
-		(abs(fetch.a) + .5f) * (2/*[0..1] -> NDC [-1..+1]*/ / Bokeh::R/*treat inner R as CoC, blow quad to fit*/) / srcSize,
+		(fetch.a + .5f) * (2/*[0..1] -> NDC [-1..+1]*/ / Bokeh::R/*treat inner R as CoC, blow quad to fit*/) / srcSize,
 		cameraSettings.apertureRot,
 		CoC, fetch.a,
 		cameraSettings.aperture,

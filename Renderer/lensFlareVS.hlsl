@@ -161,9 +161,9 @@ LensFlare::Source main(in uint flatPixelIdx : SV_VertexID)
 	do not blur sharp pixels with small CoC
 	*/
 	[branch]
-	if (abs(dilatedCoC) + .5f <= Bokeh::R)
+	if (dilatedCoC + .5f <= Bokeh::R)
 	{
-		const float opacity = DOF::OpacityHalfres(abs(dilatedCoC), cameraSettings.aperture);
+		const float opacity = DOF::OpacityHalfres(dilatedCoC, cameraSettings.aperture);
 		if (opacity)
 		{
 			color *= opacity;
