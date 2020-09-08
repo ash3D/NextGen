@@ -58,7 +58,7 @@ void main(point DOF::SplatPoint splatPoint[1], inout TriangleStream<DOF::SpriteV
 		const Sprite sprite =
 		{
 			splatPoint[0].pos,
-			smoothstep(-DOF::layerBlendRange, +DOF::layerBlendRange, splatPoint[0].coc[0] - DOF::layerSeparationCoC * sign(splatPoint[0].coc[0])),	// blend far
+			DOF::BlendFar(splatPoint[0].coc[0]),
 			splatPoint[0].col,
 			DOF::OpacityHalfres(splatPoint[0].coc[1], splatPoint[0].apt),
 			splatPoint[0].ext * sign(splatPoint[0].coc[0])/*mirror bokeh for foreground field*/,

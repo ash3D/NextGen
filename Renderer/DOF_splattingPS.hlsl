@@ -1,5 +1,3 @@
-#include "DOF.hlsli"
-
 SamplerState COCdownsampleFilter : register(s0);
 Texture2D<float2> COCbuffer : register(t4);
 Texture2D src : register(t5);

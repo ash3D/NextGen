@@ -4,11 +4,6 @@
 #include "camera params.hlsli"
 #include "HDR codec.hlsli"
 
-#define BILATERAL_DOWNSAMPLE 1
-#define MSAA_BILATERAL_WEIGHTING 0
-#define FULLRES_COC_INFLATION 0
-#define DIST_BASED_BLEED 0
-
 SamplerState tapFilter : register(s0);
 SamplerState bilateralTapSampler : register(s1);
 Texture2D src : register(t1);
@@ -87,14 +82,14 @@ float3 Mix(float3 smooth, float3 sharp)
 #endif
 }
 
-float3 DownsampleColor(in float targetCoC, in float dilatedCoC, in float2 centerPoint, in float2 cornerPoint, in float2 bilerpWeights, uniform int2 offset = 0)
+float3 DownsampleColor(in float targetCoC, in float dilatedCoC, in float2 centerPoint, in float2 cornerPoint, in float2 bilerpWeights)
 {
 	float4 CoCsFootprint[2][2] =
 	{
-		COCbuffer.GatherGreen(tapFilter, centerPoint, offset + int2(-1, -1)),
-		COCbuffer.GatherGreen(tapFilter, centerPoint, offset + int2(+1, -1)),
-		COCbuffer.GatherGreen(tapFilter, centerPoint, offset + int2(-1, +1)),
-		COCbuffer.GatherGreen(tapFilter, centerPoint, offset + int2(+1, +1))
+		COCbuffer.GatherGreen(tapFilter, centerPoint, int2(-1, -1)),
+		COCbuffer.GatherGreen(tapFilter, centerPoint, int2(+1, -1)),
+		COCbuffer.GatherGreen(tapFilter, centerPoint, int2(-1, +1)),
+		COCbuffer.GatherGreen(tapFilter, centerPoint, int2(+1, +1))
 	};
 
 	CoCsFootprint[0][0] = BilateralWeights(CoCsFootprint[0][0], targetCoC, dilatedCoC);
@@ -103,10 +98,10 @@ float3 DownsampleColor(in float targetCoC, in float dilatedCoC, in float2 center
 	CoCsFootprint[1][1] = BilateralWeights(CoCsFootprint[1][1], targetCoC, dilatedCoC);
 
 	float4 color = 0, centerBlock[2][2];
-	FetchBlock(color, centerBlock[0][0], offset + int2(-1, -1), uint2(1, 1), cornerPoint, bilerpWeights, CoCsFootprint[0][0]);
-	FetchBlock(color, centerBlock[0][1], offset + int2(+1, -1), uint2(1, 0), cornerPoint, bilerpWeights, CoCsFootprint[0][1]);
-	FetchBlock(color, centerBlock[1][0], offset + int2(-1, +1), uint2(0, 1), cornerPoint, bilerpWeights, CoCsFootprint[1][0]);
-	FetchBlock(color, centerBlock[1][1], offset + int2(+1, +1), uint2(0, 0), cornerPoint, bilerpWeights, CoCsFootprint[1][1]);
+	FetchBlock(color, centerBlock[0][0], int2(-1, -1), uint2(1, 1), cornerPoint, bilerpWeights, CoCsFootprint[0][0]);
+	FetchBlock(color, centerBlock[0][1], int2(+1, -1), uint2(1, 0), cornerPoint, bilerpWeights, CoCsFootprint[0][1]);
+	FetchBlock(color, centerBlock[1][0], int2(-1, +1), uint2(0, 1), cornerPoint, bilerpWeights, CoCsFootprint[1][0]);
+	FetchBlock(color, centerBlock[1][1], int2(+1, +1), uint2(0, 0), cornerPoint, bilerpWeights, CoCsFootprint[1][1]);
 	color.rgb = max(DecodeHDRExp(color, cameraSettings.exposure), 0);
 	const float3 centerContrib = max(DecodeHDRExp(Bilerp(centerBlock, bilerpWeights), cameraSettings.exposure), 0);
 

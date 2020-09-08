@@ -20,6 +20,11 @@ namespace DOF
 		BACKGROUND_FAR_LAYER,
 	};
 
+	inline float BlendFar(float CoC)
+	{
+		return smoothstep(-DOF::layerBlendRange, +DOF::layerBlendRange, CoC - DOF::layerSeparationCoC * sign(CoC));
+	}
+
 	// FXC validation errors if place inside 'Opacity()', try with newer version
 	static const float
 		squareCorrection = .9f,	// for opacity boost
@@ -73,25 +78,11 @@ namespace DOF
 #endif
 #undef GENERATE_COC_SELECTOR
 
-#if 1
 	inline float SelectCoC(float4 CoCs)
 	{
 		CoCs.xy = min(CoCs.xy, CoCs.zw);
 		return min(CoCs.x, CoCs.y);
 	}
-#elif 1
-	inline float SelectCoC(float4 CoCs)
-	{
-		CoCs.xy = min(abs(CoCs.xy), abs(CoCs.zw)) * max(sign(CoCs.xy), sign(CoCs.zw));
-		return min(abs(CoCs.x), abs(CoCs.y)) * max(sign(CoCs.x), sign(CoCs.y));
-	}
-#else
-	inline float SelectCoC(float4 CoCs)
-	{
-		CoCs.xy = abs(CoCs.xy) <= abs(CoCs.zw) ? CoCs.xy : CoCs.zw;
-		return abs(CoCs.x) <= abs(CoCs.y) ? CoCs.x : CoCs.y;
-	}
-#endif
 
 	struct SplatPoint
 	{
