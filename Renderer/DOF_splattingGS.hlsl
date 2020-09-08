@@ -49,7 +49,7 @@ class Sprite : BokehSprite
 	}
 };
 
-[maxvertexcount(4)]
+[maxvertexcount(3)]
 void main(point DOF::SplatPoint splatPoint[1], inout TriangleStream<DOF::SpriteVertex> spriteCorners)
 {
 	[branch]
@@ -69,10 +69,9 @@ void main(point DOF::SplatPoint splatPoint[1], inout TriangleStream<DOF::SpriteV
 			splatPoint[0].coc[0] > 0
 		};
 
-		// expand sprite quad
+		// expand sprite
 		spriteCorners.Append(sprite.Corner(0));
 		spriteCorners.Append(sprite.Corner(1));
 		spriteCorners.Append(sprite.Corner(2));
-		spriteCorners.Append(sprite.Corner(3));
 	}
 }

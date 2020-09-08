@@ -66,7 +66,7 @@ class Sprite : BokehSprite
 	}
 };
 
-[maxvertexcount(4)]
+[maxvertexcount(3)]
 [instance(spriteCount)]
 void main(point LensFlare::Source flareSource[1], in uint lenseID : SV_GSInstanceID, inout TriangleStream<LensFlare::SpriteVertex> flareSpriteCorners)
 {
@@ -97,10 +97,9 @@ void main(point LensFlare::Source flareSource[1], in uint lenseID : SV_GSInstanc
 		sprite.edgeClip.z *= flares[lenseID].clipDist - sprite.edgeClip.z;
 		sprite.edgeClip.z *= abs(flares[lenseID].clipSpeed);
 
-		// expand sprite quad
+		// expand sprite
 		flareSpriteCorners.Append(sprite.Corner(0));
 		flareSpriteCorners.Append(sprite.Corner(1));
 		flareSpriteCorners.Append(sprite.Corner(2));
-		flareSpriteCorners.Append(sprite.Corner(3));
 	}
 }

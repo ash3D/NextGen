@@ -52,23 +52,21 @@ namespace Bokeh
 	}
 
 #if !DXC_NAMESPACE_WORKAROUND
-	static const SpriteCornerDesc cornersLUT[4] =
+	static const SpriteCornerDesc cornersLUT[3] =
 	{
 		GenerateSpriteCornerDesc(float2(-1, +1)),
-		GenerateSpriteCornerDesc(float2(+1, +1)),
-		GenerateSpriteCornerDesc(float2(-1, -1)),
-		GenerateSpriteCornerDesc(float2(+1, -1))
+		GenerateSpriteCornerDesc(float2(+2, +1)),
+		GenerateSpriteCornerDesc(float2(-1, -2))
 	};
 #endif
 }
 
 #if DXC_NAMESPACE_WORKAROUND
-static const Bokeh::SpriteCornerDesc cornersLUT[4] =
+static const Bokeh::SpriteCornerDesc cornersLUT[3] =
 {
 	Bokeh::GenerateSpriteCornerDesc(float2(-1, +1)),
-	Bokeh::GenerateSpriteCornerDesc(float2(+1, +1)),
-	Bokeh::GenerateSpriteCornerDesc(float2(-1, -1)),
-	Bokeh::GenerateSpriteCornerDesc(float2(+1, -1))
+	Bokeh::GenerateSpriteCornerDesc(float2(+2, +1)),
+	Bokeh::GenerateSpriteCornerDesc(float2(-1, -2))
 };
 #endif
 
