@@ -17,7 +17,7 @@ void main(in uint2 coord : SV_DispatchThreadID)
 
 	for (uint sampleIdx = 1; sampleIdx < MSAA; sampleIdx++)
 	{
-		const float2 CoCSample = cameraSettings.COC(ZBuffer.sample[sampleIdx][coord]);
+		const float CoCSample = cameraSettings.COC(ZBuffer.sample[sampleIdx][coord]);
 		DOF::SelectCoC(CoC.x, CoCSample);
 		CoC.y += CoCSample;
 	}

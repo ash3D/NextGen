@@ -72,26 +72,21 @@ float3 Mix(float3 smooth, float3 sharp)
 #endif
 }
 
-float3 DownsampleColor(in float targetCoC, in float dilatedCoC, in float2 centerPoint, in float2 cornerPoint)
+float3 DownsampleColor(float targetCoC, float dilatedCoC, float2 centerPoint, float2 cornerPoint)
 {
-	float4 CoCsFootprint[2][2] =
+	const float4 bilateralWeights[2][2] =
 	{
-		COCbuffer.GatherGreen(tapFilter, centerPoint, int2(-1, -1)),
-		COCbuffer.GatherGreen(tapFilter, centerPoint, int2(+1, -1)),
-		COCbuffer.GatherGreen(tapFilter, centerPoint, int2(-1, +1)),
-		COCbuffer.GatherGreen(tapFilter, centerPoint, int2(+1, +1))
+		BilateralWeights(COCbuffer.GatherGreen(tapFilter, centerPoint, int2(-1, -1)), targetCoC, dilatedCoC),
+		BilateralWeights(COCbuffer.GatherGreen(tapFilter, centerPoint, int2(+1, -1)), targetCoC, dilatedCoC),
+		BilateralWeights(COCbuffer.GatherGreen(tapFilter, centerPoint, int2(-1, +1)), targetCoC, dilatedCoC),
+		BilateralWeights(COCbuffer.GatherGreen(tapFilter, centerPoint, int2(+1, +1)), targetCoC, dilatedCoC)
 	};
 
-	CoCsFootprint[0][0] = BilateralWeights(CoCsFootprint[0][0], targetCoC, dilatedCoC);
-	CoCsFootprint[0][1] = BilateralWeights(CoCsFootprint[0][1], targetCoC, dilatedCoC);
-	CoCsFootprint[1][0] = BilateralWeights(CoCsFootprint[1][0], targetCoC, dilatedCoC);
-	CoCsFootprint[1][1] = BilateralWeights(CoCsFootprint[1][1], targetCoC, dilatedCoC);
-
 	float4 corners = 0, centerBlock = 0;
-	FetchBlock(corners, centerBlock, int2(-1, -1), uint2(1, 1), cornerPoint, CoCsFootprint[0][0]);
-	FetchBlock(corners, centerBlock, int2(+1, -1), uint2(1, 0), cornerPoint, CoCsFootprint[0][1]);
-	FetchBlock(corners, centerBlock, int2(-1, +1), uint2(0, 1), cornerPoint, CoCsFootprint[1][0]);
-	FetchBlock(corners, centerBlock, int2(+1, +1), uint2(0, 0), cornerPoint, CoCsFootprint[1][1]);
+	FetchBlock(corners, centerBlock, int2(-1, -1), uint2(1, 1), cornerPoint, bilateralWeights[0][0]);
+	FetchBlock(corners, centerBlock, int2(+1, -1), uint2(1, 0), cornerPoint, bilateralWeights[0][1]);
+	FetchBlock(corners, centerBlock, int2(-1, +1), uint2(0, 1), cornerPoint, bilateralWeights[1][0]);
+	FetchBlock(corners, centerBlock, int2(+1, +1), uint2(0, 0), cornerPoint, bilateralWeights[1][1]);
 
 	// max(_, 0) to protect against possible 0 bilateral weights which translates to NaN after HDR decode
 	corners.rgb = max(DecodeHDRExp(corners, cameraSettings.exposure), 0);

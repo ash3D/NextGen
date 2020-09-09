@@ -56,27 +56,10 @@ namespace DOF
 		return saturate(halfresOpacity * (1 - fullresOpacity));
 	}
 
-#if 0
-	// DXC crash
-#define GENERATE_COC_SELECTOR(dim)													\
-	inline void SelectCoC(inout vector<float, dim> dst, in vector<float, dim> src)	\
-	{																				\
-		dst = min(dst, src);														\
+	inline void SelectCoC(inout float dst, in float src)
+	{
+		dst = min(dst, src);
 	}
-
-	GENERATE_COC_SELECTOR(1)
-	GENERATE_COC_SELECTOR(4)
-#else
-#define GENERATE_COC_SELECTOR(T)													\
-	inline void SelectCoC(inout T dst, in T src)									\
-	{																				\
-		dst = min(dst, src);														\
-	}
-
-	GENERATE_COC_SELECTOR(float)
-	GENERATE_COC_SELECTOR(float4)
-#endif
-#undef GENERATE_COC_SELECTOR
 
 	inline float SelectCoC(float4 CoCs)
 	{
