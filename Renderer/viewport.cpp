@@ -151,15 +151,7 @@ auto Impl::Viewport::CreatePostprocessRootSigs() -> PostprocessRootSigs
 	computeRootParams[COMPUTE_ROOT_PARAM_PUSH_CONST].InitAsConstants(1, 2);
 	gfxRootParams[GFX_ROOT_PARAM_DESC_TABLE].InitAsDescriptorTable(size(gfxDescTable), gfxDescTable, D3D12_SHADER_VISIBILITY_VERTEX);
 	gfxRootParams[GFX_ROOT_PARAM_CAM_SETTINGS_CBV] = computeRootParams[COMPUTE_ROOT_PARAM_CAM_SETTINGS_CBV];
-	const D3D12_STATIC_SAMPLER_DESC computeSamplers[]
-	{
-		CD3DX12_STATIC_SAMPLER_DESC(0, D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT,			D3D12_TEXTURE_ADDRESS_MODE_MIRROR, D3D12_TEXTURE_ADDRESS_MODE_MIRROR, D3D12_TEXTURE_ADDRESS_MODE_MIRROR),
-#if 1
-		CD3DX12_STATIC_SAMPLER_DESC(1, D3D12_FILTER_MINIMUM_MIN_MAG_LINEAR_MIP_POINT,	D3D12_TEXTURE_ADDRESS_MODE_MIRROR, D3D12_TEXTURE_ADDRESS_MODE_MIRROR, D3D12_TEXTURE_ADDRESS_MODE_MIRROR)
-#else
-		CD3DX12_STATIC_SAMPLER_DESC(1, D3D12_FILTER_MIN_MAG_MIP_POINT,					D3D12_TEXTURE_ADDRESS_MODE_MIRROR, D3D12_TEXTURE_ADDRESS_MODE_MIRROR, D3D12_TEXTURE_ADDRESS_MODE_MIRROR)
-#endif
-	}, gfxSamplers[]
+	const D3D12_STATIC_SAMPLER_DESC samplers[]
 	{
 		CD3DX12_STATIC_SAMPLER_DESC(0, D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT,			D3D12_TEXTURE_ADDRESS_MODE_MIRROR, D3D12_TEXTURE_ADDRESS_MODE_MIRROR, D3D12_TEXTURE_ADDRESS_MODE_MIRROR),
 		CD3DX12_STATIC_SAMPLER_DESC(1, D3D12_FILTER_MIN_MAG_MIP_POINT,					D3D12_TEXTURE_ADDRESS_MODE_MIRROR, D3D12_TEXTURE_ADDRESS_MODE_MIRROR, D3D12_TEXTURE_ADDRESS_MODE_MIRROR)
@@ -170,8 +162,8 @@ auto Impl::Viewport::CreatePostprocessRootSigs() -> PostprocessRootSigs
 		D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
 		D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
 	const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC
-		computeSigDesc(size(computeRootParams), computeRootParams, size(computeSamplers), computeSamplers),
-		gfxSigDesc(size(gfxRootParams), gfxRootParams, size(gfxSamplers), gfxSamplers, gfxFlags);
+		computeSigDesc(size(computeRootParams), computeRootParams, size(samplers), samplers),
+		gfxSigDesc(size(gfxRootParams), gfxRootParams, size(samplers), samplers, gfxFlags);
 	return
 	{
 		CreateRootSignature(computeSigDesc, L"postprocess compute root signature"),
@@ -491,7 +483,7 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvid
 
 		// gfx
 		cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
-		const CD3DX12_RECT halfresRTRect(0, 0, width / 2, height / 2);
+		const CD3DX12_RECT halfresRTRect(0, 0, (width + 1) / 2, (height + 1) / 2);
 		cmdList->RSSetViewports(1, &CD3DX12_VIEWPORT(halfresRTRect.left, halfresRTRect.top, halfresRTRect.right, halfresRTRect.bottom));
 		cmdList->RSSetScissorRects(1, &halfresRTRect);
 		cmdList->SetGraphicsRootSignature(postprocessRootSigs.gfx.Get());
@@ -531,7 +523,7 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvid
 	};
 
 	const auto fullResDispatchSize = ImageDispatchSize(0);
-	const auto halfResDispatchSize = ImageDispatchSize(1);
+	const auto halfResDispatchSize = ImageDispatchSize(1);	// floor
 
 	// COC pass
 	cmdList->SetPipelineState(COC_pass_PSO.Get());
@@ -557,7 +549,7 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvid
 		cmdList->ClearUnorderedAccessViewFloat(CD3DX12_GPU_DESCRIPTOR_HANDLE(postprocessDescriptorTable, postprocessDescriptorTableStore.DOFLayersUAV, descriptorSize),
 			postprocessDescriptorTableStore.GetDescriptor(postprocessDescriptorTableStore.DOFLayersUAV), DOFLayers, rtDesc.BeginningAccess.Clear.ClearValue.Color, 0, NULL);
 		cmdList->BeginRenderPass(1, &rtDesc, NULL, D3D12_RENDER_PASS_FLAG_ALLOW_UAV_WRITES);
-		cmdList->DrawInstanced((width / 2) * (height / 2), 1, 0, 0);
+		cmdList->DrawInstanced(((width + 1) / 2) * ((height + 1) / 2), 1, 0, 0);
 		cmdList->EndRenderPass();
 	}
 
@@ -576,7 +568,7 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvid
 		// no clears/discards for RT, preserve pre/post => don't use render pass here
 		cmdList->SetPipelineState(DOF_splatting_PSO.Get());
 		cmdList->OMSetRenderTargets(2, &rtvDOFLayers, TRUE, NULL);
-		cmdList->DrawInstanced((width / 2) * (height / 2), 1, 0, 0);
+		cmdList->DrawInstanced(((width + 1) / 2) * ((height + 1) / 2), 1, 0, 0);
 	}
 
 	{

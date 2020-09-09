@@ -24,12 +24,12 @@ void main(in uint2 coord : SV_DispatchThreadID)
 {
 	//using namespace Tonemapping;
 
-	float2 dstSize;
-	dst.GetDimensions(dstSize.x, dstSize.y);
-	const float2 center = (coord + .5f) / dstSize;
+	float2 srcSize;
+	bloom.GetDimensions(srcSize.x, srcSize.y);
+	const float2 centerPoint = (coord * .5f + .25f) / srcSize;
 
 	float3 exposedPixel = DecodeHDR(src[coord]);
-	exposedPixel += UpsampleBlur3(bloom, tapFilter, center, 0) / 6;
+	exposedPixel += UpsampleBlur3(bloom, tapFilter, centerPoint) / 6;
 	// Reinhard maps inf to NaN (inf/inf), 'min' converts it to large value
 	dst[coord] = float4(min(Tonemapping::Reinhard(exposedPixel, cameraSettings.whitePointFactor), 64E3f), 1);
 }

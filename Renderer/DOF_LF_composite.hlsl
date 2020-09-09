@@ -39,7 +39,7 @@ void CompensateOcclusion(inout float4 target, in float4 layer/*normalized*/)
 	target += layer;
 }
 
-inline float FullresOpacity(uint2 coord, float2 center)
+inline float FullresOpacity(uint2 coord, float2 centerPoint)
 {
 	uint2 resolution;
 	uint MSAA;
@@ -52,23 +52,23 @@ inline float FullresOpacity(uint2 coord, float2 center)
 
 	opacity_MSAA /= MSAA;
 
-	return min(DOF::OpacityFullres(halfresScene.SampleLevel(COCsampler, center, 0).a, cameraSettings.aperture), opacity_MSAA);
+	return min(DOF::OpacityFullres(halfresScene.SampleLevel(COCsampler, centerPoint, 0).a, cameraSettings.aperture), opacity_MSAA);
 }
 
 [numthreads(CSConfig::ImageProcessing::blockSize, CSConfig::ImageProcessing::blockSize, 1)]
 void main(in uint2 coord : SV_DispatchThreadID)
 {
-	float2 dstSize;
-	dst.GetDimensions(dstSize.x, dstSize.y);
-	const float2 center = (coord + .5f) / dstSize;
+	float2 srcSize;
+	lensFlare.GetDimensions(srcSize.x, srcSize.y);
+	const float2 centerPoint = (coord * .5f + .25f) / srcSize;
 
 	// gets normalized during forward pass
 	float4 upsampleLayers[4] =
 	{
-		UpsampleBlur4(blurredLayers, tapFilter, float3(center, 0)),
-		UpsampleBlur4(blurredLayers, tapFilter, float3(center, 1)),
-		UpsampleBlur4(blurredLayers, tapFilter, float3(center, 2)),
-		UpsampleBlur4(blurredLayers, tapFilter, float3(center, 3))
+		UpsampleBlur4(blurredLayers, tapFilter, float3(centerPoint, 0)),
+		UpsampleBlur4(blurredLayers, tapFilter, float3(centerPoint, 1)),
+		UpsampleBlur4(blurredLayers, tapFilter, float3(centerPoint, 2)),
+		UpsampleBlur4(blurredLayers, tapFilter, float3(centerPoint, 3))
 	};
 
 	float4 composition = 0;
@@ -76,7 +76,7 @@ void main(in uint2 coord : SV_DispatchThreadID)
 	CompositeLayer(composition, upsampleLayers[DOF::FOREGROUND_NEAR_LAYER]);
 	CompositeLayer(composition, upsampleLayers[DOF::FOREGROUND_FAR_LAYER]);
 
-	const float4 fullresLayer = float4(DecodeHDRExp(fullresScene[coord], cameraSettings.exposure), FullresOpacity(coord, center));
+	const float4 fullresLayer = float4(DecodeHDRExp(fullresScene[coord], cameraSettings.exposure), FullresOpacity(coord, centerPoint));
 	CompositeNormalizedLayer(composition, fullresLayer);
 
 	CompositeLayer(composition, upsampleLayers[DOF::BACKGROUND_NEAR_LAYER]);
@@ -92,7 +92,7 @@ void main(in uint2 coord : SV_DispatchThreadID)
 #endif
 
 	// composite lens flare
-	composition.rgb += lensFlare.SampleLevel(tapFilter, center, 0);
+	composition.rgb += lensFlare.SampleLevel(tapFilter, centerPoint, 0);
 
 	// encode HDR to enable hw bilinear Karis fetches for subsequent bloom downsample
 	dst[coord] = EncodeHDR(composition);

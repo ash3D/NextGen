@@ -13,38 +13,38 @@ RWTexture2D<float4> dst : register(u5, space1);
 [numthreads(CSConfig::ImageProcessing::blockSize, CSConfig::ImageProcessing::blockSize, 1)]
 void main(in uint2 coord : SV_DispatchThreadID)
 {
-	float2 dstSize;
-	dst.GetDimensions(dstSize.x, dstSize.y);
-	const float2 center = (coord + .5f) / dstSize;
+	float2 srcSize;
+	src.GetDimensions(srcSize.x, srcSize.y);
+	const float2 centerPoint = (coord * 2 + 1) / srcSize;
 
 	// downsample to halfres with 13-tap partial Karis filter
 
 	float4 block =
-		src.SampleLevel(tapFilter, center, 0, int2(-1, -1)) * .25f +
-		src.SampleLevel(tapFilter, center, 0, int2(+1, -1)) * .25f +
-		src.SampleLevel(tapFilter, center, 0, int2(-1, +1)) * .25f +
-		src.SampleLevel(tapFilter, center, 0, int2(+1, +1)) * .25f;
+		src.SampleLevel(tapFilter, centerPoint, 0, int2(-1, -1)) * .25f +
+		src.SampleLevel(tapFilter, centerPoint, 0, int2(+1, -1)) * .25f +
+		src.SampleLevel(tapFilter, centerPoint, 0, int2(-1, +1)) * .25f +
+		src.SampleLevel(tapFilter, centerPoint, 0, int2(+1, +1)) * .25f;
 
 	float3 color = DecodeHDR(block, .5f/*block weight*/);
 
 	// shared taps
 	const float4
-		C = src.SampleLevel(tapFilter, center, 0) * .25f,
-		W = src.SampleLevel(tapFilter, center, 0, int2(-2, 0)),
-		E = src.SampleLevel(tapFilter, center, 0, int2(+2, 0)),
-		N = src.SampleLevel(tapFilter, center, 0, int2(0, -2)),
-		S = src.SampleLevel(tapFilter, center, 0, int2(0, +2));
+		C = src.SampleLevel(tapFilter, centerPoint, 0) * .25f,
+		W = src.SampleLevel(tapFilter, centerPoint, 0, int2(-2, 0)),
+		E = src.SampleLevel(tapFilter, centerPoint, 0, int2(+2, 0)),
+		N = src.SampleLevel(tapFilter, centerPoint, 0, int2(0, -2)),
+		S = src.SampleLevel(tapFilter, centerPoint, 0, int2(0, +2));
 
-	block = src.SampleLevel(tapFilter, center, 0, int2(-2, -2)) * .25f + C + W * .25f + N * .25f;
+	block = src.SampleLevel(tapFilter, centerPoint, 0, int2(-2, -2)) * .25f + C + W * .25f + N * .25f;
 	color += DecodeHDR(block, .125f/*block weight*/);
 
-	block = src.SampleLevel(tapFilter, center, 0, int2(+2, -2)) * .25f + C + E * .25f + N * .25f;
+	block = src.SampleLevel(tapFilter, centerPoint, 0, int2(+2, -2)) * .25f + C + E * .25f + N * .25f;
 	color += DecodeHDR(block, .125f/*block weight*/);
 
-	block = src.SampleLevel(tapFilter, center, 0, int2(-2, +2)) * .25f + C + W * .25f + S * .25f;
+	block = src.SampleLevel(tapFilter, centerPoint, 0, int2(-2, +2)) * .25f + C + W * .25f + S * .25f;
 	color += DecodeHDR(block, .125f/*block weight*/);
 
-	block = src.SampleLevel(tapFilter, center, 0, int2(+2, +2)) * .25f + C + E * .25f + S * .25f;
+	block = src.SampleLevel(tapFilter, centerPoint, 0, int2(+2, +2)) * .25f + C + E * .25f + S * .25f;
 	color += DecodeHDR(block, .125f/*block weight*/);
 
 	const float

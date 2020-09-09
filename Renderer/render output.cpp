@@ -290,7 +290,7 @@ void RenderOutput::CreateOffscreenSurfaces(UINT width, UINT height)
 	CheckHR(device->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Tex2D(Config::HDRFormat, width / 2, height / 2, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS),
+		&CD3DX12_RESOURCE_DESC::Tex2D(Config::HDRFormat, (width + 1) / 2, (height + 1) / 2, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS),
 		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 		NULL,
 		IID_PPV_ARGS(halfresDOFSurface.GetAddressOf())
@@ -300,7 +300,7 @@ void RenderOutput::CreateOffscreenSurfaces(UINT width, UINT height)
 	CheckHR(device->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Tex2D(Config::DOFLayersFormat, width / 2, height / 2, 4, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS | D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET),
+		&CD3DX12_RESOURCE_DESC::Tex2D(Config::DOFLayersFormat, (width + 1) / 2, (height + 1) / 2, 4, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS | D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET),
 		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 		NULL,
 		IID_PPV_ARGS(DOFLayers.GetAddressOf())
@@ -333,7 +333,7 @@ void RenderOutput::CreateOffscreenSurfaces(UINT width, UINT height)
 	CheckHR(device->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Tex2D(Config::HDRFormat, width / 2, height / 2, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET),
+		&CD3DX12_RESOURCE_DESC::Tex2D(Config::HDRFormat, (width + 1) / 2, (height + 1) / 2, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET),
 		D3D12_RESOURCE_STATE_RENDER_TARGET,
 		NULL,
 		IID_PPV_ARGS(lensFlareSurface.GetAddressOf())
