@@ -31,17 +31,7 @@ inline float UnpackGatherBlock(in float4 block, uniform uint2 idx)
 	return block[remapLUT[idx.x][idx.y]];
 }
 
-float4 Bilerp(float4 block[2][2])
-{
-	const float4 row[2] =
-	{
-		lerp(block[0][0], block[1][0], .5f),
-		lerp(block[0][1], block[1][1], .5f)
-	};
-	return lerp(row[0], row[1], .5f);
-}
-
-void FetchBlock(inout float4 corner, out float4 center, uniform int2 offset/*right bottom*/, uniform uint2 centerIdx, in float2 cornerPoint, in float4 bilateralWeights)
+void FetchBlock(inout float4 corner, inout float4 center, uniform int2 offset/*right bottom*/, uniform uint2 centerIdx, in float2 cornerPoint, in float4 bilateralWeights)
 {
 	float4 block[2][2] =
 	{
@@ -54,8 +44,8 @@ void FetchBlock(inout float4 corner, out float4 center, uniform int2 offset/*rig
 	block[0][1] *= UnpackGatherBlock(bilateralWeights, uint2(0, 1));
 	block[1][0] *= UnpackGatherBlock(bilateralWeights, uint2(1, 0));
 	block[1][1] *= UnpackGatherBlock(bilateralWeights, uint2(1, 1));
-	center = block[centerIdx.x][centerIdx.y];
-	corner += Bilerp(block) * .25f;
+	center += block[centerIdx.x][centerIdx.y];
+	corner += block[0][0] + block[0][1] + block[1][0] + block[1][1];
 }
 
 float4 BilateralWeights(float4 CoCs, float targetCoC, float dilatedCoC)
@@ -97,15 +87,17 @@ float3 DownsampleColor(in float targetCoC, in float dilatedCoC, in float2 center
 	CoCsFootprint[1][0] = BilateralWeights(CoCsFootprint[1][0], targetCoC, dilatedCoC);
 	CoCsFootprint[1][1] = BilateralWeights(CoCsFootprint[1][1], targetCoC, dilatedCoC);
 
-	float4 color = 0, centerBlock[2][2];
-	FetchBlock(color, centerBlock[0][0], int2(-1, -1), uint2(1, 1), cornerPoint, CoCsFootprint[0][0]);
-	FetchBlock(color, centerBlock[0][1], int2(+1, -1), uint2(1, 0), cornerPoint, CoCsFootprint[0][1]);
-	FetchBlock(color, centerBlock[1][0], int2(-1, +1), uint2(0, 1), cornerPoint, CoCsFootprint[1][0]);
-	FetchBlock(color, centerBlock[1][1], int2(+1, +1), uint2(0, 0), cornerPoint, CoCsFootprint[1][1]);
-	color.rgb = max(DecodeHDRExp(color, cameraSettings.exposure), 0);
-	const float3 centerContrib = max(DecodeHDRExp(Bilerp(centerBlock), cameraSettings.exposure), 0);
+	float4 corners = 0, centerBlock = 0;
+	FetchBlock(corners, centerBlock, int2(-1, -1), uint2(1, 1), cornerPoint, CoCsFootprint[0][0]);
+	FetchBlock(corners, centerBlock, int2(+1, -1), uint2(1, 0), cornerPoint, CoCsFootprint[0][1]);
+	FetchBlock(corners, centerBlock, int2(-1, +1), uint2(0, 1), cornerPoint, CoCsFootprint[1][0]);
+	FetchBlock(corners, centerBlock, int2(+1, +1), uint2(0, 0), cornerPoint, CoCsFootprint[1][1]);
 
-	return Mix(color, centerContrib);
+	// max(_, 0) to protect against possible 0 bilateral weights which translates to NaN after HDR decode
+	corners.rgb = max(DecodeHDRExp(corners, cameraSettings.exposure), 0);
+	centerBlock.rgb = max(DecodeHDRExp(centerBlock, cameraSettings.exposure), 0);
+
+	return Mix(corners, centerBlock);
 }
 
 // for background hole filling
@@ -171,31 +163,31 @@ LensFlare::Source main(in uint flatPixelIdx : SV_VertexID)
 	// downsample to halfres with 13-tap partial Karis filter
 
 	float4 block =
-		src.SampleLevel(tapFilter, centerPoint, 0, int2(-1, -1)) * .25f +
-		src.SampleLevel(tapFilter, centerPoint, 0, int2(+1, -1)) * .25f +
-		src.SampleLevel(tapFilter, centerPoint, 0, int2(-1, +1)) * .25f +
-		src.SampleLevel(tapFilter, centerPoint, 0, int2(+1, +1)) * .25f;
+		src.SampleLevel(tapFilter, centerPoint, 0, int2(-1, -1)) +
+		src.SampleLevel(tapFilter, centerPoint, 0, int2(+1, -1)) +
+		src.SampleLevel(tapFilter, centerPoint, 0, int2(-1, +1)) +
+		src.SampleLevel(tapFilter, centerPoint, 0, int2(+1, +1));
 
 	color = DecodeHDRExp(block, .5f/*block weight*/ * cameraSettings.exposure);
 
 	// shared taps
 	const float4
-		C = src.SampleLevel(tapFilter, centerPoint, 0) * .25f,
+		C = src.SampleLevel(tapFilter, centerPoint, 0),
 		W = src.SampleLevel(tapFilter, centerPoint, 0, int2(-2, 0)),
 		E = src.SampleLevel(tapFilter, centerPoint, 0, int2(+2, 0)),
 		N = src.SampleLevel(tapFilter, centerPoint, 0, int2(0, -2)),
 		S = src.SampleLevel(tapFilter, centerPoint, 0, int2(0, +2));
 
-	block = src.SampleLevel(tapFilter, centerPoint, 0, int2(-2, -2)) * .25f + C + W * .25f + N * .25f;
+	block = src.SampleLevel(tapFilter, centerPoint, 0, int2(-2, -2)) + C + W + N;
 	color += DecodeHDRExp(block, .125f/*block weight*/ * cameraSettings.exposure);
 
-	block = src.SampleLevel(tapFilter, centerPoint, 0, int2(+2, -2)) * .25f + C + E * .25f + N * .25f;
+	block = src.SampleLevel(tapFilter, centerPoint, 0, int2(+2, -2)) + C + E + N;
 	color += DecodeHDRExp(block, .125f/*block weight*/ * cameraSettings.exposure);
 
-	block = src.SampleLevel(tapFilter, centerPoint, 0, int2(-2, +2)) * .25f + C + W * .25f + S * .25f;
+	block = src.SampleLevel(tapFilter, centerPoint, 0, int2(-2, +2)) + C + W + S;
 	color += DecodeHDRExp(block, .125f/*block weight*/ * cameraSettings.exposure);
 
-	block = src.SampleLevel(tapFilter, centerPoint, 0, int2(+2, +2)) * .25f + C + E * .25f + S * .25f;
+	block = src.SampleLevel(tapFilter, centerPoint, 0, int2(+2, +2)) + C + E + S;
 	color += DecodeHDRExp(block, .125f/*block weight*/ * cameraSettings.exposure);
 
 	// transform 'center' UV -> NDC

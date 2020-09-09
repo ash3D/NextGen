@@ -20,31 +20,31 @@ void main(in uint2 coord : SV_DispatchThreadID)
 	// downsample to halfres with 13-tap partial Karis filter
 
 	float4 block =
-		src.SampleLevel(tapFilter, centerPoint, 0, int2(-1, -1)) * .25f +
-		src.SampleLevel(tapFilter, centerPoint, 0, int2(+1, -1)) * .25f +
-		src.SampleLevel(tapFilter, centerPoint, 0, int2(-1, +1)) * .25f +
-		src.SampleLevel(tapFilter, centerPoint, 0, int2(+1, +1)) * .25f;
+		src.SampleLevel(tapFilter, centerPoint, 0, int2(-1, -1)) +
+		src.SampleLevel(tapFilter, centerPoint, 0, int2(+1, -1)) +
+		src.SampleLevel(tapFilter, centerPoint, 0, int2(-1, +1)) +
+		src.SampleLevel(tapFilter, centerPoint, 0, int2(+1, +1));
 
 	float3 color = DecodeHDR(block, .5f/*block weight*/);
 
 	// shared taps
 	const float4
-		C = src.SampleLevel(tapFilter, centerPoint, 0) * .25f,
+		C = src.SampleLevel(tapFilter, centerPoint, 0),
 		W = src.SampleLevel(tapFilter, centerPoint, 0, int2(-2, 0)),
 		E = src.SampleLevel(tapFilter, centerPoint, 0, int2(+2, 0)),
 		N = src.SampleLevel(tapFilter, centerPoint, 0, int2(0, -2)),
 		S = src.SampleLevel(tapFilter, centerPoint, 0, int2(0, +2));
 
-	block = src.SampleLevel(tapFilter, centerPoint, 0, int2(-2, -2)) * .25f + C + W * .25f + N * .25f;
+	block = src.SampleLevel(tapFilter, centerPoint, 0, int2(-2, -2)) + C + W + N;
 	color += DecodeHDR(block, .125f/*block weight*/);
 
-	block = src.SampleLevel(tapFilter, centerPoint, 0, int2(+2, -2)) * .25f + C + E * .25f + N * .25f;
+	block = src.SampleLevel(tapFilter, centerPoint, 0, int2(+2, -2)) + C + E + N;
 	color += DecodeHDR(block, .125f/*block weight*/);
 
-	block = src.SampleLevel(tapFilter, centerPoint, 0, int2(-2, +2)) * .25f + C + W * .25f + S * .25f;
+	block = src.SampleLevel(tapFilter, centerPoint, 0, int2(-2, +2)) + C + W + S;
 	color += DecodeHDR(block, .125f/*block weight*/);
 
-	block = src.SampleLevel(tapFilter, centerPoint, 0, int2(+2, +2)) * .25f + C + E * .25f + S * .25f;
+	block = src.SampleLevel(tapFilter, centerPoint, 0, int2(+2, +2)) + C + E + S;
 	color += DecodeHDR(block, .125f/*block weight*/);
 
 	const float
