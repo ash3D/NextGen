@@ -13,18 +13,19 @@ DOF::SplatPoint main(in uint flatPixelIdx : SV_VertexID)
 	uint2 srcSize;
 	src.GetDimensions(srcSize.x, srcSize.y);
 	const uint2 coord = { flatPixelIdx % srcSize.x, flatPixelIdx / srcSize.x };
-
-	float2 center = (coord + .5f) / srcSize;
+	float2 center = coord + .5f;
 
 	float2 fullres;
 	COCbuffer.GetDimensions(fullres.x, fullres.y);
-	const float2 centerPoint = floor(center * fullres + .5f) / fullres;
-	const float CoC = DOF::SelectCoC(COCbuffer.Gather(COCdownsampleFilter, centerPoint));
+	const float2 centerPoint = center * 2 / fullres;
+	center /= srcSize;
 
 	// transform 'center' UV -> NDC
 	center *= 2;
 	center -= 1;
 	center.y = -center.y;
+
+	const float CoC = DOF::SelectCoC(COCbuffer.Gather(COCdownsampleFilter, centerPoint));
 
 	const float4 fetch = src[coord];
 
