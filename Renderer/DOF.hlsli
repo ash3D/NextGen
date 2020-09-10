@@ -56,17 +56,6 @@ namespace DOF
 		return saturate(halfresOpacity * (1 - fullresOpacity));
 	}
 
-	inline void SelectCoC(inout float dst, in float src)
-	{
-		dst = min(dst, src);
-	}
-
-	inline float SelectCoC(float4 CoCs)
-	{
-		CoCs.xy = min(CoCs.xy, CoCs.zw);
-		return min(CoCs.x, CoCs.y);
-	}
-
 	struct SplatPoint
 	{
 		float2	pos : POSITION;

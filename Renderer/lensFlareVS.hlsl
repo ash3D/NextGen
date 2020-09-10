@@ -6,13 +6,19 @@
 
 SamplerState tapFilter : register(s0);
 SamplerState bilateralTapSampler : register(s1);
+SamplerState COCdownsampler : register(s2);
 Texture2D src : register(t1);
 Texture2D<float2> COCbuffer : register(t4);
 RWTexture2D<float4> dst : register(u5);
 RWTexture2DArray<float4> blurredLayers : register(u6);
 ConstantBuffer<CameraParams::Settings> cameraSettings : register(b1);
 
-static const int holeFillingBlurBand = 4;
+/*
+* !: 3 is max supported with current implementation
+* larger values causes out-of-range offsets in CoC sampling
+* can fallback to DX11+ gather with programmable offsets to support larger values
+*/
+static const int holeFillingBlurBand = 3;
 static const float antileakFactor = 10;	// rcp(max leak percentage)
 
 inline float Vignette(float2 ndc)
@@ -76,10 +82,10 @@ float3 DownsampleColor(float targetCoC, float dilatedCoC, float2 centerPoint, fl
 {
 	const float4 bilateralWeights[2][2] =
 	{
-		BilateralWeights(COCbuffer.GatherGreen(tapFilter, centerPoint, int2(-1, -1)), targetCoC, dilatedCoC),
-		BilateralWeights(COCbuffer.GatherGreen(tapFilter, centerPoint, int2(+1, -1)), targetCoC, dilatedCoC),
-		BilateralWeights(COCbuffer.GatherGreen(tapFilter, centerPoint, int2(-1, +1)), targetCoC, dilatedCoC),
-		BilateralWeights(COCbuffer.GatherGreen(tapFilter, centerPoint, int2(+1, +1)), targetCoC, dilatedCoC)
+		BilateralWeights(COCbuffer.GatherGreen(COCdownsampler, centerPoint, int2(-1, -1)), targetCoC, dilatedCoC),
+		BilateralWeights(COCbuffer.GatherGreen(COCdownsampler, centerPoint, int2(+1, -1)), targetCoC, dilatedCoC),
+		BilateralWeights(COCbuffer.GatherGreen(COCdownsampler, centerPoint, int2(-1, +1)), targetCoC, dilatedCoC),
+		BilateralWeights(COCbuffer.GatherGreen(COCdownsampler, centerPoint, int2(+1, +1)), targetCoC, dilatedCoC)
 	};
 
 	float4 corners = 0, centerBlock = 0;
@@ -106,7 +112,7 @@ float DilateCoC(float CoC, float2 centerPoint)
 		{
 			const float dist = max(abs(r), abs(c));
 			const float weight = 1 - dist / (holeFillingBlurBand + 1);	// (holeFillingBlurBand + 1 - dist) / (holeFillingBlurBand + 1)
-			const float tapCoC = DOF::SelectCoC(COCbuffer.Gather(tapFilter, centerPoint, int2(c, r) * 2));
+			const float tapCoC = COCbuffer.SampleLevel(COCdownsampler, centerPoint, 0, int2(c, r) * 2);
 			dilatedCoC = max(dilatedCoC, lerp(abs(CoC), -tapCoC, weight));
 		}
 	return dilatedCoC;
@@ -132,7 +138,7 @@ LensFlare::Source main(in uint flatPixelIdx : SV_VertexID)
 		center /= dstSize;
 	}
 
-	const float CoC = DOF::SelectCoC(COCbuffer.Gather(tapFilter, centerPoint)), dilatedCoC = DilateCoC(CoC, centerPoint);
+	const float CoC = COCbuffer.SampleLevel(COCdownsampler, centerPoint, 0), dilatedCoC = DilateCoC(CoC, centerPoint);
 
 	// downsample to halfres with bilateral 5-tap Karis filter for DOF
 	float3 color = DownsampleColor(CoC, dilatedCoC, centerPoint, cornerPoint);

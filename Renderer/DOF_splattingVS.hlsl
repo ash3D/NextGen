@@ -2,7 +2,7 @@
 #include "Bokeh.hlsli"
 #include "camera params.hlsli"
 
-SamplerState COCdownsampleFilter : register(s0);
+SamplerState COCdownsampler : register(s2);
 Texture2D src : register(t5);
 Texture2D<float2> COCbuffer : register(t4);
 ConstantBuffer<CameraParams::Settings> cameraSettings : register(b1);
@@ -25,7 +25,7 @@ DOF::SplatPoint main(in uint flatPixelIdx : SV_VertexID)
 	center -= 1;
 	center.y = -center.y;
 
-	const float CoC = DOF::SelectCoC(COCbuffer.Gather(COCdownsampleFilter, centerPoint));
+	const float CoC = COCbuffer.SampleLevel(COCdownsampler, centerPoint, 0);
 
 	const float4 fetch = src[coord];
 
