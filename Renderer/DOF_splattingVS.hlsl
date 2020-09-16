@@ -3,8 +3,9 @@
 #include "camera params.hlsli"
 
 SamplerState COCdownsampler : register(s2);
-Texture2D src : register(t5);
-Texture2D<float2> COCbuffer : register(t4);
+Texture2D src : register(t6);
+Texture2D<float2> fullresCOCbuffer : register(t4);
+Texture2D<float1> dilatedCOCbuffer : register(t5);
 ConstantBuffer<CameraParams::Settings> cameraSettings : register(b1);
 
 // scanline layout - same considerations as for lens flare applicable here
@@ -16,7 +17,7 @@ DOF::SplatPoint main(in uint flatPixelIdx : SV_VertexID)
 	float2 center = coord + .5f;
 
 	float2 fullres;
-	COCbuffer.GetDimensions(fullres.x, fullres.y);
+	fullresCOCbuffer.GetDimensions(fullres.x, fullres.y);
 	const float2 centerPoint = center * 2 / fullres;
 	center /= srcSize;
 
@@ -25,18 +26,18 @@ DOF::SplatPoint main(in uint flatPixelIdx : SV_VertexID)
 	center -= 1;
 	center.y = -center.y;
 
-	const float CoC = COCbuffer.SampleLevel(COCdownsampler, centerPoint, 0);
-
-	const float4 fetch = src[coord];
+	const float
+		CoC = fullresCOCbuffer.SampleLevel(COCdownsampler, centerPoint, 0),
+		dilatedCoC = dilatedCOCbuffer[coord];
 
 	const DOF::SplatPoint splatPoint =
 	{
 		center,
-		(fetch.a + .5f) * (2/*[0..1] -> NDC [-1..+1]*/ / Bokeh::R/*treat inner R as CoC, blow quad to fit*/) / srcSize,
+		(dilatedCoC + .5f) * (2/*[0..1] -> NDC [-1..+1]*/ / Bokeh::R/*treat inner R as CoC, blow quad to fit*/) / srcSize,
 		cameraSettings.apertureRot,
-		CoC, fetch.a,
+		CoC, dilatedCoC,
 		cameraSettings.aperture,
-		fetch.rgb
+		src[coord]
 	};
 
 	return splatPoint;

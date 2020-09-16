@@ -22,7 +22,7 @@ PostprocessDescriptorTableStore::PostprocessDescriptorTableStore()
 }
 
 void PostprocessDescriptorTableStore::Fill(ID3D12Resource *ZBuffer, ID3D12Resource *src, ID3D12Resource *composite, ID3D12Resource *dst,
-	ID3D12Resource *COCBuffer, ID3D12Resource *halferDOFSurface, ID3D12Resource *DOFLayers, ID3D12Resource *lensFlareSurface,
+	ID3D12Resource *COCBuffer, ID3D12Resource *dilatedCOCBuffer, ID3D12Resource *halferDOFSurface, ID3D12Resource *DOFLayers, ID3D12Resource *lensFlareSurface,
 	ID3D12Resource *bloomUpChain, ID3D12Resource *bloomDownChain, ID3D12Resource *reductionBuffer, UINT reductionBufferLength)
 {
 	reductionBufferLength *= 2;	// to account for {avg, max} layout, RAW buffer view specify num of 32bit elements
@@ -91,6 +91,9 @@ void PostprocessDescriptorTableStore::Fill(ID3D12Resource *ZBuffer, ID3D12Resour
 	// COCBufferUAV
 	device->CreateUnorderedAccessView(COCBuffer, NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, COCBufferUAV, descriptorSize));
 
+	// DilatedCOCBufferUAV
+	device->CreateUnorderedAccessView(dilatedCOCBuffer, NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DilatedCOCBufferUAV, descriptorSize));
+
 	// HalfresDOFInputUAV
 	device->CreateUnorderedAccessView(halferDOFSurface, NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, HalfresDOFInputUAV, descriptorSize));
 
@@ -99,6 +102,9 @@ void PostprocessDescriptorTableStore::Fill(ID3D12Resource *ZBuffer, ID3D12Resour
 
 	// COCBufferSRV
 	device->CreateShaderResourceView(COCBuffer, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, COCBufferSRV, descriptorSize));
+
+	// DilatedCOCBufferSRV
+	device->CreateShaderResourceView(dilatedCOCBuffer, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DilatedCOCBufferSRV, descriptorSize));
 
 	// HalfresDOFInputSRV
 	device->CreateShaderResourceView(halferDOFSurface, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, HalfresDOFInputSRV, descriptorSize));

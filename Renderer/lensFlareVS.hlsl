@@ -9,8 +9,9 @@ SamplerState bilateralTapSampler : register(s1);
 SamplerState COCdownsampler : register(s2);
 Texture2D src : register(t1);
 Texture2D<float2> COCbuffer : register(t4);
-RWTexture2D<float4> dst : register(u5);
-RWTexture2DArray<float4> blurredLayers : register(u6);
+RWTexture2D<float> dilatedCOCbuffer : register(u5);
+RWTexture2D<float4> dst : register(u6);
+RWTexture2DArray<float4> blurredLayers : register(u7);
 ConstantBuffer<CameraParams::Settings> cameraSettings : register(b1);
 
 /*
@@ -37,39 +38,58 @@ inline float UnpackGatherBlock(in float4 block, uniform uint2 idx)
 	return block[remapLUT[idx.x][idx.y]];
 }
 
-void FetchBlock(inout float4 corner, inout float4 center, uniform int2 offset/*right bottom*/, uniform uint2 centerIdx, in float2 cornerPoint, in float4 bilateralWeights)
+void OpacityPremultiply(inout float4 color/*HDR encoded*/, out float HDRnorm, in float CoC/*fullres*/, in float dilatedCoC/*halfres*/)
 {
-	float4 block[2][2] =
+	const float opacity = DOF::OpacityHalfres(max(abs(CoC), dilatedCoC), cameraSettings.aperture);
+	color.rgb = max(DecodeHDRExp(color, cameraSettings.exposure * opacity), 0);
+	color.a = opacity;
+	EncodeHDRPremultiplied(color, HDRnorm);
+}
+
+float4 BilateralWeights(float4 CoCBlock, float targetCoC)
+{
+	float4 weights = 1;
+
+	if (targetCoC > 0)
+		//weights *= saturate(1 - (targetCoC - abs(CoCBlock)) / abs(CoCBlock) * antileakFactor);
+		weights *= saturate(1 + antileakFactor - targetCoC / abs(CoCBlock) * antileakFactor);
+
+	return weights;
+}
+
+void FetchBlock(inout float4 cornerColor, inout float cornerNorm, inout float4 centerColor, inout float centerNorm, uniform int2 offset/*right bottom*/, uniform uint2 centerIdx, in float targetCoC, in float dilatedCoC, in float2 centerPoint, in float2 cornerPoint)
+{
+	const float4 CoCBlock = COCbuffer.GatherGreen(COCdownsampler, centerPoint, offset);
+	float4 colorBlock[2][2] =
 	{
 		src.SampleLevel(bilateralTapSampler, cornerPoint, 0, offset - int2(1, 1)),
 		src.SampleLevel(bilateralTapSampler, cornerPoint, 0, offset - int2(0, 1)),
 		src.SampleLevel(bilateralTapSampler, cornerPoint, 0, offset - int2(1, 0)),
 		src.SampleLevel(bilateralTapSampler, cornerPoint, 0, offset - int2(0, 0))
 	};
-	block[0][0] *= UnpackGatherBlock(bilateralWeights, uint2(0, 0));
-	block[0][1] *= UnpackGatherBlock(bilateralWeights, uint2(0, 1));
-	block[1][0] *= UnpackGatherBlock(bilateralWeights, uint2(1, 0));
-	block[1][1] *= UnpackGatherBlock(bilateralWeights, uint2(1, 1));
-	center += block[centerIdx.x][centerIdx.y];
-	corner += block[0][0] + block[0][1] + block[1][0] + block[1][1];
+	float HDRnormBlock[2][2];
+	OpacityPremultiply(colorBlock[0][0], HDRnormBlock[0][0], UnpackGatherBlock(CoCBlock, uint2(0, 0)), dilatedCoC);
+	OpacityPremultiply(colorBlock[0][1], HDRnormBlock[0][1], UnpackGatherBlock(CoCBlock, uint2(0, 1)), dilatedCoC);
+	OpacityPremultiply(colorBlock[1][0], HDRnormBlock[1][0], UnpackGatherBlock(CoCBlock, uint2(1, 0)), dilatedCoC);
+	OpacityPremultiply(colorBlock[1][1], HDRnormBlock[1][1], UnpackGatherBlock(CoCBlock, uint2(1, 1)), dilatedCoC);
+
+	const float4 bilateralWeights = BilateralWeights(CoCBlock, targetCoC);
+	colorBlock[0][0] *= UnpackGatherBlock(bilateralWeights, uint2(0, 0));
+	colorBlock[0][1] *= UnpackGatherBlock(bilateralWeights, uint2(0, 1));
+	colorBlock[1][0] *= UnpackGatherBlock(bilateralWeights, uint2(1, 0));
+	colorBlock[1][1] *= UnpackGatherBlock(bilateralWeights, uint2(1, 1));
+	HDRnormBlock[0][0] *= UnpackGatherBlock(bilateralWeights, uint2(0, 0));
+	HDRnormBlock[0][1] *= UnpackGatherBlock(bilateralWeights, uint2(0, 1));
+	HDRnormBlock[1][0] *= UnpackGatherBlock(bilateralWeights, uint2(1, 0));
+	HDRnormBlock[1][1] *= UnpackGatherBlock(bilateralWeights, uint2(1, 1));
+
+	centerColor += colorBlock[centerIdx.x][centerIdx.y];
+	centerNorm += HDRnormBlock[centerIdx.x][centerIdx.y];
+	cornerColor += colorBlock[0][0] + colorBlock[0][1] + colorBlock[1][0] + colorBlock[1][1];
+	cornerNorm += HDRnormBlock[0][0] + HDRnormBlock[0][1] + HDRnormBlock[1][0] + HDRnormBlock[1][1];
 }
 
-float4 BilateralWeights(float4 CoCs, float targetCoC, float dilatedCoC)
-{
-	float4 weights = dilatedCoC / CoCs;
-	weights *= weights;
-
-	// 0 / 0 -> NaN -> 1
-	weights = min(weights, 1);
-
-	if (targetCoC > 0)
-		//weights *= saturate(1 - (targetCoC - abs(CoCs)) / abs(CoCs) * antileakFactor);
-		weights *= saturate(1 + antileakFactor - targetCoC / abs(CoCs) * antileakFactor);
-
-	return weights;
-}
-
-float3 Mix(float3 smooth, float3 sharp)
+float4 Mix(float4 smooth, float4 sharp)
 {
 #if 1
 	return lerp(smooth, sharp, .2f);
@@ -78,27 +98,19 @@ float3 Mix(float3 smooth, float3 sharp)
 #endif
 }
 
-float3 DownsampleColor(float targetCoC, float dilatedCoC, float2 centerPoint, float2 cornerPoint)
+float4 DownsampleColor(float targetCoC, float dilatedCoC, float2 centerPoint, float2 cornerPoint)
 {
-	const float4 bilateralWeights[2][2] =
-	{
-		BilateralWeights(COCbuffer.GatherGreen(COCdownsampler, centerPoint, int2(-1, -1)), targetCoC, dilatedCoC),
-		BilateralWeights(COCbuffer.GatherGreen(COCdownsampler, centerPoint, int2(+1, -1)), targetCoC, dilatedCoC),
-		BilateralWeights(COCbuffer.GatherGreen(COCdownsampler, centerPoint, int2(-1, +1)), targetCoC, dilatedCoC),
-		BilateralWeights(COCbuffer.GatherGreen(COCdownsampler, centerPoint, int2(+1, +1)), targetCoC, dilatedCoC)
-	};
+	float4 cornersColor = 0, centerBlockColor = 0;
+	float cornersNorm = 0, centerBlockNorm = 0;
+	FetchBlock(cornersColor, cornersNorm, centerBlockColor, centerBlockNorm, int2(-1, -1), uint2(1, 1), targetCoC, dilatedCoC, centerPoint, cornerPoint);
+	FetchBlock(cornersColor, cornersNorm, centerBlockColor, centerBlockNorm, int2(+1, -1), uint2(1, 0), targetCoC, dilatedCoC, centerPoint, cornerPoint);
+	FetchBlock(cornersColor, cornersNorm, centerBlockColor, centerBlockNorm, int2(-1, +1), uint2(0, 1), targetCoC, dilatedCoC, centerPoint, cornerPoint);
+	FetchBlock(cornersColor, cornersNorm, centerBlockColor, centerBlockNorm, int2(+1, +1), uint2(0, 0), targetCoC, dilatedCoC, centerPoint, cornerPoint);
 
-	float4 corners = 0, centerBlock = 0;
-	FetchBlock(corners, centerBlock, int2(-1, -1), uint2(1, 1), cornerPoint, bilateralWeights[0][0]);
-	FetchBlock(corners, centerBlock, int2(+1, -1), uint2(1, 0), cornerPoint, bilateralWeights[0][1]);
-	FetchBlock(corners, centerBlock, int2(-1, +1), uint2(0, 1), cornerPoint, bilateralWeights[1][0]);
-	FetchBlock(corners, centerBlock, int2(+1, +1), uint2(0, 0), cornerPoint, bilateralWeights[1][1]);
+	DecodeHDRPremultiplied(cornersColor, cornersNorm);
+	DecodeHDRPremultiplied(centerBlockColor, centerBlockNorm);
 
-	// max(_, 0) to protect against possible 0 bilateral weights which translates to NaN after HDR decode
-	corners.rgb = max(DecodeHDRExp(corners, cameraSettings.exposure), 0);
-	centerBlock.rgb = max(DecodeHDRExp(centerBlock, cameraSettings.exposure), 0);
-
-	return Mix(corners, centerBlock);
+	return Mix(cornersColor, centerBlockColor);
 }
 
 // for background hole filling
@@ -141,25 +153,22 @@ LensFlare::Source main(in uint flatPixelIdx : SV_VertexID)
 	const float CoC = COCbuffer.SampleLevel(COCdownsampler, centerPoint, 0), dilatedCoC = DilateCoC(CoC, centerPoint);
 
 	// downsample to halfres with bilateral 5-tap Karis filter for DOF
-	float3 color = DownsampleColor(CoC, dilatedCoC, centerPoint, cornerPoint);
-
-	// store to halfres buffer for subsequent DOF splatting pass
-	dst[coord] = float4(color, dilatedCoC);
+	float4 color = DownsampleColor(CoC, dilatedCoC, centerPoint, cornerPoint);
 
 	/*
 	write directly to DOF blur layer to avoid rasterizing pixel-sized sprites
 	do not blur sharp pixels with small CoC
 	*/
 	[branch]
-	if (dilatedCoC + .5f <= Bokeh::R)
+	if (color.a && dilatedCoC + .5f <= Bokeh::R)
 	{
-		const float opacity = DOF::OpacityHalfres(dilatedCoC, cameraSettings.aperture);
-		if (opacity)
-		{
-			color *= opacity;
-			blurredLayers[uint3(coord, CoC > 0 ? DOF::BACKGROUND_NEAR_LAYER : DOF::FOREGROUND_FAR_LAYER)] = float4(color, opacity);
-		}
+		blurredLayers[uint3(coord, CoC > 0 ? DOF::BACKGROUND_NEAR_LAYER : DOF::FOREGROUND_FAR_LAYER)] = color;
+		color = 0;	// disable rasterization in DOF GS
 	}
+
+	// store to halfres buffers for subsequent DOF splatting pass
+	dilatedCOCbuffer[coord] = dilatedCoC;
+	dst[coord] = color;
 
 	// downsample to halfres with 13-tap partial Karis filter
 
@@ -169,7 +178,7 @@ LensFlare::Source main(in uint flatPixelIdx : SV_VertexID)
 		src.SampleLevel(tapFilter, centerPoint, 0, int2(-1, +1)) +
 		src.SampleLevel(tapFilter, centerPoint, 0, int2(+1, +1));
 
-	color = DecodeHDRExp(block, .5f/*block weight*/ * cameraSettings.exposure);
+	color.rgb = DecodeHDRExp(block, .5f/*block weight*/ * cameraSettings.exposure);
 
 	// shared taps
 	const float4
@@ -180,16 +189,16 @@ LensFlare::Source main(in uint flatPixelIdx : SV_VertexID)
 		S = src.SampleLevel(tapFilter, centerPoint, 0, int2(0, +2));
 
 	block = src.SampleLevel(tapFilter, centerPoint, 0, int2(-2, -2)) + C + W + N;
-	color += DecodeHDRExp(block, .125f/*block weight*/ * cameraSettings.exposure);
+	color.rgb += DecodeHDRExp(block, .125f/*block weight*/ * cameraSettings.exposure);
 
 	block = src.SampleLevel(tapFilter, centerPoint, 0, int2(+2, -2)) + C + E + N;
-	color += DecodeHDRExp(block, .125f/*block weight*/ * cameraSettings.exposure);
+	color.rgb += DecodeHDRExp(block, .125f/*block weight*/ * cameraSettings.exposure);
 
 	block = src.SampleLevel(tapFilter, centerPoint, 0, int2(-2, +2)) + C + W + S;
-	color += DecodeHDRExp(block, .125f/*block weight*/ * cameraSettings.exposure);
+	color.rgb += DecodeHDRExp(block, .125f/*block weight*/ * cameraSettings.exposure);
 
 	block = src.SampleLevel(tapFilter, centerPoint, 0, int2(+2, +2)) + C + E + S;
-	color += DecodeHDRExp(block, .125f/*block weight*/ * cameraSettings.exposure);
+	color.rgb += DecodeHDRExp(block, .125f/*block weight*/ * cameraSettings.exposure);
 
 	// transform 'center' UV -> NDC
 	center *= 2;
@@ -202,7 +211,7 @@ LensFlare::Source main(in uint flatPixelIdx : SV_VertexID)
 		cameraSettings.aperture.xx,
 		cameraSettings.apertureRot,
 		center * cameraSettings.aperture, length(center),
-		color, Vignette(center)
+		color.rgb, Vignette(center)
 	};
 
 	flareSource.ext.x *= float(dstSize.y) / float(dstSize.x);

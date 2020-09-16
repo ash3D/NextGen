@@ -192,7 +192,7 @@ void RenderOutput::NextFrame(bool vsync)
 	const auto rtvHeapStart = rtvHeap->GetCPUDescriptorHandleForHeapStart();
 	const auto postprocessDescriptorTable = GPUDescriptorHeap::FillPostprocessGPUDescriptorTableStore(postprocessCPUDescriptorHeap);
 	viewport->Render(output.Get(), rendertarget.Get(), ZBuffer.Get(), HDRSurfaces, LDRSurface.Get(),
-		COCBuffer.Get(), halfresDOFSurface.Get(), DOFLayers.Get(), lensFlareSurface.Get(), bloomUpChain.Get(), bloomDownChain.Get(), luminanceReductionBuffer.Get(),
+		COCBuffer.Get(), dilatedCOCBuffer.Get(), halfresDOFSurface.Get(), DOFLayers.Get(), lensFlareSurface.Get(), bloomUpChain.Get(), bloomDownChain.Get(), luminanceReductionBuffer.Get(),
 		CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvHeapStart, SCENE_RTV, rtvSize), dsvHeap->GetCPUDescriptorHandleForHeapStart(),
 		CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvHeapStart, DOF_LAYERS_RTVs, rtvSize), CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvHeapStart, LENS_FLARE_RTV, rtvSize),
 		postprocessDescriptorTable, postprocessCPUDescriptorHeap, width, height);
@@ -211,6 +211,7 @@ void RenderOutput::CreateOffscreenSurfaces(UINT width, UINT height)
 	HDRSurfaces[0].Reset();
 	HDRSurfaces[1].Reset();
 	COCBuffer.Reset();
+	dilatedCOCBuffer.Reset();
 	halfresDOFSurface.Reset();
 	DOFLayers.Reset();
 	LDRSurface.Reset();
@@ -286,7 +287,17 @@ void RenderOutput::CreateOffscreenSurfaces(UINT width, UINT height)
 		IID_PPV_ARGS(COCBuffer.GetAddressOf())
 	));
 
-	// create halfres DOF color/CoC surface
+	// create halfres dilated CoC buffer
+	CheckHR(device->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R16_FLOAT, (width + 1) / 2, (height + 1) / 2, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS),
+		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+		NULL,
+		IID_PPV_ARGS(dilatedCOCBuffer.GetAddressOf())
+	));
+
+	// create halfres DOF color surface
 	CheckHR(device->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 		D3D12_HEAP_FLAG_NONE,
@@ -373,6 +384,6 @@ void RenderOutput::CreateOffscreenSurfaces(UINT width, UINT height)
 
 	// fill postprocess descriptors CPU backing store
 	const auto luminanceReductionTexDispatchSize = CSConfig::LuminanceReduction::TexturePass::DispatchSize({ width, height });
-	postprocessCPUDescriptorHeap.Fill(ZBuffer.Get(), HDRSurfaces[0].Get(), HDRSurfaces[1].Get(), LDRSurface.Get(), COCBuffer.Get(), halfresDOFSurface.Get(), DOFLayers.Get(), lensFlareSurface.Get(),
-		bloomUpChain.Get(), bloomDownChain.Get(), luminanceReductionBuffer.Get(), luminanceReductionTexDispatchSize.x * luminanceReductionTexDispatchSize.y);
+	postprocessCPUDescriptorHeap.Fill(ZBuffer.Get(), HDRSurfaces[0].Get(), HDRSurfaces[1].Get(), LDRSurface.Get(), COCBuffer.Get(), dilatedCOCBuffer.Get(), halfresDOFSurface.Get(), DOFLayers.Get(),
+		lensFlareSurface.Get(), bloomUpChain.Get(), bloomDownChain.Get(), luminanceReductionBuffer.Get(), luminanceReductionTexDispatchSize.x * luminanceReductionTexDispatchSize.y);
 }

@@ -7,7 +7,7 @@
 SamplerState tapFilter : register(s0);
 Texture2D src : register(t2);
 RWTexture2D<float4> dst : register(u1);
-Texture2D bloom : register(t8);
+Texture2D bloom : register(t9);
 ConstantBuffer<CameraParams::Settings> cameraSettings : register(b1);
 
 namespace Tonemapping
@@ -31,5 +31,6 @@ void main(in uint2 coord : SV_DispatchThreadID)
 	float3 exposedPixel = DecodeHDR(src[coord]);
 	exposedPixel += UpsampleBlur3(bloom, tapFilter, centerPoint) / 6;
 	// Reinhard maps inf to NaN (inf/inf), 'min' converts it to large value
+	dst[coord] = float4(min(Tonemapping::Reinhard(exposedPixel, cameraSettings.whitePointFactor), 64E3f), 1);
 	dst[coord] = float4(min(Tonemapping::Reinhard(exposedPixel, cameraSettings.whitePointFactor), 64E3f), 1);
 }

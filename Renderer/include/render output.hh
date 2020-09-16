@@ -18,7 +18,7 @@ namespace Renderer
 	class RenderOutput
 	{
 		Impl::TrackedResource<IDXGISwapChain4> swapChain;
-		Impl::TrackedResource<ID3D12Resource> rendertarget, ZBuffer, HDRSurfaces[2], LDRSurface, COCBuffer, halfresDOFSurface/*scene color + CoC*/, DOFLayers, lensFlareSurface, bloomUpChain, bloomDownChain;
+		Impl::TrackedResource<ID3D12Resource> rendertarget, ZBuffer, HDRSurfaces[2], LDRSurface, COCBuffer, dilatedCOCBuffer, halfresDOFSurface, DOFLayers, lensFlareSurface, bloomUpChain, bloomDownChain;
 		Impl::TrackedResource<ID3D12DescriptorHeap> rtvHeap, dsvHeap;	// is tracking really needed?
 		Impl::Descriptors::PostprocessDescriptorTableStore postprocessCPUDescriptorHeap;
 		Impl::TrackedRef::Ref<class Viewport> viewport;

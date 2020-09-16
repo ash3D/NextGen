@@ -53,14 +53,13 @@ class Sprite : BokehSprite
 void main(point DOF::SplatPoint splatPoint[1], inout TriangleStream<DOF::SpriteVertex> spriteCorners)
 {
 	[branch]
-	if (splatPoint[0].coc[1] + .5f > Bokeh::R)
+	if (splatPoint[0].col.a)
 	{
 		const Sprite sprite =
 		{
 			splatPoint[0].pos,
 			DOF::BlendFar(splatPoint[0].coc[0]),
 			splatPoint[0].col,
-			DOF::OpacityHalfres(splatPoint[0].coc[1], splatPoint[0].apt),
 			splatPoint[0].ext * sign(splatPoint[0].coc[0])/*mirror bokeh for foreground field*/,
 			(splatPoint[0].coc[1] + .5f) / Bokeh::R/*treat inner R as CoC, blow quad to fit*/,
 			splatPoint[0].rot,

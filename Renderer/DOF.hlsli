@@ -63,6 +63,6 @@ namespace DOF
 		float2	rot : ROTATION;
 		float2	coc : CoC;
 		float	apt : APERTURE;
-		half3	col : COLOR;
+		half4	col : COLOR;
 	};
 }

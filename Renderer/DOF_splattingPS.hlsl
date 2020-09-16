@@ -42,10 +42,10 @@ Layers main(nointerpolation half4 spriteColor : COLOR, noperspective float2 circ
 #endif
 
 	const float circleFade = saturate(circleDist);
-	spriteColor.a *= min(edgeFade, circleFade);
+	const float fade = min(edgeFade, circleFade);
 
 	Layers layers = { spriteColor, spriteColor };
-	layers.near.a *= 1 - pos.z;
-	layers.far.a *= pos.z;
+	layers.near *= fade * (1 - pos.z);
+	layers.far *= fade * pos.z;
 	return layers;
 }

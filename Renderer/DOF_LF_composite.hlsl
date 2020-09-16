@@ -8,9 +8,9 @@ SamplerState tapFilter : register(s0);
 SamplerState COCsampler : register(s1);
 Texture2DMS<float> ZBuffer : register(t0);
 Texture2D fullresScene : register(t1);
-Texture2D halfresScene : register(t5);	// for halfres CoC buffer in alpha channel
-Texture2DArray blurredLayers : register(t6);
-Texture2D lensFlare : register(t7);
+Texture2D<float1> dilatedCOCbuffer : register(t5);
+Texture2DArray blurredLayers : register(t7);
+Texture2D lensFlare : register(t8);
 RWTexture2D<float4> dst : register(u0);
 ConstantBuffer<CameraParams::Settings> cameraSettings : register(b1);
 
@@ -52,7 +52,7 @@ inline float FullresOpacity(uint2 coord, float2 centerPoint)
 
 	opacity_MSAA /= MSAA;
 
-	return min(DOF::OpacityFullres(halfresScene.SampleLevel(COCsampler, centerPoint, 0).a, cameraSettings.aperture), opacity_MSAA);
+	return min(DOF::OpacityFullres(dilatedCOCbuffer.SampleLevel(COCsampler, centerPoint, 0), cameraSettings.aperture), opacity_MSAA);
 }
 
 [numthreads(CSConfig::ImageProcessing::blockSize, CSConfig::ImageProcessing::blockSize, 1)]

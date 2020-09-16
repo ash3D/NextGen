@@ -11,11 +11,21 @@ namespace HDRImpl
 		reinhardLimit = fp16Range[0] / fp16Range[1],
 		reinhardExpLimit = fp16Range[0] / (CameraParams::exposureLimits[0] * HDRAlphaRescale);
 
-	inline float4 EncodeHDR(float3 color, float factor, uniform float reinhardFactorLimit)
+#	define GENERATE_ENCODE_HDR(dim)																					\
+	inline void EncodeHDR(inout vector<float, dim> color, inout float factor, uniform float reinhardFactorLimit)	\
+	{																												\
+		const float reinhardFactor = max(rcp(1 + RGB_2_luminance(color)), reinhardFactorLimit);						\
+		color *= reinhardFactor;	/* inf -> NaN */																\
+		factor *= reinhardFactor/*[0..1]*/;																			\
+	}
+
+	GENERATE_ENCODE_HDR(3)
+	GENERATE_ENCODE_HDR(4)
+#	undef GENERATE_ENCODE_HDR
+
+	inline float4 EncodeHDR_RGB(float3 color, float factor, uniform float reinhardFactorLimit)
 	{
-		const float reinhardFactor = max(rcp(1 + RGB_2_luminance(color)), reinhardFactorLimit);
-		color *= reinhardFactor;	// inf -> NaN
-		factor *= reinhardFactor/*[0..1]*/;
+		EncodeHDR(color, factor, reinhardFactorLimit);
 #if 0
 		color = min(color, 1);	// NaN -> 1 -> inf in decode
 #endif
@@ -41,12 +51,18 @@ namespace HDRImpl
 */
 float4 EncodeHDRExp(float3 color, float exposure)
 {
-	return HDRImpl::EncodeHDR(color * exposure, exposure/*[exposureLimits[0]..exposureLimits[1]]*/ * HDRImpl::HDRAlphaRescale, HDRImpl::reinhardExpLimit);
+	return HDRImpl::EncodeHDR_RGB(color * exposure, exposure/*[exposureLimits[0]..exposureLimits[1]]*/ * HDRImpl::HDRAlphaRescale, HDRImpl::reinhardExpLimit);
 }
 
 float4 EncodeHDR(float3 color)
 {
-	return HDRImpl::EncodeHDR(color, HDRImpl::fp16Range[1], HDRImpl::reinhardLimit);
+	return HDRImpl::EncodeHDR_RGB(color, HDRImpl::fp16Range[1], HDRImpl::reinhardLimit);
+}
+
+void EncodeHDRPremultiplied(inout float4 color, out float HDRnorm)
+{
+	HDRnorm = HDRImpl::fp16Range[1];
+	HDRImpl::EncodeHDR(color, HDRnorm, HDRImpl::reinhardLimit);
 }
 
 float4 EncodeLDRExp(float3 color, float exposure)
@@ -74,4 +90,9 @@ float3 DecodeHDR(float4 encodedPixel)
 float3 DecodeHDR(float4 encodedPixel, float scale)
 {
 	return HDRImpl::DecodeHDR(encodedPixel, scale * HDRImpl::fp16Range[1]);
+}
+
+void DecodeHDRPremultiplied(inout float4 color, in float HDRnorm)
+{
+	color *= HDRImpl::fp16Range[1] / HDRnorm;
 }
