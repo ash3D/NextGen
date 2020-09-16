@@ -4,6 +4,10 @@
 #include "camera params.hlsli"
 #include "HDR codec.hlsli"
 
+// it seems that Kepler doesn't support texture MIN filter\
+no way to query support in D3D12?
+#define ENABLE_HARDWARE_COC_DOWNSAMPLE 0
+
 SamplerState tapFilter : register(s0);
 SamplerState bilateralTapSampler : register(s1);
 SamplerState COCdownsampler : register(s2);
@@ -98,6 +102,20 @@ float4 Mix(float4 smooth, float4 sharp)
 #endif
 }
 
+#if ENABLE_HARDWARE_COC_DOWNSAMPLE
+inline float DownsampleCoC(float2 centerPoint, int2 offset = 0)
+{
+	return COCbuffer.SampleLevel(COCdownsampler, centerPoint, 0, offset);
+}
+#else
+float DownsampleCoC(float2 centerPoint, int2 offset = 0)
+{
+	float4 CoCBlock = COCbuffer.Gather(COCdownsampler, centerPoint, offset);
+	CoCBlock.xy = min(CoCBlock.xy, CoCBlock.zw);
+	return min(CoCBlock.x, CoCBlock.y);
+}
+#endif
+
 float4 DownsampleColor(float targetCoC, float dilatedCoC, float2 centerPoint, float2 cornerPoint)
 {
 	float4 cornersColor = 0, centerBlockColor = 0;
@@ -124,7 +142,7 @@ float DilateCoC(float CoC, float2 centerPoint)
 		{
 			const float dist = max(abs(r), abs(c));
 			const float weight = 1 - dist / (holeFillingBlurBand + 1);	// (holeFillingBlurBand + 1 - dist) / (holeFillingBlurBand + 1)
-			const float tapCoC = COCbuffer.SampleLevel(COCdownsampler, centerPoint, 0, int2(c, r) * 2);
+			const float tapCoC = DownsampleCoC(centerPoint, int2(c, r) * 2);
 			dilatedCoC = max(dilatedCoC, lerp(abs(CoC), -tapCoC, weight));
 		}
 	return dilatedCoC;
@@ -150,7 +168,7 @@ LensFlare::Source main(in uint flatPixelIdx : SV_VertexID)
 		center /= dstSize;
 	}
 
-	const float CoC = COCbuffer.SampleLevel(COCdownsampler, centerPoint, 0), dilatedCoC = DilateCoC(CoC, centerPoint);
+	const float CoC = DownsampleCoC(centerPoint), dilatedCoC = DilateCoC(CoC, centerPoint);
 
 	// downsample to halfres with bilateral 5-tap Karis filter for DOF
 	float4 color = DownsampleColor(CoC, dilatedCoC, centerPoint, cornerPoint);
