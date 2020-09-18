@@ -32,5 +32,4 @@ void main(in uint2 coord : SV_DispatchThreadID)
 	exposedPixel += UpsampleBlur3(bloom, tapFilter, centerPoint) / 6;
 	// Reinhard maps inf to NaN (inf/inf), 'min' converts it to large value
 	dst[coord] = float4(min(Tonemapping::Reinhard(exposedPixel, cameraSettings.whitePointFactor), 64E3f), 1);
-	dst[coord] = float4(min(Tonemapping::Reinhard(exposedPixel, cameraSettings.whitePointFactor), 64E3f), 1);
 }
