@@ -24,7 +24,8 @@ ConstantBuffer<CameraParams::Settings> cameraSettings : register(b1);
 * can fallback to DX11+ gather with programmable offsets to support larger values
 */
 static const int holeFillingBlurBand = 3;
-static const float antileakFactor = 10;	// rcp(max leak percentage)
+static const float shrinkFadeFactor = 3;	// controls how opacity fading affect CoC shrinking
+static const float antileakFactor = 10;		// rcp(max leak percentage)
 
 inline float Vignette(float2 ndc)
 {
@@ -134,18 +135,35 @@ float4 DownsampleColor(float targetCoC, float dilatedCoC, float2 centerPoint, fl
 // for background hole filling
 float DilateCoC(float CoC, float2 centerPoint)
 {
-	float dilatedCoC = abs(CoC);
+	float shrinkedCoC = abs(CoC), dilatedCoC = 0, dilatedWeight = 0;
 	[unroll]
 	for (int r = -holeFillingBlurBand; r <= +holeFillingBlurBand; r++)
 		[unroll]
 		for (int c = -holeFillingBlurBand; c <= +holeFillingBlurBand; c++)
 		{
-			const float dist = max(abs(r), abs(c));
-			const float weight = 1 - dist / (holeFillingBlurBand + 1);	// (holeFillingBlurBand + 1 - dist) / (holeFillingBlurBand + 1)
 			const float tapCoC = DownsampleCoC(centerPoint, int2(c, r) * 2);
-			dilatedCoC = max(dilatedCoC, lerp(abs(CoC), -tapCoC, weight));
+			if (tapCoC < CoC)
+			{
+				const float dist = max(abs(r), abs(c));
+				float weight = 1 - dist / (holeFillingBlurBand + 1);	// (holeFillingBlurBand + 1 - dist) / (holeFillingBlurBand + 1)
+				const float weightedTap = weight * -tapCoC;
+				[flatten]
+				if (weightedTap > dilatedCoC)
+				{
+					dilatedCoC = weightedTap;
+					dilatedWeight = weight;
+				}
+				if (tapCoC > 0)
+				{
+					// prevent shrinking across layers\
+					can also opt to shrink in near layer only - use '1 - DOF::BlendFar(CoC)' factor instead (which is 'CoC' blend near factor)
+					weight *= 1 - (DOF::BlendFar(CoC) - DOF::BlendFar(tapCoC));
+					weight *= saturate(DOF::OpacityHalfres(tapCoC, cameraSettings.aperture) * shrinkFadeFactor);
+					shrinkedCoC = min(shrinkedCoC, lerp(abs(CoC), abs(tapCoC), weight));
+				}
+			}
 		}
-	return dilatedCoC;
+	return max(shrinkedCoC, shrinkedCoC * (1 - dilatedWeight) + dilatedCoC);
 }
 
 /*
