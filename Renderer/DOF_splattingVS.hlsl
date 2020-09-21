@@ -27,7 +27,7 @@ DOF::SplatPoint main(in uint flatPixelIdx : SV_VertexID)
 	center.y = -center.y;
 
 	const float
-		CoC = fullresCOCbuffer.SampleLevel(COCdownsampler, centerPoint, 0),
+		CoC = DOF::DownsampleCoC(fullresCOCbuffer, COCdownsampler, centerPoint),
 		dilatedCoC = dilatedCOCbuffer[coord];
 
 	const DOF::SplatPoint splatPoint =

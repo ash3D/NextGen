@@ -5,6 +5,10 @@
 // return 0 permanently in PS on Kepler, try with other GPUs
 #define HW_CLIP_DIST_IN_PS 0
 
+// it seems that Kepler doesn't support texture MIN filter\
+no way to query support in D3D12?
+#define ENABLE_HARDWARE_COC_DOWNSAMPLE 0
+
 namespace DOF
 {
 	static const float
@@ -55,6 +59,20 @@ namespace DOF
 		const float fullresOpacity = halfresOpacity * .25f;
 		return saturate(halfresOpacity * (1 - fullresOpacity));
 	}
+
+#if ENABLE_HARDWARE_COC_DOWNSAMPLE
+	inline float DownsampleCoC(uniform Texture2D<float2> COCbuffer, uniform SamplerState COCdownsampler, in float2 centerPoint, uniform int2 offset = 0)
+	{
+		return COCbuffer.SampleLevel(COCdownsampler, centerPoint, 0, offset);
+	}
+#else
+	float DownsampleCoC(uniform Texture2D<float2> COCbuffer, uniform SamplerState COCdownsampler, in float2 centerPoint, uniform int2 offset = 0)
+	{
+		float4 CoCBlock = COCbuffer.Gather(COCdownsampler, centerPoint, offset);
+		CoCBlock.xy = min(CoCBlock.xy, CoCBlock.zw);
+		return min(CoCBlock.x, CoCBlock.y);
+	}
+#endif
 
 	struct SplatPoint
 	{
