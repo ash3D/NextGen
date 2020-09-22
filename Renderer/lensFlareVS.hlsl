@@ -144,8 +144,13 @@ float DilateCoC(float CoC, float2 centerPoint)
 			const float tapCoC = DOF::DownsampleCoC(COCbuffer, COCdownsampler, centerPoint, int2(c, r) * 2);
 			if (tapCoC < CoC)
 			{
-				const float dist = max(abs(r), abs(c));
-				float weight = 1 - dist / (holeFillingBlurBand + 1);	// (holeFillingBlurBand + 1 - dist) / (holeFillingBlurBand + 1)
+#if 1
+				const float dist = max(abs(r), abs(c)) - 1;					// max 'holeFillingBlurBand - 1'
+				float weight = saturate(1 - dist / holeFillingBlurBand);	// (holeFillingBlurBand - dist) / holeFillingBlurBand
+#else
+				const float dist = max(abs(r), abs(c));						// max 'holeFillingBlurBand'
+				float weight = 1 - dist / (holeFillingBlurBand + 1);		// (holeFillingBlurBand + 1 - dist) / (holeFillingBlurBand + 1)
+#endif
 				const float weightedTap = weight * -tapCoC;
 				[flatten]
 				if (weightedTap > dilatedCoC)
