@@ -29,17 +29,22 @@ inline float Vignette(float2 ndc)
 	return fade * fade;
 }
 
-inline float UnpackGatherBlock(in float4 block, uniform uint2 idx)
+inline uint FlattenGatherBlockIdx(uniform uint2 idx)
 {
 	static const uint remapLUT[2][2] =
 	{
 		3, 2,
 		0, 1
 	};
-	return block[remapLUT[idx.x][idx.y]];
+	return remapLUT[idx.x][idx.y];
 }
 
-void OpacityPremultiply(inout float4 color/*HDR encoded*/, out float HDRnorm, in float CoC/*fullres*/, in float dilatedCoC/*halfres*/, in float foregroundOpacity/*signed*/)
+inline float UnpackGatherBlock(in float4 block, uniform uint2 idx)
+{
+	return block[FlattenGatherBlockIdx(idx)];
+}
+
+void OpacityPremultiply(inout float4 color/*HDR encoded*/, out float HDRnorm, in float CoC/*fullres*/, in float dilatedCoC/*halfres*/, in float foregroundOpacity/*signed*/, in float bilateralWeight)
 {
 	const float tapOpacity = DOF::OpacityHalfres(max(abs(CoC), dilatedCoC), cameraSettings.aperture);
 
@@ -58,6 +63,8 @@ void OpacityPremultiply(inout float4 color/*HDR encoded*/, out float HDRnorm, in
 
 	// limited leak background onto foreground
 	opacity += min(1 - saturate(abs(foregroundOpacity) + opacity), tapOpacity - opacity/*tapOpacity * (1 - intralayerLeak)*/);
+
+	opacity *= bilateralWeight;
 	
 	color.rgb = max(DecodeHDRExp(color, cameraSettings.exposure * opacity), 0);
 	color.a = opacity;
@@ -75,9 +82,9 @@ float4 BilateralWeights(float4 CoCBlock, float targetCoC)
 	return weights;
 }
 
-void FetchBlock(inout float4 cornerColor, inout float cornerNorm, inout float4 centerColor, inout float centerNorm, uniform int2 offset/*right bottom*/, uniform uint2 centerIdx, in float targetCoC, in float dilatedCoC, in float foregroundOpacity, in float2 centerPoint, in float2 cornerPoint)
+void FetchBlock(inout float4 cornerColor, inout float cornerNorm, inout float4 centerColor, inout float centerNorm, uniform int2 offset/*right bottom*/, uniform uint2 centerIdx,
+	in float4 CoCBlock, in float dilatedCoC, in float foregroundOpacity, in float4 bilateralWeightsBlock, in float2 cornerPoint)
 {
-	const float4 CoCBlock = COCbuffer.GatherGreen(COCdownsampler, centerPoint, offset);
 	float4 colorBlock[2][2] =
 	{
 		src.SampleLevel(bilateralTapSampler, cornerPoint, 0, offset - int2(1, 1)),
@@ -86,20 +93,10 @@ void FetchBlock(inout float4 cornerColor, inout float cornerNorm, inout float4 c
 		src.SampleLevel(bilateralTapSampler, cornerPoint, 0, offset - int2(0, 0))
 	};
 	float HDRnormBlock[2][2];
-	OpacityPremultiply(colorBlock[0][0], HDRnormBlock[0][0], UnpackGatherBlock(CoCBlock, uint2(0, 0)), dilatedCoC, foregroundOpacity);
-	OpacityPremultiply(colorBlock[0][1], HDRnormBlock[0][1], UnpackGatherBlock(CoCBlock, uint2(0, 1)), dilatedCoC, foregroundOpacity);
-	OpacityPremultiply(colorBlock[1][0], HDRnormBlock[1][0], UnpackGatherBlock(CoCBlock, uint2(1, 0)), dilatedCoC, foregroundOpacity);
-	OpacityPremultiply(colorBlock[1][1], HDRnormBlock[1][1], UnpackGatherBlock(CoCBlock, uint2(1, 1)), dilatedCoC, foregroundOpacity);
-
-	const float4 bilateralWeights = BilateralWeights(CoCBlock, targetCoC);
-	colorBlock[0][0] *= UnpackGatherBlock(bilateralWeights, uint2(0, 0));
-	colorBlock[0][1] *= UnpackGatherBlock(bilateralWeights, uint2(0, 1));
-	colorBlock[1][0] *= UnpackGatherBlock(bilateralWeights, uint2(1, 0));
-	colorBlock[1][1] *= UnpackGatherBlock(bilateralWeights, uint2(1, 1));
-	HDRnormBlock[0][0] *= UnpackGatherBlock(bilateralWeights, uint2(0, 0));
-	HDRnormBlock[0][1] *= UnpackGatherBlock(bilateralWeights, uint2(0, 1));
-	HDRnormBlock[1][0] *= UnpackGatherBlock(bilateralWeights, uint2(1, 0));
-	HDRnormBlock[1][1] *= UnpackGatherBlock(bilateralWeights, uint2(1, 1));
+	OpacityPremultiply(colorBlock[0][0], HDRnormBlock[0][0], UnpackGatherBlock(CoCBlock, uint2(0, 0)), dilatedCoC, foregroundOpacity, UnpackGatherBlock(bilateralWeightsBlock, uint2(0, 0)));
+	OpacityPremultiply(colorBlock[0][1], HDRnormBlock[0][1], UnpackGatherBlock(CoCBlock, uint2(0, 1)), dilatedCoC, foregroundOpacity, UnpackGatherBlock(bilateralWeightsBlock, uint2(0, 1)));
+	OpacityPremultiply(colorBlock[1][0], HDRnormBlock[1][0], UnpackGatherBlock(CoCBlock, uint2(1, 0)), dilatedCoC, foregroundOpacity, UnpackGatherBlock(bilateralWeightsBlock, uint2(1, 0)));
+	OpacityPremultiply(colorBlock[1][1], HDRnormBlock[1][1], UnpackGatherBlock(CoCBlock, uint2(1, 1)), dilatedCoC, foregroundOpacity, UnpackGatherBlock(bilateralWeightsBlock, uint2(1, 1)));
 
 	centerColor += colorBlock[centerIdx.x][centerIdx.y];
 	centerNorm += HDRnormBlock[centerIdx.x][centerIdx.y];
@@ -118,13 +115,39 @@ float4 Mix(float4 smooth, float4 sharp)
 
 float4 DownsampleColor(float targetCoC, float dilatedCoC, float2 centerPoint, float2 cornerPoint)
 {
+	const float4 CoCsFootprint[2][2] =
+	{
+		COCbuffer.GatherGreen(tapFilter, centerPoint, int2(-1, -1)),
+		COCbuffer.GatherGreen(tapFilter, centerPoint, int2(+1, -1)),
+		COCbuffer.GatherGreen(tapFilter, centerPoint, int2(-1, +1)),
+		COCbuffer.GatherGreen(tapFilter, centerPoint, int2(+1, +1))
+	};
+
+	float4 bilateralWeights[2][2] =
+	{
+		BilateralWeights(CoCsFootprint[0][0], targetCoC),
+		BilateralWeights(CoCsFootprint[0][1], targetCoC),
+		BilateralWeights(CoCsFootprint[1][0], targetCoC),
+		BilateralWeights(CoCsFootprint[1][1], targetCoC)
+	};
+
+	// normalize weights
+	const float4 norm4 = bilateralWeights[0][0] + bilateralWeights[0][1] + bilateralWeights[1][0] + bilateralWeights[1][1];
+	const float2 norm2 = norm4.xy + norm4.zw;
+	const float1 norm1 = norm2.x + norm2.y;
+	const float centerNormCompensate = 4 - norm1 * .25f;	// (16 - norm1) / 4
+	bilateralWeights[0][0][FlattenGatherBlockIdx(uint2(1, 1))] += centerNormCompensate;
+	bilateralWeights[0][1][FlattenGatherBlockIdx(uint2(1, 0))] += centerNormCompensate;
+	bilateralWeights[1][0][FlattenGatherBlockIdx(uint2(0, 1))] += centerNormCompensate;
+	bilateralWeights[1][1][FlattenGatherBlockIdx(uint2(0, 0))] += centerNormCompensate;
+
 	const float foregroundOpacity = saturate(DOF::Opacity(targetCoC, cameraSettings.aperture)) * sign(targetCoC);
 	float4 cornersColor = 0, centerBlockColor = 0;
 	float cornersNorm = 0, centerBlockNorm = 0;
-	FetchBlock(cornersColor, cornersNorm, centerBlockColor, centerBlockNorm, int2(-1, -1), uint2(1, 1), targetCoC, dilatedCoC, foregroundOpacity, centerPoint, cornerPoint);
-	FetchBlock(cornersColor, cornersNorm, centerBlockColor, centerBlockNorm, int2(+1, -1), uint2(1, 0), targetCoC, dilatedCoC, foregroundOpacity, centerPoint, cornerPoint);
-	FetchBlock(cornersColor, cornersNorm, centerBlockColor, centerBlockNorm, int2(-1, +1), uint2(0, 1), targetCoC, dilatedCoC, foregroundOpacity, centerPoint, cornerPoint);
-	FetchBlock(cornersColor, cornersNorm, centerBlockColor, centerBlockNorm, int2(+1, +1), uint2(0, 0), targetCoC, dilatedCoC, foregroundOpacity, centerPoint, cornerPoint);
+	FetchBlock(cornersColor, cornersNorm, centerBlockColor, centerBlockNorm, int2(-1, -1), uint2(1, 1), CoCsFootprint[0][0], dilatedCoC, foregroundOpacity, bilateralWeights[0][0], cornerPoint);
+	FetchBlock(cornersColor, cornersNorm, centerBlockColor, centerBlockNorm, int2(+1, -1), uint2(1, 0), CoCsFootprint[0][1], dilatedCoC, foregroundOpacity, bilateralWeights[0][1], cornerPoint);
+	FetchBlock(cornersColor, cornersNorm, centerBlockColor, centerBlockNorm, int2(-1, +1), uint2(0, 1), CoCsFootprint[1][0], dilatedCoC, foregroundOpacity, bilateralWeights[1][0], cornerPoint);
+	FetchBlock(cornersColor, cornersNorm, centerBlockColor, centerBlockNorm, int2(+1, +1), uint2(0, 0), CoCsFootprint[1][1], dilatedCoC, foregroundOpacity, bilateralWeights[1][1], cornerPoint);
 
 	DecodeHDRPremultiplied(cornersColor, cornersNorm);
 	DecodeHDRPremultiplied(centerBlockColor, centerBlockNorm);
