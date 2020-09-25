@@ -6,11 +6,11 @@
 
 SamplerState tapFilter : register(s0);
 SamplerState COCsampler : register(s1);
-Texture2DMS<float> ZBuffer : register(t0);
 Texture2D fullresScene : register(t1);
-Texture2D<float1> dilatedCOCbuffer : register(t5);
-Texture2DArray blurredLayers : register(t7);
-Texture2D lensFlare : register(t8);
+Texture2D<float> DOFopacityBuffer : register(t4);
+Texture2D<float> dilatedCOCbuffer : register(t6);
+Texture2DArray blurredLayers : register(t8);
+Texture2D lensFlare : register(t9);
 RWTexture2D<float4> dst : register(u0);
 ConstantBuffer<CameraParams::Settings> cameraSettings : register(b1);
 
@@ -41,18 +41,8 @@ void CompensateOcclusion(inout float4 target, in float4 layer/*normalized*/)
 
 inline float FullresOpacity(uint2 coord, float2 centerPoint)
 {
-	uint2 resolution;
-	uint MSAA;
-	ZBuffer.GetDimensions(resolution.x, resolution.y, MSAA);
-
-	float opacity_MSAA = 0;
-
-	for (uint sampleIdx = 0; sampleIdx < MSAA; sampleIdx++)
-		opacity_MSAA += DOF::OpacityFullres(cameraSettings.COC(ZBuffer.sample[sampleIdx][coord]), cameraSettings.aperture);
-
-	opacity_MSAA /= MSAA;
-
-	return min(DOF::OpacityFullres(dilatedCOCbuffer.SampleLevel(COCsampler, centerPoint, 0), cameraSettings.aperture), opacity_MSAA);
+	const float dilatedCOC = dilatedCOCbuffer.SampleLevel(COCsampler, centerPoint, 0);
+	return min(DOFopacityBuffer[coord], DOF::OpacityFullres(dilatedCOC, cameraSettings.aperture));
 }
 
 [numthreads(CSConfig::ImageProcessing::blockSize, CSConfig::ImageProcessing::blockSize, 1)]

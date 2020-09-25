@@ -104,11 +104,10 @@ void main(in uint globalIdx : SV_DispatchThreadID, in uint localIdx : SV_GroupIn
 
 		LumAdaptaion::UpdateCameraSettings(finalReduction[0], finalReduction[1], lastSettings[0], lastSettings[1], exposure, aperture, whitePointFactor, apertureRot);
 
-		uint2 halfres;
+		uint2 resolution;
 		uint MSAA;
-		ZBuffer.GetDimensions(halfres.x, halfres.y, MSAA);
-		halfres /= 2;
-		UpdateFocusSettings(aperture, halfres.y/*want CoC in halfres pixels*/, ZBuffer[halfres/*focus on center point*/], lastSettings[2], COCParams);
+		ZBuffer.GetDimensions(resolution.x, resolution.y, MSAA);
+		UpdateFocusSettings(aperture, resolution.y/*want CoC in fullres pixels*/, ZBuffer[resolution / 2/*focus on center point*/], lastSettings[2], COCParams);
 
 		cameraSettings.Store3(0, asuint(lastSettings));
 		cameraSettings.Store3(12, asuint(float3(exposure, aperture, whitePointFactor)));

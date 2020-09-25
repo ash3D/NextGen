@@ -8,10 +8,11 @@ SamplerState tapFilter : register(s0);
 SamplerState bilateralTapSampler : register(s1);
 SamplerState COCdownsampler : register(s2);
 Texture2D src : register(t1);
-Texture2D<float2> COCbuffer : register(t4);
-RWTexture2D<float> dilatedCOCbuffer : register(u5);
-RWTexture2D<float4> dst : register(u6);
-RWTexture2DArray<float4> blurredLayers : register(u7);
+Texture2D<float> DOFopacityBuffer : register(t4);
+Texture2D<float> COCbuffer : register(t5);
+RWTexture2D<float> dilatedCOCbuffer : register(u6);
+RWTexture2D<float4> dst : register(u7);
+RWTexture2DArray<float4> blurredLayers : register(u8);
 ConstantBuffer<CameraParams::Settings> cameraSettings : register(b1);
 
 /*
@@ -44,10 +45,9 @@ inline float UnpackGatherBlock(in float4 block, uniform uint2 idx)
 	return block[FlattenGatherBlockIdx(idx)];
 }
 
-void OpacityPremultiply(inout float4 color/*HDR encoded*/, out float HDRnorm, in float CoC/*fullres*/, in float dilatedCoC/*halfres*/, in float foregroundOpacity/*signed*/, in float bilateralWeight)
+void OpacityPremultiply(inout float4 color/*HDR encoded*/, out float HDRnorm,
+	in float tapCoC/*fullres*/, in float tapOpacity/*fullres*/, in float dilatedOpacity/*halfres*/, in float foregroundOpacity/*signed*/, in float bilateralWeight)
 {
-	const float tapOpacity = DOF::OpacityHalfres(max(abs(CoC), dilatedCoC), cameraSettings.aperture);
-
 	/*
 	* split opacity into 2 components: intralayer + interlayer
 	* intralayer leaks uncontrolled
@@ -58,7 +58,8 @@ void OpacityPremultiply(inout float4 color/*HDR encoded*/, out float HDRnorm, in
 	*/
 	
 	// preserve intralayer leak
-	const float intralayerLeak = foregroundOpacity > 0 ? 1 - DOF::BlendFar(CoC) : step(CoC, 0);
+	const float intralayerLeak = foregroundOpacity > 0 ? 1 - DOF::BlendFar(DOF::CoC(tapOpacity, cameraSettings.aperture)) : step(tapCoC, 0)/*step(-foregroundOpacity, tapOpacity)*//*heuristic for 'CoC <= 0'*/;
+	tapOpacity = min(DOF::HalfresOpacity(tapOpacity), dilatedOpacity);	// 'tapOpacity' now in halfres units
 	float opacity = tapOpacity * intralayerLeak;
 
 	// limited leak background onto foreground
@@ -75,16 +76,17 @@ float4 BilateralWeights(float4 CoCBlock, float targetCoC)
 {
 	float4 weights = 1;
 
+	// should be 'antileakFactor >= 1' in order to 'weights = 0' for 'CoCBlock < 0' case
 	if (targetCoC > 0)
-		//weights *= saturate(1 - (targetCoC - abs(CoCBlock)) / abs(CoCBlock) * antileakFactor);
-		weights *= saturate(1 + antileakFactor - targetCoC / abs(CoCBlock) * antileakFactor);
+		weights = saturate(1 - (targetCoC - CoCBlock) / abs(CoCBlock) * antileakFactor);
 
 	return weights;
 }
 
 void FetchBlock(inout float4 cornerColor, inout float cornerNorm, inout float4 centerColor, inout float centerNorm, uniform int2 offset/*right bottom*/, uniform uint2 centerIdx,
-	in float4 CoCBlock, in float dilatedCoC, in float foregroundOpacity, in float4 bilateralWeightsBlock, in float2 cornerPoint)
+	in float4 CoCBlock, in float dilatedOpacity, in float foregroundOpacity, in float4 bilateralWeightsBlock, in float2 centerPoint, in float2 cornerPoint)
 {
+	const float4 opacityBlock = DOFopacityBuffer.Gather(COCdownsampler, centerPoint, offset);	// in fullres units here
 	float4 colorBlock[2][2] =
 	{
 		src.SampleLevel(bilateralTapSampler, cornerPoint, 0, offset - int2(1, 1)),
@@ -93,10 +95,10 @@ void FetchBlock(inout float4 cornerColor, inout float cornerNorm, inout float4 c
 		src.SampleLevel(bilateralTapSampler, cornerPoint, 0, offset - int2(0, 0))
 	};
 	float HDRnormBlock[2][2];
-	OpacityPremultiply(colorBlock[0][0], HDRnormBlock[0][0], UnpackGatherBlock(CoCBlock, uint2(0, 0)), dilatedCoC, foregroundOpacity, UnpackGatherBlock(bilateralWeightsBlock, uint2(0, 0)));
-	OpacityPremultiply(colorBlock[0][1], HDRnormBlock[0][1], UnpackGatherBlock(CoCBlock, uint2(0, 1)), dilatedCoC, foregroundOpacity, UnpackGatherBlock(bilateralWeightsBlock, uint2(0, 1)));
-	OpacityPremultiply(colorBlock[1][0], HDRnormBlock[1][0], UnpackGatherBlock(CoCBlock, uint2(1, 0)), dilatedCoC, foregroundOpacity, UnpackGatherBlock(bilateralWeightsBlock, uint2(1, 0)));
-	OpacityPremultiply(colorBlock[1][1], HDRnormBlock[1][1], UnpackGatherBlock(CoCBlock, uint2(1, 1)), dilatedCoC, foregroundOpacity, UnpackGatherBlock(bilateralWeightsBlock, uint2(1, 1)));
+	OpacityPremultiply(colorBlock[0][0], HDRnormBlock[0][0], UnpackGatherBlock(CoCBlock, uint2(0, 0)), UnpackGatherBlock(opacityBlock, uint2(0, 0)), dilatedOpacity, foregroundOpacity, UnpackGatherBlock(bilateralWeightsBlock, uint2(0, 0)));
+	OpacityPremultiply(colorBlock[0][1], HDRnormBlock[0][1], UnpackGatherBlock(CoCBlock, uint2(0, 1)), UnpackGatherBlock(opacityBlock, uint2(0, 1)), dilatedOpacity, foregroundOpacity, UnpackGatherBlock(bilateralWeightsBlock, uint2(0, 1)));
+	OpacityPremultiply(colorBlock[1][0], HDRnormBlock[1][0], UnpackGatherBlock(CoCBlock, uint2(1, 0)), UnpackGatherBlock(opacityBlock, uint2(1, 0)), dilatedOpacity, foregroundOpacity, UnpackGatherBlock(bilateralWeightsBlock, uint2(1, 0)));
+	OpacityPremultiply(colorBlock[1][1], HDRnormBlock[1][1], UnpackGatherBlock(CoCBlock, uint2(1, 1)), UnpackGatherBlock(opacityBlock, uint2(1, 1)), dilatedOpacity, foregroundOpacity, UnpackGatherBlock(bilateralWeightsBlock, uint2(1, 1)));
 
 	centerColor += colorBlock[centerIdx.x][centerIdx.y];
 	centerNorm += HDRnormBlock[centerIdx.x][centerIdx.y];
@@ -117,10 +119,10 @@ float4 DownsampleColor(float targetCoC, float dilatedCoC, float2 centerPoint, fl
 {
 	const float4 CoCsFootprint[2][2] =
 	{
-		COCbuffer.GatherGreen(tapFilter, centerPoint, int2(-1, -1)),
-		COCbuffer.GatherGreen(tapFilter, centerPoint, int2(+1, -1)),
-		COCbuffer.GatherGreen(tapFilter, centerPoint, int2(-1, +1)),
-		COCbuffer.GatherGreen(tapFilter, centerPoint, int2(+1, +1))
+		COCbuffer.Gather(tapFilter, centerPoint, int2(-1, -1)),
+		COCbuffer.Gather(tapFilter, centerPoint, int2(+1, -1)),
+		COCbuffer.Gather(tapFilter, centerPoint, int2(-1, +1)),
+		COCbuffer.Gather(tapFilter, centerPoint, int2(+1, +1))
 	};
 
 	float4 bilateralWeights[2][2] =
@@ -141,13 +143,15 @@ float4 DownsampleColor(float targetCoC, float dilatedCoC, float2 centerPoint, fl
 	bilateralWeights[1][0][FlattenGatherBlockIdx(uint2(0, 1))] += centerNormCompensate;
 	bilateralWeights[1][1][FlattenGatherBlockIdx(uint2(0, 0))] += centerNormCompensate;
 
-	const float foregroundOpacity = saturate(DOF::Opacity(targetCoC, cameraSettings.aperture)) * sign(targetCoC);
+	const float
+		dilatedOpacity = DOF::OpacityHalfres(dilatedCoC, cameraSettings.aperture),
+		foregroundOpacity = DOF::HalfresOpacity(DOF::Opacity(targetCoC, cameraSettings.aperture)) * sign(targetCoC);
 	float4 cornersColor = 0, centerBlockColor = 0;
 	float cornersNorm = 0, centerBlockNorm = 0;
-	FetchBlock(cornersColor, cornersNorm, centerBlockColor, centerBlockNorm, int2(-1, -1), uint2(1, 1), CoCsFootprint[0][0], dilatedCoC, foregroundOpacity, bilateralWeights[0][0], cornerPoint);
-	FetchBlock(cornersColor, cornersNorm, centerBlockColor, centerBlockNorm, int2(+1, -1), uint2(1, 0), CoCsFootprint[0][1], dilatedCoC, foregroundOpacity, bilateralWeights[0][1], cornerPoint);
-	FetchBlock(cornersColor, cornersNorm, centerBlockColor, centerBlockNorm, int2(-1, +1), uint2(0, 1), CoCsFootprint[1][0], dilatedCoC, foregroundOpacity, bilateralWeights[1][0], cornerPoint);
-	FetchBlock(cornersColor, cornersNorm, centerBlockColor, centerBlockNorm, int2(+1, +1), uint2(0, 0), CoCsFootprint[1][1], dilatedCoC, foregroundOpacity, bilateralWeights[1][1], cornerPoint);
+	FetchBlock(cornersColor, cornersNorm, centerBlockColor, centerBlockNorm, int2(-1, -1), uint2(1, 1), CoCsFootprint[0][0], dilatedOpacity, foregroundOpacity, bilateralWeights[0][0], centerPoint, cornerPoint);
+	FetchBlock(cornersColor, cornersNorm, centerBlockColor, centerBlockNorm, int2(+1, -1), uint2(1, 0), CoCsFootprint[0][1], dilatedOpacity, foregroundOpacity, bilateralWeights[0][1], centerPoint, cornerPoint);
+	FetchBlock(cornersColor, cornersNorm, centerBlockColor, centerBlockNorm, int2(-1, +1), uint2(0, 1), CoCsFootprint[1][0], dilatedOpacity, foregroundOpacity, bilateralWeights[1][0], centerPoint, cornerPoint);
+	FetchBlock(cornersColor, cornersNorm, centerBlockColor, centerBlockNorm, int2(+1, +1), uint2(0, 0), CoCsFootprint[1][1], dilatedOpacity, foregroundOpacity, bilateralWeights[1][1], centerPoint, cornerPoint);
 
 	DecodeHDRPremultiplied(cornersColor, cornersNorm);
 	DecodeHDRPremultiplied(centerBlockColor, centerBlockNorm);
@@ -224,7 +228,7 @@ LensFlare::Source main(in uint flatPixelIdx : SV_VertexID)
 	do not blur sharp pixels with small CoC
 	*/
 	[branch]
-	if (color.a && dilatedCoC + .5f <= Bokeh::R)
+	if (color.a && dilatedCoC * .5f/*to halfres*/ + .5f <= Bokeh::R)
 	{
 		blurredLayers[uint3(coord, CoC > 0 ? DOF::BACKGROUND_NEAR_LAYER : DOF::FOREGROUND_FAR_LAYER)] = color;
 		color = 0;	// disable rasterization in DOF GS

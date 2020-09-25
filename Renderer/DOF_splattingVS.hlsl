@@ -3,9 +3,9 @@
 #include "camera params.hlsli"
 
 SamplerState COCdownsampler : register(s2);
-Texture2D src : register(t6);
-Texture2D<float2> fullresCOCbuffer : register(t4);
-Texture2D<float1> dilatedCOCbuffer : register(t5);
+Texture2D src : register(t7);
+Texture2D<float> fullresCOCbuffer : register(t5);
+Texture2D<float> dilatedCOCbuffer : register(t6);
 ConstantBuffer<CameraParams::Settings> cameraSettings : register(b1);
 
 // scanline layout - same considerations as for lens flare applicable here
@@ -28,7 +28,7 @@ DOF::SplatPoint main(in uint flatPixelIdx : SV_VertexID)
 
 	const float
 		CoC = DOF::DownsampleCoC(fullresCOCbuffer, COCdownsampler, centerPoint),
-		dilatedCoC = dilatedCOCbuffer[coord];
+		dilatedCoC = dilatedCOCbuffer[coord] * .5f/*to halfres*/;
 
 	const DOF::SplatPoint splatPoint =
 	{

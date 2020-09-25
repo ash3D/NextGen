@@ -33,10 +33,12 @@ namespace Renderer::Impl::Descriptors
 			DstUAV,
 			ReductionBufferUAV,
 			ReductionBufferSRV,
+			DOFOpacityBufferUAV,
 			COCBufferUAV,
 			DilatedCOCBufferUAV,
 			HalfresDOFInputUAV,
 			DOFLayersUAV,
+			DOFOpacityBufferSRV,
 			COCBufferSRV,
 			DilatedCOCBufferSRV,
 			HalfresDOFInputSRV,
@@ -57,8 +59,8 @@ namespace Renderer::Impl::Descriptors
 	public:
 		PostprocessDescriptorTableStore();
 		void Fill(ID3D12Resource *ZBuffer, ID3D12Resource *src, ID3D12Resource *composite, ID3D12Resource *dst,
-			ID3D12Resource *COCBuffer, ID3D12Resource *dilatedCOCBuffer, ID3D12Resource *halferDOFSurface, ID3D12Resource *DOFLayers, ID3D12Resource *lensFlareSurface,
-			ID3D12Resource *bloomUpChain, ID3D12Resource *bloomDownChain, ID3D12Resource *reductionBuffer, UINT reductionBufferLength);
+			ID3D12Resource *DOFOpacityBuffer, ID3D12Resource *COCBuffer, ID3D12Resource *dilatedCOCBuffer, ID3D12Resource *halferDOFSurface, ID3D12Resource *DOFLayers,
+			ID3D12Resource *lensFlareSurface, ID3D12Resource *bloomUpChain, ID3D12Resource *bloomDownChain, ID3D12Resource *reductionBuffer, UINT reductionBufferLength);
 
 	public:
 		// CPU handle

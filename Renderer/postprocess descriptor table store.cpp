@@ -22,8 +22,8 @@ PostprocessDescriptorTableStore::PostprocessDescriptorTableStore()
 }
 
 void PostprocessDescriptorTableStore::Fill(ID3D12Resource *ZBuffer, ID3D12Resource *src, ID3D12Resource *composite, ID3D12Resource *dst,
-	ID3D12Resource *COCBuffer, ID3D12Resource *dilatedCOCBuffer, ID3D12Resource *halferDOFSurface, ID3D12Resource *DOFLayers, ID3D12Resource *lensFlareSurface,
-	ID3D12Resource *bloomUpChain, ID3D12Resource *bloomDownChain, ID3D12Resource *reductionBuffer, UINT reductionBufferLength)
+	ID3D12Resource *DOFOpacityBuffer, ID3D12Resource *COCBuffer, ID3D12Resource *dilatedCOCBuffer, ID3D12Resource *halferDOFSurface, ID3D12Resource *DOFLayers,
+	ID3D12Resource *lensFlareSurface, ID3D12Resource *bloomUpChain, ID3D12Resource *bloomDownChain, ID3D12Resource *reductionBuffer, UINT reductionBufferLength)
 {
 	reductionBufferLength *= 2;	// to account for {avg, max} layout, RAW buffer view specify num of 32bit elements
 
@@ -88,6 +88,9 @@ void PostprocessDescriptorTableStore::Fill(ID3D12Resource *ZBuffer, ID3D12Resour
 		device->CreateShaderResourceView(reductionBuffer, &SRVdesc, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, ReductionBufferSRV, descriptorSize));
 	}
 
+	// DOFOpacityBufferUAV
+	device->CreateUnorderedAccessView(DOFOpacityBuffer, NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DOFOpacityBufferUAV, descriptorSize));
+
 	// COCBufferUAV
 	device->CreateUnorderedAccessView(COCBuffer, NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, COCBufferUAV, descriptorSize));
 
@@ -99,6 +102,9 @@ void PostprocessDescriptorTableStore::Fill(ID3D12Resource *ZBuffer, ID3D12Resour
 
 	// DOFLayersUAV
 	device->CreateUnorderedAccessView(DOFLayers, NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DOFLayersUAV, descriptorSize));
+
+	// DOFOpacityBufferSRV
+	device->CreateShaderResourceView(DOFOpacityBuffer, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DOFOpacityBufferSRV, descriptorSize));
 
 	// COCBufferSRV
 	device->CreateShaderResourceView(COCBuffer, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, COCBufferSRV, descriptorSize));

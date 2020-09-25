@@ -7,7 +7,7 @@
 SamplerState tapFilter : register(s0);
 Texture2D src : register(t2);
 RWTexture2D<float4> dst : register(u1);
-Texture2D bloom : register(t9);
+Texture2D bloom : register(t10);
 ConstantBuffer<CameraParams::Settings> cameraSettings : register(b1);
 
 namespace Tonemapping
