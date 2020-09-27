@@ -7,7 +7,7 @@ struct Layers
 	half4 near : SV_Target0, far : SV_Target1;
 };
 
-Layers main(nointerpolation half4 spriteColor : COLOR, noperspective float2 circleDir : CLIP_CIRCLE_DIR, noperspective float4 pos/*.z is blend far*/ : SV_Position,
+Layers main(nointerpolation half4 spriteColor : COLOR, noperspective float2 circleDir : CLIP_CIRCLE_DIR, noperspective float4 pos/*.z is blend near*/ : SV_Position,
 	noperspective float apertureCropDist0 : SV_ClipDistance0,
 	noperspective float apertureCropDist1 : SV_ClipDistance1,
 	noperspective float apertureCropDist2 : SV_ClipDistance2,
@@ -45,7 +45,7 @@ Layers main(nointerpolation half4 spriteColor : COLOR, noperspective float2 circ
 	const float fade = min(edgeFade, circleFade);
 
 	Layers layers = { spriteColor, spriteColor };
-	layers.near *= fade * (1 - pos.z);
-	layers.far *= fade * pos.z;
+	layers.near *= fade * pos.z;
+	layers.far *= fade * (1 - pos.z);
 	return layers;
 }

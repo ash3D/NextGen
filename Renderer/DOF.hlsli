@@ -24,9 +24,9 @@ namespace DOF
 		BACKGROUND_FAR_LAYER,
 	};
 
-	inline float BlendFar(float CoC)
+	inline float BlendNear(float CoC)
 	{
-		return smoothstep(-DOF::layerBlendRange, +DOF::layerBlendRange, CoC - DOF::layerSeparationCoC * sign(CoC));
+		return smoothstep(+DOF::layerBlendRange, -DOF::layerBlendRange, CoC - DOF::layerSeparationCoC * sign(CoC));
 	}
 
 	// FXC validation errors if place inside 'AreaFactor()', try with newer version

@@ -53,12 +53,12 @@ void OpacityPremultiply(inout float4 color/*HDR encoded*/, out float HDRnorm,
 	* intralayer leaks uncontrolled
 	* interlayer limited up to remaining foreground opacity in order to achieve better temporal stability during background/foreground CoC jumps
 	* 
-	* assume foreground CoC is in slight-out-of-focus layer entirely (so blend far is 0 for background filed)
+	* assume foreground CoC is in slight-out-of-focus layer entirely (so blend near is 1 for background filed)
 	* otherwise 'foregroundOpacity' should be pretty small so leak limitation no longer necessary
 	*/
 	
 	// preserve intralayer leak
-	const float intralayerLeak = foregroundOpacity > 0 ? 1 - DOF::BlendFar(DOF::CoC(tapOpacity, cameraSettings.aperture)) : step(tapCoC, 0)/*step(-foregroundOpacity, tapOpacity)*//*heuristic for 'CoC <= 0'*/;
+	const float intralayerLeak = foregroundOpacity > 0 ? DOF::BlendNear(DOF::CoC(tapOpacity, cameraSettings.aperture)) : step(tapCoC, 0)/*step(-foregroundOpacity, tapOpacity)*//*heuristic for 'CoC <= 0'*/;
 	tapOpacity = min(DOF::HalfresOpacity(tapOpacity), dilatedOpacity);	// 'tapOpacity' now in halfres units
 	float opacity = tapOpacity * intralayerLeak;
 
@@ -188,8 +188,8 @@ float DilateCoC(float CoC, float2 centerPoint)
 				if (tapCoC > 0)
 				{
 					// prevent shrinking across layers\
-					can also opt to shrink in near layer only - use '1 - DOF::BlendFar(CoC)' factor instead (which is 'CoC' blend near factor)
-					weight *= 1 - (DOF::BlendFar(CoC) - DOF::BlendFar(tapCoC));
+					can also opt to shrink in near layer only - use 'DOF::BlendNear(CoC)' factor instead
+					weight *= 1 - (DOF::BlendNear(tapCoC) - DOF::BlendNear(CoC));
 					weight *= saturate(DOF::OpacityHalfres(tapCoC, cameraSettings.aperture) * shrinkFadeFactor);
 					shrinkedCoC = min(shrinkedCoC, lerp(abs(CoC), abs(tapCoC), weight));
 				}
@@ -226,9 +226,10 @@ LensFlare::Source main(in uint flatPixelIdx : SV_VertexID)
 	/*
 	write directly to DOF blur layer to avoid rasterizing pixel-sized sprites
 	do not blur sharp pixels with small CoC
+	'dilatedCoC <= Bokeh::R * 2 - 1' is optimized equivalent for 'dilatedCoC * .5f + .5f <= Bokeh::R' (rely on constant folding)
 	*/
 	[branch]
-	if (color.a && dilatedCoC * .5f/*to halfres*/ + .5f <= Bokeh::R)
+	if (color.a && dilatedCoC <= Bokeh::R * 2/*to fullres*/ - 1/*half pixel in fullres units*/)
 	{
 		blurredLayers[uint3(coord, CoC > 0 ? DOF::BACKGROUND_NEAR_LAYER : DOF::FOREGROUND_FAR_LAYER)] = color;
 		color = 0;	// disable rasterization in DOF GS
