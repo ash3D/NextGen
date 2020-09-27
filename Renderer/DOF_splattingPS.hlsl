@@ -1,7 +1,3 @@
-SamplerState COCdownsampleFilter : register(s0);
-Texture2D<float2> COCbuffer : register(t4);
-Texture2D src : register(t5);
-
 struct Layers
 {
 	half4 near : SV_Target0, far : SV_Target1;

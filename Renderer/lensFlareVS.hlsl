@@ -58,7 +58,7 @@ void OpacityPremultiply(inout float4 color/*HDR encoded*/, out float HDRnorm,
 	*/
 	
 	// preserve intralayer leak
-	const float intralayerLeak = foregroundOpacity > 0 ? DOF::BlendNear(DOF::CoC(tapOpacity, cameraSettings.aperture)) : step(tapCoC, 0)/*step(-foregroundOpacity, tapOpacity)*//*heuristic for 'CoC <= 0'*/;
+	const float intralayerLeak = foregroundOpacity > 0 ? DOF::BlendNear(DOF::CoC(tapOpacity, cameraSettings.aperture)) : step(tapCoC, 0);
 	tapOpacity = min(DOF::HalfresOpacity(tapOpacity), dilatedOpacity);	// 'tapOpacity' now in halfres units
 	float opacity = tapOpacity * intralayerLeak;
 
@@ -171,13 +171,8 @@ float DilateCoC(float CoC, float2 centerPoint)
 			const float tapCoC = DOF::DownsampleCoC(COCbuffer, COCdownsampler, centerPoint, int2(c, r) * 2);
 			if (tapCoC < CoC)
 			{
-#if 1
 				const float dist = max(abs(r), abs(c)) - 1;					// max 'holeFillingBlurBand - 1'
 				float weight = saturate(1 - dist / holeFillingBlurBand);	// (holeFillingBlurBand - dist) / holeFillingBlurBand
-#else
-				const float dist = max(abs(r), abs(c));						// max 'holeFillingBlurBand'
-				float weight = 1 - dist / (holeFillingBlurBand + 1);		// (holeFillingBlurBand + 1 - dist) / (holeFillingBlurBand + 1)
-#endif
 				const float weightedTap = weight * -tapCoC;
 				[flatten]
 				if (weightedTap > dilatedCoC)
@@ -198,25 +193,9 @@ float DilateCoC(float CoC, float2 centerPoint)
 	return max(shrinkedCoC, shrinkedCoC * (1 - dilatedWeight) + dilatedCoC);
 }
 
-/*
-	scanline layout - probably not cache efficient
-	tiled swizzling pattern can be faster - experiments on different GPUs wanted
-*/
-LensFlare::Source main(in uint flatPixelIdx : SV_VertexID)
+// downsample + COC dilation/shrinking + pixel-sized splats
+void PrepareDOF(uint2 coord, float2 centerPoint, float2 cornerPoint)
 {
-	uint2 dstSize;
-	dst.GetDimensions(dstSize.x, dstSize.y);
-	const uint2 coord = { flatPixelIdx % dstSize.x, flatPixelIdx / dstSize.x };
-	float2 center = coord + .5f;
-
-	float2 centerPoint = center * 2, cornerPoint = centerPoint + .5f;
-	{
-		float2 srcSize;
-		src.GetDimensions(srcSize.x, srcSize.y);
-		centerPoint /= srcSize;
-		cornerPoint /= srcSize;
-		center /= dstSize;
-	}
 
 	const float CoC = DOF::DownsampleCoC(COCbuffer, COCdownsampler, centerPoint), dilatedCoC = DilateCoC(CoC, centerPoint);
 
@@ -238,6 +217,28 @@ LensFlare::Source main(in uint flatPixelIdx : SV_VertexID)
 	// store to halfres buffers for subsequent DOF splatting pass
 	dilatedCOCbuffer[coord] = dilatedCoC;
 	dst[coord] = color;
+}
+
+/*
+	scanline layout - probably not cache efficient
+	tiled swizzling pattern can be faster - experiments on different GPUs wanted
+*/
+LensFlare::Source main(in uint flatPixelIdx : SV_VertexID)
+{
+	uint2 dstSize;
+	dst.GetDimensions(dstSize.x, dstSize.y);
+	const uint2 coord = { flatPixelIdx % dstSize.x, flatPixelIdx / dstSize.x };
+	float2 center = coord + .5f;
+
+	float2 centerPoint = center * 2, cornerPoint = centerPoint + .5f;
+	{
+		float2 srcSize;
+		src.GetDimensions(srcSize.x, srcSize.y);
+		centerPoint /= srcSize;
+		cornerPoint /= srcSize;
+		center /= dstSize;
+	}
+	PrepareDOF(coord, centerPoint, cornerPoint);
 
 	// downsample to halfres with 13-tap partial Karis filter
 
@@ -247,7 +248,7 @@ LensFlare::Source main(in uint flatPixelIdx : SV_VertexID)
 		src.SampleLevel(tapFilter, centerPoint, 0, int2(-1, +1)) +
 		src.SampleLevel(tapFilter, centerPoint, 0, int2(+1, +1));
 
-	color.rgb = DecodeHDRExp(block, .5f/*block weight*/ * cameraSettings.exposure);
+	float3 color = DecodeHDRExp(block, .5f/*block weight*/ * cameraSettings.exposure);
 
 	// shared taps
 	const float4
@@ -258,16 +259,16 @@ LensFlare::Source main(in uint flatPixelIdx : SV_VertexID)
 		S = src.SampleLevel(tapFilter, centerPoint, 0, int2(0, +2));
 
 	block = src.SampleLevel(tapFilter, centerPoint, 0, int2(-2, -2)) + C + W + N;
-	color.rgb += DecodeHDRExp(block, .125f/*block weight*/ * cameraSettings.exposure);
+	color += DecodeHDRExp(block, .125f/*block weight*/ * cameraSettings.exposure);
 
 	block = src.SampleLevel(tapFilter, centerPoint, 0, int2(+2, -2)) + C + E + N;
-	color.rgb += DecodeHDRExp(block, .125f/*block weight*/ * cameraSettings.exposure);
+	color += DecodeHDRExp(block, .125f/*block weight*/ * cameraSettings.exposure);
 
 	block = src.SampleLevel(tapFilter, centerPoint, 0, int2(-2, +2)) + C + W + S;
-	color.rgb += DecodeHDRExp(block, .125f/*block weight*/ * cameraSettings.exposure);
+	color += DecodeHDRExp(block, .125f/*block weight*/ * cameraSettings.exposure);
 
 	block = src.SampleLevel(tapFilter, centerPoint, 0, int2(+2, +2)) + C + E + S;
-	color.rgb += DecodeHDRExp(block, .125f/*block weight*/ * cameraSettings.exposure);
+	color += DecodeHDRExp(block, .125f/*block weight*/ * cameraSettings.exposure);
 
 	// transform 'center' UV -> NDC
 	center *= 2;
@@ -280,7 +281,7 @@ LensFlare::Source main(in uint flatPixelIdx : SV_VertexID)
 		cameraSettings.aperture.xx,
 		cameraSettings.apertureRot,
 		center * cameraSettings.aperture, length(center),
-		color.rgb, Vignette(center)
+		color, Vignette(center)
 	};
 
 	flareSource.ext.x *= float(dstSize.y) / float(dstSize.x);

@@ -91,11 +91,7 @@ namespace Bokeh
 			const Bokeh::SpriteVertex vert =
 			{
 				color,
-#if 0
-				cornersLUT[idx].offset,
-#else
 				cornersLUT[idx].offset * circleScale,
-#endif
 				float4(center + extents * cornerOffset, center.z, 1),
 				cornersLUT[idx].apertureCropDist
 			};
