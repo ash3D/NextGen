@@ -24,9 +24,9 @@ static const int holeFillingBlurBand = 3;
 static const float shrinkFadeFactor = 3;	// controls how opacity fading affect CoC shrinking
 static const float antileakFactor = 10;		// rcp(max leak percentage)
 
-inline float Vignette(float2 ndc)
+inline float Vignette(float2 dir)
 {
-	const float fade = saturate(1.8f - dot(ndc, ndc));
+	const float fade = saturate(1.8f - dot(dir, dir));
 	return fade * fade;
 }
 
@@ -275,16 +275,21 @@ LensFlare::Source main(in uint flatPixelIdx : SV_VertexID)
 	center -= 1;
 	center.y = -center.y;
 
+	const float invApect = float(dstSize.y) / float(dstSize.x);
+
+	float2 dir = center;
+	dir.y *= invApect;	// align by width, squash vertically
+
 	LensFlare::Source flareSource =
 	{
 		center,
 		cameraSettings.aperture.xx,
 		cameraSettings.apertureRot,
-		center * cameraSettings.aperture, length(center),
-		color, Vignette(center)
+		dir * cameraSettings.aperture, length(dir),
+		color, Vignette(dir)
 	};
 
-	flareSource.ext.x *= float(dstSize.y) / float(dstSize.x);
+	flareSource.ext.x *= invApect;
 
 	// normalize
 	const float dim = flareSource.ext.y * dstSize.y;
