@@ -46,29 +46,80 @@ namespace LensFlare
 {
 	struct SpriteVertex : Bokeh::SpriteVertex
 	{
-		noperspective float edgeClipDist : SV_ClipDistance5;
+		noperspective float edgeClipDist : SV_ClipDistance;
 	};
 }
 
 class Sprite : BokehSprite
 {
-	float3 edgeClip;
+	float cornerClipDists[5], centerClipDist;
+
+	void Tri(uniform uint idx, out LensFlare::SpriteVertex tri[3])
+	{
+		tri[0] = Corner(idx);
+		tri[1] = Center();
+		tri[2] = Corner((idx + 1) % 5);
+	}
 
 	LensFlare::SpriteVertex Corner(uniform uint idx)
 	{
-		float2 cornerOffset;
 		const LensFlare::SpriteVertex vert =
 		{
-			BokehSprite::Corner(idx, cornerOffset),
-			dot(edgeClip.xy, cornerOffset) + edgeClip.z
+			BokehSprite::Corner(idx),
+			cornerClipDists[idx]
+		};
+		return vert;
+	}
+
+	LensFlare::SpriteVertex Center()
+	{
+		const LensFlare::SpriteVertex vert =
+		{
+			BokehSprite::Center(),
+			centerClipDist
 		};
 		return vert;
 	}
 };
 
-[maxvertexcount(3)]
+float CornerClipDist(float2 cornerOffset, float3 edgeClip)
+{
+	return dot(edgeClip.xy, cornerOffset) + edgeClip.z;
+}
+
+Sprite MakeSprite(float2 center, half4 color, float2 extents, float aperture, float2 rot, float3 edgeClip)
+{
+	float2 cornerOffsets[5];
+#if DXC_BASE_WORKAROUND
+	const BokehSprite base = Bokeh::MakeSprite(float3(center, 0), color, extents, aperture / Bokeh::R, rot, cornerOffsets);
+#endif
+	const Sprite sprite =
+	{
+#if DXC_BASE_WORKAROUND
+		base.corners, base.center, base.color, base.circleScale,
+#else
+		Bokeh::MakeSprite(float3(center, 0), color, extents, aperture / Bokeh::R, rot, cornerOffsets),
+#endif
+		CornerClipDist(cornerOffsets[0], edgeClip),
+		CornerClipDist(cornerOffsets[1], edgeClip),
+		CornerClipDist(cornerOffsets[2], edgeClip),
+		CornerClipDist(cornerOffsets[3], edgeClip),
+		CornerClipDist(cornerOffsets[4], edgeClip),
+		edgeClip.z	// center offset == 0 => dot part == 0
+	};
+	return sprite;
+}
+
+void EmitTri(in LensFlare::SpriteVertex tri[3], inout TriangleStream<LensFlare::SpriteVertex> flareSpriteVerts)
+{
+	flareSpriteVerts.Append(tri[0]);
+	flareSpriteVerts.Append(tri[1]);
+	flareSpriteVerts.Append(tri[2]);
+}
+
+[maxvertexcount(Bokeh::vcount)]
 [instance(spriteCount)]
-void main(point LensFlare::Source flareSource[1], in uint lenseID : SV_GSInstanceID, inout TriangleStream<LensFlare::SpriteVertex> flareSpriteCorners)
+void main(point LensFlare::Source flareSource[1], in uint lenseID : SV_GSInstanceID, inout TriangleStream<LensFlare::SpriteVertex> flareSpriteVerts)
 {
 	float4 color = flareSource[0].col;
 	color.rgb *= flares[lenseID].tint;
@@ -82,24 +133,35 @@ void main(point LensFlare::Source flareSource[1], in uint lenseID : SV_GSInstanc
 		// smooth fadeout for culled sprites
 		color.a *= smoothstep(lumThreshold, lumThreshold * LensFlare::fadeoutRange, lum);
 
-		Sprite sprite =
-		{
-			flareSource[0].pos, 0,
-			color,
-			flareSource[0].ext.xyy/*ext.y holds unmodified aperture*/,
-			flareSource[0].rot,
-			flareSource[0].edg
-		};
-		sprite.center *= flares[lenseID].pos;
-		sprite.extents *= flares[lenseID].size;
-		sprite.circleScale /= Bokeh::R;
-		sprite.edgeClip.xy *= sign(flares[lenseID].clipSpeed);
-		sprite.edgeClip.z *= flares[lenseID].clipDist - sprite.edgeClip.z;
-		sprite.edgeClip.z *= abs(flares[lenseID].clipSpeed);
+		float3 edgeClip = flareSource[0].edg;
+		edgeClip.xy *= sign(flares[lenseID].clipSpeed);
+		edgeClip.z *= flares[lenseID].clipDist - edgeClip.z;
+		edgeClip.z *= abs(flares[lenseID].clipSpeed);
+
+		const Sprite sprite = MakeSprite(flareSource[0].pos * flares[lenseID].pos, color, flareSource[0].ext * flares[lenseID].size,
+			flareSource[0].ext.y/*ext.y holds unmodified aperture*/, flareSource[0].rot, edgeClip);
 
 		// expand sprite
-		flareSpriteCorners.Append(sprite.Corner(0));
-		flareSpriteCorners.Append(sprite.Corner(1));
-		flareSpriteCorners.Append(sprite.Corner(2));
+		
+		LensFlare::SpriteVertex tri[3];
+
+		sprite.Tri(0, tri);
+		EmitTri(tri, flareSpriteVerts);
+		flareSpriteVerts.RestartStrip();
+		
+		sprite.Tri(1, tri);
+		EmitTri(tri, flareSpriteVerts);
+		flareSpriteVerts.RestartStrip();
+		
+		sprite.Tri(2, tri);
+		EmitTri(tri, flareSpriteVerts);
+		flareSpriteVerts.RestartStrip();
+		
+		sprite.Tri(3, tri);
+		EmitTri(tri, flareSpriteVerts);
+		flareSpriteVerts.RestartStrip();
+		
+		sprite.Tri(4, tri);
+		EmitTri(tri, flareSpriteVerts);
 	}
 }

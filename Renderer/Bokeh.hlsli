@@ -1,72 +1,54 @@
 #pragma once
 
 #define DXC_NAMESPACE_WORKAROUND 1
+#define DXC_BASE_WORKAROUND 1
 
 namespace Bokeh
 {
+	static const uint vcount = 5 * 3;
+
 	struct SpriteVertex
 	{
-		nointerpolation	half4	col					: COLOR;
-		noperspective	float2	dir					: CLIP_CIRCLE_DIR;	// scaled dir to entrance lens edge
-		noperspective	float4	pos					: SV_Position;
-		noperspective	float	apertureCropDist0	: SV_ClipDistance0;
-		noperspective	float	apertureCropDist1	: SV_ClipDistance1;
-		noperspective	float	apertureCropDist2	: SV_ClipDistance2;
-		noperspective	float	apertureCropDist3	: SV_ClipDistance3;
-		noperspective	float	apertureCropDist4	: SV_ClipDistance4;
+		nointerpolation	half4	col	: COLOR;
+		noperspective	float2	dir	: CLIP_CIRCLE_DIR;	// scaled dir to entrance lens edge
+		noperspective	float4	pos	: SV_Position;
 	};
 
 	// inner radius
 	static const float R = cos(radians(36));
 
-	inline float2 N(uniform float a)
-	{
-		float2 n;
-		sincos(radians(a), n.x, n.y);
-		return n;
-	}
+	static const float edge = 2 * sin(radians(36));
 
-	inline float BladeDist(uniform float2 cornerOffset, uniform float bladeAngle)
-	{
-		return dot(cornerOffset, N(bladeAngle)) + R;
-	}
+	// dist from corner to neighbor blade
+	static const float cornerBladeDist = edge * sin(radians(180 - (180 - 90 - 36) * 2))/*project onto edge normal*/;
 
-	struct SpriteCornerDesc
+	inline float2 CornerOffset(uniform float angle/*CW*/)
 	{
-		float2	offset;
-		float	apertureCropDist[5];
-	};
-
-	inline SpriteCornerDesc GenerateSpriteCornerDesc(uniform float2 offset)
-	{
-		const SpriteCornerDesc corner =
-		{
-			offset,
-			BladeDist(offset, 0),
-			BladeDist(offset, +72),
-			BladeDist(offset, -72),
-			BladeDist(offset, +144),
-			BladeDist(offset, -144)
-		};
-		return corner;
+		float2 offset;
+		sincos(radians(angle), offset.x, offset.y);
+		return offset;
 	}
 
 #if !DXC_NAMESPACE_WORKAROUND
-	static const SpriteCornerDesc cornersLUT[3] =
+	static const float2 cornersLUT[5] =
 	{
-		GenerateSpriteCornerDesc(float2(-1, +1)),
-		GenerateSpriteCornerDesc(float2(+2, +1)),
-		GenerateSpriteCornerDesc(float2(-1, -2))
+		CornerOffset(0),
+		CornerOffset(72),
+		CornerOffset(144),
+		CornerOffset(216),
+		CornerOffset(288)
 	};
 #endif
 }
 
 #if DXC_NAMESPACE_WORKAROUND
-static const Bokeh::SpriteCornerDesc cornersLUT[3] =
+static const float2 cornersLUT[5] =
 {
-	Bokeh::GenerateSpriteCornerDesc(float2(-1, +1)),
-	Bokeh::GenerateSpriteCornerDesc(float2(+2, +1)),
-	Bokeh::GenerateSpriteCornerDesc(float2(-1, -2))
+	Bokeh::CornerOffset(0),
+	Bokeh::CornerOffset(72),
+	Bokeh::CornerOffset(144),
+	Bokeh::CornerOffset(216),
+	Bokeh::CornerOffset(288)
 };
 #endif
 
@@ -78,22 +60,29 @@ namespace Bokeh
 	class Sprite
 #endif
 	{
+		float2	corners[5];
 		float3	center;
 		half4	color;
-		float2	extents;
 		float	circleScale;
-		float2	rot;
 
-		Bokeh::SpriteVertex Corner(uniform uint idx, out float2 cornerOffset)
+		Bokeh::SpriteVertex Corner(uniform uint idx)
 		{
-			const float2x2 rotMatrix = float2x2(rot.xy, -rot.y, rot.x);
-			cornerOffset = mul(cornersLUT[idx].offset, rotMatrix);
 			const Bokeh::SpriteVertex vert =
 			{
 				color,
-				cornersLUT[idx].offset * circleScale,
-				float4(center + extents * cornerOffset, center.z, 1),
-				cornersLUT[idx].apertureCropDist
+				cornersLUT[idx] * circleScale,
+				float4(corners[idx], center.z, 1)
+			};
+			return vert;
+		}
+
+		Bokeh::SpriteVertex Center()
+		{
+			const Bokeh::SpriteVertex vert =
+			{
+				color,
+				(float2)0,
+				float4(center, 1)
 			};
 			return vert;
 		}
@@ -101,3 +90,29 @@ namespace Bokeh
 #if !DXC_NAMESPACE_WORKAROUND
 }
 #endif
+
+namespace Bokeh
+{
+	float2 SpriteCorner(uniform uint idx, in float2 center, in float2 extents, in float2x2 rot, out float2 cornerOffset)
+	{
+		cornerOffset = mul(cornersLUT[idx], rot);
+		return center + extents * cornerOffset;
+	}
+
+	BokehSprite MakeSprite(in float3 center, in half4 color, in float2 extents, in float circleScale, in float2 rot, out float2 cornerOffsets[5])
+	{
+		const float2x2 rotMatrix = float2x2(rot.xy, -rot.y, rot.x);
+		const BokehSprite sprite =
+		{
+			SpriteCorner(0, center, extents, rotMatrix, cornerOffsets[0]),
+			SpriteCorner(1, center, extents, rotMatrix, cornerOffsets[1]),
+			SpriteCorner(2, center, extents, rotMatrix, cornerOffsets[2]),
+			SpriteCorner(3, center, extents, rotMatrix, cornerOffsets[3]),
+			SpriteCorner(4, center, extents, rotMatrix, cornerOffsets[4]),
+			center,
+			color,
+			circleScale
+		};
+		return sprite;
+	}
+}

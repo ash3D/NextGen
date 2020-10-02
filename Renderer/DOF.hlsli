@@ -2,9 +2,6 @@
 
 #include "Bokeh.hlsli"	// for R
 
-// return 0 permanently in PS on Kepler, try with other GPUs
-#define HW_CLIP_DIST_IN_PS 0
-
 // it seems that Kepler doesn't support texture MIN filter\
 no way to query support in D3D12?
 #define ENABLE_HARDWARE_COC_DOWNSAMPLE 0
