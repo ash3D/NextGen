@@ -2,6 +2,8 @@
 #include "Bokeh.hlsli"
 #include "luminance.hlsli"
 
+static const uint batchSize = 4;
+
 struct Flare
 {
 	float	pos, clipDist, clipSpeed, size;
@@ -41,6 +43,16 @@ static const Flare flares[spriteCount] =
 	NormalizedFlare(-.75f, .92f, +8, 80e-2f, float3(0, .52952324599076426653845702674723f, 1)/*Deep Sky Blue*/),
 	NormalizedFlare(-1.2f, .96f, +5, 08e-2f, float3(.71546555620858302825678206624135f, .16364069912887604055713628938231f, .29765266858042379221938470586868f)/*Pale Violet Red*/)
 };
+
+float3 MaxNormalizedTint()
+{
+	float3 maxTint = 0;
+	for (uint lenseID = 0; lenseID < spriteCount; lenseID++)
+		maxTint = max(maxTint, flares[lenseID].tint);
+	return maxTint;
+}
+
+static const float3 maxNormalizedTint = MaxNormalizedTint();
 
 namespace LensFlare
 {
@@ -115,53 +127,50 @@ void EmitTri(in LensFlare::SpriteVertex tri[3], inout TriangleStream<LensFlare::
 	flareSpriteVerts.Append(tri[0]);
 	flareSpriteVerts.Append(tri[1]);
 	flareSpriteVerts.Append(tri[2]);
+	flareSpriteVerts.RestartStrip();
 }
 
-[maxvertexcount(Bokeh::vcount)]
-[instance(spriteCount)]
-void main(point LensFlare::Source flareSource[1], in uint lenseID : SV_GSInstanceID, inout TriangleStream<LensFlare::SpriteVertex> flareSpriteVerts)
+[maxvertexcount(Bokeh::vcount * batchSize)]
+[instance((spriteCount + batchSize - 1) / batchSize)]
+void main(point LensFlare::Source flareSource[1], in uint batchID : SV_GSInstanceID, inout TriangleStream<LensFlare::SpriteVertex> flareSpriteVerts)
 {
-	float4 color = flareSource[0].col;
-	color.rgb *= flares[lenseID].tint;
 	const float apertureExposure = flareSource[0].ext.y * flareSource[0].ext.y;
-	const float lum = RGB_2_luminance(color), lumThreshold = LensFlare::threshold * apertureExposure/*cancel out aperture contribution to exposure as it affects flare area but not intensity*/;
+	const float lumThreshold = LensFlare::threshold * apertureExposure/*cancel out aperture contribution to exposure as it affects flare area but not intensity*/;
 
-	// cull faint flares
+	// cull whole batch
 	[branch]
-	if (lum >= lumThreshold)
+	if (RGB_2_luminance(flareSource[0].col.rgb * maxNormalizedTint) >= lumThreshold)
 	{
-		// smooth fadeout for culled sprites
-		color.a *= smoothstep(lumThreshold, lumThreshold * LensFlare::fadeoutRange, lum);
+		for (uint batchBegin = batchID * batchSize, batchEnd = min(batchBegin + batchSize, spriteCount), lenseID = batchBegin; lenseID < batchEnd; lenseID++)
+		{
+			float4 color = flareSource[0].col;
+			color.rgb *= flares[lenseID].tint;
+			const float lum = RGB_2_luminance(color);
 
-		float3 edgeClip = flareSource[0].edg;
-		edgeClip.xy *= sign(flares[lenseID].clipSpeed);
-		edgeClip.z *= flares[lenseID].clipDist - edgeClip.z;
-		edgeClip.z *= abs(flares[lenseID].clipSpeed);
+			// cull faint flares
+			[branch]
+			if (lum >= lumThreshold)
+			{
+				// smooth fadeout for culled sprites
+				color.a *= smoothstep(lumThreshold, lumThreshold * LensFlare::fadeoutRange, lum);
 
-		const Sprite sprite = MakeSprite(flareSource[0].pos * flares[lenseID].pos, color, flareSource[0].ext * flares[lenseID].size,
-			flareSource[0].ext.y/*ext.y holds unmodified aperture*/, flareSource[0].rot, edgeClip);
+				float3 edgeClip = flareSource[0].edg;
+				edgeClip.xy *= sign(flares[lenseID].clipSpeed);
+				edgeClip.z *= flares[lenseID].clipDist - edgeClip.z;
+				edgeClip.z *= abs(flares[lenseID].clipSpeed);
 
-		// expand sprite
-		
-		LensFlare::SpriteVertex tri[3];
+				const Sprite sprite = MakeSprite(flareSource[0].pos * flares[lenseID].pos, color, flareSource[0].ext * flares[lenseID].size,
+					flareSource[0].ext.y/*ext.y holds unmodified aperture*/, flareSource[0].rot, edgeClip);
 
-		sprite.Tri(0, tri);
-		EmitTri(tri, flareSpriteVerts);
-		flareSpriteVerts.RestartStrip();
-		
-		sprite.Tri(1, tri);
-		EmitTri(tri, flareSpriteVerts);
-		flareSpriteVerts.RestartStrip();
-		
-		sprite.Tri(2, tri);
-		EmitTri(tri, flareSpriteVerts);
-		flareSpriteVerts.RestartStrip();
-		
-		sprite.Tri(3, tri);
-		EmitTri(tri, flareSpriteVerts);
-		flareSpriteVerts.RestartStrip();
-		
-		sprite.Tri(4, tri);
-		EmitTri(tri, flareSpriteVerts);
+				// expand sprite
+				[unroll]
+				for (uint i = 0; i < 5; i++)
+				{
+					LensFlare::SpriteVertex tri[3];
+					sprite.Tri(i, tri);
+					EmitTri(tri, flareSpriteVerts);
+				}
+			}
+		}
 	}
 }
