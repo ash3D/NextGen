@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Bokeh.hlsli"	// for R
+#include "Bokeh.hlsli"	// for area evaluation
 
 // it seems that Kepler doesn't support texture MIN filter\
 no way to query support in D3D12?
@@ -30,8 +30,9 @@ namespace DOF
 	static const float
 		squareCorrection = .9f,	// for opacity boost
 		circleFactor = radians(180),
-		polyFactor = squareCorrection * tan(radians(36)) * 5;
+		polyFactor = squareCorrection * Bokeh::areaScale;
 
+	// consider precalculation in camera settings CB during camera setup
 	inline float AreaFactor(float aperture)
 	{
 		// [R..1] -> [0..1]

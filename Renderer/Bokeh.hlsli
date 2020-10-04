@@ -22,6 +22,9 @@ namespace Bokeh
 	// dist from corner to neighbor blade
 	static const float cornerBladeDist = edge * sin(radians(180 - (180 - 90 - 36) * 2))/*project onto edge normal*/;
 
+	// unit polygon`s area, scaled with R as 'area = areaScale * R * R'
+	static const float areaScale = tan(radians(36)) * 5;
+
 	inline float2 CornerOffset(uniform float angle/*CW*/)
 	{
 		float2 offset;
