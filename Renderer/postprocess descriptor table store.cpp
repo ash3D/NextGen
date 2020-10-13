@@ -18,8 +18,8 @@ PostprocessDescriptorTableStore::PostprocessDescriptorTableStore()
 		TableSize,
 		D3D12_DESCRIPTOR_HEAP_FLAG_NONE			// CPU visible
 	};
-	CheckHR(device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(allocation.GetAddressOf())));
-	NameObjectF(allocation.Get(), L"CPU descriptor stage for postprocess resources (D3D object: %p, heap start CPU address: %p)", allocation.Get(), allocation->GetCPUDescriptorHandleForHeapStart());
+	CheckHR(device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(CPUStore.GetAddressOf())));
+	NameObjectF(CPUStore.Get(), L"CPU descriptor stage for postprocess buffers (D3D object: %p, heap start CPU address: %p)", CPUStore.Get(), CPUStore->GetCPUDescriptorHandleForHeapStart());
 }
 
 void PostprocessDescriptorTableStore::Fill(const OffscreenBuffers &offscreenBuffers, UINT reductionBufferLength)
@@ -27,7 +27,7 @@ void PostprocessDescriptorTableStore::Fill(const OffscreenBuffers &offscreenBuff
 	reductionBufferLength *= 2;	// to account for {avg, max} layout, RAW buffer view specify num of 32bit elements
 
 	const auto descriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	const auto heapStart = allocation->GetCPUDescriptorHandleForHeapStart();
+	const auto heapStart = CPUStore->GetCPUDescriptorHandleForHeapStart();
 
 	// ZBufferSRV
 	{
@@ -166,5 +166,5 @@ void PostprocessDescriptorTableStore::Fill(const OffscreenBuffers &offscreenBuff
 D3D12_CPU_DESCRIPTOR_HANDLE PostprocessDescriptorTableStore::GetDescriptor(TableEntry entry) const
 {
 	const auto descriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	return CD3DX12_CPU_DESCRIPTOR_HANDLE(allocation->GetCPUDescriptorHandleForHeapStart(), entry, descriptorSize);
+	return CD3DX12_CPU_DESCRIPTOR_HANDLE(CPUStore->GetCPUDescriptorHandleForHeapStart(), entry, descriptorSize);
 }

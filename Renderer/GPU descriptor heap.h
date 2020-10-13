@@ -21,7 +21,7 @@ namespace Renderer::Impl::Descriptors
 
 		inline const auto &GetHeap() noexcept { return Impl::heap; }
 		void OnFrameStart();
-		D3D12_GPU_DESCRIPTOR_HANDLE FillPostprocessGPUDescriptorTableStore(const PostprocessDescriptorTableStore &src);
+		D3D12_GPU_DESCRIPTOR_HANDLE StreamPostprocessDescriptorTable(const PostprocessDescriptorTableStore &src);
 
 		class AllocationClient
 		{

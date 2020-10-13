@@ -111,7 +111,7 @@ namespace Renderer
 			static WRL::ComPtr<ID3D12PipelineState> lensFlarePSO, CreateLensFlarePSO();
 			static WRL::ComPtr<ID3D12PipelineState> COC_pass_PSO, Create_COC_pass_PSO();
 			static WRL::ComPtr<ID3D12PipelineState> DOF_splatting_PSO, Create_DOF_splatting_PSO();
-			static WRL::ComPtr<ID3D12PipelineState> DOF_LF_composite_PSO, Create_DOF_LF_composite_PSO();
+			static WRL::ComPtr<ID3D12PipelineState> bokehCompositePSO, CreateBokehCompositePSO();
 			static WRL::ComPtr<ID3D12PipelineState> brightPassPSO, CreateBrightPassPSO();
 			static WRL::ComPtr<ID3D12PipelineState> bloomDownsamplePSO, CreateBloomDownsmplePSO();
 			static WRL::ComPtr<ID3D12PipelineState> bloomUpsampleBlurPSO, CreateBloomUpsmpleBlurPSO();

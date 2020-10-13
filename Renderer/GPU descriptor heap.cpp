@@ -83,11 +83,11 @@ void GPUDescriptorHeap::OnFrameStart()
 	}
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE GPUDescriptorHeap::FillPostprocessGPUDescriptorTableStore(const PostprocessDescriptorTableStore &stage)
+D3D12_GPU_DESCRIPTOR_HANDLE GPUDescriptorHeap::StreamPostprocessDescriptorTable(const PostprocessDescriptorTableStore &stage)
 {
 	const auto descriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	const auto GPUHeapOffset = globalFrameVersioning->GetContinuousRingIdx() * PostprocessDescriptorTableStore::TableSize * descriptorSize;
-	const CD3DX12_CPU_DESCRIPTOR_HANDLE dst(GetHeap()->GetCPUDescriptorHandleForHeapStart(), GPUHeapOffset), src(stage.allocation->GetCPUDescriptorHandleForHeapStart());
+	const CD3DX12_CPU_DESCRIPTOR_HANDLE dst(GetHeap()->GetCPUDescriptorHandleForHeapStart(), GPUHeapOffset), src(stage.CPUStore->GetCPUDescriptorHandleForHeapStart());
 	device->CopyDescriptorsSimple(PostprocessDescriptorTableStore::TableSize, dst, src, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	return CD3DX12_GPU_DESCRIPTOR_HANDLE(GetHeap()->GetGPUDescriptorHandleForHeapStart(), GPUHeapOffset);
 }

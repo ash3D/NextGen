@@ -19,12 +19,12 @@ namespace Renderer::Impl::Descriptors
 
 	namespace GPUDescriptorHeap
 	{
-		D3D12_GPU_DESCRIPTOR_HANDLE FillPostprocessGPUDescriptorTableStore(const PostprocessDescriptorTableStore &src);
+		D3D12_GPU_DESCRIPTOR_HANDLE StreamPostprocessDescriptorTable(const PostprocessDescriptorTableStore &src);
 	}
 
 	class PostprocessDescriptorTableStore
 	{
-		friend D3D12_GPU_DESCRIPTOR_HANDLE GPUDescriptorHeap::FillPostprocessGPUDescriptorTableStore(const PostprocessDescriptorTableStore &src);
+		friend D3D12_GPU_DESCRIPTOR_HANDLE GPUDescriptorHeap::StreamPostprocessDescriptorTable(const PostprocessDescriptorTableStore &src);
 
 	public:
 		enum TableEntry
@@ -57,7 +57,7 @@ namespace Renderer::Impl::Descriptors
 		};
 
 	private:
-		WRL::ComPtr<ID3D12DescriptorHeap> allocation;	// CPU heap does not require lifetime tracking
+		WRL::ComPtr<ID3D12DescriptorHeap> CPUStore;	// CPU heap does not require lifetime tracking
 
 	public:
 		PostprocessDescriptorTableStore();

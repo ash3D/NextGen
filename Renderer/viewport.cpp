@@ -8,8 +8,8 @@
 #include "shader bytecode.h"
 #include "DMA engine.h"
 #include "config.h"
-#include "PIX events.h"
 #include "CS config.h"
+#include "PIX events.h"
 
 namespace Shaders
 {
@@ -22,7 +22,7 @@ namespace Shaders
 #	include "DOF_splattingVS.csh"
 #	include "DOF_splattingGS.csh"
 #	include "DOF_splattingPS.csh"
-#	include "DOF_LF_composite.csh"
+#	include "bokehComposite.csh"
 #	include "brightPass.csh"
 #	include "downsample.csh"
 #	include "upsampleBlur.csh"
@@ -337,12 +337,12 @@ WRL::ComPtr<ID3D12PipelineState> Renderer::Impl::Viewport::Create_DOF_splatting_
 	return PSO;
 }
 
-ComPtr<ID3D12PipelineState> Impl::Viewport::Create_DOF_LF_composite_PSO()
+ComPtr<ID3D12PipelineState> Impl::Viewport::CreateBokehCompositePSO()
 {
 	const D3D12_COMPUTE_PIPELINE_STATE_DESC PSO_desc =
 	{
 		.pRootSignature = postprocessRootSigs.compute.Get(),
-		.CS = ShaderBytecode(Shaders::DOF_LF_composite),
+		.CS = ShaderBytecode(Shaders::bokehComposite),
 		.Flags = D3D12_PIPELINE_STATE_FLAG_NONE
 	};
 
@@ -568,7 +568,7 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvid
 			}
 		};
 		cmdList->ClearUnorderedAccessViewFloat(CD3DX12_GPU_DESCRIPTOR_HANDLE(postprocessDescriptorTable, Descriptors::PostprocessDescriptorTableStore::DOFLayersUAV, descriptorSize),
-			offscreenBuffers.GetPostprocessCPUDescriptorHeap().GetDescriptor(Descriptors::PostprocessDescriptorTableStore::DOFLayersUAV),
+			offscreenBuffers.GetPostprocessCPUDescriptorTableStore().GetDescriptor(Descriptors::PostprocessDescriptorTableStore::DOFLayersUAV),
 			offscreenBuffers.GetROPsBuffers().overlapped.postFX.DOFLayers.resource.Get(),
 			rtDesc.BeginningAccess.Clear.ClearValue.Color, 0, NULL);
 		cmdList->BeginRenderPass(1, &rtDesc, NULL, D3D12_RENDER_PASS_FLAG_ALLOW_UAV_WRITES);
@@ -607,7 +607,7 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvid
 	}
 
 	// DOF & lens flare composite pass
-	cmdList->SetPipelineState(DOF_LF_composite_PSO.Get());
+	cmdList->SetPipelineState(bokehCompositePSO.Get());
 	cmdList->Dispatch(fullResDispatchSize.x, fullResDispatchSize.y, 1);
 
 	{

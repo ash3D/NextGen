@@ -327,7 +327,7 @@ namespace Renderer::Impl::Descriptors::TextureSamplers::Impl
 
 // defined before globalFrameVersioning so destroyed after waiting for last frame in globalFrameVersioning's dtor
 ComPtr<ID3D12Heap> decltype(OffscreenBuffers::ROPs)::VRAMBackingStore;
-ComPtr<ID3D12Heap> decltype(OffscreenBuffers::shaderOnly)::VRAMBackingStore;
+ComPtr<ID3D12Heap> decltype(OffscreenBuffers::shaders)::VRAMBackingStore;
 ComPtr<ID3D12Resource> OffscreenBuffers::luminanceReductionBuffer = device ? OffscreenBuffers::CreateLuminanceReductionBuffer() : nullptr;
 
 struct RetiredResource
@@ -375,7 +375,7 @@ ComPtr<ID3D12PipelineState>
 	Viewport::lensFlarePSO															= Try(Viewport::CreateLensFlarePSO, "lens flare PSO"),
 	Viewport::COC_pass_PSO															= Try(Viewport::Create_COC_pass_PSO, "COC pass PSO"),
 	Viewport::DOF_splatting_PSO														= Try(Viewport::Create_DOF_splatting_PSO, "DOF splatting PSO"),
-	Viewport::DOF_LF_composite_PSO													= Try(Viewport::Create_DOF_LF_composite_PSO, "DOF & lens flare composite PSO"),
+	Viewport::bokehCompositePSO														= Try(Viewport::CreateBokehCompositePSO, "DOF & lens flare composite PSO"),
 	Viewport::brightPassPSO															= Try(Viewport::CreateBrightPassPSO, "bloom bright pass PSO"),
 	Viewport::bloomDownsamplePSO													= Try(Viewport::CreateBloomDownsmplePSO, "bloom downsample PSO"),
 	Viewport::bloomUpsampleBlurPSO													= Try(Viewport::CreateBloomUpsmpleBlurPSO, "bloom upsample blur PSO"),
@@ -459,7 +459,7 @@ extern void __cdecl InitRenderer()
 		Viewport::lensFlarePSO								= Viewport::CreateLensFlarePSO();
 		Viewport::COC_pass_PSO								= Viewport::Create_COC_pass_PSO();
 		Viewport::DOF_splatting_PSO							= Viewport::Create_DOF_splatting_PSO();
-		Viewport::DOF_LF_composite_PSO						= Viewport::Create_DOF_LF_composite_PSO();
+		Viewport::bokehCompositePSO							= Viewport::CreateBokehCompositePSO();
 		Viewport::brightPassPSO								= Viewport::CreateBrightPassPSO();
 		Viewport::bloomDownsamplePSO						= Viewport::CreateBloomDownsmplePSO();
 		Viewport::bloomUpsampleBlurPSO						= Viewport::CreateBloomUpsmpleBlurPSO();

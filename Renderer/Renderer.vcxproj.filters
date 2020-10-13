@@ -370,9 +370,6 @@
     <FxCompile Include="lensFlarePS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="DOF_LF_composite.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
     <FxCompile Include="DOF_splattingVS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
@@ -383,6 +380,9 @@
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="COC_pass.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="bokehComposite.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>

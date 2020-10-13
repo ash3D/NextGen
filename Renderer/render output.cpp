@@ -146,7 +146,7 @@ void RenderOutput::NextFrame(bool vsync)
 	CheckHR(swapChain->GetBuffer(idx, IID_PPV_ARGS(&output)));
 	GPUDescriptorHeap::OnFrameStart();
 	globalFrameVersioning->OnFrameStart();
-	const auto postprocessDescriptorTable = GPUDescriptorHeap::FillPostprocessGPUDescriptorTableStore(offscreenBuffers->GetPostprocessCPUDescriptorHeap());
+	const auto postprocessDescriptorTable = GPUDescriptorHeap::StreamPostprocessDescriptorTable(offscreenBuffers->GetPostprocessCPUDescriptorTableStore());
 	viewport->Render(output.Get(), *offscreenBuffers, postprocessDescriptorTable, width, height);
 	CheckHR(swapChain->Present(vsync, 0));
 	globalFrameVersioning->OnFrameFinish();

@@ -36,7 +36,7 @@ namespace Renderer::Impl
 			UINT64 offset, size;
 		};
 
-		// layout for resource heap tier 1, have to separate ROPs/shaderOnly
+		// layout for resource heap tier 1, have to separate ROPs/shaders
 	private:
 		struct
 		{
@@ -91,11 +91,11 @@ namespace Renderer::Impl
 		private:
 			UINT64 allocationSize;
 			static WRL::ComPtr<ID3D12Heap> VRAMBackingStore;	// don't track lifetime (similarly as for ROPs store)
-		} shaderOnly;
+		} shaders;
 
 	private:
-		TrackedResource<ID3D12DescriptorHeap> rtvHeap, dsvHeap;	// is tracking really needed?
-		Descriptors::PostprocessDescriptorTableStore postprocessCPUDescriptorHeap;
+		TrackedResource<ID3D12DescriptorHeap> rtvStore, dsvStore;	// is tracking really needed?
+		Descriptors::PostprocessDescriptorTableStore postprocessCPUDescriptorTableStore;
 
 	private:
 		enum RTV_ID
@@ -135,7 +135,7 @@ namespace Renderer::Impl
 		void operator =(OffscreenBuffers &) = delete;
 
 	private:
-		static UINT64 MaxROPsAllocationSize(), MaxShaderOnlyAllocationSize();
+		static UINT64 MaxROPsAllocationSize(), MaxShadersAllocationSize();
 		void MarkupAllocation();
 		void DestroyBuffers();
 		void ConstructBuffers();
@@ -149,9 +149,9 @@ namespace Renderer::Impl
 
 	public:
 		const auto &GetROPsBuffers() const noexcept { return ROPs; }
-		const auto &GetShaderOnlyBuffers() const noexcept { return shaderOnly; }
+		const auto &GetShaderOnlyBuffers() const noexcept { return shaders; }
 		const D3D12_CPU_DESCRIPTOR_HANDLE GetRTV() const, GetDOFLayersRTV() const, GetLensFlareRTV() const, GetDSV() const;
-		const Descriptors::PostprocessDescriptorTableStore &GetPostprocessCPUDescriptorHeap() const noexcept { return postprocessCPUDescriptorHeap; }
+		const Descriptors::PostprocessDescriptorTableStore &GetPostprocessCPUDescriptorTableStore() const noexcept { return postprocessCPUDescriptorTableStore; }
 		static const WRL::ComPtr<ID3D12Resource> &GetLuminanceReductionBuffer() noexcept { return luminanceReductionBuffer; }
 
 	private:
