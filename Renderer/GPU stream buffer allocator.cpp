@@ -8,7 +8,7 @@ using namespace Renderer::Impl::GPUStreamBuffer;
 
 void AllocatorBase::AllocateChunk(const D3D12_RESOURCE_DESC &chunkDesc, LPCWSTR resourceName)
 {
-	extern Microsoft::WRL::ComPtr<ID3D12Device2> device;
+	extern Microsoft::WRL::ComPtr<ID3D12Device4> device;
 	void NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
 
 	CheckHR(device->CreateCommittedResource(

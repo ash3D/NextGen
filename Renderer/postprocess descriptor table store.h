@@ -3,10 +3,13 @@
 #include <wrl/client.h>
 
 struct ID3D12DescriptorHeap;
-struct ID3D12Resource;
-struct IDXGISwapChain4;
 struct D3D12_CPU_DESCRIPTOR_HANDLE;
 struct D3D12_GPU_DESCRIPTOR_HANDLE;
+
+namespace Renderer::Impl
+{
+	class OffscreenBuffers;
+}
 
 namespace Renderer::Impl::Descriptors
 {
@@ -58,9 +61,7 @@ namespace Renderer::Impl::Descriptors
 
 	public:
 		PostprocessDescriptorTableStore();
-		void Fill(ID3D12Resource *ZBuffer, ID3D12Resource *src, ID3D12Resource *composite, ID3D12Resource *dst,
-			ID3D12Resource *DOFOpacityBuffer, ID3D12Resource *COCBuffer, ID3D12Resource *dilatedCOCBuffer, ID3D12Resource *halferDOFSurface, ID3D12Resource *DOFLayers,
-			ID3D12Resource *lensFlareSurface, ID3D12Resource *bloomUpChain, ID3D12Resource *bloomDownChain, ID3D12Resource *reductionBuffer, UINT reductionBufferLength);
+		void Fill(const OffscreenBuffers &offscreenBuffers, UINT reductionBufferLength);
 
 	public:
 		// CPU handle

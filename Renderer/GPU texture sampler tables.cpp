@@ -5,7 +5,7 @@
 using namespace Renderer::Impl::Descriptors;
 using Microsoft::WRL::ComPtr;
 
-extern ComPtr<ID3D12Device2> device;
+extern ComPtr<ID3D12Device4> device;
 void NameObject(ID3D12Object *object, LPCWSTR name) noexcept;
 
 // consider consteval accumulate/prefix sum

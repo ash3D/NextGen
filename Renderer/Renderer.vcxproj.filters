@@ -180,6 +180,9 @@
     <ClInclude Include="postprocess descriptor table store.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="offscreen buffers.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -267,6 +270,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="postprocess descriptor table store.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="offscreen buffers.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

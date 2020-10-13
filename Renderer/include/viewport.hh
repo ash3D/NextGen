@@ -7,14 +7,12 @@
 #include "../frame versioning.h"
 #include "../world view context.h"
 #include "../render pipeline.h"
-#include "../postprocess descriptor table store.h"
 
 struct ID3D12CommandAllocator;
 struct ID3D12GraphicsCommandList4;
 struct ID3D12RootSignature;
 struct ID3D12PipelineState;
 struct ID3D12Resource;
-struct D3D12_CPU_DESCRIPTOR_HANDLE;
 struct D3D12_GPU_DESCRIPTOR_HANDLE;
 
 extern void __cdecl InitRenderer();
@@ -121,11 +119,9 @@ namespace Renderer
 
 		private:
 			RenderPipeline::PipelineStage
-				Pre(DeferredCmdBuffsProvider cmdListProvider, ID3D12Resource *output) const,
-				Post(DeferredCmdBuffsProvider cmdListProvider, ID3D12Resource *output, ID3D12Resource *ZBuffert, const TrackedResource<ID3D12Resource> (&HDRSurfaces)[2], ID3D12Resource *LDRSurface,
-					ID3D12Resource *DOFOpacityBuffer, ID3D12Resource *COCBuffer, ID3D12Resource *dilatedCOCBuffer, ID3D12Resource *halfresDOFSurface, ID3D12Resource *DOFLayers, ID3D12Resource *lensFlareSurface,
-					ID3D12Resource *bloomUpChain, ID3D12Resource *bloomDownChain, ID3D12Resource *luminanceReductionBuffer, D3D12_CPU_DESCRIPTOR_HANDLE rtvDOFLayers, D3D12_CPU_DESCRIPTOR_HANDLE rtvLensFlare,
-					D3D12_GPU_DESCRIPTOR_HANDLE postprocessDescriptorTable, const Descriptors::PostprocessDescriptorTableStore &postprocessDescriptorTableStore, float camAdaptationLerpFactor, UINT width, UINT height) const;
+				Pre(DeferredCmdBuffsProvider cmdListProvider, ID3D12Resource *output, const class OffscreenBuffers &offscreenBuffers) const,
+				Post(DeferredCmdBuffsProvider cmdListProvider, ID3D12Resource *output, const class OffscreenBuffers &offscreenBuffers,
+					D3D12_GPU_DESCRIPTOR_HANDLE postprocessDescriptorTable, float camAdaptationLerpFactor, UINT width, UINT height) const;
 
 		protected:
 		public:
@@ -140,11 +136,7 @@ namespace Renderer
 
 		protected:
 			void UpdateAspect(double invAspect);
-			void Render(ID3D12Resource *output, ID3D12Resource *rendertarget, ID3D12Resource *ZBuffer, const TrackedResource<ID3D12Resource> (&HDRSurfaces)[2], ID3D12Resource *LDRSurface,
-				ID3D12Resource *DOFOpacityBuffer, ID3D12Resource *COCBuffer, ID3D12Resource *dilatedCOCBuffer, ID3D12Resource *halfresDOFSurface, ID3D12Resource *DOFLayers, ID3D12Resource *lensFlareSurface,
-				ID3D12Resource *bloomUpChain, ID3D12Resource *bloomDownChain, ID3D12Resource *luminanceReductionBuffer,
-				const D3D12_CPU_DESCRIPTOR_HANDLE rtv, const D3D12_CPU_DESCRIPTOR_HANDLE dsv, const D3D12_CPU_DESCRIPTOR_HANDLE rtvDOFLayers, const D3D12_CPU_DESCRIPTOR_HANDLE rtvLensFlare,
-				const D3D12_GPU_DESCRIPTOR_HANDLE postprocessDescriptorTable, const Descriptors::PostprocessDescriptorTableStore &postprocessDescriptorTableStore, UINT width, UINT height) const;
+			void Render(ID3D12Resource *output, const class OffscreenBuffers &offscreenBuffers, const D3D12_GPU_DESCRIPTOR_HANDLE postprocessDescriptorTable, UINT width, UINT height) const;
 			void OnFrameFinish() const;
 		};
 	}

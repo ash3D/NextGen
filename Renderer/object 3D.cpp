@@ -32,7 +32,7 @@ using namespace Renderer;
 using namespace HLSL;
 using WRL::ComPtr;
 
-extern ComPtr<ID3D12Device2> device;
+extern ComPtr<ID3D12Device4> device;
 void NameObject(ID3D12Object *object, LPCWSTR name) noexcept, NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
 
 namespace

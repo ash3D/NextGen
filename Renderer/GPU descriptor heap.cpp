@@ -11,7 +11,7 @@ using namespace std;
 using namespace Renderer::Impl;
 using namespace Descriptors;
 
-extern Microsoft::WRL::ComPtr<ID3D12Device2> device;
+extern Microsoft::WRL::ComPtr<ID3D12Device4> device;
 static constexpr auto heapStaticBlockSize = PostprocessDescriptorTableStore::TableSize * maxFrameLatency;
 static UINT heapSize = heapStaticBlockSize;
 decltype(GPUDescriptorHeap::AllocationClient::registeredClients) GPUDescriptorHeap::AllocationClient::registeredClients;

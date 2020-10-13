@@ -7,7 +7,7 @@ using WRL::ComPtr;
 
 FrameVersioningBase::FrameVersioningBase(LPCWSTR objectName)
 {
-	extern ComPtr<ID3D12Device2> device;
+	extern ComPtr<ID3D12Device4> device;
 	void NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
 	CheckHR(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
 	NameObjectF(fence.Get(), L"%ls fence", objectName);

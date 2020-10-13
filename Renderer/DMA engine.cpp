@@ -11,7 +11,7 @@ using namespace Renderer;
 using namespace DMA::Impl;
 using DMA::WRL::ComPtr;
 
-extern ComPtr<ID3D12Device2> device;
+extern ComPtr<ID3D12Device4> device;
 extern ComPtr<ID3D12CommandQueue> gfxQueue, dmaQueue;
 void NameObject(ID3D12Object *object, LPCWSTR name) noexcept, NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
 

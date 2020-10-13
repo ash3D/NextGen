@@ -140,7 +140,7 @@ Impl::Texture::Texture() : usage{ ~0 }
 
 Impl::Texture::Texture(const filesystem::path &fileName, TextureUsage usage, bool enablePacking, bool useSysRAM) : usage(usage)
 {
-	extern ComPtr<ID3D12Device2> device;
+	extern ComPtr<ID3D12Device4> device;
 	extern ComPtr<ID3D12CommandQueue> dmaQueue;
 	using namespace DirectX;
 

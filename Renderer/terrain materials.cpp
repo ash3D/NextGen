@@ -26,7 +26,7 @@ using namespace Renderer::TerrainMaterials;
 using WRL::ComPtr;
 using Misc::AllocatorProxy;
 
-extern ComPtr<ID3D12Device2> device;
+extern ComPtr<ID3D12Device4> device;
 void NameObject(ID3D12Object *object, LPCWSTR name) noexcept, NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
 ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC &desc, LPCWSTR name);
 

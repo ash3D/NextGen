@@ -13,7 +13,7 @@ using namespace Renderer::Impl;
 using namespace OcclusionCulling;
 using WRL::ComPtr;
 
-extern ComPtr<ID3D12Device2> device;
+extern ComPtr<ID3D12Device4> device;
 void NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
 
 template<typename T>

@@ -62,7 +62,7 @@ void CmdList::FlushBarriers()
 
 void CmdList::Init(ID3D12PipelineState *PSO)
 {
-	extern ComPtr<ID3D12Device2> device;
+	extern ComPtr<ID3D12Device4> device;
 	void NameObjectF(ID3D12Object * object, LPCWSTR format, ...) noexcept;
 
 	// allocator

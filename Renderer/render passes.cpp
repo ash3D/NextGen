@@ -9,7 +9,7 @@ using namespace Renderer::Impl;
 using namespace RenderPipeline;
 using WRL::ComPtr;
 
-extern ComPtr<ID3D12Device2> device;
+extern ComPtr<ID3D12Device4> device;
 
 static bool MSAAResolveWorkaroundNeeded()
 {

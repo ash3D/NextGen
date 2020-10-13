@@ -4,8 +4,8 @@
 #include "frame versioning.h"
 #include "occlusion query batch.h"
 #include "DMA engine.h"
-#include "render output.hh"	// for luminance reduction buffer
-#include "viewport.hh"		// for postprocess root sig & PSOs
+#include "offscreen buffers.h"	// for luminance reduction buffer
+#include "viewport.hh"			// for postprocess root sig & PSOs
 #include "world.hh"
 #include "world render stages.h"
 #include "terrain render stages.h"
@@ -19,7 +19,7 @@
 #define ENABLE_GBV			0
 
 using namespace std;
-using Renderer::RenderOutput;
+using Renderer::Impl::OffscreenBuffers;
 using Renderer::Impl::globalFrameVersioning;
 using Renderer::Impl::Viewport;
 using Renderer::Impl::World;
@@ -63,7 +63,7 @@ Renderer::Impl::EventHandle::EventHandle() : Handle(CreateEvent(NULL, FALSE, FAL
 
 ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC &desc, LPCWSTR name)
 {
-	extern ComPtr<ID3D12Device2> device;
+	extern ComPtr<ID3D12Device4> device;
 	ComPtr<ID3D12RootSignature> result;
 	ComPtr<ID3DBlob> sig, error;
 	const HRESULT hr = D3D12SerializeVersionedRootSignature(&desc, &sig, &error);
@@ -104,7 +104,7 @@ static auto CreateFactory()
 
 static auto CreateDevice()
 {
-	ComPtr<ID3D12Device2> device;
+	ComPtr<ID3D12Device4> device;
 	CheckHR(D3D12CreateDevice(NULL, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(device.GetAddressOf())));
 
 #pragma region validate device features support
@@ -186,7 +186,7 @@ static auto CreateDevice()
 
 static auto CreateGraphicsCommandQueue()
 {
-	extern ComPtr<ID3D12Device2> device;
+	extern ComPtr<ID3D12Device4> device;
 
 	const D3D12_COMMAND_QUEUE_DESC desc =
 	{
@@ -202,7 +202,7 @@ static auto CreateGraphicsCommandQueue()
 
 static auto CreateDMACommandQueue()
 {
-	extern ComPtr<ID3D12Device2> device;
+	extern ComPtr<ID3D12Device4> device;
 
 	ComPtr<ID3D12CommandQueue> cmdQueue;
 	D3D12_FEATURE_DATA_ARCHITECTURE GPUArch{};
@@ -265,7 +265,7 @@ static inline ComPtr<IDXGIFactory5> TryCreateFactory()
 	return nullptr;
 }
 
-static inline ComPtr<ID3D12Device2> TryCreateDevice()
+static inline ComPtr<ID3D12Device4> TryCreateDevice()
 {
 #if ENABLE_AUTO_INIT
 	try
@@ -283,7 +283,7 @@ static inline ComPtr<ID3D12Device2> TryCreateDevice()
 template<typename Result>
 static Result Try(Result Create(), const char object[])
 {
-	extern ComPtr<ID3D12Device2> device;
+	extern ComPtr<ID3D12Device4> device;
 	if (device)
 	{
 		try
@@ -300,7 +300,7 @@ static Result Try(Result Create(), const char object[])
 }
 
 ComPtr<IDXGIFactory5> factory = TryCreateFactory();
-ComPtr<ID3D12Device2> device = TryCreateDevice();
+ComPtr<ID3D12Device4> device = TryCreateDevice();
 ComPtr<ID3D12CommandQueue> gfxQueue = Try(CreateGraphicsCommandQueue, "main GFX command queue"), dmaQueue = Try(CreateDMACommandQueue, "DMA engine command queue");
 
 template<class Optional>
@@ -325,7 +325,10 @@ namespace Renderer::Impl::Descriptors::TextureSamplers::Impl
 	ComPtr<ID3D12DescriptorHeap> CreateHeap(), heap = Try(CreateHeap, "GPU texture sampler heap");
 }
 
-ComPtr<ID3D12Resource> RenderOutput::luminanceReductionBuffer = device ? RenderOutput::CreateLuminanceReductionBuffer() : nullptr;
+// defined before globalFrameVersioning so destroyed after waiting for last frame in globalFrameVersioning's dtor
+ComPtr<ID3D12Heap> decltype(OffscreenBuffers::ROPs)::VRAMBackingStore;
+ComPtr<ID3D12Heap> decltype(OffscreenBuffers::shaderOnly)::VRAMBackingStore;
+ComPtr<ID3D12Resource> OffscreenBuffers::luminanceReductionBuffer = device ? OffscreenBuffers::CreateLuminanceReductionBuffer() : nullptr;
 
 struct RetiredResource
 {
@@ -449,7 +452,7 @@ extern void __cdecl InitRenderer()
 		gfxQueue											= CreateGraphicsCommandQueue();
 		dmaQueue											= CreateDMACommandQueue();
 		TextureSamplers::Impl::heap							= TextureSamplers::Impl::CreateHeap();
-		RenderOutput::luminanceReductionBuffer				= RenderOutput::CreateLuminanceReductionBuffer();
+		OffscreenBuffers::luminanceReductionBuffer			= OffscreenBuffers::CreateLuminanceReductionBuffer();
 		Viewport::postprocessRootSigs						= Viewport::CreatePostprocessRootSigs();
 		Viewport::luminanceTextureReductionPSO				= Viewport::CreateLuminanceTextureReductionPSO();
 		Viewport::luminanceBufferReductionPSO				= Viewport::CreateLuminanceBufferReductionPSO();

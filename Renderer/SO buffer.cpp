@@ -85,7 +85,7 @@ AllocatorBase::~AllocatorBase() = default;
 // !: currently allocates exact requested size without reserving so frequent reallocs on first several frames possible
 Handle AllocatorBase::Allocate(unsigned long payloadSize, D3D12_RESOURCE_STATES usage, LPCWSTR resourceName)
 {
-	extern ComPtr<ID3D12Device2> device;
+	extern ComPtr<ID3D12Device4> device;
 	void NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
 
 	shared_lock<decltype(mtx)> sharedLock(mtx, defer_lock);

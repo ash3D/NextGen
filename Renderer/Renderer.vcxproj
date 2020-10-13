@@ -241,6 +241,7 @@
     <ClInclude Include="occlusion tree.h" />
     <ClInclude Include="occlusion query batch.h" />
     <ClInclude Include="GPU work item.h" />
+    <ClInclude Include="offscreen buffers.h" />
     <ClInclude Include="PIX events.h" />
     <ClInclude Include="render passes.h" />
     <ClInclude Include="shader bytecode.h" />
@@ -286,6 +287,7 @@
     <ClCompile Include="object 3D.cpp" />
     <ClCompile Include="occlusion tree.cpp" />
     <ClCompile Include="occlusion query batch.cpp" />
+    <ClCompile Include="offscreen buffers.cpp" />
     <ClCompile Include="render output.cpp" />
     <ClCompile Include="render passes.cpp" />
     <ClCompile Include="render pipeline.cpp" />
