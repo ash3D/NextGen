@@ -21,6 +21,8 @@ namespace Renderer::Impl
 {
 	namespace WRL = Microsoft::WRL;
 
+	class OffscreenBuffersDesc;
+
 	class OffscreenBuffers final
 	{
 		template<class>
@@ -36,13 +38,9 @@ namespace Renderer::Impl
 			UINT64 offset, size;
 		};
 
-		// layout for resource heap tier 1, have to separate ROPs/shaders
 	private:
-		struct
+		struct LifetimeRanges
 		{
-			friend class OffscreenBuffers;
-
-		public:
 			struct
 			{
 				AllocatedResource ZBuffer;
@@ -50,47 +48,48 @@ namespace Renderer::Impl
 
 			struct
 			{
+				AllocatedResource HDRInputSurface;
+			} world_bokeh;
+
+			struct
+			{
+				AllocatedResource HDRCompositeSurface;
+			} bokeh_lum;
+
+			struct
+			{
 				AllocatedResource rendertarget;
+			} world;
 
-				struct
-				{
-					AllocatedResource DOFLayers, lensFlareSurface;
-				} postFX;
-			} overlapped;
+			struct
+			{
+				AllocatedResource DOFOpacityBuffer, COCBuffer, dilatedCOCBuffer, halfresDOFSurface, DOFLayers, lensFlareSurface;
+			} bokeh;
 
-		private:
+			struct
+			{
+				AllocatedResource bloomUpChain, bloomDownChain, LDRSurface;
+			} lum;
+		} lifetimeRanges;
+
+		// layout for resource heap tier 1, have to separate ROPs/shaders
+	private:
+		struct
+		{
 			UINT64 allocationSize;
 			static WRL::ComPtr<ID3D12Heap> VRAMBackingStore;	// don't track lifetime as it is accomplished through placed resources holding refs to underlying heap
+
+		public:
+			void MarkupAllocation(const OffscreenBuffersDesc &buffersDesc, LifetimeRanges &dst);
 		} ROPs;
 
 		struct
 		{
-			friend class OffscreenBuffers;
-
-		public:
-			struct
-			{
-				AllocatedResource HDRCompositeSurface;
-			} persistent;
-
-			struct
-			{
-				// DOF & lens flare (and currently lum adaptation with 'HDRInputSurface' for GPUs without typed UAV loads)
-				struct
-				{
-					AllocatedResource HDRInputSurface, DOFOpacityBuffer, COCBuffer, dilatedCOCBuffer, halfresDOFSurface;
-				} bokeh;
-
-				// bloom & tonemap
-				struct
-				{
-					AllocatedResource bloomUpChain, bloomDownChain, LDRSurface;
-				} lum;
-			} overlapped;
-
-		private:
 			UINT64 allocationSize;
 			static WRL::ComPtr<ID3D12Heap> VRAMBackingStore;	// don't track lifetime (similarly as for ROPs store)
+
+		public:
+			void MarkupAllocation(const OffscreenBuffersDesc &buffersDesc, LifetimeRanges &dst);
 		} shaders;
 
 	private:
@@ -148,13 +147,28 @@ namespace Renderer::Impl
 		void Resize(UINT width, UINT height, bool allowShrinkBackingStore);
 
 	public:
-		const auto &GetROPsBuffers() const noexcept { return ROPs; }
-		const auto &GetShaderOnlyBuffers() const noexcept { return shaders; }
+		const auto &GetPersistentBuffers() const noexcept { return lifetimeRanges.persistent; }
+		const auto &GetWorldAndBokehBuffers() const noexcept { return lifetimeRanges.world_bokeh; }
+		const auto &GetBokehAndLumBuffers() const noexcept { return lifetimeRanges.bokeh_lum; }
+		const auto &GetWorldBuffers() const noexcept { return lifetimeRanges.world; }
+		const auto &GetBokehBuffers() const noexcept { return lifetimeRanges.bokeh; }
+		const auto &GetLumBuffers() const noexcept { return lifetimeRanges.lum; }
+#if 0
+		// fatal error LNK1179 : invalid or corrupt file : duplicate COMDAT
+		template<AllocatedResource decltype(LifetimeRanges::bokeh_lum)::*nested>
+		ID3D12Resource *GetNestingBuffer() const noexcept { return GetNestingBuffer(lifetimeRanges.world.rendertarget, lifetimeRanges.bokeh_lum.*nested); }
+		template<AllocatedResource decltype(LifetimeRanges::bokeh)::*nested>
+		ID3D12Resource *GetNestingBuffer() const noexcept { return GetNestingBuffer(lifetimeRanges.world.rendertarget, lifetimeRanges.bokeh.*nested); }
+#else
+		ID3D12Resource *GetNestingBuffer(AllocatedResource decltype(LifetimeRanges::bokeh_lum)::*nested) const noexcept { return GetNestingBuffer(lifetimeRanges.world.rendertarget, lifetimeRanges.bokeh_lum.*nested); }
+		ID3D12Resource *GetNestingBuffer(AllocatedResource decltype(LifetimeRanges::bokeh)::*nested) const noexcept { return GetNestingBuffer(lifetimeRanges.world.rendertarget, lifetimeRanges.bokeh.*nested); }
+#endif
 		const D3D12_CPU_DESCRIPTOR_HANDLE GetRTV() const, GetDOFLayersRTV() const, GetLensFlareRTV() const, GetDSV() const;
 		const Descriptors::PostprocessDescriptorTableStore &GetPostprocessCPUDescriptorTableStore() const noexcept { return postprocessCPUDescriptorTableStore; }
 		static const WRL::ComPtr<ID3D12Resource> &GetLuminanceReductionBuffer() noexcept { return luminanceReductionBuffer; }
 
 	private:
+		static ID3D12Resource *GetNestingBuffer(const AllocatedResource &nesting, const AllocatedResource &nested) noexcept;
 		const D3D12_CPU_DESCRIPTOR_HANDLE GetRTV(RTV_ID rtvID) const;
 	};
 }

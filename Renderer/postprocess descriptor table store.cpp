@@ -39,20 +39,20 @@ void PostprocessDescriptorTableStore::Fill(const OffscreenBuffers &offscreenBuff
 			.Texture2DMS{}
 		};
 
-		device->CreateShaderResourceView(offscreenBuffers.GetROPsBuffers().persistent.ZBuffer.resource.Get(), &SRVdesc, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, ZBufferSRV, descriptorSize));
+		device->CreateShaderResourceView(offscreenBuffers.GetPersistentBuffers().ZBuffer.resource.Get(), &SRVdesc, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, ZBufferSRV, descriptorSize));
 	}
 
 	// SrcSRV
-	device->CreateShaderResourceView(offscreenBuffers.GetShaderOnlyBuffers().overlapped.bokeh.HDRInputSurface.resource.Get(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, SrcSRV, descriptorSize));
+	device->CreateShaderResourceView(offscreenBuffers.GetWorldAndBokehBuffers().HDRInputSurface.resource.Get(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, SrcSRV, descriptorSize));
 
 	// CompositeSRV
-	device->CreateShaderResourceView(offscreenBuffers.GetShaderOnlyBuffers().persistent.HDRCompositeSurface.resource.Get(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, CompositeSRV, descriptorSize));
+	device->CreateShaderResourceView(offscreenBuffers.GetBokehAndLumBuffers().HDRCompositeSurface.resource.Get(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, CompositeSRV, descriptorSize));
 
 	// CompositeUAV
-	device->CreateUnorderedAccessView(offscreenBuffers.GetShaderOnlyBuffers().persistent.HDRCompositeSurface.resource.Get(), NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, CompositeUAV, descriptorSize));
+	device->CreateUnorderedAccessView(offscreenBuffers.GetBokehAndLumBuffers().HDRCompositeSurface.resource.Get(), NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, CompositeUAV, descriptorSize));
 
 	// DstUAV
-	device->CreateUnorderedAccessView(offscreenBuffers.GetShaderOnlyBuffers().overlapped.lum.LDRSurface.resource.Get(), NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DstUAV, descriptorSize));
+	device->CreateUnorderedAccessView(offscreenBuffers.GetLumBuffers().LDRSurface.resource.Get(), NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DstUAV, descriptorSize));
 
 	// ReductionBufferUAV
 	{
@@ -88,39 +88,39 @@ void PostprocessDescriptorTableStore::Fill(const OffscreenBuffers &offscreenBuff
 	}
 
 	// DOFOpacityBufferUAV
-	device->CreateUnorderedAccessView(offscreenBuffers.GetShaderOnlyBuffers().overlapped.bokeh.DOFOpacityBuffer.resource.Get(), NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DOFOpacityBufferUAV, descriptorSize));
+	device->CreateUnorderedAccessView(offscreenBuffers.GetBokehBuffers().DOFOpacityBuffer.resource.Get(), NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DOFOpacityBufferUAV, descriptorSize));
 
 	// COCBufferUAV
-	device->CreateUnorderedAccessView(offscreenBuffers.GetShaderOnlyBuffers().overlapped.bokeh.COCBuffer.resource.Get(), NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, COCBufferUAV, descriptorSize));
+	device->CreateUnorderedAccessView(offscreenBuffers.GetBokehBuffers().COCBuffer.resource.Get(), NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, COCBufferUAV, descriptorSize));
 
 	// DilatedCOCBufferUAV
-	device->CreateUnorderedAccessView(offscreenBuffers.GetShaderOnlyBuffers().overlapped.bokeh.dilatedCOCBuffer.resource.Get(), NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DilatedCOCBufferUAV, descriptorSize));
+	device->CreateUnorderedAccessView(offscreenBuffers.GetBokehBuffers().dilatedCOCBuffer.resource.Get(), NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DilatedCOCBufferUAV, descriptorSize));
 
 	// HalfresDOFInputUAV
-	device->CreateUnorderedAccessView(offscreenBuffers.GetShaderOnlyBuffers().overlapped.bokeh.halfresDOFSurface.resource.Get(), NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, HalfresDOFInputUAV, descriptorSize));
+	device->CreateUnorderedAccessView(offscreenBuffers.GetBokehBuffers().halfresDOFSurface.resource.Get(), NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, HalfresDOFInputUAV, descriptorSize));
 
 	// DOFLayersUAV
-	device->CreateUnorderedAccessView(offscreenBuffers.GetROPsBuffers().overlapped.postFX.DOFLayers.resource.Get(), NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DOFLayersUAV, descriptorSize));
+	device->CreateUnorderedAccessView(offscreenBuffers.GetBokehBuffers().DOFLayers.resource.Get(), NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DOFLayersUAV, descriptorSize));
 
 	// DOFOpacityBufferSRV
-	device->CreateShaderResourceView(offscreenBuffers.GetShaderOnlyBuffers().overlapped.bokeh.DOFOpacityBuffer.resource.Get(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DOFOpacityBufferSRV, descriptorSize));
+	device->CreateShaderResourceView(offscreenBuffers.GetBokehBuffers().DOFOpacityBuffer.resource.Get(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DOFOpacityBufferSRV, descriptorSize));
 
 	// COCBufferSRV
-	device->CreateShaderResourceView(offscreenBuffers.GetShaderOnlyBuffers().overlapped.bokeh.COCBuffer.resource.Get(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, COCBufferSRV, descriptorSize));
+	device->CreateShaderResourceView(offscreenBuffers.GetBokehBuffers().COCBuffer.resource.Get(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, COCBufferSRV, descriptorSize));
 
 	// DilatedCOCBufferSRV
-	device->CreateShaderResourceView(offscreenBuffers.GetShaderOnlyBuffers().overlapped.bokeh.dilatedCOCBuffer.resource.Get(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DilatedCOCBufferSRV, descriptorSize));
+	device->CreateShaderResourceView(offscreenBuffers.GetBokehBuffers().dilatedCOCBuffer.resource.Get(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DilatedCOCBufferSRV, descriptorSize));
 
 	// HalfresDOFInputSRV
-	device->CreateShaderResourceView(offscreenBuffers.GetShaderOnlyBuffers().overlapped.bokeh.halfresDOFSurface.resource.Get(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, HalfresDOFInputSRV, descriptorSize));
+	device->CreateShaderResourceView(offscreenBuffers.GetBokehBuffers().halfresDOFSurface.resource.Get(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, HalfresDOFInputSRV, descriptorSize));
 
 	// DOFLayersSRV
-	device->CreateShaderResourceView(offscreenBuffers.GetROPsBuffers().overlapped.postFX.DOFLayers.resource.Get(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DOFLayersSRV, descriptorSize));
+	device->CreateShaderResourceView(offscreenBuffers.GetBokehBuffers().DOFLayers.resource.Get(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DOFLayersSRV, descriptorSize));
 
 	// LensFlareSRV
-	device->CreateShaderResourceView(offscreenBuffers.GetROPsBuffers().overlapped.postFX.lensFlareSurface.resource.Get(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, LensFlareSRV, descriptorSize));
+	device->CreateShaderResourceView(offscreenBuffers.GetBokehBuffers().lensFlareSurface.resource.Get(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, LensFlareSRV, descriptorSize));
 
-	ID3D12Resource *const bloomUpChain = offscreenBuffers.GetShaderOnlyBuffers().overlapped.lum.bloomUpChain.resource.Get(), *const bloomDownChain = offscreenBuffers.GetShaderOnlyBuffers().overlapped.lum.bloomDownChain.resource.Get();
+	ID3D12Resource *const bloomUpChain = offscreenBuffers.GetLumBuffers().bloomUpChain.resource.Get(), *const bloomDownChain = offscreenBuffers.GetLumBuffers().bloomDownChain.resource.Get();
 
 	// BloomUpChainSRV
 	device->CreateShaderResourceView(bloomUpChain, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, BloomUpChainSRV, descriptorSize));
