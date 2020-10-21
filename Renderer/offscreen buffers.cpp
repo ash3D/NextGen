@@ -407,8 +407,7 @@ inline void OffscreenBuffers::DestroyBuffers()
 	lifetimeRanges.postFX_2.LDRSurface.resource.Reset();
 }
 
-// 1 call site
-inline void OffscreenBuffers::ConstructBuffers()
+void OffscreenBuffers::ConstructBuffers()
 {
 	// create placed resources into shared heaps
 	{
@@ -622,9 +621,12 @@ void OffscreenBuffers::Resize(UINT width, UINT height, bool allowShrink)
 
 		CheckHR(device->CreateHeap(&CD3DX12_HEAP_DESC(requiredROPsStore, D3D12_HEAP_TYPE_DEFAULT, D3D12_DEFAULT_MSAA_RESOURCE_PLACEMENT_ALIGNMENT, D3D12_HEAP_FLAG_ALLOW_ONLY_RT_DS_TEXTURES), IID_PPV_ARGS(ROPs.VRAMBackingStore.GetAddressOf())));
 		CheckHR(device->CreateHeap(&CD3DX12_HEAP_DESC(requiredShaderOnlyStore, D3D12_HEAP_TYPE_DEFAULT, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT, D3D12_HEAP_FLAG_ALLOW_ONLY_NON_RT_DS_TEXTURES), IID_PPV_ARGS(shaders.VRAMBackingStore.GetAddressOf())));
+
+		// need to recreate all buffers due to underlying heaps have been changed
+		for_each(store.begin(), store.end(), mem_fn(&OffscreenBuffers::ConstructBuffers));
 	}
-		
-	for_each(store.begin(), store.end(), mem_fn(&OffscreenBuffers::ConstructBuffers));
+	else// keep other views unchanged, recreate only affected buffers
+		ConstructBuffers();
 }
 
 const D3D12_CPU_DESCRIPTOR_HANDLE OffscreenBuffers::GetRTV() const { return GetRTV(SCENE_RTV); }
