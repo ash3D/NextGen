@@ -49,12 +49,12 @@ namespace Renderer::Impl
 			struct
 			{
 				AllocatedResource HDRInputSurface;
-			} world_bokeh;
+			} world_postFX_1;
 
 			struct
 			{
 				AllocatedResource HDRCompositeSurface;
-			} bokeh_lum;
+			} postFX;
 
 			struct
 			{
@@ -64,12 +64,12 @@ namespace Renderer::Impl
 			struct
 			{
 				AllocatedResource DOFOpacityBuffer, COCBuffer, dilatedCOCBuffer, halfresDOFSurface, DOFLayers, lensFlareSurface;
-			} bokeh;
+			} postFX_1;
 
 			struct
 			{
 				AllocatedResource bloomUpChain, bloomDownChain, LDRSurface;
-			} lum;
+			} postFX_2;
 		} lifetimeRanges;
 
 		// layout for resource heap tier 1, have to separate ROPs/shaders
@@ -148,20 +148,20 @@ namespace Renderer::Impl
 
 	public:
 		const auto &GetPersistentBuffers() const noexcept { return lifetimeRanges.persistent; }
-		const auto &GetWorldAndBokehBuffers() const noexcept { return lifetimeRanges.world_bokeh; }
-		const auto &GetBokehAndLumBuffers() const noexcept { return lifetimeRanges.bokeh_lum; }
+		const auto &GetWorldAndPostFX1Buffers() const noexcept { return lifetimeRanges.world_postFX_1; }
+		const auto &GetPostFXBuffers() const noexcept { return lifetimeRanges.postFX; }
 		const auto &GetWorldBuffers() const noexcept { return lifetimeRanges.world; }
-		const auto &GetBokehBuffers() const noexcept { return lifetimeRanges.bokeh; }
-		const auto &GetLumBuffers() const noexcept { return lifetimeRanges.lum; }
+		const auto &GetPostFX1Buffers() const noexcept { return lifetimeRanges.postFX_1; }
+		const auto &GetPostFX2Buffers() const noexcept { return lifetimeRanges.postFX_2; }
 #if 0
 		// fatal error LNK1179 : invalid or corrupt file : duplicate COMDAT
-		template<AllocatedResource decltype(LifetimeRanges::bokeh_lum)::*nested>
-		ID3D12Resource *GetNestingBuffer() const noexcept { return GetNestingBuffer(lifetimeRanges.world.rendertarget, lifetimeRanges.bokeh_lum.*nested); }
-		template<AllocatedResource decltype(LifetimeRanges::bokeh)::*nested>
-		ID3D12Resource *GetNestingBuffer() const noexcept { return GetNestingBuffer(lifetimeRanges.world.rendertarget, lifetimeRanges.bokeh.*nested); }
+		template<AllocatedResource decltype(LifetimeRanges::postFX)::*nested>
+		ID3D12Resource *GetNestingBuffer() const noexcept { return GetNestingBuffer(lifetimeRanges.world.rendertarget, lifetimeRanges.postFX.*nested); }
+		template<AllocatedResource decltype(LifetimeRanges::postFX_1)::*nested>
+		ID3D12Resource *GetNestingBuffer() const noexcept { return GetNestingBuffer(lifetimeRanges.world.rendertarget, lifetimeRanges.postFX_1.*nested); }
 #else
-		ID3D12Resource *GetNestingBuffer(AllocatedResource decltype(LifetimeRanges::bokeh_lum)::*nested) const noexcept { return GetNestingBuffer(lifetimeRanges.world.rendertarget, lifetimeRanges.bokeh_lum.*nested); }
-		ID3D12Resource *GetNestingBuffer(AllocatedResource decltype(LifetimeRanges::bokeh)::*nested) const noexcept { return GetNestingBuffer(lifetimeRanges.world.rendertarget, lifetimeRanges.bokeh.*nested); }
+		ID3D12Resource *GetNestingBuffer(AllocatedResource decltype(LifetimeRanges::postFX)::*nested) const noexcept { return GetNestingBuffer(lifetimeRanges.world.rendertarget, lifetimeRanges.postFX.*nested); }
+		ID3D12Resource *GetNestingBuffer(AllocatedResource decltype(LifetimeRanges::postFX_1)::*nested) const noexcept { return GetNestingBuffer(lifetimeRanges.world.rendertarget, lifetimeRanges.postFX_1.*nested); }
 #endif
 		const D3D12_CPU_DESCRIPTOR_HANDLE GetRTV() const, GetDOFLayersRTV() const, GetLensFlareRTV() const, GetDSV() const;
 		const Descriptors::PostprocessDescriptorTableStore &GetPostprocessCPUDescriptorTableStore() const noexcept { return postprocessCPUDescriptorTableStore; }

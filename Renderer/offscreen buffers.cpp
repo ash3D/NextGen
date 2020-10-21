@@ -10,7 +10,6 @@ using namespace Renderer::Impl;
 using WRL::ComPtr;
 
 extern ComPtr<ID3D12Device4> device;
-
 void NameObject(ID3D12Object *object, LPCWSTR name) noexcept;
 
 static constexpr UINT64 shrinkThreshold = 16'777'216ULL;
@@ -170,12 +169,12 @@ namespace Renderer::Impl::OffscreenBuffersLayout
 					const D3D12_RESOURCE_ALLOCATION_INFO postFXAllocation = device->GetResourceAllocationInfo1(0, PostFXLayout_BuffersCount, postFXBuffersDesc, postFXSuballocation);
 					const auto alignedPostFXOffset = AlignSize(baseOffset, postFXAllocation.Alignment);
 					const auto postFXPadding = alignedPostFXOffset - baseOffset;
-					dst.bokeh.DOFLayers.offset = alignedPostFXOffset + postFXSuballocation[PostFXLayout_DOFLayers].Offset;
-					dst.bokeh.DOFLayers.size = postFXSuballocation[PostFXLayout_DOFLayers].SizeInBytes;
-					ApplyHeapOffset(dst.bokeh.DOFLayers);
-					dst.bokeh.lensFlareSurface.offset = alignedPostFXOffset + postFXSuballocation[PostFXLayout_LensFlareSurface].Offset;
-					dst.bokeh.lensFlareSurface.size = postFXSuballocation[PostFXLayout_LensFlareSurface].SizeInBytes;
-					ApplyHeapOffset(dst.bokeh.lensFlareSurface);
+					dst.postFX_1.DOFLayers.offset = alignedPostFXOffset + postFXSuballocation[PostFXLayout_DOFLayers].Offset;
+					dst.postFX_1.DOFLayers.size = postFXSuballocation[PostFXLayout_DOFLayers].SizeInBytes;
+					ApplyHeapOffset(dst.postFX_1.DOFLayers);
+					dst.postFX_1.lensFlareSurface.offset = alignedPostFXOffset + postFXSuballocation[PostFXLayout_LensFlareSurface].Offset;
+					dst.postFX_1.lensFlareSurface.size = postFXSuballocation[PostFXLayout_LensFlareSurface].SizeInBytes;
+					ApplyHeapOffset(dst.postFX_1.lensFlareSurface);
 					return postFXPadding + postFXAllocation.SizeInBytes;
 				}
 			}
@@ -195,9 +194,9 @@ namespace Renderer::Impl::OffscreenBuffersLayout
 				static inline UINT64 HDRCompositeSurface(const OffscreenBuffersDesc &offscreenBuffersDesc, LifetimeRanges &dst)
 				{
 					const D3D12_RESOURCE_ALLOCATION_INFO HDRCompositeSurfaceAllocation = device->GetResourceAllocationInfo(0, 1, &offscreenBuffersDesc.HDRCompositeSurface());
-					dst.bokeh_lum.HDRCompositeSurface.offset = 0;
-					dst.bokeh_lum.HDRCompositeSurface.size = HDRCompositeSurfaceAllocation.SizeInBytes;
-					ApplyHeapOffset(dst.bokeh_lum.HDRCompositeSurface);
+					dst.postFX.HDRCompositeSurface.offset = 0;
+					dst.postFX.HDRCompositeSurface.size = HDRCompositeSurfaceAllocation.SizeInBytes;
+					ApplyHeapOffset(dst.postFX.HDRCompositeSurface);
 					return HDRCompositeSurfaceAllocation.SizeInBytes;
 				}
 			}
@@ -224,7 +223,7 @@ namespace Renderer::Impl::OffscreenBuffersLayout
 
 				// DOF & lens flare (and currently lum adaptation with 'HDRInputSurface' for GPUs without typed UAV loads)
 				template<typename LifetimeRanges>
-				static inline UINT64 Bokeh(const OffscreenBuffersDesc &offscreenBuffersDesc, LifetimeRanges &dst, UINT64 baseOffset)
+				static inline UINT64 PostFX_1(const OffscreenBuffersDesc &offscreenBuffersDesc, LifetimeRanges &dst, UINT64 baseOffset)
 				{
 					D3D12_RESOURCE_DESC bokehBuffersDesc[BokehLayout_BuffersCount];
 					bokehBuffersDesc[BokehLayout_HDRInputSurface] = offscreenBuffersDesc.HDRInputSurface();
@@ -236,27 +235,27 @@ namespace Renderer::Impl::OffscreenBuffersLayout
 					const D3D12_RESOURCE_ALLOCATION_INFO bokehAllocation = device->GetResourceAllocationInfo1(0, BokehLayout_BuffersCount, bokehBuffersDesc, bokehSuballocation);
 					const auto alignedBokehOffset = AlignSize(baseOffset, bokehAllocation.Alignment);
 					const auto bokehPadding = alignedBokehOffset - baseOffset;
-					dst.world_bokeh.HDRInputSurface.offset = alignedBokehOffset + bokehSuballocation[BokehLayout_HDRInputSurface].Offset;
-					dst.world_bokeh.HDRInputSurface.size = bokehSuballocation[BokehLayout_HDRInputSurface].SizeInBytes;
-					ApplyHeapOffset(dst.world_bokeh.HDRInputSurface);
-					dst.bokeh.DOFOpacityBuffer.offset = alignedBokehOffset + bokehSuballocation[BokehLayout_DOFOpacityBuffer].Offset;
-					dst.bokeh.DOFOpacityBuffer.size = bokehSuballocation[BokehLayout_DOFOpacityBuffer].SizeInBytes;
-					ApplyHeapOffset(dst.bokeh.DOFOpacityBuffer);
-					dst.bokeh.COCBuffer.offset = alignedBokehOffset + bokehSuballocation[BokehLayout_COCBuffer].Offset;
-					dst.bokeh.COCBuffer.size = bokehSuballocation[BokehLayout_COCBuffer].SizeInBytes;
-					ApplyHeapOffset(dst.bokeh.COCBuffer);
-					dst.bokeh.dilatedCOCBuffer.offset = alignedBokehOffset + bokehSuballocation[BokehLayout_DilatedCOCBuffer].Offset;
-					dst.bokeh.dilatedCOCBuffer.size = bokehSuballocation[BokehLayout_DilatedCOCBuffer].SizeInBytes;
-					ApplyHeapOffset(dst.bokeh.dilatedCOCBuffer);
-					dst.bokeh.halfresDOFSurface.offset = alignedBokehOffset + bokehSuballocation[BokehLayout_HalfresDOFSurface].Offset;
-					dst.bokeh.halfresDOFSurface.size = bokehSuballocation[BokehLayout_HalfresDOFSurface].SizeInBytes;
-					ApplyHeapOffset(dst.bokeh.halfresDOFSurface);
+					dst.world_postFX_1.HDRInputSurface.offset = alignedBokehOffset + bokehSuballocation[BokehLayout_HDRInputSurface].Offset;
+					dst.world_postFX_1.HDRInputSurface.size = bokehSuballocation[BokehLayout_HDRInputSurface].SizeInBytes;
+					ApplyHeapOffset(dst.world_postFX_1.HDRInputSurface);
+					dst.postFX_1.DOFOpacityBuffer.offset = alignedBokehOffset + bokehSuballocation[BokehLayout_DOFOpacityBuffer].Offset;
+					dst.postFX_1.DOFOpacityBuffer.size = bokehSuballocation[BokehLayout_DOFOpacityBuffer].SizeInBytes;
+					ApplyHeapOffset(dst.postFX_1.DOFOpacityBuffer);
+					dst.postFX_1.COCBuffer.offset = alignedBokehOffset + bokehSuballocation[BokehLayout_COCBuffer].Offset;
+					dst.postFX_1.COCBuffer.size = bokehSuballocation[BokehLayout_COCBuffer].SizeInBytes;
+					ApplyHeapOffset(dst.postFX_1.COCBuffer);
+					dst.postFX_1.dilatedCOCBuffer.offset = alignedBokehOffset + bokehSuballocation[BokehLayout_DilatedCOCBuffer].Offset;
+					dst.postFX_1.dilatedCOCBuffer.size = bokehSuballocation[BokehLayout_DilatedCOCBuffer].SizeInBytes;
+					ApplyHeapOffset(dst.postFX_1.dilatedCOCBuffer);
+					dst.postFX_1.halfresDOFSurface.offset = alignedBokehOffset + bokehSuballocation[BokehLayout_HalfresDOFSurface].Offset;
+					dst.postFX_1.halfresDOFSurface.size = bokehSuballocation[BokehLayout_HalfresDOFSurface].SizeInBytes;
+					ApplyHeapOffset(dst.postFX_1.halfresDOFSurface);
 					return bokehPadding + bokehAllocation.SizeInBytes;
 				}
 
 				// bloom & tonemap
 				template<typename LifetimeRanges>
-				static inline UINT64 Lum(const OffscreenBuffersDesc &offscreenBuffersDesc, LifetimeRanges &dst, UINT64 baseOffset)
+				static inline UINT64 PostFX_2(const OffscreenBuffersDesc &offscreenBuffersDesc, LifetimeRanges &dst, UINT64 baseOffset)
 				{
 					D3D12_RESOURCE_DESC lumBuffersDesc[LumLayout_BuffersCount];
 					lumBuffersDesc[LumLayout_BloomUpChain] = offscreenBuffersDesc.BloomUpChain();
@@ -266,15 +265,15 @@ namespace Renderer::Impl::OffscreenBuffersLayout
 					const D3D12_RESOURCE_ALLOCATION_INFO lumAllocation = device->GetResourceAllocationInfo1(0, LumLayout_BuffersCount, lumBuffersDesc, lumSuballocation);
 					const auto alignedLumOffset = AlignSize(baseOffset, lumAllocation.Alignment);
 					const auto lumPadding = alignedLumOffset - baseOffset;
-					dst.lum.bloomUpChain.offset = alignedLumOffset + lumSuballocation[LumLayout_BloomUpChain].Offset;
-					dst.lum.bloomUpChain.size = lumSuballocation[LumLayout_BloomUpChain].SizeInBytes;
-					ApplyHeapOffset(dst.lum.bloomUpChain);
-					dst.lum.bloomDownChain.offset = alignedLumOffset + lumSuballocation[LumLayout_BloomDownChain].Offset;
-					dst.lum.bloomDownChain.size = lumSuballocation[LumLayout_BloomDownChain].SizeInBytes;
-					ApplyHeapOffset(dst.lum.bloomDownChain);
-					dst.lum.LDRSurface.offset = alignedLumOffset + lumSuballocation[LumLayout_LDRSurface].Offset;
-					dst.lum.LDRSurface.size = lumSuballocation[LumLayout_LDRSurface].SizeInBytes;
-					ApplyHeapOffset(dst.lum.LDRSurface);
+					dst.postFX_2.bloomUpChain.offset = alignedLumOffset + lumSuballocation[LumLayout_BloomUpChain].Offset;
+					dst.postFX_2.bloomUpChain.size = lumSuballocation[LumLayout_BloomUpChain].SizeInBytes;
+					ApplyHeapOffset(dst.postFX_2.bloomUpChain);
+					dst.postFX_2.bloomDownChain.offset = alignedLumOffset + lumSuballocation[LumLayout_BloomDownChain].Offset;
+					dst.postFX_2.bloomDownChain.size = lumSuballocation[LumLayout_BloomDownChain].SizeInBytes;
+					ApplyHeapOffset(dst.postFX_2.bloomDownChain);
+					dst.postFX_2.LDRSurface.offset = alignedLumOffset + lumSuballocation[LumLayout_LDRSurface].Offset;
+					dst.postFX_2.LDRSurface.size = lumSuballocation[LumLayout_LDRSurface].SizeInBytes;
+					ApplyHeapOffset(dst.postFX_2.LDRSurface);
 					return lumPadding + lumAllocation.SizeInBytes;
 				}
 			}
@@ -305,13 +304,13 @@ void decltype(OffscreenBuffers::shaders)::MarkupAllocation(const OffscreenBuffer
 	// HDRCompositeSurface (persistent)
 	const auto overlappedBaseOffset = allocationSize = Layout::Persistent::HDRCompositeSurface(buffersDesc, dst);
 
-	// bokeh
-	const auto alignedBokehSize = Layout::Overlapped::Bokeh(buffersDesc, dst, overlappedBaseOffset);
+	// postFX 1
+	const auto alignedPostFX1Size = Layout::Overlapped::PostFX_1(buffersDesc, dst, overlappedBaseOffset);
 
-	// lum
-	const auto alignedLumSize = Layout::Overlapped::Lum(buffersDesc, dst, overlappedBaseOffset);
+	// postFX 2
+	const auto alignedPostFX2Size = Layout::Overlapped::PostFX_2(buffersDesc, dst, overlappedBaseOffset);
 
-	allocationSize += max(alignedBokehSize, alignedLumSize);
+	allocationSize += max(alignedPostFX1Size, alignedPostFX2Size);
 }
 
 ComPtr<ID3D12Resource> OffscreenBuffers::CreateLuminanceReductionBuffer()
@@ -394,18 +393,18 @@ inline void OffscreenBuffers::MarkupAllocation()
 inline void OffscreenBuffers::DestroyBuffers()
 {
 	lifetimeRanges.persistent.ZBuffer.resource.Reset();
-	lifetimeRanges.world_bokeh.HDRInputSurface.resource.Reset();
-	lifetimeRanges.bokeh_lum.HDRCompositeSurface.resource.Reset();
+	lifetimeRanges.world_postFX_1.HDRInputSurface.resource.Reset();
+	lifetimeRanges.postFX.HDRCompositeSurface.resource.Reset();
 	lifetimeRanges.world.rendertarget.resource.Reset();
-	lifetimeRanges.bokeh.DOFOpacityBuffer.resource.Reset();
-	lifetimeRanges.bokeh.COCBuffer.resource.Reset();
-	lifetimeRanges.bokeh.dilatedCOCBuffer.resource.Reset();
-	lifetimeRanges.bokeh.halfresDOFSurface.resource.Reset();
-	lifetimeRanges.bokeh.DOFLayers.resource.Reset();
-	lifetimeRanges.bokeh.lensFlareSurface.resource.Reset();
-	lifetimeRanges.lum.bloomUpChain.resource.Reset();
-	lifetimeRanges.lum.bloomDownChain.resource.Reset();
-	lifetimeRanges.lum.LDRSurface.resource.Reset();
+	lifetimeRanges.postFX_1.DOFOpacityBuffer.resource.Reset();
+	lifetimeRanges.postFX_1.COCBuffer.resource.Reset();
+	lifetimeRanges.postFX_1.dilatedCOCBuffer.resource.Reset();
+	lifetimeRanges.postFX_1.halfresDOFSurface.resource.Reset();
+	lifetimeRanges.postFX_1.DOFLayers.resource.Reset();
+	lifetimeRanges.postFX_1.lensFlareSurface.resource.Reset();
+	lifetimeRanges.postFX_2.bloomUpChain.resource.Reset();
+	lifetimeRanges.postFX_2.bloomDownChain.resource.Reset();
+	lifetimeRanges.postFX_2.LDRSurface.resource.Reset();
 }
 
 // 1 call site
@@ -428,19 +427,19 @@ inline void OffscreenBuffers::ConstructBuffers()
 		// create HDR offscreen surfaces
 		CheckHR(device->CreatePlacedResource(
 			shaders.VRAMBackingStore.Get(),
-			OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.world_bokeh.HDRInputSurface.offset),
+			OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.world_postFX_1.HDRInputSurface.offset),
 			&buffersDesc.HDRInputSurface(),
 			D3D12_RESOURCE_STATE_RESOLVE_DEST,
 			NULL,
-			IID_PPV_ARGS(lifetimeRanges.world_bokeh.HDRInputSurface.resource.GetAddressOf())
+			IID_PPV_ARGS(lifetimeRanges.world_postFX_1.HDRInputSurface.resource.GetAddressOf())
 		));
 		CheckHR(device->CreatePlacedResource(
 			shaders.VRAMBackingStore.Get(),
-			OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.bokeh_lum.HDRCompositeSurface.offset),
+			OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.postFX.HDRCompositeSurface.offset),
 			&buffersDesc.HDRCompositeSurface(),
 			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 			NULL,
-			IID_PPV_ARGS(lifetimeRanges.bokeh_lum.HDRCompositeSurface.resource.GetAddressOf())
+			IID_PPV_ARGS(lifetimeRanges.postFX.HDRCompositeSurface.resource.GetAddressOf())
 		));
 
 		// create MSAA rendertarget
@@ -457,61 +456,61 @@ inline void OffscreenBuffers::ConstructBuffers()
 		// create DOF opacity buffer
 		CheckHR(device->CreatePlacedResource(
 			shaders.VRAMBackingStore.Get(),
-			OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.bokeh.DOFOpacityBuffer.offset),
+			OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.postFX_1.DOFOpacityBuffer.offset),
 			&buffersDesc.DOFOpacityBuffer(),
 			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 			NULL,
-			IID_PPV_ARGS(lifetimeRanges.bokeh.DOFOpacityBuffer.resource.GetAddressOf())
+			IID_PPV_ARGS(lifetimeRanges.postFX_1.DOFOpacityBuffer.resource.GetAddressOf())
 		));
 
 		// create fullres CoC buffer
 		CheckHR(device->CreatePlacedResource(
 			shaders.VRAMBackingStore.Get(),
-			OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.bokeh.COCBuffer.offset),
+			OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.postFX_1.COCBuffer.offset),
 			&buffersDesc.COCBuffer(),
 			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 			NULL,
-			IID_PPV_ARGS(lifetimeRanges.bokeh.COCBuffer.resource.GetAddressOf())
+			IID_PPV_ARGS(lifetimeRanges.postFX_1.COCBuffer.resource.GetAddressOf())
 		));
 
 		// create halfres dilated CoC buffer
 		CheckHR(device->CreatePlacedResource(
 			shaders.VRAMBackingStore.Get(),
-			OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.bokeh.dilatedCOCBuffer.offset),
+			OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.postFX_1.dilatedCOCBuffer.offset),
 			&buffersDesc.DilatedCOCBuffer(),
 			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 			NULL,
-			IID_PPV_ARGS(lifetimeRanges.bokeh.dilatedCOCBuffer.resource.GetAddressOf())
+			IID_PPV_ARGS(lifetimeRanges.postFX_1.dilatedCOCBuffer.resource.GetAddressOf())
 		));
 
 		// create halfres DOF color surface
 		CheckHR(device->CreatePlacedResource(
 			shaders.VRAMBackingStore.Get(),
-			OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.bokeh.halfresDOFSurface.offset),
+			OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.postFX_1.halfresDOFSurface.offset),
 			&buffersDesc.HalfresDOFSurface(),
 			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 			NULL,
-			IID_PPV_ARGS(lifetimeRanges.bokeh.halfresDOFSurface.resource.GetAddressOf())
+			IID_PPV_ARGS(lifetimeRanges.postFX_1.halfresDOFSurface.resource.GetAddressOf())
 		));
 
 		// create DOF blur layers
 		CheckHR(device->CreatePlacedResource(
 			ROPs.VRAMBackingStore.Get(),
-			OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.bokeh.DOFLayers.offset),
+			OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.postFX_1.DOFLayers.offset),
 			&buffersDesc.DOFLayers(),
 			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 			NULL,
-			IID_PPV_ARGS(lifetimeRanges.bokeh.DOFLayers.resource.GetAddressOf())
+			IID_PPV_ARGS(lifetimeRanges.postFX_1.DOFLayers.resource.GetAddressOf())
 		));
 
 		// create lens flare surface
 		CheckHR(device->CreatePlacedResource(
 			ROPs.VRAMBackingStore.Get(),
-			OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.bokeh.lensFlareSurface.offset),
+			OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.postFX_1.lensFlareSurface.offset),
 			&buffersDesc.LensFlareSurface(),
 			D3D12_RESOURCE_STATE_RENDER_TARGET,
 			NULL,
-			IID_PPV_ARGS(lifetimeRanges.bokeh.lensFlareSurface.resource.GetAddressOf())
+			IID_PPV_ARGS(lifetimeRanges.postFX_1.lensFlareSurface.resource.GetAddressOf())
 		));
 
 		// create bloom chains
@@ -519,32 +518,32 @@ inline void OffscreenBuffers::ConstructBuffers()
 			// up
 			CheckHR(device->CreatePlacedResource(
 				shaders.VRAMBackingStore.Get(),
-				OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.lum.bloomUpChain.offset),
+				OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.postFX_2.bloomUpChain.offset),
 				&buffersDesc.BloomUpChain(),
 				D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 				NULL,
-				IID_PPV_ARGS(lifetimeRanges.lum.bloomUpChain.resource.GetAddressOf())
+				IID_PPV_ARGS(lifetimeRanges.postFX_2.bloomUpChain.resource.GetAddressOf())
 			));
 
 			// down
 			CheckHR(device->CreatePlacedResource(
 				shaders.VRAMBackingStore.Get(),
-				OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.lum.bloomDownChain.offset),
+				OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.postFX_2.bloomDownChain.offset),
 				&buffersDesc.BloomDownChain(),
 				D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 				NULL,
-				IID_PPV_ARGS(lifetimeRanges.lum.bloomDownChain.resource.GetAddressOf())
+				IID_PPV_ARGS(lifetimeRanges.postFX_2.bloomDownChain.resource.GetAddressOf())
 			));
 		}
 
 		// create LDR offscreen surface (D3D12 disallows UAV on swap chain backbuffers)
 		CheckHR(device->CreatePlacedResource(
 			shaders.VRAMBackingStore.Get(),
-			OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.lum.LDRSurface.offset),
+			OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.postFX_2.LDRSurface.offset),
 			&buffersDesc.LDRSurface(),
 			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 			NULL,
-			IID_PPV_ARGS(lifetimeRanges.lum.LDRSurface.resource.GetAddressOf())
+			IID_PPV_ARGS(lifetimeRanges.postFX_2.LDRSurface.resource.GetAddressOf())
 		));
 	}
 
@@ -553,13 +552,13 @@ inline void OffscreenBuffers::ConstructBuffers()
 		const auto rtvSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 		const auto rtvStoreBase = rtvStore->GetCPUDescriptorHandleForHeapStart();
 
-		// fill scene RTV store
+		// scene RTV
 		device->CreateRenderTargetView(lifetimeRanges.world.rendertarget.resource.Get(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvStoreBase, SCENE_RTV, rtvSize));
 
-		// fill DSV store
+		// DSV
 		device->CreateDepthStencilView(lifetimeRanges.persistent.ZBuffer.resource.Get(), NULL, dsvStore->GetCPUDescriptorHandleForHeapStart());
 
-		// fill DOF RTV store
+		// DOF RTV
 		{
 			D3D12_RENDER_TARGET_VIEW_DESC rtvDesc
 			{
@@ -575,17 +574,17 @@ inline void OffscreenBuffers::ConstructBuffers()
 			};
 
 			// near layers
-			device->CreateRenderTargetView(lifetimeRanges.bokeh.DOFLayers.resource.Get(), &rtvDesc, CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvStoreBase, DOF_NEAR_RTV, rtvSize));
+			device->CreateRenderTargetView(lifetimeRanges.postFX_1.DOFLayers.resource.Get(), &rtvDesc, CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvStoreBase, DOF_NEAR_RTV, rtvSize));
 
 			// far layers
 			rtvDesc.Texture2DArray.FirstArraySlice = 2;
-			device->CreateRenderTargetView(lifetimeRanges.bokeh.DOFLayers.resource.Get(), &rtvDesc, CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvStoreBase, DOF_FAR_RTV, rtvSize));
+			device->CreateRenderTargetView(lifetimeRanges.postFX_1.DOFLayers.resource.Get(), &rtvDesc, CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvStoreBase, DOF_FAR_RTV, rtvSize));
 		}
 
-		// fill lens flare RTV store
-		device->CreateRenderTargetView(lifetimeRanges.bokeh.lensFlareSurface.resource.Get(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvStoreBase, LENS_FLARE_RTV, rtvSize));
+		// lens flare RTV
+		device->CreateRenderTargetView(lifetimeRanges.postFX_1.lensFlareSurface.resource.Get(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvStoreBase, LENS_FLARE_RTV, rtvSize));
 
-		// fill postprocess descriptors CPU backing store
+		// postprocess descriptors CPU backing store
 		const auto luminanceReductionTexDispatchSize = CSConfig::LuminanceReduction::TexturePass::DispatchSize({ width, height });
 		postprocessCPUDescriptorTableStore.Fill(*this, luminanceReductionTexDispatchSize.x * luminanceReductionTexDispatchSize.y);
 	}
