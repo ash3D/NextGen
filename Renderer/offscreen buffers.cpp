@@ -421,7 +421,7 @@ inline void OffscreenBuffers::ConstructBuffers()
 			&buffersDesc.ZBuffer(),
 			D3D12_RESOURCE_STATE_DEPTH_WRITE,
 			&CD3DX12_CLEAR_VALUE(Config::ZFormat::ROP, 1.f, 0xef),
-			IID_PPV_ARGS(lifetimeRanges.persistent.ZBuffer.resource.GetAddressOf())
+			IID_PPV_ARGS(lifetimeRanges.persistent.ZBuffer.resource.ReleaseAndGetAddressOf())
 		));
 
 		// create HDR offscreen surfaces
@@ -431,7 +431,7 @@ inline void OffscreenBuffers::ConstructBuffers()
 			&buffersDesc.HDRInputSurface(),
 			D3D12_RESOURCE_STATE_RESOLVE_DEST,
 			NULL,
-			IID_PPV_ARGS(lifetimeRanges.world_postFX_1.HDRInputSurface.resource.GetAddressOf())
+			IID_PPV_ARGS(lifetimeRanges.world_postFX_1.HDRInputSurface.resource.ReleaseAndGetAddressOf())
 		));
 		CheckHR(device->CreatePlacedResource(
 			shaders.VRAMBackingStore.Get(),
@@ -439,7 +439,7 @@ inline void OffscreenBuffers::ConstructBuffers()
 			&buffersDesc.HDRCompositeSurface(),
 			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 			NULL,
-			IID_PPV_ARGS(lifetimeRanges.postFX.HDRCompositeSurface.resource.GetAddressOf())
+			IID_PPV_ARGS(lifetimeRanges.postFX.HDRCompositeSurface.resource.ReleaseAndGetAddressOf())
 		));
 
 		// create MSAA rendertarget
@@ -450,7 +450,7 @@ inline void OffscreenBuffers::ConstructBuffers()
 			&buffersDesc.Rendertarget(),
 			D3D12_RESOURCE_STATE_RENDER_TARGET,
 			&CD3DX12_CLEAR_VALUE(Config::HDRFormat, backgroundColor),
-			IID_PPV_ARGS(lifetimeRanges.world.rendertarget.resource.GetAddressOf())
+			IID_PPV_ARGS(lifetimeRanges.world.rendertarget.resource.ReleaseAndGetAddressOf())
 		));
 
 		// create DOF opacity buffer
@@ -460,7 +460,7 @@ inline void OffscreenBuffers::ConstructBuffers()
 			&buffersDesc.DOFOpacityBuffer(),
 			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 			NULL,
-			IID_PPV_ARGS(lifetimeRanges.postFX_1.DOFOpacityBuffer.resource.GetAddressOf())
+			IID_PPV_ARGS(lifetimeRanges.postFX_1.DOFOpacityBuffer.resource.ReleaseAndGetAddressOf())
 		));
 
 		// create fullres CoC buffer
@@ -470,7 +470,7 @@ inline void OffscreenBuffers::ConstructBuffers()
 			&buffersDesc.COCBuffer(),
 			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 			NULL,
-			IID_PPV_ARGS(lifetimeRanges.postFX_1.COCBuffer.resource.GetAddressOf())
+			IID_PPV_ARGS(lifetimeRanges.postFX_1.COCBuffer.resource.ReleaseAndGetAddressOf())
 		));
 
 		// create halfres dilated CoC buffer
@@ -480,7 +480,7 @@ inline void OffscreenBuffers::ConstructBuffers()
 			&buffersDesc.DilatedCOCBuffer(),
 			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 			NULL,
-			IID_PPV_ARGS(lifetimeRanges.postFX_1.dilatedCOCBuffer.resource.GetAddressOf())
+			IID_PPV_ARGS(lifetimeRanges.postFX_1.dilatedCOCBuffer.resource.ReleaseAndGetAddressOf())
 		));
 
 		// create halfres DOF color surface
@@ -490,7 +490,7 @@ inline void OffscreenBuffers::ConstructBuffers()
 			&buffersDesc.HalfresDOFSurface(),
 			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 			NULL,
-			IID_PPV_ARGS(lifetimeRanges.postFX_1.halfresDOFSurface.resource.GetAddressOf())
+			IID_PPV_ARGS(lifetimeRanges.postFX_1.halfresDOFSurface.resource.ReleaseAndGetAddressOf())
 		));
 
 		// create DOF blur layers
@@ -500,7 +500,7 @@ inline void OffscreenBuffers::ConstructBuffers()
 			&buffersDesc.DOFLayers(),
 			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 			NULL,
-			IID_PPV_ARGS(lifetimeRanges.postFX_1.DOFLayers.resource.GetAddressOf())
+			IID_PPV_ARGS(lifetimeRanges.postFX_1.DOFLayers.resource.ReleaseAndGetAddressOf())
 		));
 
 		// create lens flare surface
@@ -510,7 +510,7 @@ inline void OffscreenBuffers::ConstructBuffers()
 			&buffersDesc.LensFlareSurface(),
 			D3D12_RESOURCE_STATE_RENDER_TARGET,
 			NULL,
-			IID_PPV_ARGS(lifetimeRanges.postFX_1.lensFlareSurface.resource.GetAddressOf())
+			IID_PPV_ARGS(lifetimeRanges.postFX_1.lensFlareSurface.resource.ReleaseAndGetAddressOf())
 		));
 
 		// create bloom chains
@@ -522,7 +522,7 @@ inline void OffscreenBuffers::ConstructBuffers()
 				&buffersDesc.BloomUpChain(),
 				D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 				NULL,
-				IID_PPV_ARGS(lifetimeRanges.postFX_2.bloomUpChain.resource.GetAddressOf())
+				IID_PPV_ARGS(lifetimeRanges.postFX_2.bloomUpChain.resource.ReleaseAndGetAddressOf())
 			));
 
 			// down
@@ -532,7 +532,7 @@ inline void OffscreenBuffers::ConstructBuffers()
 				&buffersDesc.BloomDownChain(),
 				D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 				NULL,
-				IID_PPV_ARGS(lifetimeRanges.postFX_2.bloomDownChain.resource.GetAddressOf())
+				IID_PPV_ARGS(lifetimeRanges.postFX_2.bloomDownChain.resource.ReleaseAndGetAddressOf())
 			));
 		}
 
@@ -543,7 +543,7 @@ inline void OffscreenBuffers::ConstructBuffers()
 			&buffersDesc.LDRSurface(),
 			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 			NULL,
-			IID_PPV_ARGS(lifetimeRanges.postFX_2.LDRSurface.resource.GetAddressOf())
+			IID_PPV_ARGS(lifetimeRanges.postFX_2.LDRSurface.resource.ReleaseAndGetAddressOf())
 		));
 	}
 
