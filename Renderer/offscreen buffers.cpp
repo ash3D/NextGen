@@ -332,6 +332,12 @@ ComPtr<ID3D12Resource> OffscreenBuffers::CreateLuminanceReductionBuffer()
 void OffscreenBuffers::Deleter::operator()(const OffscreenBuffers *) const
 {
 	store.erase(location);
+	if (store.empty())
+	{
+		// no placed resources left anymore, release underlying VRAM heaps
+		decltype(OffscreenBuffers::ROPs)::VRAMBackingStore.Reset();
+		decltype(OffscreenBuffers::shaders)::VRAMBackingStore.Reset();
+	}
 }
 
 OffscreenBuffers::OffscreenBuffers()
