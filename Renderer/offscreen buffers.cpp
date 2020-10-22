@@ -635,11 +635,12 @@ void OffscreenBuffers::Resize(UINT width, UINT height, bool allowShrink)
 		ConstructBuffers();
 }
 
-const D3D12_CPU_DESCRIPTOR_HANDLE OffscreenBuffers::GetRTV() const { return GetRTV(SCENE_RTV); }
-
-const D3D12_CPU_DESCRIPTOR_HANDLE OffscreenBuffers::GetDOFLayersRTV() const { return GetRTV(DOF_LAYERS_RTVs); }
-
-const D3D12_CPU_DESCRIPTOR_HANDLE OffscreenBuffers::GetLensFlareRTV() const { return GetRTV(LENS_FLARE_RTV); }
+const D3D12_CPU_DESCRIPTOR_HANDLE OffscreenBuffers::GetRTV(RTV_ID rtvID) const
+{
+	assert(rtvID >= 0 && rtvID < RTV_COUNT);
+	const auto rtvSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	return CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvStore->GetCPUDescriptorHandleForHeapStart(), rtvID, rtvSize);
+}
 
 const D3D12_CPU_DESCRIPTOR_HANDLE OffscreenBuffers::GetDSV() const
 {
@@ -650,10 +651,4 @@ ID3D12Resource *OffscreenBuffers::GetNestingBuffer(const AllocatedResource &nest
 {
 	const bool isNested = nested.offset >= nesting.offset && nested.offset + nested.size <= nesting.offset + nesting.size;
 	return isNested ? nesting.resource.Get() : NULL;
-}
-
-const D3D12_CPU_DESCRIPTOR_HANDLE OffscreenBuffers::GetRTV(RTV_ID rtvID) const
-{
-	const auto rtvSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	return CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvStore->GetCPUDescriptorHandleForHeapStart(), rtvID, rtvSize);
 }

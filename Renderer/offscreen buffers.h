@@ -96,7 +96,7 @@ namespace Renderer::Impl
 		TrackedResource<ID3D12DescriptorHeap> rtvStore, dsvStore;	// is tracking really needed?
 		Descriptors::PostprocessDescriptorTableStore postprocessCPUDescriptorTableStore;
 
-	private:
+	public:
 		enum RTV_ID
 		{
 			SCENE_RTV,
@@ -163,12 +163,11 @@ namespace Renderer::Impl
 		ID3D12Resource *GetNestingBuffer(AllocatedResource decltype(LifetimeRanges::postFX)::*nested) const noexcept { return GetNestingBuffer(lifetimeRanges.world.rendertarget, lifetimeRanges.postFX.*nested); }
 		ID3D12Resource *GetNestingBuffer(AllocatedResource decltype(LifetimeRanges::postFX_1)::*nested) const noexcept { return GetNestingBuffer(lifetimeRanges.world.rendertarget, lifetimeRanges.postFX_1.*nested); }
 #endif
-		const D3D12_CPU_DESCRIPTOR_HANDLE GetRTV() const, GetDOFLayersRTV() const, GetLensFlareRTV() const, GetDSV() const;
+		const D3D12_CPU_DESCRIPTOR_HANDLE GetRTV(RTV_ID rtvID) const, GetDSV() const;
 		const Descriptors::PostprocessDescriptorTableStore &GetPostprocessCPUDescriptorTableStore() const noexcept { return postprocessCPUDescriptorTableStore; }
 		static const WRL::ComPtr<ID3D12Resource> &GetLuminanceReductionBuffer() noexcept { return luminanceReductionBuffer; }
 
 	private:
 		static ID3D12Resource *GetNestingBuffer(const AllocatedResource &nesting, const AllocatedResource &nested) noexcept;
-		const D3D12_CPU_DESCRIPTOR_HANDLE GetRTV(RTV_ID rtvID) const;
 	};
 }

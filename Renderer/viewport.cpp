@@ -557,7 +557,7 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvid
 		cmdList->SetPipelineState(lensFlarePSO.Get());
 		const D3D12_RENDER_PASS_RENDER_TARGET_DESC rtDesc
 		{
-			offscreenBuffers.GetLensFlareRTV(),
+			offscreenBuffers.GetRTV(offscreenBuffers.LENS_FLARE_RTV),
 			{
 				.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR,
 				.Clear{ {.Format = Config::HDRFormat, .Color{} } }
@@ -590,7 +590,7 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvid
 	{
 		// no clears/discards for RT, preserve pre/post => don't use render pass here
 		cmdList->SetPipelineState(DOF_splatting_PSO.Get());
-		cmdList->OMSetRenderTargets(2, &offscreenBuffers.GetDOFLayersRTV(), TRUE, NULL);
+		cmdList->OMSetRenderTargets(2, &offscreenBuffers.GetRTV(offscreenBuffers.DOF_LAYERS_RTVs), TRUE, NULL);
 		cmdList->DrawInstanced(((width + 1) / 2) * ((height + 1) / 2), 1, 0, 0);
 	}
 
@@ -782,7 +782,7 @@ void Impl::Viewport::Render(ID3D12Resource *output, const class OffscreenBuffers
 
 	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Pre, this, cmdBuffsProvider, output, cref(offscreenBuffers));
 
-	const RenderPipeline::RenderPasses::PipelineROPTargets ROPTargets(offscreenBuffers.GetWorldBuffers().rendertarget.resource.Get(), offscreenBuffers.GetRTV(), backgroundColor, offscreenBuffers.GetPersistentBuffers().ZBuffer.resource.Get(), offscreenBuffers.GetDSV(), offscreenBuffers.GetWorldAndPostFX1Buffers().HDRInputSurface.resource.Get(), width, height);
+	const RenderPipeline::RenderPasses::PipelineROPTargets ROPTargets(offscreenBuffers.GetWorldBuffers().rendertarget.resource.Get(), offscreenBuffers.GetRTV(offscreenBuffers.SCENE_RTV), backgroundColor, offscreenBuffers.GetPersistentBuffers().ZBuffer.resource.Get(), offscreenBuffers.GetDSV(), offscreenBuffers.GetWorldAndPostFX1Buffers().HDRInputSurface.resource.Get(), width, height);
 	world->Render(ctx, viewXform, projXform, projParams, cameraSettingsBuffer->GetGPUVirtualAddress(), ROPTargets);
 
 	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Post, this, cmdBuffsProvider, output, cref(offscreenBuffers), postprocessDescriptorTable, CalculateCamAdaptationLerpFactor(delta), width, height);
