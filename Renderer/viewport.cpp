@@ -439,9 +439,9 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Pre(DeferredCmdBuffsProvide
 		*/
 		const D3D12_RESOURCE_BARRIER barriers[] =
 		{
-			CD3DX12_RESOURCE_BARRIER::Aliasing(NULL, offscreenBuffers.GetPersistentBuffers().ZBuffer.resource.Get()),
-			CD3DX12_RESOURCE_BARRIER::Aliasing(NULL, offscreenBuffers.GetWorldAndPostFX1Buffers().HDRInputSurface.resource.Get()),
-			CD3DX12_RESOURCE_BARRIER::Aliasing(NULL, offscreenBuffers.GetWorldBuffers().rendertarget.resource.Get()),
+			CD3DX12_RESOURCE_BARRIER::Aliasing(NULL, offscreenBuffers.GetPersistentBuffers().ZBuffer.Resource()),
+			CD3DX12_RESOURCE_BARRIER::Aliasing(NULL, offscreenBuffers.GetWorldAndPostFX1Buffers().HDRInputSurface.Resource()),
+			CD3DX12_RESOURCE_BARRIER::Aliasing(NULL, offscreenBuffers.GetWorldBuffers().rendertarget.Resource()),
 			CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
 			CD3DX12_RESOURCE_BARRIER::Transition(cameraSettingsBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER)
 		};
@@ -466,15 +466,15 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvid
 		const D3D12_RESOURCE_BARRIER barriers[] =
 		{
 			CD3DX12_RESOURCE_BARRIER::Transition(cameraSettingsBuffer.Get(), D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPersistentBuffers().ZBuffer.resource.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, 0),	// don't split to enable D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetWorldAndPostFX1Buffers().HDRInputSurface.resource.Get(), D3D12_RESOURCE_STATE_RESOLVE_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),
-			CD3DX12_RESOURCE_BARRIER::Aliasing(offscreenBuffers.GetNestingBuffer(&BokehAndLumBuffers::HDRCompositeSurface), bokehAndLumBuffers.HDRCompositeSurface.resource.Get()),
-			CD3DX12_RESOURCE_BARRIER::Aliasing(offscreenBuffers.GetNestingBuffer(&BokehBuffers::DOFOpacityBuffer), bokehBuffers.DOFOpacityBuffer.resource.Get()),
-			CD3DX12_RESOURCE_BARRIER::Aliasing(offscreenBuffers.GetNestingBuffer(&BokehBuffers::COCBuffer), bokehBuffers.COCBuffer.resource.Get()),
-			CD3DX12_RESOURCE_BARRIER::Aliasing(offscreenBuffers.GetNestingBuffer(&BokehBuffers::dilatedCOCBuffer), bokehBuffers.dilatedCOCBuffer.resource.Get()),
-			CD3DX12_RESOURCE_BARRIER::Aliasing(offscreenBuffers.GetNestingBuffer(&BokehBuffers::halfresDOFSurface), bokehBuffers.halfresDOFSurface.resource.Get()),
-			CD3DX12_RESOURCE_BARRIER::Aliasing(offscreenBuffers.GetNestingBuffer(&BokehBuffers::DOFLayers), bokehBuffers.DOFLayers.resource.Get()),
-			CD3DX12_RESOURCE_BARRIER::Aliasing(offscreenBuffers.GetNestingBuffer(&BokehBuffers::lensFlareSurface), bokehBuffers.lensFlareSurface.resource.Get())
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPersistentBuffers().ZBuffer.Resource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, 0),	// don't split to enable D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetWorldAndPostFX1Buffers().HDRInputSurface.Resource(), D3D12_RESOURCE_STATE_RESOLVE_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),
+			CD3DX12_RESOURCE_BARRIER::Aliasing(offscreenBuffers.GetNestingBuffer(&BokehAndLumBuffers::HDRCompositeSurface), bokehAndLumBuffers.HDRCompositeSurface.Resource()),
+			CD3DX12_RESOURCE_BARRIER::Aliasing(offscreenBuffers.GetNestingBuffer(&BokehBuffers::DOFOpacityBuffer), bokehBuffers.DOFOpacityBuffer.Resource()),
+			CD3DX12_RESOURCE_BARRIER::Aliasing(offscreenBuffers.GetNestingBuffer(&BokehBuffers::COCBuffer), bokehBuffers.COCBuffer.Resource()),
+			CD3DX12_RESOURCE_BARRIER::Aliasing(offscreenBuffers.GetNestingBuffer(&BokehBuffers::dilatedCOCBuffer), bokehBuffers.dilatedCOCBuffer.Resource()),
+			CD3DX12_RESOURCE_BARRIER::Aliasing(offscreenBuffers.GetNestingBuffer(&BokehBuffers::halfresDOFSurface), bokehBuffers.halfresDOFSurface.Resource()),
+			CD3DX12_RESOURCE_BARRIER::Aliasing(offscreenBuffers.GetNestingBuffer(&BokehBuffers::DOFLayers), bokehBuffers.DOFLayers.Resource()),
+			CD3DX12_RESOURCE_BARRIER::Aliasing(offscreenBuffers.GetNestingBuffer(&BokehBuffers::lensFlareSurface), bokehBuffers.lensFlareSurface.Resource())
 		};
 		cmdList->ResourceBarrier(size(barriers), barriers);
 	}
@@ -544,9 +544,9 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvid
 	{
 		const D3D12_RESOURCE_BARRIER barriers[] =
 		{
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPersistentBuffers().ZBuffer.resource.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE, 0, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().DOFOpacityBuffer.resource.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().COCBuffer.resource.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE)
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPersistentBuffers().ZBuffer.Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE, 0, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().DOFOpacityBuffer.Resource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().COCBuffer.Resource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE)
 		};
 		cmdList->ResourceBarrier(size(barriers), barriers);
 	}
@@ -568,7 +568,7 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvid
 		};
 		cmdList->ClearUnorderedAccessViewFloat(CD3DX12_GPU_DESCRIPTOR_HANDLE(postprocessDescriptorTable, Descriptors::PostprocessDescriptorTableStore::DOFLayersUAV, descriptorSize),
 			offscreenBuffers.GetPostprocessCPUDescriptorTableStore().GetDescriptor(Descriptors::PostprocessDescriptorTableStore::DOFLayersUAV),
-			offscreenBuffers.GetPostFX1Buffers().DOFLayers.resource.Get(),
+			offscreenBuffers.GetPostFX1Buffers().DOFLayers.Resource(),
 			rtDesc.BeginningAccess.Clear.ClearValue.Color, 0, NULL);
 		cmdList->BeginRenderPass(1, &rtDesc, NULL, D3D12_RENDER_PASS_FLAG_ALLOW_UAV_WRITES);
 		cmdList->DrawInstanced(((width + 1) / 2) * ((height + 1) / 2), 1, 0, 0);
@@ -578,10 +578,10 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvid
 	{
 		const D3D12_RESOURCE_BARRIER barriers[] =
 		{
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().lensFlareSurface.resource.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().dilatedCOCBuffer.resource.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().halfresDOFSurface.resource.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().DOFLayers.resource.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RENDER_TARGET)
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().lensFlareSurface.Resource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().dilatedCOCBuffer.Resource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().halfresDOFSurface.Resource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().DOFLayers.Resource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RENDER_TARGET)
 		};
 		cmdList->ResourceBarrier(size(barriers), barriers);
 	}
@@ -597,10 +597,10 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvid
 	{
 		const D3D12_RESOURCE_BARRIER barriers[] =
 		{
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().lensFlareSurface.resource.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY),
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().COCBuffer.resource.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().halfresDOFSurface.resource.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().DOFLayers.resource.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE)
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().lensFlareSurface.Resource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY),
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().COCBuffer.Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().halfresDOFSurface.Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().DOFLayers.Resource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE)
 		};
 		cmdList->ResourceBarrier(size(barriers), barriers);
 	}
@@ -612,15 +612,15 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvid
 	{
 		const D3D12_RESOURCE_BARRIER barriers[] =
 		{
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetWorldAndPostFX1Buffers().HDRInputSurface.resource.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RESOLVE_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFXBuffers().HDRCompositeSurface.resource.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().lensFlareSurface.resource.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().DOFOpacityBuffer.resource.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().dilatedCOCBuffer.resource.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().DOFLayers.resource.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
-			CD3DX12_RESOURCE_BARRIER::Aliasing(NULL, offscreenBuffers.GetPostFX2Buffers().bloomUpChain.resource.Get()),
-			CD3DX12_RESOURCE_BARRIER::Aliasing(NULL, offscreenBuffers.GetPostFX2Buffers().bloomDownChain.resource.Get()),
-			CD3DX12_RESOURCE_BARRIER::Aliasing(NULL, offscreenBuffers.GetPostFX2Buffers().LDRSurface.resource.Get())
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetWorldAndPostFX1Buffers().HDRInputSurface.Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RESOLVE_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFXBuffers().HDRCompositeSurface.Resource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().lensFlareSurface.Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().DOFOpacityBuffer.Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().dilatedCOCBuffer.Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().DOFLayers.Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
+			CD3DX12_RESOURCE_BARRIER::Aliasing(NULL, offscreenBuffers.GetPostFX2Buffers().bloomUpChain.Resource()),
+			CD3DX12_RESOURCE_BARRIER::Aliasing(NULL, offscreenBuffers.GetPostFX2Buffers().bloomDownChain.Resource()),
+			CD3DX12_RESOURCE_BARRIER::Aliasing(NULL, offscreenBuffers.GetPostFX2Buffers().LDRSurface.Resource())
 		};
 		cmdList->ResourceBarrier(size(barriers), barriers);
 	}
@@ -629,7 +629,7 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvid
 	{
 		cmdList->SetPipelineState(brightPassPSO.Get());
 		cmdList->Dispatch(halfResDispatchSize.x, halfResDispatchSize.y, 1);
-		ID3D12Resource *const bloomUpChain = offscreenBuffers.GetPostFX2Buffers().bloomUpChain.resource.Get(), *const bloomDownChain = offscreenBuffers.GetPostFX2Buffers().bloomDownChain.resource.Get();
+		ID3D12Resource *const bloomUpChain = offscreenBuffers.GetPostFX2Buffers().bloomUpChain.Resource(), *const bloomDownChain = offscreenBuffers.GetPostFX2Buffers().bloomDownChain.Resource();
 
 		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(bloomDownChain, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, 0));
 
@@ -678,16 +678,16 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvid
 	{
 		const D3D12_RESOURCE_BARRIER barriers[] =
 		{
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFXBuffers().HDRCompositeSurface.resource.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX2Buffers().LDRSurface.resource.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE),
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFXBuffers().HDRCompositeSurface.Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY),
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX2Buffers().LDRSurface.Resource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE),
 			CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY),
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX2Buffers().bloomUpChain.resource.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, 0, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY)
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX2Buffers().bloomUpChain.Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, 0, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY)
 		};
 		cmdList->ResourceBarrier(size(barriers), barriers);
 	}
 
 	// copy to output
-	cmdList->CopyTextureRegion(&CD3DX12_TEXTURE_COPY_LOCATION(output, 0), 0, 0, 0, &CD3DX12_TEXTURE_COPY_LOCATION(offscreenBuffers.GetPostFX2Buffers().LDRSurface.resource.Get(), 0), NULL);
+	cmdList->CopyTextureRegion(&CD3DX12_TEXTURE_COPY_LOCATION(output, 0), 0, 0, 0, &CD3DX12_TEXTURE_COPY_LOCATION(offscreenBuffers.GetPostFX2Buffers().LDRSurface.Resource(), 0), NULL);
 
 	{
 		/*
@@ -697,20 +697,20 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvid
 		*/
 		const D3D12_RESOURCE_BARRIER barriers[] =
 		{
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPersistentBuffers().ZBuffer.resource.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE, 0, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY),
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetWorldAndPostFX1Buffers().HDRInputSurface.resource.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RESOLVE_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY),
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFXBuffers().HDRCompositeSurface.resource.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY),
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX2Buffers().LDRSurface.resource.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS),	// !: use split barrier
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPersistentBuffers().ZBuffer.Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE, 0, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY),
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetWorldAndPostFX1Buffers().HDRInputSurface.Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RESOLVE_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY),
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFXBuffers().HDRCompositeSurface.Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY),
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX2Buffers().LDRSurface.Resource(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS),	// !: use split barrier
 			CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT),
 			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetLuminanceReductionBuffer().Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY),
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX2Buffers().bloomUpChain.resource.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY),
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX2Buffers().bloomDownChain.resource.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY),
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().lensFlareSurface.resource.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY),
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().DOFOpacityBuffer.resource.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY),
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().COCBuffer.resource.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY),
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().dilatedCOCBuffer.resource.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY),
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().halfresDOFSurface.resource.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY),
-			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().DOFLayers.resource.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY)
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX2Buffers().bloomUpChain.Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY),
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX2Buffers().bloomDownChain.Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY),
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().lensFlareSurface.Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY),
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().DOFOpacityBuffer.Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY),
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().COCBuffer.Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY),
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().dilatedCOCBuffer.Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY),
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().halfresDOFSurface.Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY),
+			CD3DX12_RESOURCE_BARRIER::Transition(offscreenBuffers.GetPostFX1Buffers().DOFLayers.Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY)
 		};
 		cmdList->ResourceBarrier(size(barriers), barriers);
 	}
@@ -782,7 +782,7 @@ void Impl::Viewport::Render(ID3D12Resource *output, const class OffscreenBuffers
 
 	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Pre, this, cmdBuffsProvider, output, cref(offscreenBuffers));
 
-	const RenderPipeline::RenderPasses::PipelineROPTargets ROPTargets(offscreenBuffers.GetWorldBuffers().rendertarget.resource.Get(), offscreenBuffers.GetRTV(offscreenBuffers.SCENE_RTV), backgroundColor, offscreenBuffers.GetPersistentBuffers().ZBuffer.resource.Get(), offscreenBuffers.GetDSV(), offscreenBuffers.GetWorldAndPostFX1Buffers().HDRInputSurface.resource.Get(), width, height);
+	const RenderPipeline::RenderPasses::PipelineROPTargets ROPTargets(offscreenBuffers.GetWorldBuffers().rendertarget.Resource(), offscreenBuffers.GetRTV(offscreenBuffers.SCENE_RTV), backgroundColor, offscreenBuffers.GetPersistentBuffers().ZBuffer.Resource(), offscreenBuffers.GetDSV(), offscreenBuffers.GetWorldAndPostFX1Buffers().HDRInputSurface.Resource(), width, height);
 	world->Render(ctx, viewXform, projXform, projParams, cameraSettingsBuffer->GetGPUVirtualAddress(), ROPTargets);
 
 	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Post, this, cmdBuffsProvider, output, cref(offscreenBuffers), postprocessDescriptorTable, CalculateCamAdaptationLerpFactor(delta), width, height);

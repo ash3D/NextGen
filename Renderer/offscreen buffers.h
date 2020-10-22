@@ -34,12 +34,26 @@ namespace Renderer::Impl
 	public:
 		struct AllocatedResource final
 		{
+			friend class OffscreenBuffers;
+
+		private:
 			TrackedResource<ID3D12Resource> resource;
+
+		public:
 			UINT64 offset, size;
+
+		private:
+			AllocatedResource() = default;
+
+			// prevent lifetime extension and allow only instant use (during current frame only)
+		public:
+			AllocatedResource(AllocatedResource &) = delete;
+			void operator =(AllocatedResource &) = delete;
+			ID3D12Resource *Resource() const noexcept { return resource.Get(); }
 		};
 
 	private:
-		struct LifetimeRanges
+		struct LifetimeRanges final
 		{
 			struct
 			{

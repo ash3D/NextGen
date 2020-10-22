@@ -39,20 +39,20 @@ void PostprocessDescriptorTableStore::Fill(const OffscreenBuffers &offscreenBuff
 			.Texture2DMS{}
 		};
 
-		device->CreateShaderResourceView(offscreenBuffers.GetPersistentBuffers().ZBuffer.resource.Get(), &SRVdesc, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, ZBufferSRV, descriptorSize));
+		device->CreateShaderResourceView(offscreenBuffers.GetPersistentBuffers().ZBuffer.Resource(), &SRVdesc, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, ZBufferSRV, descriptorSize));
 	}
 
 	// SrcSRV
-	device->CreateShaderResourceView(offscreenBuffers.GetWorldAndPostFX1Buffers().HDRInputSurface.resource.Get(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, SrcSRV, descriptorSize));
+	device->CreateShaderResourceView(offscreenBuffers.GetWorldAndPostFX1Buffers().HDRInputSurface.Resource(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, SrcSRV, descriptorSize));
 
 	// CompositeSRV
-	device->CreateShaderResourceView(offscreenBuffers.GetPostFXBuffers().HDRCompositeSurface.resource.Get(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, CompositeSRV, descriptorSize));
+	device->CreateShaderResourceView(offscreenBuffers.GetPostFXBuffers().HDRCompositeSurface.Resource(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, CompositeSRV, descriptorSize));
 
 	// CompositeUAV
-	device->CreateUnorderedAccessView(offscreenBuffers.GetPostFXBuffers().HDRCompositeSurface.resource.Get(), NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, CompositeUAV, descriptorSize));
+	device->CreateUnorderedAccessView(offscreenBuffers.GetPostFXBuffers().HDRCompositeSurface.Resource(), NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, CompositeUAV, descriptorSize));
 
 	// DstUAV
-	device->CreateUnorderedAccessView(offscreenBuffers.GetPostFX2Buffers().LDRSurface.resource.Get(), NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DstUAV, descriptorSize));
+	device->CreateUnorderedAccessView(offscreenBuffers.GetPostFX2Buffers().LDRSurface.Resource(), NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DstUAV, descriptorSize));
 
 	// ReductionBufferUAV
 	{
@@ -88,39 +88,39 @@ void PostprocessDescriptorTableStore::Fill(const OffscreenBuffers &offscreenBuff
 	}
 
 	// DOFOpacityBufferUAV
-	device->CreateUnorderedAccessView(offscreenBuffers.GetPostFX1Buffers().DOFOpacityBuffer.resource.Get(), NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DOFOpacityBufferUAV, descriptorSize));
+	device->CreateUnorderedAccessView(offscreenBuffers.GetPostFX1Buffers().DOFOpacityBuffer.Resource(), NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DOFOpacityBufferUAV, descriptorSize));
 
 	// COCBufferUAV
-	device->CreateUnorderedAccessView(offscreenBuffers.GetPostFX1Buffers().COCBuffer.resource.Get(), NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, COCBufferUAV, descriptorSize));
+	device->CreateUnorderedAccessView(offscreenBuffers.GetPostFX1Buffers().COCBuffer.Resource(), NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, COCBufferUAV, descriptorSize));
 
 	// DilatedCOCBufferUAV
-	device->CreateUnorderedAccessView(offscreenBuffers.GetPostFX1Buffers().dilatedCOCBuffer.resource.Get(), NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DilatedCOCBufferUAV, descriptorSize));
+	device->CreateUnorderedAccessView(offscreenBuffers.GetPostFX1Buffers().dilatedCOCBuffer.Resource(), NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DilatedCOCBufferUAV, descriptorSize));
 
 	// HalfresDOFInputUAV
-	device->CreateUnorderedAccessView(offscreenBuffers.GetPostFX1Buffers().halfresDOFSurface.resource.Get(), NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, HalfresDOFInputUAV, descriptorSize));
+	device->CreateUnorderedAccessView(offscreenBuffers.GetPostFX1Buffers().halfresDOFSurface.Resource(), NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, HalfresDOFInputUAV, descriptorSize));
 
 	// DOFLayersUAV
-	device->CreateUnorderedAccessView(offscreenBuffers.GetPostFX1Buffers().DOFLayers.resource.Get(), NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DOFLayersUAV, descriptorSize));
+	device->CreateUnorderedAccessView(offscreenBuffers.GetPostFX1Buffers().DOFLayers.Resource(), NULL, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DOFLayersUAV, descriptorSize));
 
 	// DOFOpacityBufferSRV
-	device->CreateShaderResourceView(offscreenBuffers.GetPostFX1Buffers().DOFOpacityBuffer.resource.Get(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DOFOpacityBufferSRV, descriptorSize));
+	device->CreateShaderResourceView(offscreenBuffers.GetPostFX1Buffers().DOFOpacityBuffer.Resource(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DOFOpacityBufferSRV, descriptorSize));
 
 	// COCBufferSRV
-	device->CreateShaderResourceView(offscreenBuffers.GetPostFX1Buffers().COCBuffer.resource.Get(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, COCBufferSRV, descriptorSize));
+	device->CreateShaderResourceView(offscreenBuffers.GetPostFX1Buffers().COCBuffer.Resource(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, COCBufferSRV, descriptorSize));
 
 	// DilatedCOCBufferSRV
-	device->CreateShaderResourceView(offscreenBuffers.GetPostFX1Buffers().dilatedCOCBuffer.resource.Get(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DilatedCOCBufferSRV, descriptorSize));
+	device->CreateShaderResourceView(offscreenBuffers.GetPostFX1Buffers().dilatedCOCBuffer.Resource(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DilatedCOCBufferSRV, descriptorSize));
 
 	// HalfresDOFInputSRV
-	device->CreateShaderResourceView(offscreenBuffers.GetPostFX1Buffers().halfresDOFSurface.resource.Get(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, HalfresDOFInputSRV, descriptorSize));
+	device->CreateShaderResourceView(offscreenBuffers.GetPostFX1Buffers().halfresDOFSurface.Resource(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, HalfresDOFInputSRV, descriptorSize));
 
 	// DOFLayersSRV
-	device->CreateShaderResourceView(offscreenBuffers.GetPostFX1Buffers().DOFLayers.resource.Get(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DOFLayersSRV, descriptorSize));
+	device->CreateShaderResourceView(offscreenBuffers.GetPostFX1Buffers().DOFLayers.Resource(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, DOFLayersSRV, descriptorSize));
 
 	// LensFlareSRV
-	device->CreateShaderResourceView(offscreenBuffers.GetPostFX1Buffers().lensFlareSurface.resource.Get(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, LensFlareSRV, descriptorSize));
+	device->CreateShaderResourceView(offscreenBuffers.GetPostFX1Buffers().lensFlareSurface.Resource(), NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, LensFlareSRV, descriptorSize));
 
-	ID3D12Resource *const bloomUpChain = offscreenBuffers.GetPostFX2Buffers().bloomUpChain.resource.Get(), *const bloomDownChain = offscreenBuffers.GetPostFX2Buffers().bloomDownChain.resource.Get();
+	ID3D12Resource *const bloomUpChain = offscreenBuffers.GetPostFX2Buffers().bloomUpChain.Resource(), *const bloomDownChain = offscreenBuffers.GetPostFX2Buffers().bloomDownChain.Resource();
 
 	// BloomUpChainSRV
 	device->CreateShaderResourceView(bloomUpChain, NULL, CD3DX12_CPU_DESCRIPTOR_HANDLE(heapStart, BloomUpChainSRV, descriptorSize));
