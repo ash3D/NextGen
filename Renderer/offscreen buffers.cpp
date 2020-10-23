@@ -134,6 +134,9 @@ namespace Renderer::Impl::OffscreenBuffersLayout
 		};
 	}
 
+	template<auto GetX>
+	using LifetimeRange = remove_cvref_t<invoke_result_t<decltype(GetX), OffscreenBuffers>>;
+
 	namespace Tier_1
 	{
 		static void CheckOverflow(const OffscreenBuffers::AllocatedResource &allocation)
@@ -152,13 +155,12 @@ namespace Renderer::Impl::OffscreenBuffersLayout
 
 			namespace Persistent
 			{
-				template<typename LifetimeRanges>
-				static inline UINT64 ZBuffer(const OffscreenBuffersDesc &offscreenBuffersDesc, LifetimeRanges &dst)
+				static inline UINT64 ZBuffer(const OffscreenBuffersDesc &offscreenBuffersDesc, LifetimeRange<&OffscreenBuffers::GetPersistentBuffers> &persistent)
 				{
 					const D3D12_RESOURCE_ALLOCATION_INFO ZBufferAllocation = device->GetResourceAllocationInfo(0, 1, &offscreenBuffersDesc.ZBuffer());
-					dst.persistent.ZBuffer.offset = 0;
-					dst.persistent.ZBuffer.size = ZBufferAllocation.SizeInBytes;
-					ApplyHeapOffset(dst.persistent.ZBuffer);
+					persistent.ZBuffer.offset = 0;
+					persistent.ZBuffer.size = ZBufferAllocation.SizeInBytes;
+					ApplyHeapOffset(persistent.ZBuffer);
 					return ZBufferAllocation.SizeInBytes;
 				}
 			}
@@ -190,31 +192,29 @@ namespace Renderer::Impl::OffscreenBuffersLayout
 					using ResourceDescsBuffer::ResourceDescsBuffer;
 				};
 
-				template<typename LifetimeRanges>
-				static inline UINT64 Rendertarget(const OffscreenBuffersDesc &offscreenBuffersDesc, LifetimeRanges &dst, UINT64 baseOffset)
+				static inline UINT64 Rendertarget(const OffscreenBuffersDesc &offscreenBuffersDesc, LifetimeRange<&OffscreenBuffers::GetWorldBuffers> &world, UINT64 baseOffset)
 				{
 					const D3D12_RESOURCE_ALLOCATION_INFO rendertargetAllocation = device->GetResourceAllocationInfo(0, 1, &offscreenBuffersDesc.Rendertarget());
-					dst.world.rendertarget.offset = AlignSize(baseOffset, rendertargetAllocation.Alignment);
-					dst.world.rendertarget.size = rendertargetAllocation.SizeInBytes;
-					const auto rendertargetPadding = dst.world.rendertarget.offset/*aligned*/ - baseOffset;
-					ApplyHeapOffset(dst.world.rendertarget);
+					world.rendertarget.offset = AlignSize(baseOffset, rendertargetAllocation.Alignment);
+					world.rendertarget.size = rendertargetAllocation.SizeInBytes;
+					const auto rendertargetPadding = world.rendertarget.offset/*aligned*/ - baseOffset;
+					ApplyHeapOffset(world.rendertarget);
 					return rendertargetPadding + rendertargetAllocation.SizeInBytes;
 				}
 
-				template<typename LifetimeRanges>
-				static inline UINT64 PostFX(const OffscreenBuffersDesc &offscreenBuffersDesc, LifetimeRanges &dst, UINT64 baseOffset)
+				static inline UINT64 PostFX(const OffscreenBuffersDesc &offscreenBuffersDesc, LifetimeRange<&OffscreenBuffers::GetPostFX1Buffers> &postFX_1, UINT64 baseOffset)
 				{
 					const PostFXResDescsBuffer postFXBuffersDesc(offscreenBuffersDesc);
 					D3D12_RESOURCE_ALLOCATION_INFO1 postFXSuballocation[PostFXLayout_BuffersCount];
 					const D3D12_RESOURCE_ALLOCATION_INFO postFXAllocation = device->GetResourceAllocationInfo1(0, PostFXLayout_BuffersCount, postFXBuffersDesc, postFXSuballocation);
 					const auto alignedPostFXOffset = AlignSize(baseOffset, postFXAllocation.Alignment);
 					const auto postFXPadding = alignedPostFXOffset - baseOffset;
-					dst.postFX_1.DOFLayers.offset = alignedPostFXOffset + postFXSuballocation[PostFXLayout_DOFLayers].Offset;
-					dst.postFX_1.DOFLayers.size = postFXSuballocation[PostFXLayout_DOFLayers].SizeInBytes;
-					ApplyHeapOffset(dst.postFX_1.DOFLayers);
-					dst.postFX_1.lensFlareSurface.offset = alignedPostFXOffset + postFXSuballocation[PostFXLayout_LensFlareSurface].Offset;
-					dst.postFX_1.lensFlareSurface.size = postFXSuballocation[PostFXLayout_LensFlareSurface].SizeInBytes;
-					ApplyHeapOffset(dst.postFX_1.lensFlareSurface);
+					postFX_1.DOFLayers.offset = alignedPostFXOffset + postFXSuballocation[PostFXLayout_DOFLayers].Offset;
+					postFX_1.DOFLayers.size = postFXSuballocation[PostFXLayout_DOFLayers].SizeInBytes;
+					ApplyHeapOffset(postFX_1.DOFLayers);
+					postFX_1.lensFlareSurface.offset = alignedPostFXOffset + postFXSuballocation[PostFXLayout_LensFlareSurface].Offset;
+					postFX_1.lensFlareSurface.size = postFXSuballocation[PostFXLayout_LensFlareSurface].SizeInBytes;
+					ApplyHeapOffset(postFX_1.lensFlareSurface);
 					return postFXPadding + postFXAllocation.SizeInBytes;
 				}
 			}
@@ -230,13 +230,12 @@ namespace Renderer::Impl::OffscreenBuffersLayout
 
 			namespace Persistent
 			{
-				template<typename LifetimeRanges>
-				static inline UINT64 HDRCompositeSurface(const OffscreenBuffersDesc &offscreenBuffersDesc, LifetimeRanges &dst)
+				static inline UINT64 HDRCompositeSurface(const OffscreenBuffersDesc &offscreenBuffersDesc, LifetimeRange<&OffscreenBuffers::GetPostFXBuffers> &postFX)
 				{
 					const D3D12_RESOURCE_ALLOCATION_INFO HDRCompositeSurfaceAllocation = device->GetResourceAllocationInfo(0, 1, &offscreenBuffersDesc.HDRCompositeSurface());
-					dst.postFX.HDRCompositeSurface.offset = 0;
-					dst.postFX.HDRCompositeSurface.size = HDRCompositeSurfaceAllocation.SizeInBytes;
-					ApplyHeapOffset(dst.postFX.HDRCompositeSurface);
+					postFX.HDRCompositeSurface.offset = 0;
+					postFX.HDRCompositeSurface.size = HDRCompositeSurfaceAllocation.SizeInBytes;
+					ApplyHeapOffset(postFX.HDRCompositeSurface);
 					return HDRCompositeSurfaceAllocation.SizeInBytes;
 				}
 			}
@@ -310,50 +309,48 @@ namespace Renderer::Impl::OffscreenBuffersLayout
 				};
 
 				// DOF & lens flare (and currently lum adaptation with 'HDRInputSurface' for GPUs without typed UAV loads)
-				template<typename LifetimeRanges>
-				static inline UINT64 PostFX_1(const OffscreenBuffersDesc &offscreenBuffersDesc, LifetimeRanges &dst, UINT64 baseOffset)
+				static inline UINT64 PostFX_1(const OffscreenBuffersDesc &offscreenBuffersDesc, LifetimeRange<&OffscreenBuffers::GetWorldAndPostFX1Buffers> &world_postFX_1, LifetimeRange<&OffscreenBuffers::GetPostFX1Buffers> &postFX_1, UINT64 baseOffset)
 				{
 					const PostFX1ResDescsBuffer postFX1BuffersDesc(offscreenBuffersDesc);
 					D3D12_RESOURCE_ALLOCATION_INFO1 postFX1Suballocation[PostFX1Layout_BuffersCount];
 					const D3D12_RESOURCE_ALLOCATION_INFO postFX1Allocation = device->GetResourceAllocationInfo1(0, PostFX1Layout_BuffersCount, postFX1BuffersDesc, postFX1Suballocation);
 					const auto alignedBokehOffset = AlignSize(baseOffset, postFX1Allocation.Alignment);
 					const auto postFX1Padding = alignedBokehOffset - baseOffset;
-					dst.world_postFX_1.HDRInputSurface.offset = alignedBokehOffset + postFX1Suballocation[PostFX1Layout_HDRInputSurface].Offset;
-					dst.world_postFX_1.HDRInputSurface.size = postFX1Suballocation[PostFX1Layout_HDRInputSurface].SizeInBytes;
-					ApplyHeapOffset(dst.world_postFX_1.HDRInputSurface);
-					dst.postFX_1.DOFOpacityBuffer.offset = alignedBokehOffset + postFX1Suballocation[PostFX1Layout_DOFOpacityBuffer].Offset;
-					dst.postFX_1.DOFOpacityBuffer.size = postFX1Suballocation[PostFX1Layout_DOFOpacityBuffer].SizeInBytes;
-					ApplyHeapOffset(dst.postFX_1.DOFOpacityBuffer);
-					dst.postFX_1.COCBuffer.offset = alignedBokehOffset + postFX1Suballocation[PostFX1Layout_COCBuffer].Offset;
-					dst.postFX_1.COCBuffer.size = postFX1Suballocation[PostFX1Layout_COCBuffer].SizeInBytes;
-					ApplyHeapOffset(dst.postFX_1.COCBuffer);
-					dst.postFX_1.dilatedCOCBuffer.offset = alignedBokehOffset + postFX1Suballocation[PostFX1Layout_DilatedCOCBuffer].Offset;
-					dst.postFX_1.dilatedCOCBuffer.size = postFX1Suballocation[PostFX1Layout_DilatedCOCBuffer].SizeInBytes;
-					ApplyHeapOffset(dst.postFX_1.dilatedCOCBuffer);
-					dst.postFX_1.halfresDOFSurface.offset = alignedBokehOffset + postFX1Suballocation[PostFX1Layout_HalfresDOFSurface].Offset;
-					dst.postFX_1.halfresDOFSurface.size = postFX1Suballocation[PostFX1Layout_HalfresDOFSurface].SizeInBytes;
-					ApplyHeapOffset(dst.postFX_1.halfresDOFSurface);
+					world_postFX_1.HDRInputSurface.offset = alignedBokehOffset + postFX1Suballocation[PostFX1Layout_HDRInputSurface].Offset;
+					world_postFX_1.HDRInputSurface.size = postFX1Suballocation[PostFX1Layout_HDRInputSurface].SizeInBytes;
+					ApplyHeapOffset(world_postFX_1.HDRInputSurface);
+					postFX_1.DOFOpacityBuffer.offset = alignedBokehOffset + postFX1Suballocation[PostFX1Layout_DOFOpacityBuffer].Offset;
+					postFX_1.DOFOpacityBuffer.size = postFX1Suballocation[PostFX1Layout_DOFOpacityBuffer].SizeInBytes;
+					ApplyHeapOffset(postFX_1.DOFOpacityBuffer);
+					postFX_1.COCBuffer.offset = alignedBokehOffset + postFX1Suballocation[PostFX1Layout_COCBuffer].Offset;
+					postFX_1.COCBuffer.size = postFX1Suballocation[PostFX1Layout_COCBuffer].SizeInBytes;
+					ApplyHeapOffset(postFX_1.COCBuffer);
+					postFX_1.dilatedCOCBuffer.offset = alignedBokehOffset + postFX1Suballocation[PostFX1Layout_DilatedCOCBuffer].Offset;
+					postFX_1.dilatedCOCBuffer.size = postFX1Suballocation[PostFX1Layout_DilatedCOCBuffer].SizeInBytes;
+					ApplyHeapOffset(postFX_1.dilatedCOCBuffer);
+					postFX_1.halfresDOFSurface.offset = alignedBokehOffset + postFX1Suballocation[PostFX1Layout_HalfresDOFSurface].Offset;
+					postFX_1.halfresDOFSurface.size = postFX1Suballocation[PostFX1Layout_HalfresDOFSurface].SizeInBytes;
+					ApplyHeapOffset(postFX_1.halfresDOFSurface);
 					return postFX1Padding + postFX1Allocation.SizeInBytes;
 				}
 
 				// bloom & tonemap
-				template<typename LifetimeRanges>
-				static inline UINT64 PostFX_2(const OffscreenBuffersDesc &offscreenBuffersDesc, LifetimeRanges &dst, UINT64 baseOffset)
+				static inline UINT64 PostFX_2(const OffscreenBuffersDesc &offscreenBuffersDesc, LifetimeRange<&OffscreenBuffers::GetPostFX2Buffers> &postFX_2, UINT64 baseOffset)
 				{
 					const PostFX2ResDescsBuffer postFX2BuffersDesc(offscreenBuffersDesc);
 					D3D12_RESOURCE_ALLOCATION_INFO1 postFX2Suballocation[PostFX2Layout_BuffersCount];
 					const D3D12_RESOURCE_ALLOCATION_INFO postFX2Allocation = device->GetResourceAllocationInfo1(0, PostFX2Layout_BuffersCount, postFX2BuffersDesc, postFX2Suballocation);
 					const auto alignedLumOffset = AlignSize(baseOffset, postFX2Allocation.Alignment);
 					const auto postFX2Padding = alignedLumOffset - baseOffset;
-					dst.postFX_2.bloomUpChain.offset = alignedLumOffset + postFX2Suballocation[PostFX2Layout_BloomUpChain].Offset;
-					dst.postFX_2.bloomUpChain.size = postFX2Suballocation[PostFX2Layout_BloomUpChain].SizeInBytes;
-					ApplyHeapOffset(dst.postFX_2.bloomUpChain);
-					dst.postFX_2.bloomDownChain.offset = alignedLumOffset + postFX2Suballocation[PostFX2Layout_BloomDownChain].Offset;
-					dst.postFX_2.bloomDownChain.size = postFX2Suballocation[PostFX2Layout_BloomDownChain].SizeInBytes;
-					ApplyHeapOffset(dst.postFX_2.bloomDownChain);
-					dst.postFX_2.LDRSurface.offset = alignedLumOffset + postFX2Suballocation[PostFX2Layout_LDRSurface].Offset;
-					dst.postFX_2.LDRSurface.size = postFX2Suballocation[PostFX2Layout_LDRSurface].SizeInBytes;
-					ApplyHeapOffset(dst.postFX_2.LDRSurface);
+					postFX_2.bloomUpChain.offset = alignedLumOffset + postFX2Suballocation[PostFX2Layout_BloomUpChain].Offset;
+					postFX_2.bloomUpChain.size = postFX2Suballocation[PostFX2Layout_BloomUpChain].SizeInBytes;
+					ApplyHeapOffset(postFX_2.bloomUpChain);
+					postFX_2.bloomDownChain.offset = alignedLumOffset + postFX2Suballocation[PostFX2Layout_BloomDownChain].Offset;
+					postFX_2.bloomDownChain.size = postFX2Suballocation[PostFX2Layout_BloomDownChain].SizeInBytes;
+					ApplyHeapOffset(postFX_2.bloomDownChain);
+					postFX_2.LDRSurface.offset = alignedLumOffset + postFX2Suballocation[PostFX2Layout_LDRSurface].Offset;
+					postFX_2.LDRSurface.size = postFX2Suballocation[PostFX2Layout_LDRSurface].SizeInBytes;
+					ApplyHeapOffset(postFX_2.LDRSurface);
 					return postFX2Padding + postFX2Allocation.SizeInBytes;
 				}
 			}
@@ -366,13 +363,13 @@ void decltype(OffscreenBuffers::ROPs)::MarkupAllocation(const OffscreenBuffersDe
 	namespace Layout = OffscreenBuffersLayout::Tier_1::ROPs;
 
 	// ZBuffer (persistent)
-	const auto overlappedBaseOffset = allocationSize = Layout::Persistent::ZBuffer(buffersDesc, dst);
+	const auto overlappedBaseOffset = allocationSize = Layout::Persistent::ZBuffer(buffersDesc, dst.persistent);
 
 	// rendertarget
-	const auto alignedRendertargetSize = Layout::Overlapped::Rendertarget(buffersDesc, dst, overlappedBaseOffset);
+	const auto alignedRendertargetSize = Layout::Overlapped::Rendertarget(buffersDesc, dst.world, overlappedBaseOffset);
 
 	// postFX
-	const auto alignedPostFXSize = Layout::Overlapped::PostFX(buffersDesc, dst, overlappedBaseOffset);
+	const auto alignedPostFXSize = Layout::Overlapped::PostFX(buffersDesc, dst.postFX_1, overlappedBaseOffset);
 
 	allocationSize += max(alignedRendertargetSize, alignedPostFXSize);
 }
@@ -382,13 +379,13 @@ void decltype(OffscreenBuffers::shaders)::MarkupAllocation(const OffscreenBuffer
 	namespace Layout = OffscreenBuffersLayout::Tier_1::Shaders;
 
 	// HDRCompositeSurface (persistent)
-	const auto overlappedBaseOffset = allocationSize = Layout::Persistent::HDRCompositeSurface(buffersDesc, dst);
+	const auto overlappedBaseOffset = allocationSize = Layout::Persistent::HDRCompositeSurface(buffersDesc, dst.postFX);
 
 	// postFX 1
-	const auto alignedPostFX1Size = Layout::Overlapped::PostFX_1(buffersDesc, dst, overlappedBaseOffset);
+	const auto alignedPostFX1Size = Layout::Overlapped::PostFX_1(buffersDesc, dst.world_postFX_1, dst.postFX_1, overlappedBaseOffset);
 
 	// postFX 2
-	const auto alignedPostFX2Size = Layout::Overlapped::PostFX_2(buffersDesc, dst, overlappedBaseOffset);
+	const auto alignedPostFX2Size = Layout::Overlapped::PostFX_2(buffersDesc, dst.postFX_2, overlappedBaseOffset);
 
 	allocationSize += max(alignedPostFX1Size, alignedPostFX2Size);
 }
