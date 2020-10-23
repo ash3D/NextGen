@@ -24,7 +24,7 @@ void AllocatorBase::AllocateChunk(const D3D12_RESOURCE_DESC &chunkDesc, LPCWSTR 
 pair<ID3D12Resource *, unsigned long> AllocatorBase::Allocate(unsigned long count, unsigned itemSize, unsigned long allocGranularity, LPCWSTR resourceName)
 {
 start:
-	shared_lock<decltype(mtx)> sharedLock(mtx);
+	shared_lock sharedLock(mtx);
 	auto chunkDesc = chunk->GetDesc();
 	const auto oldFreeBegin = freeBegin.fetch_add(count, memory_order_relaxed);
 	auto newFreeBegin = oldFreeBegin + count;
