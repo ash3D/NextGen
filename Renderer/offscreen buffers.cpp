@@ -10,7 +10,7 @@ using namespace Renderer::Impl;
 using WRL::ComPtr;
 
 extern ComPtr<ID3D12Device4> device;
-void NameObject(ID3D12Object *object, LPCWSTR name) noexcept;
+void NameObject(ID3D12Object *object, LPCWSTR name) noexcept, NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
 
 static constexpr UINT64 shrinkThreshold = 16'777'216ULL;
 
@@ -429,6 +429,7 @@ OffscreenBuffers::OffscreenBuffers()
 		};
 
 		CheckHR(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(rtvStore.GetAddressOf())));
+		NameObjectF(rtvStore.Get(), L"RTV store (offscreen buffers object %p)", this);
 	}
 
 	// create dsv descriptor heap
@@ -441,6 +442,7 @@ OffscreenBuffers::OffscreenBuffers()
 		};
 
 		CheckHR(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(dsvStore.GetAddressOf())));
+		NameObjectF(dsvStore.Get(), L"DSV store (offscreen buffers object %p)", this);
 	}
 }
 
@@ -495,6 +497,7 @@ void OffscreenBuffers::ConstructBuffers()
 	// create placed resources into shared heaps
 	{
 		const OffscreenBuffersDesc buffersDesc(width, height);
+		version++;	// preincrement improves exception safety
 
 		// create z/stencil buffer
 		CheckHR(device->CreatePlacedResource(
@@ -505,6 +508,7 @@ void OffscreenBuffers::ConstructBuffers()
 			&CD3DX12_CLEAR_VALUE(Config::ZFormat::ROP, 1.f, 0xef),
 			IID_PPV_ARGS(lifetimeRanges.persistent.ZBuffer.resource.ReleaseAndGetAddressOf())
 		));
+		NameObjectF(lifetimeRanges.persistent.ZBuffer.Resource(), L"Z buffer [%lu] (offscreen buffers object %p)", version, this);
 
 		// create HDR offscreen surfaces
 		CheckHR(device->CreatePlacedResource(
@@ -515,6 +519,7 @@ void OffscreenBuffers::ConstructBuffers()
 			NULL,
 			IID_PPV_ARGS(lifetimeRanges.world_postFX_1.HDRInputSurface.resource.ReleaseAndGetAddressOf())
 		));
+		NameObjectF(lifetimeRanges.world_postFX_1.HDRInputSurface.Resource(), L"HDR input surface [%lu] (offscreen buffers object %p)", version, this);
 		CheckHR(device->CreatePlacedResource(
 			shaders.VRAMBackingStore.Get(),
 			OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.postFX.HDRCompositeSurface.offset),
@@ -523,6 +528,7 @@ void OffscreenBuffers::ConstructBuffers()
 			NULL,
 			IID_PPV_ARGS(lifetimeRanges.postFX.HDRCompositeSurface.resource.ReleaseAndGetAddressOf())
 		));
+		NameObjectF(lifetimeRanges.postFX.HDRCompositeSurface.Resource(), L"HDR composite surface [%lu] (offscreen buffers object %p)", version, this);
 
 		// create MSAA rendertarget
 		extern const float backgroundColor[4];
@@ -534,6 +540,7 @@ void OffscreenBuffers::ConstructBuffers()
 			&CD3DX12_CLEAR_VALUE(Config::HDRFormat, backgroundColor),
 			IID_PPV_ARGS(lifetimeRanges.world.rendertarget.resource.ReleaseAndGetAddressOf())
 		));
+		NameObjectF(lifetimeRanges.world.rendertarget.Resource(), L"MSAA rendertarget [%lu] (offscreen buffers object %p)", version, this);
 
 		// create DOF opacity buffer
 		CheckHR(device->CreatePlacedResource(
@@ -544,6 +551,7 @@ void OffscreenBuffers::ConstructBuffers()
 			NULL,
 			IID_PPV_ARGS(lifetimeRanges.postFX_1.DOFOpacityBuffer.resource.ReleaseAndGetAddressOf())
 		));
+		NameObjectF(lifetimeRanges.postFX_1.DOFOpacityBuffer.Resource(), L"DOF opacity buffer [%lu] (offscreen buffers object %p)", version, this);
 
 		// create fullres CoC buffer
 		CheckHR(device->CreatePlacedResource(
@@ -554,6 +562,7 @@ void OffscreenBuffers::ConstructBuffers()
 			NULL,
 			IID_PPV_ARGS(lifetimeRanges.postFX_1.COCBuffer.resource.ReleaseAndGetAddressOf())
 		));
+		NameObjectF(lifetimeRanges.postFX_1.COCBuffer.Resource(), L"fullres CoC buffer [%lu] (offscreen buffers object %p)", version, this);
 
 		// create halfres dilated CoC buffer
 		CheckHR(device->CreatePlacedResource(
@@ -564,6 +573,7 @@ void OffscreenBuffers::ConstructBuffers()
 			NULL,
 			IID_PPV_ARGS(lifetimeRanges.postFX_1.dilatedCOCBuffer.resource.ReleaseAndGetAddressOf())
 		));
+		NameObjectF(lifetimeRanges.postFX_1.dilatedCOCBuffer.Resource(), L"halfres dilated CoC buffer [%lu] (offscreen buffers object %p)", version, this);
 
 		// create halfres DOF color surface
 		CheckHR(device->CreatePlacedResource(
@@ -574,6 +584,7 @@ void OffscreenBuffers::ConstructBuffers()
 			NULL,
 			IID_PPV_ARGS(lifetimeRanges.postFX_1.halfresDOFSurface.resource.ReleaseAndGetAddressOf())
 		));
+		NameObjectF(lifetimeRanges.postFX_1.halfresDOFSurface.Resource(), L"halfres DOF color surface [%lu] (offscreen buffers object %p)", version, this);
 
 		// create DOF blur layers
 		CheckHR(device->CreatePlacedResource(
@@ -584,6 +595,7 @@ void OffscreenBuffers::ConstructBuffers()
 			NULL,
 			IID_PPV_ARGS(lifetimeRanges.postFX_1.DOFLayers.resource.ReleaseAndGetAddressOf())
 		));
+		NameObjectF(lifetimeRanges.postFX_1.DOFLayers.Resource(), L"DOF blur layers [%lu] (offscreen buffers object %p)", version, this);
 
 		// create lens flare surface
 		CheckHR(device->CreatePlacedResource(
@@ -594,6 +606,7 @@ void OffscreenBuffers::ConstructBuffers()
 			NULL,
 			IID_PPV_ARGS(lifetimeRanges.postFX_1.lensFlareSurface.resource.ReleaseAndGetAddressOf())
 		));
+		NameObjectF(lifetimeRanges.postFX_1.lensFlareSurface.Resource(), L"lens flare surface [%lu] (offscreen buffers object %p)", version, this);
 
 		// create bloom chains
 		{
@@ -606,6 +619,7 @@ void OffscreenBuffers::ConstructBuffers()
 				NULL,
 				IID_PPV_ARGS(lifetimeRanges.postFX_2.bloomUpChain.resource.ReleaseAndGetAddressOf())
 			));
+			NameObjectF(lifetimeRanges.postFX_2.bloomUpChain.Resource(), L"bloom up chain [%lu] (offscreen buffers object %p)", version, this);
 
 			// down
 			CheckHR(device->CreatePlacedResource(
@@ -616,6 +630,7 @@ void OffscreenBuffers::ConstructBuffers()
 				NULL,
 				IID_PPV_ARGS(lifetimeRanges.postFX_2.bloomDownChain.resource.ReleaseAndGetAddressOf())
 			));
+			NameObjectF(lifetimeRanges.postFX_2.bloomDownChain.Resource(), L"bloom down chain [%lu] (offscreen buffers object %p)", version, this);
 		}
 
 		// create LDR offscreen surface (D3D12 disallows UAV on swap chain backbuffers)
@@ -627,6 +642,7 @@ void OffscreenBuffers::ConstructBuffers()
 			NULL,
 			IID_PPV_ARGS(lifetimeRanges.postFX_2.LDRSurface.resource.ReleaseAndGetAddressOf())
 		));
+		NameObjectF(lifetimeRanges.postFX_2.LDRSurface.Resource(), L"LDR offscreen surface [%lu] (offscreen buffers object %p)", version, this);
 	}
 
 	// fill descriptor heaps
@@ -702,8 +718,12 @@ void OffscreenBuffers::Resize(UINT width, UINT height, bool allowShrink)
 		// break refs to underlying heaps so that it can be destroyed before creating new heaps thus preventing VRAM usage pikes and fragmentation
 		for_each(store.begin(), store.end(), mem_fn(&OffscreenBuffers::DestroyBuffers));
 
+		static unsigned long version = -1;
+		version++;	// preincrement improves exception safety
 		CheckHR(device->CreateHeap(&CD3DX12_HEAP_DESC(requiredROPsStore, D3D12_HEAP_TYPE_DEFAULT, D3D12_DEFAULT_MSAA_RESOURCE_PLACEMENT_ALIGNMENT, D3D12_HEAP_FLAG_ALLOW_ONLY_RT_DS_TEXTURES), IID_PPV_ARGS(ROPs.VRAMBackingStore.GetAddressOf())));
+		NameObjectF(ROPs.VRAMBackingStore.Get(), L"VRAM backing store for ROPs offscreen buffers [%lu]", version);
 		CheckHR(device->CreateHeap(&CD3DX12_HEAP_DESC(requiredShaderOnlyStore, D3D12_HEAP_TYPE_DEFAULT, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT, D3D12_HEAP_FLAG_ALLOW_ONLY_NON_RT_DS_TEXTURES), IID_PPV_ARGS(shaders.VRAMBackingStore.GetAddressOf())));
+		NameObjectF(shaders.VRAMBackingStore.Get(), L"VRAM backing store for shaders offscreen buffers [%lu]", version);
 
 		// need to recreate all buffers due to underlying heaps have been changed
 		for_each(store.begin(), store.end(), mem_fn(&OffscreenBuffers::ConstructBuffers));

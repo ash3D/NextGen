@@ -30,6 +30,7 @@ namespace Renderer::Impl
 
 	private:
 		UINT width, height;
+		unsigned long version = -1;
 
 	public:
 		struct AllocatedResource final
