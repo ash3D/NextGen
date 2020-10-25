@@ -66,17 +66,14 @@ namespace Renderer
 				friend class CmdBuffsManager;
 
 			private:
-				PrePostCmdBuffs &cmdBuffers;
-				const void *const viewportPtr;
-				const unsigned short createVersion;
+				const PrePostCmdBuffs &cmdBuffers;
 
 			private:
-				explicit DeferredCmdBuffsProvider(PrePostCmdBuffs &cmdBuffers, const void *viewportPtr = NULL, unsigned short createVersion = ~0) :
-					cmdBuffers(cmdBuffers), viewportPtr(viewportPtr), createVersion(createVersion)
+				explicit DeferredCmdBuffsProvider(const PrePostCmdBuffs &cmdBuffers) : cmdBuffers(cmdBuffers)
 				{}
 
 			private:
-				ID3D12GraphicsCommandList4 *Acquire(WRL::ComPtr<ID3D12GraphicsCommandList4> &list, const WCHAR listName[], ID3D12PipelineState *PSO);
+				ID3D12GraphicsCommandList4 *Acquire(const WRL::ComPtr<ID3D12GraphicsCommandList4> &list, ID3D12PipelineState *PSO);
 
 			public:
 				inline ID3D12GraphicsCommandList4 *AcquirePre(), *AcquirePost();

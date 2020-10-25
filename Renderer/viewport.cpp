@@ -55,31 +55,22 @@ static inline float CalculateCamAdaptationLerpFactor(float delta)
 }
 
 #pragma region cmd buffers
-ID3D12GraphicsCommandList4 *Impl::Viewport::DeferredCmdBuffsProvider::Acquire(ComPtr<ID3D12GraphicsCommandList4> &list, const WCHAR listName[], ID3D12PipelineState *PSO)
+ID3D12GraphicsCommandList4 *Impl::Viewport::DeferredCmdBuffsProvider::Acquire(const ComPtr<ID3D12GraphicsCommandList4> &list, ID3D12PipelineState *PSO)
 {
-	if (list)
-	{
-		// reset list
-		CheckHR(list->Reset(cmdBuffers.allocator.Get(), PSO));
-	}
-	else
-	{
-		// create list
-		CheckHR(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, cmdBuffers.allocator.Get(), PSO, IID_PPV_ARGS(&list)));
-		NameObjectF(list.Get(), L"viewport %p %ls command list [%hu]", viewportPtr, listName, createVersion);
-	}
+	// reset list
+	CheckHR(list->Reset(cmdBuffers.allocator.Get(), PSO));
 
 	return list.Get();
 }
 
 inline ID3D12GraphicsCommandList4 *Impl::Viewport::DeferredCmdBuffsProvider::AcquirePre()
 {
-	return Acquire(cmdBuffers.pre, L"pre", NULL);
+	return Acquire(cmdBuffers.pre, NULL);
 }
 
 inline ID3D12GraphicsCommandList4 *Impl::Viewport::DeferredCmdBuffsProvider::AcquirePost()
 {
-	return Acquire(cmdBuffers.post, L"post", luminanceTextureReductionPSO.Get());
+	return Acquire(cmdBuffers.post, luminanceTextureReductionPSO.Get());
 }
 
 // result valid until call to 'OnFrameFinish()'
@@ -88,13 +79,9 @@ auto Impl::Viewport::CmdBuffsManager::OnFrameStart() -> DeferredCmdBuffsProvider
 	FrameVersioning::OnFrameStart();
 	PrePostCmdBuffs &cmdBuffers = GetCurFrameDataVersion();
 
-	if (cmdBuffers.allocator)
-	{
+	if (cmdBuffers.allocator && cmdBuffers.pre && cmdBuffers.post)
 		// reset allocator
 		CheckHR(cmdBuffers.allocator->Reset());
-
-		return DeferredCmdBuffsProvider{ cmdBuffers };
-	}
 	else
 	{
 #if ENABLE_NONSTDLAYOUT_OFFSETOF
@@ -108,8 +95,14 @@ auto Impl::Viewport::CmdBuffsManager::OnFrameStart() -> DeferredCmdBuffsProvider
 		CheckHR(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&cmdBuffers.allocator)));
 		NameObjectF(cmdBuffers.allocator.Get(), L"viewport %p command allocator [%hu]", viewportPtr, createVersion);
 
-		return DeferredCmdBuffsProvider{ cmdBuffers, viewportPtr, createVersion };
+		// create lists
+		CheckHR(device->CreateCommandList1(0, D3D12_COMMAND_LIST_TYPE_DIRECT, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(&cmdBuffers.pre)));
+		NameObjectF(cmdBuffers.pre.Get(), L"viewport %p pre command list [%hu]", viewportPtr, createVersion);
+		CheckHR(device->CreateCommandList1(0, D3D12_COMMAND_LIST_TYPE_DIRECT, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(&cmdBuffers.post)));
+		NameObjectF(cmdBuffers.post.Get(), L"viewport %p post command list [%hu]", viewportPtr, createVersion);
 	}
+
+	return DeferredCmdBuffsProvider{ cmdBuffers };
 }
 #pragma endregion
 
