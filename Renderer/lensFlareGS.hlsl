@@ -4,17 +4,17 @@
 
 struct Flare
 {
-	float	pos, clipDist, clipSpeed, size;
+	float	pos, clipDist, clipRate, size;
 	float3	tint;
 };
 
-inline Flare NormalizedFlare(uniform float pos, uniform float clipDist, uniform float clipSpeed, uniform float size, uniform float3 tint)
+inline Flare NormalizedFlare(uniform float pos, uniform float clipDist, uniform float clipRate, uniform float size, uniform float3 tint)
 {
 	const Flare flare =
 	{
 		pos,
 		clipDist,
-		clipSpeed,
+		clipRate,
 		size,
 		tint * (LensFlare::strength / LensFlare::normRebalance / (size * size))
 	};
@@ -150,9 +150,9 @@ void main(point LensFlare::Source flareSource[1], in uint lenseID : SV_GSInstanc
 			color.a *= smoothstep(lumThreshold, lumThreshold * LensFlare::fadeoutRange, lum);
 
 			float3 edgeClip = flareSource[0].edg;
-			edgeClip.xy *= sign(flares[lenseID].clipSpeed);
+			edgeClip.xy *= sign(flares[lenseID].clipRate);
 			edgeClip.z *= flares[lenseID].clipDist - edgeClip.z;
-			edgeClip.z *= abs(flares[lenseID].clipSpeed);
+			edgeClip.z *= abs(flares[lenseID].clipRate);
 
 			const Sprite sprite = MakeSprite(flareSource[0].pos * flares[lenseID].pos, color, flareSource[0].ext * flares[lenseID].size,
 				flareSource[0].ext.y/*ext.y holds unmodified aperture*/, flareSource[0].rot, edgeClip);

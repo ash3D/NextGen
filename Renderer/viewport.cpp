@@ -49,9 +49,9 @@ extern const float backgroundColor[4] = { .0f, .2f, .4f, 1.f };
 
 static inline float CalculateCamAdaptationLerpFactor(float delta)
 {
-	static constexpr float adaptationSpeed = 1;
+	static constexpr float adaptationRate = 1;
 
-	return exp(-adaptationSpeed * delta);
+	return exp(-adaptationRate * delta);
 }
 
 #pragma region cmd buffers
