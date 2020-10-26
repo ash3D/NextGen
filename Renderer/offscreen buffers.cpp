@@ -447,23 +447,13 @@ OffscreenBuffers::OffscreenBuffers()
 }
 
 // 1 call site
-inline UINT64 OffscreenBuffers::MaxROPsAllocationSize()
+inline pair<UINT64, UINT64> OffscreenBuffers::MaxAllocationSize()
 {
-	// TODO: use C++20 'ranges::max_element()' with projection
-	return max_element(store.cbegin(), store.cend(), [](decltype(store)::const_reference left, decltype(store)::const_reference right)
+	// or 'transform_reduce'
+	return accumulate(store.cbegin(), store.cend(), make_pair(UINT64_C(0), UINT64_C(0)), [](const pair<UINT64, UINT64> &left, decltype(store)::const_reference right)
 	{
-		return left.ROPs.allocationSize < right.ROPs.allocationSize;
-	})->ROPs.allocationSize;
-}
-
-// 1 call site
-inline UINT64 OffscreenBuffers::MaxShadersAllocationSize()
-{
-	// TODO: use C++20 'ranges::max_element()' with projection
-	return max_element(store.cbegin(), store.cend(), [](decltype(store)::const_reference left, decltype(store)::const_reference right)
-	{
-		return left.shaders.allocationSize < right.shaders.allocationSize;
-	})->shaders.allocationSize;
+		return make_pair(max(left.first, right.ROPs.allocationSize), max(left.second, right.shaders.allocationSize));
+	});
 }
 
 // 1 call site
@@ -700,14 +690,14 @@ void OffscreenBuffers::Resize(UINT width, UINT height, bool allowShrink)
 	this->width = width, this->height = height;
 	MarkupAllocation();
 
-	auto requiredROPsStore = ROPs.allocationSize, requiredShaderOnlyStore = shaders.allocationSize;
+	auto requiredROPsStore = ROPs.allocationSize, requiredShadersStore = shaders.allocationSize;
 	bool refitBackingStore = !ROPs.VRAMBackingStore || !shaders.VRAMBackingStore;
 	if (!refitBackingStore)
 	{
 		// need to refit if available backing store exhausted or significant shrinking occurs
-		const auto availableROPsStore = ROPs.VRAMBackingStore->GetDesc().SizeInBytes, availableShaderOnlyStore = shaders.VRAMBackingStore->GetDesc().SizeInBytes;
-		refitBackingStore = availableROPsStore < requiredROPsStore || availableShaderOnlyStore < requiredShaderOnlyStore ||
-			allowShrink && availableROPsStore + availableShaderOnlyStore > (requiredROPsStore = MaxROPsAllocationSize()) + (requiredShaderOnlyStore = MaxShadersAllocationSize()) + shrinkThreshold;
+		const auto availableROPsStore = ROPs.VRAMBackingStore->GetDesc().SizeInBytes, availableShadersStore = shaders.VRAMBackingStore->GetDesc().SizeInBytes;
+		refitBackingStore = availableROPsStore < requiredROPsStore || availableShadersStore < requiredShadersStore ||
+			allowShrink && availableROPsStore + availableShadersStore > (tie(requiredROPsStore, requiredShadersStore) = MaxAllocationSize(), requiredROPsStore + requiredShadersStore) + shrinkThreshold;
 	}
 
 	if (refitBackingStore)
@@ -722,7 +712,7 @@ void OffscreenBuffers::Resize(UINT width, UINT height, bool allowShrink)
 		version++;	// preincrement improves exception safety
 		CheckHR(device->CreateHeap(&CD3DX12_HEAP_DESC(requiredROPsStore, D3D12_HEAP_TYPE_DEFAULT, D3D12_DEFAULT_MSAA_RESOURCE_PLACEMENT_ALIGNMENT, D3D12_HEAP_FLAG_ALLOW_ONLY_RT_DS_TEXTURES), IID_PPV_ARGS(ROPs.VRAMBackingStore.GetAddressOf())));
 		NameObjectF(ROPs.VRAMBackingStore.Get(), L"VRAM backing store for ROPs offscreen buffers [%lu]", version);
-		CheckHR(device->CreateHeap(&CD3DX12_HEAP_DESC(requiredShaderOnlyStore, D3D12_HEAP_TYPE_DEFAULT, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT, D3D12_HEAP_FLAG_ALLOW_ONLY_NON_RT_DS_TEXTURES), IID_PPV_ARGS(shaders.VRAMBackingStore.GetAddressOf())));
+		CheckHR(device->CreateHeap(&CD3DX12_HEAP_DESC(requiredShadersStore, D3D12_HEAP_TYPE_DEFAULT, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT, D3D12_HEAP_FLAG_ALLOW_ONLY_NON_RT_DS_TEXTURES), IID_PPV_ARGS(shaders.VRAMBackingStore.GetAddressOf())));
 		NameObjectF(shaders.VRAMBackingStore.Get(), L"VRAM backing store for shaders offscreen buffers [%lu]", version);
 
 		// need to recreate all buffers due to underlying heaps have been changed

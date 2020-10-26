@@ -149,7 +149,7 @@ namespace Renderer::Impl
 		void operator =(OffscreenBuffers &) = delete;
 
 	private:
-		static UINT64 MaxROPsAllocationSize(), MaxShadersAllocationSize();
+		static std::pair<UINT64/*ROPs*/, UINT64/*shaders*/> MaxAllocationSize();
 		void MarkupAllocation();
 		void DestroyBuffers();
 		void ConstructBuffers();
