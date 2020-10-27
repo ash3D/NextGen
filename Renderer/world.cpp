@@ -1007,7 +1007,7 @@ static inline void CopyMatrix2CB(const float (&src)[rows][columns], volatile Imp
 	copy_n(src, rows, dst);
 }
 
-void Impl::World::Render(WorldViewContext &viewCtx, const float (&viewXform)[4][3], const float (&projXform)[4][4], const float (&projParams)[3], UINT64 cameraSettingsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) const
+void Impl::World::Render(WorldViewContext &viewCtx, const float (&viewXform)[4][3], const float (&projXform)[4][4], const float (&projParams)[3], const float3 &camAdaptationFactors, UINT64 cameraSettingsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) const
 {
 	using namespace placeholders;
 
@@ -1032,6 +1032,7 @@ void Impl::World::Render(WorldViewContext &viewCtx, const float (&viewXform)[4][
 		curFrameCB_region.sun.dir = reinterpret_cast<const float (&)[3]>(mul(sunDir, viewTransform));
 		curFrameCB_region.sun.irradiance = reinterpret_cast<const float (&)[3]>(Sun::Irradiance(this->sunDir.zenith, sunDir.z));
 		curFrameCB_region.projParams = projParams;
+		curFrameCB_region.camAdaptationFactors = camAdaptationFactors;
 #if !PERSISTENT_MAPS
 		range.End += sizeof(GlobalGPUBufferData::PerFrameData);
 		globalGPUBuffer->Unmap(0, &range);

@@ -16,6 +16,7 @@ struct Renderer::Impl::World::GlobalGPUBufferData
 			CBRegister::AlignedRow<3> dir, irradiance;
 		} sun;
 		CBRegister::AlignedRow<3> projParams;
+		CBRegister::AlignedRow<3> camAdaptationFactors;
 
 	public:
 		static inline auto CurFrameCB_offset() noexcept { return offsetof(GlobalGPUBufferData, perFrameDataCB) + globalFrameVersioning->GetContinuousRingIdx() * sizeof(PerFrameData); }

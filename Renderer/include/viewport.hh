@@ -41,7 +41,7 @@ namespace Renderer
 				COMPUTE_ROOT_PARAM_CAM_SETTINGS_CBV,
 				COMPUTE_ROOT_PARAM_CAM_SETTINGS_UAV,
 				COMPUTE_ROOT_PARAM_PERFRAME_DATA_CBV,
-				COMPUTE_ROOT_PARAM_PUSH_CONST,
+				COMPUTE_ROOT_PARAM_LOD,
 				COMPUTE_ROOT_PARAM_COUNT
 			};
 
@@ -118,7 +118,7 @@ namespace Renderer
 			RenderPipeline::PipelineStage
 				Pre(DeferredCmdBuffsProvider cmdListProvider, ID3D12Resource *output, const class OffscreenBuffers &offscreenBuffers) const,
 				Post(DeferredCmdBuffsProvider cmdListProvider, ID3D12Resource *output, const class OffscreenBuffers &offscreenBuffers,
-					D3D12_GPU_DESCRIPTOR_HANDLE postprocessDescriptorTable, float camAdaptationLerpFactor, UINT width, UINT height) const;
+					D3D12_GPU_DESCRIPTOR_HANDLE postprocessDescriptorTable, UINT width, UINT height) const;
 
 		protected:
 		public:

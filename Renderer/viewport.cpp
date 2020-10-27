@@ -47,11 +47,30 @@ ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNA
 	
 extern const float backgroundColor[4] = { .0f, .2f, .4f, 1.f };
 
-static inline float CalculateCamAdaptationLerpFactor(float delta)
+enum struct CameraAdaptation
 {
-	static constexpr float adaptationRate = 1;
+	LumBright,
+	LumDark,
+	Focus,
+};
 
-	return exp(-adaptationRate * delta);
+template<CameraAdaptation>
+static constexpr float adaptationRate;
+
+template<>
+static constexpr float adaptationRate<CameraAdaptation::LumBright> = 2;
+
+template<>
+static constexpr float adaptationRate<CameraAdaptation::LumDark> = 1;
+
+template<>
+static constexpr float adaptationRate<CameraAdaptation::Focus> = .7f;
+
+static inline float3 CalculateCamAdaptationLerpFactors(float delta)
+{
+	// want constexpr in vector math
+	static const/*expr*/ float3 cameraAdaptationRate(adaptationRate<CameraAdaptation::LumBright>, adaptationRate<CameraAdaptation::LumDark>, adaptationRate<CameraAdaptation::Focus>);
+	return (-cameraAdaptationRate * delta).apply(expf);
 }
 
 #pragma region cmd buffers
@@ -142,7 +161,7 @@ auto Impl::Viewport::CreatePostprocessRootSigs() -> PostprocessRootSigs
 	computeRootParams[COMPUTE_ROOT_PARAM_CAM_SETTINGS_CBV].InitAsConstantBufferView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE);	// alternatively can place into desc table with desc static flag
 	computeRootParams[COMPUTE_ROOT_PARAM_CAM_SETTINGS_UAV].InitAsUnorderedAccessView(3);
 	computeRootParams[COMPUTE_ROOT_PARAM_PERFRAME_DATA_CBV].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC);
-	computeRootParams[COMPUTE_ROOT_PARAM_PUSH_CONST].InitAsConstants(1, 2);
+	computeRootParams[COMPUTE_ROOT_PARAM_LOD].InitAsConstants(1, 2);
 	gfxRootParams[GFX_ROOT_PARAM_DESC_TABLE].InitAsDescriptorTable(size(gfxDescTable), gfxDescTable, D3D12_SHADER_VISIBILITY_VERTEX);
 	gfxRootParams[GFX_ROOT_PARAM_CAM_SETTINGS_CBV] = computeRootParams[COMPUTE_ROOT_PARAM_CAM_SETTINGS_CBV];
 	const D3D12_STATIC_SAMPLER_DESC samplers[]
@@ -445,7 +464,7 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Pre(DeferredCmdBuffsProvide
 }
 
 inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvider cmdListProvider, ID3D12Resource *output, const OffscreenBuffers &offscreenBuffers,
-	D3D12_GPU_DESCRIPTOR_HANDLE postprocessDescriptorTable, float camAdaptationLerpFactor, UINT width, UINT height) const
+	D3D12_GPU_DESCRIPTOR_HANDLE postprocessDescriptorTable, UINT width, UINT height) const
 {
 	const auto cmdList = cmdListProvider.AcquirePost();
 
@@ -484,7 +503,6 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvid
 		cmdList->SetComputeRootConstantBufferView(COMPUTE_ROOT_PARAM_CAM_SETTINGS_CBV, cameraSettingsBufferGPUAddress);
 		cmdList->SetComputeRootUnorderedAccessView(COMPUTE_ROOT_PARAM_CAM_SETTINGS_UAV, cameraSettingsBufferGPUAddress);
 		cmdList->SetComputeRootConstantBufferView(COMPUTE_ROOT_PARAM_PERFRAME_DATA_CBV, world->GetCurFrameGPUDataPtr());
-		cmdList->SetComputeRoot32BitConstant(COMPUTE_ROOT_PARAM_PUSH_CONST, bit_cast<UINT>(camAdaptationLerpFactor), 0);
 
 		// gfx
 		cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
@@ -632,7 +650,7 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvid
 		// bloom downsample chain
 		for (cmdList->SetPipelineState(bloomDownsamplePSO.Get()); lod < bloomDownChainLen; lod++)
 		{
-			cmdList->SetComputeRoot32BitConstant(COMPUTE_ROOT_PARAM_PUSH_CONST, lod, 0);
+			cmdList->SetComputeRoot32BitConstant(COMPUTE_ROOT_PARAM_LOD, lod, 0);
 			const auto dispatchSize = ImageDispatchSize(lod + 2/*halfres + dest offset*/);
 			cmdList->Dispatch(dispatchSize.x, dispatchSize.y, 1);
 
@@ -649,7 +667,7 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvid
 		// bloom blur + upsample chain
 		for (cmdList->SetPipelineState(bloomUpsampleBlurPSO.Get()); lod > 0; lod--)
 		{
-			cmdList->SetComputeRoot32BitConstant(COMPUTE_ROOT_PARAM_PUSH_CONST, lod - 1, 0);
+			cmdList->SetComputeRoot32BitConstant(COMPUTE_ROOT_PARAM_LOD, lod - 1, 0);
 			const auto dispatchSize = ImageDispatchSize(lod/*halfres - dest offset*/);
 			cmdList->Dispatch(dispatchSize.x, dispatchSize.y, 1);
 
@@ -776,9 +794,9 @@ void Impl::Viewport::Render(ID3D12Resource *output, const class OffscreenBuffers
 	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Pre, this, cmdBuffsProvider, output, cref(offscreenBuffers));
 
 	const RenderPipeline::RenderPasses::PipelineROPTargets ROPTargets(offscreenBuffers.GetWorldBuffers().rendertarget.Resource(), offscreenBuffers.GetRTV(offscreenBuffers.SCENE_RTV), backgroundColor, offscreenBuffers.GetPersistentBuffers().ZBuffer.Resource(), offscreenBuffers.GetDSV(), offscreenBuffers.GetWorldAndPostFX1Buffers().HDRInputSurface.Resource(), width, height);
-	world->Render(ctx, viewXform, projXform, projParams, cameraSettingsBuffer->GetGPUVirtualAddress(), ROPTargets);
+	world->Render(ctx, viewXform, projXform, projParams, CalculateCamAdaptationLerpFactors(delta), cameraSettingsBuffer->GetGPUVirtualAddress(), ROPTargets);
 
-	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Post, this, cmdBuffsProvider, output, cref(offscreenBuffers), postprocessDescriptorTable, CalculateCamAdaptationLerpFactor(delta), width, height);
+	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Post, this, cmdBuffsProvider, output, cref(offscreenBuffers), postprocessDescriptorTable, width, height);
 
 	// defer as much as possible in order to reduce chances waiting to be inserted in GFX queue (DMA queue can progress enough by this point)
 	DMA::Sync();

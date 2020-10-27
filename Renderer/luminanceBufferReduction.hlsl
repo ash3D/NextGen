@@ -11,10 +11,6 @@ namespace LumAdaptaion
 Texture2DMS<float> ZBuffer : register(t0);
 ByteAddressBuffer lumBuffer : register(t3);
 RWByteAddressBuffer cameraSettings : register(u3);
-cbuffer CamAdaptation : register(b2)
-{
-	float lerpFactor;
-}
 
 namespace LumAdaptaion
 {
@@ -34,6 +30,12 @@ namespace LumAdaptaion
 		return x * range / (range * strength + abs(x));
 	}
 
+	inline float LuminanceAdaptation(float target, float last)
+	{
+		const float lerpFactor = target > last ? camAdaptationFactors[0]/*LumBright*/ : camAdaptationFactors[1]/*LumDark*/;
+		return lerp(target, last, lerpFactor);
+	}
+
 	inline void Autoexposure(in float avgLogLum, inout float lastSetting, out float aperture, out float2 apertureRot)
 	{
 		//using namespace CameraParams;
@@ -43,7 +45,7 @@ namespace LumAdaptaion
 			targetKeyValue = ldexp(CameraParams::referenceKeyValue, Compress(log2(sceneKeyValue / CameraParams::referenceKeyValue), CameraParams::maxExposureCompensation, CameraParams::exposureCompensationDamping)),
 			targetRelativeExposure = targetKeyValue / sceneKeyValue;
 
-		lastSetting = clamp(lerp(targetRelativeExposure, lastSetting, lerpFactor), CameraParams::exposureLimits[0], CameraParams::exposureLimits[1]);
+		lastSetting = clamp(LuminanceAdaptation(targetRelativeExposure, lastSetting), CameraParams::exposureLimits[0], CameraParams::exposureLimits[1]);
 
 		// exp2(log2(lastSetting) * CameraParams::aperturePriority) == pow(lastSetting, CameraParams::aperturePriority)
 		aperture = pow(lastSetting, CameraParams::aperturePriority);	// aperture contribution to exposure offset
@@ -58,7 +60,7 @@ namespace LumAdaptaion
 	inline void UpdateWhitePoint(in float maxSceneLum, in float exposure, inout float lastSetting)
 	{
 		const float targetWhitePoint = ldexp(maxSceneLum * exposure, CameraParams::whitePointShift);
-		lastSetting = clamp(lerp(targetWhitePoint, lastSetting, lerpFactor), 1, CameraParams::sensorSaturation);
+		lastSetting = clamp(LuminanceAdaptation(targetWhitePoint, lastSetting), 1, CameraParams::sensorSaturation);
 	}
 
 	inline void UpdateCameraSettings(in float avgLogLum, in float maxSceneLum, inout float relativeExposure, inout float whitePoint, out float exposure, out float aperture, out float whitePointFactor, out float2 apertureRot)
@@ -78,7 +80,7 @@ inline float InvLinearZ(float Z/*from hw Z buffer*/)
 inline void UpdateFocusSettings(in float aperture, in float scale, in float focusTarget/*hw Z*/, inout float lastSetting, out float2 COCParams)
 {
 	const float targetSensorPlane = projParams[0]/*F*/ / (1 - projParams[0] * InvLinearZ(focusTarget));
-	lastSetting = lerp(targetSensorPlane, lastSetting, lerpFactor);
+	lastSetting = lerp(targetSensorPlane, lastSetting, camAdaptationFactors[2]);
 	COCParams[0] = lastSetting * projParams[2];
 	COCParams[1] = lastSetting * (rcp(projParams[0]) - projParams[1]) - 1;
 	scale *= aperture * (.5f/*derive sensor size from F*/ * .5f/*CoC diam -> rad*/ / 1.4f/*f-stop for fully opened aperture*/) * projXform[1][1]/*1 / tan(fovy / 2)*/;
