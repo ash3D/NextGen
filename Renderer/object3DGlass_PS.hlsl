@@ -17,7 +17,7 @@ namespace Materials
 #include "lighting.hlsli"
 #include "HDR codec.hlsli"
 
-ConstantBuffer<Materials::Common>			materialParams	: register(b0, space1);
+ConstantBuffer<Materials::Common>		materialParams	: register(b0, space1);
 ConstantBuffer<CameraParams::Settings>	cameraSettings	: register(b0, space2);
 
 float4 main(in XformedVertexTex input, in bool front : SV_IsFrontFace) : SV_TARGET

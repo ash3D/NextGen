@@ -6,7 +6,7 @@
 #include "lighting.hlsli"
 #include "HDR codec.hlsli"
 
-ConstantBuffer<Materials::Flat>				materialParams	: register(b0, space1);
+ConstantBuffer<Materials::Flat>			materialParams	: register(b0, space1);
 ConstantBuffer<CameraParams::Settings>	cameraSettings	: register(b0, space2);
 
 float4 main(in XformedVertex input, in bool front : SV_IsFrontFace) : SV_TARGET
