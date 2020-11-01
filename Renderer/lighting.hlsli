@@ -125,5 +125,3 @@ namespace Lighting
 		return SSAAScale / roughness * pow(normalVariation, .2f);
 	}
 }
-
-#undef DXC_NAMESPACE_WORKAROUND

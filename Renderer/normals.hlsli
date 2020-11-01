@@ -3,14 +3,9 @@
 #define SMOOTH_PARALLAX 1
 #define PRESERVE_PARALLAX_PLANE 1
 
-#define DXC_NAMESPACE_WORKAROUND 1
-
 namespace Normals
 {
-#if !DXC_NAMESPACE_WORKAROUND
-	// 'static' causes DXC crash
 	static const float2 parallaxCurvatureParams = float2(.1f, 1.3f);
-#endif
 
 	// preserve 0
 	float3 SafeNormalize(float3 vec)
@@ -28,9 +23,6 @@ namespace Normals
 	*/
 	void FixNormal(in float3 N, inout float3 n, in float3 viewDir)
 	{
-#if DXC_NAMESPACE_WORKAROUND
-		static const float2 parallaxCurvatureParams = float2(.1f, 1.3f);
-#endif
 		const float VdotN = dot(viewDir, n);	// recompute later to reduce GPR pressure?
 		if (VdotN < 0)
 		{

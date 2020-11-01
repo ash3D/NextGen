@@ -1,16 +1,8 @@
 #pragma once
 
-#define DXC_NAMESPACE_WORKAROUND 1
-
-#if DXC_NAMESPACE_WORKAROUND
-groupshared float2 localData[LumAdaptaion::localDataSize];
-#endif
-
 namespace LumAdaptaion
 {
-#if !DXC_NAMESPACE_WORKAROUND
 	groupshared float2 localData[localDataSize];
-#endif
 
 	inline void Reduce(inout float2 dst, in float2 src)
 	{
@@ -46,5 +38,3 @@ namespace LumAdaptaion
 		return finalReduction;
 	}
 }
-
-#undef DXC_NAMESPACE_WORKAROUND

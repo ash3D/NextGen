@@ -21,12 +21,7 @@ namespace CameraParams
 		apertureAngleRange = radians(36) /*iris aperture rotation linearly driven by radius*/,
 		apertureAngleScale = apertureAngleRange / (1 - apertureLimit) /*maps [apertureLimit..1] -> [0..apertureAngleRange]*/;
 
-#if 0
-	// DXC crash
 	static const float2 exposureLimits = ldexp(normFactor, float2(-maxExposureOffset, +maxExposureOffset));
-#else
-	static const float exposureLimits[2] = { ldexp(normFactor, float2(-maxExposureOffset, +maxExposureOffset)) };
-#endif
 #endif
 
 	struct Settings
