@@ -184,7 +184,7 @@ void QueryBatch<TRANSIENT>::Finish(CmdListPool::CmdList &cmdList) const
 #pragma endregion
 
 #pragma region PERSISTENT
-QueryBatch<PERSISTENT>::QueryBatch(const std::string &name) : name(name) {}
+QueryBatch<PERSISTENT>::QueryBatch(const string &name) : name(name) {}
 QueryBatch<PERSISTENT>::~QueryBatch() = default;
 
 void QueryBatch<PERSISTENT>::FinalSetup()

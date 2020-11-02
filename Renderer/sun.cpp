@@ -2962,7 +2962,7 @@ float3 Sun::Irradiance(float zenith, float cosZenith)
 	static const double3 RGB_primaries(.610, .530, .450);	// in μm
 
 	// Rayleigh scattering
-	using namespace std::placeholders;
+	using namespace placeholders;
 	static const double3 RayleighFactor = -.008735 * RGB_primaries.apply(bind(powl/*to eliminate ambiguity of pow*/, _1, -4.08));
 	return sunExtraterrestrialIrradianceRGB * (RayleighFactor / m_rcp).apply(exp);
 }

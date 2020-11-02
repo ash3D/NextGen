@@ -47,7 +47,7 @@ PipelineItem IRenderStage::IterateRenderPass(unsigned int &length, const signed 
 
 template<typename PassExhaustedCallback, typename GetRenderRangeCallback>
 inline PipelineItem IRenderStage::IterateRenderPass(unsigned int &length, const signed long int passLength,
-	const std::function<void ()> &PassFinish, const PassExhaustedCallback &PassExhausted, const GetRenderRangeCallback &GetRenderRange) const
+	const function<void ()> &PassFinish, const PassExhaustedCallback &PassExhausted, const GetRenderRangeCallback &GetRenderRange) const
 {
 	assert(curRangeBegin <= passLength);
 	__assume(curRangeBegin <= passLength);
