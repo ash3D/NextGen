@@ -107,7 +107,7 @@ namespace
 
 		/*
 		NOTE: Current command list distribution approach doesn't account "transition" (pre/post) phases (where transition barriers occurs) and only breaks command lists on "range" phases.
-		GPU work submission mechanism waits for next render stage even if work batch is saturated in order to butch up all "transition" phases into current batch (greedy approach).
+		GPU work submission mechanism waits for next render stage even if work batch is saturated in order to batch up all "transition" phases into current batch (greedy approach).
 		Thus currently command list breaking should not left any pending barriers and FlushBarriers() call below may only take effect on pipeline finish
 		(e.g. World::AABBPassPost() when debug draw enabled) and so it should not lead to any GPU inefficiency due to limited barrier batching.
 
