@@ -16,7 +16,7 @@ namespace Renderer::Impl::RenderPipeline::RenderPasses
 		Propagate,		// preserve depth for postprocess, discard stencil
 	};
 
-	class PipelineROPTargets
+	class PipelineROPTargets final
 	{
 		friend class StageRTBinding;
 		friend class StageZBinding;
@@ -41,7 +41,7 @@ namespace Renderer::Impl::RenderPipeline::RenderPasses
 		ID3D12Resource *GetZBuffer() const noexcept { return ZBuffer; }
 	};
 
-	class StageRTBinding
+	class StageRTBinding final
 	{
 		ID3D12Resource *const renderTarget, *const MSAAResolveTarget;
 		const D3D12_CPU_DESCRIPTOR_HANDLE rtv;
@@ -64,7 +64,7 @@ namespace Renderer::Impl::RenderPipeline::RenderPasses
 		void MSAAResolve(CmdListPool::CmdList &target) const;
 	};
 
-	class StageZBinding
+	class StageZBinding final
 	{
 		ID3D12Resource *const ZBuffer;
 		const D3D12_CPU_DESCRIPTOR_HANDLE dsv;
@@ -89,7 +89,7 @@ namespace Renderer::Impl::RenderPipeline::RenderPasses
 		void FastForward(CmdListPool::CmdList &target, bool open, bool close) const;
 	};
 
-	class StageOutput
+	class StageOutput final
 	{
 		unsigned width, height;
 
@@ -101,14 +101,17 @@ namespace Renderer::Impl::RenderPipeline::RenderPasses
 	};
 
 	template<class StageBinding, template<class> typename Modifier = std::add_lvalue_reference_t>
-	struct PassROPBinding
+	struct PassROPBinding final
 	{
 		Modifier<const StageBinding> stageBinding;
 		bool open, close;
 	};
 
-	class RenderPass
+	class RenderPass final
 	{
+		friend class RenderPassScope;
+
+	private:
 		PassROPBinding<StageRTBinding, std::add_pointer_t> RTBinding;
 		PassROPBinding<StageZBinding, std::add_lvalue_reference_t> ZBinding;
 		const StageOutput &output;
@@ -119,6 +122,8 @@ namespace Renderer::Impl::RenderPipeline::RenderPasses
 
 	public:
 		bool Suspended() const noexcept;
+
+	private:
 		void operator ()(CmdListPool::CmdList &target) const;
 		void Finish(CmdListPool::CmdList &target) const;
 
@@ -126,7 +131,7 @@ namespace Renderer::Impl::RenderPipeline::RenderPasses
 		inline D3D12_RENDER_PASS_FLAGS Flags() const noexcept;
 	};
 
-	class RenderPassScope
+	class RenderPassScope final
 	{
 		CmdListPool::CmdList &cmdList;
 		const RenderPass &renderPass;	// for MSAA resolve workaround only
