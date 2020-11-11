@@ -403,9 +403,9 @@ inline Standard::Standard(const Texture &albedoMap, const Texture &roughnessMap,
 	if (albedoMap.Usage() != TextureUsage::AlbedoMap)
 		throw invalid_argument("Terrain material: incompatible texture usage, albedo map expected.");
 	if (roughnessMap.Usage() != TextureUsage::RoughnessMap)
-		throw invalid_argument("Terrain material: incompatible texture usage, roughnessMap map expected.");
+		throw invalid_argument("Terrain material: incompatible texture usage, roughness map expected.");
 	if (normalMap.Usage() != TextureUsage::NormalMap)
-		throw invalid_argument("Terrain material: incompatible texture usage, normalMap map expected.");
+		throw invalid_argument("Terrain material: incompatible texture usage, normal map expected.");
 
 	// fill descriptor heap
 	const auto descriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -514,9 +514,9 @@ inline Extended::Extended(const Texture &albedoMap, const Texture &fresnelMap, c
 	if (fresnelMap.Usage() != TextureUsage::FresnelMap)
 		throw invalid_argument("Terrain material: incompatible texture usage, fresnel map expected.");
 	if (roughnessMap.Usage() != TextureUsage::RoughnessMap)
-		throw invalid_argument("Terrain material: incompatible texture usage, roughnessMap map expected.");
+		throw invalid_argument("Terrain material: incompatible texture usage, roughness map expected.");
 	if (normalMap.Usage() != TextureUsage::NormalMap)
-		throw invalid_argument("Terrain material: incompatible texture usage, normalMap map expected.");
+		throw invalid_argument("Terrain material: incompatible texture usage, normal map expected.");
 
 	// fill descriptor heap
 	const auto descriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
