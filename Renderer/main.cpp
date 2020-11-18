@@ -6,6 +6,7 @@
 #include "DMA engine.h"
 #include "offscreen buffers.h"	// for luminance reduction buffer
 #include "viewport.hh"			// for postprocess root sig & PSOs
+#include "sky.hh"
 #include "world.hh"
 #include "world render stages.h"
 #include "terrain render stages.h"
@@ -22,6 +23,7 @@ using namespace std;
 using Renderer::Impl::OffscreenBuffers;
 using Renderer::Impl::globalFrameVersioning;
 using Renderer::Impl::Viewport;
+using Renderer::Impl::Sky;
 using Renderer::Impl::World;
 using Renderer::TerrainVectorQuad;
 using Renderer::Impl::Object3D;
@@ -359,6 +361,7 @@ void OnFrameFinish()
 #pragma region root sigs & PSOs
 Viewport::PostprocessRootSigs Viewport::postprocessRootSigs							= Try(Viewport::CreatePostprocessRootSigs, "postprocess root signatures");
 ComPtr<ID3D12RootSignature>
+	Sky::rootSig																	= Try(Sky::CreateRootSig, "skybox root signature"),
 	TerrainVectorQuad::MainRenderStage::cullPassRootSig								= Try(TerrainVectorQuad::MainRenderStage::CreateCullPassRootSig, "terrain occlusion query root signature"),
 	TerrainVectorQuad::DebugRenderStage::AABB_rootSig								= Try(TerrainVectorQuad::DebugRenderStage::CreateAABB_RootSig, "terrain AABB visualization root signature"),
 	TerrainMaterials::Flat::rootSig													= Try(TerrainMaterials::Flat::CreateRootSig, "terrain flat material root signature"),
@@ -380,6 +383,7 @@ ComPtr<ID3D12PipelineState>
 	Viewport::bloomDownsamplePSO													= Try(Viewport::CreateBloomDownsmplePSO, "bloom downsample PSO"),
 	Viewport::bloomUpsampleBlurPSO													= Try(Viewport::CreateBloomUpsmpleBlurPSO, "bloom upsample blur PSO"),
 	Viewport::postrpocessFinalCompositePSO											= Try(Viewport::CreatePostprocessFinalCompositePSO, "postprocess final composite PSO"),
+	Sky::PSO																		= Try(Sky::CreatePSO, "skybox PSO"),
 	TerrainVectorQuad::MainRenderStage::cullPassPSO									= Try(TerrainVectorQuad::MainRenderStage::CreateCullPassPSO, "terrain occlusion query PSO"),
 	TerrainVectorQuad::DebugRenderStage::AABB_PSO									= Try(TerrainVectorQuad::DebugRenderStage::CreateAABB_PSO, "terrain AABB visualization PSO"),
 	TerrainMaterials::Flat::PSO														= Try(TerrainMaterials::Flat::CreatePSO, "terrain flat material PSO"),
@@ -464,6 +468,8 @@ extern void __cdecl InitRenderer()
 		Viewport::bloomDownsamplePSO						= Viewport::CreateBloomDownsmplePSO();
 		Viewport::bloomUpsampleBlurPSO						= Viewport::CreateBloomUpsmpleBlurPSO();
 		Viewport::postrpocessFinalCompositePSO				= Viewport::CreatePostprocessFinalCompositePSO();
+		Sky::rootSig										= Sky::CreateRootSig();
+		Sky::PSO											= Sky::CreatePSO();
 		TerrainVectorQuad::MainRenderStage::cullPassRootSig	= TerrainVectorQuad::MainRenderStage::CreateCullPassRootSig();
 		TerrainVectorQuad::DebugRenderStage::AABB_rootSig	= TerrainVectorQuad::DebugRenderStage::CreateAABB_RootSig();
 		TerrainVectorQuad::MainRenderStage::cullPassPSO		= TerrainVectorQuad::MainRenderStage::CreateCullPassPSO();

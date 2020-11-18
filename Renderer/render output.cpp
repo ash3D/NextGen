@@ -133,7 +133,6 @@ void RenderOutput::OnResize()
 
 void RenderOutput::NextFrame(bool vsync)
 {
-	namespace GPUDescriptorHeap = Impl::Descriptors::GPUDescriptorHeap;
 	extern void OnFrameFinish();
 
 	if (!viewport)
@@ -144,10 +143,9 @@ void RenderOutput::NextFrame(bool vsync)
 	const auto idx = swapChain->GetCurrentBackBufferIndex();
 	ComPtr<ID3D12Resource> output;
 	CheckHR(swapChain->GetBuffer(idx, IID_PPV_ARGS(&output)));
-	GPUDescriptorHeap::OnFrameStart();
+	Impl::Descriptors::GPUDescriptorHeap::OnFrameStart();
 	globalFrameVersioning->OnFrameStart();
-	const auto postprocessDescriptorTable = GPUDescriptorHeap::StreamPostprocessDescriptorTable(offscreenBuffers->GetPostprocessCPUDescriptorTableStore());
-	viewport->Render(output.Get(), *offscreenBuffers, postprocessDescriptorTable, width, height);
+	viewport->Render(output.Get(), *offscreenBuffers, width, height);
 	CheckHR(swapChain->Present(vsync, 0));
 	globalFrameVersioning->OnFrameFinish();
 	viewport->OnFrameFinish();

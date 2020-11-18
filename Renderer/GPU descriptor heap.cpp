@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "GPU descriptor heap.h"
+#include "sky.hh"
 #include "postprocess descriptor table store.h"
 #include "frame versioning.h"
 #include "tracked resource.inl"
@@ -12,7 +13,7 @@ using namespace Renderer::Impl;
 using namespace Descriptors;
 
 extern Microsoft::WRL::ComPtr<ID3D12Device4> device;
-static constexpr auto heapStaticBlockSize = PostprocessDescriptorTableStore::TableSize * maxFrameLatency;
+static constexpr UINT perFrameDescriptorTablesSize = 1/*skybox*/ + PostprocessDescriptorTableStore::TableSize, heapStaticBlockSize = perFrameDescriptorTablesSize * maxFrameLatency;
 static UINT heapSize = heapStaticBlockSize;
 decltype(GPUDescriptorHeap::AllocationClient::registeredClients) GPUDescriptorHeap::AllocationClient::registeredClients;
 #if ENABLE_PREALLOCATION
@@ -83,13 +84,17 @@ void GPUDescriptorHeap::OnFrameStart()
 	}
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE GPUDescriptorHeap::StreamPostprocessDescriptorTable(const PostprocessDescriptorTableStore &stage)
+auto GPUDescriptorHeap::StreamPerFrameDescriptorTables(const Renderer::Sky &sky, const PostprocessDescriptorTableStore &postprocessDescsStore) -> PerFrameDescriptorTables
 {
 	const auto descriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	const auto GPUHeapOffset = globalFrameVersioning->GetContinuousRingIdx() * PostprocessDescriptorTableStore::TableSize * descriptorSize;
-	const CD3DX12_CPU_DESCRIPTOR_HANDLE dst(GetHeap()->GetCPUDescriptorHandleForHeapStart(), GPUHeapOffset), src(stage.CPUStore->GetCPUDescriptorHandleForHeapStart());
-	device->CopyDescriptorsSimple(PostprocessDescriptorTableStore::TableSize, dst, src, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	return CD3DX12_GPU_DESCRIPTOR_HANDLE(GetHeap()->GetGPUDescriptorHandleForHeapStart(), GPUHeapOffset);
+	const auto GPUHeapOffset = globalFrameVersioning->GetContinuousRingIdx() * perFrameDescriptorTablesSize * descriptorSize;
+	const D3D12_CPU_DESCRIPTOR_HANDLE
+		dst = CD3DX12_CPU_DESCRIPTOR_HANDLE(GetHeap()->GetCPUDescriptorHandleForHeapStart(), GPUHeapOffset),
+		src[] = { sky.GetCubemapSRV(), postprocessDescsStore.CPUStore->GetCPUDescriptorHandleForHeapStart() };
+	const UINT tableSizes[] = { 1/*skybox*/, PostprocessDescriptorTableStore::TableSize };
+	device->CopyDescriptors(1, &dst, &perFrameDescriptorTablesSize, size(src), src, tableSizes, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	const CD3DX12_GPU_DESCRIPTOR_HANDLE skyDescTable(GetHeap()->GetGPUDescriptorHandleForHeapStart(), GPUHeapOffset);
+	return { skyDescTable.ptr, CD3DX12_GPU_DESCRIPTOR_HANDLE(skyDescTable, descriptorSize/*increment skybox -> postprocess*/).ptr };
 }
 
 GPUDescriptorHeap::AllocationClient::AllocationClient(unsigned allocSize)

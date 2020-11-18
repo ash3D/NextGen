@@ -28,8 +28,8 @@ namespace Renderer::Impl::RenderPipeline
 		PipelineItem IterateRenderPass(unsigned int &length, const signed long int passLength,
 			const std::function<void ()> &PassFinish, const std::function<RenderStageItem::Work (unsigned long rangeBegin, unsigned long rangeEnd)> &GetRenderRange) const;
 		PipelineItem IterateRenderPass(unsigned int &length, const signed long int passLength,
-			const RenderPasses::PassROPBinding<RenderPasses::StageRTBinding> *RTBinding, const RenderPasses::PassROPBinding<RenderPasses::StageZBinding> &ZBinding, const RenderPasses::StageOutput &output,
-			const std::function<void ()> &PassFinish, const std::function<RenderStageItem::Work (unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass)> &GetRenderRange) const;
+			const RenderPasses::PassROPBinding<RenderPasses::RenderStageRTBinding> *RTBinding, const RenderPasses::PassROPBinding<RenderPasses::RenderStageZBinding> &ZBinding, const RenderPasses::ROPOutput &output,
+			const std::function<void ()> &PassFinish, const std::function<RenderStageItem::Work (unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RangeRenderPass &renderPass)> &GetRenderRange) const;
 
 	private:
 		// TODO: use C++20 abbreviated function template

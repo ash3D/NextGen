@@ -250,7 +250,7 @@ void TerrainVectorQuad::MainRenderStage::CullPassPre(CmdListPool::CmdList &cmdLi
 	It has advantage over shader based batched occlusion test in that it does not stresses UAV writes in PS for visible objects -
 		hardware occlusion query does not incur any overhead in addition to regular depth/stencil test.
 */
-void TerrainVectorQuad::MainRenderStage::CullPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass) const
+void TerrainVectorQuad::MainRenderStage::CullPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RangeRenderPass &renderPass) const
 {
 	assert(rangeBegin < rangeEnd);
 
@@ -260,7 +260,7 @@ void TerrainVectorQuad::MainRenderStage::CullPassRange(CmdListPool::CmdList &cmd
 	cmdList->SetGraphicsRootConstantBufferView(0, World::GetCurFrameGPUDataPtr());
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
-	RenderPasses::RenderPassScope renderPassScope(cmdList, renderPass);
+	RenderPasses::RangeRenderPassScope renderPassScope(cmdList, renderPass);
 
 	const OcclusionCulling::QueryBatchBase &queryBatch = visit([](const OcclusionCulling::QueryBatchBase &queryBatch) noexcept -> const auto & { return queryBatch; }, queryPass->occlusionQueryBatch);
 	ID3D12Resource *curVB = NULL;
@@ -320,7 +320,7 @@ void TerrainVectorQuad::MainRenderStage::MainPassPre(CmdListPool::CmdList &cmdLi
 	cmdList.FlushBarriers();
 }
 
-void TerrainVectorQuad::MainRenderStage::MainPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass) const
+void TerrainVectorQuad::MainRenderStage::MainPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RangeRenderPass &renderPass) const
 {
 	assert(rangeBegin < rangeEnd);
 
@@ -329,7 +329,7 @@ void TerrainVectorQuad::MainRenderStage::MainPassRange(CmdListPool::CmdList &cmd
 	parent->layerMaterial->Setup(cmdList, World::GetCurFrameGPUDataPtr(), cameraSettingsGPUAddress);
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	RenderPasses::RenderPassScope renderPassScope(cmdList, renderPass);
+	RenderPasses::RangeRenderPassScope renderPassScope(cmdList, renderPass);
 
 	auto curOcclusionQueryIdx = OcclusionCulling::QueryBatchBase::npos;
 	do
@@ -478,9 +478,9 @@ auto TerrainVectorQuad::MainRenderStage::GetStagePre(unsigned int &) const -> Re
 auto TerrainVectorQuad::MainRenderStage::GetCullPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, queryPass->queryStream.size(), nullptr, { stageZBinding, true, false }, stageOutput,
+	return IterateRenderPass(length, queryPass->queryStream.size(), nullptr, { stageZBinding, true, false }, ROPOutput,
 		[] { phaseSelector = static_cast<decltype(phaseSelector)>(&MainRenderStage::GetCullPass2MainPass); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass) { return bind(&MainRenderStage::CullPassRange, shared_from_this(), _1, rangeBegin, rangeEnd, move(renderPass)); });
+		[this](unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RangeRenderPass &renderPass) { return bind(&MainRenderStage::CullPassRange, shared_from_this(), _1, rangeBegin, rangeEnd, move(renderPass)); });
 }
 
 auto TerrainVectorQuad::MainRenderStage::GetCullPass2MainPass(unsigned int &) const -> RenderPipeline::PipelineItem
@@ -492,10 +492,10 @@ auto TerrainVectorQuad::MainRenderStage::GetCullPass2MainPass(unsigned int &) co
 auto TerrainVectorQuad::MainRenderStage::GetMainPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	RenderPasses::PassROPBinding<RenderPasses::StageRTBinding> RTBinding{ stageRTBinding, true, true };
-	return IterateRenderPass(length, renderStream.size(), &RTBinding, { stageZBinding, false, true }, stageOutput,
+	RenderPasses::PassROPBinding<RenderPasses::RenderStageRTBinding> RTBinding{ stageRTBinding, true, true };
+	return IterateRenderPass(length, renderStream.size(), &RTBinding, { stageZBinding, false, true }, ROPOutput,
 		[] { phaseSelector = static_cast<decltype(phaseSelector)>(&MainRenderStage::GetStagePost); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass) { return bind(&MainRenderStage::MainPassRange, shared_from_this(), _1, rangeBegin, rangeEnd, move(renderPass)); });
+		[this](unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RangeRenderPass &renderPass) { return bind(&MainRenderStage::MainPassRange, shared_from_this(), _1, rangeBegin, rangeEnd, move(renderPass)); });
 }
 
 auto TerrainVectorQuad::MainRenderStage::GetStagePost(unsigned int &) const -> RenderPipeline::PipelineItem
@@ -592,7 +592,7 @@ TerrainVectorQuad::MainRenderStage::MainRenderStage(shared_ptr<const Renderer::T
 	cameraSettingsGPUAddress(cameraSettingsGPUAddress),
 	stageRTBinding(ROPTargets),
 	stageZBinding(ROPTargets, true, true),
-	stageOutput(ROPTargets),
+	ROPOutput(ROPTargets),
 	queryPass(allocate_shared<OcclusionQueryPass>(polymorphic_allocator<OcclusionQueryPass>(&globalTransientRAM)))	// or do this in 'Build()' ?
 {
 	stageExchangeResult = queryPassPromise.get_future();
@@ -698,7 +698,7 @@ void TerrainVectorQuad::DebugRenderStage::AABBPassPre(CmdListPool::CmdList &cmdL
 	cmdList.FlushBarriers();
 }
 
-void TerrainVectorQuad::DebugRenderStage::AABBPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass, const float (&color)[3], bool visible) const
+void TerrainVectorQuad::DebugRenderStage::AABBPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RangeRenderPass &renderPass, const float (&color)[3], bool visible) const
 {
 	assert(rangeBegin < rangeEnd);
 
@@ -710,7 +710,7 @@ void TerrainVectorQuad::DebugRenderStage::AABBPassRange(CmdListPool::CmdList &cm
 	cmdList->SetGraphicsRoot32BitConstants(AABB_PASS_ROOT_PARAM_COLOR, size(color), color, 0);
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
-	RenderPasses::RenderPassScope renderPassScope(cmdList, renderPass);
+	RenderPasses::RangeRenderPassScope renderPassScope(cmdList, renderPass);
 
 	const auto &queryBatch = get<true>(queryPass->occlusionQueryBatch);
 	ID3D12Resource *curVB = NULL;
@@ -751,26 +751,26 @@ auto TerrainVectorQuad::DebugRenderStage::GetAABBPassPre(unsigned int &length) c
 auto TerrainVectorQuad::DebugRenderStage::GetVisiblePassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	RenderPasses::PassROPBinding<RenderPasses::StageRTBinding> RTBinding{ stageRTBinding, true, false };
-	return IterateRenderPass(length, queryPass->queryStream.size(), &RTBinding, { stageZBinding, true, false }, stageOutput,
+	RenderPasses::PassROPBinding<RenderPasses::RenderStageRTBinding> RTBinding{ stageRTBinding, true, false };
+	return IterateRenderPass(length, queryPass->queryStream.size(), &RTBinding, { stageZBinding, true, false }, ROPOutput,
 		[] { phaseSelector = static_cast<decltype(phaseSelector)>(&DebugRenderStage::GetCulledPassRange); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass) { return bind(&DebugRenderStage::AABBPassRange, shared_from_this(), _1, rangeBegin, rangeEnd, move(renderPass), cref(OcclusionCulling::DebugColors::Terrain::visible), true); });
+		[this](unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RangeRenderPass &renderPass) { return bind(&DebugRenderStage::AABBPassRange, shared_from_this(), _1, rangeBegin, rangeEnd, move(renderPass), cref(OcclusionCulling::DebugColors::Terrain::visible), true); });
 }
 
 auto TerrainVectorQuad::DebugRenderStage::GetCulledPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	RenderPasses::PassROPBinding<RenderPasses::StageRTBinding> RTBinding{ stageRTBinding, false, true };
-	return IterateRenderPass(length, queryPass->queryStream.size(), &RTBinding, { stageZBinding, false, true }, stageOutput,
+	RenderPasses::PassROPBinding<RenderPasses::RenderStageRTBinding> RTBinding{ stageRTBinding, false, true };
+	return IterateRenderPass(length, queryPass->queryStream.size(), &RTBinding, { stageZBinding, false, true }, ROPOutput,
 		[] { RenderPipeline::TerminateStageTraverse(); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass) { return bind(&DebugRenderStage::AABBPassRange, shared_from_this(), _1, rangeBegin, rangeEnd, move(renderPass), cref(OcclusionCulling::DebugColors::Terrain::culled), false); });
+		[this](unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RangeRenderPass &renderPass) { return bind(&DebugRenderStage::AABBPassRange, shared_from_this(), _1, rangeBegin, rangeEnd, move(renderPass), cref(OcclusionCulling::DebugColors::Terrain::culled), false); });
 }
 
 TerrainVectorQuad::DebugRenderStage::DebugRenderStage(D3D12_GPU_VIRTUAL_ADDRESS cameraSettingsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) :
 	cameraSettingsGPUAddress(cameraSettingsGPUAddress),
 	stageRTBinding(ROPTargets),
 	stageZBinding(ROPTargets, true, false),
-	stageOutput(ROPTargets)
+	ROPOutput(ROPTargets)
 {
 }
 

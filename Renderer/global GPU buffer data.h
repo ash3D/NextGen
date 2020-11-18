@@ -11,6 +11,7 @@ struct Renderer::Impl::World::GlobalGPUBufferData
 	{
 		CBRegister::AlignedRow<4> projXform[4];
 		CBRegister::AlignedRow<3> viewXform[4], terrainXform[4];
+		float skyLuminanceScale;
 		struct
 		{
 			CBRegister::AlignedRow<3> dir, irradiance;

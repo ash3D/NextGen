@@ -36,9 +36,9 @@ class Renderer::TerrainVectorQuad::MainRenderStage final : public Impl::RenderPi
 private:
 	const std::shared_ptr<const Renderer::TerrainVectorLayer> parent;
 	const D3D12_GPU_VIRTUAL_ADDRESS cameraSettingsGPUAddress;
-	const Impl::RenderPipeline::RenderPasses::StageRTBinding stageRTBinding;
-	const Impl::RenderPipeline::RenderPasses::StageZBinding stageZBinding;
-	const Impl::RenderPipeline::RenderPasses::StageOutput stageOutput;
+	const Impl::RenderPipeline::RenderPasses::RenderStageRTBinding stageRTBinding;
+	const Impl::RenderPipeline::RenderPasses::RenderStageZBinding stageZBinding;
+	const Impl::RenderPipeline::RenderPasses::ROPOutput ROPOutput;
 	std::promise<std::shared_ptr<const OcclusionQueryPass>> queryPassPromise{ std::allocator_arg, std::pmr::polymorphic_allocator<decltype(queryPassPromise)>(&globalTransientRAM) };
 
 #pragma region occlusion query pass
@@ -51,7 +51,7 @@ private:
 
 private:
 	inline void CullPassPre(Impl::CmdListPool::CmdList &target) const, CullPassPost(Impl::CmdListPool::CmdList &target) const;
-	void CullPassRange(Impl::CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, const Impl::RenderPipeline::RenderPasses::RenderPass &renderPass) const;
+	void CullPassRange(Impl::CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, const Impl::RenderPipeline::RenderPasses::RangeRenderPass &renderPass) const;
 
 private:
 	inline void SetupCullPass();
@@ -80,7 +80,7 @@ private:
 
 private:
 	inline void MainPassPre(Impl::CmdListPool::CmdList &target) const, MainPassPost(Impl::CmdListPool::CmdList &target) const;
-	void MainPassRange(Impl::CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, const Impl::RenderPipeline::RenderPasses::RenderPass &renderPass) const;
+	void MainPassRange(Impl::CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, const Impl::RenderPipeline::RenderPasses::RangeRenderPass &renderPass) const;
 
 private:
 	inline void SetupMainPass();
@@ -132,9 +132,9 @@ class Renderer::TerrainVectorQuad::DebugRenderStage final : public Impl::RenderP
 
 private:
 	const D3D12_GPU_VIRTUAL_ADDRESS cameraSettingsGPUAddress;
-	const Impl::RenderPipeline::RenderPasses::StageRTBinding stageRTBinding;
-	const Impl::RenderPipeline::RenderPasses::StageZBinding stageZBinding;
-	const Impl::RenderPipeline::RenderPasses::StageOutput stageOutput;
+	const Impl::RenderPipeline::RenderPasses::RenderStageRTBinding stageRTBinding;
+	const Impl::RenderPipeline::RenderPasses::RenderStageZBinding stageZBinding;
+	const Impl::RenderPipeline::RenderPasses::ROPOutput ROPOutput;
 
 #pragma region visualize occlusion pass
 private:
@@ -145,7 +145,7 @@ private:
 	std::shared_ptr<const OcclusionQueryPass> queryPass;
 
 private:
-	void AABBPassPre(Impl::CmdListPool::CmdList &target) const, AABBPassRange(Impl::CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, const Impl::RenderPipeline::RenderPasses::RenderPass &renderPass, const float (&color)[3], bool visible) const;
+	void AABBPassPre(Impl::CmdListPool::CmdList &target) const, AABBPassRange(Impl::CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, const Impl::RenderPipeline::RenderPasses::RangeRenderPass &renderPass, const float (&color)[3], bool visible) const;
 #pragma endregion
 
 private:

@@ -18,22 +18,21 @@ namespace Renderer::Impl::RenderPipeline::RenderPasses
 
 	class PipelineROPTargets final
 	{
-		friend class StageRTBinding;
-		friend class StageZBinding;
-		friend class StageOutput;
+		friend class PipelineStageRTBinding;
+		friend class PipelineStageZBinding;
+		friend class ROPOutput;
 
 	private:
 		ID3D12Resource *renderTarget, *ZBuffer, *MSAAResolveTarget;	// !: no lifetime tracking
 		D3D12_CPU_DESCRIPTOR_HANDLE rtv, dsv;
-		FLOAT colorClear[4];
 		UINT width, height;
 
 	private:
 		mutable D3D12_RENDER_PASS_ENDING_ACCESS_TYPE *lastRTPostOp{}, *lastDepthPostOp{}, *lastStencilPostOp{};
 
 	public:
-		explicit PipelineROPTargets(ID3D12Resource *renderTarget, D3D12_CPU_DESCRIPTOR_HANDLE rtv, const FLOAT (&colorClear)[4],
-			ID3D12Resource *ZBuffer, D3D12_CPU_DESCRIPTOR_HANDLE dsv, ID3D12Resource *MSAAResolveTarget, UINT width, UINT height);
+		explicit PipelineROPTargets(ID3D12Resource *renderTarget, D3D12_CPU_DESCRIPTOR_HANDLE rtv, ID3D12Resource *ZBuffer, D3D12_CPU_DESCRIPTOR_HANDLE dsv,
+			ID3D12Resource *MSAAResolveTarget, UINT width, UINT height);
 		PipelineROPTargets(PipelineROPTargets &&) = default;
 		PipelineROPTargets &operator =(PipelineROPTargets &&) = default;
 
@@ -41,31 +40,33 @@ namespace Renderer::Impl::RenderPipeline::RenderPasses
 		ID3D12Resource *GetZBuffer() const noexcept { return ZBuffer; }
 	};
 
-	class StageRTBinding final
+	class PipelineStageRTBinding
 	{
+	protected:
 		ID3D12Resource *const renderTarget, *const MSAAResolveTarget;
 		const D3D12_CPU_DESCRIPTOR_HANDLE rtv;
-		FLOAT clear[4];
 		D3D12_RENDER_PASS_ENDING_ACCESS_RESOLVE_SUBRESOURCE_PARAMETERS resolveParams;
 		D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE preOp;
 		D3D12_RENDER_PASS_ENDING_ACCESS_TYPE postOp;
 
 	public:
-		explicit StageRTBinding(const PipelineROPTargets &factory);
-		StageRTBinding(StageRTBinding &) = delete;
-		void operator =(StageRTBinding &) = delete;
+		explicit PipelineStageRTBinding(const PipelineROPTargets &factory);
+		PipelineStageRTBinding(PipelineStageRTBinding &) = delete;
+		void operator =(PipelineStageRTBinding &) = delete;
 
 	public:
-		D3D12_RENDER_PASS_RENDER_TARGET_DESC RenderPassBinding(bool open, bool close) const;
-		void FastForward(CmdListPool::CmdList &target, bool open, bool close) const;
-		void Finish(CmdListPool::CmdList &target) const;
+		D3D12_RENDER_PASS_RENDER_TARGET_DESC RenderPassBinding() const;
+		template<class CmdList>
+		void Finish(CmdList &target) const;
 
-	private:
-		void MSAAResolve(CmdListPool::CmdList &target) const;
+	protected:
+		template<class CmdList>
+		void MSAAResolve(CmdList &target) const;
 	};
 
-	class StageZBinding final
+	class PipelineStageZBinding
 	{
+	protected:
 		ID3D12Resource *const ZBuffer;
 		const D3D12_CPU_DESCRIPTOR_HANDLE dsv;
 		D3D12_DEPTH_STENCIL_VALUE clear;
@@ -76,28 +77,47 @@ namespace Renderer::Impl::RenderPipeline::RenderPasses
 		} depthOps, stencilOps;
 
 	public:
-		explicit StageZBinding(const PipelineROPTargets &factory, bool useDepth, bool useStencil);
-		explicit StageZBinding(const PipelineROPTargets &factory, D3D12_CLEAR_FLAGS clearFlags, D3D12_DEPTH_STENCIL_VALUE clear, BindingOutput depthOutput, BindingOutput stencilOutput);
-		StageZBinding(StageZBinding &) = delete;
-		void operator =(StageZBinding &) = delete;
+		explicit PipelineStageZBinding(const PipelineROPTargets &factory, bool useDepth, bool useStencil);
+		explicit PipelineStageZBinding(const PipelineROPTargets &factory, D3D12_CLEAR_FLAGS clearFlags, D3D12_DEPTH_STENCIL_VALUE clear, BindingOutput depthOutput, BindingOutput stencilOutput);
+		PipelineStageZBinding(PipelineStageZBinding &) = delete;
+		void operator =(PipelineStageZBinding &) = delete;
 
 	public:
 		ID3D12Resource *GetZBuffer() const noexcept { return ZBuffer; }
+
+	public:
+		D3D12_RENDER_PASS_DEPTH_STENCIL_DESC RenderPassBinding() const;
+	};
+
+	class RenderStageRTBinding final : public PipelineStageRTBinding
+	{
+		using PipelineStageRTBinding::PipelineStageRTBinding;
+		using PipelineStageRTBinding::RenderPassBinding;
+
+	public:
+		D3D12_RENDER_PASS_RENDER_TARGET_DESC RenderPassBinding(bool open, bool close) const;
+		void FastForward(CmdListPool::CmdList &target, bool open, bool close) const;
+	};
+
+	class RenderStageZBinding final : public PipelineStageZBinding
+	{
+		using PipelineStageZBinding::PipelineStageZBinding;
+		using PipelineStageZBinding::RenderPassBinding;
 
 	public:
 		D3D12_RENDER_PASS_DEPTH_STENCIL_DESC RenderPassBinding(bool open, bool close) const;
 		void FastForward(CmdListPool::CmdList &target, bool open, bool close) const;
 	};
 
-	class StageOutput final
+	class ROPOutput final
 	{
 		unsigned width, height;
 
 	public:
-		explicit StageOutput(const PipelineROPTargets &factory) : width(factory.width), height(factory.height) {}
+		explicit ROPOutput(const PipelineROPTargets &factory) : width(factory.width), height(factory.height) {}
 
 	public:
-		void Setup(CmdListPool::CmdList &target) const;
+		void Setup(ID3D12GraphicsCommandList4 *target) const;
 	};
 
 	template<class StageBinding, template<class> typename Modifier = std::add_lvalue_reference_t>
@@ -107,18 +127,18 @@ namespace Renderer::Impl::RenderPipeline::RenderPasses
 		bool open, close;
 	};
 
-	class RenderPass final
+	class RangeRenderPass final
 	{
-		friend class RenderPassScope;
+		friend class RangeRenderPassScope;
 
 	private:
-		PassROPBinding<StageRTBinding, std::add_pointer_t> RTBinding;
-		PassROPBinding<StageZBinding, std::add_lvalue_reference_t> ZBinding;
-		const StageOutput &output;
+		PassROPBinding<RenderStageRTBinding, std::add_pointer_t> RTBinding;
+		PassROPBinding<RenderStageZBinding, std::add_lvalue_reference_t> ZBinding;
+		const ROPOutput &output;
 		bool rangeOpen, rangeClose;
 
 	public:
-		explicit RenderPass(const PassROPBinding<StageRTBinding> *RTBinding, const PassROPBinding<StageZBinding> &ZBinding, const StageOutput &output, bool rangeOpen, bool rangeClose);
+		explicit RangeRenderPass(const PassROPBinding<RenderStageRTBinding> *RTBinding, const PassROPBinding<RenderStageZBinding> &ZBinding, const ROPOutput &output, bool rangeOpen, bool rangeClose);
 
 	public:
 		bool Suspended() const noexcept;
@@ -131,15 +151,42 @@ namespace Renderer::Impl::RenderPipeline::RenderPasses
 		inline D3D12_RENDER_PASS_FLAGS Flags() const noexcept;
 	};
 
-	class RenderPassScope final
+	class RangeRenderPassScope final
 	{
 		CmdListPool::CmdList &cmdList;
-		const RenderPass &renderPass;	// for MSAA resolve workaround only
+		const RangeRenderPass &renderPass;	// for MSAA resolve workaround only
 
 	public:
-		explicit RenderPassScope(CmdListPool::CmdList &target, const RenderPass &renderPass);
-		RenderPassScope(RenderPassScope &) = delete;
-		void operator =(RenderPassScope &) = delete;
-		~RenderPassScope();
+		explicit RangeRenderPassScope(CmdListPool::CmdList &target, const RangeRenderPass &renderPass);
+		RangeRenderPassScope(RangeRenderPassScope &) = delete;
+		void operator =(RangeRenderPassScope &) = delete;
+		~RangeRenderPassScope();
+	};
+
+	class LocalRenderPassScope final
+	{
+		const class CmdList
+		{
+			ID3D12GraphicsCommandList4 *const list;
+
+		public:
+			CmdList(ID3D12GraphicsCommandList4 *list) noexcept : list(list) {}
+
+		public:
+			operator ID3D12GraphicsCommandList4 *() const noexcept { return list; }
+			ID3D12GraphicsCommandList4 *operator ->() const noexcept { return list; }
+
+		public:
+			void ResourceBarrier(const D3D12_RESOURCE_BARRIER &barrier) const { list->ResourceBarrier(1, &barrier); }
+			template<bool>
+			void FlushBarriers() const noexcept {/*NOP*/ }
+		} cmdList;
+		const PipelineStageRTBinding &RTBinding;	// for MSAA resolve workaround only
+
+	public:
+		explicit LocalRenderPassScope(ID3D12GraphicsCommandList4 *target, const PipelineStageRTBinding &RTBinding, const PipelineStageZBinding &ZBinding, const ROPOutput &output);
+		LocalRenderPassScope(LocalRenderPassScope &) = delete;
+		void operator =(LocalRenderPassScope &) = delete;
+		~LocalRenderPassScope();
 	};
 }

@@ -52,18 +52,18 @@ static inline D3D12_RENDER_PASS_ENDING_ACCESS_TYPE DecayMSSAAResolveOp(D3D12_REN
 	return postOp == D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_RESOLVE && MSAAResolveWorkaroundNeeded() ? D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE : postOp;
 }
 
-RenderPasses::PipelineROPTargets::PipelineROPTargets(ID3D12Resource *renderTarget, D3D12_CPU_DESCRIPTOR_HANDLE rtv, const FLOAT (&colorClear)[4],
-	ID3D12Resource *ZBuffer, D3D12_CPU_DESCRIPTOR_HANDLE dsv, ID3D12Resource *MSAAResolveTarget, UINT width, UINT height) :
+RenderPasses::PipelineROPTargets::PipelineROPTargets(ID3D12Resource *renderTarget, D3D12_CPU_DESCRIPTOR_HANDLE rtv, ID3D12Resource *ZBuffer, D3D12_CPU_DESCRIPTOR_HANDLE dsv,
+	ID3D12Resource *MSAAResolveTarget, UINT width, UINT height) :
 	renderTarget(renderTarget), ZBuffer(ZBuffer), MSAAResolveTarget(MSAAResolveTarget), rtv(rtv), dsv(dsv),
-	colorClear{ colorClear[0], colorClear[1], colorClear[2], colorClear[3] },
 	width(width), height(height)
 {
 }
 
-RenderPasses::StageRTBinding::StageRTBinding(const PipelineROPTargets &factory) :
-	renderTarget(factory.renderTarget), MSAAResolveTarget(factory.MSAAResolveTarget), rtv(factory.rtv), clear{ factory.colorClear[0], factory.colorClear[1], factory.colorClear[2], factory.colorClear[3] },
+#pragma region PipelineStageRTBinding
+RenderPasses::PipelineStageRTBinding::PipelineStageRTBinding(const PipelineROPTargets &factory) :
+	renderTarget(factory.renderTarget), MSAAResolveTarget(factory.MSAAResolveTarget), rtv(factory.rtv),
 	resolveParams{ .SrcRect = CD3DX12_RECT(0, 0, factory.width, factory.height) },
-	preOp(factory.lastRTPostOp ? D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE : D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR),
+	preOp(factory.lastRTPostOp ? D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE : D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_DISCARD),
 	postOp(D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_RESOLVE)
 {
 	if (factory.lastRTPostOp)
@@ -71,62 +71,23 @@ RenderPasses::StageRTBinding::StageRTBinding(const PipelineROPTargets &factory) 
 	factory.lastRTPostOp = &postOp;
 }
 
-D3D12_RENDER_PASS_RENDER_TARGET_DESC RenderPasses::StageRTBinding::RenderPassBinding(bool open, bool close) const
+D3D12_RENDER_PASS_RENDER_TARGET_DESC RenderPasses::PipelineStageRTBinding::RenderPassBinding() const
 {
 	const auto format = renderTarget->GetDesc().Format;
 	return
 	{
 		.cpuDescriptor = rtv,
-		.BeginningAccess =
-		{
-			.Type = FixOp(preOp, open),
-			.Clear{format, {.Color{clear[0], clear[1], clear[2], clear[3]}}}
-		},
+		.BeginningAccess{preOp},
 		.EndingAccess =
 		{
-			.Type = DecayMSSAAResolveOp(FixOp(postOp, close)),
+			.Type = DecayMSSAAResolveOp(postOp),
 			.Resolve{renderTarget, MSAAResolveTarget, 1, &resolveParams, format, D3D12_RESOLVE_MODE_AVERAGE, FALSE}
 		}
 	};
 }
 
-void RenderPasses::StageRTBinding::FastForward(CmdListPool::CmdList &cmdList, bool open, bool close) const
-{
-	const auto ApplyPreOp = [&, open]
-	{
-		switch (FixOp(preOp, open))
-		{
-		case D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_DISCARD:
-			{
-				const D3D12_DISCARD_REGION region = { 0, NULL, 0, 1 };
-				cmdList->DiscardResource(renderTarget, &region);
-			}
-			break;
-		case D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR:
-			cmdList->ClearRenderTargetView(rtv, clear, 0, NULL);
-			break;
-		}
-	};
-
-	switch (FixOp(postOp, close))
-	{
-	case D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD:
-		{
-			const D3D12_DISCARD_REGION region = { 0, NULL, 0, 1 };
-			cmdList->DiscardResource(renderTarget, &region);
-		}
-		break;
-	case D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE:
-		ApplyPreOp();
-		break;
-	case D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_RESOLVE:
-		ApplyPreOp();
-		MSAAResolve(cmdList);
-		break;
-	}
-}
-
-void RenderPasses::StageRTBinding::Finish(CmdListPool::CmdList &cmdList) const
+template<class CmdList>
+void RenderPasses::PipelineStageRTBinding::Finish(CmdList &cmdList) const
 {
 	if (postOp == D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_RESOLVE && MSAAResolveWorkaroundNeeded())
 	{
@@ -135,27 +96,30 @@ void RenderPasses::StageRTBinding::Finish(CmdListPool::CmdList &cmdList) const
 	}
 }
 
-void RenderPasses::StageRTBinding::MSAAResolve(CmdListPool::CmdList &cmdList) const
+template<class CmdList>
+void RenderPasses::PipelineStageRTBinding::MSAAResolve(CmdList &cmdList) const
 {
 	cmdList.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(renderTarget, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_RESOLVE_SOURCE));
 	cmdList.FlushBarriers<true>();
 	cmdList->ResolveSubresource(MSAAResolveTarget, 0, renderTarget, 0, renderTarget->GetDesc().Format);
 	cmdList.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(renderTarget, D3D12_RESOURCE_STATE_RESOLVE_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));	// !: use split barrier
 }
+#pragma endregion
 
+#pragma region PipelineStageZBinding
 // propagate if used
-RenderPasses::StageZBinding::StageZBinding(const PipelineROPTargets &factory, bool useDepth, bool useStencil) :
+RenderPasses::PipelineStageZBinding::PipelineStageZBinding(const PipelineROPTargets &factory, bool useDepth, bool useStencil) :
 	ZBuffer(factory.ZBuffer), dsv(factory.dsv), clear{},
 	depthOps
-	{
-		useDepth	? D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE	: D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS,
-		useDepth	? D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE		: D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS
-	},
-	stencilOps
-	{
-		useStencil	? D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE	: D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS,
-		useStencil	? D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD		: D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS
-	}
+{
+	useDepth ? D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE : D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS,
+	useDepth ? D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE : D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS
+},
+stencilOps
+{
+	useStencil ? D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE : D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS,
+	useStencil ? D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD : D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS
+}
 {
 	if (useDepth)
 	{
@@ -173,29 +137,29 @@ RenderPasses::StageZBinding::StageZBinding(const PipelineROPTargets &factory, bo
 }
 
 // preserve if not clear, use both depth & stencil
-RenderPasses::StageZBinding::StageZBinding(const PipelineROPTargets &factory, D3D12_CLEAR_FLAGS clearFlags, D3D12_DEPTH_STENCIL_VALUE clear, BindingOutput depthOutput, BindingOutput stencilOutput) :
+RenderPasses::PipelineStageZBinding::PipelineStageZBinding(const PipelineROPTargets &factory, D3D12_CLEAR_FLAGS clearFlags, D3D12_DEPTH_STENCIL_VALUE clear, BindingOutput depthOutput, BindingOutput stencilOutput) :
 	ZBuffer(factory.ZBuffer), dsv(factory.dsv), clear(clear),
 	depthOps
-	{
-		clearFlags & D3D12_CLEAR_FLAG_DEPTH				? D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR	: D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE,
-		depthOutput		== BindingOutput::ForceDiscard	? D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD	: D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE
-	},
-	stencilOps
-	{
-		clearFlags & D3D12_CLEAR_FLAG_STENCIL			? D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR	: D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE,
-		stencilOutput	== BindingOutput::ForcePreserve	? D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE	: D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD
-	}
+{
+	clearFlags & D3D12_CLEAR_FLAG_DEPTH ? D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR : D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE,
+	depthOutput == BindingOutput::ForceDiscard ? D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD : D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE
+},
+stencilOps
+{
+	clearFlags & D3D12_CLEAR_FLAG_STENCIL ? D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR : D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE,
+	stencilOutput == BindingOutput::ForcePreserve ? D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE : D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD
+}
 {
 	if (factory.lastDepthPostOp)
-		*factory.lastDepthPostOp	= clearFlags & D3D12_CLEAR_FLAG_DEPTH		? D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD : D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
-	factory.lastDepthPostOp			= depthOutput	== BindingOutput::Propagate	? &depthOps.post	: nullptr;
+		*factory.lastDepthPostOp = clearFlags & D3D12_CLEAR_FLAG_DEPTH ? D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD : D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
+	factory.lastDepthPostOp = depthOutput == BindingOutput::Propagate ? &depthOps.post : nullptr;
 
 	if (factory.lastStencilPostOp)
-		*factory.lastStencilPostOp	= clearFlags & D3D12_CLEAR_FLAG_STENCIL		? D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD : D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
-	factory.lastStencilPostOp		= stencilOutput	== BindingOutput::Propagate	? &stencilOps.post	: nullptr;
+		*factory.lastStencilPostOp = clearFlags & D3D12_CLEAR_FLAG_STENCIL ? D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD : D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE;
+	factory.lastStencilPostOp = stencilOutput == BindingOutput::Propagate ? &stencilOps.post : nullptr;
 }
 
-D3D12_RENDER_PASS_DEPTH_STENCIL_DESC RenderPasses::StageZBinding::RenderPassBinding(bool open, bool close) const
+D3D12_RENDER_PASS_DEPTH_STENCIL_DESC RenderPasses::PipelineStageZBinding::RenderPassBinding() const
 {
 	assert(depthOps.post != D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_RESOLVE);
 	assert(stencilOps.post != D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_RESOLVE);
@@ -205,25 +169,80 @@ D3D12_RENDER_PASS_DEPTH_STENCIL_DESC RenderPasses::StageZBinding::RenderPassBind
 		.cpuDescriptor = dsv,
 		.DepthBeginningAccess =
 		{
-			.Type = FixOp(depthOps.pre, open),
+			.Type = depthOps.pre,
 			.Clear{format, {.DepthStencil = clear}}
 		},
 		.StencilBeginningAccess =
 		{
-			.Type = FixOp(stencilOps.pre, open),
+			.Type = stencilOps.pre,
 			.Clear{format, {.DepthStencil = clear}}
 		},
-		.DepthEndingAccess{FixOp(depthOps.post, close)},
-		.StencilEndingAccess{FixOp(stencilOps.post, close)}
+		.DepthEndingAccess{depthOps.post},
+		.StencilEndingAccess{stencilOps.post}
 	};
 }
+#pragma endregion
 
-void RenderPasses::StageZBinding::FastForward(CmdListPool::CmdList &cmdList, bool open, bool close) const
+#pragma region RenderStageRTBinding
+D3D12_RENDER_PASS_RENDER_TARGET_DESC RenderPasses::RenderStageRTBinding::RenderPassBinding(bool open, bool close) const
+{
+	D3D12_RENDER_PASS_RENDER_TARGET_DESC RTBinding = RenderPassBinding();
+	RTBinding.BeginningAccess.Type = FixOp(RTBinding.BeginningAccess.Type, open);
+	RTBinding.EndingAccess.Type = FixOp(RTBinding.EndingAccess.Type, close);
+	return RTBinding;
+}
+
+void RenderPasses::RenderStageRTBinding::FastForward(CmdListPool::CmdList &cmdList, bool open, bool close) const
+{
+	const auto ApplyPreOp = [&, open]
+	{
+		switch (FixOp(preOp, open))
+		{
+		case D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_DISCARD:
+		{
+			const D3D12_DISCARD_REGION region = { 0, NULL, 0, 1 };
+			cmdList->DiscardResource(renderTarget, &region);
+		}
+		break;
+		}
+	};
+
+	switch (FixOp(postOp, close))
+	{
+	case D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD:
+	{
+		const D3D12_DISCARD_REGION region = { 0, NULL, 0, 1 };
+		cmdList->DiscardResource(renderTarget, &region);
+	}
+	break;
+	case D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE:
+		ApplyPreOp();
+		break;
+	case D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_RESOLVE:
+		ApplyPreOp();
+		MSAAResolve(cmdList);
+		break;
+	}
+}
+#pragma endregion
+
+#pragma region RenderStageZBinding
+D3D12_RENDER_PASS_DEPTH_STENCIL_DESC RenderPasses::RenderStageZBinding::RenderPassBinding(bool open, bool close) const
+{
+	D3D12_RENDER_PASS_DEPTH_STENCIL_DESC ZBinding = RenderPassBinding();
+	ZBinding.DepthBeginningAccess.Type = FixOp(ZBinding.DepthBeginningAccess.Type, open);
+	ZBinding.StencilBeginningAccess.Type = FixOp(ZBinding.StencilBeginningAccess.Type, open);
+	ZBinding.DepthEndingAccess.Type = FixOp(ZBinding.DepthEndingAccess.Type, close);
+	ZBinding.StencilEndingAccess.Type = FixOp(ZBinding.StencilEndingAccess.Type, close);
+	return ZBinding;
+}
+
+void RenderPasses::RenderStageZBinding::FastForward(CmdListPool::CmdList &cmdList, bool open, bool close) const
 {
 	assert(depthOps.post != D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_RESOLVE);
 	assert(stencilOps.post != D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_RESOLVE);
 
-	D3D12_DISCARD_REGION discardRegion{.FirstSubresource = UINT_MAX};
+	D3D12_DISCARD_REGION discardRegion{ .FirstSubresource = UINT_MAX };
 	D3D12_CLEAR_FLAGS clearFlags{};
 
 	const auto ApplyPreOp = [&, open](UINT subresource, D3D12_CLEAR_FLAGS clearFlag, D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE preOp)
@@ -266,8 +285,9 @@ void RenderPasses::StageZBinding::FastForward(CmdListPool::CmdList &cmdList, boo
 	if (clearFlags)
 		cmdList->ClearDepthStencilView(dsv, clearFlags, clear.Depth, clear.Stencil, 0, NULL);
 }
+#pragma endregion
 
-void RenderPasses::StageOutput::Setup(CmdListPool::CmdList &cmdList) const
+void RenderPasses::ROPOutput::Setup(ID3D12GraphicsCommandList4 *cmdList) const
 {
 	const CD3DX12_VIEWPORT viewport(0.f, 0.f, width, height);
 	const CD3DX12_RECT scissorRect(0, 0, width, height);
@@ -275,7 +295,8 @@ void RenderPasses::StageOutput::Setup(CmdListPool::CmdList &cmdList) const
 	cmdList->RSSetScissorRects(1, &scissorRect);
 }
 
-RenderPasses::RenderPass::RenderPass(const PassROPBinding<StageRTBinding> *RTBinding, const PassROPBinding<StageZBinding> &ZBinding, const StageOutput &output, bool rangeOpen, bool rangeClose) :
+#pragma region range render pass
+RenderPasses::RangeRenderPass::RangeRenderPass(const PassROPBinding<RenderStageRTBinding> *RTBinding, const PassROPBinding<RenderStageZBinding> &ZBinding, const ROPOutput &output, bool rangeOpen, bool rangeClose) :
 	RTBinding(RTBinding ? decltype(this->RTBinding){&RTBinding->stageBinding, RTBinding->open, RTBinding->close} : decltype(this->RTBinding){}),
 	ZBinding(ZBinding),
 	output(output),
@@ -290,12 +311,12 @@ RenderPasses::RenderPass::RenderPass(const PassROPBinding<StageRTBinding> *RTBin
 	}
 }
 
-bool RenderPasses::RenderPass::Suspended() const noexcept
+bool RenderPasses::RangeRenderPass::Suspended() const noexcept
 {
 	return Flags() & D3D12_RENDER_PASS_FLAG_SUSPENDING_PASS;
 }
 
-void RenderPasses::RenderPass::operator()(CmdListPool::CmdList &cmdList) const
+void RenderPasses::RangeRenderPass::operator()(CmdListPool::CmdList &cmdList) const
 {
 	cmdList->BeginRenderPass(bool(RTBinding.stageBinding),
 		RTBinding.stageBinding ? &RTBinding.stageBinding->RenderPassBinding(RTBinding.open, RTBinding.close) : NULL,
@@ -303,13 +324,13 @@ void RenderPasses::RenderPass::operator()(CmdListPool::CmdList &cmdList) const
 	output.Setup(cmdList);
 }
 
-void RenderPasses::RenderPass::Finish(CmdListPool::CmdList &cmdList) const
+void RenderPasses::RangeRenderPass::Finish(CmdListPool::CmdList &cmdList) const
 {
 	if (rangeClose && RTBinding.stageBinding && RTBinding.close)
 		RTBinding.stageBinding->Finish(cmdList);
 }
 
-inline D3D12_RENDER_PASS_FLAGS RenderPasses::RenderPass::Flags() const noexcept
+inline D3D12_RENDER_PASS_FLAGS RenderPasses::RangeRenderPass::Flags() const noexcept
 {
 	D3D12_RENDER_PASS_FLAGS flags = D3D12_RENDER_PASS_FLAG_NONE;
 	if (CombineROPWrites())
@@ -322,13 +343,29 @@ inline D3D12_RENDER_PASS_FLAGS RenderPasses::RenderPass::Flags() const noexcept
 	return flags;
 }
 
-RenderPasses::RenderPassScope::RenderPassScope(CmdListPool::CmdList &cmdList, const RenderPass &renderPass) : cmdList(cmdList), renderPass(renderPass)
+RenderPasses::RangeRenderPassScope::RangeRenderPassScope(CmdListPool::CmdList &cmdList, const RangeRenderPass &renderPass) : cmdList(cmdList), renderPass(renderPass)
 {
 	renderPass(cmdList);
 }
 
-RenderPasses::RenderPassScope::~RenderPassScope()
+RenderPasses::RangeRenderPassScope::~RangeRenderPassScope()
 {
 	cmdList->EndRenderPass();
 	renderPass.Finish(cmdList);
 }
+#pragma endregion
+
+#pragma region local render pass
+RenderPasses::LocalRenderPassScope::LocalRenderPassScope(ID3D12GraphicsCommandList4 *cmdList, const PipelineStageRTBinding &RTBinding, const PipelineStageZBinding &ZBinding, const ROPOutput &output) :
+	cmdList(cmdList), RTBinding(RTBinding)
+{
+	cmdList->BeginRenderPass(1, &RTBinding.RenderPassBinding(), &ZBinding.RenderPassBinding(), D3D12_RENDER_PASS_FLAG_NONE);
+	output.Setup(cmdList);
+}
+
+RenderPasses::LocalRenderPassScope::~LocalRenderPassScope()
+{
+	cmdList->EndRenderPass();
+	RTBinding.Finish(cmdList);
+}
+#pragma endregion

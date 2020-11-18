@@ -39,9 +39,9 @@ private:
 	const std::shared_ptr<const Renderer::World> parent;
 	WorldViewContext &viewCtx;
 	const D3D12_GPU_VIRTUAL_ADDRESS cameraSettingsGPUAddress;
-	const RenderPasses::StageRTBinding stageRTBinding;
-	const RenderPasses::StageZBinding stageZPrecullBinding, stageZBinding;
-	const RenderPasses::StageOutput stageOutput;
+	const RenderPasses::RenderStageRTBinding stageRTBinding;
+	const RenderPasses::RenderStageZBinding stageZPrecullBinding, stageZBinding;
+	const RenderPasses::ROPOutput ROPOutput;
 	std::promise<std::shared_ptr<const OcclusionQueryPasses>> queryPassesPromise{ std::allocator_arg, std::pmr::polymorphic_allocator<decltype(queryPassesPromise)>(&globalTransientRAM) };
 
 #pragma region occlusion query passes
@@ -56,7 +56,7 @@ private:
 
 private:
 	void XformAABBPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd) const;
-	void CullPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass, bool final) const;
+	void CullPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RangeRenderPass &renderPass, bool final) const;
 
 private:
 	inline void SetupCullPass();
@@ -75,7 +75,7 @@ private:
 
 private:
 	void MainPassPre(CmdListPool::CmdList &target) const, MainPassPost(CmdListPool::CmdList &target) const;
-	void MainPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass, bool final) const;
+	void MainPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RangeRenderPass &renderPass, bool final) const;
 
 private:
 	inline void SetupMainPass();
@@ -112,7 +112,7 @@ private:
 	static SOBuffer::Allocator<xformedAABB_SO_name> xformedAABBsStorage;
 
 private:
-	inline static RenderPasses::StageZBinding MakeZPrecullBinding(WorldViewContext &viewCtx, const RenderPasses::PipelineROPTargets &ROPTargets);
+	inline static RenderPasses::RenderStageZBinding MakeZPrecullBinding(WorldViewContext &viewCtx, const RenderPasses::PipelineROPTargets &ROPTargets);
 
 private:
 public:
@@ -131,9 +131,9 @@ class Renderer::Impl::World::DebugRenderStage final : public RenderPipeline::IRe
 
 private:
 	const D3D12_GPU_VIRTUAL_ADDRESS cameraSettingsGPUAddress;
-	const RenderPasses::StageRTBinding stageRTBinding;
-	const RenderPasses::StageZBinding stageZBinding;
-	const RenderPasses::StageOutput stageOutput;
+	const RenderPasses::RenderStageRTBinding stageRTBinding;
+	const RenderPasses::RenderStageZBinding stageZBinding;
+	const RenderPasses::ROPOutput ROPOutput;
 
 #pragma region visualize occlusion pass
 private:
@@ -145,7 +145,7 @@ private:
 
 private:
 	void AABBPassPre(CmdListPool::CmdList &target) const, AABBPassPost(CmdListPool::CmdList &target) const;
-	void AABBPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass, bool visible) const;
+	void AABBPassRange(CmdListPool::CmdList &target, unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RangeRenderPass &renderPass, bool visible) const;
 #pragma endregion
 
 private:

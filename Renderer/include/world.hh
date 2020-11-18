@@ -8,6 +8,7 @@
 #include <list>
 #include <future>
 #include <wrl/client.h>
+#include "sky.hh"
 #include "../tracked resource.h"
 #include "../AABB.h"
 #include "../world hierarchy.h"
@@ -21,6 +22,8 @@
 struct ID3D12Resource;
 struct ID3D12GraphicsCommandList4;
 struct D3D12_RANGE;
+struct D3D12_INDEX_BUFFER_VIEW;
+struct D3D12_GPU_DESCRIPTOR_HANDLE;
 
 #if !_DEBUG
 #define PERSISTENT_MAPS 1
@@ -48,6 +51,10 @@ namespace Renderer
 
 		class Viewport;
 		using Misc::AllocatorProxy;
+		namespace PerViewCmdBuffers
+		{
+			class DeferredCmdBuffersProvider;
+		}
 		namespace RenderPipeline::RenderPasses
 		{
 			class PipelineROPTargets;
@@ -75,11 +82,16 @@ namespace Renderer
 
 		protected:
 			static UINT64 GetCurFrameGPUDataPtr();	// PerFrameData GPU address for cur frame
+			static D3D12_INDEX_BUFFER_VIEW GetBoxIBView();
 
 		private:
 			// terrain
 			float terrainXform[4][3];
 			std::list<Renderer::TerrainVectorLayer, AllocatorProxy<Renderer::TerrainVectorLayer>> terrainVectorLayers;
+
+			// sky
+		protected:
+			const Renderer::Sky sky;
 
 		private:
 			// sun
@@ -140,13 +152,15 @@ namespace Renderer
 			};
 
 		protected:
-			World(const float (&terrainXform)[4][3], float zenith, float azimuth);
+			World(const float (&terrainXform)[4][3], Renderer::Sky &&sky, float zenith, float azimuth);
 			~World();
 			World(World &) = delete;
 			void operator =(World &) = delete;
 
 		protected:
-			void Render(struct WorldViewContext &viewCtx, const float (&viewXform)[4][3], const float (&projXform)[4][4], const float (&projParams)[3], const HLSL::float3 &camAdaptationFactors, UINT64 cameraSettingsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) const;
+			void Render(struct WorldViewContext &viewCtx, const float (&viewXform)[4][3], const float (&projXform)[4][4], const float (&projParams)[3], const HLSL::float3 &camAdaptationFactors,
+				UINT64 cameraSettingsGPUAddress, D3D12_GPU_DESCRIPTOR_HANDLE skyboxDescriptorTable,
+				PerViewCmdBuffers::DeferredCmdBuffersProvider viewCmdBuffersProvider, const RenderPasses::PipelineROPTargets &ROPTargets) const;
 			static void OnFrameFinish();
 
 		public:
@@ -158,7 +172,8 @@ namespace Renderer
 			void FlushUpdates() const;	// const to be able to call from Render()
 
 		private:
-			StageExchange ScheduleRenderStage(WorldViewContext &viewCtx, const HLSL::float4x4 &frustumTransform, const HLSL::float4x3 &worldViewTransform, UINT64 cameraSettingsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) const;
+			StageExchange ScheduleRenderStage(WorldViewContext &viewCtx, const HLSL::float4x4 &frustumTransform, const HLSL::float4x3 &worldViewTransform,
+				UINT64 cameraSettingsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) const;
 			static void ScheduleDebugDrawRenderStage(UINT64 cameraSettingsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets, StageExchange &&stageExchange);
 		};
 	}
@@ -168,11 +183,12 @@ namespace Renderer
 		template<class>
 		friend class Misc::AllocatorProxyAdaptor;
 #if defined _MSC_VER && _MSC_VER > 1924 && _MSC_VER <= 1927
-		friend std::shared_ptr<World> __cdecl MakeWorld(const float (&terrainXform)[4][3], float zenith, float azimuth);
+		friend std::shared_ptr<World> __cdecl MakeWorld(const float (&terrainXform)[4][3], Sky sky, float zenith, float azimuth);
 #else
-		friend std::shared_ptr<World> __cdecl MakeWorld(const float (&terrainXform)[4][3], float zenith = 0, float azimuth = 0);
+		friend std::shared_ptr<World> __cdecl MakeWorld(const float (&terrainXform)[4][3], Sky sky, float zenith = 0, float azimuth = 0);
 #endif
 		friend class Impl::Viewport;
+		friend class Impl::Sky;			// for GetCurFrameGPUDataPtr()/GetBoxIBView()
 		friend class TerrainVectorQuad;	// for GetCurFrameGPUDataPtr()
 
 	private:
@@ -181,6 +197,6 @@ namespace Renderer
 	};
 
 #if defined _MSC_VER && _MSC_VER > 1924 && _MSC_VER <= 1927
-	std::shared_ptr<World> __cdecl MakeWorld(const float (&terrainXform)[4][3], float zenith = 0, float azimuth = 0);
+	std::shared_ptr<World> __cdecl MakeWorld(const float (&terrainXform)[4][3], Sky sky, float zenith = 0, float azimuth = 0);
 #endif
 }

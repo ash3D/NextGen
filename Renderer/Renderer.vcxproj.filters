@@ -183,6 +183,12 @@
     <ClInclude Include="offscreen buffers.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="per-view cmd buffers.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\sky.hh">
+      <Filter>Include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -273,6 +279,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="offscreen buffers.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="per-view cmd buffers.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="sky.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -383,6 +395,12 @@
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="bokehComposite.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="skyboxVS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="skyboxPS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>

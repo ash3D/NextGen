@@ -1,15 +1,16 @@
 #pragma once
 
+#define NOMINMAX
+
 #include <limits>
 #include <memory>
+#include <wrl/client.h>
 #include "../tracked resource.h"
 #include "../tracked ref.h"
-#include "../frame versioning.h"
+#include "../per-view cmd buffers.h"
 #include "../world view context.h"
 #include "../render pipeline.h"
 
-struct ID3D12CommandAllocator;
-struct ID3D12GraphicsCommandList4;
 struct ID3D12RootSignature;
 struct ID3D12PipelineState;
 struct ID3D12Resource;
@@ -53,41 +54,7 @@ namespace Renderer
 			};
 
 		private:
-			class CmdBuffsManager;
-
-			struct PrePostCmdBuffs final
-			{
-				WRL::ComPtr<ID3D12CommandAllocator> allocator;
-				WRL::ComPtr<ID3D12GraphicsCommandList4> pre, post;
-			};
-
-			class DeferredCmdBuffsProvider final
-			{
-				friend class CmdBuffsManager;
-
-			private:
-				const PrePostCmdBuffs &cmdBuffers;
-
-			private:
-				explicit DeferredCmdBuffsProvider(const PrePostCmdBuffs &cmdBuffers) : cmdBuffers(cmdBuffers)
-				{}
-
-			private:
-				ID3D12GraphicsCommandList4 *Acquire(const WRL::ComPtr<ID3D12GraphicsCommandList4> &list, ID3D12PipelineState *PSO);
-
-			public:
-				inline ID3D12GraphicsCommandList4 *AcquirePre(), *AcquirePost();
-			};
-
-			static constexpr const WCHAR viewportName[] = L"viewport";
-			mutable class CmdBuffsManager final : FrameVersioning<PrePostCmdBuffs, viewportName>
-			{
-			public:
-				DeferredCmdBuffsProvider OnFrameStart();
-				using FrameVersioning::OnFrameFinish;
-			} cmdBuffsManager;
-
-		private:
+			mutable PerViewCmdBuffers::CmdBuffersManager viewCmdBuffersManager;
 			const shared_ptr<const class Renderer::World> world;
 			mutable WorldViewContext ctx;
 			float viewXform[4][3], projXform[4][4], projParams[3]/*F, 1 / zn, 1 / zn - 1 / zf*/;
@@ -116,8 +83,8 @@ namespace Renderer
 
 		private:
 			RenderPipeline::PipelineStage
-				Pre(DeferredCmdBuffsProvider cmdListProvider, ID3D12Resource *output, const class OffscreenBuffers &offscreenBuffers) const,
-				Post(DeferredCmdBuffsProvider cmdListProvider, ID3D12Resource *output, const class OffscreenBuffers &offscreenBuffers,
+				Pre(PerViewCmdBuffers::DeferredCmdBuffersProvider cmdListProvider, ID3D12Resource *output, const class OffscreenBuffers &offscreenBuffers) const,
+				Post(PerViewCmdBuffers::DeferredCmdBuffersProvider cmdListProvider, ID3D12Resource *output, const class OffscreenBuffers &offscreenBuffers,
 					D3D12_GPU_DESCRIPTOR_HANDLE postprocessDescriptorTable, UINT width, UINT height) const;
 
 		protected:
@@ -133,7 +100,7 @@ namespace Renderer
 
 		protected:
 			void UpdateAspect(double invAspect);
-			void Render(ID3D12Resource *output, const class OffscreenBuffers &offscreenBuffers, const D3D12_GPU_DESCRIPTOR_HANDLE postprocessDescriptorTable, UINT width, UINT height) const;
+			void Render(ID3D12Resource *output, const class OffscreenBuffers &offscreenBuffers, UINT width, UINT height) const;
 			void OnFrameFinish() const;
 		};
 	}

@@ -29,9 +29,6 @@ namespace Shaders
 #	include "postprocessFinalComposite.csh"
 }
 
-// offsetof is conditionally supported for non-standard layout types since C++17
-#define ENABLE_NONSTDLAYOUT_OFFSETOF 1
-
 using namespace std;
 using namespace numbers;
 using namespace Renderer;
@@ -45,8 +42,6 @@ extern ComPtr<ID3D12Device4> device;
 void NameObject(ID3D12Object *object, LPCWSTR name) noexcept, NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
 ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC &desc, LPCWSTR name);
 	
-extern const float backgroundColor[4] = { .0f, .2f, .4f, 1.f };
-
 enum struct CameraAdaptation
 {
 	LumBright,
@@ -72,58 +67,6 @@ static inline float3 CalculateCamAdaptationLerpFactors(float delta)
 	static const/*expr*/ float3 cameraAdaptationRate(adaptationRate<CameraAdaptation::LumBright>, adaptationRate<CameraAdaptation::LumDark>, adaptationRate<CameraAdaptation::Focus>);
 	return (-cameraAdaptationRate * delta).apply(expf);
 }
-
-#pragma region cmd buffers
-ID3D12GraphicsCommandList4 *Impl::Viewport::DeferredCmdBuffsProvider::Acquire(const ComPtr<ID3D12GraphicsCommandList4> &list, ID3D12PipelineState *PSO)
-{
-	// reset list
-	CheckHR(list->Reset(cmdBuffers.allocator.Get(), PSO));
-
-	return list.Get();
-}
-
-inline ID3D12GraphicsCommandList4 *Impl::Viewport::DeferredCmdBuffsProvider::AcquirePre()
-{
-	return Acquire(cmdBuffers.pre, NULL);
-}
-
-inline ID3D12GraphicsCommandList4 *Impl::Viewport::DeferredCmdBuffsProvider::AcquirePost()
-{
-	return Acquire(cmdBuffers.post, luminanceTextureReductionPSO.Get());
-}
-
-// result valid until call to 'OnFrameFinish()'
-auto Impl::Viewport::CmdBuffsManager::OnFrameStart() -> DeferredCmdBuffsProvider
-{
-	FrameVersioning::OnFrameStart();
-	PrePostCmdBuffs &cmdBuffers = GetCurFrameDataVersion();
-
-	if (cmdBuffers.allocator && cmdBuffers.pre && cmdBuffers.post)
-		// reset allocator
-		CheckHR(cmdBuffers.allocator->Reset());
-	else
-	{
-#if ENABLE_NONSTDLAYOUT_OFFSETOF
-		const void *const viewportPtr = reinterpret_cast<const std::byte *>(this) - offsetof(Viewport, cmdBuffsManager);
-#else
-		const void *const viewportPtr = this;
-#endif
-		const unsigned short createVersion = GetFrameLatency() - 1;
-
-		// create allocator
-		CheckHR(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&cmdBuffers.allocator)));
-		NameObjectF(cmdBuffers.allocator.Get(), L"viewport %p command allocator [%hu]", viewportPtr, createVersion);
-
-		// create lists
-		CheckHR(device->CreateCommandList1(0, D3D12_COMMAND_LIST_TYPE_DIRECT, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(&cmdBuffers.pre)));
-		NameObjectF(cmdBuffers.pre.Get(), L"viewport %p pre command list [%hu]", viewportPtr, createVersion);
-		CheckHR(device->CreateCommandList1(0, D3D12_COMMAND_LIST_TYPE_DIRECT, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(&cmdBuffers.post)));
-		NameObjectF(cmdBuffers.post.Get(), L"viewport %p post command list [%hu]", viewportPtr, createVersion);
-	}
-
-	return DeferredCmdBuffsProvider{ cmdBuffers };
-}
-#pragma endregion
 
 #pragma region postprocess root sig & PSOs
 auto Impl::Viewport::CreatePostprocessRootSigs() -> PostprocessRootSigs
@@ -425,9 +368,9 @@ ComPtr<ID3D12PipelineState> Impl::Viewport::CreatePostprocessFinalCompositePSO()
 }
 #pragma endregion
 
-inline RenderPipeline::PipelineStage Impl::Viewport::Pre(DeferredCmdBuffsProvider cmdListProvider, ID3D12Resource *output, const OffscreenBuffers &offscreenBuffers) const
+inline RenderPipeline::PipelineStage Impl::Viewport::Pre(PerViewCmdBuffers::DeferredCmdBuffersProvider cmdListProvider, ID3D12Resource *output, const OffscreenBuffers &offscreenBuffers) const
 {
-	const auto cmdList = cmdListProvider.AcquirePre();
+	const auto cmdList = cmdListProvider.Acquire(PerViewCmdBuffers::VIEWPORT_PRE);
 
 	PIXScopedEvent(cmdList, PIX_COLOR_INDEX(PIXEvents::ViewportPre), "viewport pre");
 	if (fresh)
@@ -463,10 +406,10 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Pre(DeferredCmdBuffsProvide
 	return cmdList;
 }
 
-inline RenderPipeline::PipelineStage Impl::Viewport::Post(DeferredCmdBuffsProvider cmdListProvider, ID3D12Resource *output, const OffscreenBuffers &offscreenBuffers,
+inline RenderPipeline::PipelineStage Impl::Viewport::Post(PerViewCmdBuffers::DeferredCmdBuffersProvider cmdListProvider, ID3D12Resource *output, const OffscreenBuffers &offscreenBuffers,
 	D3D12_GPU_DESCRIPTOR_HANDLE postprocessDescriptorTable, UINT width, UINT height) const
 {
-	const auto cmdList = cmdListProvider.AcquirePost();
+	const auto cmdList = cmdListProvider.Acquire(PerViewCmdBuffers::VIEWPORT_POST, luminanceTextureReductionPSO.Get());
 
 	PIXScopedEvent(cmdList, PIX_COLOR_INDEX(PIXEvents::ViewportPost), "viewport post");
 
@@ -780,30 +723,33 @@ void Impl::Viewport::UpdateAspect(double invAspect)
 	projXform[0][0] = projXform[1][1] * invAspect;
 }
 
-void Impl::Viewport::Render(ID3D12Resource *output, const class OffscreenBuffers &offscreenBuffers, const D3D12_GPU_DESCRIPTOR_HANDLE postprocessDescriptorTable, UINT width, UINT height) const
+void Impl::Viewport::Render(ID3D12Resource *output, const class OffscreenBuffers &offscreenBuffers, UINT width, UINT height) const
 {
+	// fill GPU descriptor heap
+	const auto perFrameDescriptorTables = Descriptors::GPUDescriptorHeap::StreamPerFrameDescriptorTables(world->sky, offscreenBuffers.GetPostprocessCPUDescriptorTableStore());
+
 	// time
 	using namespace chrono;
 	const Clock::time_point curTime = Clock::now();
 	const float delta = duration_cast<duration<float>>(curTime - time).count();
 	time = curTime;
 
-	DeferredCmdBuffsProvider cmdBuffsProvider = cmdBuffsManager.OnFrameStart();
+	auto viewCmdBuffersProvider = viewCmdBuffersManager.OnFrameStart();
 	GPUWorkSubmission::Prepare();
 
-	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Pre, this, cmdBuffsProvider, output, cref(offscreenBuffers));
+	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Pre, this, viewCmdBuffersProvider, output, cref(offscreenBuffers));
 
-	const RenderPipeline::RenderPasses::PipelineROPTargets ROPTargets(offscreenBuffers.GetWorldBuffers().rendertarget.Resource(), offscreenBuffers.GetRTV(offscreenBuffers.SCENE_RTV), backgroundColor, offscreenBuffers.GetPersistentBuffers().ZBuffer.Resource(), offscreenBuffers.GetDSV(), offscreenBuffers.GetWorldAndPostFX1Buffers().HDRInputSurface.Resource(), width, height);
-	world->Render(ctx, viewXform, projXform, projParams, CalculateCamAdaptationLerpFactors(delta), cameraSettingsBuffer->GetGPUVirtualAddress(), ROPTargets);
+	const RenderPipeline::RenderPasses::PipelineROPTargets ROPTargets(offscreenBuffers.GetWorldBuffers().rendertarget.Resource(), offscreenBuffers.GetRTV(offscreenBuffers.SCENE_RTV), offscreenBuffers.GetPersistentBuffers().ZBuffer.Resource(), offscreenBuffers.GetDSV(), offscreenBuffers.GetWorldAndPostFX1Buffers().HDRInputSurface.Resource(), width, height);
+	world->Render(ctx, viewXform, projXform, projParams, CalculateCamAdaptationLerpFactors(delta), cameraSettingsBuffer->GetGPUVirtualAddress(), D3D12_GPU_DESCRIPTOR_HANDLE{ perFrameDescriptorTables.skybox }, viewCmdBuffersProvider, ROPTargets);
 
-	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Post, this, cmdBuffsProvider, output, cref(offscreenBuffers), postprocessDescriptorTable, width, height);
+	GPUWorkSubmission::AppendPipelineStage<false>(&Viewport::Post, this, viewCmdBuffersProvider, output, cref(offscreenBuffers), D3D12_GPU_DESCRIPTOR_HANDLE{ perFrameDescriptorTables.postprocess }, width, height);
 
 	// defer as much as possible in order to reduce chances waiting to be inserted in GFX queue (DMA queue can progress enough by this point)
 	DMA::Sync();
 
 	GPUWorkSubmission::Run();
 	fresh = false;
-	cmdBuffsManager.OnFrameFinish();
+	viewCmdBuffersManager.OnFrameFinish();
 }
 
 void Impl::Viewport::OnFrameFinish() const

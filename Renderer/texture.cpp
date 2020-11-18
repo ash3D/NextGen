@@ -33,6 +33,7 @@ static inline DirectX::DDS_LOADER_FLAGS DecodeTextureUsage(TextureUsage usage)
 {
 	switch (usage)
 	{
+	case TextureUsage::Skybox:
 	case TextureUsage::TVScreen:
 	case TextureUsage::AlbedoMap:
 		return DirectX::DDS_LOADER_FORCE_SRGB;
@@ -48,15 +49,39 @@ static inline DirectX::DDS_LOADER_FLAGS DecodeTextureUsage(TextureUsage usage)
 }
 
 // 1 call site
-static inline void ValidateTexture(const D3D12_RESOURCE_DESC &desc, TextureUsage usage)
+static inline void ValidateTexture(const D3D12_RESOURCE_DESC &desc, TextureUsage usage, bool isCubemap)
 {
 	// check dimension
-	if (desc.Dimension != D3D12_RESOURCE_DIMENSION_TEXTURE2D)
-		throw logic_error("Trying to load texture with wrong dimension. 2D texture expected.");
+	switch (usage)
+	{
+	case TextureUsage::Skybox:
+		if (!isCubemap || desc.Dimension != D3D12_RESOURCE_DIMENSION_TEXTURE2D)
+			throw logic_error("Trying to load skybox texture with wrong dimension. Cubemap expected.");
+		break;
+
+	default:
+		if (isCubemap || desc.Dimension != D3D12_RESOURCE_DIMENSION_TEXTURE2D)
+			throw logic_error("Trying to load texture with wrong dimension. 2D texture expected.");
+		break;
+	}
 
 	// check format for usage
-	switch(usage)
+	switch (usage)
 	{
+	case TextureUsage::Skybox:
+		switch (desc.Format)
+		{
+		case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+		case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+		case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:
+		case DXGI_FORMAT_R9G9B9E5_SHAREDEXP:
+		case DXGI_FORMAT_BC6H_UF16:
+			break;
+		default:
+			throw logic_error("Wrong texture format for skybox.");
+		}
+		break;
+
 	case TextureUsage::TVScreen:
 		switch (desc.Format)
 		{
@@ -161,8 +186,9 @@ Impl::Texture::Texture(const filesystem::path &fileName, TextureUsage usage, boo
 	// load from file & create texture
 	unique_ptr<uint8_t []> data;
 	vector<D3D12_SUBRESOURCE_DATA> subresources;
-	CheckHR(LoadDDSTextureFromFileEx(device.Get(), fileName.c_str(), 0, D3D12_RESOURCE_FLAG_NONE, loadFlags, useSysRAM ? DDS_CPU_ACCESS_INDIRECT : DDS_CPU_ACCESS_DENY, tex.GetAddressOf(), data, subresources));
-	ValidateTexture(tex->GetDesc(), usage);
+	bool isCubemap;
+	CheckHR(LoadDDSTextureFromFileEx(device.Get(), fileName.c_str(), 0, D3D12_RESOURCE_FLAG_NONE, loadFlags, useSysRAM ? DDS_CPU_ACCESS_INDIRECT : DDS_CPU_ACCESS_DENY, tex.GetAddressOf(), data, subresources, nullptr, &isCubemap));
+	ValidateTexture(tex->GetDesc(), usage, isCubemap);
 
 	// write texture data
 	if (useSysRAM)

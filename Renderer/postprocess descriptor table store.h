@@ -4,11 +4,15 @@
 
 struct ID3D12DescriptorHeap;
 struct D3D12_CPU_DESCRIPTOR_HANDLE;
-struct D3D12_GPU_DESCRIPTOR_HANDLE;
 
-namespace Renderer::Impl
+namespace Renderer
 {
-	class OffscreenBuffers;
+	class Sky;
+
+	namespace Impl
+	{
+		class OffscreenBuffers;
+	}
 }
 
 namespace Renderer::Impl::Descriptors
@@ -19,12 +23,12 @@ namespace Renderer::Impl::Descriptors
 
 	namespace GPUDescriptorHeap
 	{
-		D3D12_GPU_DESCRIPTOR_HANDLE StreamPostprocessDescriptorTable(const PostprocessDescriptorTableStore &src);
+		struct PerFrameDescriptorTables StreamPerFrameDescriptorTables(const Renderer::Sky &sky, const PostprocessDescriptorTableStore &postprocess);
 	}
 
 	class PostprocessDescriptorTableStore
 	{
-		friend D3D12_GPU_DESCRIPTOR_HANDLE GPUDescriptorHeap::StreamPostprocessDescriptorTable(const PostprocessDescriptorTableStore &src);
+		friend auto GPUDescriptorHeap::StreamPerFrameDescriptorTables(const Renderer::Sky &sky, const PostprocessDescriptorTableStore &postprocess) -> PerFrameDescriptorTables;
 
 	public:
 		enum TableEntry

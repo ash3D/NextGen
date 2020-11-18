@@ -24,6 +24,7 @@ namespace Renderer
 
 	enum class TextureUsage
 	{
+		Skybox,
 		TVScreen,
 		AlbedoMap,
 		FresnelMap,
@@ -36,6 +37,7 @@ namespace Renderer
 
 	namespace Impl
 	{
+		class Sky;
 		class Object3D;
 
 		class Texture
@@ -74,6 +76,7 @@ namespace Renderer
 
 	class Texture : public Impl::Texture
 	{
+		friend class Impl::Sky;
 		friend class TerrainMaterials::Masked;
 		friend class TerrainMaterials::Standard;
 		friend class TerrainMaterials::Extended;

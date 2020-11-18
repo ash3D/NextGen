@@ -521,13 +521,12 @@ void OffscreenBuffers::ConstructBuffers()
 		NameObjectF(lifetimeRanges.postFX.HDRCompositeSurface.Resource(), L"HDR composite surface [%lu] (offscreen buffers object %p)", version, this);
 
 		// create MSAA rendertarget
-		extern const float backgroundColor[4];
 		CheckHR(device->CreatePlacedResource(
 			ROPs.VRAMBackingStore.Get(),
 			OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.world.rendertarget.offset),
 			&buffersDesc.Rendertarget(),
 			D3D12_RESOURCE_STATE_RENDER_TARGET,
-			&CD3DX12_CLEAR_VALUE(Config::HDRFormat, backgroundColor),
+			NULL,
 			IID_PPV_ARGS(lifetimeRanges.world.rendertarget.resource.ReleaseAndGetAddressOf())
 		));
 		NameObjectF(lifetimeRanges.world.rendertarget.Resource(), L"MSAA rendertarget [%lu] (offscreen buffers object %p)", version, this);

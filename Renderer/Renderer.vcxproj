@@ -231,6 +231,7 @@
     <ClInclude Include="HRESULT.h" />
     <ClInclude Include="include\instance.hh" />
     <ClInclude Include="include\object 3D.hh" />
+    <ClInclude Include="include\sky.hh" />
     <ClInclude Include="include\terrain materials.hh" />
     <ClInclude Include="include\terrain.hh" />
     <ClInclude Include="include\texture.hh" />
@@ -242,6 +243,7 @@
     <ClInclude Include="occlusion query batch.h" />
     <ClInclude Include="GPU work item.h" />
     <ClInclude Include="offscreen buffers.h" />
+    <ClInclude Include="per-view cmd buffers.h" />
     <ClInclude Include="PIX events.h" />
     <ClInclude Include="render passes.h" />
     <ClInclude Include="shader bytecode.h" />
@@ -288,10 +290,12 @@
     <ClCompile Include="occlusion tree.cpp" />
     <ClCompile Include="occlusion query batch.cpp" />
     <ClCompile Include="offscreen buffers.cpp" />
+    <ClCompile Include="per-view cmd buffers.cpp" />
     <ClCompile Include="render output.cpp" />
     <ClCompile Include="render passes.cpp" />
     <ClCompile Include="render pipeline.cpp" />
     <ClCompile Include="render stage.cpp" />
+    <ClCompile Include="sky.cpp" />
     <ClCompile Include="SO buffer.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -516,6 +520,18 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compute</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+    </FxCompile>
+    <FxCompile Include="skyboxPS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="skyboxVS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
     </FxCompile>
     <FxCompile Include="upsampleBlur.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>

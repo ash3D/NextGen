@@ -9,6 +9,7 @@
 #include "cmdlist pool.inl"
 #include "world render stages.h"
 #include "GPU work submission.h"
+#include "per-view cmd buffers.h"
 #include "render stage.h"
 #include "render passes.h"
 #include "render pipeline.h"
@@ -247,7 +248,7 @@ void Impl::World::MainRenderStage::XformAABBPassRange(CmdListPool::CmdList &cmdL
 	} while (++rangeBegin < rangeEnd);
 }
 
-void Impl::World::MainRenderStage::CullPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass, bool final) const
+void Impl::World::MainRenderStage::CullPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RangeRenderPass &renderPass, bool final) const
 {
 	assert(rangeBegin < rangeEnd);
 
@@ -258,23 +259,17 @@ void Impl::World::MainRenderStage::CullPassRange(CmdListPool::CmdList &cmdList, 
 
 	// setup IB/VB
 	{
-		const D3D12_INDEX_BUFFER_VIEW IB_view =
-		{
-			globalGPUBuffer->GetGPUVirtualAddress() + GlobalGPUBufferData::BoxIB_offset(),
-			sizeof GlobalGPUBufferData::boxIB,
-			DXGI_FORMAT_R16_UINT
-		};
 		const D3D12_VERTEX_BUFFER_VIEW VB_view =
 		{
 			queryPasses->xformedAABBs.GetGPUPtr(),
 			queryPasses->xformedAABBs.GetSize(),
 			queryPasses->xformedAABBSize
 		};
-		cmdList->IASetIndexBuffer(&IB_view);
+		cmdList->IASetIndexBuffer(&GetBoxIBView());
 		cmdList->IASetVertexBuffers(0, 1, &VB_view);
 	}
 
-	RenderPasses::RenderPassScope renderPassScope(cmdList, renderPass);
+	RenderPasses::RangeRenderPassScope renderPassScope(cmdList, renderPass);
 
 	const OcclusionCulling::QueryBatchBase &queryBatch = visit([](const OcclusionCulling::QueryBatchBase &queryBatch) noexcept -> const auto & { return queryBatch; }, queryPasses->occlusionQueryBatch);
 	do
@@ -322,7 +317,7 @@ void Impl::World::MainRenderStage::UpdateCullPassCache()
 //{
 //}
 
-void Impl::World::MainRenderStage::MainPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass, bool final) const
+void Impl::World::MainRenderStage::MainPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RangeRenderPass &renderPass, bool final) const
 {
 	assert(rangeBegin < rangeEnd);
 
@@ -332,7 +327,7 @@ void Impl::World::MainRenderStage::MainPassRange(CmdListPool::CmdList &cmdList, 
 
 	decltype(parent->staticObjects)::value_type::Setup(cmdList, GetCurFrameGPUDataPtr(), cameraSettingsGPUAddress);
 
-	RenderPasses::RenderPassScope renderPassScope(cmdList, renderPass);
+	RenderPasses::RangeRenderPassScope renderPassScope(cmdList, renderPass);
 
 	for_each(next(renderStream.cbegin(), rangeBegin), next(renderStream.cbegin(), rangeEnd), [&, curOcclusionQueryIdx = OcclusionCulling::QueryBatchBase::npos, final](remove_reference_t<decltype(renderStream)>::value_type renderData) mutable
 	{
@@ -534,9 +529,9 @@ auto Impl::World::MainRenderStage::GetXformAABBPass2FirstCullPass(unsigned int &
 auto Impl::World::MainRenderStage::GetFirstCullPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, queryPasses->queryStream.size(), nullptr, { stageZPrecullBinding, true, true }, stageOutput,
+	return IterateRenderPass(length, queryPasses->queryStream.size(), nullptr, { stageZPrecullBinding, true, true }, ROPOutput,
 		[] { phaseSelector = static_cast<decltype(phaseSelector)>(&MainRenderStage::GetFirstCullPass2FirstMainPass); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass) { return bind(&MainRenderStage::CullPassRange, shared_from_this(), _1, rangeBegin, rangeEnd, move(renderPass), false); });
+		[this](unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RangeRenderPass &renderPass) { return bind(&MainRenderStage::CullPassRange, shared_from_this(), _1, rangeBegin, rangeEnd, move(renderPass), false); });
 }
 
 auto Impl::World::MainRenderStage::GetFirstCullPass2FirstMainPass(unsigned int &) const -> RenderPipeline::PipelineItem
@@ -549,10 +544,10 @@ auto Impl::World::MainRenderStage::GetFirstCullPass2FirstMainPass(unsigned int &
 auto Impl::World::MainRenderStage::GetFirstMainPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	RenderPasses::PassROPBinding<RenderPasses::StageRTBinding> RTBinding{ stageRTBinding, true, false };
-	return IterateRenderPass(length, renderStreams[0].size(), &RTBinding, { stageZBinding, true, false }, stageOutput,
+	RenderPasses::PassROPBinding<RenderPasses::RenderStageRTBinding> RTBinding{ stageRTBinding, true, false };
+	return IterateRenderPass(length, renderStreams[0].size(), &RTBinding, { stageZBinding, true, false }, ROPOutput,
 		[] { phaseSelector = static_cast<decltype(phaseSelector)>(&MainRenderStage::/*GetFirstMainPass2SecondCullPass*/GetSecondCullPassRange); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass) { return bind(&MainRenderStage::MainPassRange, shared_from_this(), _1, rangeBegin, rangeEnd, move(renderPass), false); });
+		[this](unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RangeRenderPass &renderPass) { return bind(&MainRenderStage::MainPassRange, shared_from_this(), _1, rangeBegin, rangeEnd, move(renderPass), false); });
 }
 
 //auto Impl::World::MainRenderStage::GetFirstMainPass2SecondCullPass(unsigned int &) const -> RenderPipeline::PipelineItem
@@ -564,9 +559,9 @@ auto Impl::World::MainRenderStage::GetFirstMainPassRange(unsigned int &length) c
 auto Impl::World::MainRenderStage::GetSecondCullPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	return IterateRenderPass(length, queryPasses->queryStream.size(), nullptr, { stageZBinding, false, false }, stageOutput,
+	return IterateRenderPass(length, queryPasses->queryStream.size(), nullptr, { stageZBinding, false, false }, ROPOutput,
 		[] { phaseSelector = static_cast<decltype(phaseSelector)>(&MainRenderStage::GetSecondCullPass2SecondMainPass); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass) { return bind(&MainRenderStage::CullPassRange, shared_from_this(), _1, rangeBegin, rangeEnd, move(renderPass), true); });
+		[this](unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RangeRenderPass &renderPass) { return bind(&MainRenderStage::CullPassRange, shared_from_this(), _1, rangeBegin, rangeEnd, move(renderPass), true); });
 }
 
 auto Impl::World::MainRenderStage::GetSecondCullPass2SecondMainPass(unsigned int &) const -> RenderPipeline::PipelineItem
@@ -579,10 +574,10 @@ auto Impl::World::MainRenderStage::GetSecondCullPass2SecondMainPass(unsigned int
 auto Impl::World::MainRenderStage::GetSecondMainPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	RenderPasses::PassROPBinding<RenderPasses::StageRTBinding> RTBinding{ stageRTBinding, false, true };
-	return IterateRenderPass(length, renderStreams[1].size(), &RTBinding, { stageZBinding, false, true }, stageOutput,
+	RenderPasses::PassROPBinding<RenderPasses::RenderStageRTBinding> RTBinding{ stageRTBinding, false, true };
+	return IterateRenderPass(length, renderStreams[1].size(), &RTBinding, { stageZBinding, false, true }, ROPOutput,
 		[] { phaseSelector = static_cast<decltype(phaseSelector)>(&MainRenderStage::GetStagePost); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass) { return bind(&MainRenderStage::MainPassRange, shared_from_this(), _1, rangeBegin, rangeEnd, move(renderPass), true); });
+		[this](unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RangeRenderPass &renderPass) { return bind(&MainRenderStage::MainPassRange, shared_from_this(), _1, rangeBegin, rangeEnd, move(renderPass), true); });
 }
 
 auto Impl::World::MainRenderStage::GetStagePost(unsigned int &) const -> RenderPipeline::PipelineItem
@@ -664,15 +659,15 @@ auto Impl::World::MainRenderStage::Build(const float4x4 &frustumXform, const flo
 	return shared_from_this();
 }
 
-auto Impl::World::MainRenderStage::MakeZPrecullBinding(WorldViewContext &viewCtx, const RenderPasses::PipelineROPTargets &ROPTargets) -> RenderPasses::StageZBinding
+auto Impl::World::MainRenderStage::MakeZPrecullBinding(WorldViewContext &viewCtx, const RenderPasses::PipelineROPTargets &ROPTargets) -> RenderPasses::RenderStageZBinding
 {
 	if (viewCtx.ZBufferHistory)
 	{
 		const auto targetZDesc = ROPTargets.GetZBuffer()->GetDesc(), historyZDesc = viewCtx.ZBufferHistory->GetDesc();
 		if (targetZDesc.Width == historyZDesc.Width && targetZDesc.Height == historyZDesc.Height)
-			return RenderPasses::StageZBinding{ ROPTargets, D3D12_CLEAR_FLAG_STENCIL, { 1.f, UINT8_MAX }, RenderPasses::BindingOutput::Propagate, RenderPasses::BindingOutput::Propagate };
+			return RenderPasses::RenderStageZBinding{ ROPTargets, D3D12_CLEAR_FLAG_STENCIL, { 1.f, UINT8_MAX }, RenderPasses::BindingOutput::Propagate, RenderPasses::BindingOutput::Propagate };
 	}
-	return RenderPasses::StageZBinding{ ROPTargets, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, { 1.f, 0xef }, RenderPasses::BindingOutput::Propagate, RenderPasses::BindingOutput::Propagate };
+	return RenderPasses::RenderStageZBinding{ ROPTargets, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, { 1.f, 0xef }, RenderPasses::BindingOutput::Propagate, RenderPasses::BindingOutput::Propagate };
 }
 
 Impl::World::MainRenderStage::MainRenderStage(shared_ptr<const Renderer::World> parent, WorldViewContext &viewCtx,
@@ -683,7 +678,7 @@ Impl::World::MainRenderStage::MainRenderStage(shared_ptr<const Renderer::World> 
 	stageRTBinding(ROPTargets),
 	stageZPrecullBinding(MakeZPrecullBinding(viewCtx, ROPTargets)),
 	stageZBinding(ROPTargets, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, { 1.f, UINT8_MAX }, RenderPasses::BindingOutput::ForcePreserve/*for copy to Z history*/, RenderPasses::BindingOutput::Propagate),
-	stageOutput(ROPTargets),
+	ROPOutput(ROPTargets),
 	queryPasses(allocate_shared<OcclusionQueryPasses>(polymorphic_allocator<OcclusionQueryPasses>(&globalTransientRAM)))	// or do this in 'Build()' ?
 {
 	stageExchangeResult = queryPassesPromise.get_future();
@@ -809,7 +804,7 @@ void Impl::World::DebugRenderStage::AABBPassPre(CmdListPool::CmdList &cmdList) c
 	cmdList.FlushBarriers();
 }
 
-void Impl::World::DebugRenderStage::AABBPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass, bool visible) const
+void Impl::World::DebugRenderStage::AABBPassRange(CmdListPool::CmdList &cmdList, unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RangeRenderPass &renderPass, bool visible) const
 {
 	assert(rangeBegin < rangeEnd);
 
@@ -826,23 +821,17 @@ void Impl::World::DebugRenderStage::AABBPassRange(CmdListPool::CmdList &cmdList,
 
 	// setup IB/VB (consider sharing this with cull pass)
 	{
-		const D3D12_INDEX_BUFFER_VIEW IB_view =
-		{
-			globalGPUBuffer->GetGPUVirtualAddress() + GlobalGPUBufferData::BoxIB_offset(),
-			sizeof GlobalGPUBufferData::boxIB,
-			DXGI_FORMAT_R16_UINT
-		};
 		const D3D12_VERTEX_BUFFER_VIEW VB_view =
 		{
 			queryPasses->xformedAABBs.GetGPUPtr(),
 			queryPasses->xformedAABBs.GetSize(),
 			queryPasses->xformedAABBSize
 		};
-		cmdList->IASetIndexBuffer(&IB_view);
+		cmdList->IASetIndexBuffer(&GetBoxIBView());
 		cmdList->IASetVertexBuffers(0, 1, &VB_view);
 	}
 
-	RenderPasses::RenderPassScope renderPassScope(cmdList, renderPass);
+	RenderPasses::RangeRenderPassScope renderPassScope(cmdList, renderPass);
 
 	do
 	{
@@ -876,19 +865,19 @@ auto Impl::World::DebugRenderStage::GetAABBPassPre(unsigned int &length) const -
 auto Impl::World::DebugRenderStage::GetHiddenPassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	RenderPasses::PassROPBinding<RenderPasses::StageRTBinding> RTBinding{ stageRTBinding, true, false };
-	return IterateRenderPass(length, queryPasses->queryStream.size(), &RTBinding, { stageZBinding, true, false }, stageOutput,
+	RenderPasses::PassROPBinding<RenderPasses::RenderStageRTBinding> RTBinding{ stageRTBinding, true, false };
+	return IterateRenderPass(length, queryPasses->queryStream.size(), &RTBinding, { stageZBinding, true, false }, ROPOutput,
 		[] { phaseSelector = static_cast<decltype(phaseSelector)>(&DebugRenderStage::GetVisiblePassRange); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass) { return bind(&DebugRenderStage::AABBPassRange, shared_from_this(), _1, rangeBegin, rangeEnd, move(renderPass), false); });
+		[this](unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RangeRenderPass &renderPass) { return bind(&DebugRenderStage::AABBPassRange, shared_from_this(), _1, rangeBegin, rangeEnd, move(renderPass), false); });
 }
 
 auto Impl::World::DebugRenderStage::GetVisiblePassRange(unsigned int &length) const -> RenderPipeline::PipelineItem
 {
 	using namespace placeholders;
-	RenderPasses::PassROPBinding<RenderPasses::StageRTBinding> RTBinding{ stageRTBinding, false, true };
-	return IterateRenderPass(length, queryPasses->queryStream.size(), &RTBinding, { stageZBinding, false, true }, stageOutput,
+	RenderPasses::PassROPBinding<RenderPasses::RenderStageRTBinding> RTBinding{ stageRTBinding, false, true };
+	return IterateRenderPass(length, queryPasses->queryStream.size(), &RTBinding, { stageZBinding, false, true }, ROPOutput,
 		[] { phaseSelector = static_cast<decltype(phaseSelector)>(&DebugRenderStage::GetAABBPassPost); },
-		[this](unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RenderPass &renderPass) { return bind(&DebugRenderStage::AABBPassRange, shared_from_this(), _1, rangeBegin, rangeEnd, move(renderPass), true); });
+		[this](unsigned long rangeBegin, unsigned long rangeEnd, const RenderPasses::RangeRenderPass &renderPass) { return bind(&DebugRenderStage::AABBPassRange, shared_from_this(), _1, rangeBegin, rangeEnd, move(renderPass), true); });
 }
 
 auto Impl::World::DebugRenderStage::GetAABBPassPost(unsigned int &) const -> RenderPipeline::PipelineItem
@@ -901,7 +890,7 @@ Impl::World::DebugRenderStage::DebugRenderStage(D3D12_GPU_VIRTUAL_ADDRESS camera
 	cameraSettingsGPUAddress(cameraSettingsGPUAddress),
 	stageRTBinding(ROPTargets),
 	stageZBinding(ROPTargets, true, false),
-	stageOutput(ROPTargets)
+	ROPOutput(ROPTargets)
 {
 }
 
@@ -965,6 +954,16 @@ UINT64 Impl::World::GetCurFrameGPUDataPtr()
 	return globalGPUBuffer->GetGPUVirtualAddress() + GlobalGPUBufferData::PerFrameData::CurFrameCB_offset();
 }
 
+D3D12_INDEX_BUFFER_VIEW Renderer::Impl::World::GetBoxIBView()
+{
+	return
+	{
+		globalGPUBuffer->GetGPUVirtualAddress() + GlobalGPUBufferData::BoxIB_offset(),
+		sizeof GlobalGPUBufferData::boxIB,
+		DXGI_FORMAT_R16_UINT
+	};
+}
+
 // defined here, not in class in order to eliminate dependency on "instance.hh" in "world.hh"
 #if defined _MSC_VER && _MSC_VER <= 1927
 inline const AABB<3> &Impl::World::BVHObject::GetAABB() const noexcept
@@ -993,7 +992,7 @@ void Impl::World::InvalidateStaticObjects()
 	bvhView.Reset();
 }
 
-Impl::World::World(const float(&terrainXform)[4][3], float zenith, float azimuth) : sunDir{ zenith, azimuth }
+Impl::World::World(const float(&terrainXform)[4][3], Renderer::Sky &&sky, float zenith, float azimuth) : sky(move(sky)), sunDir{ zenith, azimuth }
 {
 	CheckSunZenithArg(zenith);
 	memcpy(this->terrainXform, terrainXform, sizeof terrainXform);
@@ -1007,7 +1006,9 @@ static inline void CopyMatrix2CB(const float (&src)[rows][columns], volatile Imp
 	copy_n(src, rows, dst);
 }
 
-void Impl::World::Render(WorldViewContext &viewCtx, const float (&viewXform)[4][3], const float (&projXform)[4][4], const float (&projParams)[3], const float3 &camAdaptationFactors, UINT64 cameraSettingsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) const
+void Impl::World::Render(WorldViewContext &viewCtx, const float (&viewXform)[4][3], const float (&projXform)[4][4], const float (&projParams)[3], const float3 &camAdaptationFactors,
+	UINT64 cameraSettingsGPUAddress, D3D12_GPU_DESCRIPTOR_HANDLE skyboxDescriptorTable,
+	PerViewCmdBuffers::DeferredCmdBuffersProvider viewCmdBuffersProvider, const RenderPasses::PipelineROPTargets &ROPTargets) const
 {
 	using namespace placeholders;
 
@@ -1028,6 +1029,7 @@ void Impl::World::Render(WorldViewContext &viewCtx, const float (&viewXform)[4][
 		CopyMatrix2CB(projXform, curFrameCB_region.projXform);
 		CopyMatrix2CB(viewXform, curFrameCB_region.viewXform);
 		CopyMatrix2CB(terrainXform, curFrameCB_region.terrainXform);
+		curFrameCB_region.skyLuminanceScale = sky.GetLumScale();
 		const float3 sunDir = Sun::Dir(this->sunDir.zenith, this->sunDir.azimuth);
 		curFrameCB_region.sun.dir = reinterpret_cast<const float (&)[3]>(mul(sunDir, viewTransform));
 		curFrameCB_region.sun.irradiance = reinterpret_cast<const float (&)[3]>(Sun::Irradiance(this->sunDir.zenith, sunDir.z));
@@ -1045,6 +1047,8 @@ void Impl::World::Render(WorldViewContext &viewCtx, const float (&viewXform)[4][
 	terrainStagesExchange.reserve(terrainVectorLayers.size());
 	transform(terrainVectorLayers.cbegin(), terrainVectorLayers.cend(), back_inserter(terrainStagesExchange), bind(&decltype(terrainVectorLayers)::value_type::ScheduleRenderStage,
 		_1, FrustumCuller<2>(frustumTransform), cref(frustumTransform), cameraSettingsGPUAddress, cref(ROPTargets)));
+
+	sky.Render(cameraSettingsGPUAddress, skyboxDescriptorTable, viewCmdBuffersProvider, ROPTargets);
 
 	extern bool enableDebugDraw;
 	if (enableDebugDraw)
@@ -1141,7 +1145,8 @@ void Impl::World::FlushUpdates() const
 	}
 }
 
-auto Impl::World::ScheduleRenderStage(WorldViewContext &viewCtx, const float4x4 &frustumTransform, const float4x3 &worldViewTransform, UINT64 cameraSettingsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) const -> StageExchange
+auto Impl::World::ScheduleRenderStage(WorldViewContext &viewCtx, const float4x4 &frustumTransform, const float4x3 &worldViewTransform,
+	UINT64 cameraSettingsGPUAddress, const RenderPasses::PipelineROPTargets &ROPTargets) const -> StageExchange
 {
 	return MainRenderStage::Schedule(shared_from_this(), viewCtx, frustumTransform, worldViewTransform, cameraSettingsGPUAddress, ROPTargets);
 }
@@ -1151,7 +1156,7 @@ void Impl::World::ScheduleDebugDrawRenderStage(UINT64 cameraSettingsGPUAddress, 
 	DebugRenderStage::Schedule(cameraSettingsGPUAddress, ROPTargets, move(stageExchange));
 }
 
-shared_ptr<World> __cdecl Renderer::MakeWorld(const float (&terrainXform)[4][3], float zenith, float azimuth)
+shared_ptr<World> __cdecl Renderer::MakeWorld(const float (&terrainXform)[4][3], Sky sky, float zenith, float azimuth)
 {
-	return allocate_shared<World>(Misc::AllocatorProxy<World>(), terrainXform, zenith, azimuth);
+	return allocate_shared<World>(Misc::AllocatorProxy<World>(), terrainXform, move(sky), zenith, azimuth);
 }

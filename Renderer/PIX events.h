@@ -6,6 +6,7 @@ namespace Renderer::PIXEvents
 	{
 		ViewportPre,
 		ViewportPost,
+		Skybox,
 		TerrainLayer,
 		TerrainOcclusionQueryPass,
 		TerrainMainPass,

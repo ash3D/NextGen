@@ -13,7 +13,7 @@ using namespace RenderPasses;
 PipelineItem (IRenderStage::*IRenderStage::phaseSelector)(unsigned int &length) const;
 unsigned long IRenderStage::curRangeBegin;
 
-static void FastForward(CmdListPool::CmdList &cmdList, const optional<PassROPBinding<StageRTBinding>> &RTBinding, const PassROPBinding<StageZBinding> &ZBinding)
+static void FastForward(CmdListPool::CmdList &cmdList, const optional<PassROPBinding<RenderStageRTBinding>> &RTBinding, const PassROPBinding<RenderStageZBinding> &ZBinding)
 {
 	cmdList.Setup(NULL);
 
@@ -29,8 +29,8 @@ PipelineItem IRenderStage::IterateRenderPass(unsigned int &length, const signed 
 }
 
 PipelineItem IRenderStage::IterateRenderPass(unsigned int &length, const signed long int passLength,
-	const PassROPBinding<StageRTBinding> *RTBinding, const PassROPBinding<StageZBinding> &ZBinding, const StageOutput &output,
-	const function<void ()> &PassFinish, const function<RenderStageItem::Work (unsigned long rangeBegin, unsigned long rangeEnd, const RenderPass &renderPass)> &GetRenderRange) const
+	const PassROPBinding<RenderStageRTBinding> *RTBinding, const PassROPBinding<RenderStageZBinding> &ZBinding, const ROPOutput &output,
+	const function<void ()> &PassFinish, const function<RenderStageItem::Work (unsigned long rangeBegin, unsigned long rangeEnd, const RangeRenderPass &renderPass)> &GetRenderRange) const
 {
 	const auto PassExhausted = [&]
 	{
@@ -39,7 +39,7 @@ PipelineItem IRenderStage::IterateRenderPass(unsigned int &length, const signed 
 	};
 	const auto GetRenderRangeWrapper = [&](signed long curRangeEnd)
 	{
-		const RenderPass renderPass(RTBinding, ZBinding, output, curRangeBegin == 0, curRangeEnd == passLength);
+		const RangeRenderPass renderPass(RTBinding, ZBinding, output, curRangeBegin == 0, curRangeEnd == passLength);
 		return PipelineItem{ GetRenderRange(curRangeBegin, curRangeEnd, renderPass), renderPass.Suspended() };
 	};
 	return IterateRenderPass(length, passLength, PassFinish, PassExhausted, GetRenderRangeWrapper);
