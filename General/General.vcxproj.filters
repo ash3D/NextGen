@@ -42,9 +42,6 @@
     <ClInclude Include="splines.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="rotate.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="misc.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -61,9 +58,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="SIMD.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="popcnt.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="align.h">

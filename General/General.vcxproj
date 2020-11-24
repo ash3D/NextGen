@@ -325,8 +325,6 @@
     <ClInclude Include="hermite.h" />
     <ClInclude Include="nv_algebra.h" />
     <ClInclude Include="misc.h" />
-    <ClInclude Include="popcnt.h" />
-    <ClInclude Include="rotate.h" />
     <ClInclude Include="SIMD.h" />
     <ClInclude Include="splines.h" />
     <ClInclude Include="system.h" />
