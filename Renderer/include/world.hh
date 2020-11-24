@@ -112,7 +112,7 @@ namespace Renderer
 				operator const Renderer::Instance *() const noexcept { return instance; }
 
 			public:
-#if defined _MSC_VER && _MSC_VER <= 1927
+#if defined _MSC_VER && _MSC_VER <= 1928
 				inline const AABB<3> &GetAABB() const noexcept;
 #else
 				inline const auto &GetAABB() const noexcept;
@@ -182,7 +182,7 @@ namespace Renderer
 	{
 		template<class>
 		friend class Misc::AllocatorProxyAdaptor;
-#if defined _MSC_VER && _MSC_VER > 1924 && _MSC_VER <= 1927
+#if defined _MSC_VER && _MSC_VER > 1924 && _MSC_VER <= 1928
 		friend std::shared_ptr<World> __cdecl MakeWorld(const float (&terrainXform)[4][3], Sky sky, float zenith, float azimuth);
 #else
 		friend std::shared_ptr<World> __cdecl MakeWorld(const float (&terrainXform)[4][3], Sky sky, float zenith = 0, float azimuth = 0);
@@ -196,7 +196,7 @@ namespace Renderer
 		~World() = default;
 	};
 
-#if defined _MSC_VER && _MSC_VER > 1924 && _MSC_VER <= 1927
+#if defined _MSC_VER && _MSC_VER > 1924 && _MSC_VER <= 1928
 	std::shared_ptr<World> __cdecl MakeWorld(const float (&terrainXform)[4][3], Sky sky, float zenith = 0, float azimuth = 0);
 #endif
 }

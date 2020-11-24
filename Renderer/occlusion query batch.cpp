@@ -128,10 +128,12 @@ void QueryBatch<TRANSIENT>::FinalSetup()
 
 				static unsigned long version;
 
+				const CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
+				const auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(newResultsSize);
 				CheckHR(device->CreateCommittedResource(
-					&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+					&heapProps,
 					D3D12_HEAP_FLAG_NONE,
-					&CD3DX12_RESOURCE_DESC::Buffer(newResultsSize),
+					&bufferDesc,
 					D3D12_RESOURCE_STATE_COPY_DEST,
 					NULL,	// clear value
 					IID_PPV_ARGS(resultsPool.ReleaseAndGetAddressOf())));
@@ -191,10 +193,12 @@ void QueryBatch<PERSISTENT>::FinalSetup()
 {
 	if (const unsigned long requiredSize = count * sizeof(UINT64); !batchResults || batchResults->GetDesc().Width < requiredSize)
 	{
+		const CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
+		const auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(requiredSize);
 		CheckHR(device->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			&heapProps,
 			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(requiredSize),
+			&bufferDesc,
 			D3D12_RESOURCE_STATE_COPY_DEST,
 			NULL,	// clear value
 			IID_PPV_ARGS(batchResults.ReleaseAndGetAddressOf())));
@@ -237,10 +241,12 @@ void QueryBatch<DUAL>::FinalSetup()
 {
 	if (const unsigned long moietySize = count * sizeof(UINT64), requiredSize = AlignSize(moietySize, alignment) + moietySize; !batchResults || batchResults->GetDesc().Width < requiredSize)
 	{
+		const CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
+		const auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(requiredSize);
 		CheckHR(device->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			&heapProps,
 			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(requiredSize),
+			&bufferDesc,
 			D3D12_RESOURCE_STATE_COPY_DEST,
 			NULL,	// clear value
 			IID_PPV_ARGS(batchResults.ReleaseAndGetAddressOf())));

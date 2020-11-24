@@ -138,7 +138,8 @@ auto Impl::Sky::RecordRenderCommands(UINT64 cameraSettingsGPUAddress, D3D12_GPU_
 		cmdList->SetGraphicsRootConstantBufferView(ROOT_PARAM_CAM_SETTINGS_CBV, cameraSettingsGPUAddress);
 
 		// setup box IB
-		cmdList->IASetIndexBuffer(&World::GetBoxIBView());
+		const auto boxIBView = World::GetBoxIBView();
+		cmdList->IASetIndexBuffer(&boxIBView);
 
 		cmdList->DrawIndexedInstanced(14, 1, 0, 0, 0);
 	}

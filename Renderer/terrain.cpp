@@ -793,10 +793,12 @@ TerrainVectorQuad::TerrainVectorQuad(shared_ptr<TerrainVectorLayer> &&layer, uns
 {
 	// create and fill VIB
 	{
+		const CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
+		const auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(VB_size + IB_size);
 		CheckHR(device->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+			&heapProps,
 			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(VB_size + IB_size),
+			&bufferDesc,
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			NULL,	// clear value
 			IID_PPV_ARGS(&VIB)));
@@ -810,8 +812,9 @@ TerrainVectorQuad::TerrainVectorQuad(shared_ptr<TerrainVectorLayer> &&layer, uns
 		NameObjectF(VIB.Get(), L"terrain layer[%u] \"%s\" quad[<%.f:%.f>-<%.f:%.f>]", this->layer->layerIdx, this->layer->layerName.c_str(), float(aabb.min.x), float(aabb.min.y), float(aabb.max.x), float(aabb.max.y));
 #endif
 
+		const CD3DX12_RANGE emptyReadRange(0, 0);
 		volatile void *writePtr;
-		CheckHR(VIB->Map(0, &CD3DX12_RANGE(0, 0), const_cast<void **>(&writePtr)));
+		CheckHR(VIB->Map(0, &emptyReadRange, const_cast<void **>(&writePtr)));
 
 		// VB
 		fillVB(reinterpret_cast<volatile float (*)[2]>(writePtr));

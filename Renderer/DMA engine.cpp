@@ -230,10 +230,12 @@ void DMA::Upload2VRAM(const ComPtr<ID3D12Resource> &dst, span<const D3D12_SUBRES
 		assert(!curBatchLen);
 
 		// defer chunk recreation after waiting for GPU in 'GetCmdList()' above (and releasing ref to old chunk in 'CleanupFinishedUploads()') to avoid RAM overuse - destroy old chunk before creating new one
+		const CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
+		const auto chunkDesc = CD3DX12_RESOURCE_DESC::Buffer(AlignSize<D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT>(max<UINT64>(defaultChunkSize, curBatchSuballocOffset)));
 		CheckHR(device->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+			&heapProps,
 			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(AlignSize<D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT>(max<UINT64>(defaultChunkSize, curBatchSuballocOffset))),
+			&chunkDesc,
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			NULL,	// clear value
 			IID_PPV_ARGS(curBatch->chunk.ReleaseAndGetAddressOf())));
@@ -268,8 +270,9 @@ void DMA::Upload2VRAM(const ComPtr<ID3D12Resource> &dst, span<const D3D12_SUBRES
 	packaged_task<void()> deferred([&, curBatch]
 		{
 			// copy data to upload chunk
+			const CD3DX12_RANGE emptyReadRange(0, 0);
 			std::byte *uploadPtr;
-			CheckHR(curBatch->chunk->Map(0, &CD3DX12_RANGE(0, 0), reinterpret_cast<void **>(&uploadPtr)));
+			CheckHR(curBatch->chunk->Map(0, &emptyReadRange, reinterpret_cast<void **>(&uploadPtr)));
 			for (unsigned i = 0; i < src.size(); i++)
 			{
 				const auto &curLayout = layouts[i];

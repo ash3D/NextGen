@@ -318,9 +318,11 @@ bool RenderPasses::RangeRenderPass::Suspended() const noexcept
 
 void RenderPasses::RangeRenderPass::operator()(CmdListPool::CmdList &cmdList) const
 {
-	cmdList->BeginRenderPass(bool(RTBinding.stageBinding),
-		RTBinding.stageBinding ? &RTBinding.stageBinding->RenderPassBinding(RTBinding.open, RTBinding.close) : NULL,
-		&ZBinding.stageBinding.RenderPassBinding(ZBinding.open, ZBinding.close), Flags());
+	D3D12_RENDER_PASS_RENDER_TARGET_DESC passRTBinding;
+	if (RTBinding.stageBinding)
+		passRTBinding = RTBinding.stageBinding->RenderPassBinding(RTBinding.open, RTBinding.close);
+	const auto passZBinding = ZBinding.stageBinding.RenderPassBinding(ZBinding.open, ZBinding.close);
+	cmdList->BeginRenderPass(bool(RTBinding.stageBinding), &passRTBinding, &passZBinding, Flags());
 	output.Setup(cmdList);
 }
 
@@ -359,7 +361,9 @@ RenderPasses::RangeRenderPassScope::~RangeRenderPassScope()
 RenderPasses::LocalRenderPassScope::LocalRenderPassScope(ID3D12GraphicsCommandList4 *cmdList, const PipelineStageRTBinding &RTBinding, const PipelineStageZBinding &ZBinding, const ROPOutput &output) :
 	cmdList(cmdList), RTBinding(RTBinding)
 {
-	cmdList->BeginRenderPass(1, &RTBinding.RenderPassBinding(), &ZBinding.RenderPassBinding(), D3D12_RENDER_PASS_FLAG_NONE);
+	const auto passRTBinding = RTBinding.RenderPassBinding();
+	const auto passZBinding = ZBinding.RenderPassBinding();
+	cmdList->BeginRenderPass(1, &passRTBinding, &passZBinding, D3D12_RENDER_PASS_FLAG_NONE);
 	output.Setup(cmdList);
 }
 

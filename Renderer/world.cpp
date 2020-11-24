@@ -225,7 +225,10 @@ void Impl::World::MainRenderStage::XformAABBPassRange(CmdListPool::CmdList &cmdL
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
 
 	// set SO
-	cmdList->SOSetTargets(0, 1, &queryPasses->xformedAABBs.GetSOView());
+	{
+		const auto SOView = queryPasses->xformedAABBs.GetSOView();
+		cmdList->SOSetTargets(0, 1, &SOView);
+	}
 
 	ID3D12Resource *curSrcVB = NULL;
 	do
@@ -259,13 +262,14 @@ void Impl::World::MainRenderStage::CullPassRange(CmdListPool::CmdList &cmdList, 
 
 	// setup IB/VB
 	{
+		const auto boxIBView = GetBoxIBView();
 		const D3D12_VERTEX_BUFFER_VIEW VB_view =
 		{
 			queryPasses->xformedAABBs.GetGPUPtr(),
 			queryPasses->xformedAABBs.GetSize(),
 			queryPasses->xformedAABBSize
 		};
-		cmdList->IASetIndexBuffer(&GetBoxIBView());
+		cmdList->IASetIndexBuffer(&boxIBView);
 		cmdList->IASetVertexBuffers(0, 1, &VB_view);
 	}
 
@@ -400,7 +404,10 @@ void Impl::World::MainRenderStage::StagePre(CmdListPool::CmdList &cmdList) const
 				cmdList.ResourceBarrier(barriers);
 				cmdList.FlushBarriers<true>();
 			}
-			cmdList->CopyTextureRegion(&CD3DX12_TEXTURE_COPY_LOCATION(stageZPrecullBinding.GetZBuffer(), 0), 0, 0, 0, &CD3DX12_TEXTURE_COPY_LOCATION(viewCtx.ZBufferHistory.Get(), 0), NULL);
+			{
+				const CD3DX12_TEXTURE_COPY_LOCATION copyDst(stageZPrecullBinding.GetZBuffer(), 0), copySrc(viewCtx.ZBufferHistory.Get(), 0);
+				cmdList->CopyTextureRegion(&copyDst, 0, 0, 0, &copySrc, NULL);
+			}
 			{
 				initializer_list<D3D12_RESOURCE_BARRIER> barriers
 				{
@@ -474,8 +481,9 @@ void Impl::World::MainRenderStage::StagePost(CmdListPool::CmdList &cmdList) cons
 		cmdList.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(viewCtx.ZBufferHistory.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY));
 	else
 	{
+		const CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
 		CheckHR(device->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			&heapProps,
 			D3D12_HEAP_FLAG_NONE,
 			&targetZDesc,
 			D3D12_RESOURCE_STATE_COPY_DEST,
@@ -821,13 +829,14 @@ void Impl::World::DebugRenderStage::AABBPassRange(CmdListPool::CmdList &cmdList,
 
 	// setup IB/VB (consider sharing this with cull pass)
 	{
+		const auto boxIBView = GetBoxIBView();
 		const D3D12_VERTEX_BUFFER_VIEW VB_view =
 		{
 			queryPasses->xformedAABBs.GetGPUPtr(),
 			queryPasses->xformedAABBs.GetSize(),
 			queryPasses->xformedAABBSize
 		};
-		cmdList->IASetIndexBuffer(&GetBoxIBView());
+		cmdList->IASetIndexBuffer(&boxIBView);
 		cmdList->IASetVertexBuffers(0, 1, &VB_view);
 	}
 
@@ -909,11 +918,13 @@ void Impl::World::DebugRenderStage::Schedule(D3D12_GPU_VIRTUAL_ADDRESS cameraSet
 
 ComPtr<ID3D12Resource> Impl::World::CreateGlobalGPUBuffer()
 {
+	const CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
+	const auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(GlobalGPUBufferData)/*, D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE*/);
 	ComPtr<ID3D12Resource> buffer;
 	CheckHR(device->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+		&heapProps,
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(sizeof(GlobalGPUBufferData)/*, D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE*/),
+		&bufferDesc,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		NULL,	// clear value
 		IID_PPV_ARGS(buffer.GetAddressOf())));
@@ -965,7 +976,7 @@ D3D12_INDEX_BUFFER_VIEW Renderer::Impl::World::GetBoxIBView()
 }
 
 // defined here, not in class in order to eliminate dependency on "instance.hh" in "world.hh"
-#if defined _MSC_VER && _MSC_VER <= 1927
+#if defined _MSC_VER && _MSC_VER <= 1928
 inline const AABB<3> &Impl::World::BVHObject::GetAABB() const noexcept
 #else
 inline const auto &Impl::World::BVHObject::GetAABB() const noexcept
@@ -1121,26 +1132,33 @@ void Impl::World::FlushUpdates() const
 		if (!staticObjectsCB)
 		{
 			// create
-			CheckHR(device->CreateCommittedResource(
-				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-				D3D12_HEAP_FLAG_NONE,
-				&CD3DX12_RESOURCE_DESC::Buffer(sizeof(StaticObjectData) * staticObjects.size()/*, D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE*/),
-				D3D12_RESOURCE_STATE_GENERIC_READ,
-				NULL,	// clear value
-				IID_PPV_ARGS(staticObjectsCB.GetAddressOf())));
-			NameObjectF(staticObjectsCB.Get(), L"static objects CB for world %p (%zu instances)", static_cast<const ::World *>(this), staticObjects.size());
+			{
+				const CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
+				const auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(StaticObjectData) * staticObjects.size()/*, D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE*/);
+				CheckHR(device->CreateCommittedResource(
+					&heapProps,
+					D3D12_HEAP_FLAG_NONE,
+					&bufferDesc,
+					D3D12_RESOURCE_STATE_GENERIC_READ,
+					NULL,	// clear value
+					IID_PPV_ARGS(staticObjectsCB.GetAddressOf())));
+				NameObjectF(staticObjectsCB.Get(), L"static objects CB for world %p (%zu instances)", static_cast<const ::World *>(this), staticObjects.size());
+			}
 
 			// fill
-			static_assert(is_standard_layout_v<StaticObjectData>);
-			volatile StaticObjectData *mapped;
-			CheckHR(staticObjectsCB->Map(0, &CD3DX12_RANGE(0, 0), const_cast<void **>(reinterpret_cast<volatile void **>(&mapped))));
-			for (auto CB_GPU_ptr = staticObjectsCB->GetGPUVirtualAddress(); auto &instance : staticObjects)
 			{
-				CopyMatrix2CB(instance.GetWorldXform(), mapped++->worldXform);
-				instance.CB_GPU_ptr = CB_GPU_ptr;
-				CB_GPU_ptr += sizeof(StaticObjectData);
+				static_assert(is_standard_layout_v<StaticObjectData>);
+				const CD3DX12_RANGE emptyReadRange(0, 0);
+				volatile StaticObjectData *mapped;
+				CheckHR(staticObjectsCB->Map(0, &emptyReadRange, const_cast<void **>(reinterpret_cast<volatile void **>(&mapped))));
+				for (auto CB_GPU_ptr = staticObjectsCB->GetGPUVirtualAddress(); auto & instance : staticObjects)
+				{
+					CopyMatrix2CB(instance.GetWorldXform(), mapped++->worldXform);
+					instance.CB_GPU_ptr = CB_GPU_ptr;
+					CB_GPU_ptr += sizeof(StaticObjectData);
+				}
+				staticObjectsCB->Unmap(0, NULL);
 			}
-			staticObjectsCB->Unmap(0, NULL);
 		}
 	}
 }

@@ -29,7 +29,7 @@ namespace Math::SIMD
 		friend inline XMM &__vectorcall operator +=(XMM &left, XMM right) noexcept, &__vectorcall operator -=(XMM &left, XMM right) noexcept, &__vectorcall operator *=(XMM &left, XMM right) noexcept, &__vectorcall operator /=(XMM &left, XMM right) noexcept;
 	};
 
-#if defined _MSC_VER && _MSC_VER > 1924 && _MSC_VER <= 1927
+#if defined _MSC_VER && _MSC_VER > 1924 && _MSC_VER <= 1928
 	inline XMM __vectorcall operator +(XMM src) noexcept, __vectorcall operator -(XMM src) noexcept;
 	inline XMM __vectorcall operator +(XMM left, XMM right) noexcept, __vectorcall operator -(XMM left, XMM right) noexcept, __vectorcall operator *(XMM left, XMM right) noexcept, __vectorcall operator /(XMM left, XMM right) noexcept;
 	inline XMM &__vectorcall operator +=(XMM &left, XMM right) noexcept, &__vectorcall operator -=(XMM &left, XMM right) noexcept, &__vectorcall operator *=(XMM &left, XMM right) noexcept, &__vectorcall operator /=(XMM &left, XMM right) noexcept;

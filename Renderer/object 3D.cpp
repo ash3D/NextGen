@@ -774,24 +774,28 @@ Impl::Object3D::Object3D(unsigned short int subobjCount, const SubobjectDataCall
 		IB_size = tricount * sizeof *SubobjectDataBase::tris;
 
 	// create GPUBuffer
-	CheckHR(device->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(
-			CB_size + VB_size * 2/*coord + N*/ + UVB_size + TGB_size + IB_size),
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		NULL,	// clear value
-		IID_PPV_ARGS(GPUBuffer.GetAddressOf())));
+	{
+		const CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
+		const auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(CB_size + VB_size * 2/*coord + N*/ + UVB_size + TGB_size + IB_size);
+		CheckHR(device->CreateCommittedResource(
+			&heapProps,
+			D3D12_HEAP_FLAG_NONE,
+			&bufferDesc,
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			NULL,	// clear value
+			IID_PPV_ARGS(GPUBuffer.GetAddressOf())));
 #ifdef _MSC_VER
-	NameObjectF(GPUBuffer.Get(), L"\"%ls\" geometry (contains %hu subobjects)", convertedName.c_str(), subobjCount);
+		NameObjectF(GPUBuffer.Get(), L"\"%ls\" geometry (contains %hu subobjects)", convertedName.c_str(), subobjCount);
 #else
-	NameObjectF(GPUBuffer.Get(), L"\"%s\" geometry (contains %hu subobjects)", name.c_str(), subobjCount);
+		NameObjectF(GPUBuffer.Get(), L"\"%s\" geometry (contains %hu subobjects)", name.c_str(), subobjCount);
 #endif
+	}
 
 	// fill GPUBuffer (second pass)
 	{
+		const CD3DX12_RANGE emptyReadRange(0, 0);
 		volatile void *CB_ptr;
-		CheckHR(GPUBuffer->Map(0, &CD3DX12_RANGE(0, 0), const_cast<void **>(&CB_ptr)));
+		CheckHR(GPUBuffer->Map(0, &emptyReadRange, const_cast<void **>(&CB_ptr)));
 		float (*const VB_ptr)[3] = reinterpret_cast<float (*)[3]>(reinterpret_cast<std::byte *>(const_cast<void *>(CB_ptr)) + CB_size);
 		float (*const NB_ptr)[3] = VB_ptr + vcount, (*const UVB_ptr)[2] = reinterpret_cast<float (*)[2]>(NB_ptr + vcount), (*const TGB_ptr)[2][3] = reinterpret_cast<float (*)[2][3]>(UVB_ptr + uvcount);
 		uint16_t (*IB_ptr)[3] = reinterpret_cast<uint16_t (*)[3]>(TGB_ptr + tgcount);

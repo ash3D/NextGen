@@ -196,7 +196,8 @@ Impl::Texture::Texture(const filesystem::path &fileName, TextureUsage usage, boo
 		//TODO: implement loop tiling optimization for cache-friendly access pattern (https://docs.microsoft.com/en-us/windows/desktop/api/d3d12/nf-d3d12-id3d12resource-writetosubresource#remarks)
 		for (unsigned mip = 0; mip < size(subresources); mip++)
 		{
-			CheckHR(tex->Map(mip, &CD3DX12_RANGE(0, 0), NULL));
+			const CD3DX12_RANGE emptyReadRange(0, 0);
+			CheckHR(tex->Map(mip, &emptyReadRange, NULL));
 			const auto &curMipData = subresources[mip];
 			CheckHR(tex->WriteToSubresource(mip, NULL, curMipData.pData, curMipData.RowPitch, curMipData.SlicePitch));
 			tex->Unmap(mip, NULL);

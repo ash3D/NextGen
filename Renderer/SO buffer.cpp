@@ -40,7 +40,8 @@ void Handle::StartSO(CmdListPool::CmdList &cmdList) const
 
 		// clear SO counter (is current approach safe?)
 		cmdList.FlushBarriers();
-		cmdList->WriteBufferImmediate(1, &D3D12_WRITEBUFFERIMMEDIATE_PARAMETER{buffer->GetGPUVirtualAddress() + size, 0}, NULL);
+		const D3D12_WRITEBUFFERIMMEDIATE_PARAMETER writeParam = { buffer->GetGPUVirtualAddress() + size, 0 };
+		cmdList->WriteBufferImmediate(1, &writeParam, NULL);
 
 		// transition to SO target state
 		cmdList.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(buffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_STREAM_OUT));
@@ -103,10 +104,12 @@ Handle AllocatorBase::Allocate(unsigned long payloadSize, D3D12_RESOURCE_STATES 
 				lock_guard exclusiveLock(mtx);
 				if (!buffer || totalSize > buffer->GetDesc().Width)
 				{
+					const CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
+					const auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(totalSize);
 					CheckHR(device->CreateCommittedResource(
-						&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+						&heapProps,
 						D3D12_HEAP_FLAG_NONE,
-						&CD3DX12_RESOURCE_DESC::Buffer(totalSize),
+						&bufferDesc,
 						D3D12_RESOURCE_STATE_COPY_DEST,
 						NULL,	// clear value
 						IID_PPV_ARGS(buffer.ReleaseAndGetAddressOf())));

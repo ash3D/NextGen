@@ -11,8 +11,9 @@ void AllocatorBase::AllocateChunk(const D3D12_RESOURCE_DESC &chunkDesc, LPCWSTR 
 	extern Microsoft::WRL::ComPtr<ID3D12Device4> device;
 	void NameObjectF(ID3D12Object *object, LPCWSTR format, ...) noexcept;
 
+	const CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
 	CheckHR(device->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+		&heapProps,
 		D3D12_HEAP_FLAG_NONE,
 		&chunkDesc,
 		D3D12_RESOURCE_STATE_GENERIC_READ,

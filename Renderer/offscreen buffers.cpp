@@ -157,7 +157,8 @@ namespace Renderer::Impl::OffscreenBuffersLayout
 			{
 				static inline UINT64 ZBuffer(const OffscreenBuffersDesc &offscreenBuffersDesc, LifetimeRange<&OffscreenBuffers::GetPersistentBuffers> &persistent)
 				{
-					const D3D12_RESOURCE_ALLOCATION_INFO ZBufferAllocation = device->GetResourceAllocationInfo(0, 1, &offscreenBuffersDesc.ZBuffer());
+					const auto ZBufferDesc = offscreenBuffersDesc.ZBuffer();
+					const D3D12_RESOURCE_ALLOCATION_INFO ZBufferAllocation = device->GetResourceAllocationInfo(0, 1, &ZBufferDesc);
 					persistent.ZBuffer.offset = 0;
 					persistent.ZBuffer.size = ZBufferAllocation.SizeInBytes;
 					ApplyHeapOffset(persistent.ZBuffer);
@@ -194,7 +195,8 @@ namespace Renderer::Impl::OffscreenBuffersLayout
 
 				static inline UINT64 Rendertarget(const OffscreenBuffersDesc &offscreenBuffersDesc, LifetimeRange<&OffscreenBuffers::GetWorldBuffers> &world, UINT64 baseOffset)
 				{
-					const D3D12_RESOURCE_ALLOCATION_INFO rendertargetAllocation = device->GetResourceAllocationInfo(0, 1, &offscreenBuffersDesc.Rendertarget());
+					const auto rendertargetDesc = offscreenBuffersDesc.Rendertarget();
+					const D3D12_RESOURCE_ALLOCATION_INFO rendertargetAllocation = device->GetResourceAllocationInfo(0, 1, &rendertargetDesc);
 					world.rendertarget.offset = AlignSize(baseOffset, rendertargetAllocation.Alignment);
 					world.rendertarget.size = rendertargetAllocation.SizeInBytes;
 					const auto rendertargetPadding = world.rendertarget.offset/*aligned*/ - baseOffset;
@@ -232,7 +234,8 @@ namespace Renderer::Impl::OffscreenBuffersLayout
 			{
 				static inline UINT64 HDRCompositeSurface(const OffscreenBuffersDesc &offscreenBuffersDesc, LifetimeRange<&OffscreenBuffers::GetPostFXBuffers> &postFX)
 				{
-					const D3D12_RESOURCE_ALLOCATION_INFO HDRCompositeSurfaceAllocation = device->GetResourceAllocationInfo(0, 1, &offscreenBuffersDesc.HDRCompositeSurface());
+					const auto HDRCompositeSurfaceDesc = offscreenBuffersDesc.HDRCompositeSurface();
+					const D3D12_RESOURCE_ALLOCATION_INFO HDRCompositeSurfaceAllocation = device->GetResourceAllocationInfo(0, 1, &HDRCompositeSurfaceDesc);
 					postFX.HDRCompositeSurface.offset = 0;
 					postFX.HDRCompositeSurface.size = HDRCompositeSurfaceAllocation.SizeInBytes;
 					ApplyHeapOffset(postFX.HDRCompositeSurface);
@@ -392,11 +395,13 @@ void decltype(OffscreenBuffers::shaders)::MarkupAllocation(const OffscreenBuffer
 
 ComPtr<ID3D12Resource> OffscreenBuffers::CreateLuminanceReductionBuffer()
 {
+	const CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
+	const auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(float[2048][2]), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 	ComPtr<ID3D12Resource> result;
 	CheckHR(device->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		&heapProps,
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(sizeof(float[2048][2]), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS),
+		&bufferDesc,
 		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 		NULL,
 		IID_PPV_ARGS(result.GetAddressOf())
@@ -490,148 +495,188 @@ void OffscreenBuffers::ConstructBuffers()
 		version++;	// preincrement improves exception safety
 
 		// create z/stencil buffer
-		CheckHR(device->CreatePlacedResource(
-			ROPs.VRAMBackingStore.Get(),
-			OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.persistent.ZBuffer.offset),
-			&buffersDesc.ZBuffer(),
-			D3D12_RESOURCE_STATE_DEPTH_WRITE,
-			&CD3DX12_CLEAR_VALUE(Config::ZFormat::ROP, 1.f, 0xef),
-			IID_PPV_ARGS(lifetimeRanges.persistent.ZBuffer.resource.ReleaseAndGetAddressOf())
-		));
-		NameObjectF(lifetimeRanges.persistent.ZBuffer.Resource(), L"Z buffer [%lu] (offscreen buffers object %p)", version, this);
+		{
+			const auto ZBufferDesc = buffersDesc.ZBuffer();
+			const CD3DX12_CLEAR_VALUE ZBufferClear(Config::ZFormat::ROP, 1.f, 0xef);
+			CheckHR(device->CreatePlacedResource(
+				ROPs.VRAMBackingStore.Get(),
+				OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.persistent.ZBuffer.offset),
+				&ZBufferDesc,
+				D3D12_RESOURCE_STATE_DEPTH_WRITE,
+				&ZBufferClear,
+				IID_PPV_ARGS(lifetimeRanges.persistent.ZBuffer.resource.ReleaseAndGetAddressOf())
+			));
+			NameObjectF(lifetimeRanges.persistent.ZBuffer.Resource(), L"Z buffer [%lu] (offscreen buffers object %p)", version, this);
+		}
 
 		// create HDR offscreen surfaces
-		CheckHR(device->CreatePlacedResource(
-			shaders.VRAMBackingStore.Get(),
-			OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.world_postFX_1.HDRInputSurface.offset),
-			&buffersDesc.HDRInputSurface(),
-			D3D12_RESOURCE_STATE_RESOLVE_DEST,
-			NULL,
-			IID_PPV_ARGS(lifetimeRanges.world_postFX_1.HDRInputSurface.resource.ReleaseAndGetAddressOf())
-		));
-		NameObjectF(lifetimeRanges.world_postFX_1.HDRInputSurface.Resource(), L"HDR input surface [%lu] (offscreen buffers object %p)", version, this);
-		CheckHR(device->CreatePlacedResource(
-			shaders.VRAMBackingStore.Get(),
-			OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.postFX.HDRCompositeSurface.offset),
-			&buffersDesc.HDRCompositeSurface(),
-			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-			NULL,
-			IID_PPV_ARGS(lifetimeRanges.postFX.HDRCompositeSurface.resource.ReleaseAndGetAddressOf())
-		));
-		NameObjectF(lifetimeRanges.postFX.HDRCompositeSurface.Resource(), L"HDR composite surface [%lu] (offscreen buffers object %p)", version, this);
+		{
+			const auto HDRInputSurfaceDesc = buffersDesc.HDRInputSurface();
+			CheckHR(device->CreatePlacedResource(
+				shaders.VRAMBackingStore.Get(),
+				OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.world_postFX_1.HDRInputSurface.offset),
+				&HDRInputSurfaceDesc,
+				D3D12_RESOURCE_STATE_RESOLVE_DEST,
+				NULL,
+				IID_PPV_ARGS(lifetimeRanges.world_postFX_1.HDRInputSurface.resource.ReleaseAndGetAddressOf())
+			));
+			NameObjectF(lifetimeRanges.world_postFX_1.HDRInputSurface.Resource(), L"HDR input surface [%lu] (offscreen buffers object %p)", version, this);
+		}
+		{
+			const auto HDRCompositeSurfaceDesc = buffersDesc.HDRCompositeSurface();
+			CheckHR(device->CreatePlacedResource(
+				shaders.VRAMBackingStore.Get(),
+				OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.postFX.HDRCompositeSurface.offset),
+				&HDRCompositeSurfaceDesc,
+				D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+				NULL,
+				IID_PPV_ARGS(lifetimeRanges.postFX.HDRCompositeSurface.resource.ReleaseAndGetAddressOf())
+			));
+			NameObjectF(lifetimeRanges.postFX.HDRCompositeSurface.Resource(), L"HDR composite surface [%lu] (offscreen buffers object %p)", version, this);
+		}
 
 		// create MSAA rendertarget
-		CheckHR(device->CreatePlacedResource(
-			ROPs.VRAMBackingStore.Get(),
-			OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.world.rendertarget.offset),
-			&buffersDesc.Rendertarget(),
-			D3D12_RESOURCE_STATE_RENDER_TARGET,
-			NULL,
-			IID_PPV_ARGS(lifetimeRanges.world.rendertarget.resource.ReleaseAndGetAddressOf())
-		));
-		NameObjectF(lifetimeRanges.world.rendertarget.Resource(), L"MSAA rendertarget [%lu] (offscreen buffers object %p)", version, this);
+		{
+			const auto rendertargetDesc = buffersDesc.Rendertarget();
+			CheckHR(device->CreatePlacedResource(
+				ROPs.VRAMBackingStore.Get(),
+				OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.world.rendertarget.offset),
+				&rendertargetDesc,
+				D3D12_RESOURCE_STATE_RENDER_TARGET,
+				NULL,
+				IID_PPV_ARGS(lifetimeRanges.world.rendertarget.resource.ReleaseAndGetAddressOf())
+			));
+			NameObjectF(lifetimeRanges.world.rendertarget.Resource(), L"MSAA rendertarget [%lu] (offscreen buffers object %p)", version, this);
+		}
 
 		// create DOF opacity buffer
-		CheckHR(device->CreatePlacedResource(
-			shaders.VRAMBackingStore.Get(),
-			OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.postFX_1.DOFOpacityBuffer.offset),
-			&buffersDesc.DOFOpacityBuffer(),
-			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-			NULL,
-			IID_PPV_ARGS(lifetimeRanges.postFX_1.DOFOpacityBuffer.resource.ReleaseAndGetAddressOf())
-		));
-		NameObjectF(lifetimeRanges.postFX_1.DOFOpacityBuffer.Resource(), L"DOF opacity buffer [%lu] (offscreen buffers object %p)", version, this);
+		{
+			const auto DOFOpacityBufferDesc = buffersDesc.DOFOpacityBuffer();
+			CheckHR(device->CreatePlacedResource(
+				shaders.VRAMBackingStore.Get(),
+				OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.postFX_1.DOFOpacityBuffer.offset),
+				&DOFOpacityBufferDesc,
+				D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+				NULL,
+				IID_PPV_ARGS(lifetimeRanges.postFX_1.DOFOpacityBuffer.resource.ReleaseAndGetAddressOf())
+			));
+			NameObjectF(lifetimeRanges.postFX_1.DOFOpacityBuffer.Resource(), L"DOF opacity buffer [%lu] (offscreen buffers object %p)", version, this);
+		}
 
 		// create fullres CoC buffer
-		CheckHR(device->CreatePlacedResource(
-			shaders.VRAMBackingStore.Get(),
-			OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.postFX_1.COCBuffer.offset),
-			&buffersDesc.COCBuffer(),
-			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-			NULL,
-			IID_PPV_ARGS(lifetimeRanges.postFX_1.COCBuffer.resource.ReleaseAndGetAddressOf())
-		));
-		NameObjectF(lifetimeRanges.postFX_1.COCBuffer.Resource(), L"fullres CoC buffer [%lu] (offscreen buffers object %p)", version, this);
+		{
+			const auto COCBufferDesc = buffersDesc.COCBuffer();
+			CheckHR(device->CreatePlacedResource(
+				shaders.VRAMBackingStore.Get(),
+				OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.postFX_1.COCBuffer.offset),
+				&COCBufferDesc,
+				D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+				NULL,
+				IID_PPV_ARGS(lifetimeRanges.postFX_1.COCBuffer.resource.ReleaseAndGetAddressOf())
+			));
+			NameObjectF(lifetimeRanges.postFX_1.COCBuffer.Resource(), L"fullres CoC buffer [%lu] (offscreen buffers object %p)", version, this);
+		}
 
 		// create halfres dilated CoC buffer
-		CheckHR(device->CreatePlacedResource(
-			shaders.VRAMBackingStore.Get(),
-			OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.postFX_1.dilatedCOCBuffer.offset),
-			&buffersDesc.DilatedCOCBuffer(),
-			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-			NULL,
-			IID_PPV_ARGS(lifetimeRanges.postFX_1.dilatedCOCBuffer.resource.ReleaseAndGetAddressOf())
-		));
-		NameObjectF(lifetimeRanges.postFX_1.dilatedCOCBuffer.Resource(), L"halfres dilated CoC buffer [%lu] (offscreen buffers object %p)", version, this);
+		{
+			const auto dilatedCOCBufferDesc = buffersDesc.DilatedCOCBuffer();
+			CheckHR(device->CreatePlacedResource(
+				shaders.VRAMBackingStore.Get(),
+				OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.postFX_1.dilatedCOCBuffer.offset),
+				&dilatedCOCBufferDesc,
+				D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+				NULL,
+				IID_PPV_ARGS(lifetimeRanges.postFX_1.dilatedCOCBuffer.resource.ReleaseAndGetAddressOf())
+			));
+			NameObjectF(lifetimeRanges.postFX_1.dilatedCOCBuffer.Resource(), L"halfres dilated CoC buffer [%lu] (offscreen buffers object %p)", version, this);
+		}
 
 		// create halfres DOF color surface
-		CheckHR(device->CreatePlacedResource(
-			shaders.VRAMBackingStore.Get(),
-			OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.postFX_1.halfresDOFSurface.offset),
-			&buffersDesc.HalfresDOFSurface(),
-			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-			NULL,
-			IID_PPV_ARGS(lifetimeRanges.postFX_1.halfresDOFSurface.resource.ReleaseAndGetAddressOf())
-		));
-		NameObjectF(lifetimeRanges.postFX_1.halfresDOFSurface.Resource(), L"halfres DOF color surface [%lu] (offscreen buffers object %p)", version, this);
+		{
+			const auto halfresDOFSurfaceDesc = buffersDesc.HalfresDOFSurface();
+			CheckHR(device->CreatePlacedResource(
+				shaders.VRAMBackingStore.Get(),
+				OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.postFX_1.halfresDOFSurface.offset),
+				&halfresDOFSurfaceDesc,
+				D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+				NULL,
+				IID_PPV_ARGS(lifetimeRanges.postFX_1.halfresDOFSurface.resource.ReleaseAndGetAddressOf())
+			));
+			NameObjectF(lifetimeRanges.postFX_1.halfresDOFSurface.Resource(), L"halfres DOF color surface [%lu] (offscreen buffers object %p)", version, this);
+		}
 
 		// create DOF blur layers
-		CheckHR(device->CreatePlacedResource(
-			ROPs.VRAMBackingStore.Get(),
-			OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.postFX_1.DOFLayers.offset),
-			&buffersDesc.DOFLayers(),
-			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-			NULL,
-			IID_PPV_ARGS(lifetimeRanges.postFX_1.DOFLayers.resource.ReleaseAndGetAddressOf())
-		));
-		NameObjectF(lifetimeRanges.postFX_1.DOFLayers.Resource(), L"DOF blur layers [%lu] (offscreen buffers object %p)", version, this);
+		{
+			const auto DOFLayersDesc = buffersDesc.DOFLayers();
+			CheckHR(device->CreatePlacedResource(
+				ROPs.VRAMBackingStore.Get(),
+				OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.postFX_1.DOFLayers.offset),
+				&DOFLayersDesc,
+				D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+				NULL,
+				IID_PPV_ARGS(lifetimeRanges.postFX_1.DOFLayers.resource.ReleaseAndGetAddressOf())
+			));
+			NameObjectF(lifetimeRanges.postFX_1.DOFLayers.Resource(), L"DOF blur layers [%lu] (offscreen buffers object %p)", version, this);
+		}
 
 		// create lens flare surface
-		CheckHR(device->CreatePlacedResource(
-			ROPs.VRAMBackingStore.Get(),
-			OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.postFX_1.lensFlareSurface.offset),
-			&buffersDesc.LensFlareSurface(),
-			D3D12_RESOURCE_STATE_RENDER_TARGET,
-			NULL,
-			IID_PPV_ARGS(lifetimeRanges.postFX_1.lensFlareSurface.resource.ReleaseAndGetAddressOf())
-		));
-		NameObjectF(lifetimeRanges.postFX_1.lensFlareSurface.Resource(), L"lens flare surface [%lu] (offscreen buffers object %p)", version, this);
+		{
+			const auto lensFlareSurfaceDesc = buffersDesc.LensFlareSurface();
+			CheckHR(device->CreatePlacedResource(
+				ROPs.VRAMBackingStore.Get(),
+				OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.postFX_1.lensFlareSurface.offset),
+				&lensFlareSurfaceDesc,
+				D3D12_RESOURCE_STATE_RENDER_TARGET,
+				NULL,
+				IID_PPV_ARGS(lifetimeRanges.postFX_1.lensFlareSurface.resource.ReleaseAndGetAddressOf())
+			));
+			NameObjectF(lifetimeRanges.postFX_1.lensFlareSurface.Resource(), L"lens flare surface [%lu] (offscreen buffers object %p)", version, this);
+		}
 
 		// create bloom chains
 		{
 			// up
-			CheckHR(device->CreatePlacedResource(
-				shaders.VRAMBackingStore.Get(),
-				OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.postFX_2.bloomUpChain.offset),
-				&buffersDesc.BloomUpChain(),
-				D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-				NULL,
-				IID_PPV_ARGS(lifetimeRanges.postFX_2.bloomUpChain.resource.ReleaseAndGetAddressOf())
-			));
-			NameObjectF(lifetimeRanges.postFX_2.bloomUpChain.Resource(), L"bloom up chain [%lu] (offscreen buffers object %p)", version, this);
+			{
+				const auto BloomUpChainDesc = buffersDesc.BloomUpChain();
+				CheckHR(device->CreatePlacedResource(
+					shaders.VRAMBackingStore.Get(),
+					OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.postFX_2.bloomUpChain.offset),
+					&BloomUpChainDesc,
+					D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+					NULL,
+					IID_PPV_ARGS(lifetimeRanges.postFX_2.bloomUpChain.resource.ReleaseAndGetAddressOf())
+				));
+				NameObjectF(lifetimeRanges.postFX_2.bloomUpChain.Resource(), L"bloom up chain [%lu] (offscreen buffers object %p)", version, this);
+			}
 
 			// down
-			CheckHR(device->CreatePlacedResource(
-				shaders.VRAMBackingStore.Get(),
-				OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.postFX_2.bloomDownChain.offset),
-				&buffersDesc.BloomDownChain(),
-				D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-				NULL,
-				IID_PPV_ARGS(lifetimeRanges.postFX_2.bloomDownChain.resource.ReleaseAndGetAddressOf())
-			));
-			NameObjectF(lifetimeRanges.postFX_2.bloomDownChain.Resource(), L"bloom down chain [%lu] (offscreen buffers object %p)", version, this);
+			{
+				const auto bloomDownChainDesc = buffersDesc.BloomDownChain();
+				CheckHR(device->CreatePlacedResource(
+					shaders.VRAMBackingStore.Get(),
+					OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.postFX_2.bloomDownChain.offset),
+					&bloomDownChainDesc,
+					D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+					NULL,
+					IID_PPV_ARGS(lifetimeRanges.postFX_2.bloomDownChain.resource.ReleaseAndGetAddressOf())
+				));
+				NameObjectF(lifetimeRanges.postFX_2.bloomDownChain.Resource(), L"bloom down chain [%lu] (offscreen buffers object %p)", version, this);
+			}
 		}
 
 		// create LDR offscreen surface (D3D12 disallows UAV on swap chain backbuffers)
-		CheckHR(device->CreatePlacedResource(
-			shaders.VRAMBackingStore.Get(),
-			OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.postFX_2.LDRSurface.offset),
-			&buffersDesc.LDRSurface(),
-			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-			NULL,
-			IID_PPV_ARGS(lifetimeRanges.postFX_2.LDRSurface.resource.ReleaseAndGetAddressOf())
-		));
-		NameObjectF(lifetimeRanges.postFX_2.LDRSurface.Resource(), L"LDR offscreen surface [%lu] (offscreen buffers object %p)", version, this);
+		{
+			const auto LDRSurfaceDesc = buffersDesc.LDRSurface();
+			CheckHR(device->CreatePlacedResource(
+				shaders.VRAMBackingStore.Get(),
+				OffscreenBuffersLayout::RemoveHeapOffset(lifetimeRanges.postFX_2.LDRSurface.offset),
+				&LDRSurfaceDesc,
+				D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+				NULL,
+				IID_PPV_ARGS(lifetimeRanges.postFX_2.LDRSurface.resource.ReleaseAndGetAddressOf())
+			));
+			NameObjectF(lifetimeRanges.postFX_2.LDRSurface.Resource(), L"LDR offscreen surface [%lu] (offscreen buffers object %p)", version, this);
+		}
 	}
 
 	// fill descriptor heaps
@@ -709,9 +754,12 @@ void OffscreenBuffers::Resize(UINT width, UINT height, bool allowShrink)
 
 		static unsigned long version = -1;
 		version++;	// preincrement improves exception safety
-		CheckHR(device->CreateHeap(&CD3DX12_HEAP_DESC(requiredROPsStore, D3D12_HEAP_TYPE_DEFAULT, D3D12_DEFAULT_MSAA_RESOURCE_PLACEMENT_ALIGNMENT, D3D12_HEAP_FLAG_ALLOW_ONLY_RT_DS_TEXTURES), IID_PPV_ARGS(ROPs.VRAMBackingStore.GetAddressOf())));
+		const CD3DX12_HEAP_DESC
+			ROPsHeapDesc(requiredROPsStore, D3D12_HEAP_TYPE_DEFAULT, D3D12_DEFAULT_MSAA_RESOURCE_PLACEMENT_ALIGNMENT, D3D12_HEAP_FLAG_ALLOW_ONLY_RT_DS_TEXTURES),
+			shadersHeapDesc(requiredShadersStore, D3D12_HEAP_TYPE_DEFAULT, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT, D3D12_HEAP_FLAG_ALLOW_ONLY_NON_RT_DS_TEXTURES);
+		CheckHR(device->CreateHeap(&ROPsHeapDesc, IID_PPV_ARGS(ROPs.VRAMBackingStore.GetAddressOf())));
 		NameObjectF(ROPs.VRAMBackingStore.Get(), L"VRAM backing store for ROPs offscreen buffers [%lu]", version);
-		CheckHR(device->CreateHeap(&CD3DX12_HEAP_DESC(requiredShadersStore, D3D12_HEAP_TYPE_DEFAULT, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT, D3D12_HEAP_FLAG_ALLOW_ONLY_NON_RT_DS_TEXTURES), IID_PPV_ARGS(shaders.VRAMBackingStore.GetAddressOf())));
+		CheckHR(device->CreateHeap(&shadersHeapDesc, IID_PPV_ARGS(shaders.VRAMBackingStore.GetAddressOf())));
 		NameObjectF(shaders.VRAMBackingStore.Get(), L"VRAM backing store for shaders offscreen buffers [%lu]", version);
 
 		// need to recreate all buffers due to underlying heaps have been changed

@@ -101,7 +101,8 @@ public:
 template<class Base>
 void Impl::TexStuff<Base>::SetupQuad(ID3D12GraphicsCommandList4 *cmdList, HLSL::float2 quadCenter) const
 {
-	cmdList->SetGraphicsRoot32BitConstants(ROOT_PARAM_QUAD_TEXGEN_REDUCTION, 2, &(quadCenter * texScale).apply(roundf), 0);
+	const auto quadTexgenReduction = (quadCenter * texScale).apply(roundf);
+	cmdList->SetGraphicsRoot32BitConstants(ROOT_PARAM_QUAD_TEXGEN_REDUCTION, 2, &quadTexgenReduction, 0);
 }
 
 // inline for devirtualized call from derived

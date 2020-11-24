@@ -450,7 +450,8 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(PerViewCmdBuffers::Def
 		// gfx
 		cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
 		const CD3DX12_RECT halfresRTRect(0, 0, (width + 1) / 2, (height + 1) / 2);
-		cmdList->RSSetViewports(1, &CD3DX12_VIEWPORT(halfresRTRect.left, halfresRTRect.top, halfresRTRect.right, halfresRTRect.bottom));
+		const CD3DX12_VIEWPORT halfresViewport(halfresRTRect.left, halfresRTRect.top, halfresRTRect.right, halfresRTRect.bottom);
+		cmdList->RSSetViewports(1, &halfresViewport);
 		cmdList->RSSetScissorRects(1, &halfresRTRect);
 		cmdList->SetGraphicsRootSignature(postprocessRootSigs.gfx.Get());
 		cmdList->SetGraphicsRootDescriptorTable(GFX_ROOT_PARAM_DESC_TABLE, postprocessDescriptorTable);
@@ -544,7 +545,8 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(PerViewCmdBuffers::Def
 	{
 		// no clears/discards for RT, preserve pre/post => don't use render pass here
 		cmdList->SetPipelineState(DOF_splatting_PSO.Get());
-		cmdList->OMSetRenderTargets(2, &offscreenBuffers.GetRTV(offscreenBuffers.DOF_LAYERS_RTVs), TRUE, NULL);
+		const auto DOFLayersRTVs = offscreenBuffers.GetRTV(offscreenBuffers.DOF_LAYERS_RTVs);
+		cmdList->OMSetRenderTargets(2, &DOFLayersRTVs, TRUE, NULL);
 		cmdList->DrawInstanced(((width + 1) / 2) * ((height + 1) / 2), 1, 0, 0);
 	}
 
@@ -585,7 +587,10 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(PerViewCmdBuffers::Def
 		cmdList->Dispatch(halfResDispatchSize.x, halfResDispatchSize.y, 1);
 		ID3D12Resource *const bloomUpChain = offscreenBuffers.GetPostFX2Buffers().bloomUpChain.Resource(), *const bloomDownChain = offscreenBuffers.GetPostFX2Buffers().bloomDownChain.Resource();
 
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(bloomDownChain, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, 0));
+		{
+			const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(bloomDownChain, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, 0);
+			cmdList->ResourceBarrier(1, &barrier);
+		}
 
 		const UINT bloomUpChainLen = bloomUpChain->GetDesc().MipLevels, bloomDownChainLen = bloomDownChain->GetDesc().MipLevels;
 		UINT lod = 0;
@@ -641,7 +646,10 @@ inline RenderPipeline::PipelineStage Impl::Viewport::Post(PerViewCmdBuffers::Def
 	}
 
 	// copy to output
-	cmdList->CopyTextureRegion(&CD3DX12_TEXTURE_COPY_LOCATION(output, 0), 0, 0, 0, &CD3DX12_TEXTURE_COPY_LOCATION(offscreenBuffers.GetPostFX2Buffers().LDRSurface.Resource(), 0), NULL);
+	{
+		const CD3DX12_TEXTURE_COPY_LOCATION copyDst(output, 0), copySrc(offscreenBuffers.GetPostFX2Buffers().LDRSurface.Resource(), 0);
+		cmdList->CopyTextureRegion(&copyDst, 0, 0, 0, &copySrc, NULL);
+	}
 
 	{
 		/*
@@ -684,10 +692,12 @@ Impl::Viewport::Viewport(shared_ptr<const Renderer::World> world) : world(move(w
 		create camera settings buffer
 		very small size - consider sharing it with other viewport persistent data
 	*/
+	const CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
+	const auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(CameraParams::Settings), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 	CheckHR(device->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		&heapProps,
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(sizeof(CameraParams::Settings), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS),
+		&bufferDesc,
 		D3D12_RESOURCE_STATE_COPY_DEST,
 		NULL,
 		IID_PPV_ARGS(cameraSettingsBuffer.GetAddressOf())

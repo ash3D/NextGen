@@ -2925,7 +2925,7 @@ typedef SegmentIterator<true> WeightsSegmentIterator;
 const double3 sunExtraterrestrialIrradianceRGB = []
 {
 	// TODO: use C++20 ranges with projection instead of cmp
-#if defined _MSC_VER && _MSC_VER <= 1927
+#if defined _MSC_VER && _MSC_VER <= 1928
 	static constexpr auto wavelengthOrder = [](const remove_extent_t<decltype(spectralIrradianceTable)> &left, const remove_extent_t<decltype(spectralIrradianceTable)> &right) constexpr noexcept
 	{
 		return left[0] < right[0];
